@@ -1,0 +1,36 @@
+@font-face {
+    font-family: "Bauer Bodoni Pro_1 W05 Roman";
+    src: local('Bauer Bodoni Pro 1 W01 Roman'), local('BauerBodoniPro1W01-Roman'),
+        url('fonts/BauerBodoniPro1W01-Roman.woff2') format('woff2'),
+        url('fonts/BauerBodoniPro1W01-Roman.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'AvenirNextLTW01';
+    src: url('fonts/AvenirNextLTW01-Regular.woff2') format('woff2'),
+        url('fonts/AvenirNextLTW01-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'AvenirNextLTW01';
+    src: url('fonts/AvenirNextLTW01-UltraLight.woff2') format('woff2'),
+        url('fonts/AvenirNextLTW01-UltraLight.woff') format('woff');
+    font-weight: 200;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'AvenirNextLTW01';
+    src: url('fonts/AvenirNextLTW01-Medium.woff2') format('woff2'),
+        url('fonts/AvenirNextLTW01-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}

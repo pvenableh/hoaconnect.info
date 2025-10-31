@@ -1,0 +1,43 @@
+:root {
+  --black: rgb(18, 28, 38);
+  --blackrgb: 18, 28, 38;
+  --white: #ffffff;
+  --pink: #ff00cc;
+  --red: #FF005C;
+  --orange: #ffcc00;
+  --blue: #00bfff;
+  --cyan: #00bfff;
+  --cyanTwo: #00efd1;
+  --green: #6cfe40;
+  --yellow:  #FFF500;
+  --gray: #666666;
+  --grey: #666666;
+  --small: 640px;
+  --medium: 768px;
+  --large: 1024px;
+  --xlarge: 1280px;
+  --xxlarge: 1420px;
+  --breakpoint-small: 640px;
+  --breakpoint-medium: 768px;
+  --breakpoint-large: 1024px;
+  --breakpoint-xlarge: 1280px;
+  --font-bold: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+  --font-body: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  --font-light: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  --font-display: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  --font-sans: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  --font-serif: 'Bauer Bodoni W01 Roman', 'Times New Roman', Times, serif;
+
+  --font-signature: 'Gaegu', cursive;
+  --bounce: cubic-bezier(0.205, 0.47, 0.36, 1.385);
+  --curve: cubic-bezier(0.65, 0, 0.45, 1);
+  --bounce2: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --hoverEasing: cubic-bezier(0.23, 1, 0.32, 1);
+  --returnEasing: cubic-bezier(0.445, 0.05, 0.55, 0.95);
+  --border-radius-button: 30px;
+}
