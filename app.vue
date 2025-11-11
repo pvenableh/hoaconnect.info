@@ -4,6 +4,9 @@
       <NuxtPage />
     </NuxtLayout>
   </div>
+  <Toaster />
 </template>
 
-<script setup></script>
+<script setup>
+import { Toaster } from "@/components/ui/sonner";
+</script>

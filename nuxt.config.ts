@@ -2,6 +2,7 @@
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
+  extends: ["directus-nuxt-layer"],
   devtools: { enabled: true },
   modules: [
     "@nuxt/icon",
@@ -19,12 +20,20 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
 
   runtimeConfig: {
-    // Private keys (server-side only)
-    adminPassword: process.env.ADMIN_PASSWORD || "portfolio123",
-    jwtSecret: process.env.JWT_SECRET || "your-secret-key",
-
     // Public keys (exposed to client-side)
+    directusServerToken: process.env.DIRECTUS_STATIC_TOKEN || "",
+    directus: {
+      url: process.env.DIRECTUS_URL,
+      adminEmail: process.env.DIRECTUS_ADMIN_EMAIL,
+      adminPassword: process.env.DIRECTUS_ADMIN_PASSWORD,
+      staticToken: process.env.DIRECTUS_STATIC_TOKEN,
+    },
     public: {
+      directus: {
+        url: process.env.DIRECTUS_URL,
+        websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
+      },
+      directusUrl: process.env.DIRECTUS_URL,
       siteTitle: "605 Lincoln Road",
       siteSubtitle: "",
       siteDescription:
