@@ -39,7 +39,7 @@ const props = defineProps({
 const handleError = () => clearError({ redirect: "/" });
 const refresh = () => clearError();
 
-useHead({
-  title: `Error ${props.error?.statusCode || ""} - Portfolio`,
-});
+// useHead({
+//   title: `Error ${props.error?.statusCode || ""} - Portfolio`,
+// });
 </script>

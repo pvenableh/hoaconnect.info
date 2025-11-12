@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineNuxtConfig({
   extends: ["directus-nuxt-layer"],
   devtools: { enabled: true },
+  debug: true,
   modules: [
     "@nuxt/icon",
     "@nuxt/image",

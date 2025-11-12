@@ -1,106 +1,116 @@
 <script setup lang="ts">
-import { toTypedSchema } from '@vee-validate/zod'
-import { useForm } from 'vee-validate'
-import { toast } from 'vue-sonner'
-import { registerSchema, type RegisterSchema } from '~/schemas/auth'
+import { toTypedSchema } from "@vee-validate/zod";
+import { useForm } from "vee-validate";
+import { toast } from "vue-sonner";
+import { registerSchema, type RegisterSchema } from "~/schemas/auth";
 
 interface Props {
-  title?: string
-  description?: string
-  redirectTo?: string
+  title?: string;
+  description?: string;
+  redirectTo?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Create an account',
-  description: 'Enter your information to get started',
-  redirectTo: '/login',
-})
+  title: "Create an account",
+  description: "Enter your information to get started",
+  redirectTo: "/login",
+});
 
 const emit = defineEmits<{
-  success: [user: any]
-  error: [error: Error]
-}>()
+  success: [user: any];
+  error: [error: Error];
+}>();
 
-const { register } = useDirectusAuth()
-const router = useRouter()
+const { register } = useDirectusAuth();
+const router = useRouter();
 
-const loading = ref(false)
+const loading = ref(false);
+const hasSubmitted = ref(false);
 const {
-  formRef,
   animateError,
   animateValidationError,
   animateSuccess,
   animateButtonLoading,
-  resetButtonLoading
-} = useFormAnimations()
+  resetButtonLoading,
+} = useFormAnimations();
 
 const form = useForm({
   validationSchema: toTypedSchema(registerSchema),
   initialValues: {
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
   },
-})
+});
 
-watch(() => form.errors.value, (errors) => {
-  Object.keys(errors).forEach(fieldName => {
-    if (errors[fieldName]) {
-      animateValidationError(fieldName)
-    }
-  })
-})
-
-const onSubmit = form.handleSubmit(async (values: RegisterSchema) => {
-  loading.value = true
-  const submitBtn = document.querySelector('.submit-button')
-  if (submitBtn) {
-    animateButtonLoading(submitBtn as HTMLElement)
+const handleBlur = async (fieldName: keyof RegisterSchema) => {
+  const result = await form.validateField(fieldName);
+  if (result.errors.length > 0) {
+    animateValidationError(fieldName as string);
   }
+};
 
-  try {
-    const result = await register({
-      email: values.email,
-      password: values.password,
-      firstName: values.firstName,
-      lastName: values.lastName,
-    })
-    
+const onSubmit = form.handleSubmit(
+  async (values: RegisterSchema) => {
+    hasSubmitted.value = true;
+    loading.value = true;
+    const submitBtn = document.querySelector(".submit-button");
     if (submitBtn) {
-      animateSuccess(submitBtn as HTMLElement)
+      animateButtonLoading(submitBtn as HTMLElement);
     }
-    
-    toast.success('Account created!', {
-      description: 'Please log in with your new credentials.'
-    })
-    
-    emit('success', result.user)
-    await router.push(props.redirectTo)
-  } catch (err: any) {
-    const errorMessage = err.message || 'Registration failed. Please try again.'
-    
-    if (formRef.value) {
-      animateError(formRef.value)
+
+    try {
+      const result = await register({
+        email: values.email,
+        password: values.password,
+        firstName: values.firstName,
+        lastName: values.lastName,
+      });
+
+      if (submitBtn) {
+        animateSuccess(submitBtn as HTMLElement);
+      }
+
+      toast.success("Account created!", {
+        description: "Please log in with your new credentials.",
+      });
+
+      emit("success", result.user);
+      await router.push(props.redirectTo);
+    } catch (err: any) {
+      const errorMessage =
+        err.message || "Registration failed. Please try again.";
+
+      const card = document.querySelector(".auth-card");
+      if (card) {
+        animateError(card as HTMLElement);
+      }
+
+      toast.error("Registration failed", {
+        description: errorMessage,
+      });
+
+      emit("error", err);
+    } finally {
+      loading.value = false;
+      if (submitBtn) {
+        resetButtonLoading(submitBtn as HTMLElement);
+      }
     }
-    
-    toast.error('Registration failed', {
-      description: errorMessage
-    })
-    
-    emit('error', err)
-  } finally {
-    loading.value = false
-    if (submitBtn) {
-      resetButtonLoading(submitBtn as HTMLElement)
-    }
+  },
+  async () => {
+    hasSubmitted.value = true;
+    Object.keys(form.errors.value).forEach((fieldName) => {
+      animateValidationError(fieldName);
+    });
   }
-})
+);
 </script>
 
 <template>
-  <Card ref="formRef" class="w-full max-w-md mx-auto">
+  <Card class="w-full max-w-md mx-auto auth-card">
     <CardHeader>
       <CardTitle>{{ title }}</CardTitle>
       <CardDescription>{{ description }}</CardDescription>
@@ -113,11 +123,7 @@ const onSubmit = form.handleSubmit(async (values: RegisterSchema) => {
             <FormItem class="form-field">
               <FormLabel>First name</FormLabel>
               <FormControl>
-                <Input
-                  type="text"
-                  placeholder="John"
-                  v-bind="componentField"
-                />
+                <Input type="text" placeholder="John" v-bind="componentField" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -127,11 +133,7 @@ const onSubmit = form.handleSubmit(async (values: RegisterSchema) => {
             <FormItem class="form-field">
               <FormLabel>Last name</FormLabel>
               <FormControl>
-                <Input
-                  type="text"
-                  placeholder="Doe"
-                  v-bind="componentField"
-                />
+                <Input type="text" placeholder="Doe" v-bind="componentField" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -180,12 +182,8 @@ const onSubmit = form.handleSubmit(async (values: RegisterSchema) => {
           </FormItem>
         </FormField>
 
-        <Button
-          type="submit"
-          class="w-full submit-button"
-          :disabled="loading"
-        >
-          {{ loading ? 'Creating account...' : 'Create account' }}
+        <Button type="submit" class="w-full submit-button" :disabled="loading">
+          {{ loading ? "Creating account..." : "Create account" }}
         </Button>
       </form>
     </CardContent>

@@ -3,8 +3,8 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <Toaster />
   </div>
-  <Toaster />
 </template>
 
 <script setup>

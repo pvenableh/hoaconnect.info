@@ -27,8 +27,9 @@ const { login, loginWithGitHub, loginWithGoogle } = useDirectusAuth();
 const router = useRouter();
 
 const loading = ref(false);
+const hasSubmitted = ref(false); // Track if form has been submitted
+
 const {
-  formRef,
   animateError,
   animateValidationError,
   animateSuccess,
@@ -44,56 +45,63 @@ const form = useForm({
   },
 });
 
-watch(
-  () => form.errors.value,
-  (errors) => {
-    (Object.keys(errors) as Array<keyof typeof errors>).forEach((fieldName) => {
-      if (errors[fieldName]) {
-        animateValidationError(fieldName);
+const handleBlur = async (fieldName: keyof LoginSchema) => {
+  const result = await form.validateField(fieldName);
+  if (result.errors.length > 0) {
+    animateValidationError(fieldName as string);
+  }
+};
+
+const onSubmit = form.handleSubmit(
+  async (values: LoginSchema) => {
+    hasSubmitted.value = true;
+    loading.value = true;
+    const submitBtn = document.querySelector(".submit-button");
+    if (submitBtn) {
+      animateButtonLoading(submitBtn as HTMLElement);
+    }
+
+    try {
+      const result = await login(values.email, values.password);
+
+      if (submitBtn) {
+        animateSuccess(submitBtn as HTMLElement);
       }
+
+      toast.success("Welcome back!", {
+        description: "You have successfully logged in.",
+      });
+
+      emit("success", result.user);
+      await router.push(props.redirectTo);
+    } catch (err: any) {
+      const errorMessage = err.message || "Login failed. Please try again.";
+
+      const card = document.querySelector(".auth-card");
+      if (card) {
+        animateError(card as HTMLElement);
+      }
+
+      toast.error("Login failed", {
+        description: errorMessage,
+      });
+
+      emit("error", err);
+    } finally {
+      loading.value = false;
+      if (submitBtn) {
+        resetButtonLoading(submitBtn as HTMLElement);
+      }
+    }
+  },
+  // Validation failure handler
+  async () => {
+    hasSubmitted.value = true;
+    Object.keys(form.errors.value).forEach((fieldName) => {
+      animateValidationError(fieldName);
     });
   }
 );
-
-const onSubmit = form.handleSubmit(async (values: LoginSchema) => {
-  loading.value = true;
-  const submitBtn = document.querySelector(".submit-button");
-  if (submitBtn) {
-    animateButtonLoading(submitBtn as HTMLElement);
-  }
-
-  try {
-    const result = await login(values.email, values.password);
-
-    if (submitBtn) {
-      animateSuccess(submitBtn as HTMLElement);
-    }
-
-    toast.success("Welcome back!", {
-      description: "You have successfully logged in.",
-    });
-
-    emit("success", result.user);
-    await router.push(props.redirectTo);
-  } catch (err: any) {
-    const errorMessage = err.message || "Login failed. Please try again.";
-
-    if (formRef.value) {
-      animateError(formRef.value);
-    }
-
-    toast.error("Login failed", {
-      description: errorMessage,
-    });
-
-    emit("error", err);
-  } finally {
-    loading.value = false;
-    if (submitBtn) {
-      resetButtonLoading(submitBtn as HTMLElement);
-    }
-  }
-});
 
 const handleOAuthLogin = (provider: "github" | "google") => {
   if (provider === "github") {
@@ -105,7 +113,7 @@ const handleOAuthLogin = (provider: "github" | "google") => {
 </script>
 
 <template>
-  <Card ref="formRef" class="w-full max-w-md mx-auto">
+  <Card class="w-full max-w-md mx-auto auth-card">
     <CardHeader>
       <CardTitle>{{ title }}</CardTitle>
       <CardDescription>{{ description }}</CardDescription>
@@ -121,6 +129,7 @@ const handleOAuthLogin = (provider: "github" | "google") => {
                 type="email"
                 placeholder="name@example.com"
                 v-bind="componentField"
+                @blur="handleBlur('email')"
               />
             </FormControl>
             <FormMessage />
@@ -135,6 +144,7 @@ const handleOAuthLogin = (provider: "github" | "google") => {
                 type="password"
                 placeholder="••••••••"
                 v-bind="componentField"
+                @blur="handleBlur('password')"
               />
             </FormControl>
             <FormMessage />
