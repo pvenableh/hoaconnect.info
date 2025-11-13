@@ -3,8 +3,11 @@ import {
   createUser,
   createItem,
   updateItem,
+  authentication,
+  rest,
   readMe,
 } from "@directus/sdk";
+import { createDirectus } from "@directus/sdk";
 import { getAdminDirectus } from "../../utils/directus";
 import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
 
@@ -22,6 +25,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const directus = await getAdminDirectus();
+    const config = useRuntimeConfig();
 
     // 1. Find the invitation by token
     const invitations = await directus.request(
@@ -134,12 +138,15 @@ export default defineEventHandler(async (event) => {
     );
 
     // 9. Log the user in automatically
-    const authResult = await directus.login({
-      email: invitation.email,
-      password,
-    });
+    // Create a new client for authentication (can't use admin client for user login)
+    const authClient = createDirectus(config.directus.url)
+      .with(authentication())
+      .with(rest());
 
-    const user = await directus.request(readMe());
+    const authResult = await authClient.login(invitation.email, password);
+
+    // Get user details
+    const user = await authClient.request(readMe());
 
     // Set user session
     await setUserSession(
@@ -154,7 +161,7 @@ export default defineEventHandler(async (event) => {
           provider: "local",
         },
         loggedInAt: Date.now(),
-        expiresAt: Date.now() + authResult.expires * 1000,
+        expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
       },
       {
         secure: {
