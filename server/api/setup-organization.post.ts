@@ -1,7 +1,13 @@
-import { createUser, createItem } from "@directus/sdk";
+import {
+  createUser,
+  createItem,
+  readItems,
+  authentication,
+  rest,
+} from "@directus/sdk";
+import { createDirectus } from "@directus/sdk";
 import { getAdminDirectus } from "../../utils/directus";
 import { sendWelcomeEmail } from "../../utils/sendgrid";
-import { randomBytes } from "crypto";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -42,9 +48,26 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 2. Get the "HOA Admin" role UUID (you need to create this role first or use existing)
-    // For now, we'll use a placeholder - you'll need to replace this with actual role UUID
-    const hoaAdminRoleId = "YOUR_HOA_ADMIN_ROLE_UUID"; // TODO: Replace with actual UUID
+    // 2. Get the "HOA Admin" role UUID
+    // First, try to find the role by name
+    const roles = await directus.request(
+      readItems("directus_roles", {
+        filter: {
+          name: { _eq: "HOA Admin" },
+        },
+        limit: 1,
+      })
+    );
+
+    if (!roles || roles.length === 0) {
+      throw createError({
+        statusCode: 500,
+        message:
+          "HOA Admin role not found. Please create it in Directus first or set HOA_ADMIN_ROLE_ID in environment variables.",
+      });
+    }
+
+    const hoaAdminRoleId = roles[0].id;
 
     // 3. Create the Directus user (admin for this HOA)
     const newUser = await directus.request(
@@ -83,7 +106,12 @@ export default defineEventHandler(async (event) => {
     );
 
     // 6. Automatically log the user in
-    const authResult = await directus.login({ email, password });
+    // Create a new client for authentication (can't use admin client for user login)
+    const authClient = createDirectus(config.directus.url)
+      .with(authentication())
+      .with(rest());
+
+    const authResult = await authClient.login(email, password);
 
     // Set user session
     await setUserSession(
@@ -98,7 +126,7 @@ export default defineEventHandler(async (event) => {
           provider: "local",
         },
         loggedInAt: Date.now(),
-        expiresAt: Date.now() + authResult.expires * 1000,
+        expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
       },
       {
         secure: {
@@ -113,8 +141,9 @@ export default defineEventHandler(async (event) => {
       await sendWelcomeEmail({
         to: email,
         firstName,
+        lastName,
         organizationName,
-        dashboardUrl: `${config.public.appUrl}/dashboard`,
+        loginUrl: `${config.public.appUrl}/dashboard`,
       });
 
       console.log("✅ Welcome email sent successfully to:", email);

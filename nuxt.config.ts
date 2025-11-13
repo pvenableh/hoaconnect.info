@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
 
   runtimeConfig: {
-    // Public keys (exposed to client-side)
+    // Server-only keys (never exposed to client-side)
     directusServerToken: process.env.DIRECTUS_STATIC_TOKEN || "",
     directus: {
       url: process.env.DIRECTUS_URL,
@@ -29,12 +29,20 @@ export default defineNuxtConfig({
       adminPassword: process.env.DIRECTUS_ADMIN_PASSWORD,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
     },
+    // SendGrid configuration
+    sendgridApiKey: process.env.SENDGRID_API_KEY || "",
+    sendgridInvitationTemplateId: process.env.SENDGRID_INVITATION_TEMPLATE_ID || "",
+    sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID || "",
+    sendgridInvitationAcceptedTemplateId: process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID || "",
+
     public: {
       directus: {
         url: process.env.DIRECTUS_URL,
         websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
       },
       directusUrl: process.env.DIRECTUS_URL,
+      appUrl: process.env.APP_URL || "http://localhost:3000",
+      fromEmail: process.env.FROM_EMAIL || "noreply@605lincolnroad.com",
       siteTitle: "605 Lincoln Road",
       siteSubtitle: "",
       siteDescription:
