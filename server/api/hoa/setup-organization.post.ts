@@ -37,10 +37,17 @@ export default defineEventHandler(async (event) => {
     const directus = await getAdminDirectus();
     const config = useRuntimeConfig();
 
+    // Generate a slug from organization name
+    const slug = organizationName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
     // 1. Create the organization
     const organization = await directus.request(
       createItem("hoa_organizations", {
         name: organizationName,
+        slug: slug,
         street_address: organizationAddress,
         subscription_plan: subscriptionPlanId || null,
         status: "published",

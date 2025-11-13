@@ -4,7 +4,7 @@ export const useActiveHoa = () => {
   const isLoading = useState("hoaLoading", () => false);
   const config = useRuntimeConfig();
 
-  const fetchActiveHoa = async () => {
+  const fetchActiveHoa = async (slug?: string | null) => {
     if (import.meta.client && !activeHoa.value && !isLoading.value) {
       isLoading.value = true;
 
@@ -23,14 +23,25 @@ export const useActiveHoa = () => {
         return null;
       }
 
-      // Fetch HOA by domain
+      // Fetch HOA by slug or domain
       try {
-        const response = await $fetch("/api/hoa/by-domain", {
-          query: { domain },
-        });
+        let response;
+
+        if (slug) {
+          // Fetch by slug (subdomain of main domain)
+          response = await $fetch("/api/hoa/by-slug", {
+            query: { slug },
+          });
+        } else {
+          // Fetch by custom domain
+          response = await $fetch("/api/hoa/by-domain", {
+            query: { domain },
+          });
+        }
+
         activeHoa.value = response;
       } catch (error) {
-        console.error("No HOA found for domain:", domain);
+        console.error("No HOA found for", slug ? `slug: ${slug}` : `domain: ${domain}`);
         activeHoa.value = null;
       } finally {
         isLoading.value = false;

@@ -18,9 +18,22 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   const isMainDomain = mainDomains.includes(domain);
 
-  // Fetch HOA if custom domain
+  // Check if it's a subdomain of main domain (e.g., myorg.property.huestudios.com)
+  const isSubdomainOfMain =
+    !isMainDomain &&
+    config.public.mainDomain &&
+    domain.endsWith(`.${config.public.mainDomain}`);
+
+  // Fetch HOA if custom domain or subdomain
   if (!isMainDomain && !activeHoa.value) {
-    await fetchActiveHoa();
+    let slug = null;
+
+    // Extract slug from subdomain if applicable
+    if (isSubdomainOfMain) {
+      slug = domain.replace(`.${config.public.mainDomain}`, "");
+    }
+
+    await fetchActiveHoa(slug);
 
     // Redirect to main if no HOA found
     if (!activeHoa.value) {
