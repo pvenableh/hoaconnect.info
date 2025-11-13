@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDirectusAuth, useDirectusItems } from "#imports";
-
+import { toast } from "vue-sonner";
 definePageMeta({
   middleware: "auth", // Requires authentication
 });
@@ -32,6 +32,10 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+const handleInviteSuccess = () => {
+  toast.success("Invitation sent successfully!");
+};
 
 useSeoMeta({
   title: "Manage Members",
@@ -75,9 +79,9 @@ useSeoMeta({
       </Card>
 
       <!-- Invite Member Form -->
-      <HoaInviteMemberForm
+      <InviteMemberForm
         :organization-id="organization.id"
-        @success="() => $toast.success('Invitation sent successfully!')"
+        @success="handleInviteSuccess"
       />
 
       <!-- TODO: Add a table/list of existing members and pending invitations -->

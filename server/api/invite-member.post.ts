@@ -1,6 +1,6 @@
 import { createItem, readItem } from "@directus/sdk";
-import { getAdminDirectus } from "../../utils/directus";
-import { sendHoaInvitationEmail } from "../../utils/sendgrid";
+import { getAdminDirectus } from "../utils/directus";
+import { sendHoaInvitationEmail } from "../utils/sendgrid";
 import { randomBytes } from "crypto";
 
 export default defineEventHandler(async (event) => {

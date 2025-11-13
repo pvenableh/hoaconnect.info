@@ -25,15 +25,20 @@ export default defineNuxtConfig({
     directusServerToken: process.env.DIRECTUS_STATIC_TOKEN || "",
     directus: {
       url: process.env.DIRECTUS_URL,
-      adminEmail: process.env.DIRECTUS_ADMIN_EMAIL,
-      adminPassword: process.env.DIRECTUS_ADMIN_PASSWORD,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
+    },
+    vercel: {
+      apiToken: process.env.VERCEL_API_TOKEN,
+      projectId: process.env.VERCEL_PROJECT_ID,
+      teamId: process.env.VERCEL_TEAM_ID || "",
     },
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY || "",
-    sendgridInvitationTemplateId: process.env.SENDGRID_INVITATION_TEMPLATE_ID || "",
+    sendgridInvitationTemplateId:
+      process.env.SENDGRID_INVITATION_TEMPLATE_ID || "",
     sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID || "",
-    sendgridInvitationAcceptedTemplateId: process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID || "",
+    sendgridInvitationAcceptedTemplateId:
+      process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID || "",
 
     public: {
       directus: {
@@ -41,6 +46,7 @@ export default defineNuxtConfig({
         websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
       },
       directusUrl: process.env.DIRECTUS_URL,
+      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN,
       appUrl: process.env.APP_URL || "http://localhost:3000",
       fromEmail: process.env.FROM_EMAIL || "noreply@605lincolnroad.com",
       siteTitle: "605 Lincoln Road",
