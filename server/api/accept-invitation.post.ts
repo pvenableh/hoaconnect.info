@@ -8,8 +8,8 @@ import {
   readMe,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
-import { getAdminDirectus } from "../../utils/directus";
-import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
+import { getAdminDirectus } from "../utils/directus";
+import { sendInvitationAcceptedEmail } from "../utils/sendgrid";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_invitations", {
         filter: {
           token: { _eq: token },
-          invitation_status: { _eq: "pending" },
+          invitation_status: { _eq: "pending" as const },
         },
         fields: ["*", "organization.*", "invited_by.*"],
         limit: 1,
@@ -149,27 +149,18 @@ export default defineEventHandler(async (event) => {
     const user = await authClient.request(readMe());
 
     // Set user session
-    await setUserSession(
-      event,
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: typeof user.role === "object" ? user.role.name : user.role,
-          provider: "local",
-        },
-        loggedInAt: Date.now(),
-        expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+    await setUserSession(event, {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: typeof user.role === "object" ? user.role.name : user.role,
+        provider: "local",
       },
-      {
-        secure: {
-          directusAccessToken: authResult.access_token,
-          directusRefreshToken: authResult.refresh_token,
-        },
-      }
-    );
+      loggedInAt: Date.now(),
+      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+    });
 
     // 10. Send notification email to admin who sent the invitation
     try {

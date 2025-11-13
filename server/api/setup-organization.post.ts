@@ -6,8 +6,8 @@ import {
   rest,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
-import { getAdminDirectus } from "../../utils/directus";
-import { sendWelcomeEmail } from "../../utils/sendgrid";
+import { getAdminDirectus } from "../utils/directus";
+import { sendWelcomeEmail } from "../utils/sendgrid";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -114,27 +114,18 @@ export default defineEventHandler(async (event) => {
     const authResult = await authClient.login(email, password);
 
     // Set user session
-    await setUserSession(
-      event,
-      {
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          firstName: newUser.first_name,
-          lastName: newUser.last_name,
-          role: hoaAdminRoleId,
-          provider: "local",
-        },
-        loggedInAt: Date.now(),
-        expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+    await setUserSession(event, {
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+        role: hoaAdminRoleId,
+        provider: "local",
       },
-      {
-        secure: {
-          directusAccessToken: authResult.access_token,
-          directusRefreshToken: authResult.refresh_token,
-        },
-      }
-    );
+      loggedInAt: Date.now(),
+      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+    });
 
     // 7. Send welcome email via SendGrid
     try {
