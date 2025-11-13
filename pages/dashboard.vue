@@ -29,12 +29,12 @@ const { data: documents, refresh: refreshDocs } = await useAsyncData(
   }
 );
 
-// Fetch people count
-const { data: people, refresh: refreshPeople } = await useAsyncData(
-  `dashboard-people-${orgId.value}`,
+// Fetch members count
+const { data: members, refresh: refreshMembers } = await useAsyncData(
+  `dashboard-members-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_people", {
+    const result = await fetchItems("hoa_members", {
       fields: ["id"],
       filter: {
         organization: { _eq: orgId.value },
@@ -63,7 +63,7 @@ const { data: units, refresh: refreshUnits } = await useAsyncData(
 
 const stats = computed(() => ({
   documents: documents.value?.length || 0,
-  people: people.value?.length || 0,
+  members: members.value?.length || 0,
   units: units.value?.length || 0,
   organization: currentOrg.value?.organization?.name || "N/A",
   role: currentRole.value,
@@ -104,11 +104,11 @@ const stats = computed(() => ({
 
           <Card>
             <CardHeader>
-              <CardTitle>People</CardTitle>
+              <CardTitle>Members</CardTitle>
               <CardDescription>Owners & Tenants</CardDescription>
             </CardHeader>
             <CardContent>
-              <p class="text-4xl font-bold">{{ stats.people }}</p>
+              <p class="text-4xl font-bold">{{ stats.members }}</p>
             </CardContent>
           </Card>
 
@@ -170,18 +170,18 @@ const stats = computed(() => ({
                 Manage Units
               </Button>
               <Button
-                @click="navigateTo('/people/new')"
+                @click="navigateTo('/members/invite')"
                 variant="outline"
                 class="w-full"
               >
-                Add Person
+                Invite Member
               </Button>
               <Button
-                @click="navigateTo('/people')"
+                @click="navigateTo('/members')"
                 variant="outline"
                 class="w-full"
               >
-                Manage People
+                Manage Members
               </Button>
             </CardContent>
           </Card>

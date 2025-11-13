@@ -43,7 +43,9 @@ const handleSelect = (orgId: string) => {
           }"
         >
           <p class="font-medium">{{ membership.organization.name }}</p>
-          <p class="text-xs text-stone-500 capitalize">{{ membership.role }}</p>
+          <p class="text-xs text-stone-500">
+            {{ membership.role?.name || "Guest" }}
+          </p>
         </button>
       </div>
     </div>

@@ -77,11 +77,11 @@ export default defineNuxtConfig({
       link: [
         {
           rel: "preconnect",
-          href: "https://admin.605lincolnroad.com",
+          href: "https://property.huestudios.company",
         },
         {
           rel: "dns-prefetch",
-          href: "https://admin.605lincolnroad.com",
+          href: "https://property.huestudios.company",
         },
         {
           rel: "manifest",
@@ -96,7 +96,7 @@ export default defineNuxtConfig({
     },
   },
   site: {
-    url: "https://605lincolnroad.com",
+    url: "https://property.huestudios.company",
     name: "605 Lincoln Road - Premier Streamline Moderne Structure in Miami Beach",
     description:
       "605 Lincoln Road is a prominent Streamline Moderne structure located on the famous pedestrian mall at the corner of Pennsylvania Avenue and Lincoln Road in Miami Beach.",

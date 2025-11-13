@@ -1,13 +1,12 @@
 import {
   createUser,
   createItem,
-  readItems,
+  readRoles,
   authentication,
   rest,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
-import { getAdminDirectus } from "../utils/directus";
-import { sendWelcomeEmail } from "../utils/sendgrid";
+import { sendWelcomeEmail } from "../../utils/sendgrid";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -42,16 +41,15 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       createItem("hoa_organizations", {
         name: organizationName,
-        address: organizationAddress,
+        street_address: organizationAddress,
         subscription_plan: subscriptionPlanId || null,
         status: "published",
       })
     );
 
     // 2. Get the "HOA Admin" role UUID
-    // First, try to find the role by name
     const roles = await directus.request(
-      readItems("directus_roles", {
+      readRoles({
         filter: {
           name: { _eq: "HOA Admin" },
         },
@@ -63,7 +61,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         message:
-          "HOA Admin role not found. Please create it in Directus first or set HOA_ADMIN_ROLE_ID in environment variables.",
+          "HOA Admin role not found. Please create it in Directus first.",
       });
     }
 
@@ -82,31 +80,22 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 4. Create the hoa_member record linking user to organization
+    // 4. Create the hoa_member record with personal info
     const hoaMember = await directus.request(
       createItem("hoa_members", {
         user: newUser.id,
         organization: organization.id,
         role: hoaAdminRoleId,
-        status: "published",
-      })
-    );
-
-    // 5. Create hoa_person record
-    const hoaPerson = await directus.request(
-      createItem("hoa_people", {
         first_name: firstName,
         last_name: lastName,
         email,
         phone,
-        organization: organization.id,
-        type: "owner",
+        member_type: "owner",
         status: "published",
       })
     );
 
-    // 6. Automatically log the user in
-    // Create a new client for authentication (can't use admin client for user login)
+    // 5. Automatically log the user in
     const authClient = createDirectus(config.directus.url)
       .with(authentication())
       .with(rest());
@@ -127,7 +116,7 @@ export default defineEventHandler(async (event) => {
       expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
     });
 
-    // 7. Send welcome email via SendGrid
+    // 6. Send welcome email via SendGrid
     try {
       await sendWelcomeEmail({
         to: email,
@@ -152,6 +141,9 @@ export default defineEventHandler(async (event) => {
       user: {
         id: newUser.id,
         email: newUser.email,
+      },
+      member: {
+        id: hoaMember.id,
       },
     };
   } catch (error: any) {

@@ -6,20 +6,20 @@ import {
   authentication,
   rest,
   readMe,
+  readUsers,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
-import { getAdminDirectus } from "../utils/directus";
-import { sendInvitationAcceptedEmail } from "../utils/sendgrid";
+import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
-  const { token, password } = body;
+  const { token, password, firstName, lastName, phone } = body;
 
-  if (!token || !password) {
+  if (!token || !password || !firstName || !lastName) {
     throw createError({
       statusCode: 400,
-      message: "Token and password are required",
+      message: "Token, password, first name, and last name are required",
     });
   }
 
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
 
     // 3. Check if user already exists with this email
     const existingUsers = await directus.request(
-      readItems("directus_users", {
+      readUsers({
         filter: {
           email: { _eq: invitation.email },
         },
@@ -83,53 +83,35 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // 4. Find the associated person record
-    const people = await directus.request(
-      readItems("hoa_people", {
-        filter: {
-          email: { _eq: invitation.email },
-          organization: { _eq: invitation.organization.id },
-        },
-        fields: ["*"],
-        limit: 1,
-      })
-    );
-
-    const person = people && people.length > 0 ? people[0] : null;
-
-    // 5. Create the Directus user
+    // 4. Create the Directus user
     const newUser = await directus.request(
       createUser({
         email: invitation.email,
         password,
-        first_name: person?.first_name || "",
-        last_name: person?.last_name || "",
+        first_name: firstName,
+        last_name: lastName,
         role: invitation.role,
         status: "active",
         provider: "local",
       })
     );
 
-    // 6. Create hoa_member record linking user to organization
+    // 5. Create hoa_member record with personal info
     await directus.request(
       createItem("hoa_members", {
         user: newUser.id,
         organization: invitation.organization.id,
         role: invitation.role,
+        first_name: firstName,
+        last_name: lastName,
+        email: invitation.email,
+        phone: phone || null,
+        member_type: "owner", // Default to owner, can be changed later
         status: "published",
       })
     );
 
-    // 7. Update person record if exists
-    if (person) {
-      await directus.request(
-        updateItem("hoa_people", person.id, {
-          status: "published", // Activate the person record
-        })
-      );
-    }
-
-    // 8. Mark invitation as accepted
+    // 6. Mark invitation as accepted
     await directus.request(
       updateItem("hoa_invitations", invitation.id, {
         invitation_status: "accepted",
@@ -137,8 +119,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 9. Log the user in automatically
-    // Create a new client for authentication (can't use admin client for user login)
+    // 7. Log the user in automatically
     const authClient = createDirectus(config.directus.url)
       .with(authentication())
       .with(rest());
@@ -162,12 +143,12 @@ export default defineEventHandler(async (event) => {
       expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
     });
 
-    // 10. Send notification email to admin who sent the invitation
+    // 8. Send notification email to admin who sent the invitation
     try {
       await sendInvitationAcceptedEmail({
         to: invitation.invited_by.email,
         adminName: invitation.invited_by.first_name,
-        memberName: `${newUser.first_name} ${newUser.last_name}`,
+        memberName: `${firstName} ${lastName}`,
         memberEmail: newUser.email,
         organizationName: invitation.organization.name,
       });

@@ -10,7 +10,9 @@
               <h1 class="text-2xl font-bold text-blue-600">HOA Connect</h1>
             </div>
             <div class="flex items-center gap-4">
-              <NuxtLink to="/login" class="text-gray-600 hover:text-blue-600"
+              <NuxtLink
+                to="/auth/login"
+                class="text-gray-600 hover:text-blue-600"
                 >Login</NuxtLink
               >
               <button

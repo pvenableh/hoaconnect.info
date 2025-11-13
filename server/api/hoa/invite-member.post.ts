@@ -1,22 +1,12 @@
 import { createItem, readItem } from "@directus/sdk";
-import { getAdminDirectus } from "../utils/directus";
-import { sendHoaInvitationEmail } from "../utils/sendgrid";
+import { sendHoaInvitationEmail } from "../../utils/sendgrid";
 import { randomBytes } from "crypto";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody(event);
 
-  const {
-    email,
-    firstName,
-    lastName,
-    phone,
-    organizationId,
-    roleId,
-    unitId, // Optional - can be null
-    personType = "owner", // 'owner' or 'tenant'
-  } = body;
+  const { email, firstName, lastName, organizationId, roleId } = body;
 
   // Validation
   if (!email || !firstName || !lastName || !organizationId || !roleId) {
@@ -37,34 +27,21 @@ export default defineEventHandler(async (event) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Get organization and role details for email
+    // Get organization details for email
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["name"],
       })
     );
 
+    // Get role details for email (using readItem for directus_roles)
     const role = await directus.request(
       readItem("directus_roles", roleId, {
         fields: ["name"],
       })
     );
 
-    // 1. Create hoa_person record first
-    const hoaPerson = await directus.request(
-      createItem("hoa_people", {
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone,
-        organization: organizationId,
-        unit: unitId,
-        type: personType,
-        status: "draft", // Will be published when they accept
-      })
-    );
-
-    // 2. Create invitation record
+    // Create invitation record
     const invitation = await directus.request(
       createItem("hoa_invitations", {
         email,
@@ -78,7 +55,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 3. Send invitation email via SendGrid
+    // Send invitation email via SendGrid
     const invitationUrl = `${config.public.appUrl}/hoa/accept-invite?token=${token}`;
 
     try {
@@ -106,9 +83,6 @@ export default defineEventHandler(async (event) => {
         id: invitation.id,
         email: invitation.email,
         expiresAt: invitation.expires_at,
-      },
-      person: {
-        id: hoaPerson.id,
       },
     };
   } catch (error: any) {

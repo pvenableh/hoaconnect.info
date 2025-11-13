@@ -17,7 +17,7 @@ const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
   { label: "Documents", path: "/documents", icon: "file" },
   { label: "Units", path: "/units", icon: "door-closed" },
-  { label: "People", path: "/people", icon: "users" },
+  { label: "Members", path: "/members", icon: "users" },
 ];
 </script>
 
@@ -51,6 +51,7 @@ const navItems = [
             {{ user?.firstName }} {{ user?.lastName }}
           </span>
           <Button
+            v-if="user"
             @click="handleLogout"
             variant="outline"
             size="sm"

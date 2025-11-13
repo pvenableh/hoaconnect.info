@@ -14,7 +14,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   title: "Set new password",
   description: "Enter your new password below",
-  redirectTo: "/login",
+  redirectTo: "/auth/login",
 });
 
 const emit = defineEmits<{

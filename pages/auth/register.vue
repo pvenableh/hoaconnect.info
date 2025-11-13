@@ -1,14 +1,12 @@
 <script setup lang="ts">
 definePageMeta({
-  middleware: 'guest',
-  layout: 'auth'
-})
+  middleware: "guest",
+  layout: "auth",
+});
 </script>
 
 <template>
   <div class="min-h-screen flex items-center justify-center p-4">
-    <AuthRegisterForm 
-      redirect-to="/login"
-    />
+    <AuthRegisterForm redirect-to="/auth/login" />
   </div>
 </template>

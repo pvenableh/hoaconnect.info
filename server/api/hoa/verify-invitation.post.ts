@@ -1,5 +1,4 @@
 import { readItems } from "@directus/sdk";
-import { getAdminDirectus } from "../utils/directus";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);

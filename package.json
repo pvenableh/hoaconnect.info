@@ -33,6 +33,7 @@
     "clsx": "^2.1.1",
     "directus-nuxt-layer": "github:hue-studios/directus-nuxt-layer",
     "gsap": "^3.13.0",
+    "lucide-vue-next": "^0.553.0",
     "nuxt": "^3.17.5",
     "nuxt-auth-utils": "^0.5.25",
     "reka-ui": "^2.6.0",

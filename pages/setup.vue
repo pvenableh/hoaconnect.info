@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: "guest", // Only accessible to non-logged-in users
-  layout: "auth",
+  layout: "default",
 });
 
 useSeoMeta({
@@ -12,6 +12,6 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen flex items-center justify-center p-4">
-    <HoaOrganizationSetupForm redirect-to="/dashboard" :beta-mode="true" />
+    <OrganizationSetupForm redirect-to="/dashboard" :beta-mode="true" />
   </div>
 </template>

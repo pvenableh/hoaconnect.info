@@ -15,22 +15,30 @@ export const useSelectedOrg = () => {
   });
 
   // Fetch all organizations user has access to
-  const { data: memberships, refresh: refreshMemberships } = useAsyncData(
-    "user-memberships",
-    async () => {
-      if (!user.value?.id) return [];
+  const {
+    data: memberships,
+    pending,
+    refresh: refreshMemberships,
+  } = useAsyncData("user-members", async () => {
+    if (!user.value?.id) return [];
 
-      const result = await fetchItems("hoa_memberships", {
-        fields: ["id", "role", "organization.*"],
-        filter: {
-          user: { _eq: user.value.id },
-        },
-        sort: ["organization.name"],
-      });
+    const result = await fetchItems("hoa_members", {
+      fields: [
+        "id",
+        "organization.id",
+        "organization.name",
+        "organization.logo",
+        "role.id",
+        "role.name",
+      ],
+      filter: {
+        user: { _eq: user.value.id },
+      },
+      sort: ["organization.name"],
+    });
 
-      return result.data.value || [];
-    }
-  );
+    return result.data.value || [];
+  });
 
   // Get current organization details
   const currentOrg = computed(() => {
@@ -41,8 +49,8 @@ export const useSelectedOrg = () => {
     );
   });
 
-  // Get current role in selected org
-  const currentRole = computed(() => currentOrg.value?.role || "guest");
+  // Get current role in selected org (now returns the role name from directus_roles)
+  const currentRole = computed(() => currentOrg.value?.role?.name || "Guest");
 
   // Set selected organization
   const setOrganization = (orgId: string) => {
@@ -77,5 +85,6 @@ export const useSelectedOrg = () => {
     setOrganization,
     refreshMemberships,
     hasMultipleOrgs: computed(() => (memberships.value?.length || 0) > 1),
+    isLoading: pending, // Add this to expose loading state
   };
 };
