@@ -19,9 +19,14 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_invitations", {
         filter: {
           token: { _eq: token },
-          invitation_status: { _eq: "pending" },
+          invitation_status: { _eq: "pending" as const },
         },
-        fields: ["*", "organization.name", "role.name"],
+        fields: [
+          "*",
+          { organization: ["name"] },
+          { role: ["name"] },
+          "expires_at",
+        ],
         limit: 1,
       })
     );
@@ -49,8 +54,13 @@ export default defineEventHandler(async (event) => {
     // Return invitation details (without sensitive data)
     return {
       email: invitation.email,
-      organizationName: invitation.organization?.name,
-      roleName: invitation.role?.name,
+      organizationName:
+        typeof invitation.organization === "object"
+          ? invitation.organization?.name
+          : undefined,
+
+      roleName:
+        typeof invitation.role === "object" ? invitation.role?.name : undefined,
       expiresAt: invitation.expires_at,
     };
   } catch (error: any) {
