@@ -49,14 +49,20 @@ export default defineEventHandler(async (event) => {
     const invitation = invitations[0];
 
     // Validate that relational fields are populated
-    if (typeof invitation.organization !== 'object' || invitation.organization === null) {
+    if (
+      typeof invitation.organization !== "object" ||
+      invitation.organization === null
+    ) {
       throw createError({
         statusCode: 500,
         message: "Organization data not properly loaded",
       });
     }
 
-    if (typeof invitation.invited_by !== 'object' || invitation.invited_by === null) {
+    if (
+      typeof invitation.invited_by !== "object" ||
+      invitation.invited_by === null
+    ) {
       throw createError({
         statusCode: 500,
         message: "Inviter data not properly loaded",
@@ -136,32 +142,55 @@ export default defineEventHandler(async (event) => {
 
     // 7. Log the user in automatically
     const authClient = createDirectus(config.directus.url)
-      .with(authentication('json'))
+      .with(authentication("json"))
       .with(rest());
 
-    const authResult = await authClient.login({ email: invitation.email, password });
+    const authResult = await authClient.login({
+      email: invitation.email,
+      password,
+    });
+
+    if (!authResult.access_token || !authResult.refresh_token) {
+      throw createError({
+        statusCode: 500,
+        message: "Authentication succeeded but tokens were not returned",
+      });
+    }
+
+    // Ensure expires is present
+    if (authResult.expires === null || authResult.expires === undefined) {
+      throw createError({
+        statusCode: 500,
+        message:
+          "Authentication succeeded but expiration time was not returned",
+      });
+    }
 
     // Get user details
     const user = await authClient.request(readMe());
 
     // Set user session with Directus tokens for API proxy
-    await setUserSession(event, {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: typeof user.role === "object" ? user.role.name : user.role,
-        provider: "local",
-      },
-      loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires * 1000), // Convert to milliseconds
-    }, {
-      secure: {
-        directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token,
-      }
-    });
+    await setUserSession(
+      event,
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          role: typeof user.role === "object" ? user.role.name : user.role,
+          provider: "local",
+        },
+        loggedInAt: Date.now(),
+        expiresAt: Date.now() + authResult.expires * 1000, // Convert to milliseconds
+      } as any,
+      {
+        secure: {
+          directusAccessToken: authResult.access_token,
+          directusRefreshToken: authResult.refresh_token,
+        },
+      } as any
+    );
 
     // 8. Send notification email to admin who sent the invitation
     try {

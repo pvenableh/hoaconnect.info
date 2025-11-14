@@ -33,7 +33,14 @@ export default defineEventHandler(async (event) => {
   } = body;
 
   // Validation
-  if (!organizationName || !slug || !email || !password || !firstName || !lastName) {
+  if (
+    !organizationName ||
+    !slug ||
+    !email ||
+    !password ||
+    !firstName ||
+    !lastName
+  ) {
     throw createError({
       statusCode: 400,
       message: "Missing required fields",
@@ -45,7 +52,8 @@ export default defineEventHandler(async (event) => {
   if (!slugRegex.test(slug)) {
     throw createError({
       statusCode: 400,
-      message: "Invalid slug format. Use only lowercase letters, numbers, and hyphens",
+      message:
+        "Invalid slug format. Use only lowercase letters, numbers, and hyphens",
     });
   }
 
@@ -137,29 +145,49 @@ export default defineEventHandler(async (event) => {
 
     // 5. Automatically log the user in
     const authClient = createDirectus(config.directus.url)
-      .with(authentication('json'))
+      .with(authentication("json"))
       .with(rest());
 
     const authResult = await authClient.login({ email, password });
 
+    if (!authResult.access_token || !authResult.refresh_token) {
+      throw createError({
+        statusCode: 500,
+        message: "Authentication succeeded but tokens were not returned",
+      });
+    }
+
+    // Ensure expires is present
+    if (authResult.expires === null || authResult.expires === undefined) {
+      throw createError({
+        statusCode: 500,
+        message:
+          "Authentication succeeded but expiration time was not returned",
+      });
+    }
+
     // Set user session with Directus tokens for API proxy
-    await setUserSession(event, {
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        firstName: newUser.first_name,
-        lastName: newUser.last_name,
-        role: hoaAdminRoleId,
-        provider: "local",
-      },
-      loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires * 1000), // Convert to milliseconds
-    }, {
-      secure: {
-        directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token,
-      }
-    });
+    await setUserSession(
+      event,
+      {
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          firstName: newUser.first_name,
+          lastName: newUser.last_name,
+          role: hoaAdminRoleId,
+          provider: "local",
+        },
+        loggedInAt: Date.now(),
+        expiresAt: Date.now() + authResult.expires * 1000, // Convert to milliseconds
+      } as any,
+      {
+        secure: {
+          directusAccessToken: authResult.access_token,
+          directusRefreshToken: authResult.refresh_token,
+        },
+      } as any
+    );
 
     // 6. Send welcome email via SendGrid
     try {
