@@ -124,7 +124,7 @@ export default defineEventHandler(async (event) => {
       .with(authentication())
       .with(rest());
 
-    const authResult = await authClient.login(invitation.email, password);
+    const authResult = await authClient.login({ email: invitation.email, password });
 
     // Get user details
     const user = await authClient.request(readMe());
