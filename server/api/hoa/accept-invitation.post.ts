@@ -48,6 +48,21 @@ export default defineEventHandler(async (event) => {
 
     const invitation = invitations[0];
 
+    // Validate that relational fields are populated
+    if (typeof invitation.organization !== 'object' || invitation.organization === null) {
+      throw createError({
+        statusCode: 500,
+        message: "Organization data not properly loaded",
+      });
+    }
+
+    if (typeof invitation.invited_by !== 'object' || invitation.invited_by === null) {
+      throw createError({
+        statusCode: 500,
+        message: "Inviter data not properly loaded",
+      });
+    }
+
     // 2. Check if invitation is expired
     const now = new Date();
     const expiresAt = new Date(invitation.expires_at);
