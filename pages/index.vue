@@ -403,8 +403,7 @@
 
 <script setup>
 const { activeHoa } = useActiveHoa();
-const authResult = useDirectusAuth() || {};
-const user = authResult.user || ref(null);
+const { user } = useDirectusAuth();
 // Initialize isMainDomain with a default value to prevent SSR errors
 const isMainDomain = useState("isMainDomain", () => false);
 
