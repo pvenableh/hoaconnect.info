@@ -33,7 +33,12 @@ const loading = ref(false);
 // Step 1: Organization Details
 const orgForm = ref({
   organizationName: "",
-  organizationAddress: "",
+  street_address: "",
+  city: "",
+  state: "",
+  zip: "",
+  org_phone: "",
+  org_email: "",
   slug: "",
 });
 
@@ -231,7 +236,12 @@ const handleSubmit = async () => {
       body: {
         // Organization
         organizationName: orgForm.value.organizationName,
-        organizationAddress: orgForm.value.organizationAddress,
+        street_address: orgForm.value.street_address,
+        city: orgForm.value.city,
+        state: orgForm.value.state,
+        zip: orgForm.value.zip,
+        org_phone: orgForm.value.org_phone,
+        org_email: orgForm.value.org_email,
         slug: orgForm.value.slug,
         subscriptionPlanId: props.betaMode ? null : selectedPlan.value,
 
@@ -321,18 +331,84 @@ const handleSubmit = async () => {
             </FormItem>
           </FormField>
 
-          <FormField name="organizationAddress">
+          <FormField name="street_address">
             <FormItem>
-              <FormLabel>Address</FormLabel>
+              <FormLabel>Street Address</FormLabel>
               <FormControl>
-                <Textarea
-                  v-model="orgForm.organizationAddress"
-                  placeholder="123 Main Street&#10;Miami Beach, FL 33139"
-                  rows="3"
+                <Input
+                  v-model="orgForm.street_address"
+                  placeholder="123 Main Street"
+                />
+              </FormControl>
+            </FormItem>
+          </FormField>
+
+          <div class="grid grid-cols-2 gap-4">
+            <FormField name="city">
+              <FormItem>
+                <FormLabel>City</FormLabel>
+                <FormControl>
+                  <Input
+                    v-model="orgForm.city"
+                    placeholder="Miami Beach"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <FormField name="state">
+              <FormItem>
+                <FormLabel>State</FormLabel>
+                <FormControl>
+                  <Input
+                    v-model="orgForm.state"
+                    placeholder="FL"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+          </div>
+
+          <FormField name="zip">
+            <FormItem>
+              <FormLabel>ZIP Code</FormLabel>
+              <FormControl>
+                <Input
+                  v-model="orgForm.zip"
+                  placeholder="33139"
+                />
+              </FormControl>
+            </FormItem>
+          </FormField>
+
+          <FormField name="org_phone">
+            <FormItem>
+              <FormLabel>Phone</FormLabel>
+              <FormControl>
+                <Input
+                  v-model="orgForm.org_phone"
+                  type="tel"
+                  placeholder="(305) 555-1234"
                 />
               </FormControl>
               <FormDescription>
-                The physical address of your HOA property
+                Organization phone number (optional)
+              </FormDescription>
+            </FormItem>
+          </FormField>
+
+          <FormField name="org_email">
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input
+                  v-model="orgForm.org_email"
+                  type="email"
+                  placeholder="info@example.com"
+                />
+              </FormControl>
+              <FormDescription>
+                Organization contact email (optional)
               </FormDescription>
             </FormItem>
           </FormField>
