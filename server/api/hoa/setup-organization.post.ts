@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
       .with(authentication())
       .with(rest());
 
-    const authResult = await authClient.login(email, password);
+    const authResult = await authClient.login({ email, password });
 
     // Set user session
     await setUserSession(event, {
