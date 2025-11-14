@@ -9,6 +9,7 @@ export interface DnsRecord {
 export interface DnsInstructions {
   type: string;
   primary?: DnsRecord[];
+  www?: DnsRecord[];
   records?: DnsRecord[];
   alternative?: {
     type: string;

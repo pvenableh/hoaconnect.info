@@ -42,6 +42,9 @@ export default defineEventHandler(async (event) => {
           { type: "A", name: "@", value: "76.76.21.21" },
           { type: "AAAA", name: "@", value: "2606:4700:3033::6815:48e" },
         ],
+        www: [
+          { type: "CNAME", name: "www", value: "cname.vercel-dns.com" },
+        ],
         alternative: {
           type: "CNAME",
           name: "@",
