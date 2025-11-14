@@ -218,7 +218,7 @@ export default defineEventHandler(async (event) => {
         to: inviterEmail,
         adminName: inviterFirstName,
         memberName: `${firstName} ${lastName}`,
-        memberEmail: newUser.email,
+        memberEmail: newUser.email || invitation.email,
         organizationName: organizationName,
       });
 
