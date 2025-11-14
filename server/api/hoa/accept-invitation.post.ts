@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
           token: { _eq: token },
           invitation_status: { _eq: "pending" as const },
         },
-        fields: ["*", "organization.*", "invited_by.*"],
+        fields: ["*", { organization: ["*"], invited_by: ["*"] }],
         limit: 1,
       })
     );
@@ -66,6 +66,26 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         message: "Inviter data not properly loaded",
+      });
+    }
+
+    // Extract and validate required fields for type safety
+    const organizationId = invitation.organization.id;
+    const organizationName = invitation.organization.name;
+    const inviterEmail = invitation.invited_by.email;
+    const inviterFirstName = invitation.invited_by.first_name;
+
+    if (!organizationId || !organizationName) {
+      throw createError({
+        statusCode: 500,
+        message: "Organization data is incomplete",
+      });
+    }
+
+    if (!inviterEmail || !inviterFirstName) {
+      throw createError({
+        statusCode: 500,
+        message: "Inviter data is incomplete",
       });
     }
 
@@ -121,7 +141,7 @@ export default defineEventHandler(async (event) => {
     await directus.request(
       createItem("hoa_members", {
         user: newUser.id,
-        organization: invitation.organization.id,
+        organization: organizationId,
         role: invitation.role,
         first_name: firstName,
         last_name: lastName,
@@ -195,17 +215,14 @@ export default defineEventHandler(async (event) => {
     // 8. Send notification email to admin who sent the invitation
     try {
       await sendInvitationAcceptedEmail({
-        to: invitation.invited_by.email,
-        adminName: invitation.invited_by.first_name,
+        to: inviterEmail,
+        adminName: inviterFirstName,
         memberName: `${firstName} ${lastName}`,
         memberEmail: newUser.email,
-        organizationName: invitation.organization.name,
+        organizationName: organizationName,
       });
 
-      console.log(
-        "✅ Admin notification email sent to:",
-        invitation.invited_by.email
-      );
+      console.log("✅ Admin notification email sent to:", inviterEmail);
     } catch (emailError: any) {
       console.error("❌ Failed to send admin notification email:", emailError);
       // Don't fail the whole request if email fails
