@@ -227,7 +227,8 @@
               </li>
               <li>Navigate to DNS settings or DNS management</li>
               <li>
-                Add the DNS record(s) shown below exactly as specified
+                Add <strong>ALL</strong> the DNS records shown below exactly as specified
+                (this includes both the apex domain and www subdomain records if shown)
               </li>
               <li>
                 Save changes (DNS propagation can take up to 48 hours, but is
@@ -251,8 +252,43 @@
                 v-if="dnsInstructions.primary"
                 class="space-y-3"
               >
+                <div class="text-sm font-semibold text-gray-700 mb-2">
+                  Apex Domain Records ({{ organization.custom_domain }})
+                </div>
                 <div
                   v-for="(record, index) in dnsInstructions.primary"
+                  :key="index"
+                  class="p-3 bg-gray-50 rounded-lg font-mono text-sm"
+                >
+                  <div class="grid grid-cols-3 gap-4">
+                    <div>
+                      <span class="text-gray-500 block mb-1">Type</span>
+                      <span class="font-semibold">{{ record.type }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500 block mb-1">Name</span>
+                      <span class="font-semibold">{{ record.name }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500 block mb-1">Value</span>
+                      <span class="font-semibold break-all">{{
+                        record.value
+                      }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- WWW Subdomain Records (for apex domains) -->
+              <div
+                v-if="dnsInstructions.www"
+                class="space-y-3"
+              >
+                <div class="text-sm font-semibold text-gray-700 mb-2">
+                  WWW Subdomain Records (www.{{ organization.custom_domain }})
+                </div>
+                <div
+                  v-for="(record, index) in dnsInstructions.www"
                   :key="index"
                   class="p-3 bg-gray-50 rounded-lg font-mono text-sm"
                 >
