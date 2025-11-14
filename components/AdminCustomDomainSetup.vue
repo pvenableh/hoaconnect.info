@@ -59,10 +59,10 @@
 
           <!-- Custom Domain (if configured) -->
           <div
-            v-if="organization?.custom_domain"
+            v-if="organizationData?.custom_domain"
             class="p-4 border rounded-lg flex items-start gap-3"
             :class="
-              organization.domain_verified
+              organizationData.domain_verified
                 ? 'bg-green-50 border-green-200'
                 : 'bg-yellow-50 border-yellow-200'
             "
@@ -70,13 +70,13 @@
             <div
               class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
               :class="
-                organization.domain_verified
+                organizationData.domain_verified
                   ? 'bg-green-100'
                   : 'bg-yellow-100'
               "
             >
               <svg
-                v-if="organization.domain_verified"
+                v-if="organizationData.domain_verified"
                 class="w-5 h-5 text-green-600"
                 fill="none"
                 stroke="currentColor"
@@ -110,32 +110,32 @@
                 <span
                   class="px-2 py-0.5 text-xs rounded-full"
                   :class="
-                    organization.domain_verified
+                    organizationData.domain_verified
                       ? 'bg-green-600 text-white'
                       : 'bg-yellow-600 text-white'
                   "
                 >
                   {{
-                    organization.domain_verified
+                    organizationData.domain_verified
                       ? "Verified"
                       : "Pending Verification"
                   }}
                 </span>
               </div>
               <a
-                :href="`https://${organization.custom_domain}`"
+                :href="`https://${organizationData.custom_domain}`"
                 target="_blank"
                 class="font-mono text-sm hover:underline"
                 :class="
-                  organization.domain_verified
+                  organizationData.domain_verified
                     ? 'text-green-700'
                     : 'text-yellow-700'
                 "
               >
-                {{ organization.custom_domain }}
+                {{ organizationData.custom_domain }}
               </a>
               <p
-                v-if="!organization.domain_verified"
+                v-if="!organizationData.domain_verified"
                 class="text-gray-600 text-sm mt-2"
               >
                 Complete DNS setup below to verify and activate this domain
@@ -147,7 +147,7 @@
     </Card>
 
     <!-- Add/Configure Custom Domain -->
-    <Card v-if="!organization?.custom_domain" class="mb-6">
+    <Card v-if="!organizationData?.custom_domain" class="mb-6">
       <CardHeader>
         <CardTitle>Add Custom Domain</CardTitle>
         <CardDescription>
@@ -193,7 +193,7 @@
     </Card>
 
     <!-- DNS Configuration Instructions -->
-    <Card v-if="organization?.custom_domain && !organization?.domain_verified">
+    <Card v-if="organizationData?.custom_domain && !organizationData?.domain_verified">
       <CardHeader>
         <CardTitle>DNS Configuration</CardTitle>
         <CardDescription>
@@ -253,7 +253,7 @@
                 class="space-y-3"
               >
                 <div class="text-sm font-semibold text-gray-700 mb-2">
-                  Apex Domain Records ({{ organization.custom_domain }})
+                  Apex Domain Records ({{ organizationData.custom_domain }})
                 </div>
                 <div
                   v-for="(record, index) in dnsInstructions.primary"
@@ -285,7 +285,7 @@
                 class="space-y-3"
               >
                 <div class="text-sm font-semibold text-gray-700 mb-2">
-                  WWW Subdomain Records (www.{{ organization.custom_domain }})
+                  WWW Subdomain Records (www.{{ organizationData.custom_domain }})
                 </div>
                 <div
                   v-for="(record, index) in dnsInstructions.www"
@@ -396,7 +396,7 @@
     </Card>
 
     <!-- Domain Successfully Verified -->
-    <Card v-if="organization?.custom_domain && organization?.domain_verified">
+    <Card v-if="organizationData?.custom_domain && organizationData?.domain_verified">
       <CardContent class="pt-6">
         <div class="text-center py-8">
           <div
@@ -423,7 +423,7 @@
             Your custom domain is active and ready to use
           </p>
           <a
-            :href="`https://${organization.custom_domain}`"
+            :href="`https://${organizationData.custom_domain}`"
             target="_blank"
             class="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
