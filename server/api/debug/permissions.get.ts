@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const directus = await getAdminDirectus();
+    const directus = getTypedDirectus();
 
     // Get current user's full details
     const user = await directus.request(
