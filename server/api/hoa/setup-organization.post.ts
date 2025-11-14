@@ -142,7 +142,7 @@ export default defineEventHandler(async (event) => {
 
     const authResult = await authClient.login({ email, password });
 
-    // Set user session
+    // Set user session with Directus tokens for API proxy
     await setUserSession(event, {
       user: {
         id: newUser.id,
@@ -153,7 +153,12 @@ export default defineEventHandler(async (event) => {
         provider: "local",
       },
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+      expiresAt: Date.now() + (authResult.expires * 1000), // Convert to milliseconds
+    }, {
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      }
     });
 
     // 6. Send welcome email via SendGrid
