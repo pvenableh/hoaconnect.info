@@ -13,7 +13,14 @@ const handleSelect = (orgId: string) => {
 </script>
 
 <template>
-  <div v-if="hasMultipleOrgs" class="relative">
+  <!-- Show organization name for single org (no dropdown) -->
+  <div v-if="!hasMultipleOrgs && currentOrg" class="flex items-center gap-2 px-3 py-2 text-sm">
+    <span>🏢</span>
+    <span class="font-medium">{{ currentOrg?.organization?.name }}</span>
+  </div>
+
+  <!-- Show dropdown for multiple orgs -->
+  <div v-else-if="hasMultipleOrgs" class="relative">
     <button
       @click="showDropdown = !showDropdown"
       class="flex items-center gap-2 px-3 py-2 text-sm border rounded hover:bg-stone-50 transition-colors"

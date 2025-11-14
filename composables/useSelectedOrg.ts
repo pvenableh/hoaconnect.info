@@ -20,24 +20,35 @@ export const useSelectedOrg = () => {
     pending,
     refresh: refreshMemberships,
   } = useAsyncData("user-members", async () => {
-    if (!user.value?.id) return [];
+    if (!user.value?.id) {
+      console.warn("[useSelectedOrg] No user ID found, skipping membership fetch");
+      return [];
+    }
 
-    const result = await fetchItems("hoa_members", {
-      fields: [
-        "id",
-        "organization.id",
-        "organization.name",
-        "organization.logo",
-        "role.id",
-        "role.name",
-      ],
-      filter: {
-        user: { _eq: user.value.id },
-      },
-      sort: ["organization.name"],
-    });
+    console.log("[useSelectedOrg] Fetching memberships for user:", user.value.id);
 
-    return result.data.value || [];
+    try {
+      const result = await fetchItems("hoa_members", {
+        fields: [
+          "id",
+          "organization.id",
+          "organization.name",
+          "organization.logo",
+          "role.id",
+          "role.name",
+        ],
+        filter: {
+          user: { _eq: user.value.id },
+        },
+        sort: ["organization.name"],
+      });
+
+      console.log("[useSelectedOrg] Memberships result:", result.data.value);
+      return result.data.value || [];
+    } catch (error) {
+      console.error("[useSelectedOrg] Error fetching memberships:", error);
+      return [];
+    }
   });
 
   // Get current organization details
@@ -63,7 +74,12 @@ export const useSelectedOrg = () => {
   // Auto-select first org if none selected
   const initializeOrg = () => {
     if (!selectedOrgId.value && memberships.value?.length) {
+      console.log("[useSelectedOrg] Auto-selecting first organization:", memberships.value[0].organization);
       setOrganization(memberships.value[0].organization.id);
+    } else if (!memberships.value?.length) {
+      console.warn("[useSelectedOrg] No memberships found to initialize");
+    } else {
+      console.log("[useSelectedOrg] Organization already selected:", selectedOrgId.value);
     }
   };
 

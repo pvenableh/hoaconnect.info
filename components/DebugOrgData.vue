@@ -6,9 +6,11 @@ const { fetchItems } = useDirectusItems();
 
 const debugData = ref({
   user: null as any,
+  fullUser: null as any,
   memberships: null as any,
   error: null as any,
   rawResponse: null as any,
+  fullQueryResult: null as any,
 });
 
 const checkData = async () => {
@@ -16,11 +18,16 @@ const checkData = async () => {
     console.log("=== DEBUG: Starting check ===");
     console.log("User object:", user.value);
 
+    // Store the full user object to see all fields
+    debugData.value.fullUser = user.value;
+
     debugData.value.user = {
       id: user.value?.id,
       email: user.value?.email,
       first_name: user.value?.first_name,
       last_name: user.value?.last_name,
+      firstName: user.value?.firstName,
+      lastName: user.value?.lastName,
     };
 
     if (!user.value?.id) {
@@ -57,6 +64,7 @@ const checkData = async () => {
     });
 
     console.log("Full query result:", fullResult);
+    debugData.value.fullQueryResult = fullResult.data.value;
   } catch (err: any) {
     console.error("Error:", err);
     debugData.value.error = err.message || err.toString();
@@ -74,17 +82,30 @@ onMounted(() => {
 
     <div class="space-y-4 text-sm">
       <div>
-        {{ user }}
-        <strong>User Data:</strong>
+        <strong>Full User Object (from useDirectusAuth):</strong>
+        <pre class="mt-2 p-2 bg-white rounded overflow-auto max-h-60">{{
+          JSON.stringify(debugData.fullUser, null, 2)
+        }}</pre>
+      </div>
+
+      <div>
+        <strong>User Data (extracted fields):</strong>
         <pre class="mt-2 p-2 bg-white rounded overflow-auto">{{
           JSON.stringify(debugData.user, null, 2)
         }}</pre>
       </div>
 
       <div>
-        <strong>Memberships (Simple Query):</strong>
+        <strong>Memberships (Simple Query - id, user, organization):</strong>
         <pre class="mt-2 p-2 bg-white rounded overflow-auto">{{
           JSON.stringify(debugData.memberships, null, 2)
+        }}</pre>
+      </div>
+
+      <div>
+        <strong>Full Query Result (with nested relations):</strong>
+        <pre class="mt-2 p-2 bg-white rounded overflow-auto max-h-60">{{
+          JSON.stringify(debugData.fullQueryResult, null, 2)
         }}</pre>
       </div>
 
