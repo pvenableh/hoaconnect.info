@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const directus = await getAdminDirectus();
+    const directus = getTypedDirectus();
     const config = useRuntimeConfig();
 
     // 1. Find the invitation by token

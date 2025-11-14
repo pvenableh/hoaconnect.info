@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
 
     // Update Directus if verified
     if (isVerified) {
-      await updateDirectusItem("hoa_organizations", hoaId, {
+      await updateTypedDirectusItem("hoa_organizations", hoaId, {
         domain_verified: true,
         domain_config: {
           verified_at: new Date().toISOString(),

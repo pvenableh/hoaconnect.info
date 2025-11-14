@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update Directus
-    await updateDirectusItem("hoa_organizations", hoaId, {
+    await updateTypedDirectusItem("hoa_organizations", hoaId, {
       custom_domain: domain,
       domain_type: domainType,
       domain_verified: false,

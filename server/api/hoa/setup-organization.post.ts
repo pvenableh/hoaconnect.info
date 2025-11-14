@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const directus = await getAdminDirectus();
+    const directus = getTypedDirectus();
     const config = useRuntimeConfig();
 
     // Check if slug already exists

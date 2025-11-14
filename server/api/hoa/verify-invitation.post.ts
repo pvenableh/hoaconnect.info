@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const directus = await getAdminDirectus();
+    const directus = getTypedDirectus();
 
     // Find the invitation
     const invitations = await directus.request(
