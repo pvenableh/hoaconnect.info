@@ -1,0 +1,10 @@
+{
+  "name": "HOA Connect",
+  "short_name": "HOA Connect",
+  "description": "Simplify Your HOA Management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": []
+}
