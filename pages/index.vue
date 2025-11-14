@@ -403,8 +403,10 @@
 
 <script setup>
 const { activeHoa } = useActiveHoa();
-const { user } = useDirectusAuth();
-const isMainDomain = useState("isMainDomain");
+const authResult = useDirectusAuth() || {};
+const user = authResult.user || ref(null);
+// Initialize isMainDomain with a default value to prevent SSR errors
+const isMainDomain = useState("isMainDomain", () => false);
 // Fetch subscription plans from Directus
 const {
   data: plans,
@@ -419,11 +421,11 @@ const {
     sort: ["sort"],
     fields: ["*"],
   },
-});
+}) || { data: ref(null), pending: ref(false), error: ref(null) };
 
 // Computed property to get active plans
 const activePlans = computed(() => {
-  if (!plans.value) return [];
+  if (!plans || !plans.value) return [];
   return plans.value.filter(
     (plan) => plan.is_active && plan.status === "published"
   );
