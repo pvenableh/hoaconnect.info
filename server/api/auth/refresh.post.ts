@@ -44,6 +44,14 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Ensure expires is present
+    if (authResult.expires === null || authResult.expires === undefined) {
+      throw createError({
+        statusCode: 500,
+        message: "Token refresh succeeded but expiration time was not returned",
+      });
+    }
+
     // Get updated user details
     const user = await directus.request(readMe());
 
@@ -61,13 +69,13 @@ export default defineEventHandler(async (event) => {
         },
         loggedInAt: session.loggedInAt || Date.now(),
         expiresAt: Date.now() + authResult.expires * 1000, // Convert to milliseconds
-      },
+      } as any,
       {
         secure: {
           directusAccessToken: authResult.access_token,
           directusRefreshToken: authResult.refresh_token,
         },
-      }
+      } as any
     );
 
     return {

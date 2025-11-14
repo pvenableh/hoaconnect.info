@@ -29,12 +29,20 @@ export default defineEventHandler(async (event) => {
       .with(rest());
 
     // Authenticate with Directus
-    const authResult = await directus.login(email, password);
+    const authResult = await directus.login({ email, password });
 
     if (!authResult.access_token || !authResult.refresh_token) {
       throw createError({
         statusCode: 500,
         message: "Authentication succeeded but tokens were not returned",
+      });
+    }
+
+    // Ensure expires is present
+    if (authResult.expires === null || authResult.expires === undefined) {
+      throw createError({
+        statusCode: 500,
+        message: "Authentication succeeded but expiration time was not returned",
       });
     }
 
@@ -62,13 +70,13 @@ export default defineEventHandler(async (event) => {
         },
         loggedInAt: Date.now(),
         expiresAt: Date.now() + authResult.expires * 1000, // Convert to milliseconds
-      },
+      } as any,
       {
         secure: {
           directusAccessToken: authResult.access_token,
           directusRefreshToken: authResult.refresh_token,
         },
-      }
+      } as any
     );
 
     return {
