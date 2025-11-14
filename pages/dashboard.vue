@@ -77,6 +77,9 @@ const stats = computed(() => ({
         <!-- Debug Component -->
         <DebugOrgData />
 
+        <!-- Permissions Diagnostic -->
+        <PermissionsDiagnostic />
+
         <!-- Header -->
         <div>
           <h1 class="text-3xl font-bold">Dashboard</h1>
