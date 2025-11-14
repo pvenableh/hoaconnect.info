@@ -137,7 +137,7 @@ export default defineEventHandler(async (event) => {
 
     // 5. Automatically log the user in
     const authClient = createDirectus(config.directus.url)
-      .with(authentication())
+      .with(authentication('json'))
       .with(rest());
 
     const authResult = await authClient.login({ email, password });
