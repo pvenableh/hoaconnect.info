@@ -15,7 +15,12 @@ export default defineEventHandler(async (event) => {
   const {
     // Organization details
     organizationName,
-    organizationAddress,
+    street_address,
+    city,
+    state,
+    zip,
+    org_phone,
+    org_email,
     slug,
     subscriptionPlanId, // Optional for BETA
 
@@ -71,7 +76,12 @@ export default defineEventHandler(async (event) => {
       createItem("hoa_organizations", {
         name: organizationName,
         slug: slug,
-        street_address: organizationAddress,
+        street_address: street_address,
+        city: city,
+        state: state,
+        zip: zip,
+        phone: org_phone,
+        email: org_email,
         subscription_plan: subscriptionPlanId || null,
         status: "published",
       })
