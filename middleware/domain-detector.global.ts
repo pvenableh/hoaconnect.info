@@ -1,12 +1,12 @@
 // middleware/domain-detector.global.ts
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  // Only run on client
-  if (import.meta.server) return;
-
   const config = useRuntimeConfig();
   const { activeHoa, fetchActiveHoa } = useActiveHoa();
 
-  const domain = window.location.hostname;
+  // Get domain from server or client
+  const domain = import.meta.server
+    ? useRequestURL().hostname
+    : window.location.hostname;
 
   // Check if main domain
   const mainDomains = [
@@ -18,31 +18,35 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   const isMainDomain = mainDomains.includes(domain);
 
-  // Check if it's a subdomain of main domain (e.g., myorg.property.huestudios.com)
-  const isSubdomainOfMain =
-    !isMainDomain &&
-    config.public.mainDomain &&
-    domain.endsWith(`.${config.public.mainDomain}`);
+  // Store domain type (set on both server and client for proper SSR)
+  const isMainDomainState = useState("isMainDomain", () => isMainDomain);
+  isMainDomainState.value = isMainDomain;
 
-  // Fetch HOA if custom domain or subdomain
-  if (!isMainDomain && !activeHoa.value) {
-    let slug = null;
+  // Only fetch HOA data on client side
+  if (import.meta.client) {
+    // Check if it's a subdomain of main domain (e.g., myorg.property.huestudios.com)
+    const isSubdomainOfMain =
+      !isMainDomain &&
+      config.public.mainDomain &&
+      domain.endsWith(`.${config.public.mainDomain}`);
 
-    // Extract slug from subdomain if applicable
-    if (isSubdomainOfMain) {
-      slug = domain.replace(`.${config.public.mainDomain}`, "");
-    }
+    // Fetch HOA if custom domain or subdomain
+    if (!isMainDomain && !activeHoa.value) {
+      let slug = null;
 
-    await fetchActiveHoa(slug);
+      // Extract slug from subdomain if applicable
+      if (isSubdomainOfMain) {
+        slug = domain.replace(`.${config.public.mainDomain}`, "");
+      }
 
-    // Redirect to main if no HOA found
-    if (!activeHoa.value) {
-      return navigateTo(`https://${config.public.mainDomain}`, {
-        external: true,
-      });
+      await fetchActiveHoa(slug);
+
+      // Redirect to main if no HOA found
+      if (!activeHoa.value) {
+        return navigateTo(`https://${config.public.mainDomain}`, {
+          external: true,
+        });
+      }
     }
   }
-
-  // Store domain type
-  useState("isMainDomain", () => isMainDomain);
 });
