@@ -407,21 +407,21 @@ const authResult = useDirectusAuth() || {};
 const user = authResult.user || ref(null);
 // Initialize isMainDomain with a default value to prevent SSR errors
 const isMainDomain = useState("isMainDomain", () => false);
+
 // Fetch subscription plans from Directus
+const { fetchItems } = useDirectusItems();
 const {
   data: plans,
   pending,
   error,
-} = await useDirectusItems("subscription_plans", {
-  query: {
-    filter: {
-      status: { _eq: "published" },
-      is_active: { _eq: true },
-    },
-    sort: ["sort"],
-    fields: ["*"],
+} = await fetchItems("subscription_plans", {
+  fields: ["*"],
+  filter: {
+    status: { _eq: "published" },
+    is_active: { _eq: true },
   },
-}) || { data: ref(null), pending: ref(false), error: ref(null) };
+  sort: ["sort"],
+});
 
 // Computed property to get active plans
 const activePlans = computed(() => {
