@@ -49,6 +49,8 @@ export const useSelectedOrg = () => {
       console.error("[useSelectedOrg] Error fetching memberships:", error);
       return [];
     }
+  }, {
+    watch: [user]
   });
 
   // Get current organization details
