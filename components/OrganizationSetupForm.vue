@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { toast } from "vue-sonner";
 import { useDirectusItems } from "#imports";
 
@@ -23,6 +23,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const config = useRuntimeConfig();
 const { fetchItems } = useDirectusItems();
 
 // Form state
@@ -33,6 +34,88 @@ const loading = ref(false);
 const orgForm = ref({
   organizationName: "",
   organizationAddress: "",
+  slug: "",
+});
+
+// Slug validation state
+const slugTouched = ref(false);
+const slugChecking = ref(false);
+const slugAvailable = ref<boolean | null>(null);
+const slugMessage = ref("");
+let slugCheckTimeout: NodeJS.Timeout | null = null;
+
+// Auto-generate slug from organization name
+watch(
+  () => orgForm.value.organizationName,
+  (newName) => {
+    // Only auto-generate if slug hasn't been manually edited
+    if (!slugTouched.value) {
+      orgForm.value.slug = generateSlug(newName);
+    }
+  }
+);
+
+// Watch slug changes for validation
+watch(
+  () => orgForm.value.slug,
+  (newSlug) => {
+    if (newSlug.length > 0) {
+      checkSlugAvailability(newSlug);
+    } else {
+      slugAvailable.value = null;
+      slugMessage.value = "";
+    }
+  }
+);
+
+// Generate slug helper
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
+// Check slug availability with debouncing
+const checkSlugAvailability = (slug: string) => {
+  if (slugCheckTimeout) {
+    clearTimeout(slugCheckTimeout);
+  }
+
+  slugChecking.value = true;
+  slugAvailable.value = null;
+
+  slugCheckTimeout = setTimeout(async () => {
+    try {
+      const response = await $fetch<{
+        available: boolean;
+        message: string;
+      }>("/api/hoa/check-slug", {
+        query: { slug },
+      });
+
+      slugAvailable.value = response.available;
+      slugMessage.value = response.message;
+    } catch (error) {
+      slugAvailable.value = false;
+      slugMessage.value = "Error checking slug availability";
+    } finally {
+      slugChecking.value = false;
+    }
+  }, 500); // 500ms debounce
+};
+
+// Mark slug as manually edited
+const handleSlugInput = () => {
+  slugTouched.value = true;
+};
+
+// Computed URL preview
+const urlPreview = computed(() => {
+  if (orgForm.value.slug) {
+    return `${orgForm.value.slug}.${config.public.mainDomain}`;
+  }
+  return "";
 });
 
 // Step 2: Subscription Selection (optional in BETA)
@@ -82,7 +165,11 @@ onMounted(() => {
 
 // Validation
 const step1Valid = computed(() => {
-  return orgForm.value.organizationName.trim().length > 0;
+  return (
+    orgForm.value.organizationName.trim().length > 0 &&
+    orgForm.value.slug.trim().length > 0 &&
+    slugAvailable.value === true
+  );
 });
 
 const step2Valid = computed(() => {
@@ -145,6 +232,7 @@ const handleSubmit = async () => {
         // Organization
         organizationName: orgForm.value.organizationName,
         organizationAddress: orgForm.value.organizationAddress,
+        slug: orgForm.value.slug,
         subscriptionPlanId: props.betaMode ? null : selectedPlan.value,
 
         // Admin
@@ -245,6 +333,62 @@ const handleSubmit = async () => {
               </FormControl>
               <FormDescription>
                 The physical address of your HOA property
+              </FormDescription>
+            </FormItem>
+          </FormField>
+
+          <FormField name="slug">
+            <FormItem>
+              <FormLabel>Portal URL Slug *</FormLabel>
+              <FormControl>
+                <div class="space-y-2">
+                  <Input
+                    v-model="orgForm.slug"
+                    @input="handleSlugInput"
+                    placeholder="sunset-heights-hoa"
+                    required
+                  />
+
+                  <!-- URL Preview -->
+                  <div
+                    v-if="urlPreview"
+                    class="flex items-center gap-2 text-sm p-2 bg-muted rounded"
+                  >
+                    <Icon name="lucide:globe" class="w-4 h-4 text-muted-foreground" />
+                    <span class="text-muted-foreground">Your portal URL:</span>
+                    <code class="text-primary font-mono">{{ urlPreview }}</code>
+                  </div>
+
+                  <!-- Validation Status -->
+                  <div v-if="orgForm.slug.length > 0" class="flex items-center gap-2 text-sm">
+                    <div
+                      v-if="slugChecking"
+                      class="flex items-center gap-2 text-muted-foreground"
+                    >
+                      <div
+                        class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"
+                      ></div>
+                      <span>Checking availability...</span>
+                    </div>
+                    <div
+                      v-else-if="slugAvailable === true"
+                      class="flex items-center gap-2 text-green-600"
+                    >
+                      <Icon name="lucide:check-circle" class="w-4 h-4" />
+                      <span>{{ slugMessage }}</span>
+                    </div>
+                    <div
+                      v-else-if="slugAvailable === false"
+                      class="flex items-center gap-2 text-red-600"
+                    >
+                      <Icon name="lucide:x-circle" class="w-4 h-4" />
+                      <span>{{ slugMessage }}</span>
+                    </div>
+                  </div>
+                </div>
+              </FormControl>
+              <FormDescription>
+                Choose a unique URL for your organization's portal (letters, numbers, and hyphens only)
               </FormDescription>
             </FormItem>
           </FormField>

@@ -1,6 +1,7 @@
 import {
   createUser,
   createItem,
+  readItems,
   readRoles,
   authentication,
   rest,
@@ -15,6 +16,7 @@ export default defineEventHandler(async (event) => {
     // Organization details
     organizationName,
     organizationAddress,
+    slug,
     subscriptionPlanId, // Optional for BETA
 
     // Admin user details
@@ -26,10 +28,19 @@ export default defineEventHandler(async (event) => {
   } = body;
 
   // Validation
-  if (!organizationName || !email || !password || !firstName || !lastName) {
+  if (!organizationName || !slug || !email || !password || !firstName || !lastName) {
     throw createError({
       statusCode: 400,
       message: "Missing required fields",
+    });
+  }
+
+  // Validate slug format
+  const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  if (!slugRegex.test(slug)) {
+    throw createError({
+      statusCode: 400,
+      message: "Invalid slug format. Use only lowercase letters, numbers, and hyphens",
     });
   }
 
@@ -37,11 +48,23 @@ export default defineEventHandler(async (event) => {
     const directus = await getAdminDirectus();
     const config = useRuntimeConfig();
 
-    // Generate a slug from organization name
-    const slug = organizationName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+    // Check if slug already exists
+    const existingOrgs = await directus.request(
+      readItems("hoa_organizations", {
+        filter: {
+          slug: { _eq: slug },
+        },
+        fields: ["id"],
+        limit: 1,
+      })
+    );
+
+    if (existingOrgs && existingOrgs.length > 0) {
+      throw createError({
+        statusCode: 400,
+        message: "This slug is already taken. Please choose a different one.",
+      });
+    }
 
     // 1. Create the organization
     const organization = await directus.request(
