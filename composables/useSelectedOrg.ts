@@ -33,7 +33,7 @@ export const useSelectedOrg = () => {
           "id",
           "organization.id",
           "organization.name",
-          "organization.logo",
+          "organization.settings.logo",
           "role.id",
           "role.name",
         ],
