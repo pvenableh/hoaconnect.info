@@ -63,9 +63,9 @@ export default defineEventHandler(async (event) => {
         to: email,
         firstName,
         lastName,
-        organizationName: organization.name,
+        organizationName: organization.name || "Unknown Organization",
         invitationUrl,
-        inviterName: `${session.user.firstName} ${session.user.lastName}`,
+        inviterName: `${session.user.first_name || ""} ${session.user.last_name || ""}`.trim() || "Admin",
         roleName: role.name,
         expiresAt: expiresAt.toISOString(),
       });

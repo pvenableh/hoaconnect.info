@@ -7,7 +7,11 @@ import {
   readItems,
   staticToken,
 } from "@directus/sdk";
-import type { SessionUser, HoaMember } from "~/types/directus-schema";
+import type {
+  SessionUser,
+  HoaMember,
+  HoaOrganization,
+} from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBody(event);
@@ -74,6 +78,12 @@ export default defineEventHandler(async (event) => {
 
     const member = members[0] as HoaMember | undefined;
 
+    // Extract organization as a full object (not just ID) since we requested nested fields
+    const organization =
+      member && typeof member.organization === "object"
+        ? (member.organization as HoaOrganization)
+        : null;
+
     // Create session user object
     const sessionUser: SessionUser = {
       id: userData.id as string,
@@ -82,7 +92,7 @@ export default defineEventHandler(async (event) => {
       last_name: userData.last_name || null,
       avatar: null,
       role: userData.role || null,
-      organization: member?.organization || null,
+      organization: organization,
       member: member || null,
     };
 

@@ -167,27 +167,37 @@ export default defineEventHandler(async (event) => {
     }
 
     // Set user session with Directus tokens for API proxy
-    await setUserSession(
-      event,
-      {
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          firstName: newUser.first_name,
-          lastName: newUser.last_name,
-          role: hoaAdminRoleId,
-          provider: "local",
+    await setUserSession(event, {
+      user: {
+        id: newUser.id as string,
+        email: newUser.email as string,
+        first_name: newUser.first_name || null,
+        last_name: newUser.last_name || null,
+        avatar: null,
+        role: null, // Will be populated on next login
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug || null,
+          domain: organization.domain || null,
+          logo: organization.logo || null,
+          email: organization.email || null,
+          phone: organization.phone || null,
+          address: organization.address || null,
+          city: organization.city || null,
+          state: organization.state || null,
+          zip: organization.zip || null,
+          settings: organization.settings || null,
+          status: organization.status,
+          date_created: organization.date_created,
+          date_updated: organization.date_updated || null,
         },
-        loggedInAt: Date.now(),
-        expiresAt: Date.now() + authResult.expires * 1000, // Convert to milliseconds
-      } as any,
-      {
-        secure: {
-          directusAccessToken: authResult.access_token,
-          directusRefreshToken: authResult.refresh_token,
-        },
-      } as any
-    );
+        member: null, // Will be populated on next login
+      },
+      directusAccessToken: authResult.access_token,
+      directusRefreshToken: authResult.refresh_token,
+      expiresAt: Date.now() + authResult.expires * 1000,
+    });
 
     // 6. Send welcome email via SendGrid
     try {
