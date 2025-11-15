@@ -208,31 +208,6 @@ export interface UserInvitation {
   date_updated?: string | null
 }
 
-/**
- * Activity Log - Track user activities
- */
-export interface ActivityLog {
-  id: ID
-  user_id: ID | DirectusUser
-  action: string
-  collection?: string | null
-  item_id?: string | null
-  
-  // Details
-  details?: any | null
-  ip_address?: string | null
-  user_agent?: string | null
-  
-  // Context
-  context?: {
-    browser?: string
-    os?: string
-    device?: string
-    location?: string
-  } | null
-  
-  date_created?: string
-}
 
 /**
  * OAuth Tokens - Store OAuth provider tokens
@@ -405,7 +380,6 @@ export interface DirectusSchema {
   profiles: UserProfile
   user_settings: UserSettings
   user_invitations: UserInvitation
-  activity_logs: ActivityLog
   oauth_tokens: OAuthToken
   password_resets: PasswordReset
   user_sessions: UserSession
