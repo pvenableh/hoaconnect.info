@@ -68,9 +68,9 @@ export async function updateTypedDirectusItem<T extends DirectusCollections>(
   data: Partial<DirectusSchema[T]>
 ) {
   const directus = getTypedDirectus()
-  
+
   return await directus.request(
-    updateItem(collection, id, data as any)
+    updateItem(collection as any, id, data as any)
   )
 }
 
@@ -82,9 +82,9 @@ export async function createTypedDirectusItem<T extends DirectusCollections>(
   data: Partial<DirectusSchema[T]>
 ) {
   const directus = getTypedDirectus()
-  
+
   return await directus.request(
-    createItem(collection, data as any)
+    createItem(collection as any, data as any)
   )
 }
 
@@ -98,7 +98,7 @@ export async function readTypedDirectusItems<T extends DirectusCollections>(
   const directus = getTypedDirectus()
 
   return await directus.request(
-    readItems(collection, query)
+    readItems(collection as any, query)
   ) as unknown as DirectusSchema[T][]
 }
 
@@ -113,7 +113,7 @@ export async function readTypedDirectusItem<T extends DirectusCollections>(
   const directus = getTypedDirectus()
 
   return await directus.request(
-    readItem(collection, id, query)
+    readItem(collection as any, id, query)
   ) as unknown as DirectusSchema[T]
 }
 
@@ -125,9 +125,9 @@ export async function deleteTypedDirectusItem<T extends DirectusCollections>(
   id: ID
 ) {
   const directus = getTypedDirectus()
-  
+
   return await directus.request(
-    deleteItem(collection, id)
+    deleteItem(collection as any, id)
   )
 }
 
