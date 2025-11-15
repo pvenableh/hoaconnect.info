@@ -65,7 +65,10 @@ const stats = computed(() => ({
   documents: documents.value?.length || 0,
   members: members.value?.length || 0,
   units: units.value?.length || 0,
-  organization: currentOrg.value?.organization?.name || "N/A",
+  organization:
+    (typeof currentOrg.value?.organization === "object"
+      ? currentOrg.value?.organization?.name
+      : null) || "N/A",
   role: currentRole.value,
 }));
 </script>
