@@ -1,6 +1,4 @@
 // server/api/hoa/by-slug.get.ts
-import { createDirectus, rest, readItems } from "@directus/sdk";
-
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const slug = query.slug as string;
@@ -12,21 +10,15 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const config = useRuntimeConfig();
-
   try {
-    const directus = createDirectus(config.public.directusUrl).with(rest());
-
-    const hoas = await directus.request(
-      readItems("hoa_organizations", {
-        filter: {
-          slug: { _eq: slug },
-          status: { _eq: "published" },
-        },
-        fields: ["*", "amenities.*", "settings.*", "subscription.*"],
-        limit: 1,
-      })
-    );
+    const hoas = await readTypedDirectusItems("hoa_organizations", {
+      filter: {
+        slug: { _eq: slug },
+        status: { _eq: "published" },
+      },
+      fields: ["*", "amenities.*", "settings.*", "subscription.*"],
+      limit: 1,
+    });
 
     if (!hoas || hoas.length === 0) {
       throw createError({

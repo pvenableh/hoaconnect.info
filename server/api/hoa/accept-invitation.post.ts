@@ -1,8 +1,5 @@
 import {
-  readItems,
   createUser,
-  createItem,
-  updateItem,
   authentication,
   rest,
   readMe,
@@ -24,20 +21,17 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const directus = getTypedDirectus();
     const config = useRuntimeConfig();
 
     // 1. Find the invitation by token
-    const invitations = await directus.request(
-      readItems("hoa_invitations", {
-        filter: {
-          token: { _eq: token },
-          invitation_status: { _eq: "pending" as const },
-        },
-        fields: ["*", { organization: ["*"], invited_by: ["*"] }],
-        limit: 1,
-      })
-    );
+    const invitations = await readTypedDirectusItems("hoa_invitations", {
+      filter: {
+        token: { _eq: token },
+        invitation_status: { _eq: "pending" as const },
+      },
+      fields: ["*", { organization: ["*"], invited_by: ["*"] }],
+      limit: 1,
+    });
 
     if (!invitations || invitations.length === 0) {
       throw createError({
@@ -95,11 +89,9 @@ export default defineEventHandler(async (event) => {
 
     if (now > expiresAt) {
       // Update invitation status to expired
-      await directus.request(
-        updateItem("hoa_invitations", invitation.id, {
-          invitation_status: "expired",
-        })
-      );
+      await updateTypedDirectusItem("hoa_invitations", invitation.id, {
+        invitation_status: "expired",
+      });
 
       throw createError({
         statusCode: 400,
@@ -108,6 +100,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // 3. Check if user already exists with this email
+    const directus = getTypedDirectus();
     const existingUsers = await directus.request(
       readUsers({
         filter: {
@@ -138,27 +131,23 @@ export default defineEventHandler(async (event) => {
     );
 
     // 5. Create hoa_member record with personal info
-    await directus.request(
-      createItem("hoa_members", {
-        user: newUser.id,
-        organization: organizationId,
-        role: invitation.role,
-        first_name: firstName,
-        last_name: lastName,
-        email: invitation.email,
-        phone: phone || null,
-        member_type: "owner", // Default to owner, can be changed later
-        status: "published",
-      })
-    );
+    await createTypedDirectusItem("hoa_members", {
+      user: newUser.id,
+      organization: organizationId,
+      role: invitation.role,
+      first_name: firstName,
+      last_name: lastName,
+      email: invitation.email,
+      phone: phone || null,
+      member_type: "owner", // Default to owner, can be changed later
+      status: "published",
+    });
 
     // 6. Mark invitation as accepted
-    await directus.request(
-      updateItem("hoa_invitations", invitation.id, {
-        invitation_status: "accepted",
-        accepted_at: new Date().toISOString(),
-      })
-    );
+    await updateTypedDirectusItem("hoa_invitations", invitation.id, {
+      invitation_status: "accepted",
+      accepted_at: new Date().toISOString(),
+    });
 
     // 7. Log the user in automatically
     const authClient = createDirectus(config.directus.url)
