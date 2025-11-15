@@ -48,10 +48,10 @@ export default defineNuxtConfig({
       mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN,
       appUrl: process.env.APP_URL || "http://localhost:3000",
       fromEmail: process.env.FROM_EMAIL || "noreply@605lincolnroad.com",
-      siteTitle: "605 Lincoln Road",
+      siteTitle: "Property Flow - Premier Property Management App",
       siteSubtitle: "",
       siteDescription:
-        "605 Lincoln is a prominent Streamline Moderne structure located on the famous pedestrian mall at the corner of Pennsylvania Avenue and Lincoln Road in Miami Beach.",
+        "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
     },
   },
 
