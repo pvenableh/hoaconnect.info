@@ -43,8 +43,8 @@ export const useSelectedOrg = () => {
         sort: ["organization.name"],
       });
 
-      console.log("[useSelectedOrg] Memberships result:", result.data.value);
-      return result.data.value || [];
+      console.log("[useSelectedOrg] Memberships result:", result);
+      return result || [];
     } catch (error) {
       console.error("[useSelectedOrg] Error fetching memberships:", error);
       return [];

@@ -48,7 +48,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
       },
       sort: ["sort", "last_name"],
     });
-    return result.data.value || [];
+    return result || [];
   },
   {
     watch: [organization],
@@ -77,7 +77,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
       },
       sort: ["-date_created"],
     });
-    return result.data.value || [];
+    return result || [];
   },
   {
     watch: [organization],
@@ -97,7 +97,7 @@ const { data: units } = await useAsyncData(
       },
       sort: ["unit_number"],
     });
-    return result.data.value || [];
+    return result || [];
   },
   {
     watch: [organization],

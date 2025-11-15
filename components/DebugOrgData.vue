@@ -47,7 +47,7 @@ const checkData = async () => {
 
     console.log("Raw result:", result);
     debugData.value.rawResponse = result;
-    debugData.value.memberships = result.data.value;
+    debugData.value.memberships = result;
 
     // Now try the full query
     const fullResult = await fetchItems("hoa_members", {
@@ -64,7 +64,7 @@ const checkData = async () => {
     });
 
     console.log("Full query result:", fullResult);
-    debugData.value.fullQueryResult = fullResult.data.value;
+    debugData.value.fullQueryResult = fullResult;
   } catch (err: any) {
     console.error("Error:", err);
     debugData.value.error = err.message || err.toString();
