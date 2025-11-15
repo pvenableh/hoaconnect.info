@@ -3,6 +3,7 @@ import {
   readItems,
   readItem,
   createItem,
+  createItems,
   updateItem,
   deleteItem,
   deleteItems,
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get the authenticated Directus client
-  const directus = await useDirectusServer();
+  const directus = await useDirectusServer(event);
 
   try {
     switch (method) {

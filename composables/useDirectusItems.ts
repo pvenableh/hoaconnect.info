@@ -1,5 +1,4 @@
-import type { DirectusCollections, DirectusSchema, DirectusItem } from '~/types/directus-schema'
-import type { ID } from '@directus/sdk'
+import type { DirectusCollections, DirectusSchema, DirectusItem, ID } from '~/types/directus-schema'
 
 interface ItemsOptions {
   fields?: string[]
