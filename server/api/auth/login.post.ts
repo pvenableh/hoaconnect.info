@@ -54,7 +54,21 @@ export default defineEventHandler(async (event) => {
         filter: {
           user: { _eq: userData.id },
         },
-        fields: ["id", "organization", "user", "role", "status", "unit"],
+        fields: [
+          "id",
+          "organization.id",
+          "organization.name",
+          "organization.slug",
+          "organization.domain",
+          "organization.logo",
+          "organization.email",
+          "organization.phone",
+          "organization.status",
+          "user",
+          "role",
+          "status",
+          "unit",
+        ],
       })
     );
 
