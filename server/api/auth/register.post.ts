@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     // Get the default user role
     let userRole: DirectusRole | null = null
     try {
-      const roles = await adminDirectus.request(
+      const roles = await adminDirectus.request<DirectusRole[]>(
         rest.readItems('directus_roles', {
           filter: {
             name: {
@@ -81,7 +81,10 @@ export default defineEventHandler(async (event) => {
       .with(authentication('json'))
       .with(rest())
 
-    const authResult = await userDirectus.login(validatedData.email, validatedData.password)
+    const authResult = await userDirectus.login({
+      email: validatedData.email,
+      password: validatedData.password
+    })
 
     // Create session user object
     const sessionUser: SessionUser = {
