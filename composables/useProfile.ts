@@ -1,117 +1,46 @@
 // composables/useProfile.ts
-import type { UserProfile, ProfileSchema } from "~/types/directus";
+// DEPRECATED: The profiles collection has been removed.
+// User data is now stored directly in directus_users.
+// Organization-specific data is in hoa_members.
+// This composable is kept for backward compatibility but returns stubs.
+
 import { toast } from "vue-sonner";
 
 export const useProfile = () => {
   const { user } = useDirectusAuth();
   const loading = useState<boolean>("profile.loading", () => false);
 
-  // Get current profile
-  const profile = computed(() => user.value?.profile || null);
+  // Profile is now just the user data
+  const profile = computed(() => user.value || null);
 
-  // Fetch profile from API
   const fetchProfile = async () => {
-    if (!user.value) return null;
-
-    loading.value = true;
-    try {
-      const data = await $fetch(`/api/profile/${user.value.id}`);
-      return data;
-    } catch (error) {
-      console.error("Failed to fetch profile:", error);
-      return null;
-    } finally {
-      loading.value = false;
-    }
+    console.warn("useProfile.fetchProfile is deprecated. Use useDirectusAuth().fetchUser() instead.");
+    return user.value;
   };
 
-  // Update profile
-  const updateProfile = async (data: Partial<ProfileSchema>) => {
-    if (!user.value) {
-      throw new Error("User not authenticated");
-    }
-
-    loading.value = true;
-    try {
-      const updatedProfile = await $fetch("/api/profile/update", {
-        method: "PATCH",
-        body: data,
-      });
-
-      // Update local state
-      if (user.value) {
-        user.value.profile = updatedProfile as UserProfile;
-      }
-
-      toast.success("Profile updated successfully");
-      return updatedProfile;
-    } catch (error: any) {
-      const message = error.data?.statusMessage || "Failed to update profile";
-      toast.error(message);
-      throw error;
-    } finally {
-      loading.value = false;
-    }
+  const updateProfile = async (data: any) => {
+    console.warn("useProfile.updateProfile is deprecated. The profiles collection has been removed.");
+    toast.error("Profile updates are no longer supported through this method");
+    throw new Error("Profiles collection has been removed");
   };
 
-  // Upload avatar
   const uploadAvatar = async (file: File) => {
-    if (!user.value) {
-      throw new Error("User not authenticated");
-    }
-
-    loading.value = true;
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await $fetch("/api/profile/avatar", {
-        method: "POST",
-        body: formData,
-      });
-
-      // Update local state
-      if (user.value && user.value.profile) {
-        user.value.profile.avatar_url = response.url;
-      }
-
-      toast.success("Avatar updated successfully");
-      return response;
-    } catch (error: any) {
-      const message = error.data?.statusMessage || "Failed to upload avatar";
-      toast.error(message);
-      throw error;
-    } finally {
-      loading.value = false;
-    }
+    console.warn("useProfile.uploadAvatar is deprecated.");
+    toast.error("Avatar upload is no longer supported through this method");
+    throw new Error("Profiles collection has been removed");
   };
 
-  // Calculate profile completion percentage
   const profileCompletion = computed(() => {
-    if (!profile.value) return 0;
-
-    const fields = [
-      "display_name",
-      "bio",
-      "phone",
-      "company",
-      "job_title",
-      "address_line1",
-      "city",
-      "state_province",
-      "postal_code",
-      "country",
-    ];
-
+    if (!user.value) return 0;
+    // Basic completion based on user fields
+    const fields = ["first_name", "last_name", "email"];
     const completed = fields.filter((field) => {
-      const value = (profile.value as any)[field];
+      const value = (user.value as any)?.[field];
       return value !== null && value !== undefined && value !== "";
     }).length;
-
     return Math.round((completed / fields.length) * 100);
   });
 
-  // Check if profile is complete
   const isProfileComplete = computed(() => {
     return profileCompletion.value >= 80;
   });

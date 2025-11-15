@@ -1,10 +1,9 @@
 import { createDirectus, authentication, rest, readMe, type AuthenticationData } from '@directus/sdk'
 import { toast } from 'vue-sonner'
-import type { DirectusSchema, DirectusUser, UserProfile } from '~/types/directus-schema'
+import type { DirectusSchema, DirectusUser } from '~/types/directus-schema'
 
 interface AuthState {
   user: DirectusUser | null
-  profile: UserProfile | null
   loading: boolean
   error: string | null
 }
@@ -16,14 +15,12 @@ export const useDirectusAuth = () => {
   // State management
   const state = useState<AuthState>('auth', () => ({
     user: null,
-    profile: null,
     loading: false,
     error: null
   }))
 
   // Computed properties
   const user = computed(() => state.value.user)
-  const profile = computed(() => state.value.profile)
   const isAuthenticated = computed(() => !!state.value.user)
   const loading = computed(() => state.value.loading)
   const error = computed(() => state.value.error)
@@ -71,7 +68,6 @@ export const useDirectusAuth = () => {
 
       // Update state with user data
       state.value.user = result.user as any
-      state.value.profile = null // Will be fetched separately if needed
 
       toast.success('Successfully logged in!')
       return result
@@ -141,18 +137,16 @@ export const useDirectusAuth = () => {
       
       // Clear state
       state.value.user = null
-      state.value.profile = null
-      
+
       toast.success('Successfully logged out')
-      
+
       // Redirect to login
       await navigateTo('/auth/login')
-      
+
     } catch (err: any) {
       console.error('Logout error:', err)
       // Even if logout fails, clear local state
       state.value.user = null
-      state.value.profile = null
       await navigateTo('/auth/login')
     } finally {
       state.value.loading = false
@@ -165,17 +159,15 @@ export const useDirectusAuth = () => {
   const fetchUser = async () => {
     try {
       const userData = await $fetch('/api/auth/me')
-      
+
       if (userData) {
         state.value.user = userData.user
-        state.value.profile = userData.profile
       }
-      
+
       return userData
     } catch (err: any) {
       console.error('Failed to fetch user:', err)
       state.value.user = null
-      state.value.profile = null
       return null
     }
   }
@@ -280,7 +272,6 @@ export const useDirectusAuth = () => {
   return {
     // State
     user: readonly(user),
-    profile: readonly(profile),
     member: readonly(member),
     isAuthenticated: readonly(isAuthenticated),
     loading: readonly(loading),
