@@ -1,4 +1,5 @@
-import type { ID } from '@directus/sdk'
+// Type alias for Directus ID
+export type ID = string | number
 
 // System Collections
 export interface DirectusUser {
@@ -278,22 +279,119 @@ export interface UserSession {
   id: ID
   user_id: ID | DirectusUser
   token: string
-  
+
   // Session Info
   ip_address?: string | null
   user_agent?: string | null
   device_type?: 'desktop' | 'mobile' | 'tablet' | null
-  
+
   // Activity
   last_activity?: string | null
   pages_visited?: string[] | null
-  
+
   // Status
   is_active?: boolean
   expires_at?: string | null
-  
+
   date_created?: string
   date_updated?: string | null
+}
+
+/**
+ * HOA Organization - Multi-tenant organization records
+ */
+export interface HoaOrganization {
+  id: ID
+  name: string
+  slug?: string | null
+  domain?: string | null
+  logo?: ID | DirectusFile | null
+
+  // Contact Info
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+
+  // Settings
+  settings?: any | null
+  status: 'active' | 'inactive' | 'suspended'
+
+  date_created?: string
+  date_updated?: string | null
+}
+
+/**
+ * HOA Member - Organization members
+ */
+export interface HoaMember {
+  id: ID
+  organization: ID | HoaOrganization
+  user: ID | DirectusUser
+  role?: ID | DirectusRole | null
+
+  // Member Info
+  unit?: ID | null
+  status: 'active' | 'inactive' | 'pending'
+
+  date_created?: string
+  date_updated?: string | null
+}
+
+/**
+ * HOA Invitation - Organization member invitations
+ */
+export interface HoaInvitation {
+  id: ID
+  organization: ID | HoaOrganization
+  email: string
+  name?: string | null
+  role?: ID | DirectusRole | null
+  token: string
+
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  invited_by: ID | DirectusUser
+  invited_at: string
+  expires_at: string
+  accepted_at?: string | null
+
+  date_created?: string
+  date_updated?: string | null
+}
+
+/**
+ * HOA Unit - Property units within an organization
+ */
+export interface HoaUnit {
+  id: ID
+  organization: ID | HoaOrganization
+  unit_number: string
+  address?: string | null
+
+  status: 'active' | 'inactive'
+
+  date_created?: string
+  date_updated?: string | null
+}
+
+/**
+ * HOA Document - Organization documents
+ */
+export interface HoaDocument {
+  id: ID
+  organization: ID | HoaOrganization
+  title: string
+  description?: string | null
+  file?: ID | DirectusFile | null
+  category?: string | null
+
+  status: 'published' | 'draft' | 'archived'
+
+  date_created?: string
+  date_updated?: string | null
+  created_by?: ID | DirectusUser
 }
 
 // Define the complete schema
@@ -302,7 +400,7 @@ export interface DirectusSchema {
   directus_users: DirectusUser
   directus_roles: DirectusRole
   directus_files: DirectusFile
-  
+
   // Application Collections
   profiles: UserProfile
   user_settings: UserSettings
@@ -311,6 +409,13 @@ export interface DirectusSchema {
   oauth_tokens: OAuthToken
   password_resets: PasswordReset
   user_sessions: UserSession
+
+  // HOA Collections (Multi-tenant)
+  hoa_organizations: HoaOrganization
+  hoa_members: HoaMember
+  hoa_invitations: HoaInvitation
+  hoa_units: HoaUnit
+  hoa_documents: HoaDocument
 }
 
 // Type helper for collection names

@@ -1,5 +1,5 @@
 // types/directus.ts
-import type { ID } from '@directus/sdk'
+import type { ID } from './directus-schema'
 
 // ============================================
 // DIRECTUS NATIVE TYPES

@@ -11,9 +11,8 @@ import {
   createItem,
   updateItem,
   deleteItem,
-  type ID,
 } from '@directus/sdk'
-import type { DirectusSchema, DirectusCollections } from '~/types/directus-schema'
+import type { DirectusSchema, DirectusCollections, ID } from '~/types/directus-schema'
 
 /**
  * Get a typed Directus client with admin access
@@ -36,7 +35,7 @@ export function getTypedDirectus() {
 export async function getUserDirectus(event: any) {
   const config = useRuntimeConfig()
   const session = await getUserSession(event)
-  
+
   if (!session?.directusAccessToken) {
     throw createError({
       statusCode: 401,
@@ -45,10 +44,18 @@ export async function getUserDirectus(event: any) {
   }
 
   const client = createDirectus<DirectusSchema>(config.directus.url)
-    .with(staticToken(session.directusAccessToken))
+    .with(staticToken(session.directusAccessToken as string))
     .with(rest())
 
   return client
+}
+
+/**
+ * Alias for getUserDirectus - used in server routes
+ * Provides an authenticated Directus client for the current user
+ */
+export async function useDirectusServer(event: any) {
+  return await getUserDirectus(event)
 }
 
 /**
@@ -129,13 +136,13 @@ export async function deleteTypedDirectusItem<T extends DirectusCollections>(
  */
 export async function refreshUserTokens(refreshToken: string) {
   const config = useRuntimeConfig()
-  
+
   const client = createDirectus<DirectusSchema>(config.directus.url)
     .with(authentication('session'))
     .with(rest())
-  
+
   try {
-    const result = await client.refresh('session', refreshToken)
+    const result = await client.refresh(refreshToken)
     return result
   } catch (error) {
     console.error('Failed to refresh tokens:', error)

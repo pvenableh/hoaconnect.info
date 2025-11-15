@@ -28,6 +28,17 @@ export const useDirectusAuth = () => {
   const loading = computed(() => state.value.loading)
   const error = computed(() => state.value.error)
 
+  // Member property for multi-tenancy
+  const member = computed(() => {
+    if (!state.value.user) return null
+
+    return {
+      id: (state.value.user as any).member_id || null,
+      organization: (state.value.user as any).organization || null,
+      role: (state.value.user as any).role || null
+    }
+  })
+
   /**
    * Initialize the client with authentication
    */
@@ -43,33 +54,28 @@ export const useDirectusAuth = () => {
   const login = async (email: string, password: string) => {
     state.value.loading = true
     state.value.error = null
-    
+
     try {
-      const client = getAuthClient()
-      
-      // Authenticate with Directus
-      const result = await client.login(email, password)
-      
-      if (!result.access_token || !result.refresh_token) {
+      // Login via server endpoint (handles Directus authentication and session)
+      const result = await $fetch('/api/auth/login', {
+        method: 'POST',
+        body: {
+          email,
+          password
+        }
+      })
+
+      if (!result?.user) {
         throw new Error('Invalid authentication response')
       }
 
-      // Store tokens server-side using nuxt-auth-utils
-      await $fetch('/api/auth/login', {
-        method: 'POST',
-        body: {
-          directusAccessToken: result.access_token,
-          directusRefreshToken: result.refresh_token,
-          expires: result.expires
-        }
-      })
-      
-      // Fetch user data
-      await fetchUser()
-      
+      // Update state with user data
+      state.value.user = result.user as any
+      state.value.profile = null // Will be fetched separately if needed
+
       toast.success('Successfully logged in!')
       return result
-      
+
     } catch (err: any) {
       state.value.error = err?.message || 'Login failed'
       toast.error(state.value.error)
@@ -275,10 +281,11 @@ export const useDirectusAuth = () => {
     // State
     user: readonly(user),
     profile: readonly(profile),
+    member: readonly(member),
     isAuthenticated: readonly(isAuthenticated),
     loading: readonly(loading),
     error: readonly(error),
-    
+
     // Methods
     login,
     register,
