@@ -1,8 +1,14 @@
-import type {
-  DirectusCollections,
-  DirectusSchema,
-  DirectusItem,
-} from "~/types/directus-schema";
+// composables/useDirectusItems.ts
+import {
+  readItems,
+  readItem,
+  createItem,
+  updateItem,
+  deleteItem,
+  deleteItems,
+  aggregate,
+} from "@directus/sdk";
+import type { DirectusClient } from "@directus/sdk";
 import type { ID } from "@directus/sdk";
 
 interface ItemsOptions {
@@ -17,27 +23,20 @@ interface ItemsOptions {
 }
 
 export const useDirectusItems = () => {
-  const { member } = useDirectusAuth();
+  const { user } = useDirectusAuth();
 
   /**
    * Add organization filter for multi-tenancy
    */
   const addOrgFilter = (filter: any = {}) => {
-    // Skip org filter for system collections
-    const systemCollections = [
-      "directus_users",
-      "directus_roles",
-      "directus_files",
-    ];
-
-    if (!member.value?.organization) {
+    if (!user.value?.organization) {
       return filter;
     }
 
     return {
       ...filter,
       organization: {
-        _eq: member.value.organization,
+        _eq: user.value.organization,
       },
     };
   };
@@ -45,10 +44,10 @@ export const useDirectusItems = () => {
   /**
    * Fetch multiple items from a collection
    */
-  const fetchItems = async <T extends DirectusCollections>(
-    collection: T,
+  const fetchItems = async <T = any>(
+    collection: string,
     options: ItemsOptions = {}
-  ): Promise<DirectusItem<T>[]> => {
+  ): Promise<T[]> => {
     try {
       // Apply multi-tenancy filter for HOA collections
       const filter = collection.startsWith("hoa_")
@@ -58,14 +57,18 @@ export const useDirectusItems = () => {
       const response = await $fetch(`/api/directus/items/${collection}`, {
         method: "GET",
         query: {
-          ...options,
-          filter: filter ? JSON.stringify(filter) : undefined,
-          fields: options.fields ? options.fields.join(",") : undefined,
-          sort: options.sort ? options.sort.join(",") : undefined,
+          fields: options.fields,
+          filter,
+          sort: options.sort,
+          limit: options.limit,
+          offset: options.offset,
+          page: options.page,
+          search: options.search,
+          deep: options.deep,
         },
       });
 
-      return response as DirectusItem<T>[];
+      return response as T[];
     } catch (error: any) {
       console.error(`Failed to fetch ${collection}:`, error);
       throw error;
@@ -75,20 +78,20 @@ export const useDirectusItems = () => {
   /**
    * Fetch a single item from a collection
    */
-  const fetchItem = async <T extends DirectusCollections>(
-    collection: T,
+  const fetchItem = async <T = any>(
+    collection: string,
     id: ID,
     options: { fields?: string[] } = {}
-  ): Promise<DirectusItem<T>> => {
+  ): Promise<T> => {
     try {
       const response = await $fetch(`/api/directus/items/${collection}/${id}`, {
         method: "GET",
         query: {
-          fields: options.fields ? options.fields.join(",") : undefined,
+          fields: options.fields,
         },
       });
 
-      return response as DirectusItem<T>;
+      return response as T;
     } catch (error: any) {
       console.error(`Failed to fetch ${collection}/${id}:`, error);
       throw error;
@@ -98,16 +101,16 @@ export const useDirectusItems = () => {
   /**
    * Create a new item in a collection
    */
-  const createItem = async <T extends DirectusCollections>(
-    collection: T,
-    data: Partial<DirectusItem<T>>
-  ): Promise<DirectusItem<T>> => {
+  const createItem = async <T = any>(
+    collection: string,
+    data: Partial<T>
+  ): Promise<T> => {
     try {
       // Add organization for HOA collections
-      if (collection.startsWith("hoa_") && member.value?.organization) {
+      if (collection.startsWith("hoa_") && user.value?.organization) {
         data = {
           ...data,
-          organization: member.value.organization as any,
+          organization: user.value.organization as any,
         };
       }
 
@@ -116,7 +119,7 @@ export const useDirectusItems = () => {
         body: data,
       });
 
-      return response as DirectusItem<T>;
+      return response as T;
     } catch (error: any) {
       console.error(`Failed to create ${collection}:`, error);
       throw error;
@@ -126,18 +129,18 @@ export const useDirectusItems = () => {
   /**
    * Update an existing item
    */
-  const updateItem = async <T extends DirectusCollections>(
-    collection: T,
+  const updateItem = async <T = any>(
+    collection: string,
     id: ID,
-    data: Partial<DirectusItem<T>>
-  ): Promise<DirectusItem<T>> => {
+    data: Partial<T>
+  ): Promise<T> => {
     try {
       const response = await $fetch(`/api/directus/items/${collection}/${id}`, {
         method: "PATCH",
         body: data,
       });
 
-      return response as DirectusItem<T>;
+      return response as T;
     } catch (error: any) {
       console.error(`Failed to update ${collection}/${id}:`, error);
       throw error;
@@ -147,10 +150,7 @@ export const useDirectusItems = () => {
   /**
    * Delete an item
    */
-  const deleteItem = async <T extends DirectusCollections>(
-    collection: T,
-    id: ID
-  ): Promise<void> => {
+  const deleteItem = async (collection: string, id: ID): Promise<void> => {
     try {
       await $fetch(`/api/directus/items/${collection}/${id}`, {
         method: "DELETE",
@@ -164,14 +164,11 @@ export const useDirectusItems = () => {
   /**
    * Delete multiple items
    */
-  const deleteItems = async <T extends DirectusCollections>(
-    collection: T,
-    ids: ID[]
-  ): Promise<void> => {
+  const deleteItems = async (collection: string, ids: ID[]): Promise<void> => {
     try {
       await $fetch(`/api/directus/items/${collection}`, {
         method: "DELETE",
-        body: { keys: ids },
+        body: ids,
       });
     } catch (error: any) {
       console.error(`Failed to delete multiple ${collection}:`, error);
@@ -182,8 +179,8 @@ export const useDirectusItems = () => {
   /**
    * Aggregate data from a collection
    */
-  const aggregate = async <T extends DirectusCollections>(
-    collection: T,
+  const aggregateItems = async (
+    collection: string,
     options: {
       aggregate?: Record<string, string[]>;
       groupBy?: string[];
@@ -195,14 +192,12 @@ export const useDirectusItems = () => {
         ? addOrgFilter(options.filter)
         : options.filter;
 
-      const response = await $fetch(`/api/directus/aggregate/${collection}`, {
+      const response = await $fetch(`/api/directus/items/${collection}`, {
         method: "GET",
         query: {
-          aggregate: options.aggregate
-            ? JSON.stringify(options.aggregate)
-            : undefined,
-          groupBy: options.groupBy ? options.groupBy.join(",") : undefined,
-          filter: filter ? JSON.stringify(filter) : undefined,
+          aggregate: options.aggregate,
+          groupBy: options.groupBy,
+          filter,
         },
       });
 
@@ -220,7 +215,7 @@ export const useDirectusItems = () => {
     updateItem,
     deleteItem,
     deleteItems,
-    aggregate,
+    aggregate: aggregateItems,
 
     // Aliases for convenience
     list: fetchItems,

@@ -1,130 +1,93 @@
 // server/api/auth/login.post.ts
-import { createDirectus, authentication, rest, readMe, readItem } from '@directus/sdk'
-import { loginSchema } from '~/schemas/auth'
-import type { DirectusUser, UserProfile, SessionUser } from '~/types/directus'
+import {
+  createDirectus,
+  authentication,
+  rest,
+  readMe,
+  readItems,
+  staticToken,
+} from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
-  try {
-    // Validate request body
-    const body = await readBody(event)
-    const validatedData = loginSchema.parse(body)
+  const { email, password } = await readBody(event);
 
-    // Get runtime config
-    const config = useRuntimeConfig()
-    
-    // Create Directus client
-    const directus = createDirectus(config.public.directusUrl)
-      .with(authentication('json'))
-      .with(rest())
+  if (!email || !password) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Email and password are required",
+    });
+  }
+
+  try {
+    // Create a temporary client for authentication
+    const authClient = createDirectus(process.env.DIRECTUS_URL!)
+      .with(authentication("session", { credentials: "include" }))
+      .with(rest());
 
     // Authenticate with Directus
-    const authResult = await directus.login(validatedData.email, validatedData.password)
-    
-    if (!authResult || !authResult.access_token) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Invalid credentials'
-      })
-    }
+    const authResult = await authClient.login({ email, password });
 
-    // Set the access token for subsequent requests
-    directus.setToken(authResult.access_token)
+    // Create authenticated client with the token
+    const client = createDirectus(process.env.DIRECTUS_URL!)
+      .with(staticToken(authResult.access_token))
+      .with(rest());
 
-    // Fetch user details with profile
-    const user = await directus.request(
+    // Get user details
+    const userData = await client.request(
       readMe({
         fields: [
-          'id',
-          'email',
-          'first_name',
-          'last_name',
-          'avatar',
-          'role.id',
-          'role.name',
-          'role.admin_access',
-          'role.app_access',
-          'provider',
-          'external_identifier'
-        ] as any
+          "id",
+          "email",
+          "first_name",
+          "last_name",
+          "role.id",
+          "role.name",
+          "role.admin_access",
+        ],
       })
-    ) as DirectusUser
+    );
 
-    // Fetch user profile if it exists
-    let profile: UserProfile | null = null
-    try {
-      const profiles = await directus.request(
-        rest.readItems('profiles', {
-          filter: {
-            user_id: {
-              _eq: user.id
-            }
-          },
-          fields: ['*', 'organization_id.*'] as any,
-          limit: 1
-        })
-      )
-      profile = profiles?.[0] || null
-    } catch (error) {
-      console.log('No profile found for user, will create on first access')
-    }
+    // Check for HOA member association
+    const members = await client.request(
+      readItems("hoa_members", {
+        filter: {
+          user: { _eq: userData.id },
+        },
+        fields: ["id", "organization", "role"],
+      })
+    );
+
+    const member = members[0];
 
     // Create session user object
-    const sessionUser: SessionUser = {
-      id: user.id as string,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      role: user.role as any,
-      profile: profile,
-      organization: profile?.organization_id as any
-    }
+    const sessionUser = {
+      id: userData.id,
+      email: userData.email,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      role: userData.role,
+      organization: member?.organization || null,
+      member_id: member?.id || null,
+    };
 
-    // Set session using nuxt-auth-utils
+    // Store session with access token (server-side only)
     await setUserSession(event, {
       user: sessionUser,
-      tokens: {
-        access_token: authResult.access_token,
-        refresh_token: authResult.refresh_token,
-        expires: authResult.expires,
-        expires_at: authResult.expires_at
-      }
-    })
+      directusAccessToken: authResult.access_token,
+      directusRefreshToken: authResult.refresh_token,
+      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 mins
+    });
 
-    // Return user data (without sensitive tokens)
+    // Return user data (without tokens)
     return {
       user: sessionUser,
-      success: true
-    }
-
+    };
   } catch (error: any) {
-    console.error('Login error:', error)
-    
-    // Handle validation errors
-    if (error.name === 'ZodError') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Validation error',
-        data: error.errors
-      })
-    }
+    console.error("Login error:", error);
 
-    // Handle Directus errors
-    if (error.errors?.[0]?.extensions?.code === 'INVALID_CREDENTIALS') {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Invalid email or password'
-      })
-    }
-
-    // Re-throw if it's already a proper error
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Generic error
     throw createError({
-      statusCode: 500,
-      statusMessage: 'An error occurred during login'
-    })
+      statusCode: 401,
+      statusMessage: error.message || "Invalid email or password",
+    });
   }
-})
+});
