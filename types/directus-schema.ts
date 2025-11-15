@@ -200,6 +200,45 @@ export interface HoaDocument {
   created_by?: ID | DirectusUser
 }
 
+// ============================================
+// AUTHENTICATION TYPES
+// ============================================
+
+export interface AuthResponse {
+  access_token: string
+  refresh_token: string
+  expires: number
+  expires_at: number
+}
+
+export interface SessionUser {
+  id: string
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+  avatar?: string | null
+  role?: DirectusRole | null
+  organization?: HoaOrganization | null
+  member?: HoaMember | null
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterData {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  phone?: string
+}
+
+// ============================================
+// DIRECTUS SCHEMA TYPE
+// ============================================
+
 // Define the complete schema
 export interface DirectusSchema {
   // System Collections
