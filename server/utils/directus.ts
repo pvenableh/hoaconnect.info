@@ -96,10 +96,10 @@ export async function readTypedDirectusItems<T extends DirectusCollections>(
   query?: any
 ) {
   const directus = getTypedDirectus()
-  
+
   return await directus.request(
     readItems(collection, query)
-  ) as DirectusSchema[T][]
+  ) as unknown as DirectusSchema[T][]
 }
 
 /**
@@ -111,10 +111,10 @@ export async function readTypedDirectusItem<T extends DirectusCollections>(
   query?: any
 ) {
   const directus = getTypedDirectus()
-  
+
   return await directus.request(
     readItem(collection, id, query)
-  ) as DirectusSchema[T]
+  ) as unknown as DirectusSchema[T]
 }
 
 /**
