@@ -2,7 +2,6 @@
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
-  extends: ["directus-nuxt-layer"],
   devtools: { enabled: true },
   debug: true,
   modules: [
@@ -23,6 +22,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only keys (never exposed to client-side)
     directusServerToken: process.env.DIRECTUS_STATIC_TOKEN || "",
+    sessionPassword: process.env.NUXT_SESSION_PASSWORD,
     directus: {
       url: process.env.DIRECTUS_URL,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
@@ -55,6 +55,7 @@ export default defineNuxtConfig({
         "605 Lincoln is a prominent Streamline Moderne structure located on the famous pedestrian mall at the corner of Pennsylvania Avenue and Lincoln Road in Miami Beach.",
     },
   },
+  modules: ["nuxt-auth-utils"],
   vite: {
     plugins: [tailwindcss()],
   },

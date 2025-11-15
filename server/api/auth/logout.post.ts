@@ -1,35 +1,36 @@
-/**
- * Custom logout endpoint.
- *
- * Clears the user session and logs out from Directus.
- */
+// server/api/auth/logout.post.ts
+import { createDirectus, authentication, rest } from '@directus/sdk'
+
 export default defineEventHandler(async (event) => {
   try {
-    const session = await getUserSession(event);
-
-    if (session?.user) {
-      // TODO: Call Directus logout endpoint if needed
-      // For now, just clear the session
-      await clearUserSession(event);
+    // Get current session
+    const session = await getUserSession(event)
+    
+    if (session?.tokens?.refresh_token) {
+      // Revoke refresh token in Directus
+      const config = useRuntimeConfig()
+      const directus = createDirectus(config.public.directusUrl)
+        .with(authentication('json'))
+        .with(rest())
+      
+      try {
+        await directus.logout(session.tokens.refresh_token)
+      } catch (error) {
+        // Log but don't fail if token revocation fails
+        console.error('Failed to revoke refresh token:', error)
+      }
     }
-
-    return {
-      success: true,
-      message: "Logged out successfully",
-    };
-  } catch (error: any) {
-    console.error("Logout error:", error);
-
-    // Even if there's an error, try to clear the session
-    try {
-      await clearUserSession(event);
-    } catch (clearError) {
-      console.error("Failed to clear session:", clearError);
-    }
-
-    return {
-      success: true,
-      message: "Logged out",
-    };
+    
+    // Clear the session
+    await clearUserSession(event)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Logout error:', error)
+    
+    // Still clear session even if something goes wrong
+    await clearUserSession(event)
+    
+    return { success: true }
   }
-});
+})

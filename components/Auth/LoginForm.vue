@@ -1,209 +1,227 @@
-<script setup lang="ts">
-import { toTypedSchema } from "@vee-validate/zod";
-import { useForm } from "vee-validate";
-import { toast } from "vue-sonner";
-import { loginSchema, type LoginSchema } from "~/schemas/auth";
-
-interface Props {
-  title?: string;
-  description?: string;
-  showOAuth?: boolean;
-  redirectTo?: string;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  title: "Welcome back",
-  description: "Enter your credentials to access your account",
-  showOAuth: true,
-  redirectTo: "/",
-});
-
-const emit = defineEmits<{
-  success: [user: any];
-  error: [error: Error];
-}>();
-
-const { login, loginWithGitHub, loginWithGoogle } = useDirectusAuth();
-const router = useRouter();
-
-const loading = ref(false);
-const hasSubmitted = ref(false); // Track if form has been submitted
-
-const {
-  animateError,
-  animateValidationError,
-  animateSuccess,
-  animateButtonLoading,
-  resetButtonLoading,
-} = useFormAnimations();
-
-const form = useForm({
-  validationSchema: toTypedSchema(loginSchema),
-  initialValues: {
-    email: "",
-    password: "",
-  },
-});
-
-const handleBlur = async (fieldName: keyof LoginSchema) => {
-  const result = await form.validateField(fieldName);
-  if (result.errors.length > 0) {
-    animateValidationError(fieldName as string);
-  }
-};
-
-const onSubmit = form.handleSubmit(
-  async (values: LoginSchema) => {
-    hasSubmitted.value = true;
-    loading.value = true;
-    const submitBtn = document.querySelector(".submit-button");
-    if (submitBtn) {
-      animateButtonLoading(submitBtn as HTMLElement);
-    }
-
-    try {
-      const result = await login(values.email, values.password);
-
-      if (submitBtn) {
-        animateSuccess(submitBtn as HTMLElement);
-      }
-
-      toast.success("Welcome back!", {
-        description: "You have successfully logged in.",
-      });
-
-      emit("success", result.user);
-      await router.push(props.redirectTo);
-    } catch (err: any) {
-      const errorMessage = err.message || "Login failed. Please try again.";
-
-      const card = document.querySelector(".auth-card");
-      if (card) {
-        animateError(card as HTMLElement);
-      }
-
-      toast.error("Login failed", {
-        description: errorMessage,
-      });
-
-      emit("error", err);
-    } finally {
-      loading.value = false;
-      if (submitBtn) {
-        resetButtonLoading(submitBtn as HTMLElement);
-      }
-    }
-  },
-  // Validation failure handler
-  async () => {
-    hasSubmitted.value = true;
-    Object.keys(form.errors.value).forEach((fieldName) => {
-      animateValidationError(fieldName);
-    });
-  }
-);
-
-const handleOAuthLogin = (provider: "github" | "google") => {
-  if (provider === "github") {
-    loginWithGitHub();
-  } else {
-    loginWithGoogle();
-  }
-};
-</script>
-
+<!-- components/auth/LoginForm.vue -->
 <template>
-  <Card class="w-full max-w-md mx-auto auth-card">
-    <CardHeader>
-      <CardTitle>{{ title }}</CardTitle>
-      <CardDescription>{{ description }}</CardDescription>
+  <Card class="w-full max-w-md">
+    <CardHeader class="space-y-1">
+      <CardTitle class="text-2xl font-bold">Welcome back</CardTitle>
+      <CardDescription>
+        Enter your email and password to sign in
+      </CardDescription>
     </CardHeader>
-
-    <CardContent class="space-y-4">
-      <form @submit="onSubmit" class="space-y-4">
-        <FormField v-slot="{ componentField }" name="email">
-          <FormItem class="form-field">
-            <FormLabel>Email</FormLabel>
-            <FormControl>
-              <Input
-                type="email"
-                placeholder="name@example.com"
-                v-bind="componentField"
-                @blur="handleBlur('email')"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-
-        <FormField v-slot="{ componentField }" name="password">
-          <FormItem class="form-field">
-            <FormLabel>Password</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                v-bind="componentField"
-                @blur="handleBlur('password')"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-
-        <div class="flex items-center justify-between">
-          <NuxtLink
-            to="/auth/forgot-password"
-            class="text-sm text-primary hover:underline"
-          >
-            Forgot password?
-          </NuxtLink>
+    <CardContent>
+      <form @submit.prevent="onSubmit" class="space-y-4">
+        <!-- Email Field -->
+        <div class="space-y-2">
+          <Label for="email">Email</Label>
+          <Input
+            id="email"
+            v-model="form.email"
+            type="email"
+            placeholder="john@example.com"
+            :disabled="loading"
+            :class="{ 'border-red-500': errors.email }"
+            autocomplete="email"
+          />
+          <p v-if="errors.email" class="text-sm text-red-500">
+            {{ errors.email }}
+          </p>
         </div>
 
-        <Button type="submit" class="w-full submit-button" :disabled="loading">
-          {{ loading ? "Signing in..." : "Sign in" }}
-        </Button>
-      </form>
+        <!-- Password Field -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <Label for="password">Password</Label>
+            <NuxtLink
+              to="/auth/forgot-password"
+              class="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Forgot password?
+            </NuxtLink>
+          </div>
+          <Input
+            id="password"
+            v-model="form.password"
+            type="password"
+            placeholder="Enter your password"
+            :disabled="loading"
+            :class="{ 'border-red-500': errors.password }"
+            autocomplete="current-password"
+          />
+          <p v-if="errors.password" class="text-sm text-red-500">
+            {{ errors.password }}
+          </p>
+        </div>
 
-      <div v-if="showOAuth" class="space-y-3">
-        <div class="relative">
+        <!-- Remember Me -->
+        <div class="flex items-center space-x-2">
+          <input
+            id="remember"
+            v-model="form.remember"
+            type="checkbox"
+            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <Label for="remember" class="text-sm font-normal cursor-pointer">
+            Remember me for 30 days
+          </Label>
+        </div>
+
+        <!-- Error Alert -->
+        <Alert v-if="errorMessage" variant="destructive">
+          <AlertDescription>
+            {{ errorMessage }}
+          </AlertDescription>
+        </Alert>
+
+        <!-- Submit Button -->
+        <Button type="submit" class="w-full" :disabled="loading || !isValid">
+          <span v-if="loading" class="flex items-center gap-2">
+            <Icon name="eos-icons:loading" class="animate-spin" />
+            Signing in...
+          </span>
+          <span v-else>Sign in</span>
+        </Button>
+
+        <!-- OAuth Divider -->
+        <div class="relative my-6">
           <div class="absolute inset-0 flex items-center">
             <span class="w-full border-t" />
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
+            <span class="bg-white px-2 text-gray-500">Or continue with</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <!-- OAuth Buttons -->
+        <div class="grid grid-cols-2 gap-4">
           <Button
-            variant="outline"
             type="button"
-            @click="handleOAuthLogin('github')"
-          >
-            GitHub
-          </Button>
-
-          <Button
             variant="outline"
-            type="button"
-            @click="handleOAuthLogin('google')"
+            @click="loginWithProvider('google')"
+            :disabled="loading"
           >
+            <Icon name="logos:google-icon" class="mr-2 h-4 w-4" />
             Google
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            @click="loginWithProvider('github')"
+            :disabled="loading"
+          >
+            <Icon name="mdi:github" class="mr-2 h-4 w-4" />
+            GitHub
+          </Button>
         </div>
-      </div>
-    </CardContent>
 
-    <CardFooter class="flex justify-center">
-      <p class="text-sm text-muted-foreground">
-        Don't have an account?
-        <NuxtLink to="/auth/register" class="text-primary hover:underline">
-          Sign up
-        </NuxtLink>
-      </p>
-    </CardFooter>
+        <!-- Sign Up Link -->
+        <div class="text-center text-sm">
+          <span class="text-gray-500">Don't have an account?</span>
+          <NuxtLink
+            to="/auth/register"
+            class="ml-1 font-semibold text-blue-600 hover:text-blue-800"
+          >
+            Sign up
+          </NuxtLink>
+        </div>
+      </form>
+    </CardContent>
   </Card>
 </template>
+
+<script setup lang="ts">
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { loginSchema } from "~/schemas/auth";
+import type { LoginSchema } from "~/schemas/auth";
+
+// Props & Emits
+const emit = defineEmits<{
+  success: [user: any];
+}>();
+
+// Composables
+const { login } = useDirectusAuth();
+const { public: publicConfig } = useRuntimeConfig();
+
+// State
+const loading = ref(false);
+const errorMessage = ref("");
+
+const form = reactive<LoginSchema>({
+  email: "",
+  password: "",
+});
+
+const remember = ref(false);
+const errors = reactive<Partial<Record<keyof LoginSchema, string>>>({});
+
+// Validation
+const isValid = computed(() => {
+  return form.email && form.password && Object.keys(errors).length === 0;
+});
+
+// Watch for changes and validate
+watch(
+  form,
+  () => {
+    try {
+      loginSchema.parse(form);
+      Object.keys(errors).forEach(
+        (key) => delete errors[key as keyof LoginSchema]
+      );
+    } catch (error: any) {
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          const field = err.path[0] as keyof LoginSchema;
+          errors[field] = err.message;
+        });
+      }
+    }
+  },
+  { deep: true }
+);
+
+// Submit handler
+const onSubmit = async () => {
+  errorMessage.value = "";
+  loading.value = true;
+
+  try {
+    // Validate form
+    const validatedData = loginSchema.parse(form);
+
+    // Attempt login
+    const user = await login(validatedData);
+
+    // Emit success event
+    emit("success", user);
+  } catch (error: any) {
+    if (error.data?.statusMessage) {
+      errorMessage.value = error.data.statusMessage;
+    } else if (error.message) {
+      errorMessage.value = error.message;
+    } else {
+      errorMessage.value = "An error occurred during login";
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+// OAuth login
+const loginWithProvider = (provider: "google" | "github") => {
+  const directusUrl = publicConfig.directusUrl;
+  const appUrl = publicConfig.appUrl;
+
+  // Redirect to Directus OAuth endpoint
+  window.location.href = `${directusUrl}/auth/login/${provider}?redirect=${appUrl}/auth/callback`;
+};
+</script>
