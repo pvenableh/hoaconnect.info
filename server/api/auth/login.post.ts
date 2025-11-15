@@ -7,7 +7,7 @@ import {
   readItems,
   staticToken,
 } from "@directus/sdk";
-import type { SessionUser } from "~/types/directus-schema";
+import type { SessionUser, HoaMember } from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBody(event);
@@ -54,11 +54,11 @@ export default defineEventHandler(async (event) => {
         filter: {
           user: { _eq: userData.id },
         },
-        fields: ["id", "organization", "role"],
+        fields: ["id", "organization", "user", "role", "status", "unit"],
       })
     );
 
-    const member = members[0];
+    const member = members[0] as HoaMember | undefined;
 
     // Create session user object
     const sessionUser: SessionUser = {

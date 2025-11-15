@@ -5,16 +5,16 @@ export default defineEventHandler(async (event) => {
   try {
     // Get current session
     const session = await getUserSession(event)
-    
-    if (session?.tokens?.refresh_token) {
+
+    if (session?.directusRefreshToken) {
       // Revoke refresh token in Directus
       const config = useRuntimeConfig()
       const directus = createDirectus(config.public.directusUrl)
         .with(authentication('json'))
         .with(rest())
-      
+
       try {
-        await directus.logout(session.tokens.refresh_token)
+        await directus.logout(session.directusRefreshToken)
       } catch (error) {
         // Log but don't fail if token revocation fails
         console.error('Failed to revoke refresh token:', error)
