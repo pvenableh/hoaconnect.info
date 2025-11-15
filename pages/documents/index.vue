@@ -31,7 +31,7 @@ const { data: documents, refresh } = await useAsyncData(
       },
       sort: ["sort", "-date_published"],
     });
-    return result.data.value || [];
+    return result || [];
   }
 );
 

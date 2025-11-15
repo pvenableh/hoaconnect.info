@@ -25,7 +25,7 @@ const { data: documents, refresh: refreshDocs } = await useAsyncData(
       sort: ["sort", "-date_published"],
       limit: 5,
     });
-    return result.data.value || [];
+    return result || [];
   }
 );
 
@@ -41,7 +41,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
         status: { _in: ["published", "draft"] },
       },
     });
-    return result.data.value || [];
+    return result || [];
   }
 );
 
@@ -57,7 +57,7 @@ const { data: units, refresh: refreshUnits } = await useAsyncData(
         status: { _in: ["published", "draft"] },
       },
     });
-    return result.data.value || [];
+    return result || [];
   }
 );
 
