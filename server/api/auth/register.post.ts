@@ -1,7 +1,7 @@
 // server/api/auth/register.post.ts
 import { createDirectus, rest, authentication, createUser, createItem, readRole } from '@directus/sdk'
 import { registerSchema } from '~/schemas/auth'
-import type { DirectusUser, SessionUser, DirectusRole } from '~/types/directus'
+import type { DirectusUser, SessionUser, DirectusRole } from '~/types/directus-schema'
 
 export default defineEventHandler(async (event) => {
   try {

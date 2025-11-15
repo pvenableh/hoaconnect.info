@@ -1,5 +1,5 @@
 // composables/useHOAAuth.ts
-import type { RegisterData } from "~/types/directus";
+import type { RegisterData } from "~/types/directus-schema";
 import { toast } from "vue-sonner";
 
 export const useHOAAuth = () => {
@@ -19,27 +19,15 @@ export const useHOAAuth = () => {
       // Call base register
       const result = await baseRegister(data);
 
-      // If we have an active HOA, update the user's profile
+      // If we have an active HOA, create HOA member record
       if (result && activeHoa.value) {
         try {
-          await $fetch("/api/profile/update", {
-            method: "PATCH",
-            body: {
-              organization_id: activeHoa.value.id,
-            },
-          });
-
-          // Also create HOA member record
           await $fetch("/api/hoa/members/create", {
             method: "POST",
             body: {
               user: result.id,
               organization: activeHoa.value.id,
-              first_name: data.firstName,
-              last_name: data.lastName,
-              email: data.email,
-              phone: data.phone,
-              member_type: "owner", // Default type
+              status: "active"
             },
           });
         } catch (error) {
@@ -57,18 +45,12 @@ export const useHOAAuth = () => {
   const belongsToCurrentHOA = computed(() => {
     if (!user.value || !activeHoa.value) return false;
 
-    // Check if user's profile has the organization
-    if (user.value.profile?.organization_id) {
-      return (
-        (user.value.profile.organization_id as any)?.id ===
-          activeHoa.value.id ||
-        user.value.profile.organization_id === activeHoa.value.id
-      );
-    }
-
     // Check if user has organization directly
     if (user.value.organization) {
-      return (user.value.organization as any).id === activeHoa.value.id;
+      const orgId = typeof user.value.organization === 'object'
+        ? user.value.organization.id
+        : user.value.organization;
+      return orgId === activeHoa.value.id;
     }
 
     return false;
@@ -94,23 +76,21 @@ export const useHOAAuth = () => {
 
   // Check if user is board member
   const isBoardMember = computed(() => {
-    if (!user.value?.profile) return false;
+    if (!user.value?.member) return false;
+    const memberRole = typeof user.value.member === 'object' && 'role' in user.value.member
+      ? user.value.member.role
+      : null;
+    const roleName = typeof memberRole === 'object' && memberRole && 'name' in memberRole
+      ? memberRole.name
+      : null;
     return (
-      user.value.profile.is_board_member === true && belongsToCurrentHOA.value
+      roleName === 'Board Member' && belongsToCurrentHOA.value
     );
   });
 
   // Switch HOA context (for users who belong to multiple HOAs)
   const switchHOA = async (organizationId: string) => {
     try {
-      // Update profile with new organization
-      await $fetch("/api/profile/update", {
-        method: "PATCH",
-        body: {
-          organization_id: organizationId,
-        },
-      });
-
       // Refresh user session
       await $fetch("/api/auth/refresh", {
         method: "POST",

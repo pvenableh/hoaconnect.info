@@ -1,4 +1,6 @@
 // server/api/auth/oauth/google/callback.get.ts
+import type { SessionUser } from "~/types/directus-schema";
+
 export default oauth.googleEventHandler({
   async onSuccess(event, { user: googleUser }) {
     try {
@@ -67,14 +69,15 @@ export default oauth.googleEventHandler({
       );
 
       // Set session
-      const sessionUser = {
-        id: userData.id,
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        role: userData.role,
+      const sessionUser: SessionUser = {
+        id: userData.id as string,
+        email: userData.email as string,
+        first_name: userData.first_name || null,
+        last_name: userData.last_name || null,
+        avatar: null,
+        role: userData.role || null,
         organization: member[0]?.organization || null,
-        member_id: member[0]?.id || null,
+        member: member[0] || null,
       };
 
       await setUserSession(event, {

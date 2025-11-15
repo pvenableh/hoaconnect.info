@@ -7,6 +7,7 @@ import {
   readItems,
   staticToken,
 } from "@directus/sdk";
+import type { SessionUser } from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBody(event);
@@ -60,14 +61,15 @@ export default defineEventHandler(async (event) => {
     const member = members[0];
 
     // Create session user object
-    const sessionUser = {
-      id: userData.id,
-      email: userData.email,
-      first_name: userData.first_name,
-      last_name: userData.last_name,
-      role: userData.role,
+    const sessionUser: SessionUser = {
+      id: userData.id as string,
+      email: userData.email as string,
+      first_name: userData.first_name || null,
+      last_name: userData.last_name || null,
+      avatar: null,
+      role: userData.role || null,
       organization: member?.organization || null,
-      member_id: member?.id || null,
+      member: member || null,
     };
 
     // Store session with access token (server-side only)

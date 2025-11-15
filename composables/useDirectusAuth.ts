@@ -87,8 +87,8 @@ export const useDirectusAuth = () => {
   const register = async (data: {
     email: string
     password: string
-    first_name: string
-    last_name: string
+    firstName: string
+    lastName: string
     phone?: string
   }) => {
     state.value.loading = true
