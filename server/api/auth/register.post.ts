@@ -1,7 +1,7 @@
 // server/api/auth/register.post.ts
-import { createDirectus, rest, createUser, createItem, readRole } from '@directus/sdk'
+import { createDirectus, rest, authentication, createUser, createItem, readRole } from '@directus/sdk'
 import { registerSchema } from '~/schemas/auth'
-import type { DirectusUser, UserProfile, SessionUser, DirectusRole } from '~/types/directus'
+import type { DirectusUser, SessionUser, DirectusRole } from '~/types/directus'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -76,23 +76,6 @@ export default defineEventHandler(async (event) => {
       })
     ) as DirectusUser
 
-    // Get organization from cookie/header if it exists (for multi-tenant)
-    const organizationId = getCookie(event, 'hoa-organization-id') || null
-
-    // Create user profile
-    const profile = await adminDirectus.request(
-      createItem('profiles', {
-        user_id: newUser.id,
-        display_name: `${validatedData.firstName} ${validatedData.lastName}`,
-        phone: validatedData.phone,
-        organization_id: organizationId,
-        status: 'active',
-        onboarding_completed: false,
-        onboarding_step: 0,
-        profile_completion: 10
-      })
-    ) as UserProfile
-
     // Auto-login the user after registration
     const userDirectus = createDirectus(config.public.directusUrl)
       .with(authentication('json'))
@@ -107,8 +90,8 @@ export default defineEventHandler(async (event) => {
       first_name: newUser.first_name,
       last_name: newUser.last_name,
       role: userRole,
-      profile: profile,
-      organization: null
+      organization: null,
+      member: null
     }
 
     // Set session

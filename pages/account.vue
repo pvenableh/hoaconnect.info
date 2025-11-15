@@ -330,21 +330,10 @@
                   <Icon name="lucide:github" class="h-5 w-5" />
                   <div>
                     <p class="font-medium">GitHub</p>
-                    <p v-if="profile?.github_username" class="text-sm text-muted-foreground">
-                      @{{ profile.github_username }}
-                    </p>
+                    <p class="text-sm text-muted-foreground">Not connected</p>
                   </div>
                 </div>
                 <UiButton
-                  v-if="profile?.github_id"
-                  variant="outline"
-                  size="sm"
-                  @click="disconnectOAuth('github')"
-                >
-                  Disconnect
-                </UiButton>
-                <UiButton
-                  v-else
                   variant="outline"
                   size="sm"
                   @click="connectOAuth('github')"
@@ -358,21 +347,10 @@
                   <Icon name="lucide:mail" class="h-5 w-5" />
                   <div>
                     <p class="font-medium">Google</p>
-                    <p v-if="profile?.google_id" class="text-sm text-muted-foreground">
-                      Connected
-                    </p>
+                    <p class="text-sm text-muted-foreground">Not connected</p>
                   </div>
                 </div>
                 <UiButton
-                  v-if="profile?.google_id"
-                  variant="outline"
-                  size="sm"
-                  @click="disconnectOAuth('google')"
-                >
-                  Disconnect
-                </UiButton>
-                <UiButton
-                  v-else
                   variant="outline"
                   size="sm"
                   @click="connectOAuth('google')"
@@ -503,11 +481,9 @@
 
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import type { UserProfile } from '~/types/directus-schema'
 
 // Auth & user data
-const { user, profile, fetchUser } = useDirectusAuth()
-const { updateItem, fetchItem } = useDirectusItems()
+const { user, fetchUser } = useDirectusAuth()
 
 // Tab management
 const tabs = [
@@ -564,36 +540,26 @@ const preferencesForm = ref({
 
 // Load profile data
 onMounted(async () => {
-  if (profile.value) {
-    // Load profile form
+  if (user.value) {
+    // Load profile form from user data
     profileForm.value = {
       first_name: user.value?.first_name || '',
       last_name: user.value?.last_name || '',
-      display_name: profile.value.display_name || '',
-      phone: profile.value.phone || '',
-      bio: profile.value.bio || '',
-      company: profile.value.company || '',
-      job_title: profile.value.job_title || '',
-      website: profile.value.website || ''
-    }
-
-    // Load address form
-    addressForm.value = {
-      address_line1: profile.value.address_line1 || '',
-      address_line2: profile.value.address_line2 || '',
-      city: profile.value.city || '',
-      state_province: profile.value.state_province || '',
-      postal_code: profile.value.postal_code || '',
-      country: profile.value.country || ''
+      display_name: '',
+      phone: '',
+      bio: '',
+      company: '',
+      job_title: '',
+      website: ''
     }
 
     // Load preferences
     preferencesForm.value = {
-      email_notifications: profile.value.notifications_enabled ?? true,
-      newsletter_subscribed: profile.value.newsletter_subscribed ?? false,
+      email_notifications: true,
+      newsletter_subscribed: false,
       theme: user.value?.theme || 'auto',
-      locale: profile.value.locale || 'en',
-      timezone: profile.value.timezone || 'America/New_York'
+      locale: 'en',
+      timezone: 'America/New_York'
     }
   }
 })
@@ -605,32 +571,20 @@ const updateProfile = async () => {
   updateSuccess.value = false
 
   try {
-    // Update user fields in directus_users
-    await $fetch('/api/account/update-user', {
-      method: 'PATCH',
-      body: {
-        first_name: profileForm.value.first_name,
-        last_name: profileForm.value.last_name
-      }
-    })
+    // Note: Profiles collection has been removed
+    // Only updating user fields in directus_users
+    toast.warning('Profile updates are temporarily disabled while we migrate to the new data model')
 
-    // Update profile fields
-    if (profile.value?.id) {
-      await updateItem('profiles', profile.value.id, {
-        display_name: profileForm.value.display_name,
-        phone: profileForm.value.phone,
-        bio: profileForm.value.bio,
-        company: profileForm.value.company,
-        job_title: profileForm.value.job_title,
-        website: profileForm.value.website
-      })
-    }
+    // TODO: Implement user update endpoint
+    // await $fetch('/api/account/update-user', {
+    //   method: 'PATCH',
+    //   body: {
+    //     first_name: profileForm.value.first_name,
+    //     last_name: profileForm.value.last_name
+    //   }
+    // })
 
-    updateSuccess.value = true
-    toast.success('Profile updated successfully!')
-    
-    // Refresh user data
-    await fetchUser()
+    updateSuccess.value = false
   } catch (error: any) {
     updateError.value = error?.message || 'Failed to update profile'
     toast.error(updateError.value)
@@ -644,11 +598,8 @@ const updateAddress = async () => {
   isUpdating.value = true
 
   try {
-    if (profile.value?.id) {
-      await updateItem('profiles', profile.value.id, addressForm.value)
-      toast.success('Address updated successfully!')
-      await fetchUser()
-    }
+    // Note: Profiles collection has been removed
+    toast.warning('Address updates are temporarily disabled while we migrate to the new data model')
   } catch (error: any) {
     toast.error('Failed to update address')
   } finally {
@@ -698,25 +649,16 @@ const updatePreferences = async () => {
   isUpdating.value = true
 
   try {
-    if (profile.value?.id) {
-      await updateItem('profiles', profile.value.id, {
-        notifications_enabled: preferencesForm.value.email_notifications,
-        newsletter_subscribed: preferencesForm.value.newsletter_subscribed,
-        locale: preferencesForm.value.locale,
-        timezone: preferencesForm.value.timezone
-      })
-    }
+    // Note: Profiles collection has been removed
+    toast.warning('Preference updates are temporarily disabled while we migrate to the new data model')
 
-    // Update theme in directus_users
-    await $fetch('/api/account/update-user', {
-      method: 'PATCH',
-      body: {
-        theme: preferencesForm.value.theme
-      }
-    })
-
-    toast.success('Preferences updated!')
-    await fetchUser()
+    // TODO: Implement user update endpoint for theme
+    // await $fetch('/api/account/update-user', {
+    //   method: 'PATCH',
+    //   body: {
+    //     theme: preferencesForm.value.theme
+    //   }
+    // })
   } catch (error) {
     toast.error('Failed to update preferences')
   } finally {
