@@ -139,14 +139,14 @@
             </Alert>
 
             <!-- Submit Button -->
-            <UiButton type="submit" class="w-full" :disabled="isSubmitting">
+            <Button type="submit" class="w-full" :disabled="isSubmitting">
               <Icon
                 v-if="isSubmitting"
                 name="lucide:loader-2"
                 class="mr-2 h-4 w-4 animate-spin"
               />
               {{ isSubmitting ? "Creating account..." : "Create Account" }}
-            </UiButton>
+            </Button>
 
             <!-- Terms -->
             <p class="text-xs text-center text-muted-foreground">

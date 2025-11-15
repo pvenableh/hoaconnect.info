@@ -40,13 +40,13 @@
               </p>
             </div>
           </Alert>
-          <UiButton
+          <Button
             class="w-full mt-4"
             variant="outline"
             @click="router.push('/auth/login')"
           >
             Go to Login
-          </UiButton>
+          </Button>
         </CardContent>
       </Card>
 
@@ -156,7 +156,7 @@
             </Alert>
 
             <!-- Submit Button -->
-            <UiButton
+            <Button
               type="submit"
               class="w-full"
               :disabled="isSubmitting || success"
@@ -167,7 +167,7 @@
                 class="mr-2 h-4 w-4 animate-spin"
               />
               {{ isSubmitting ? "Creating account..." : "Accept Invitation" }}
-            </UiButton>
+            </Button>
           </form>
         </CardContent>
       </Card>

@@ -71,14 +71,14 @@
             </Alert>
 
             <!-- Submit Button -->
-            <UiButton type="submit" class="w-full" :disabled="isSubmitting">
+            <Button type="submit" class="w-full" :disabled="isSubmitting">
               <Icon
                 v-if="isSubmitting"
                 name="lucide:loader-2"
                 class="mr-2 h-4 w-4 animate-spin"
               />
               {{ isSubmitting ? "Signing in..." : "Sign In" }}
-            </UiButton>
+            </Button>
           </form>
 
           <!-- Divider -->
@@ -95,14 +95,14 @@
 
           <!-- OAuth Buttons -->
           <div class="grid grid-cols-2 gap-4">
-            <UiButton variant="outline" @click="loginWithGitHub">
+            <Button variant="outline" @click="loginWithGitHub">
               <Icon name="lucide:github" class="mr-2 h-4 w-4" />
               GitHub
-            </UiButton>
-            <UiButton variant="outline" @click="loginWithGoogle">
+            </Button>
+            <Button variant="outline" @click="loginWithGoogle">
               <Icon name="lucide:mail" class="mr-2 h-4 w-4" />
               Google
-            </UiButton>
+            </Button>
           </div>
         </CardContent>
       </Card>

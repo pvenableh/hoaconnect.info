@@ -161,14 +161,14 @@
 
               <!-- Submit Button -->
               <div class="flex justify-end">
-                <UiButton type="submit" :disabled="isUpdating">
+                <Button type="submit" :disabled="isUpdating">
                   <Icon
                     v-if="isUpdating"
                     name="lucide:loader-2"
                     class="mr-2 h-4 w-4 animate-spin"
                   />
                   {{ isUpdating ? "Saving..." : "Save Changes" }}
-                </UiButton>
+                </Button>
               </div>
             </form>
           </CardContent>
@@ -235,9 +235,9 @@
               </div>
 
               <div class="flex justify-end">
-                <UiButton type="submit" :disabled="isUpdating">
+                <Button type="submit" :disabled="isUpdating">
                   Save Address
-                </UiButton>
+                </Button>
               </div>
             </form>
           </CardContent>
@@ -301,9 +301,9 @@
               </Alert>
 
               <div class="flex justify-end">
-                <UiButton type="submit" :disabled="isUpdating">
+                <Button type="submit" :disabled="isUpdating">
                   Change Password
-                </UiButton>
+                </Button>
               </div>
             </form>
           </CardContent>
@@ -327,13 +327,13 @@
                     <p class="text-sm text-muted-foreground">Not connected</p>
                   </div>
                 </div>
-                <UiButton
+                <Button
                   variant="outline"
                   size="sm"
                   @click="connectOAuth('github')"
                 >
                   Connect
-                </UiButton>
+                </Button>
               </div>
 
               <div
@@ -346,13 +346,13 @@
                     <p class="text-sm text-muted-foreground">Not connected</p>
                   </div>
                 </div>
-                <UiButton
+                <Button
                   variant="outline"
                   size="sm"
                   @click="connectOAuth('google')"
                 >
                   Connect
-                </UiButton>
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -401,9 +401,9 @@
               </div>
 
               <div class="flex justify-end">
-                <UiButton type="submit" :disabled="isUpdating">
+                <Button type="submit" :disabled="isUpdating">
                   Save Preferences
-                </UiButton>
+                </Button>
               </div>
             </form>
           </CardContent>
@@ -459,9 +459,9 @@
               </div>
 
               <div class="flex justify-end">
-                <UiButton @click="updatePreferences" :disabled="isUpdating">
+                <Button @click="updatePreferences" :disabled="isUpdating">
                   Save Appearance
-                </UiButton>
+                </Button>
               </div>
             </div>
           </CardContent>

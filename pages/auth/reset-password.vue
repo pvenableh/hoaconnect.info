@@ -75,7 +75,7 @@
             </Alert>
 
             <!-- Submit Button -->
-            <UiButton
+            <Button
               v-if="!success"
               type="submit"
               class="w-full"
@@ -87,17 +87,17 @@
                 class="mr-2 h-4 w-4 animate-spin"
               />
               {{ isSubmitting ? "Resetting..." : "Reset Password" }}
-            </UiButton>
+            </Button>
 
             <!-- Login Button -->
-            <UiButton
+            <Button
               v-else
               type="button"
               class="w-full"
               @click="router.push('/auth/login')"
             >
               Go to Login
-            </UiButton>
+            </Button>
           </form>
 
           <!-- Invalid Token Alert -->

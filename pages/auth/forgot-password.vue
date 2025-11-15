@@ -59,7 +59,7 @@
             </Alert>
 
             <!-- Submit Button -->
-            <UiButton
+            <Button
               v-if="!success"
               type="submit"
               class="w-full"
@@ -71,10 +71,10 @@
                 class="mr-2 h-4 w-4 animate-spin"
               />
               {{ isSubmitting ? "Sending..." : "Send Reset Link" }}
-            </UiButton>
+            </Button>
 
             <!-- Back to Login -->
-            <UiButton
+            <Button
               v-else
               type="button"
               variant="outline"
@@ -82,7 +82,7 @@
               @click="router.push('/auth/login')"
             >
               Back to Login
-            </UiButton>
+            </Button>
           </form>
         </CardContent>
       </Card>
