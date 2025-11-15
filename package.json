@@ -25,6 +25,7 @@
     "@nuxt/test-utils": "3.17.2",
     "@nuxtjs/seo": "^3.0.3",
     "@tailwindcss/vite": "^4.1.10",
+    "@vee-validate/nuxt": "^4.15.1",
     "@vee-validate/zod": "^4.15.1",
     "@vueuse/core": "^13.9.0",
     "@vueuse/motion": "^2.2.6",

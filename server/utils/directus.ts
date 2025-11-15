@@ -1,37 +1,144 @@
-// server/utils/directus.ts
 import {
   createDirectus,
   rest,
   authentication,
   staticToken,
-} from "@directus/sdk";
-import type { H3Event } from "h3";
+  type RestClient,
+  type StaticTokenClient,
+  type AuthenticationClient,
+  readItems,
+  readItem,
+  createItem,
+  updateItem,
+  deleteItem,
+  type ID,
+} from '@directus/sdk'
+import type { DirectusSchema, DirectusCollections } from '~/types/directus-schema'
 
-// Create a server-side Directus client with admin token
-export const directusServer = createDirectus(process.env.DIRECTUS_URL!)
-  .with(staticToken(process.env.DIRECTUS_ADMIN_TOKEN!))
-  .with(rest());
+/**
+ * Get a typed Directus client with admin access
+ * Uses static token for server-side operations
+ */
+export function getTypedDirectus() {
+  const config = useRuntimeConfig()
+  
+  const client = createDirectus<DirectusSchema>(config.directus.url)
+    .with(staticToken(config.directus.staticToken))
+    .with(rest())
 
-// Create authenticated Directus client based on user session
-export const useDirectusServer = async (event?: H3Event) => {
-  const config = useRuntimeConfig();
+  return client
+}
 
-  // If no event context, return admin client
-  if (!event) {
-    return directusServer;
-  }
-
-  // Try to get user session
-  const session = await getUserSession(event);
-
+/**
+ * Get a Directus client with user authentication
+ * Uses the session token from nuxt-auth-utils
+ */
+export async function getUserDirectus(event: any) {
+  const config = useRuntimeConfig()
+  const session = await getUserSession(event)
+  
   if (!session?.directusAccessToken) {
-    // Return admin client for unauthenticated requests
-    // You may want to throw an error here instead depending on your needs
-    return directusServer;
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'No authentication token available'
+    })
   }
 
-  // Create user-specific client with their token
-  return createDirectus(config.public.directusUrl)
+  const client = createDirectus<DirectusSchema>(config.directus.url)
     .with(staticToken(session.directusAccessToken))
-    .with(rest());
-};
+    .with(rest())
+
+  return client
+}
+
+/**
+ * Type-safe wrapper for updating Directus items
+ * Handles complex objects without TypeScript errors
+ */
+export async function updateTypedDirectusItem<T extends DirectusCollections>(
+  collection: T,
+  id: ID,
+  data: Partial<DirectusSchema[T]>
+) {
+  const directus = getTypedDirectus()
+  
+  return await directus.request(
+    updateItem(collection, id, data as any)
+  )
+}
+
+/**
+ * Type-safe wrapper for creating Directus items
+ */
+export async function createTypedDirectusItem<T extends DirectusCollections>(
+  collection: T,
+  data: Partial<DirectusSchema[T]>
+) {
+  const directus = getTypedDirectus()
+  
+  return await directus.request(
+    createItem(collection, data as any)
+  )
+}
+
+/**
+ * Type-safe wrapper for reading multiple items
+ */
+export async function readTypedDirectusItems<T extends DirectusCollections>(
+  collection: T,
+  query?: any
+) {
+  const directus = getTypedDirectus()
+  
+  return await directus.request(
+    readItems(collection, query)
+  ) as DirectusSchema[T][]
+}
+
+/**
+ * Type-safe wrapper for reading a single item
+ */
+export async function readTypedDirectusItem<T extends DirectusCollections>(
+  collection: T,
+  id: ID,
+  query?: any
+) {
+  const directus = getTypedDirectus()
+  
+  return await directus.request(
+    readItem(collection, id, query)
+  ) as DirectusSchema[T]
+}
+
+/**
+ * Type-safe wrapper for deleting items
+ */
+export async function deleteTypedDirectusItem<T extends DirectusCollections>(
+  collection: T,
+  id: ID
+) {
+  const directus = getTypedDirectus()
+  
+  return await directus.request(
+    deleteItem(collection, id)
+  )
+}
+
+/**
+ * Helper to refresh user authentication tokens
+ */
+export async function refreshUserTokens(refreshToken: string) {
+  const config = useRuntimeConfig()
+  
+  const client = createDirectus<DirectusSchema>(config.directus.url)
+    .with(authentication('session'))
+    .with(rest())
+  
+  try {
+    const result = await client.refresh('session', refreshToken)
+    return result
+  } catch (error) {
+    console.error('Failed to refresh tokens:', error)
+    throw error
+  }
+}

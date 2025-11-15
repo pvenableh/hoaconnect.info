@@ -5,18 +5,17 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   debug: true,
   modules: [
+    "nuxt-auth-utils",
     "@nuxt/icon",
     "@nuxt/image",
     "@nuxt/fonts",
     "@nuxtjs/seo",
     "@vueuse/nuxt",
     "@vueuse/motion/nuxt",
+    "@vee-validate/nuxt",
     "shadcn-nuxt",
   ],
-  shadcn: {
-    prefix: "",
-    componentDir: "./components/ui",
-  },
+
   css: ["~/assets/css/main.css"],
 
   runtimeConfig: {
@@ -55,7 +54,7 @@ export default defineNuxtConfig({
         "605 Lincoln is a prominent Streamline Moderne structure located on the famous pedestrian mall at the corner of Pennsylvania Avenue and Lincoln Road in Miami Beach.",
     },
   },
-  modules: ["nuxt-auth-utils"],
+
   vite: {
     plugins: [tailwindcss()],
   },
@@ -91,11 +90,26 @@ export default defineNuxtConfig({
       ],
     },
   },
+  shadcn: {
+    prefix: "",
+    componentDir: "./components/ui",
+  },
+  veeValidate: {
+    // disable or enable auto imports
+    autoImports: true,
+    // Use different names for components
+    componentNames: {
+      Form: "VeeForm",
+      Field: "VeeField",
+      FieldArray: "VeeFieldArray",
+      ErrorMessage: "VeeErrorMessage",
+    },
+  },
   site: {
     url: "https://property.huestudios.company",
-    name: "605 Lincoln Road - Premier Streamline Moderne Structure in Miami Beach",
+    name: "Property Flow - Premier Property Management App",
     description:
-      "605 Lincoln Road is a prominent Streamline Moderne structure located on the famous pedestrian mall at the corner of Pennsylvania Avenue and Lincoln Road in Miami Beach.",
+      "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
     defaultLocale: "en",
     ogImage: "",
   },
@@ -114,10 +128,10 @@ export default defineNuxtConfig({
   schemaOrg: {
     identity: {
       type: "Business",
-      name: "605 Lincoln",
-      alternateName: "605 Lincoln Road",
-      url: "https://605lincolnroad.com",
-      logo: "https://605lincolnroad.com/logo.png",
+      name: "Property Flow",
+      alternateName: "Property Flow",
+      url: "https://property.huestudios.com",
+      logo: "https://property.huestudios.com/logo.png",
       address: {
         type: "PostalAddress",
         streetAddress: "605 Lincoln Road",
@@ -135,7 +149,7 @@ export default defineNuxtConfig({
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "Business",
-        email: "contact@605lincolnroad.com",
+        email: "contact@huestudios.com",
       },
     },
   },

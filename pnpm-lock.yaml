@@ -50,6 +50,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.10
         version: 4.1.17(vite@7.2.2(@types/node@22.19.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1))
+      '@vee-validate/nuxt':
+        specifier: ^4.15.1
+        version: 4.15.1(magicast@0.5.1)(vue@3.5.24(typescript@5.9.3))
       '@vee-validate/zod':
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.24(typescript@5.9.3))(zod@3.25.76)
@@ -2160,6 +2163,9 @@ packages:
   '@unocss/rule-utils@66.5.6':
     resolution: {integrity: sha512-HzFlKDIaX/yPnNx7rn24Yi23RkVqwGiE1n9qVNJnEUZTE9IHx32P7eLfIUKOLU58tcMVslsLZDnt/DpJCs6RCw==}
     engines: {node: '>=14'}
+
+  '@vee-validate/nuxt@4.15.1':
+    resolution: {integrity: sha512-vy+BYUmwy7d01js8jg3qApyrE8/nJHbHvPZNYZSe+hTQEblNqyVt+MnD1incyxMCcivED8FX5w4rjxdoUn7iMQ==}
 
   '@vee-validate/zod@4.15.1':
     resolution: {integrity: sha512-329Z4TDBE5Vx0FdbA8S4eR9iGCFFUNGbxjpQ20ff5b5wGueScjocUIx9JHPa79LTG06RnlUR4XogQsjN4tecKA==}
@@ -8075,6 +8081,15 @@ snapshots:
     dependencies:
       '@unocss/core': 66.5.6
       magic-string: 0.30.21
+
+  '@vee-validate/nuxt@4.15.1(magicast@0.5.1)(vue@3.5.24(typescript@5.9.3))':
+    dependencies:
+      '@nuxt/kit': 3.20.1(magicast@0.5.1)
+      local-pkg: 0.5.1
+      vee-validate: 4.15.1(vue@3.5.24(typescript@5.9.3))
+    transitivePeerDependencies:
+      - magicast
+      - vue
 
   '@vee-validate/zod@4.15.1(vue@3.5.24(typescript@5.9.3))(zod@3.25.76)':
     dependencies:

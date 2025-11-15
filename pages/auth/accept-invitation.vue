@@ -1,21 +1,55 @@
 <template>
-  <div class="container flex h-screen w-screen flex-col items-center justify-center">
+  <div class="container flex min-h-screen w-screen flex-col items-center justify-center">
     <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
       <!-- Logo/Brand -->
       <div class="flex flex-col space-y-2 text-center">
-        <Icon name="lucide:user-plus" class="mx-auto h-12 w-12 text-primary" />
-        <h1 class="text-2xl font-semibold tracking-tight">Create an account</h1>
+        <Icon name="lucide:mail-check" class="mx-auto h-12 w-12 text-primary" />
+        <h1 class="text-2xl font-semibold tracking-tight">Accept Invitation</h1>
         <p class="text-sm text-muted-foreground">
-          Enter your information to get started
+          Complete your account setup to get started
         </p>
       </div>
 
-      <!-- Register Form -->
-      <UiCard>
+      <!-- Loading State -->
+      <UiCard v-if="loading">
+        <UiCardContent class="pt-6">
+          <div class="flex flex-col items-center space-y-4">
+            <Icon name="lucide:loader-2" class="h-8 w-8 animate-spin text-primary" />
+            <p class="text-sm text-muted-foreground">Verifying invitation...</p>
+          </div>
+        </UiCardContent>
+      </UiCard>
+
+      <!-- Invalid Invitation -->
+      <UiCard v-else-if="!invitationValid">
+        <UiCardContent class="pt-6">
+          <UiAlert variant="destructive">
+            <Icon name="lucide:alert-triangle" class="h-4 w-4" />
+            <div class="ml-2">
+              <p class="font-medium">Invalid or Expired Invitation</p>
+              <p class="text-sm mt-1">
+                This invitation link is invalid or has already been used.
+                Please contact your administrator for a new invitation.
+              </p>
+            </div>
+          </UiAlert>
+          <UiButton
+            class="w-full mt-4"
+            variant="outline"
+            @click="router.push('/auth/login')"
+          >
+            Go to Login
+          </UiButton>
+        </UiCardContent>
+      </UiCard>
+
+      <!-- Accept Form -->
+      <UiCard v-else>
         <UiCardHeader>
-          <UiCardTitle>Sign Up</UiCardTitle>
+          <UiCardTitle>Welcome {{ invitation?.first_name }}!</UiCardTitle>
           <UiCardDescription>
-            Create your account to access the platform
+            You've been invited to join {{ invitation?.organization?.name }}.
+            Please set up your password to complete registration.
           </UiCardDescription>
         </UiCardHeader>
         <UiCardContent>
@@ -52,36 +86,16 @@
               </div>
             </div>
 
-            <!-- Email -->
+            <!-- Email (Read-only) -->
             <div class="space-y-2">
               <UiLabel for="email">Email</UiLabel>
               <UiInput
                 id="email"
-                v-model="email"
+                :modelValue="invitation?.email"
                 type="email"
-                placeholder="you@example.com"
-                :error="!!errors.email"
-                :disabled="isSubmitting"
+                disabled
+                class="bg-muted"
               />
-              <p v-if="errors.email" class="text-sm text-destructive">
-                {{ errors.email }}
-              </p>
-            </div>
-
-            <!-- Phone (Optional) -->
-            <div class="space-y-2">
-              <UiLabel for="phone">Phone (Optional)</UiLabel>
-              <UiInput
-                id="phone"
-                v-model="phone"
-                type="tel"
-                placeholder="+1 (555) 123-4567"
-                :error="!!errors.phone"
-                :disabled="isSubmitting"
-              />
-              <p v-if="errors.phone" class="text-sm text-destructive">
-                {{ errors.phone }}
-              </p>
             </div>
 
             <!-- Password -->
@@ -128,30 +142,20 @@
             <!-- Success Alert -->
             <UiAlert v-if="success" variant="success">
               <Icon name="lucide:check-circle" class="h-4 w-4" />
-              <div class="ml-2">Account created successfully! Redirecting...</div>
+              <div class="ml-2">
+                Account created successfully! Redirecting...
+              </div>
             </UiAlert>
 
             <!-- Submit Button -->
             <UiButton
               type="submit"
               class="w-full"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || success"
             >
               <Icon v-if="isSubmitting" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
-              {{ isSubmitting ? 'Creating account...' : 'Create Account' }}
+              {{ isSubmitting ? 'Creating account...' : 'Accept Invitation' }}
             </UiButton>
-
-            <!-- Terms -->
-            <p class="text-xs text-center text-muted-foreground">
-              By creating an account, you agree to our
-              <NuxtLink to="/terms" class="underline underline-offset-4 hover:text-primary">
-                Terms & Conditions
-              </NuxtLink>
-              and
-              <NuxtLink to="/privacy" class="underline underline-offset-4 hover:text-primary">
-                Privacy Policy
-              </NuxtLink>
-            </p>
           </form>
         </UiCardContent>
       </UiCard>
@@ -160,7 +164,7 @@
       <p class="px-8 text-center text-sm text-muted-foreground">
         Already have an account?
         <NuxtLink to="/auth/login" class="hover:text-primary underline underline-offset-4">
-          Sign in
+          Sign in instead
         </NuxtLink>
       </p>
     </div>
@@ -170,52 +174,100 @@
 <script setup lang="ts">
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
-import { registerSchema, type RegisterSchema } from '~/lib/validations'
+import { acceptInvitationSchema, type AcceptInvitationSchema } from '~/lib/validations'
 import { toast } from 'vue-sonner'
+import type { HoaInvitation } from '~/types/directus-schema'
 
 definePageMeta({
   layout: false,
   middleware: 'guest'
 })
 
-const { register, login } = useDirectusAuth()
 const router = useRouter()
+const route = useRoute()
+const { login } = useDirectusAuth()
+
+// Get token from query params
+const token = computed(() => route.query.token as string)
+
+// State
+const loading = ref(true)
+const invitationValid = ref(false)
+const invitation = ref<HoaInvitation | null>(null)
+const authError = ref<string | null>(null)
+const success = ref(false)
 
 // Form validation
-const { handleSubmit, errors, isSubmitting, defineField } = useForm<RegisterSchema>({
-  validationSchema: toTypedSchema(registerSchema)
+const { handleSubmit, errors, isSubmitting, defineField, setFieldValue } = useForm<AcceptInvitationSchema>({
+  validationSchema: toTypedSchema(acceptInvitationSchema)
 })
 
 const [firstName] = defineField('firstName')
 const [lastName] = defineField('lastName')
-const [email] = defineField('email')
-const [phone] = defineField('phone')
 const [password] = defineField('password')
 const [confirmPassword] = defineField('confirmPassword')
 
-// State
-const authError = ref<string | null>(null)
-const success = ref(false)
+// Verify invitation on mount
+onMounted(async () => {
+  if (!token.value) {
+    loading.value = false
+    invitationValid.value = false
+    toast.error('No invitation token provided')
+    return
+  }
+  
+  try {
+    // Verify the invitation
+    const response = await $fetch('/api/auth/verify-invitation', {
+      method: 'POST',
+      body: { token: token.value }
+    })
+    
+    invitation.value = response.invitation
+    invitationValid.value = true
+    
+    // Pre-fill form with invitation data
+    if (invitation.value?.first_name) {
+      setFieldValue('firstName', invitation.value.first_name)
+    }
+    if (invitation.value?.last_name) {
+      setFieldValue('lastName', invitation.value.last_name)
+    }
+    
+  } catch (error: any) {
+    invitationValid.value = false
+    toast.error(error?.message || 'Invalid invitation')
+  } finally {
+    loading.value = false
+  }
+})
 
 // Handle form submission
 const onSubmit = handleSubmit(async (values) => {
+  if (!token.value || !invitation.value) {
+    authError.value = 'Invalid invitation'
+    return
+  }
+  
   authError.value = null
   
   try {
-    // Register the user
-    await register({
-      email: values.email,
-      password: values.password,
-      first_name: values.firstName,
-      last_name: values.lastName,
-      phone: values.phone
+    // Accept the invitation
+    const response = await $fetch('/api/auth/accept-invitation', {
+      method: 'POST',
+      body: {
+        token: token.value,
+        password: values.password,
+        firstName: values.firstName,
+        lastName: values.lastName
+      }
     })
     
     success.value = true
     toast.success('Account created successfully!')
     
-    // Auto-login after registration
-    await login(values.email, values.password)
+    // Auto-login
+    await login(invitation.value.email, values.password)
     
     // Redirect to dashboard
     setTimeout(() => {
@@ -223,12 +275,12 @@ const onSubmit = handleSubmit(async (values) => {
     }, 1000)
     
   } catch (error: any) {
-    authError.value = error?.message || 'Failed to create account'
+    authError.value = error?.message || 'Failed to accept invitation'
   }
 })
 
 // Page metadata
 useHead({
-  title: 'Create Account'
+  title: 'Accept Invitation'
 })
 </script>
