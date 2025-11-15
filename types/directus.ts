@@ -60,62 +60,6 @@ export interface DirectusActivity {
 // CUSTOM COLLECTIONS
 // ============================================
 
-export interface UserProfile {
-  id: ID
-  user_id: ID | DirectusUser
-  
-  // Display Information
-  display_name?: string | null
-  bio?: string | null
-  avatar_url?: string | null
-  
-  // Extended Contact
-  phone?: string | null
-  phone_verified?: boolean
-  secondary_email?: string | null
-  
-  // Address
-  address_line1?: string | null
-  address_line2?: string | null
-  city?: string | null
-  state_province?: string | null
-  postal_code?: string | null
-  country?: string | null
-  
-  // Professional
-  company?: string | null
-  job_title?: string | null
-  website?: string | null
-  linkedin_url?: string | null
-  
-  // HOA Specific
-  organization_id?: ID | HOAOrganization | null
-  is_board_member?: boolean
-  board_position?: string | null
-  emergency_contact?: string | null
-  emergency_phone?: string | null
-  
-  // Preferences
-  newsletter_subscribed?: boolean
-  marketing_emails?: boolean
-  product_updates?: boolean
-  timezone?: string | null
-  locale?: string | null
-  
-  // Application Metadata
-  onboarding_completed?: boolean
-  onboarding_step?: number | null
-  profile_completion?: number | null
-  
-  // Custom data
-  metadata?: Record<string, any> | null
-  
-  // System
-  status?: 'active' | 'inactive' | 'suspended'
-  date_created?: string
-  date_updated?: string | null
-}
-
 export interface HOAOrganization {
   id: ID
   name: string
@@ -171,6 +115,34 @@ export interface HOAUnit {
   date_updated?: string | null
 }
 
+export interface HOAPet {
+  id: ID
+  member_id: ID | HOAMember
+  name: string
+  type?: string | null
+  breed?: string | null
+  weight?: number | null
+  color?: string | null
+  image?: ID | null
+  status: 'active' | 'inactive'
+  date_created?: string
+  date_updated?: string | null
+}
+
+export interface HOAVehicle {
+  id: ID
+  member_id: ID | HOAMember
+  make?: string | null
+  model?: string | null
+  year?: number | null
+  color?: string | null
+  license_plate?: string | null
+  image?: ID | null
+  status: 'active' | 'inactive'
+  date_created?: string
+  date_updated?: string | null
+}
+
 // ============================================
 // AUTHENTICATION TYPES
 // ============================================
@@ -182,18 +154,15 @@ export interface AuthResponse {
   expires_at: number
 }
 
-export interface UserWithProfile extends DirectusUser {
-  profile?: UserProfile | null
-}
-
 export interface SessionUser {
   id: string
   email: string
   first_name?: string | null
   last_name?: string | null
+  avatar?: string | null
   role?: DirectusRole | null
-  profile?: UserProfile | null
   organization?: HOAOrganization | null
+  member?: HOAMember | null
 }
 
 export interface LoginCredentials {
@@ -218,11 +187,12 @@ export interface DirectusSchema {
   directus_users: DirectusUser[]
   directus_roles: DirectusRole[]
   directus_activity: DirectusActivity[]
-  
+
   // Custom Collections
-  profiles: UserProfile[]
   hoa_organizations: HOAOrganization[]
   hoa_members: HOAMember[]
   hoa_units: HOAUnit[]
   hoa_member_units: HOAMemberUnit[]
+  hoa_pets: HOAPet[]
+  hoa_vehicles: HOAVehicle[]
 }

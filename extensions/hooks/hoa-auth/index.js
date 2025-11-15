@@ -3,10 +3,13 @@
  *
  * This hook integrates with Directus native OAuth to provide HOA-specific functionality:
  * - Automatic HOA member association on login
- * - Profile and member record creation for new users
  * - Organization context management
+ * - OAuth provider tracking (via directus_users native fields)
  *
  * Works with native Directus OAuth providers (Google, GitHub, etc.)
+ *
+ * Note: User data is stored in directus_users (avatar, language, OAuth data)
+ * and hoa_members (phone, org-specific data). No separate profile collection.
  */
 
 export default ({ filter, action }, { services, database, getSchema, logger }) => {
@@ -95,45 +98,20 @@ export default ({ filter, action }, { services, database, getSchema, logger }) =
 				fields: ['id', 'email', 'provider', 'external_identifier', 'first_name', 'last_name', 'role']
 			});
 
-			// Create user profile
-			const profilesService = new ItemsService('profiles', {
-				schema: currentSchema,
-				accountability: { admin: true }
-			});
+			// Note: User profile data is now stored directly in directus_users (avatar, language)
+			// and in hoa_members (phone, org-specific data)
+			// No separate profile collection needed
 
-			// Check if profile already exists
-			const existingProfiles = await profilesService.readByQuery({
-				filter: { user_id: { _eq: userId } },
-				limit: 1
-			});
-
-			if (!existingProfiles || existingProfiles.length === 0) {
-				await profilesService.createOne({
-					user_id: userId,
-					display_name: user.first_name && user.last_name
-						? `${user.first_name} ${user.last_name}`
-						: user.email?.split('@')[0],
-					status: 'active'
-				});
-				logger.info(`HOA Auth Hook: Created profile for user ${userId}`);
-			}
-
-			// For OAuth users, store provider data
-			if (user.provider && user.provider === 'google') {
-				// Google OAuth - update profile with Google-specific data
-				const profileData = {
-					google_id: user.external_identifier
-				};
-
-				// Update profile with OAuth data
-				if (existingProfiles && existingProfiles.length > 0) {
-					await profilesService.updateOne(existingProfiles[0].id, profileData);
-				}
+			// OAuth provider data is stored natively in directus_users:
+			// - provider: 'google', 'github', etc.
+			// - external_identifier: OAuth user ID
+			if (user.provider && user.provider !== 'default') {
+				logger.info(`HOA Auth Hook: OAuth user from ${user.provider}, external_id: ${user.external_identifier}`);
 			}
 
 			// Note: HOA member creation requires organization context
-			// This should be handled separately, possibly through invitation flow
-			// or admin assignment, as we don't know which organization to assign here
+			// This should be handled separately through the invitation flow
+			// or admin assignment via setup-organization endpoint
 
 			logger.info(`HOA Auth Hook: User ${userId} setup completed`);
 
