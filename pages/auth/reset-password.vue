@@ -1,6 +1,10 @@
 <template>
-  <div class="container flex h-screen w-screen flex-col items-center justify-center">
-    <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+  <div
+    class="container flex h-screen w-screen flex-col items-center justify-center"
+  >
+    <div
+      class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]"
+    >
       <!-- Logo/Brand -->
       <div class="flex flex-col space-y-2 text-center">
         <Icon name="lucide:lock" class="mx-auto h-12 w-12 text-primary" />
@@ -11,19 +15,19 @@
       </div>
 
       <!-- Reset Form -->
-      <UiCard>
-        <UiCardHeader>
-          <UiCardTitle>New Password</UiCardTitle>
-          <UiCardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>New Password</CardTitle>
+          <CardDescription>
             Choose a strong password for your account
-          </UiCardDescription>
-        </UiCardHeader>
-        <UiCardContent>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <form @submit="onSubmit" class="space-y-4">
             <!-- Password Field -->
             <div class="space-y-2">
-              <UiLabel for="password">New Password</UiLabel>
-              <UiInput
+              <Label for="password">New Password</Label>
+              <Input
                 id="password"
                 v-model="password"
                 type="password"
@@ -35,14 +39,15 @@
                 {{ errors.password }}
               </p>
               <p class="text-xs text-muted-foreground">
-                Must be at least 8 characters with uppercase, lowercase, and numbers
+                Must be at least 8 characters with uppercase, lowercase, and
+                numbers
               </p>
             </div>
 
             <!-- Confirm Password Field -->
             <div class="space-y-2">
-              <UiLabel for="confirmPassword">Confirm Password</UiLabel>
-              <UiInput
+              <Label for="confirmPassword">Confirm Password</Label>
+              <Input
                 id="confirmPassword"
                 v-model="confirmPassword"
                 type="password"
@@ -56,18 +61,18 @@
             </div>
 
             <!-- Error Alert -->
-            <UiAlert v-if="authError" variant="destructive">
+            <Alert v-if="authError" variant="destructive">
               <Icon name="lucide:alert-circle" class="h-4 w-4" />
               <div class="ml-2">{{ authError }}</div>
-            </UiAlert>
+            </Alert>
 
             <!-- Success Alert -->
-            <UiAlert v-if="success" variant="success">
+            <Alert v-if="success" variant="success">
               <Icon name="lucide:check-circle" class="h-4 w-4" />
               <div class="ml-2">
                 Password reset successfully! Redirecting to login...
               </div>
-            </UiAlert>
+            </Alert>
 
             <!-- Submit Button -->
             <UiButton
@@ -76,8 +81,12 @@
               class="w-full"
               :disabled="isSubmitting || !token"
             >
-              <Icon v-if="isSubmitting" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
-              {{ isSubmitting ? 'Resetting...' : 'Reset Password' }}
+              <Icon
+                v-if="isSubmitting"
+                name="lucide:loader-2"
+                class="mr-2 h-4 w-4 animate-spin"
+              />
+              {{ isSubmitting ? "Resetting..." : "Reset Password" }}
             </UiButton>
 
             <!-- Login Button -->
@@ -92,7 +101,7 @@
           </form>
 
           <!-- Invalid Token Alert -->
-          <UiAlert v-if="!token" variant="destructive" class="mt-4">
+          <Alert v-if="!token" variant="destructive" class="mt-4">
             <Icon name="lucide:alert-triangle" class="h-4 w-4" />
             <div class="ml-2">
               <p class="font-medium">Invalid or missing reset token</p>
@@ -100,13 +109,16 @@
                 Please request a new password reset link
               </p>
             </div>
-          </UiAlert>
-        </UiCardContent>
-      </UiCard>
+          </Alert>
+        </CardContent>
+      </Card>
 
       <!-- Back Link -->
       <p class="px-8 text-center text-sm text-muted-foreground">
-        <NuxtLink to="/auth/login" class="hover:text-primary underline underline-offset-4">
+        <NuxtLink
+          to="/auth/login"
+          class="hover:text-primary underline underline-offset-4"
+        >
           <Icon name="lucide:arrow-left" class="inline h-3 w-3 mr-1" />
           Back to sign in
         </NuxtLink>
@@ -116,67 +128,71 @@
 </template>
 
 <script setup lang="ts">
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { resetPasswordSchema, type ResetPasswordSchema } from '~/lib/validations'
-import { toast } from 'vue-sonner'
+import { useForm } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import {
+  resetPasswordSchema,
+  type ResetPasswordSchema,
+} from "~/lib/validations";
+import { toast } from "vue-sonner";
 
 definePageMeta({
   layout: false,
-  middleware: 'guest'
-})
+  middleware: "guest",
+});
 
-const { resetPassword } = useDirectusAuth()
-const router = useRouter()
-const route = useRoute()
+const { resetPassword } = useDirectusAuth();
+const router = useRouter();
+const route = useRoute();
 
 // Get token from query params
-const token = computed(() => route.query.token as string)
+const token = computed(() => route.query.token as string);
 
 // Form validation
-const { handleSubmit, errors, isSubmitting, defineField } = useForm<ResetPasswordSchema>({
-  validationSchema: toTypedSchema(resetPasswordSchema)
-})
+const { handleSubmit, errors, isSubmitting, defineField } =
+  useForm<ResetPasswordSchema>({
+    validationSchema: toTypedSchema(resetPasswordSchema),
+  });
 
-const [password] = defineField('password')
-const [confirmPassword] = defineField('confirmPassword')
+const [password] = defineField("password");
+const [confirmPassword] = defineField("confirmPassword");
 
 // State
-const authError = ref<string | null>(null)
-const success = ref(false)
+const authError = ref<string | null>(null);
+const success = ref(false);
 
 // Handle form submission
 const onSubmit = handleSubmit(async (values) => {
   if (!token.value) {
-    authError.value = 'Reset token is missing'
-    return
+    authError.value = "Reset token is missing";
+    return;
   }
-  
-  authError.value = null
-  
+
+  authError.value = null;
+
   try {
-    await resetPassword(token.value, values.password)
-    success.value = true
-    toast.success('Password reset successfully!')
-    
+    await resetPassword(token.value, values.password);
+    success.value = true;
+    toast.success("Password reset successfully!");
+
     // Redirect to login after 2 seconds
     setTimeout(() => {
-      router.push('/auth/login')
-    }, 2000)
+      router.push("/auth/login");
+    }, 2000);
   } catch (error: any) {
-    authError.value = error?.message || 'Failed to reset password'
+    authError.value = error?.message || "Failed to reset password";
   }
-})
+});
 
 // Check for token on mount
 onMounted(() => {
   if (!token.value) {
-    toast.error('Invalid reset link')
+    toast.error("Invalid reset link");
   }
-})
+});
 
 // Page metadata
 useHead({
-  title: 'Reset Password'
-})
+  title: "Reset Password",
+});
 </script>

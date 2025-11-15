@@ -1,6 +1,10 @@
 <template>
-  <div class="container flex h-screen w-screen flex-col items-center justify-center">
-    <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
+  <div
+    class="container flex h-screen w-screen flex-col items-center justify-center"
+  >
+    <div
+      class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]"
+    >
       <!-- Logo/Brand -->
       <div class="flex flex-col space-y-2 text-center">
         <Icon name="lucide:user-plus" class="mx-auto h-12 w-12 text-primary" />
@@ -11,20 +15,20 @@
       </div>
 
       <!-- Register Form -->
-      <UiCard>
-        <UiCardHeader>
-          <UiCardTitle>Sign Up</UiCardTitle>
-          <UiCardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sign Up</CardTitle>
+          <CardDescription>
             Create your account to access the platform
-          </UiCardDescription>
-        </UiCardHeader>
-        <UiCardContent>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <form @submit="onSubmit" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <!-- First Name -->
               <div class="space-y-2">
-                <UiLabel for="firstName">First Name</UiLabel>
-                <UiInput
+                <Label for="firstName">First Name</Label>
+                <Input
                   id="firstName"
                   v-model="firstName"
                   placeholder="John"
@@ -38,8 +42,8 @@
 
               <!-- Last Name -->
               <div class="space-y-2">
-                <UiLabel for="lastName">Last Name</UiLabel>
-                <UiInput
+                <Label for="lastName">Last Name</Label>
+                <Input
                   id="lastName"
                   v-model="lastName"
                   placeholder="Doe"
@@ -54,8 +58,8 @@
 
             <!-- Email -->
             <div class="space-y-2">
-              <UiLabel for="email">Email</UiLabel>
-              <UiInput
+              <Label for="email">Email</Label>
+              <Input
                 id="email"
                 v-model="email"
                 type="email"
@@ -70,8 +74,8 @@
 
             <!-- Phone (Optional) -->
             <div class="space-y-2">
-              <UiLabel for="phone">Phone (Optional)</UiLabel>
-              <UiInput
+              <Label for="phone">Phone (Optional)</Label>
+              <Input
                 id="phone"
                 v-model="phone"
                 type="tel"
@@ -86,8 +90,8 @@
 
             <!-- Password -->
             <div class="space-y-2">
-              <UiLabel for="password">Password</UiLabel>
-              <UiInput
+              <Label for="password">Password</Label>
+              <Input
                 id="password"
                 v-model="password"
                 type="password"
@@ -99,14 +103,15 @@
                 {{ errors.password }}
               </p>
               <p class="text-xs text-muted-foreground">
-                Must be at least 8 characters with uppercase, lowercase, and numbers
+                Must be at least 8 characters with uppercase, lowercase, and
+                numbers
               </p>
             </div>
 
             <!-- Confirm Password -->
             <div class="space-y-2">
-              <UiLabel for="confirmPassword">Confirm Password</UiLabel>
-              <UiInput
+              <Label for="confirmPassword">Confirm Password</Label>
+              <Input
                 id="confirmPassword"
                 v-model="confirmPassword"
                 type="password"
@@ -120,46 +125,57 @@
             </div>
 
             <!-- Error Alert -->
-            <UiAlert v-if="authError" variant="destructive">
+            <Alert v-if="authError" variant="destructive">
               <Icon name="lucide:alert-circle" class="h-4 w-4" />
               <div class="ml-2">{{ authError }}</div>
-            </UiAlert>
+            </Alert>
 
             <!-- Success Alert -->
-            <UiAlert v-if="success" variant="success">
+            <Alert v-if="success" variant="success">
               <Icon name="lucide:check-circle" class="h-4 w-4" />
-              <div class="ml-2">Account created successfully! Redirecting...</div>
-            </UiAlert>
+              <div class="ml-2">
+                Account created successfully! Redirecting...
+              </div>
+            </Alert>
 
             <!-- Submit Button -->
-            <UiButton
-              type="submit"
-              class="w-full"
-              :disabled="isSubmitting"
-            >
-              <Icon v-if="isSubmitting" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
-              {{ isSubmitting ? 'Creating account...' : 'Create Account' }}
+            <UiButton type="submit" class="w-full" :disabled="isSubmitting">
+              <Icon
+                v-if="isSubmitting"
+                name="lucide:loader-2"
+                class="mr-2 h-4 w-4 animate-spin"
+              />
+              {{ isSubmitting ? "Creating account..." : "Create Account" }}
             </UiButton>
 
             <!-- Terms -->
             <p class="text-xs text-center text-muted-foreground">
               By creating an account, you agree to our
-              <NuxtLink to="/terms" class="underline underline-offset-4 hover:text-primary">
+              <NuxtLink
+                to="/terms"
+                class="underline underline-offset-4 hover:text-primary"
+              >
                 Terms & Conditions
               </NuxtLink>
               and
-              <NuxtLink to="/privacy" class="underline underline-offset-4 hover:text-primary">
+              <NuxtLink
+                to="/privacy"
+                class="underline underline-offset-4 hover:text-primary"
+              >
                 Privacy Policy
               </NuxtLink>
             </p>
           </form>
-        </UiCardContent>
-      </UiCard>
+        </CardContent>
+      </Card>
 
       <!-- Sign In Link -->
       <p class="px-8 text-center text-sm text-muted-foreground">
         Already have an account?
-        <NuxtLink to="/auth/login" class="hover:text-primary underline underline-offset-4">
+        <NuxtLink
+          to="/auth/login"
+          class="hover:text-primary underline underline-offset-4"
+        >
           Sign in
         </NuxtLink>
       </p>
@@ -168,39 +184,40 @@
 </template>
 
 <script setup lang="ts">
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { registerSchema, type RegisterSchema } from '~/lib/validations'
-import { toast } from 'vue-sonner'
+import { useForm } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import { registerSchema, type RegisterSchema } from "~/lib/validations";
+import { toast } from "vue-sonner";
 
 definePageMeta({
   layout: false,
-  middleware: 'guest'
-})
+  middleware: "guest",
+});
 
-const { register, login } = useDirectusAuth()
-const router = useRouter()
+const { register, login } = useDirectusAuth();
+const router = useRouter();
 
 // Form validation
-const { handleSubmit, errors, isSubmitting, defineField } = useForm<RegisterSchema>({
-  validationSchema: toTypedSchema(registerSchema)
-})
+const { handleSubmit, errors, isSubmitting, defineField } =
+  useForm<RegisterSchema>({
+    validationSchema: toTypedSchema(registerSchema),
+  });
 
-const [firstName] = defineField('firstName')
-const [lastName] = defineField('lastName')
-const [email] = defineField('email')
-const [phone] = defineField('phone')
-const [password] = defineField('password')
-const [confirmPassword] = defineField('confirmPassword')
+const [firstName] = defineField("firstName");
+const [lastName] = defineField("lastName");
+const [email] = defineField("email");
+const [phone] = defineField("phone");
+const [password] = defineField("password");
+const [confirmPassword] = defineField("confirmPassword");
 
 // State
-const authError = ref<string | null>(null)
-const success = ref(false)
+const authError = ref<string | null>(null);
+const success = ref(false);
 
 // Handle form submission
 const onSubmit = handleSubmit(async (values) => {
-  authError.value = null
-  
+  authError.value = null;
+
   try {
     // Register the user
     await register({
@@ -208,27 +225,26 @@ const onSubmit = handleSubmit(async (values) => {
       password: values.password,
       first_name: values.firstName,
       last_name: values.lastName,
-      phone: values.phone
-    })
-    
-    success.value = true
-    toast.success('Account created successfully!')
-    
+      phone: values.phone,
+    });
+
+    success.value = true;
+    toast.success("Account created successfully!");
+
     // Auto-login after registration
-    await login(values.email, values.password)
-    
+    await login(values.email, values.password);
+
     // Redirect to dashboard
     setTimeout(() => {
-      router.push('/dashboard')
-    }, 1000)
-    
+      router.push("/dashboard");
+    }, 1000);
   } catch (error: any) {
-    authError.value = error?.message || 'Failed to create account'
+    authError.value = error?.message || "Failed to create account";
   }
-})
+});
 
 // Page metadata
 useHead({
-  title: 'Create Account'
-})
+  title: "Create Account",
+});
 </script>

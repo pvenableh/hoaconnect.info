@@ -17,13 +17,13 @@
           @click="activeTab = tab.id"
           :class="[
             'px-4 py-2 text-sm font-medium transition-colors relative',
-            activeTab === tab.id 
-              ? 'text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
+            activeTab === tab.id
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground',
           ]"
         >
           {{ tab.label }}
-          <span 
+          <span
             v-if="activeTab === tab.id"
             class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
           />
@@ -32,20 +32,20 @@
 
       <!-- Profile Tab -->
       <div v-if="activeTab === 'profile'" class="space-y-6">
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Personal Information</UiCardTitle>
-            <UiCardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>
               Update your personal details and contact information
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form @submit.prevent="updateProfile" class="space-y-4">
               <div class="grid grid-cols-2 gap-4">
                 <!-- First Name -->
                 <div class="space-y-2">
-                  <UiLabel for="firstName">First Name</UiLabel>
-                  <UiInput
+                  <Label for="firstName">First Name</Label>
+                  <Input
                     id="firstName"
                     v-model="profileForm.first_name"
                     :disabled="isUpdating"
@@ -54,8 +54,8 @@
 
                 <!-- Last Name -->
                 <div class="space-y-2">
-                  <UiLabel for="lastName">Last Name</UiLabel>
-                  <UiInput
+                  <Label for="lastName">Last Name</Label>
+                  <Input
                     id="lastName"
                     v-model="profileForm.last_name"
                     :disabled="isUpdating"
@@ -65,8 +65,8 @@
 
               <!-- Display Name -->
               <div class="space-y-2">
-                <UiLabel for="displayName">Display Name</UiLabel>
-                <UiInput
+                <Label for="displayName">Display Name</Label>
+                <Input
                   id="displayName"
                   v-model="profileForm.display_name"
                   placeholder="How you want to be displayed"
@@ -76,8 +76,8 @@
 
               <!-- Email (Read-only) -->
               <div class="space-y-2">
-                <UiLabel for="email">Email</UiLabel>
-                <UiInput
+                <Label for="email">Email</Label>
+                <Input
                   id="email"
                   :modelValue="user?.email"
                   type="email"
@@ -91,8 +91,8 @@
 
               <!-- Phone -->
               <div class="space-y-2">
-                <UiLabel for="phone">Phone</UiLabel>
-                <UiInput
+                <Label for="phone">Phone</Label>
+                <Input
                   id="phone"
                   v-model="profileForm.phone"
                   type="tel"
@@ -103,7 +103,7 @@
 
               <!-- Bio -->
               <div class="space-y-2">
-                <UiLabel for="bio">Bio</UiLabel>
+                <Label for="bio">Bio</Label>
                 <textarea
                   id="bio"
                   v-model="profileForm.bio"
@@ -117,8 +117,8 @@
               <!-- Company & Job Title -->
               <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-2">
-                  <UiLabel for="company">Company</UiLabel>
-                  <UiInput
+                  <Label for="company">Company</Label>
+                  <Input
                     id="company"
                     v-model="profileForm.company"
                     placeholder="Your company"
@@ -126,8 +126,8 @@
                   />
                 </div>
                 <div class="space-y-2">
-                  <UiLabel for="jobTitle">Job Title</UiLabel>
-                  <UiInput
+                  <Label for="jobTitle">Job Title</Label>
+                  <Input
                     id="jobTitle"
                     v-model="profileForm.job_title"
                     placeholder="Your role"
@@ -138,8 +138,8 @@
 
               <!-- Website -->
               <div class="space-y-2">
-                <UiLabel for="website">Website</UiLabel>
-                <UiInput
+                <Label for="website">Website</Label>
+                <Input
                   id="website"
                   v-model="profileForm.website"
                   type="url"
@@ -149,48 +149,47 @@
               </div>
 
               <!-- Success/Error Messages -->
-              <UiAlert v-if="updateSuccess" variant="success">
+              <Alert v-if="updateSuccess" variant="success">
                 <Icon name="lucide:check-circle" class="h-4 w-4" />
                 <div class="ml-2">Profile updated successfully!</div>
-              </UiAlert>
+              </Alert>
 
-              <UiAlert v-if="updateError" variant="destructive">
+              <Alert v-if="updateError" variant="destructive">
                 <Icon name="lucide:alert-circle" class="h-4 w-4" />
                 <div class="ml-2">{{ updateError }}</div>
-              </UiAlert>
+              </Alert>
 
               <!-- Submit Button -->
               <div class="flex justify-end">
-                <UiButton
-                  type="submit"
-                  :disabled="isUpdating"
-                >
-                  <Icon v-if="isUpdating" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
-                  {{ isUpdating ? 'Saving...' : 'Save Changes' }}
+                <UiButton type="submit" :disabled="isUpdating">
+                  <Icon
+                    v-if="isUpdating"
+                    name="lucide:loader-2"
+                    class="mr-2 h-4 w-4 animate-spin"
+                  />
+                  {{ isUpdating ? "Saving..." : "Save Changes" }}
                 </UiButton>
               </div>
             </form>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
 
         <!-- Address Section -->
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Address</UiCardTitle>
-            <UiCardDescription>
-              Your mailing address
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>Address</CardTitle>
+            <CardDescription> Your mailing address </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form @submit.prevent="updateAddress" class="space-y-4">
               <div class="space-y-2">
-                <UiLabel>Street Address</UiLabel>
-                <UiInput
+                <Label>Street Address</Label>
+                <Input
                   v-model="addressForm.address_line1"
                   placeholder="123 Main Street"
                   :disabled="isUpdating"
                 />
-                <UiInput
+                <Input
                   v-model="addressForm.address_line2"
                   placeholder="Apartment, suite, etc. (optional)"
                   :disabled="isUpdating"
@@ -199,16 +198,16 @@
 
               <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-2">
-                  <UiLabel>City</UiLabel>
-                  <UiInput
+                  <Label>City</Label>
+                  <Input
                     v-model="addressForm.city"
                     placeholder="San Francisco"
                     :disabled="isUpdating"
                   />
                 </div>
                 <div class="space-y-2">
-                  <UiLabel>State/Province</UiLabel>
-                  <UiInput
+                  <Label>State/Province</Label>
+                  <Input
                     v-model="addressForm.state_province"
                     placeholder="CA"
                     :disabled="isUpdating"
@@ -218,16 +217,16 @@
 
               <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-2">
-                  <UiLabel>Postal Code</UiLabel>
-                  <UiInput
+                  <Label>Postal Code</Label>
+                  <Input
                     v-model="addressForm.postal_code"
                     placeholder="12345"
                     :disabled="isUpdating"
                   />
                 </div>
                 <div class="space-y-2">
-                  <UiLabel>Country</UiLabel>
-                  <UiInput
+                  <Label>Country</Label>
+                  <Input
                     v-model="addressForm.country"
                     placeholder="United States"
                     :disabled="isUpdating"
@@ -236,33 +235,30 @@
               </div>
 
               <div class="flex justify-end">
-                <UiButton
-                  type="submit"
-                  :disabled="isUpdating"
-                >
+                <UiButton type="submit" :disabled="isUpdating">
                   Save Address
                 </UiButton>
               </div>
             </form>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
       </div>
 
       <!-- Security Tab -->
       <div v-if="activeTab === 'security'" class="space-y-6">
         <!-- Password Change -->
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Change Password</UiCardTitle>
-            <UiCardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Change Password</CardTitle>
+            <CardDescription>
               Update your password to keep your account secure
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form @submit.prevent="changePassword" class="space-y-4">
               <div class="space-y-2">
-                <UiLabel for="currentPassword">Current Password</UiLabel>
-                <UiInput
+                <Label for="currentPassword">Current Password</Label>
+                <Input
                   id="currentPassword"
                   v-model="passwordForm.currentPassword"
                   type="password"
@@ -271,21 +267,22 @@
               </div>
 
               <div class="space-y-2">
-                <UiLabel for="newPassword">New Password</UiLabel>
-                <UiInput
+                <Label for="newPassword">New Password</Label>
+                <Input
                   id="newPassword"
                   v-model="passwordForm.newPassword"
                   type="password"
                   :disabled="isUpdating"
                 />
                 <p class="text-xs text-muted-foreground">
-                  Must be at least 8 characters with uppercase, lowercase, and numbers
+                  Must be at least 8 characters with uppercase, lowercase, and
+                  numbers
                 </p>
               </div>
 
               <div class="space-y-2">
-                <UiLabel for="confirmPassword">Confirm New Password</UiLabel>
-                <UiInput
+                <Label for="confirmPassword">Confirm New Password</Label>
+                <Input
                   id="confirmPassword"
                   v-model="passwordForm.confirmPassword"
                   type="password"
@@ -293,39 +290,36 @@
                 />
               </div>
 
-              <UiAlert v-if="passwordError" variant="destructive">
+              <Alert v-if="passwordError" variant="destructive">
                 <Icon name="lucide:alert-circle" class="h-4 w-4" />
                 <div class="ml-2">{{ passwordError }}</div>
-              </UiAlert>
+              </Alert>
 
-              <UiAlert v-if="passwordSuccess" variant="success">
+              <Alert v-if="passwordSuccess" variant="success">
                 <Icon name="lucide:check-circle" class="h-4 w-4" />
                 <div class="ml-2">Password changed successfully!</div>
-              </UiAlert>
+              </Alert>
 
               <div class="flex justify-end">
-                <UiButton
-                  type="submit"
-                  :disabled="isUpdating"
-                >
+                <UiButton type="submit" :disabled="isUpdating">
                   Change Password
                 </UiButton>
               </div>
             </form>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
 
         <!-- Connected Accounts -->
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Connected Accounts</UiCardTitle>
-            <UiCardDescription>
-              Manage your OAuth connections
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>Connected Accounts</CardTitle>
+            <CardDescription> Manage your OAuth connections </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div class="space-y-4">
-              <div class="flex items-center justify-between p-4 border rounded-lg">
+              <div
+                class="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div class="flex items-center gap-3">
                   <Icon name="lucide:github" class="h-5 w-5" />
                   <div>
@@ -342,7 +336,9 @@
                 </UiButton>
               </div>
 
-              <div class="flex items-center justify-between p-4 border rounded-lg">
+              <div
+                class="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div class="flex items-center gap-3">
                   <Icon name="lucide:mail" class="h-5 w-5" />
                   <div>
@@ -359,20 +355,20 @@
                 </UiButton>
               </div>
             </div>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
       </div>
 
       <!-- Preferences Tab -->
       <div v-if="activeTab === 'preferences'" class="space-y-6">
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Notifications</UiCardTitle>
-            <UiCardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>
               Manage how you receive notifications
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form @submit.prevent="updatePreferences" class="space-y-4">
               <div class="space-y-3">
                 <label class="flex items-center gap-3">
@@ -383,7 +379,9 @@
                   />
                   <div>
                     <p class="font-medium">Email Notifications</p>
-                    <p class="text-sm text-muted-foreground">Receive updates via email</p>
+                    <p class="text-sm text-muted-foreground">
+                      Receive updates via email
+                    </p>
                   </div>
                 </label>
 
@@ -395,34 +393,31 @@
                   />
                   <div>
                     <p class="font-medium">Newsletter</p>
-                    <p class="text-sm text-muted-foreground">Receive our weekly newsletter</p>
+                    <p class="text-sm text-muted-foreground">
+                      Receive our weekly newsletter
+                    </p>
                   </div>
                 </label>
               </div>
 
               <div class="flex justify-end">
-                <UiButton
-                  type="submit"
-                  :disabled="isUpdating"
-                >
+                <UiButton type="submit" :disabled="isUpdating">
                   Save Preferences
                 </UiButton>
               </div>
             </form>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
 
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle>Appearance</UiCardTitle>
-            <UiCardDescription>
-              Customize your interface
-            </UiCardDescription>
-          </UiCardHeader>
-          <UiCardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription> Customize your interface </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div class="space-y-4">
               <div class="space-y-2">
-                <UiLabel>Theme</UiLabel>
+                <Label>Theme</Label>
                 <select
                   v-model="preferencesForm.theme"
                   @change="updateTheme"
@@ -435,7 +430,7 @@
               </div>
 
               <div class="space-y-2">
-                <UiLabel>Language</UiLabel>
+                <Label>Language</Label>
                 <select
                   v-model="preferencesForm.locale"
                   class="w-full px-3 py-2 border rounded-md bg-background"
@@ -448,7 +443,7 @@
               </div>
 
               <div class="space-y-2">
-                <UiLabel>Timezone</UiLabel>
+                <Label>Timezone</Label>
                 <select
                   v-model="preferencesForm.timezone"
                   class="w-full px-3 py-2 border rounded-md bg-background"
@@ -464,116 +459,115 @@
               </div>
 
               <div class="flex justify-end">
-                <UiButton
-                  @click="updatePreferences"
-                  :disabled="isUpdating"
-                >
+                <UiButton @click="updatePreferences" :disabled="isUpdating">
                   Save Appearance
                 </UiButton>
               </div>
             </div>
-          </UiCardContent>
-        </UiCard>
+          </CardContent>
+        </Card>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
+import { toast } from "vue-sonner";
 
 // Auth & user data
-const { user, fetchUser } = useDirectusAuth()
+const { user, fetchUser } = useDirectusAuth();
 
 // Tab management
 const tabs = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'security', label: 'Security' },
-  { id: 'preferences', label: 'Preferences' }
-]
-const activeTab = ref('profile')
+  { id: "profile", label: "Profile" },
+  { id: "security", label: "Security" },
+  { id: "preferences", label: "Preferences" },
+];
+const activeTab = ref("profile");
 
 // Loading states
-const isUpdating = ref(false)
-const updateSuccess = ref(false)
-const updateError = ref<string | null>(null)
-const passwordSuccess = ref(false)
-const passwordError = ref<string | null>(null)
+const isUpdating = ref(false);
+const updateSuccess = ref(false);
+const updateError = ref<string | null>(null);
+const passwordSuccess = ref(false);
+const passwordError = ref<string | null>(null);
 
 // Profile form
 const profileForm = ref({
-  first_name: '',
-  last_name: '',
-  display_name: '',
-  phone: '',
-  bio: '',
-  company: '',
-  job_title: '',
-  website: ''
-})
+  first_name: "",
+  last_name: "",
+  display_name: "",
+  phone: "",
+  bio: "",
+  company: "",
+  job_title: "",
+  website: "",
+});
 
 // Address form
 const addressForm = ref({
-  address_line1: '',
-  address_line2: '',
-  city: '',
-  state_province: '',
-  postal_code: '',
-  country: ''
-})
+  address_line1: "",
+  address_line2: "",
+  city: "",
+  state_province: "",
+  postal_code: "",
+  country: "",
+});
 
 // Password form
 const passwordForm = ref({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
-})
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
 
 // Preferences form
 const preferencesForm = ref({
   email_notifications: true,
   newsletter_subscribed: false,
-  theme: 'auto',
-  locale: 'en',
-  timezone: 'America/New_York'
-})
+  theme: "auto",
+  locale: "en",
+  timezone: "America/New_York",
+});
 
 // Load profile data
 onMounted(async () => {
   if (user.value) {
     // Load profile form from user data
     profileForm.value = {
-      first_name: user.value?.first_name || '',
-      last_name: user.value?.last_name || '',
-      display_name: '',
-      phone: '',
-      bio: '',
-      company: '',
-      job_title: '',
-      website: ''
-    }
+      first_name: user.value?.first_name || "",
+      last_name: user.value?.last_name || "",
+      display_name: "",
+      phone: "",
+      bio: "",
+      company: "",
+      job_title: "",
+      website: "",
+    };
 
     // Load preferences
     preferencesForm.value = {
       email_notifications: true,
       newsletter_subscribed: false,
-      theme: user.value?.theme || 'auto',
-      locale: 'en',
-      timezone: 'America/New_York'
-    }
+      theme: user.value?.theme || "auto",
+      locale: "en",
+      timezone: "America/New_York",
+    };
   }
-})
+});
 
 // Update profile
 const updateProfile = async () => {
-  isUpdating.value = true
-  updateError.value = null
-  updateSuccess.value = false
+  isUpdating.value = true;
+  updateError.value = null;
+  updateSuccess.value = false;
 
   try {
     // Note: Profiles collection has been removed
     // Only updating user fields in directus_users
-    toast.warning('Profile updates are temporarily disabled while we migrate to the new data model')
+    toast.warning(
+      "Profile updates are temporarily disabled while we migrate to the new data model"
+    );
 
     // TODO: Implement user update endpoint
     // await $fetch('/api/account/update-user', {
@@ -584,73 +578,77 @@ const updateProfile = async () => {
     //   }
     // })
 
-    updateSuccess.value = false
+    updateSuccess.value = false;
   } catch (error: any) {
-    updateError.value = error?.message || 'Failed to update profile'
-    toast.error(updateError.value)
+    updateError.value = error?.message || "Failed to update profile";
+    toast.error(updateError.value || "Failed to update profile");
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 // Update address
 const updateAddress = async () => {
-  isUpdating.value = true
+  isUpdating.value = true;
 
   try {
     // Note: Profiles collection has been removed
-    toast.warning('Address updates are temporarily disabled while we migrate to the new data model')
+    toast.warning(
+      "Address updates are temporarily disabled while we migrate to the new data model"
+    );
   } catch (error: any) {
-    toast.error('Failed to update address')
+    toast.error("Failed to update address");
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 // Change password
 const changePassword = async () => {
   if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    passwordError.value = "Passwords don't match"
-    return
+    passwordError.value = "Passwords don't match";
+    return;
   }
 
-  isUpdating.value = true
-  passwordError.value = null
-  passwordSuccess.value = false
+  isUpdating.value = true;
+  passwordError.value = null;
+  passwordSuccess.value = false;
 
   try {
-    await $fetch('/api/account/change-password', {
-      method: 'POST',
+    await $fetch("/api/account/change-password", {
+      method: "POST",
       body: {
         currentPassword: passwordForm.value.currentPassword,
-        newPassword: passwordForm.value.newPassword
-      }
-    })
+        newPassword: passwordForm.value.newPassword,
+      },
+    });
 
-    passwordSuccess.value = true
-    toast.success('Password changed successfully!')
-    
+    passwordSuccess.value = true;
+    toast.success("Password changed successfully!");
+
     // Clear form
     passwordForm.value = {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    };
   } catch (error: any) {
-    passwordError.value = error?.message || 'Failed to change password'
-    toast.error(passwordError.value)
+    passwordError.value = error?.message || "Failed to change password";
+    toast.error(passwordError.value || "Failed to change password");
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 // Update preferences
 const updatePreferences = async () => {
-  isUpdating.value = true
+  isUpdating.value = true;
 
   try {
     // Note: Profiles collection has been removed
-    toast.warning('Preference updates are temporarily disabled while we migrate to the new data model')
+    toast.warning(
+      "Preference updates are temporarily disabled while we migrate to the new data model"
+    );
 
     // TODO: Implement user update endpoint for theme
     // await $fetch('/api/account/update-user', {
@@ -660,45 +658,45 @@ const updatePreferences = async () => {
     //   }
     // })
   } catch (error) {
-    toast.error('Failed to update preferences')
+    toast.error("Failed to update preferences");
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 // Update theme immediately
 const updateTheme = () => {
   // Apply theme to document
-  if (preferencesForm.value.theme === 'dark') {
-    document.documentElement.classList.add('dark')
-  } else if (preferencesForm.value.theme === 'light') {
-    document.documentElement.classList.remove('dark')
+  if (preferencesForm.value.theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else if (preferencesForm.value.theme === "light") {
+    document.documentElement.classList.remove("dark");
   } else {
     // Auto - use system preference
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     if (isDark) {
-      document.documentElement.classList.add('dark')
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark')
+      document.documentElement.classList.remove("dark");
     }
   }
-}
+};
 
 // OAuth connections
 const connectOAuth = (provider: string) => {
-  window.location.href = `/api/auth/${provider}`
-}
+  window.location.href = `/api/auth/${provider}`;
+};
 
 const disconnectOAuth = async (provider: string) => {
   try {
     await $fetch(`/api/account/disconnect-oauth`, {
-      method: 'POST',
-      body: { provider }
-    })
-    toast.success(`${provider} disconnected`)
-    await fetchUser()
+      method: "POST",
+      body: { provider },
+    });
+    toast.success(`${provider} disconnected`);
+    await fetchUser();
   } catch (error) {
-    toast.error(`Failed to disconnect ${provider}`)
+    toast.error(`Failed to disconnect ${provider}`);
   }
-}
+};
 </script>

@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
 
     // Create authenticated client with the token
     const client = createDirectus(process.env.DIRECTUS_URL!)
-      .with(staticToken(authResult.access_token))
+      .with(staticToken(authResult.access_token as string))
       .with(rest());
 
     // Get user details
