@@ -121,7 +121,7 @@ importers:
         specifier: ^8.1.5
         version: 8.1.6
       '@types/node':
-        specifier: ^22.15.32
+        specifier: ^22.19.1
         version: 22.19.1
       '@vite-pwa/nuxt':
         specifier: ^1.0.7

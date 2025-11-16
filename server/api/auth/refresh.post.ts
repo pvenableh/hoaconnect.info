@@ -1,47 +1,55 @@
-// server/api/auth/refresh.post.ts
+import { createDirectus, rest, authentication, refresh } from "@directus/sdk";
+
 export default defineEventHandler(async (event) => {
   try {
-    // Get current session
+    // Get the current session
     const session = await getUserSession(event);
 
-    if (!session?.directusRefreshToken) {
+    if (!session || !session.directusRefreshToken) {
       throw createError({
         statusCode: 401,
         statusMessage: "No refresh token available",
       });
     }
 
-    // Refresh tokens using Directus SDK
-    const newTokens = await refreshUserTokens(
-      session.directusRefreshToken as string
+    const config = useRuntimeConfig();
+
+    // Create client
+    const directus = createDirectus(config.public.directus.url)
+      .with(rest())
+      .with(authentication("json"));
+
+    // Refresh the token
+    const authResult = await directus.request(
+      refresh("json", session.directusRefreshToken)
     );
 
-    if (!newTokens?.access_token || !newTokens?.refresh_token) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Failed to refresh tokens",
-      });
+    if (!authResult.access_token) {
+      throw new Error("Token refresh failed");
     }
 
     // Update session with new tokens
     await setUserSession(event, {
       ...session,
-      directusAccessToken: newTokens.access_token,
-      directusRefreshToken: newTokens.refresh_token,
-      expiresAt: Date.now() + (newTokens.expires || 900000), // Default 15 mins
+      directusAccessToken: authResult.access_token,
+      directusRefreshToken:
+        authResult.refresh_token || session.directusRefreshToken,
+      expiresAt: Date.now() + (authResult.expires || 900000),
     });
 
     return {
       success: true,
-      expiresAt: Date.now() + (newTokens.expires || 900000),
+      message: "Token refreshed successfully",
     };
   } catch (error: any) {
     console.error("Token refresh error:", error);
 
+    // Clear session if refresh fails
+    await clearUserSession(event);
+
     throw createError({
-      statusCode: error.statusCode || 401,
-      statusMessage:
-        error.statusMessage || "Failed to refresh authentication tokens",
+      statusCode: 401,
+      statusMessage: "Failed to refresh token",
     });
   }
 });

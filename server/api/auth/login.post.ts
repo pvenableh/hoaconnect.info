@@ -1,17 +1,10 @@
-// server/api/auth/login.post.ts
 import {
   createDirectus,
-  authentication,
   rest,
+  authentication,
+  login,
   readMe,
-  readItems,
-  staticToken,
 } from "@directus/sdk";
-import type {
-  SessionUser,
-  HoaMember,
-  HoaOrganization,
-} from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBody(event);
@@ -24,89 +17,58 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Create a temporary client for authentication
-    const authClient = createDirectus(process.env.DIRECTUS_URL!)
-      .with(authentication("session", { credentials: "include" }))
-      .with(rest());
+    const config = useRuntimeConfig();
+
+    // Create a temporary client for login
+    const directus = createDirectus(config.public.directus.url).with(rest());
 
     // Authenticate with Directus
-    const authResult = await authClient.login({ email, password });
+    const authResult = await directus.request(login(email, password));
 
-    // Create authenticated client with the token
-    const client = createDirectus(process.env.DIRECTUS_URL!)
-      .with(staticToken(authResult.access_token as string))
-      .with(rest());
+    if (!authResult.access_token) {
+      throw new Error("Authentication failed");
+    }
 
-    // Get user details
-    const userData = await client.request(
+    // Create an authenticated client to fetch user data
+    const authClient = createDirectus(config.public.directus.url)
+      .with(rest())
+      .with(authentication("json"));
+
+    // Set the token
+    await authClient.setToken(authResult.access_token);
+
+    // Fetch user data with role information
+    const user = await authClient.request(
       readMe({
-        fields: [
-          "id",
-          "email",
-          "first_name",
-          "last_name",
-          "role.id",
-          "role.name",
-          "role.admin_access",
-        ],
+        fields: ["*", "role.id", "role.name", "role.admin_access"],
       })
     );
 
-    // Check for HOA member association
-    const members = await client.request(
-      readItems("hoa_members", {
-        filter: {
-          user: { _eq: userData.id },
-        },
-        fields: [
-          "id",
-          "organization.id",
-          "organization.name",
-          "organization.slug",
-          "organization.domain",
-          "organization.logo",
-          "organization.email",
-          "organization.phone",
-          "organization.status",
-          "user",
-          "role",
-          "status",
-          "unit",
-        ],
-      })
-    );
-
-    const member = members[0] as HoaMember | undefined;
-
-    // Extract organization as a full object (not just ID) since we requested nested fields
-    const organization =
-      member && typeof member.organization === "object"
-        ? (member.organization as HoaOrganization)
-        : null;
-
-    // Create session user object
-    const sessionUser: SessionUser = {
-      id: userData.id as string,
-      email: userData.email as string,
-      first_name: userData.first_name || null,
-      last_name: userData.last_name || null,
-      avatar: null,
-      role: userData.role || null,
-      organization: organization,
-      member: member || null,
-    };
-
-    // Store session with access token (server-side only)
+    // Set user session
     await setUserSession(event, {
-      user: sessionUser,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        provider: "local",
+      },
       directusAccessToken: authResult.access_token,
       directusRefreshToken: authResult.refresh_token,
-      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 mins
+      loggedInAt: Date.now(),
+      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
     });
 
-    // Return user data (without tokens)
     return {
-      user: sessionUser,
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+      },
     };
   } catch (error: any) {
     console.error("Login error:", error);
