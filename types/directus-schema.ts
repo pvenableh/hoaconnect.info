@@ -1,263 +1,323 @@
-// Type alias for Directus ID
-export type ID = string | number
+// types/directus-schema.ts
+// Directus collection types and schema
 
-// System Collections
-export interface DirectusUser {
-  id: ID
-  first_name?: string
-  last_name?: string
-  email: string
-  password?: string
-  location?: string | null
-  title?: string | null
-  description?: string | null
-  tags?: string[] | null
-  avatar?: string | null
-  language?: string | null
-  theme?: 'light' | 'dark' | 'auto'
-  tfa_secret?: string | null
-  status: 'active' | 'suspended' | 'archived'
-  role?: ID | DirectusRole
-  token?: string | null
-  last_access?: string | null
-  last_page?: string | null
-  provider?: string
-  external_identifier?: string | null
-  auth_data?: any | null
-  email_notifications?: boolean
-  date_created?: string
-  date_updated?: string | null
-}
+// ============================================
+// BASE TYPES
+// ============================================
+
+export type ID = string | number;
+
+// ============================================
+// SYSTEM COLLECTIONS
+// ============================================
 
 export interface DirectusRole {
-  id: ID
-  name: string
-  icon?: string
-  description?: string | null
-  ip_access?: string[] | null
-  enforce_tfa: boolean
-  admin_access: boolean
-  app_access: boolean
-  users?: DirectusUser[]
-  date_created?: string
-  date_updated?: string | null
+  id: ID;
+  name: string;
+  icon?: string | null;
+  description?: string | null;
+  admin_access: boolean;
+  app_access: boolean;
 }
 
 export interface DirectusFile {
-  id: ID
-  storage: string
-  filename_disk?: string | null
-  filename_download: string
-  title?: string | null
-  type?: string | null
-  folder?: ID | null
-  uploaded_by?: ID | DirectusUser
-  uploaded_on: string
-  modified_by?: ID | DirectusUser | null
-  modified_on: string
-  charset?: string | null
-  filesize?: string | null
-  width?: number | null
-  height?: number | null
-  duration?: number | null
-  embed?: string | null
-  description?: string | null
-  location?: string | null
-  tags?: string[] | null
-  metadata?: any | null
+  id: ID;
+  storage: string;
+  filename_disk: string;
+  filename_download: string;
+  title?: string | null;
+  type?: string | null;
+  folder?: ID | null;
+  uploaded_by?: ID | DirectusUser | null;
+  uploaded_on: string;
+  modified_by?: ID | DirectusUser | null;
+  modified_on?: string | null;
+  charset?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  embed?: string | null;
+  description?: string | null;
+  location?: string | null;
+  tags?: string[] | null;
+  metadata?: Record<string, any> | null;
 }
 
-// Application Collections
+export interface DirectusUser {
+  id: ID;
+  status: "active" | "suspended" | "inactive" | "invited";
+  email: string;
+  password?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar?: ID | DirectusFile | null;
+  role?: ID | DirectusRole | null;
+  token?: string | null;
+  last_access?: string | null;
+  last_page?: string | null;
+  provider?: string | null;
+  external_identifier?: string | null;
+  auth_data?: any | null;
+  email_notifications?: boolean | null;
+  appearance?: string | null;
+  theme_dark?: string | null;
+  theme_light?: string | null;
+  theme_light_overrides?: any | null;
+  theme_dark_overrides?: any | null;
 
-/**
- * HOA Pets - Pet registrations for HOA members
- */
-export interface HoaPet {
-  id: ID
-  member_id: ID | HoaMember
-  name: string
-  type?: string | null // dog, cat, bird, etc.
-  breed?: string | null
-  weight?: number | null
-  color?: string | null
-  image?: ID | DirectusFile | null
-  status: 'active' | 'inactive'
-  date_created?: string
-  date_updated?: string | null
+  // Custom fields (if you added any to directus_users)
+  organization?: ID | HoaOrganization | null;
+  member?: ID | HoaMember | null;
 }
 
-/**
- * HOA Vehicles - Vehicle registrations for HOA members
- */
-export interface HoaVehicle {
-  id: ID
-  member_id: ID | HoaMember
-  make?: string | null
-  model?: string | null
-  year?: number | null
-  color?: string | null
-  license_plate?: string | null
-  image?: ID | DirectusFile | null
-  status: 'active' | 'inactive'
-  date_created?: string
-  date_updated?: string | null
-}
+// ============================================
+// HOA COLLECTIONS (Multi-tenant)
+// ============================================
 
-/**
- * HOA Organization - Multi-tenant organization records
- */
 export interface HoaOrganization {
-  id: ID
-  name: string
-  slug?: string | null
-  domain?: string | null
-  logo?: ID | DirectusFile | null
+  id: ID;
+  status: "active" | "inactive" | "suspended";
+
+  // Basic Info
+  name: string;
+  slug?: string | null;
+  domain?: string | null;
+  logo?: ID | DirectusFile | null;
 
   // Contact Info
-  email?: string | null
-  phone?: string | null
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zip?: string | null
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
 
-  // Settings
-  settings?: any | null
-  status: 'active' | 'inactive' | 'suspended'
+  // Settings & Configuration
+  settings?: Record<string, any> | null;
+  subscription_plan?: ID | null;
 
-  date_created?: string
-  date_updated?: string | null
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-/**
- * HOA Member - Organization members
- */
 export interface HoaMember {
-  id: ID
-  organization: ID | HoaOrganization
-  user: ID | DirectusUser
-  role?: ID | DirectusRole | null
+  id: ID;
+  status: "active" | "inactive" | "pending";
+
+  // Relations
+  organization: ID | HoaOrganization;
+  user: ID | DirectusUser;
+  role?: ID | DirectusRole | null;
 
   // Member Info
-  unit?: ID | null
-  status: 'active' | 'inactive' | 'pending'
+  unit?: ID | HoaUnit | null;
 
-  date_created?: string
-  date_updated?: string | null
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-/**
- * HOA Invitation - Organization member invitations
- */
 export interface HoaInvitation {
-  id: ID
-  organization: ID | HoaOrganization
-  email: string
-  name?: string | null
-  role?: ID | DirectusRole | null
-  token: string
+  id: ID;
+  status: "pending" | "accepted" | "expired" | "cancelled";
 
-  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
-  invited_by: ID | DirectusUser
-  invited_at: string
-  expires_at: string
-  accepted_at?: string | null
+  // Relations
+  organization: ID | HoaOrganization;
+  invited_by: ID | DirectusUser;
 
-  date_created?: string
-  date_updated?: string | null
+  // Invitation Data
+  email: string;
+  name?: string | null;
+  role?: ID | DirectusRole | null;
+  token: string;
+
+  // Timestamps
+  invited_at: string;
+  expires_at: string;
+  accepted_at?: string | null;
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-/**
- * HOA Unit - Property units within an organization
- */
 export interface HoaUnit {
-  id: ID
-  organization: ID | HoaOrganization
-  unit_number: string
-  address?: string | null
+  id: ID;
+  status: "active" | "inactive";
 
-  status: 'active' | 'inactive'
+  // Relations
+  organization: ID | HoaOrganization;
 
-  date_created?: string
-  date_updated?: string | null
+  // Unit Info
+  unit_number: string;
+  address?: string | null;
+  floor?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  square_feet?: number | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-/**
- * HOA Document - Organization documents
- */
 export interface HoaDocument {
-  id: ID
-  organization: ID | HoaOrganization
-  title: string
-  description?: string | null
-  file?: ID | DirectusFile | null
-  category?: string | null
+  id: ID;
+  status: "published" | "draft" | "archived";
 
-  status: 'published' | 'draft' | 'archived'
+  // Relations
+  organization: ID | HoaOrganization;
+  created_by?: ID | DirectusUser;
+  file?: ID | DirectusFile | null;
 
-  date_created?: string
-  date_updated?: string | null
-  created_by?: ID | DirectusUser
+  // Document Info
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  tags?: string[] | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-// ============================================
-// AUTHENTICATION TYPES
-// ============================================
+export interface HoaPet {
+  id: ID;
+  status: "active" | "inactive";
 
-export interface AuthResponse {
-  access_token: string
-  refresh_token: string
-  expires: number
-  expires_at: number
+  // Relations
+  organization: ID | HoaOrganization;
+  unit?: ID | HoaUnit | null;
+
+  // Pet Info
+  name: string;
+  type?: string | null;
+  breed?: string | null;
+  weight?: number | null;
+  photo?: ID | DirectusFile | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
-export interface SessionUser {
-  id: string
-  email: string
-  first_name?: string | null
-  last_name?: string | null
-  avatar?: string | null
-  role?: DirectusRole | null
-  organization?: HoaOrganization | null
-  member?: HoaMember | null
-}
+export interface HoaVehicle {
+  id: ID;
+  status: "active" | "inactive";
 
-export interface LoginCredentials {
-  email: string
-  password: string
-}
+  // Relations
+  organization: ID | HoaOrganization;
+  unit?: ID | HoaUnit | null;
 
-export interface RegisterData {
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  phone?: string
+  // Vehicle Info
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  color?: string | null;
+  license_plate?: string | null;
+  parking_spot?: string | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
 }
 
 // ============================================
 // DIRECTUS SCHEMA TYPE
 // ============================================
 
-// Define the complete schema
 export interface DirectusSchema {
   // System Collections
-  directus_users: DirectusUser
-  directus_roles: DirectusRole
-  directus_files: DirectusFile
+  directus_users: DirectusUser;
+  directus_roles: DirectusRole;
+  directus_files: DirectusFile;
 
   // HOA Collections (Multi-tenant)
-  hoa_organizations: HoaOrganization
-  hoa_members: HoaMember
-  hoa_invitations: HoaInvitation
-  hoa_units: HoaUnit
-  hoa_documents: HoaDocument
-  hoa_pets: HoaPet
-  hoa_vehicles: HoaVehicle
+  hoa_organizations: HoaOrganization;
+  hoa_members: HoaMember;
+  hoa_invitations: HoaInvitation;
+  hoa_units: HoaUnit;
+  hoa_documents: HoaDocument;
+  hoa_pets: HoaPet;
+  hoa_vehicles: HoaVehicle;
 }
 
+// ============================================
+// UTILITY TYPES
+// ============================================
+
 // Type helper for collection names
-export type DirectusCollections = keyof DirectusSchema
+export type DirectusCollections = keyof DirectusSchema;
 
 // Type helper for getting item type from collection name
-export type DirectusItem<T extends DirectusCollections> = DirectusSchema[T]
+export type DirectusItem<T extends DirectusCollections> = DirectusSchema[T];
+
+// Type helper for create/update operations (without readonly fields)
+export type CreateDirectusItem<T extends DirectusCollections> = Omit<
+  DirectusItem<T>,
+  "id" | "date_created" | "date_updated"
+>;
+
+export type UpdateDirectusItem<T extends DirectusCollections> = Partial<
+  Omit<DirectusItem<T>, "id" | "date_created" | "date_updated">
+>;
+
+// Type helper for filtering
+export type DirectusFilter<T extends DirectusCollections> = {
+  [K in keyof DirectusItem<T>]?: {
+    _eq?: DirectusItem<T>[K];
+    _neq?: DirectusItem<T>[K];
+    _in?: DirectusItem<T>[K][];
+    _nin?: DirectusItem<T>[K][];
+    _contains?: string;
+    _ncontains?: string;
+    _starts_with?: string;
+    _nstarts_with?: string;
+    _ends_with?: string;
+    _nends_with?: string;
+    _gt?: DirectusItem<T>[K];
+    _gte?: DirectusItem<T>[K];
+    _lt?: DirectusItem<T>[K];
+    _lte?: DirectusItem<T>[K];
+    _null?: boolean;
+    _nnull?: boolean;
+    _empty?: boolean;
+    _nempty?: boolean;
+    _between?: [DirectusItem<T>[K], DirectusItem<T>[K]];
+    _nbetween?: [DirectusItem<T>[K], DirectusItem<T>[K]];
+  };
+};
+
+// ============================================
+// AUTHENTICATION TYPES
+// ============================================
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  expires: number;
+}
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar?: string | null;
+  role?: DirectusRole | null;
+  organization?: HoaOrganization | null;
+  member?: HoaMember | null;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
