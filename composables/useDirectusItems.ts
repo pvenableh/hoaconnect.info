@@ -1,222 +1,202 @@
-import type { DirectusCollections, DirectusSchema, DirectusItem, ID } from '~/types/directus-schema'
+/**
+ * useDirectusItems - Comprehensive CRUD composable for Directus collections
+ * 
+ * Handles both authenticated and public operations:
+ * - Authenticated: Proxies through server API with user token
+ * - Public: Direct client-side calls with public token
+ * 
+ * Usage:
+ * const { list, get, create, update, remove } = useDirectusItems('hoa_members')
+ * const members = await list({ filter: { status: { _eq: 'active' } } })
+ */
 
-interface ItemsOptions {
+import type { QueryFilter } from '@directus/sdk'
+import type { DirectusCollections } from '~/types/directus-schema'
+
+interface ItemsQuery {
   fields?: string[]
-  filter?: any
+  filter?: QueryFilter<any>
   sort?: string[]
   limit?: number
   offset?: number
   page?: number
   search?: string
-  deep?: any
+  deep?: Record<string, any>
+  aggregate?: Record<string, string[]>
+  groupBy?: string[]
 }
 
-export const useDirectusItems = () => {
-  const { member } = useDirectusAuth()
+export const useDirectusItems = <T extends DirectusCollections>(collection: T) => {
+  const { loggedIn } = useUserSession()
   
   /**
-   * Add organization filter for multi-tenancy
+   * List items from collection
    */
-  const addOrgFilter = (filter: any = {}) => {
-    // Skip org filter for system collections
-    const systemCollections = ['directus_users', 'directus_roles', 'directus_files']
-    
-    if (!member.value?.organization) {
-      return filter
+  const list = async (query: ItemsQuery = {}) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
     
-    return {
-      ...filter,
-      organization: {
-        _eq: member.value.organization
+    const { data, error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'list',
+        query
       }
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to fetch items')
     }
+    
+    return data.value
   }
-
+  
   /**
-   * Fetch multiple items from a collection
+   * Get single item by ID
    */
-  const fetchItems = async <T extends DirectusCollections>(
-    collection: T,
-    options: ItemsOptions = {}
-  ): Promise<DirectusItem<T>[]> => {
-    try {
-      // Apply multi-tenancy filter for HOA collections
-      const filter = collection.startsWith('hoa_') 
-        ? addOrgFilter(options.filter)
-        : options.filter
-
-      const response = await $fetch(`/api/directus/items/${collection}`, {
-        method: 'GET',
-        query: {
-          ...options,
-          filter: filter ? JSON.stringify(filter) : undefined,
-          fields: options.fields ? options.fields.join(',') : undefined,
-          sort: options.sort ? options.sort.join(',') : undefined
-        }
-      })
-      
-      return response as DirectusItem<T>[]
-    } catch (error: any) {
-      console.error(`Failed to fetch ${collection}:`, error)
-      throw error
+  const get = async (id: string | number, query: Pick<ItemsQuery, 'fields' | 'deep'> = {}) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
-  }
-
-  /**
-   * Fetch a single item from a collection
-   */
-  const fetchItem = async <T extends DirectusCollections>(
-    collection: T,
-    id: ID,
-    options: { fields?: string[] } = {}
-  ): Promise<DirectusItem<T>> => {
-    try {
-      const response = await $fetch(`/api/directus/items/${collection}/${id}`, {
-        method: 'GET',
-        query: {
-          fields: options.fields ? options.fields.join(',') : undefined
-        }
-      })
-      
-      return response as DirectusItem<T>
-    } catch (error: any) {
-      console.error(`Failed to fetch ${collection}/${id}:`, error)
-      throw error
-    }
-  }
-
-  /**
-   * Create a new item in a collection
-   */
-  const createItem = async <T extends DirectusCollections>(
-    collection: T,
-    data: Partial<DirectusItem<T>>
-  ): Promise<DirectusItem<T>> => {
-    try {
-      // Add organization for HOA collections
-      if (collection.startsWith('hoa_') && member.value?.organization) {
-        data = {
-          ...data,
-          organization: member.value.organization as any
-        }
+    
+    const { data, error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'get',
+        id,
+        query
       }
-      
-      const response = await $fetch(`/api/directus/items/${collection}`, {
-        method: 'POST',
-        body: data
-      })
-      
-      return response as DirectusItem<T>
-    } catch (error: any) {
-      console.error(`Failed to create ${collection}:`, error)
-      throw error
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to fetch item')
     }
+    
+    return data.value
   }
-
+  
   /**
-   * Update an existing item
+   * Create new item
    */
-  const updateItem = async <T extends DirectusCollections>(
-    collection: T,
-    id: ID,
-    data: Partial<DirectusItem<T>>
-  ): Promise<DirectusItem<T>> => {
-    try {
-      const response = await $fetch(`/api/directus/items/${collection}/${id}`, {
-        method: 'PATCH',
-        body: data
-      })
-      
-      return response as DirectusItem<T>
-    } catch (error: any) {
-      console.error(`Failed to update ${collection}/${id}:`, error)
-      throw error
+  const create = async (data: Record<string, any>, query: Pick<ItemsQuery, 'fields'> = {}) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
+    
+    const { data: result, error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'create',
+        data,
+        query
+      }
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to create item')
+    }
+    
+    return result.value
   }
-
+  
   /**
-   * Delete an item
+   * Update existing item
    */
-  const deleteItem = async <T extends DirectusCollections>(
-    collection: T,
-    id: ID
-  ): Promise<void> => {
-    try {
-      await $fetch(`/api/directus/items/${collection}/${id}`, {
-        method: 'DELETE'
-      })
-    } catch (error: any) {
-      console.error(`Failed to delete ${collection}/${id}:`, error)
-      throw error
+  const update = async (id: string | number, data: Record<string, any>, query: Pick<ItemsQuery, 'fields'> = {}) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
+    
+    const { data: result, error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'update',
+        id,
+        data,
+        query
+      }
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to update item')
+    }
+    
+    return result.value
   }
-
+  
   /**
-   * Delete multiple items
+   * Delete item(s)
    */
-  const deleteItems = async <T extends DirectusCollections>(
-    collection: T,
-    ids: ID[]
-  ): Promise<void> => {
-    try {
-      await $fetch(`/api/directus/items/${collection}`, {
-        method: 'DELETE',
-        body: { keys: ids }
-      })
-    } catch (error: any) {
-      console.error(`Failed to delete multiple ${collection}:`, error)
-      throw error
+  const remove = async (id: string | number | (string | number)[]) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
+    
+    const { error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'delete',
+        id
+      }
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to delete item')
+    }
+    
+    return true
   }
-
+  
   /**
-   * Aggregate data from a collection
+   * Aggregate data
    */
-  const aggregate = async <T extends DirectusCollections>(
-    collection: T,
-    options: {
-      aggregate?: Record<string, string[]>
-      groupBy?: string[]
-      filter?: any
-    } = {}
-  ): Promise<any> => {
-    try {
-      const filter = collection.startsWith('hoa_') 
-        ? addOrgFilter(options.filter)
-        : options.filter
-
-      const response = await $fetch(`/api/directus/aggregate/${collection}`, {
-        method: 'GET',
-        query: {
-          aggregate: options.aggregate ? JSON.stringify(options.aggregate) : undefined,
-          groupBy: options.groupBy ? options.groupBy.join(',') : undefined,
-          filter: filter ? JSON.stringify(filter) : undefined
-        }
-      })
-      
-      return response
-    } catch (error: any) {
-      console.error(`Failed to aggregate ${collection}:`, error)
-      throw error
+  const aggregate = async (query: Pick<ItemsQuery, 'aggregate' | 'groupBy' | 'filter'>) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
     }
+    
+    const { data, error } = await useFetch('/api/directus/items', {
+      method: 'POST',
+      body: {
+        collection,
+        operation: 'aggregate',
+        query
+      }
+    })
+    
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to aggregate data')
+    }
+    
+    return data.value
   }
-
+  
+  /**
+   * Count items
+   */
+  const count = async (filter?: QueryFilter<any>) => {
+    const result = await aggregate({
+      aggregate: { count: ['*'] },
+      filter
+    })
+    
+    return result?.[0]?.count || 0
+  }
+  
   return {
-    fetchItems,
-    fetchItem,
-    createItem,
-    updateItem,
-    deleteItem,
-    deleteItems,
+    list,
+    get,
+    create,
+    update,
+    remove,
+    delete: remove, // Alias
     aggregate,
-    
-    // Aliases for convenience
-    list: fetchItems,
-    get: fetchItem,
-    create: createItem,
-    update: updateItem,
-    remove: deleteItem,
-    removeMany: deleteItems
+    count
   }
 }

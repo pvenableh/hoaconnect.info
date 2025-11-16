@@ -1,8 +1,8 @@
+// server/api/auth/refresh.post.ts
 import { createDirectus, rest, authentication, refresh } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get the current session
     const session = await getUserSession(event);
 
     if (!session || !session.directusRefreshToken) {
@@ -14,15 +14,16 @@ export default defineEventHandler(async (event) => {
 
     const config = useRuntimeConfig();
 
-    // Create client
+    // Create client with authentication
     const directus = createDirectus(config.public.directus.url)
       .with(rest())
       .with(authentication("json"));
 
-    // Refresh the token
-    const authResult = await directus.request(
-      refresh("json", session.directusRefreshToken)
-    );
+    // Set the refresh token
+    await directus.setToken(session.directusRefreshToken);
+
+    // Refresh (no arguments)
+    const authResult = await directus.request(refresh());
 
     if (!authResult.access_token) {
       throw new Error("Token refresh failed");
@@ -43,8 +44,6 @@ export default defineEventHandler(async (event) => {
     };
   } catch (error: any) {
     console.error("Token refresh error:", error);
-
-    // Clear session if refresh fails
     await clearUserSession(event);
 
     throw createError({
