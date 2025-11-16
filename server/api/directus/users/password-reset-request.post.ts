@@ -3,43 +3,41 @@
  * POST: Send password reset email
  */
 
-import { passwordRequest } from '@directus/sdk'
+import { passwordRequest, createDirectus, rest } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event)
-    const { email } = body
-    
+    const body = await readBody(event);
+    const { email } = body;
+
     if (!email) {
       throw createError({
         statusCode: 400,
-        message: 'Email is required'
-      })
+        message: "Email is required",
+      });
     }
-    
-    const config = useRuntimeConfig()
-    
+
+    const config = useRuntimeConfig();
+
     // Create a public client (no authentication needed)
-    const directus = createDirectus(config.public.directus.url)
-      .with(rest())
-    
+    const directus = createDirectus(config.public.directus.url).with(rest());
+
     // Request password reset using SDK
     await directus.request(
       passwordRequest(email, `${process.env.APP_URL}/reset-password`)
-    )
-    
+    );
+
     return {
       success: true,
-      message: 'Password reset email sent'
-    }
-    
+      message: "Password reset email sent",
+    };
   } catch (error: any) {
-    console.error('Password reset request error:', error)
-    
+    console.error("Password reset request error:", error);
+
     // Don't reveal if email exists for security
     return {
       success: true,
-      message: 'If the email exists, a reset link has been sent'
-    }
+      message: "If the email exists, a reset link has been sent",
+    };
   }
-})
+});
