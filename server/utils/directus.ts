@@ -29,8 +29,8 @@ export async function getUserDirectus(event: any) {
   const config = useRuntimeConfig();
   const session = await getUserSession(event);
 
-  // Access tokens from secure section
-  const accessToken = (session as any).secure?.directusAccessToken;
+  // Access token from secure section
+  const accessToken = getSessionAccessToken(session);
 
   if (!accessToken) {
     throw createError({
