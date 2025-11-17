@@ -14,6 +14,7 @@ import {
   deleteItems,
   aggregate as directusAggregate,
 } from "@directus/sdk";
+import type { DirectusCollections } from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -27,8 +28,8 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Cast collection name to string to help TypeScript
-    const collection = collectionName as string;
+    // Cast collection name to DirectusCollections type
+    const collection = collectionName as DirectusCollections;
 
     // Check if user is authenticated
     const session = await getUserSession(event);
