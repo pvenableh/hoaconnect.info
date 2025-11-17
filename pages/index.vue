@@ -20,7 +20,6 @@
 
     <!-- Main Domain - Public: Marketing Page -->
     <div v-else-if="isMainDomain && !user" class="container mx-auto px-4 py-12">
-
       <!-- Hero Section -->
       <section class="pt-20 pb-16 px-4">
         <div class="max-w-7xl mx-auto text-center">
@@ -408,12 +407,12 @@ const { user } = useDirectusAuth();
 const isMainDomain = useState("isMainDomain", () => false);
 
 // Fetch subscription plans from Directus
-const { fetchItems } = useDirectusItems();
+const { list } = useDirectusItems("subscription_plans");
 const {
   data: plans,
   pending,
   error,
-} = await fetchItems("subscription_plans", {
+} = await list({
   fields: ["*"],
   filter: {
     status: { _eq: "published" },
