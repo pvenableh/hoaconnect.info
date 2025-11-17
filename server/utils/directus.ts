@@ -42,3 +42,9 @@ export async function getUserDirectus(event: any) {
 
   return client;
 }
+
+export const getPublicDirectus = () => {
+  const config = useRuntimeConfig();
+
+  return createDirectus<DirectusSchema>(config.directus.url).with(rest());
+};
