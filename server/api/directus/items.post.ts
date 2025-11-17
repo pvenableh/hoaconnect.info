@@ -13,8 +13,14 @@ import {
   deleteItem,
   deleteItems,
   aggregate as directusAggregate,
+  type DirectusClient, // ← ADDED
+  type RestClient, // ← ADDED
+  type StaticTokenClient,
 } from "@directus/sdk";
-import type { DirectusCollections } from "~/types/directus-schema";
+import type {
+  DirectusCollections,
+  DirectusSchema,
+} from "~/types/directus-schema";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -33,7 +39,7 @@ export default defineEventHandler(async (event) => {
 
     // Check if user is authenticated
     const session = await getUserSession(event);
-    let directus;
+    let directus: DirectusClient<DirectusSchema> & RestClient<DirectusSchema>;
 
     if (session?.user) {
       // User is authenticated, use their token
