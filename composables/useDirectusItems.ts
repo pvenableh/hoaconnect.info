@@ -15,15 +15,17 @@ interface ItemsQuery {
 }
 
 export const useDirectusItems = <T extends DirectusCollections>(
-  collection: T
+  collection: T,
+  options: { requireAuth?: boolean } = {}
 ) => {
+  const { requireAuth = true } = options;
   const { loggedIn } = useUserSession();
 
   /**
    * List items from collection
    */
   const list = async (query: ItemsQuery = {}) => {
-    if (!loggedIn.value) {
+    if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
     }
 
@@ -50,7 +52,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
     id: string | number,
     query: Pick<ItemsQuery, "fields" | "deep"> = {}
   ) => {
-    if (!loggedIn.value) {
+    if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
     }
 
@@ -159,7 +161,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
   const aggregate = async (
     query: Pick<ItemsQuery, "aggregate" | "groupBy" | "filter">
   ) => {
-    if (!loggedIn.value) {
+    if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
     }
 

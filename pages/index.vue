@@ -406,8 +406,8 @@ const { user } = useDirectusAuth();
 // Initialize isMainDomain with a default value to prevent SSR errors
 const isMainDomain = useState("isMainDomain", () => false);
 
-// Fetch subscription plans from Directus
-const { list } = useDirectusItems("subscription_plans");
+// Fetch subscription plans from Directus (public access, no auth required)
+const { list } = useDirectusItems("subscription_plans", { requireAuth: false });
 const {
   data: plans,
   pending,
