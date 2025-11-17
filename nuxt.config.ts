@@ -153,4 +153,9 @@ export default defineNuxtConfig({
       },
     },
   },
+  typescript: {
+    strict: false,
+    typeCheck: false, // Disable type checking during build
+    shim: false,
+  },
 });

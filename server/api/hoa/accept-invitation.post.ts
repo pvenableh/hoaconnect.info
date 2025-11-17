@@ -179,6 +179,7 @@ export default defineEventHandler(async (event) => {
     const user = await authClient.request(readMe());
 
     // Set user session with Directus tokens for API proxy
+    // Set user session with Directus tokens for API proxy
     await setUserSession(event, {
       user: {
         id: user.id as string,
@@ -186,7 +187,7 @@ export default defineEventHandler(async (event) => {
         first_name: user.first_name || null,
         last_name: user.last_name || null,
         avatar: null,
-        role: null, // Will be populated on next login
+        role: null,
         organization: {
           id: organizationId,
           name: organizationName,
@@ -202,11 +203,14 @@ export default defineEventHandler(async (event) => {
           settings: null,
           status: "active",
         },
-        member: null, // Will be populated on next login
+        member: null,
       },
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken: authResult.refresh_token,
+      loggedInAt: Date.now(),
       expiresAt: Date.now() + authResult.expires * 1000,
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      },
     });
 
     // 8. Send notification email to admin who sent the invitation

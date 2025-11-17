@@ -1,6 +1,4 @@
 // types/auth-session.d.ts
-// Type augmentation for nuxt-auth-utils
-
 import type { DirectusRole } from "./directus-schema";
 
 declare module "#auth-utils" {
@@ -10,16 +8,20 @@ declare module "#auth-utils" {
     firstName?: string;
     lastName?: string;
     role?: DirectusRole;
-    organizationId?: string; // For multi-tenancy
-    provider?: "local" | "google" | "github"; // More specific types
+    organizationId?: string;
+    provider?: "local" | "google" | "github";
   }
 
   interface UserSession {
     user: User;
-    directusAccessToken?: string;
-    directusRefreshToken?: string;
     loggedInAt?: number;
     expiresAt?: number;
+  }
+
+  // Tokens stored in secure encrypted section
+  interface SecureSessionData {
+    directusAccessToken?: string;
+    directusRefreshToken?: string;
   }
 }
 

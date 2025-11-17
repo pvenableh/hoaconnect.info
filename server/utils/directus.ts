@@ -29,7 +29,10 @@ export async function getUserDirectus(event: any) {
   const config = useRuntimeConfig();
   const session = await getUserSession(event);
 
-  if (!session?.directusAccessToken) {
+  // Access tokens from secure section
+  const accessToken = (session as any).secure?.directusAccessToken;
+
+  if (!accessToken) {
     throw createError({
       statusCode: 401,
       statusMessage: "No authentication token available",
@@ -37,7 +40,7 @@ export async function getUserDirectus(event: any) {
   }
 
   const client = createDirectus<DirectusSchema>(config.directus.url)
-    .with(staticToken(session.directusAccessToken as string))
+    .with(staticToken(accessToken))
     .with(rest());
 
   return client;

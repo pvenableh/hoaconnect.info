@@ -58,6 +58,10 @@ export default defineEventHandler(async (event) => {
       directusRefreshToken: authResult.refresh_token,
       loggedInAt: Date.now(),
       expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      },
     });
 
     return {

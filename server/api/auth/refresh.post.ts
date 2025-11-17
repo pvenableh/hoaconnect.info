@@ -4,8 +4,9 @@ import { createDirectus, rest, authentication, refresh } from "@directus/sdk";
 export default defineEventHandler(async (event) => {
   try {
     const session = await getUserSession(event);
+    const refreshToken = (session as any).secure?.directusRefreshToken;
 
-    if (!session || !session.directusRefreshToken) {
+    if (!session || !refreshToken) {
       throw createError({
         statusCode: 401,
         statusMessage: "No refresh token available",
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
       .with(authentication("json"));
 
     // Set the refresh token
-    await directus.setToken(session.directusRefreshToken);
+    await directus.setToken(refreshToken);
 
     // Refresh (no arguments)
     const authResult = await directus.request(refresh());
@@ -32,10 +33,11 @@ export default defineEventHandler(async (event) => {
     // Update session with new tokens
     await setUserSession(event, {
       ...session,
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken:
-        authResult.refresh_token || session.directusRefreshToken,
       expiresAt: Date.now() + (authResult.expires || 900000),
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token || refreshToken,
+      },
     });
 
     return {

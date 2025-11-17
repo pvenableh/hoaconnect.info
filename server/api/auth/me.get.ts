@@ -2,10 +2,10 @@ import { createDirectus, rest, authentication, readMe } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get the current session
     const session = await getUserSession(event);
+    const accessToken = (session as any).secure?.directusAccessToken;
 
-    if (!session || !session.directusAccessToken) {
+    if (!session || !accessToken) {
       throw createError({
         statusCode: 401,
         statusMessage: "Not authenticated",
@@ -17,15 +17,15 @@ export default defineEventHandler(async (event) => {
     // Create authenticated client
     const directus = createDirectus(config.public.directus.url)
       .with(rest())
-      .with(authentication('json'));
+      .with(authentication("json"));
 
     // Set the token
-    await directus.setToken(session.directusAccessToken);
+    await directus.setToken(accessToken);
 
     // Fetch fresh user data
     const user = await directus.request(
       readMe({
-        fields: ['*', 'role.id', 'role.name', 'role.admin_access']
+        fields: ["*", "role.id", "role.name", "role.admin_access"],
       })
     );
 
