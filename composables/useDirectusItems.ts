@@ -1,9 +1,9 @@
 import type { QueryFilter } from "@directus/sdk";
-import type { DirectusCollections, DirectusSchema } from "~/types/directus-schema";
+import type { DirectusCollections, DirectusSchema, DirectusItem } from "~/types/directus-schema";
 
 interface ItemsQuery<T extends DirectusCollections> {
   fields?: string[];
-  filter?: QueryFilter<DirectusSchema, DirectusSchema[T]>;
+  filter?: QueryFilter<DirectusSchema, DirectusItem<T>>;
   sort?: string[];
   limit?: number;
   offset?: number;
@@ -184,7 +184,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * Count items
    */
-  const count = async (filter?: QueryFilter<DirectusSchema, DirectusSchema[T]>) => {
+  const count = async (filter?: QueryFilter<DirectusSchema, DirectusItem<T>>) => {
     const result = await aggregate({
       aggregate: { count: ["*"] },
       filter,
