@@ -3,7 +3,7 @@ import { createDirectus, rest, authentication, readMe } from "@directus/sdk";
 export default defineEventHandler(async (event) => {
   try {
     const session = await getUserSession(event);
-    const accessToken = (session as any).secure?.directusAccessToken;
+    const accessToken = getSessionAccessToken(session);
 
     if (!session || !accessToken) {
       throw createError({

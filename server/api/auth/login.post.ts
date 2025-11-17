@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // Set user session
+    // Set user session with tokens in secure section
     await setUserSession(event, {
       user: {
         id: user.id,
@@ -54,8 +54,6 @@ export default defineEventHandler(async (event) => {
         role: user.role,
         provider: "local",
       },
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken: authResult.refresh_token,
       loggedInAt: Date.now(),
       expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
       secure: {

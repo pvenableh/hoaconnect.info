@@ -4,7 +4,7 @@ import { createDirectus, rest, authentication, refresh } from "@directus/sdk";
 export default defineEventHandler(async (event) => {
   try {
     const session = await getUserSession(event);
-    const refreshToken = (session as any).secure?.directusRefreshToken;
+    const refreshToken = getSessionRefreshToken(session);
 
     if (!session || !refreshToken) {
       throw createError({
