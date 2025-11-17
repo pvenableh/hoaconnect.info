@@ -1,4 +1,4 @@
-<!-- components/auth/LoginForm.vue -->
+<!-- components/Auth/LoginForm.vue -->
 <template>
   <Card class="w-full max-w-md">
     <CardHeader class="space-y-1">
@@ -55,7 +55,7 @@
         <div class="flex items-center space-x-2">
           <input
             id="remember"
-            v-model="form.remember"
+            v-model="remember"
             type="checkbox"
             class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
@@ -80,37 +80,40 @@
           <span v-else>Sign in</span>
         </Button>
 
-        <!-- OAuth Divider -->
-        <div class="relative my-6">
-          <div class="absolute inset-0 flex items-center">
-            <span class="w-full border-t" />
+        <!-- OAuth Section (conditional) -->
+        <template v-if="showOAuth">
+          <!-- OAuth Divider -->
+          <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+              <span class="w-full border-t" />
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+              <span class="bg-white px-2 text-gray-500">Or continue with</span>
+            </div>
           </div>
-          <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white px-2 text-gray-500">Or continue with</span>
-          </div>
-        </div>
 
-        <!-- OAuth Buttons -->
-        <div class="grid grid-cols-2 gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            @click="loginWithProvider('google')"
-            :disabled="loading"
-          >
-            <Icon name="logos:google-icon" class="mr-2 h-4 w-4" />
-            Google
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            @click="loginWithProvider('github')"
-            :disabled="loading"
-          >
-            <Icon name="mdi:github" class="mr-2 h-4 w-4" />
-            GitHub
-          </Button>
-        </div>
+          <!-- OAuth Buttons -->
+          <div class="grid grid-cols-2 gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              @click="loginWithProvider('google')"
+              :disabled="loading"
+            >
+              <Icon name="logos:google-icon" class="mr-2 h-4 w-4" />
+              Google
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              @click="loginWithProvider('github')"
+              :disabled="loading"
+            >
+              <Icon name="mdi:github" class="mr-2 h-4 w-4" />
+              GitHub
+            </Button>
+          </div>
+        </template>
 
         <!-- Sign Up Link -->
         <div class="text-center text-sm">
@@ -142,7 +145,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { loginSchema } from "~/schemas/auth";
 import type { LoginSchema } from "~/schemas/auth";
 
-// Props & Emits
+// Props
+interface Props {
+  showOAuth?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  showOAuth: true,
+});
+
+// Emits
 const emit = defineEmits<{
   success: [user: any];
 }>();
