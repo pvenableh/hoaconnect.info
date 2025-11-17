@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     const directus = createDirectus(config.public.directus.url).with(rest());
 
     // Authenticate with Directus
-    const authResult = await directus.request(login(email, password));
+    const authResult = await directus.request(login({ email, password }));
 
     if (!authResult.access_token) {
       throw new Error("Authentication failed");
