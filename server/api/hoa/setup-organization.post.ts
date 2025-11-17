@@ -188,9 +188,12 @@ export default defineEventHandler(async (event) => {
         },
         member: null, // Will be populated on next login
       },
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken: authResult.refresh_token,
+      loggedInAt: Date.now(),
       expiresAt: Date.now() + authResult.expires * 1000,
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      },
     });
 
     // 6. Send welcome email via SendGrid

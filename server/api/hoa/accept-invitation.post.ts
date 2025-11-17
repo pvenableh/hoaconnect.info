@@ -204,9 +204,12 @@ export default defineEventHandler(async (event) => {
         },
         member: null, // Will be populated on next login
       },
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken: authResult.refresh_token,
+      loggedInAt: Date.now(),
       expiresAt: Date.now() + authResult.expires * 1000,
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      },
     });
 
     // 8. Send notification email to admin who sent the invitation
