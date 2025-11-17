@@ -1,4 +1,10 @@
-import { readMe, readItems, readPermissions } from "@directus/sdk";
+import {
+  readMe,
+  readItems,
+  readRoles,
+  readUsers,
+  readPermissions,
+} from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -15,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
     // Get current user's full details
     const user = await directus.request(
-      readItems("directus_users", {
+      readUsers({
         filter: {
           id: { _eq: session.user.id },
         },
@@ -35,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
     // Get role details
     const role = await directus.request(
-      readItems("directus_roles", {
+      readRoles({
         filter: {
           id: { _eq: userData.role },
         },
@@ -46,20 +52,26 @@ export default defineEventHandler(async (event) => {
 
     // Get permissions for this role
     const permissions = await directus.request(
-      readItems("directus_permissions", {
+      readPermissions({
         filter: {
           role: { _eq: userData.role },
         },
-        fields: ["id", "collection", "action", "permissions", "validation", "fields"],
+        fields: [
+          "id",
+          "collection",
+          "action",
+          "permissions",
+          "validation",
+          "fields",
+        ],
       })
     );
 
     // Filter permissions for HOA collections
-    const hoaPermissions = permissions.filter((p: any) =>
-      p.collection && (
-        p.collection.startsWith("hoa_") ||
-        p.collection === "directus_users"
-      )
+    const hoaPermissions = permissions.filter(
+      (p: any) =>
+        p.collection &&
+        (p.collection.startsWith("hoa_") || p.collection === "directus_users")
     );
 
     return {

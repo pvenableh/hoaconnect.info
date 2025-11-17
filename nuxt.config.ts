@@ -20,7 +20,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     // Server-only keys (never exposed to client-side)
-    directusServerToken: process.env.DIRECTUS_STATIC_TOKEN || "",
+    directusServerToken: process.env.DIRECTUS_STATIC_TOKEN,
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
     directus: {
       url: process.env.DIRECTUS_URL,
@@ -32,12 +32,11 @@ export default defineNuxtConfig({
       teamId: process.env.VERCEL_TEAM_ID || "",
     },
     // SendGrid configuration
-    sendgridApiKey: process.env.SENDGRID_API_KEY || "",
-    sendgridInvitationTemplateId:
-      process.env.SENDGRID_INVITATION_TEMPLATE_ID || "",
-    sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID || "",
+    sendgridApiKey: process.env.SENDGRID_API_KEY,
+    sendgridInvitationTemplateId: process.env.SENDGRID_INVITATION_TEMPLATE_ID,
+    sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID,
     sendgridInvitationAcceptedTemplateId:
-      process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID || "",
+      process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID,
 
     public: {
       directus: {
@@ -47,7 +46,7 @@ export default defineNuxtConfig({
       directusUrl: process.env.DIRECTUS_URL,
       mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN,
       appUrl: process.env.APP_URL || "http://localhost:3000",
-      fromEmail: process.env.FROM_EMAIL || "noreply@605lincolnroad.com",
+      fromEmail: process.env.FROM_EMAIL,
       siteTitle: "Property Flow - Premier Property Management App",
       siteSubtitle: "",
       siteDescription:
@@ -77,11 +76,11 @@ export default defineNuxtConfig({
       link: [
         {
           rel: "preconnect",
-          href: "https://property.huestudios.company",
+          href: process.env.DIRECTUS_URL,
         },
         {
           rel: "dns-prefetch",
-          href: "https://property.huestudios.company",
+          href: process.env.DIRECTUS_URL,
         },
         {
           rel: "manifest",
@@ -106,7 +105,7 @@ export default defineNuxtConfig({
     },
   },
   site: {
-    url: "https://property.huestudios.company",
+    url: process.env.DIRECTUS_URL,
     name: "Property Flow - Premier Property Management App",
     description:
       "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
@@ -130,8 +129,12 @@ export default defineNuxtConfig({
       type: "Business",
       name: "Property Flow",
       alternateName: "Property Flow",
-      url: "https://property.huestudios.com",
-      logo: "https://property.huestudios.com/logo.png",
+      url: process.env.NUXT_PUBLIC_MAIN_DOMAIN
+        ? `https://${process.env.NUXT_PUBLIC_MAIN_DOMAIN}`
+        : "https://property.huestudios.com",
+      logo: process.env.NUXT_PUBLIC_MAIN_DOMAIN
+        ? `https://${process.env.NUXT_PUBLIC_MAIN_DOMAIN}/logo.png`
+        : "https://property.huestudios.com/logo.png",
       address: {
         type: "PostalAddress",
         streetAddress: "605 Lincoln Road",
