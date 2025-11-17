@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { fetchItems } = useDirectusItems();
+const { list } = useDirectusItems("subscription_plans");
 const props = defineProps<{
   selectedPlan?: string;
   billingCycle?: "monthly" | "yearly";
@@ -10,7 +10,7 @@ const emit = defineEmits<{
   "update:billingCycle": [cycle: "monthly" | "yearly"];
 }>();
 
-const { data: plansData, pending } = await fetchItems("subscription-plans", {
+const { data: plansData, pending } = await list({
   fields: [
     "id",
     "name",

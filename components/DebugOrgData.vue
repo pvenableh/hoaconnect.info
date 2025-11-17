@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { useDirectusAuth, useDirectusItems } from "#imports";
-
 const { user } = useDirectusAuth();
-const { fetchItems } = useDirectusItems();
+const { list } = useDirectusItems("hoa_members");
 
 const debugData = ref({
   user: null as any,
@@ -38,7 +36,7 @@ const checkData = async () => {
     // Try the simplest query first
     console.log("Fetching hoa_members with user ID:", user.value.id);
 
-    const result = await fetchItems("hoa_members", {
+    const result = await list({
       fields: ["id", "user", "organization"],
       filter: {
         user: { _eq: user.value.id },
@@ -50,7 +48,7 @@ const checkData = async () => {
     debugData.value.memberships = result;
 
     // Now try the full query
-    const fullResult = await fetchItems("hoa_members", {
+    const fullResult = await list({
       fields: [
         "id",
         "organization.id",
