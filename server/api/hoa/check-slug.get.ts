@@ -1,4 +1,6 @@
 // server/api/hoa/check-slug.get.ts
+import { readItems } from "@directus/sdk";
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const slug = query.slug as string;
@@ -20,13 +22,17 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const organizations = await readTypedDirectusItems("hoa_organizations", {
-      filter: {
-        slug: { _eq: slug },
-      },
-      fields: ["id"],
-      limit: 1,
-    });
+    const directus = getTypedDirectus();
+
+    const organizations = await directus.request(
+      readItems("hoa_organizations", {
+        filter: {
+          slug: { _eq: slug },
+        },
+        fields: ["id"],
+        limit: 1,
+      })
+    );
 
     const isAvailable = !organizations || organizations.length === 0;
 

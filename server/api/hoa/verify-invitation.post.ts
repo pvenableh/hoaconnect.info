@@ -1,3 +1,5 @@
+import { readItems } from "@directus/sdk";
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
   const { token } = body;
@@ -10,20 +12,24 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const directus = getTypedDirectus();
+
     // Find the invitation
-    const invitations = await readTypedDirectusItems("hoa_invitations", {
-      filter: {
-        token: { _eq: token },
-        invitation_status: { _eq: "pending" as const },
-      },
-      fields: [
-        "*",
-        { organization: ["name"] },
-        { role: ["name"] },
-        "expires_at",
-      ],
-      limit: 1,
-    });
+    const invitations = await directus.request(
+      readItems("hoa_invitations", {
+        filter: {
+          token: { _eq: token },
+          invitation_status: { _eq: "pending" as const },
+        },
+        fields: [
+          "*",
+          { organization: ["name"] },
+          { role: ["name"] },
+          "expires_at",
+        ],
+        limit: 1,
+      })
+    );
 
     if (!invitations || invitations.length === 0) {
       throw createError({
