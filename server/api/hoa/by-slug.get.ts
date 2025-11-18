@@ -21,7 +21,16 @@ export default defineEventHandler(async (event) => {
           slug: { _eq: slug },
           status: { _eq: "active" },
         },
-        fields: ["*", "invitations.*", "amenities.*", "settings.*", "subscription.*"],
+        fields: [
+          "*",
+          {
+            invitations: ["*"],
+            amenities: ["*"],
+            subscription: ["*"],
+            subscription_plan: ["*"],
+            logo: ["*"],
+          },
+        ],
         limit: 1,
       })
     );

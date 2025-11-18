@@ -23,7 +23,15 @@ export default defineEventHandler(async (event) => {
           custom_domain: { _eq: domain },
           domain_verified: { _eq: true },
         },
-        fields: ["*", "amenities.*", "settings.*", "subscription.*"],
+        fields: [
+          "*",
+          {
+            amenities: ["*"],
+            subscription: ["*"],
+            subscription_plan: ["*"],
+            logo: ["*"],
+          },
+        ],
         limit: 1,
       })
     );
