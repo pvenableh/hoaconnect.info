@@ -126,7 +126,7 @@ export interface HoaMember {
 
 export interface HoaInvitation {
   id: ID;
-  status: "pending" | "accepted" | "expired" | "cancelled";
+  invitation_status: "pending" | "accepted" | "expired" | "canceled";
 
   // Relations
   organization: ID | HoaOrganization;
