@@ -89,12 +89,16 @@ export interface DirectusUser {
 
 export interface HoaOrganization {
   id: ID;
-  status: "active" | "inactive" | "suspended";
+  status: "published" | "draft" | "archived" | "active" | "inactive" | "suspended";
 
   // Basic Info
   name: string;
   slug?: string | null;
   domain?: string | null;
+  custom_domain?: string | null;
+  domain_verified?: boolean | null;
+  domain_type?: "apex" | "subdomain" | null;
+  domain_config?: Record<string, any> | null;
   logo?: ID | DirectusFile | null;
 
   // Contact Info
@@ -105,8 +109,17 @@ export interface HoaOrganization {
   state?: string | null;
   zip?: string | null;
 
+  // Subscription & Billing
+  billing_cycle?: "monthly" | "yearly" | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  subscription_status?: "active" | "trial" | "canceled" | "expired" | null;
+  trial_ends_at?: string | null;
+  member_count?: number | null;
+
   // Settings & Configuration
-  settings?: Record<string, any> | null;
+  settings?: ID | HoaSettings | null;
+  hero?: ID | HoaHero | null;
   subscription_plan?: ID | SubscriptionPlan | null;
 
   // Relational Fields (One-to-Many reverse relations)
@@ -253,10 +266,57 @@ export interface HoaAmenity {
 
   // Amenity Info
   title: string;
+  icon?: string | null;
   description?: string | null;
   location?: string | null;
   availability?: string | null;
   image?: ID | DirectusFile | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
+export interface HoaSettings {
+  id: ID;
+  status: "published" | "draft" | "archived";
+
+  // Relations
+  organization?: ID | HoaOrganization | null;
+
+  // Brand & Styling
+  heading_font?: string | null;
+  body_font?: string | null;
+  logo?: ID | DirectusFile | null;
+  icon?: ID | DirectusFile | null;
+  colors?: Record<string, any>[] | null;
+
+  // SEO & Content
+  title?: string | null;
+  description?: string | null;
+  seo?: {
+    title?: string;
+    meta_description?: string;
+  } | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
+export interface HoaHero {
+  id: ID;
+  status: "published" | "draft" | "archived";
+
+  // Hero Content
+  title?: string | null;
+  subtitle?: string | null;
+  cta_text?: string | null;
+  cta_link?: string | null;
+
+  // Hero Images
+  background_image?: ID | DirectusFile | null;
+  foreground_image?: ID | DirectusFile | null;
 
   // Timestamps
   date_created?: string;
@@ -326,6 +386,8 @@ export interface DirectusSchema {
   hoa_pets: HoaPet[];
   hoa_vehicles: HoaVehicle[];
   hoa_amenities: HoaAmenity[];
+  hoa_settings: HoaSettings[];
+  hoa_heroes: HoaHero[];
   hoa_subscriptions: HoaSubscription[];
 
   // Subscription Plans

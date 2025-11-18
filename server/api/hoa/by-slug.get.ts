@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_organizations", {
         filter: {
           slug: { _eq: slug },
-          status: { _eq: "active" },
+          status: { _in: ["active", "published"] },
         },
         fields: [
           "*",
@@ -29,6 +29,8 @@ export default defineEventHandler(async (event) => {
             subscription: ["*"],
             subscription_plan: ["*"],
             logo: ["*"],
+            settings: ["*", { logo: ["*"], icon: ["*"] }],
+            hero: ["*", { background_image: ["*"], foreground_image: ["*"] }],
           },
         ],
         limit: 1,
