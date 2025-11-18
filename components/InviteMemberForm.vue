@@ -14,7 +14,8 @@ const emit = defineEmits<{
   error: [error: Error];
 }>();
 
-const { fetchItems } = useDirectusItems();
+const { list: listRoles } = useDirectusItems("directus_roles");
+const { list: listUnits } = useDirectusItems("hoa_units");
 
 const loading = ref(false);
 const loadingData = ref(true);
@@ -36,19 +37,19 @@ const form = ref({
 onMounted(async () => {
   try {
     // Load roles (exclude Administrator)
-    const { data: rolesData } = await fetchItems("directus_roles", {
+    const rolesData = await listRoles({
       filter: {
         name: { _neq: "Administrator" },
       },
       fields: ["id", "name", "description"],
     });
 
-    if (rolesData.value) {
-      roles.value = rolesData.value;
+    if (rolesData) {
+      roles.value = rolesData;
     }
 
     // Load units for this organization
-    const { data: unitsData } = await fetchItems("hoa_units", {
+    const unitsData = await listUnits({
       filter: {
         organization: { _eq: props.organizationId },
         status: { _eq: "published" },
@@ -57,8 +58,8 @@ onMounted(async () => {
       sort: ["unit_number"],
     });
 
-    if (unitsData.value) {
-      units.value = unitsData.value;
+    if (unitsData) {
+      units.value = unitsData;
     }
   } catch (err) {
     console.error("Error loading data:", err);

@@ -7,7 +7,7 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { fetchItems, deleteOne } = useDirectusItems();
+const { list: listDocuments, remove: removeDocument } = useDirectusItems("hoa_documents");
 const { getFileUrl } = useDirectusFiles();
 const { selectedOrgId } = useSelectedOrg();
 
@@ -22,7 +22,7 @@ const { data: documents, refresh } = await useAsyncData(
   `documents-${orgId.value}-${category.value}-${status.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_documents", {
+    const result = await listDocuments({
       fields: ["id", "title", "category", "status", "date_published", "file.*"],
       filter: {
         organization: { _eq: orgId.value },
@@ -43,7 +43,7 @@ const handleDelete = async (id: string) => {
   if (!confirm("Delete this document?")) return;
 
   try {
-    await deleteOne("hoa_documents", id);
+    await removeDocument(id);
     await refresh();
     toast.success("Document deleted");
   } catch (error) {

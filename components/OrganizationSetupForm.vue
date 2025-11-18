@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const config = useRuntimeConfig();
-const { fetchItems } = useDirectusItems();
+const { list: listPlans } = useDirectusItems("subscription_plans");
 
 // Form state
 const currentStep = ref(1);
@@ -139,7 +139,7 @@ const adminForm = ref({
 
 // Load subscription plans
 const loadPlans = async () => {
-  const { data } = await fetchItems("subscription_plans", {
+  const data = await listPlans({
     filter: {
       is_active: { _eq: true },
       status: { _eq: "published" },
@@ -147,12 +147,12 @@ const loadPlans = async () => {
     sort: ["sort"],
   });
 
-  if (data.value) {
-    subscriptionPlans.value = data.value;
+  if (data) {
+    subscriptionPlans.value = data;
 
     // Auto-select free plan in BETA mode
     if (props.betaMode) {
-      const freePlan = data.value.find(
+      const freePlan = data.find(
         (p: any) => parseFloat(p.price_monthly) === 0
       );
       if (freePlan) {

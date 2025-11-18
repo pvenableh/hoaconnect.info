@@ -5,7 +5,9 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { fetchItems } = useDirectusItems();
+const { list: listDocuments } = useDirectusItems("hoa_documents");
+const { list: listMembers } = useDirectusItems("hoa_members");
+const { list: listUnits } = useDirectusItems("hoa_units");
 const { selectedOrgId, currentOrg, currentRole } = useSelectedOrg();
 
 // Watch for org changes and refresh data
@@ -16,7 +18,7 @@ const { data: documents, refresh: refreshDocs } = await useAsyncData(
   `dashboard-docs-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_documents", {
+    const result = await listDocuments({
       fields: ["id", "title", "category", "date_published"],
       filter: {
         organization: { _eq: orgId.value },
@@ -34,7 +36,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
   `dashboard-members-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_members", {
+    const result = await listMembers({
       fields: ["id"],
       filter: {
         organization: { _eq: orgId.value },
@@ -50,7 +52,7 @@ const { data: units, refresh: refreshUnits } = await useAsyncData(
   `dashboard-units-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_units", {
+    const result = await listUnits({
       fields: ["id"],
       filter: {
         organization: { _eq: orgId.value },

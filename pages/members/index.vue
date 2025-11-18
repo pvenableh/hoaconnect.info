@@ -8,7 +8,10 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { fetchItems, create, update, deleteOne } = useDirectusItems();
+const { list: listMembers, create: createMember, update: updateMember, remove: removeMember } = useDirectusItems("hoa_members");
+const { list: listInvitations } = useDirectusItems("hoa_invitations");
+const { list: listUnits } = useDirectusItems("hoa_units");
+const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
 
 // Use the org switcher composable instead of duplicating logic
 const { currentOrg, selectedOrgId, isLoading } = useSelectedOrg();
@@ -24,7 +27,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
   "hoa-members-list",
   async () => {
     if (!organization.value?.id) return [];
-    const result = await fetchItems("hoa_members", {
+    const result = await listMembers({
       fields: [
         "id",
         "first_name",
@@ -60,7 +63,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
   "hoa-invitations-list",
   async () => {
     if (!organization.value?.id) return [];
-    const result = await fetchItems("hoa_invitations", {
+    const result = await listInvitations({
       fields: [
         "id",
         "email",
@@ -89,7 +92,7 @@ const { data: units } = await useAsyncData(
   "units-dropdown",
   async () => {
     if (!organization.value?.id) return [];
-    const result = await fetchItems("hoa_units", {
+    const result = await listUnits({
       fields: ["id", "unit_number"],
       filter: {
         organization: { _eq: organization.value.id },
@@ -159,7 +162,7 @@ const handleSubmit = async () => {
   try {
     if (editingId.value) {
       // Update existing member
-      await update("hoa_members", editingId.value, {
+      await updateMember(editingId.value, {
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
@@ -171,7 +174,7 @@ const handleSubmit = async () => {
       toast.success("Member updated");
     } else {
       // Create new member (without user account)
-      const newMember = await create("hoa_members", {
+      const newMember = await createMember({
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
@@ -183,7 +186,7 @@ const handleSubmit = async () => {
 
       // If a unit was selected, create the junction record
       if (form.unit && newMember.id) {
-        await create("hoa_member_units", {
+        await createMemberUnit({
           member_id: newMember.id,
           unit_id: form.unit,
           is_primary_unit: true,
@@ -212,7 +215,7 @@ const handleDelete = async (id: string) => {
     return;
 
   try {
-    await deleteOne("hoa_members", id);
+    await removeMember(id);
     await refreshMembers();
     toast.success("Member deleted");
   } catch (error) {

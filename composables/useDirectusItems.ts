@@ -29,7 +29,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { data, error } = await useFetch("/api/directus/items", {
+    return await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -37,12 +37,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         query,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to fetch items");
-    }
-
-    return data.value;
   };
 
   /**
@@ -56,7 +50,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { data, error } = await useFetch("/api/directus/items", {
+    return await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -65,12 +59,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         query,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to fetch item");
-    }
-
-    return data.value;
   };
 
   /**
@@ -84,7 +72,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { data: result, error } = await useFetch("/api/directus/items", {
+    return await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -93,12 +81,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         query,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to create item");
-    }
-
-    return result.value;
   };
 
   /**
@@ -113,7 +95,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { data: result, error } = await useFetch("/api/directus/items", {
+    return await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -123,12 +105,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         query,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to update item");
-    }
-
-    return result.value;
   };
 
   /**
@@ -139,7 +115,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { error } = await useFetch("/api/directus/items", {
+    await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -147,10 +123,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         id,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to delete item");
-    }
 
     return true;
   };
@@ -165,7 +137,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
       throw new Error("Authentication required");
     }
 
-    const { data, error } = await useFetch("/api/directus/items", {
+    return await $fetch("/api/directus/items", {
       method: "POST",
       body: {
         collection,
@@ -173,12 +145,6 @@ export const useDirectusItems = <T extends DirectusCollections>(
         query,
       },
     });
-
-    if (error.value) {
-      throw new Error(error.value.message || "Failed to aggregate data");
-    }
-
-    return data.value;
   };
 
   /**

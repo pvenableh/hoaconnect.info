@@ -7,7 +7,7 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { fetchItems, create, update, deleteOne } = useDirectusItems();
+const { list: listUnits, create: createUnit, update: updateUnit, remove: removeUnit } = useDirectusItems("hoa_units");
 const { selectedOrgId } = useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
@@ -17,7 +17,7 @@ const { data: units, refresh } = await useAsyncData(
   `units-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
-    const result = await fetchItems("hoa_units", {
+    const result = await listUnits({
       fields: ["id", "unit_number", "status"],
       filter: {
         organization: { _eq: orgId.value },
@@ -68,10 +68,10 @@ const handleSubmit = async () => {
 
   try {
     if (editingId.value) {
-      await update("hoa_units", editingId.value, form);
+      await updateUnit(editingId.value, form);
       toast.success("Unit updated");
     } else {
-      await create("hoa_units", {
+      await createUnit({
         ...form,
         organization: orgId.value,
         sort: 0,
@@ -92,7 +92,7 @@ const handleDelete = async (id: string) => {
     return;
 
   try {
-    await deleteOne("hoa_units", id);
+    await removeUnit(id);
     await refresh();
     toast.success("Unit deleted");
   } catch (error) {

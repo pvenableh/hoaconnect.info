@@ -4,7 +4,7 @@
  */
 export const useSelectedOrg = () => {
   const { user } = useDirectusAuth();
-  const { fetchItems } = useDirectusItems();
+  const { list: listMembers } = useDirectusItems("hoa_members");
 
   // Store selected org ID in localStorage
   const selectedOrgId = useState<string | null>("selectedOrgId", () => {
@@ -28,7 +28,7 @@ export const useSelectedOrg = () => {
     console.log("[useSelectedOrg] Fetching memberships for user:", user.value.id);
 
     try {
-      const result = await fetchItems("hoa_members", {
+      const result = await listMembers({
         fields: [
           "id",
           "organization.id",
