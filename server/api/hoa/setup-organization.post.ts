@@ -3,6 +3,7 @@ import {
   createItem,
   readItems,
   readRoles,
+  updateItem,
   authentication,
   rest,
 } from "@directus/sdk";
@@ -59,15 +60,18 @@ export default defineEventHandler(async (event) => {
 
   try {
     const config = useRuntimeConfig();
+    const directus = getTypedDirectus();
 
     // Check if slug already exists
-    const existingOrgs = await readTypedDirectusItems("hoa_organizations", {
-      filter: {
-        slug: { _eq: slug },
-      },
-      fields: ["id"],
-      limit: 1,
-    });
+    const existingOrgs = await directus.request(
+      readItems("hoa_organizations", {
+        filter: {
+          slug: { _eq: slug },
+        },
+        fields: ["id"],
+        limit: 1,
+      })
+    );
 
     if (existingOrgs && existingOrgs.length > 0) {
       throw createError({
@@ -77,21 +81,22 @@ export default defineEventHandler(async (event) => {
     }
 
     // 1. Create the organization
-    const organization = await createTypedDirectusItem("hoa_organizations", {
-      name: organizationName,
-      slug: slug,
-      street_address: street_address,
-      city: city,
-      state: state,
-      zip: zip,
-      phone: org_phone,
-      email: org_email,
-      subscription_plan: subscriptionPlanId || null,
-      status: "published",
-    });
+    const organization = await directus.request(
+      createItem("hoa_organizations", {
+        name: organizationName,
+        slug: slug,
+        street_address: street_address,
+        city: city,
+        state: state,
+        zip: zip,
+        phone: org_phone,
+        email: org_email,
+        subscription_plan: subscriptionPlanId || null,
+        status: "published",
+      })
+    );
 
     // 2. Get the "HOA Admin" role UUID
-    const directus = getTypedDirectus();
     const roles = await directus.request(
       readRoles({
         filter: {
@@ -125,17 +130,19 @@ export default defineEventHandler(async (event) => {
     );
 
     // 4. Create the hoa_member record with personal info
-    const hoaMember = await createTypedDirectusItem("hoa_members", {
-      user: newUser.id,
-      organization: organization.id,
-      role: hoaAdminRoleId,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
-      member_type: "owner",
-      status: "published",
-    });
+    const hoaMember = await directus.request(
+      createItem("hoa_members", {
+        user: newUser.id,
+        organization: organization.id,
+        role: hoaAdminRoleId,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        member_type: "owner",
+        status: "published",
+      })
+    );
 
     // 5. Automatically log the user in
     const authClient = createDirectus(config.directus.url)

@@ -1,3 +1,4 @@
+import { readItem, createItem } from "@directus/sdk";
 import { sendHoaInvitationEmail } from "../../utils/sendgrid";
 import { randomBytes } from "crypto";
 
@@ -17,6 +18,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const config = useRuntimeConfig();
+    const directus = getTypedDirectus();
 
     // Generate unique invitation token
     const token = randomBytes(32).toString("hex");
@@ -26,34 +28,32 @@ export default defineEventHandler(async (event) => {
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     // Get organization details for email
-    const organization = await readTypedDirectusItem(
-      "hoa_organizations",
-      organizationId,
-      {
+    const organization = await directus.request(
+      readItem("hoa_organizations", organizationId, {
         fields: ["name"],
-      }
+      })
     );
 
     // Get role details for email
-    const role = await readTypedDirectusItem(
-      "directus_roles",
-      roleId,
-      {
+    const role = await directus.request(
+      readItem("directus_roles", roleId, {
         fields: ["name"],
-      }
+      })
     );
 
     // Create invitation record
-    const invitation = await createTypedDirectusItem("hoa_invitations", {
-      email,
-      organization: organizationId,
-      role: roleId,
-      invited_by: session.user.id,
-      token,
-      invitation_status: "pending",
-      expires_at: expiresAt.toISOString(),
-      status: "published",
-    });
+    const invitation = await directus.request(
+      createItem("hoa_invitations", {
+        email,
+        organization: organizationId,
+        role: roleId,
+        invited_by: session.user.id,
+        token,
+        invitation_status: "pending",
+        expires_at: expiresAt.toISOString(),
+        status: "published",
+      })
+    );
 
     // Send invitation email via SendGrid
     const invitationUrl = `${config.public.appUrl}/hoa/accept-invite?token=${token}`;
