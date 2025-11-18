@@ -40,15 +40,21 @@ interface Permission {
 
 async function getRoles(): Promise<Role[]> {
   try {
-    const roles = await directus.request(
-      readItems("directus_roles", {
-        filter: {
-          name: { _in: ["HOA Admin", "HOA Member"] },
-        },
-        fields: ["id", "name"],
-      })
-    );
-    return roles as Role[];
+    // Use REST API directly for core collections (can't use readItems on directus_roles)
+    const response = await fetch(`${DIRECTUS_URL}/roles?filter=${JSON.stringify({
+      name: { _in: ["HOA Admin", "HOA Member"] },
+    })}&fields=id,name`, {
+      headers: {
+        Authorization: `Bearer ${DIRECTUS_STATIC_TOKEN}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data as Role[];
   } catch (error) {
     console.error("Error fetching roles:", error);
     throw error;

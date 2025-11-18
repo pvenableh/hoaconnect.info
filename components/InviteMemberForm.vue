@@ -14,7 +14,6 @@ const emit = defineEmits<{
   error: [error: Error];
 }>();
 
-const { list: listRoles } = useDirectusItems("directus_roles");
 const { list: listUnits } = useDirectusItems("hoa_units");
 
 const loading = ref(false);
@@ -36,16 +35,11 @@ const form = ref({
 // Load roles and units on mount
 onMounted(async () => {
   try {
-    // Load roles (exclude Administrator)
-    const rolesData = await listRoles({
-      filter: {
-        name: { _neq: "Administrator" },
-      },
-      fields: ["id", "name", "description"],
-    });
+    // Load roles via server API (avoids readItems restriction on core collections)
+    const rolesResponse = await $fetch("/api/roles/list");
 
-    if (rolesData) {
-      roles.value = rolesData;
+    if (rolesResponse?.data) {
+      roles.value = rolesResponse.data;
     }
 
     // Load units for this organization

@@ -37,10 +37,10 @@ export default defineEventHandler(async (event) => {
     // Set the token
     await authClient.setToken(authResult.access_token);
 
-    // Fetch user data with role information
+    // Fetch user data (only role ID, not nested role fields due to core collection restrictions)
     const user = await authClient.request(
       readMe({
-        fields: ["*", "role.id", "role.name", "role.admin_access"],
+        fields: ["*", "role"],
       })
     );
 

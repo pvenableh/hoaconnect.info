@@ -26,32 +26,47 @@ const organization = computed(() => currentOrg.value?.organization || null);
 const { data: members, refresh: refreshMembers } = await useAsyncData(
   "hoa-members-list",
   async () => {
-    if (!organization.value?.id) return [];
-    const result = await listMembers({
-      fields: [
-        "id",
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "member_type",
-        "user.id",
-        "user.first_name",
-        "user.last_name",
-        "status",
-        "date_created",
-        "units.id",
-        "units.is_primary_unit",
-        "units.unit_id.id",
-        "units.unit_id.unit_number",
-      ],
-      filter: {
-        organization: { _eq: organization.value.id },
-        status: { _in: ["active", "inactive", "pending"] },
-      },
-      sort: ["sort", "last_name"],
-    });
-    return result || [];
+    if (!organization.value?.id) {
+      console.log("🔍 Members query skipped - no organization ID");
+      return [];
+    }
+
+    console.log("🔍 Fetching members for organization:", organization.value.id);
+
+    try {
+      const result = await listMembers({
+        fields: [
+          "id",
+          "first_name",
+          "last_name",
+          "email",
+          "phone",
+          "member_type",
+          "user.id",
+          "user.first_name",
+          "user.last_name",
+          "status",
+          "date_created",
+          "units.id",
+          "units.is_primary_unit",
+          "units.unit_id.id",
+          "units.unit_id.unit_number",
+        ],
+        filter: {
+          organization: { _eq: organization.value.id },
+          status: { _in: ["active", "inactive", "pending"] },
+        },
+        sort: ["sort", "last_name"],
+      });
+
+      console.log("🔍 Members query result:", result);
+      console.log("🔍 Number of members:", result?.length || 0);
+
+      return result || [];
+    } catch (error) {
+      console.error("❌ Error fetching members:", error);
+      return [];
+    }
   },
   {
     watch: [organization],
@@ -72,7 +87,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
         "date_created",
         "invited_by.first_name",
         "invited_by.last_name",
-        "role.name",
+        "role",
       ],
       filter: {
         organization: { _eq: organization.value.id },
@@ -507,7 +522,7 @@ useSeoMeta({
                       <div>
                         <p class="font-medium">{{ invitation.email }}</p>
                         <p class="text-sm text-stone-600">
-                          Role: {{ invitation.role?.name || "N/A" }}
+                          Role ID: {{ invitation.role || "N/A" }}
                         </p>
                         <p class="text-xs text-stone-500 mt-1">
                           Invited by

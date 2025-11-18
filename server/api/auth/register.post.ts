@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
 
     const userData = await userClient.request(
       readMe({
-        fields: ["*", "role.id", "role.name", "role.admin_access"],
+        fields: ["*", "role"],
       })
     );
 

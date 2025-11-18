@@ -34,8 +34,7 @@ export const useSelectedOrg = () => {
           "organization.id",
           "organization.name",
           "organization.settings.logo",
-          "role.id",
-          "role.name",
+          "role",
         ],
         filter: {
           user: { _eq: user.value.id },
@@ -62,8 +61,8 @@ export const useSelectedOrg = () => {
     );
   });
 
-  // Get current role in selected org (now returns the role name from directus_roles)
-  const currentRole = computed(() => currentOrg.value?.role?.name || "Guest");
+  // Get current role in selected org (returns role ID since we can't query role name from core collection)
+  const currentRole = computed(() => currentOrg.value?.role || "Guest");
 
   // Set selected organization
   const setOrganization = (orgId: string) => {
