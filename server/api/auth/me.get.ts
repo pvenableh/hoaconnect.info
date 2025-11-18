@@ -22,10 +22,10 @@ export default defineEventHandler(async (event) => {
     // Set the token
     await directus.setToken(accessToken);
 
-    // Fetch fresh user data
+    // Fetch fresh user data (only role ID, not nested role fields due to core collection restrictions)
     const user = await directus.request(
       readMe({
-        fields: ["*", "role.id", "role.name", "role.admin_access"],
+        fields: ["*", "role"],
       })
     );
 

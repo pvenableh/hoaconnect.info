@@ -53,8 +53,7 @@ const checkData = async () => {
         "id",
         "organization.id",
         "organization.name",
-        "role.id",
-        "role.name",
+        "role",
       ],
       filter: {
         user: { _eq: user.value.id },

@@ -34,12 +34,23 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // Get role details for email
-    const role = await directus.request(
-      readItem("directus_roles", roleId, {
-        fields: ["name"],
-      })
-    );
+    // Get role details for email via REST API (core collections can't use readItem)
+    let roleName = "Member";
+    try {
+      const roleResponse = await $fetch(`${config.directusUrl}/roles/${roleId}`, {
+        headers: {
+          Authorization: `Bearer ${config.directusToken}`,
+        },
+        params: {
+          fields: 'name',
+        },
+      });
+      if (roleResponse?.data?.name) {
+        roleName = roleResponse.data.name;
+      }
+    } catch (roleError) {
+      console.warn("Could not fetch role name, using default:", roleError);
+    }
 
     // Create invitation record
     const invitation = await directus.request(
@@ -67,7 +78,7 @@ export default defineEventHandler(async (event) => {
         inviterName:
           `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() ||
           "Admin",
-        roleName: role.name,
+        roleName: roleName,
         expiresAt: expiresAt.toISOString(),
       });
 
