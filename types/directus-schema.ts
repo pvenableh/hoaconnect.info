@@ -95,7 +95,12 @@ export interface HoaOrganization {
 
   // Settings & Configuration
   settings?: Record<string, any> | null;
-  subscription_plan?: ID | null;
+  subscription_plan?: ID | SubscriptionPlan | null;
+
+  // Relational Fields (One-to-Many reverse relations)
+  invitations?: (ID | HoaInvitation)[] | null;
+  amenities?: (ID | HoaAmenity)[] | null;
+  subscription?: ID | HoaSubscription | null;
 
   // Timestamps
   date_created?: string;
@@ -227,6 +232,66 @@ export interface HoaVehicle {
   date_updated?: string | null;
 }
 
+export interface HoaAmenity {
+  id: ID;
+  status: "published" | "draft" | "archived";
+
+  // Relations
+  organization: ID | HoaOrganization;
+
+  // Amenity Info
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  availability?: string | null;
+  image?: ID | DirectusFile | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
+export interface SubscriptionPlan {
+  id: ID;
+  status: "published" | "draft" | "archived";
+
+  // Plan Info
+  name: string;
+  description?: string | null;
+  price_monthly?: number | null;
+  price_yearly?: number | null;
+  trial_days?: number | null;
+  is_featured?: boolean | null;
+
+  // Limits
+  max_members?: number | null;
+  max_storage_gb?: number | null;
+  features?: string[] | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
+export interface HoaSubscription {
+  id: ID;
+  status: "active" | "canceled" | "expired" | "trial";
+
+  // Relations
+  organization: ID | HoaOrganization;
+  plan: ID | SubscriptionPlan;
+
+  // Subscription Info
+  start_date: string;
+  end_date?: string | null;
+  trial_end_date?: string | null;
+  canceled_at?: string | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
 // ============================================
 // DIRECTUS SCHEMA TYPE
 // ============================================
@@ -247,6 +312,11 @@ export interface DirectusSchema {
   hoa_documents: HoaDocument[];
   hoa_pets: HoaPet[];
   hoa_vehicles: HoaVehicle[];
+  hoa_amenities: HoaAmenity[];
+  hoa_subscriptions: HoaSubscription[];
+
+  // Subscription Plans
+  subscription_plans: SubscriptionPlan[];
 }
 
 // ============================================
