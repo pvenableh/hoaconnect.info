@@ -104,7 +104,7 @@ export interface HoaOrganization {
 
 export interface HoaMember {
   id: ID;
-  status: "published" | "draft" | "active" | "inactive" | "pending";
+  status: "active" | "inactive" | "pending";
 
   // Relations
   organization: ID | HoaOrganization;

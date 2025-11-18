@@ -47,7 +47,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
       ],
       filter: {
         organization: { _eq: organization.value.id },
-        status: { _in: ["published", "draft"] },
+        status: { _in: ["active", "inactive", "pending"] },
       },
       sort: ["sort", "last_name"],
     });
@@ -117,7 +117,7 @@ const form = reactive({
   phone: "",
   member_type: "owner",
   unit: null as string | null,
-  status: "published",
+  status: "active",
 });
 
 const resetForm = () => {
@@ -127,7 +127,7 @@ const resetForm = () => {
   form.phone = "";
   form.member_type = "owner";
   form.unit = null;
-  form.status = "published";
+  form.status = "active";
   editingId.value = null;
 };
 
@@ -632,8 +632,9 @@ useSeoMeta({
               <div>
                 <label class="text-sm font-medium mb-2 block">Status</label>
                 <select v-model="form.status" class="w-full p-2 border rounded">
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="pending">Pending</option>
                 </select>
               </div>
 
