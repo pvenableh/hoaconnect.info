@@ -412,18 +412,20 @@ const {
   data: plans,
   pending,
   error,
-} = await list({
-  fields: ["*"],
-  filter: {
-    status: { _eq: "published" },
-    is_active: { _eq: true },
-  },
-  sort: ["sort"],
-});
+} = await useAsyncData("subscription-plans", () =>
+  list({
+    fields: ["*"],
+    filter: {
+      status: { _eq: "published" },
+      is_active: { _eq: true },
+    },
+    sort: ["sort"],
+  })
+);
 
 // Computed property to get active plans
 const activePlans = computed(() => {
-  if (!plans || !plans.value) return [];
+  if (!plans.value) return [];
   return plans.value.filter(
     (plan) => plan.is_active && plan.status === "published"
   );
