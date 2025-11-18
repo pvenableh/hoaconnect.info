@@ -19,9 +19,15 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_organizations", {
         filter: {
           slug: { _eq: slug },
-          status: { _eq: "published" },
+          status: { _eq: "active" },
         },
-        fields: ["*", "amenities.*", "settings.*", "subscription.*"],
+        fields: [
+          "*",
+          { invitations: ["*"] },
+          { amenities: ["*"] },
+          { settings: ["*"] },
+          { subscription: ["*"] },
+        ],
         limit: 1,
       })
     );

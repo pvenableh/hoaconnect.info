@@ -131,7 +131,7 @@ export default defineEventHandler(async (event) => {
         password,
         first_name: firstName,
         last_name: lastName,
-        role: invitation.role,
+        role: { id: invitation.role as string },
         status: "active",
         provider: "local",
       })

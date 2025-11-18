@@ -51,7 +51,6 @@ export default defineEventHandler(async (event) => {
         token,
         invitation_status: "pending",
         expires_at: expiresAt.toISOString(),
-        status: "published",
       })
     );
 
@@ -65,7 +64,9 @@ export default defineEventHandler(async (event) => {
         lastName,
         organizationName: organization.name || "Unknown Organization",
         invitationUrl,
-        inviterName: `${session.user.first_name || ""} ${session.user.last_name || ""}`.trim() || "Admin",
+        inviterName:
+          `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() ||
+          "Admin",
         roleName: role.name,
         expiresAt: expiresAt.toISOString(),
       });
