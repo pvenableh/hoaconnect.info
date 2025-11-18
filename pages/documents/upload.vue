@@ -7,7 +7,7 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { fetchItems, create } = useDirectusItems();
+const { create: createDocument } = useDirectusItems("hoa_documents");
 const { uploadFile } = useDirectusFiles();
 const { selectedOrgId } = useSelectedOrg();
 const router = useRouter();
@@ -50,7 +50,7 @@ const handleSubmit = async () => {
     })) as any;
 
     // Create document record
-    await create("hoa_documents", {
+    await createDocument({
       title: form.title,
       category: form.category,
       status: form.status,

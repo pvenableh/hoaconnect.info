@@ -161,13 +161,11 @@ export const useDirectusItems = <T extends DirectusCollections>(
 
   return {
     list,
-    fetchItems: list, // Alias for backward compatibility
     get,
     create,
     update,
     remove,
     delete: remove, // Alias
-    deleteOne: remove, // Alias
     aggregate,
     count,
   };
