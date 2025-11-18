@@ -353,47 +353,106 @@
     </div>
 
     <!-- Custom Domain (605lincolnroad.com, etc) -->
-    <div v-else class="container mx-auto px-4 py-12">
-      <h1 class="text-4xl font-bold mb-4">{{ activeHoa?.name }}</h1>
-      <p class="text-xl text-gray-600 mb-2">
-        {{ activeHoa?.street_address }}
-      </p>
-      <p class="text-lg text-gray-500 mb-8">
-        {{ activeHoa?.city }}, {{ activeHoa?.state }} {{ activeHoa?.zip }}
-      </p>
-
-      <div
-        v-if="activeHoa?.settings?.description"
-        class="prose max-w-none mb-8"
+    <div v-else>
+      <!-- Hero Section -->
+      <section
+        v-if="activeHoa?.hero"
+        class="relative min-h-[600px] flex items-center justify-center overflow-hidden"
       >
-        <p>{{ activeHoa.settings.description }}</p>
-      </div>
-
-      <!-- Amenities -->
-      <div
-        v-if="activeHoa?.amenities?.length"
-        class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
-      >
+        <!-- Background Image -->
         <div
-          v-for="amenity in activeHoa.amenities"
-          :key="amenity.id"
-          class="bg-white rounded-lg shadow p-6"
+          v-if="activeHoa.hero.background_image"
+          class="absolute inset-0 z-0"
         >
-          <h3 class="text-xl font-semibold mb-2">{{ amenity.title }}</h3>
-          <p class="text-gray-600">{{ amenity.description }}</p>
+          <img
+            :src="getFileUrl(activeHoa.hero.background_image)"
+            :alt="activeHoa.hero.title || 'Hero background'"
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-black bg-opacity-40"></div>
         </div>
+
+        <!-- Hero Content -->
+        <div class="relative z-10 container mx-auto px-4 py-20 text-center">
+          <div class="max-w-4xl mx-auto">
+            <h1 class="text-5xl md:text-6xl font-bold text-white mb-6">
+              {{ activeHoa.hero.title }}
+            </h1>
+            <p
+              v-if="activeHoa.hero.subtitle"
+              class="text-xl md:text-2xl text-white mb-8"
+            >
+              {{ activeHoa.hero.subtitle }}
+            </p>
+            <NuxtLink
+              v-if="activeHoa.hero.cta_text && activeHoa.hero.cta_link"
+              :to="activeHoa.hero.cta_link"
+              class="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition shadow-lg"
+            >
+              {{ activeHoa.hero.cta_text }}
+            </NuxtLink>
+          </div>
+
+          <!-- Foreground Image (optional decorative element) -->
+          <div
+            v-if="activeHoa.hero.foreground_image"
+            class="mt-12 max-w-3xl mx-auto"
+          >
+            <img
+              :src="getFileUrl(activeHoa.hero.foreground_image)"
+              :alt="activeHoa.hero.title || 'Hero foreground'"
+              class="w-full h-auto rounded-lg shadow-2xl"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Fallback Header (if no hero) -->
+      <div v-else class="container mx-auto px-4 py-12">
+        <h1 class="text-4xl font-bold mb-4">{{ activeHoa?.name }}</h1>
+        <p class="text-xl text-gray-600 mb-2">
+          {{ activeHoa?.street_address }}
+        </p>
+        <p class="text-lg text-gray-500 mb-8">
+          {{ activeHoa?.city }}, {{ activeHoa?.state }} {{ activeHoa?.zip }}
+        </p>
       </div>
 
-      <!-- Contact Info -->
-      <div class="bg-gray-100 rounded-lg p-6">
-        <h2 class="text-2xl font-bold mb-4">Contact Us</h2>
-        <div class="space-y-2">
-          <p v-if="activeHoa?.phone">
-            <strong>Phone:</strong> {{ activeHoa.phone }}
-          </p>
-          <p v-if="activeHoa?.email">
-            <strong>Email:</strong> {{ activeHoa.email }}
-          </p>
+      <!-- Main Content Container -->
+      <div class="container mx-auto px-4 py-12">
+        <div
+          v-if="activeHoa?.settings?.description"
+          class="prose max-w-none mb-8"
+        >
+          <p>{{ activeHoa.settings.description }}</p>
+        </div>
+
+        <!-- Amenities -->
+        <div
+          v-if="activeHoa?.amenities?.length"
+          class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+        >
+          <div
+            v-for="amenity in activeHoa.amenities"
+            :key="amenity.id"
+            class="bg-white rounded-lg shadow p-6"
+          >
+            <h3 class="text-xl font-semibold mb-2">{{ amenity.title }}</h3>
+            <p class="text-gray-600">{{ amenity.description }}</p>
+          </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="bg-gray-100 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">Contact Us</h2>
+          <div class="space-y-2">
+            <p v-if="activeHoa?.phone">
+              <strong>Phone:</strong> {{ activeHoa.phone }}
+            </p>
+            <p v-if="activeHoa?.email">
+              <strong>Email:</strong> {{ activeHoa.email }}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -403,8 +462,17 @@
 <script setup>
 const { activeHoa } = useActiveHoa();
 const { user } = useDirectusAuth();
+const config = useRuntimeConfig();
+
 // Initialize isMainDomain with a default value to prevent SSR errors
 const isMainDomain = useState("isMainDomain", () => false);
+
+// Helper function to get Directus file URL
+const getFileUrl = (file) => {
+  if (!file) return "";
+  const fileId = typeof file === "object" ? file.id : file;
+  return `${config.public.directus.url}/assets/${fileId}`;
+};
 
 // Fetch subscription plans from Directus (public access, no auth required)
 const { list } = useDirectusItems("subscription_plans", { requireAuth: false });
