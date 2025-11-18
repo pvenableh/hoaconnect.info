@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
         phone: org_phone,
         email: org_email,
         subscription_plan: subscriptionPlanId || null,
-        status: "published",
+        status: "active",
       })
     );
 
@@ -184,7 +184,7 @@ export default defineEventHandler(async (event) => {
           logo: organization.logo || null,
           email: organization.email || null,
           phone: organization.phone || null,
-          address: organization.address || null,
+          address: organization.street_address || null,
           city: organization.city || null,
           state: organization.state || null,
           zip: organization.zip || null,

@@ -88,7 +88,7 @@ export interface HoaOrganization {
   // Contact Info
   email?: string | null;
   phone?: string | null;
-  address?: string | null;
+  street_address?: string | null;
   city?: string | null;
   state?: string | null;
   zip?: string | null;
@@ -328,9 +328,8 @@ export type DirectusCollections = keyof DirectusSchema;
 
 // Type helper for getting item type from collection name
 // Since collections are arrays in the schema, we need to extract the element type
-export type DirectusItem<T extends DirectusCollections> = DirectusSchema[T] extends (infer U)[]
-  ? U
-  : DirectusSchema[T];
+export type DirectusItem<T extends DirectusCollections> =
+  DirectusSchema[T] extends (infer U)[] ? U : DirectusSchema[T];
 
 // Type helper for create/update operations (without readonly fields)
 export type CreateDirectusItem<T extends DirectusCollections> = Omit<
