@@ -20,6 +20,18 @@ export interface DirectusRole {
   app_access: boolean;
 }
 
+export interface DirectusPermission {
+  id: ID;
+  role?: ID | DirectusRole | null;
+  collection: string;
+  action: string;
+  permissions?: Record<string, any> | null;
+  validation?: Record<string, any> | null;
+  fields?: string[] | null;
+  limit?: number | null;
+  presets?: Record<string, any> | null;
+}
+
 export interface DirectusFile {
   id: ID;
   storage: string;
@@ -303,6 +315,7 @@ export interface DirectusSchema {
   directus_users: DirectusUser[];
   directus_roles: DirectusRole[];
   directus_files: DirectusFile[];
+  directus_permissions: DirectusPermission[];
 
   // HOA Collections (Multi-tenant)
   hoa_organizations: HoaOrganization[];
