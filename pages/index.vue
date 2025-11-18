@@ -352,120 +352,276 @@
       </section>
     </div>
 
-    <!-- Custom Domain (605lincolnroad.com, etc) -->
+    <!-- Custom Domain (605lincolnroad.com, etc) - Organization Landing Page -->
     <div v-else>
       <!-- Hero Section -->
       <section
-        v-if="activeHoa?.hero"
-        class="relative min-h-[600px] flex items-center justify-center overflow-hidden"
+        class="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white"
       >
-        <!-- Background Image -->
-        <div
-          v-if="activeHoa.hero.background_image"
-          class="absolute inset-0 z-0"
-        >
-          <img
-            :src="getFileUrl(activeHoa.hero.background_image)"
-            :alt="activeHoa.hero.title || 'Hero background'"
-            class="w-full h-full object-cover"
-          />
-          <div class="absolute inset-0 bg-black bg-opacity-40"></div>
+        <div class="container mx-auto px-4 py-20 lg:py-32">
+          <div class="max-w-4xl mx-auto text-center">
+            <!-- Organization Logo -->
+            <div v-if="activeHoa?.logo" class="mb-8">
+              <img
+                :src="getFileUrl(activeHoa.logo)"
+                :alt="activeHoa.name"
+                class="w-32 h-32 mx-auto object-contain bg-white rounded-full p-4 shadow-xl"
+              />
+            </div>
+
+            <!-- Organization Name -->
+            <h1 class="text-5xl lg:text-6xl font-bold mb-6">
+              {{ activeHoa?.name }}
+            </h1>
+
+            <!-- Address -->
+            <div class="text-xl lg:text-2xl text-blue-100 mb-8">
+              <p class="mb-2">{{ activeHoa?.street_address }}</p>
+              <p>
+                {{ activeHoa?.city }}, {{ activeHoa?.state }}
+                {{ activeHoa?.zip }}
+              </p>
+            </div>
+
+            <!-- Hero CTA -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+              <a
+                v-if="user"
+                href="/dashboard"
+                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
+              >
+                Access Portal
+              </a>
+
+              <a
+                v-else
+                href="/login"
+                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
+              >
+                Resident Login
+              </a>
+
+              <a
+                href="#contact"
+                class="inline-block bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition border-2 border-white"
+              >
+                Contact Us
+              </a>
+            </div>
+          </div>
         </div>
 
-        <!-- Hero Content -->
-        <div class="relative z-10 container mx-auto px-4 py-20 text-center">
-          <div class="max-w-4xl mx-auto">
-            <h1 class="text-5xl md:text-6xl font-bold text-white mb-6">
-              {{ activeHoa.hero.title }}
-            </h1>
-            <p
-              v-if="activeHoa.hero.subtitle"
-              class="text-xl md:text-2xl text-white mb-8"
-            >
-              {{ activeHoa.hero.subtitle }}
-            </p>
-            <NuxtLink
-              v-if="activeHoa.hero.cta_text && activeHoa.hero.cta_link"
-              :to="activeHoa.hero.cta_link"
-              class="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition shadow-lg"
-            >
-              {{ activeHoa.hero.cta_text }}
-            </NuxtLink>
-          </div>
-
-          <!-- Foreground Image (optional decorative element) -->
-          <div
-            v-if="activeHoa.hero.foreground_image"
-            class="mt-12 max-w-3xl mx-auto"
+        <!-- Decorative Wave -->
+        <div class="absolute bottom-0 left-0 right-0">
+          <svg
+            viewBox="0 0 1440 120"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-full h-auto"
           >
-            <img
-              :src="getFileUrl(activeHoa.hero.foreground_image)"
-              :alt="activeHoa.hero.title || 'Hero foreground'"
-              class="w-full h-auto rounded-lg shadow-2xl"
+            <path
+              d="M0 0L60 10C120 20 240 40 360 46.7C480 53 600 47 720 43.3C840 40 960 40 1080 46.7C1200 53 1320 67 1380 73.3L1440 80V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V0Z"
+              fill="white"
             />
+          </svg>
+        </div>
+      </section>
+
+      <!-- About Section -->
+      <section
+        v-if="activeHoa?.settings?.description || activeHoa?.settings?.about"
+        class="py-20 bg-white"
+      >
+        <div class="container mx-auto px-4">
+          <div class="max-w-4xl mx-auto">
+            <h2 class="text-4xl font-bold text-gray-900 mb-8 text-center">
+              About Our Community
+            </h2>
+            <div
+              class="prose prose-lg max-w-none text-gray-700 leading-relaxed"
+            >
+              <p>
+                {{ activeHoa.settings.description || activeHoa.settings.about }}
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Fallback Header (if no hero) -->
-      <div v-else class="container mx-auto px-4 py-12">
-        <h1 class="text-4xl font-bold mb-4">{{ activeHoa?.name }}</h1>
-        <p class="text-xl text-gray-600 mb-2">
-          {{ activeHoa?.street_address }}
-        </p>
-        <p class="text-lg text-gray-500 mb-8">
-          {{ activeHoa?.city }}, {{ activeHoa?.state }} {{ activeHoa?.zip }}
-        </p>
-      </div>
+      <!-- Amenities Section -->
+      <section
+        v-if="activeHoa?.amenities && activeHoa.amenities.length > 0"
+        class="py-20 bg-gray-50"
+      >
+        <div class="container mx-auto px-4">
+          <div class="max-w-6xl mx-auto">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4 text-center">
+              Community Amenities
+            </h2>
+            <p class="text-xl text-gray-600 mb-12 text-center">
+              Enjoy the exclusive features available to our residents
+            </p>
 
-      <!-- Main Content Container -->
-      <div class="container mx-auto px-4 py-12">
-        <div
-          v-if="activeHoa?.settings?.description"
-          class="prose max-w-none mb-8"
-        >
-          <p>{{ activeHoa.settings.description }}</p>
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div
+                v-for="amenity in activeHoa.amenities"
+                :key="amenity.id"
+                class="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow"
+              >
+                <!-- Amenity Icon -->
+                <div
+                  class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6"
+                >
+                  <svg
+                    class="w-8 h-8 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
 
-        <!-- Amenities -->
-        <div
-          v-if="activeHoa?.amenities?.length"
-          class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
-        >
-          <div
-            v-for="amenity in activeHoa.amenities"
-            :key="amenity.id"
-            class="bg-white rounded-lg shadow p-6"
-          >
-            <h3 class="text-xl font-semibold mb-2">{{ amenity.title }}</h3>
-            <p class="text-gray-600">{{ amenity.description }}</p>
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">
+                  {{ amenity.title }}
+                </h3>
+                <p class="text-gray-600 leading-relaxed">
+                  {{ amenity.description }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <!-- Contact Info -->
-        <div class="bg-gray-100 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-4">Contact Us</h2>
-          <div class="space-y-2">
-            <p v-if="activeHoa?.phone">
-              <strong>Phone:</strong> {{ activeHoa.phone }}
+      <!-- Contact CTA Section -->
+      <section
+        id="contact"
+        class="py-20 bg-gradient-to-br from-blue-600 to-blue-800 text-white"
+      >
+        <div class="container mx-auto px-4">
+          <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-4xl lg:text-5xl font-bold mb-6">Get in Touch</h2>
+            <p class="text-xl text-blue-100 mb-12">
+              Have questions or need assistance? Our community management team
+              is here to help.
             </p>
-            <p v-if="activeHoa?.email">
-              <strong>Email:</strong> {{ activeHoa.email }}
-            </p>
+
+            <!-- Contact Information Cards -->
+            <div class="grid md:grid-cols-2 gap-6 mb-12">
+              <!-- Phone Card -->
+              <div
+                v-if="activeHoa?.phone"
+                class="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20"
+              >
+                <div
+                  class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                  <svg
+                    class="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                    />
+                  </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Call Us</h3>
+
+                <a
+                  :href="`tel:${activeHoa.phone}`"
+                  class="text-2xl font-bold hover:text-blue-200 transition"
+                >
+                  {{ activeHoa.phone }}
+                </a>
+              </div>
+
+              <!-- Email Card -->
+              <div
+                v-if="activeHoa?.email"
+                class="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20"
+              >
+                <div
+                  class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                  <svg
+                    class="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Email Us</h3>
+
+                <a
+                  :href="`mailto:${activeHoa.email}`"
+                  class="text-2xl font-bold hover:text-blue-200 transition break-all"
+                >
+                  {{ activeHoa.email }}
+                </a>
+              </div>
+            </div>
+
+            <!-- Additional CTA Button -->
+            <div v-if="!user" class="mt-8">
+              <a
+                href="/signup"
+                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
+              >
+                Become a Resident
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-const { activeHoa } = useActiveHoa();
+const { activeHoa, isMainDomain, fetchActiveHoa } = useActiveHoa();
 const { user } = useDirectusAuth();
 const config = useRuntimeConfig();
 
-// Initialize isMainDomain with a default value to prevent SSR errors
-const isMainDomain = useState("isMainDomain", () => false);
+// CRITICAL: Fetch HOA data server-side for SEO
+await useAsyncData("active-hoa", async () => {
+  return await fetchActiveHoa();
+});
+
+// Set dynamic meta tags based on active HOA
+useSeoMeta({
+  title: () =>
+    activeHoa.value
+      ? `${activeHoa.value.name} - HOA Community Portal`
+      : "HOA Connect - Simplify Your HOA Management",
+  description: () =>
+    activeHoa.value?.settings?.description ||
+    "Streamline document management, communications, and member access with our comprehensive HOA platform.",
+  ogTitle: () => activeHoa.value?.name || "HOA Connect",
+  ogDescription: () =>
+    activeHoa.value?.settings?.description || "HOA Management Platform",
+  ogImage: () =>
+    activeHoa.value?.logo
+      ? `${config.public.directus.url}/assets/${activeHoa.value.logo}`
+      : "/og-image.jpg",
+});
 
 // Helper function to get Directus file URL
 const getFileUrl = (file) => {
@@ -474,24 +630,35 @@ const getFileUrl = (file) => {
   return `${config.public.directus.url}/assets/${fileId}`;
 };
 
-// Fetch subscription plans from Directus (public access, no auth required)
+// Subscription plans (only fetch if on main domain)
 const { list } = useDirectusItems("subscription_plans", { requireAuth: false });
 const {
   data: plans,
   pending,
   error,
-} = await useAsyncData("subscription-plans", () =>
-  list({
-    fields: ["*"],
-    filter: {
-      status: { _eq: "published" },
-      is_active: { _eq: true },
-    },
-    sort: ["sort"],
-  })
+} = await useAsyncData(
+  "subscription-plans",
+  async () => {
+    // Only fetch plans on main domain
+    if (!isMainDomain.value) {
+      return [];
+    }
+
+    return await list({
+      fields: ["*"],
+      filter: {
+        status: { _eq: "published" },
+        is_active: { _eq: true },
+      },
+      sort: ["sort"],
+    });
+  },
+  {
+    server: true,
+    lazy: false,
+  }
 );
 
-// Computed property to get active plans
 const activePlans = computed(() => {
   if (!plans.value) return [];
   return plans.value.filter(
@@ -499,7 +666,6 @@ const activePlans = computed(() => {
   );
 });
 
-// Helper function to format price
 const formatPrice = (price) => {
   const numPrice = parseFloat(price);
   return numPrice % 1 === 0 ? numPrice.toFixed(0) : numPrice.toFixed(2);
@@ -513,7 +679,6 @@ const scrollToPlans = () => {
 };
 
 const selectPlan = (planSlug) => {
-  // Navigate to signup with selected plan
   navigateTo(`/signup?plan=${planSlug}`);
 };
 </script>
