@@ -112,6 +112,11 @@ export interface HoaMember {
   role?: ID | DirectusRole | null;
 
   // Member Info
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  member_type?: "owner" | "renter" | "board_member" | string | null;
   unit?: ID | HoaUnit | null;
 
   // Timestamps

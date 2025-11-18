@@ -148,7 +148,7 @@ export default defineEventHandler(async (event) => {
         email: invitation.email,
         phone: phone || null,
         member_type: "owner", // Default to owner, can be changed later
-        status: "published",
+        status: "active",
       })
     );
 

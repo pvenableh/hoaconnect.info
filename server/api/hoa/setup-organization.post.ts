@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
         email,
         phone,
         member_type: "owner",
-        status: "published",
+        status: "active",
       })
     );
 
