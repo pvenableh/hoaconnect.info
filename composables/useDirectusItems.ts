@@ -1,9 +1,9 @@
 import type { QueryFilter } from "@directus/sdk";
-import type { DirectusCollections } from "~/types/directus-schema";
+import type { DirectusCollections, DirectusSchema, DirectusItem } from "~/types/directus-schema";
 
-interface ItemsQuery {
+interface ItemsQuery<T extends DirectusCollections> {
   fields?: string[];
-  filter?: QueryFilter<any>;
+  filter?: QueryFilter<DirectusSchema, DirectusItem<T>>;
   sort?: string[];
   limit?: number;
   offset?: number;
@@ -24,7 +24,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * List items from collection
    */
-  const list = async (query: ItemsQuery = {}) => {
+  const list = async (query: ItemsQuery<T> = {}) => {
     if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
     }
@@ -50,7 +50,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
    */
   const get = async (
     id: string | number,
-    query: Pick<ItemsQuery, "fields" | "deep"> = {}
+    query: Pick<ItemsQuery<T>, "fields" | "deep"> = {}
   ) => {
     if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
@@ -78,7 +78,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
    */
   const create = async (
     data: Record<string, any>,
-    query: Pick<ItemsQuery, "fields"> = {}
+    query: Pick<ItemsQuery<T>, "fields"> = {}
   ) => {
     if (!loggedIn.value) {
       throw new Error("Authentication required");
@@ -107,7 +107,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
   const update = async (
     id: string | number,
     data: Record<string, any>,
-    query: Pick<ItemsQuery, "fields"> = {}
+    query: Pick<ItemsQuery<T>, "fields"> = {}
   ) => {
     if (!loggedIn.value) {
       throw new Error("Authentication required");
@@ -159,7 +159,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
    * Aggregate data
    */
   const aggregate = async (
-    query: Pick<ItemsQuery, "aggregate" | "groupBy" | "filter">
+    query: Pick<ItemsQuery<T>, "aggregate" | "groupBy" | "filter">
   ) => {
     if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
@@ -184,7 +184,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * Count items
    */
-  const count = async (filter?: QueryFilter<any>) => {
+  const count = async (filter?: QueryFilter<DirectusSchema, DirectusItem<T>>) => {
     const result = await aggregate({
       aggregate: { count: ["*"] },
       filter,

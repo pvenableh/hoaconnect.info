@@ -226,20 +226,22 @@ export interface HoaVehicle {
 // DIRECTUS SCHEMA TYPE
 // ============================================
 
+// Per Directus SDK docs, collections must be defined as array types
+// See: https://directus.io/docs/tutorials/tips-and-tricks/advanced-types-with-the-directus-sdk
 export interface DirectusSchema {
   // System Collections
-  directus_users: DirectusUser;
-  directus_roles: DirectusRole;
-  directus_files: DirectusFile;
+  directus_users: DirectusUser[];
+  directus_roles: DirectusRole[];
+  directus_files: DirectusFile[];
 
   // HOA Collections (Multi-tenant)
-  hoa_organizations: HoaOrganization;
-  hoa_members: HoaMember;
-  hoa_invitations: HoaInvitation;
-  hoa_units: HoaUnit;
-  hoa_documents: HoaDocument;
-  hoa_pets: HoaPet;
-  hoa_vehicles: HoaVehicle;
+  hoa_organizations: HoaOrganization[];
+  hoa_members: HoaMember[];
+  hoa_invitations: HoaInvitation[];
+  hoa_units: HoaUnit[];
+  hoa_documents: HoaDocument[];
+  hoa_pets: HoaPet[];
+  hoa_vehicles: HoaVehicle[];
 }
 
 // ============================================
@@ -250,7 +252,10 @@ export interface DirectusSchema {
 export type DirectusCollections = keyof DirectusSchema;
 
 // Type helper for getting item type from collection name
-export type DirectusItem<T extends DirectusCollections> = DirectusSchema[T];
+// Since collections are arrays in the schema, we need to extract the element type
+export type DirectusItem<T extends DirectusCollections> = DirectusSchema[T] extends (infer U)[]
+  ? U
+  : DirectusSchema[T];
 
 // Type helper for create/update operations (without readonly fields)
 export type CreateDirectusItem<T extends DirectusCollections> = Omit<
@@ -261,32 +266,6 @@ export type CreateDirectusItem<T extends DirectusCollections> = Omit<
 export type UpdateDirectusItem<T extends DirectusCollections> = Partial<
   Omit<DirectusItem<T>, "id" | "date_created" | "date_updated">
 >;
-
-// Type helper for filtering
-export type DirectusFilter<T extends DirectusCollections> = {
-  [K in keyof DirectusItem<T>]?: {
-    _eq?: DirectusItem<T>[K];
-    _neq?: DirectusItem<T>[K];
-    _in?: DirectusItem<T>[K][];
-    _nin?: DirectusItem<T>[K][];
-    _contains?: string;
-    _ncontains?: string;
-    _starts_with?: string;
-    _nstarts_with?: string;
-    _ends_with?: string;
-    _nends_with?: string;
-    _gt?: DirectusItem<T>[K];
-    _gte?: DirectusItem<T>[K];
-    _lt?: DirectusItem<T>[K];
-    _lte?: DirectusItem<T>[K];
-    _null?: boolean;
-    _nnull?: boolean;
-    _empty?: boolean;
-    _nempty?: boolean;
-    _between?: [DirectusItem<T>[K], DirectusItem<T>[K]];
-    _nbetween?: [DirectusItem<T>[K], DirectusItem<T>[K]];
-  };
-};
 
 // ============================================
 // AUTHENTICATION TYPES
