@@ -483,30 +483,37 @@ const addError = ref("");
 const verifyError = ref("");
 const verifySuccess = ref("");
 
-// Fetch organization data only if hoaId is provided
-const { data: organization, refresh: refreshOrganization } = props.hoaId
-  ? await useDirectusItems("hoa_organizations", {
-      query: {
-        filter: { id: { _eq: props.hoaId } },
-        fields: [
-          "id",
-          "name",
-          "slug",
-          "custom_domain",
-          "domain_verified",
-          "domain_type",
-          "domain_config",
-        ],
-        limit: 1,
-      },
-    })
-  : { data: ref(null), refresh: async () => {} };
+// Fetch organization data reactively based on hoaId
+const { data: organization, refresh: refreshOrganization } = await useAsyncData(
+  `organization-${props.hoaId}`,
+  async () => {
+    if (!props.hoaId) {
+      return null;
+    }
 
-const organizationData = computed(() => {
-  return Array.isArray(organization.value)
-    ? organization.value[0]
-    : organization.value;
-});
+    const { list } = useDirectusItems("hoa_organizations");
+    const items = await list({
+      filter: { id: { _eq: props.hoaId } },
+      fields: [
+        "id",
+        "name",
+        "slug",
+        "custom_domain",
+        "domain_verified",
+        "domain_type",
+        "domain_config",
+      ],
+      limit: 1,
+    });
+
+    return items && items.length > 0 ? items[0] : null;
+  },
+  {
+    watch: [() => props.hoaId],
+  }
+);
+
+const organizationData = computed(() => organization.value);
 
 const organizationSlug = computed(() => organizationData.value?.slug);
 
