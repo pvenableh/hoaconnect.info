@@ -1,25 +1,34 @@
 /**
  * Composable to manage the currently selected organization
  * Handles users with multiple HOA memberships (e.g., property managers)
+ * Now supports SSR by storing the selected org in the session
  */
 export const useSelectedOrg = () => {
   const { user } = useDirectusAuth();
   const { list: listMembers } = useDirectusItems("hoa_members");
 
-  // Store selected org ID in localStorage
-  const selectedOrgId = useState<string | null>("selectedOrgId", () => {
-    if (import.meta.client) {
-      return localStorage.getItem("selectedOrgId");
+  // Store selected org ID - initialize from session during SSR, localStorage on client
+  const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+  const isInitialized = useState<boolean>("selectedOrgInitialized", () => false);
+
+  // Sync selected org to session
+  const syncToSession = async (orgId: string) => {
+    try {
+      await $fetch("/api/org/selected", {
+        method: "POST",
+        body: { orgId },
+      });
+    } catch (error) {
+      console.error("[useSelectedOrg] Failed to sync to session:", error);
     }
-    return null;
-  });
+  };
 
   // Fetch all organizations user has access to
   const {
     data: memberships,
     pending,
     refresh: refreshMemberships,
-  } = useAsyncData("user-members", async () => {
+  } = await useAsyncData("user-members", async () => {
     if (!user.value?.id) {
       console.warn("[useSelectedOrg] No user ID found, skipping membership fetch");
       return [];
@@ -28,6 +37,31 @@ export const useSelectedOrg = () => {
     console.log("[useSelectedOrg] Fetching memberships for user:", user.value.id);
 
     try {
+      // STEP 1: First, try to get selected org from session (SSR-compatible)
+      if (!selectedOrgId.value && !isInitialized.value) {
+        try {
+          const sessionOrg = await $fetch("/api/org/selected");
+          if (sessionOrg?.selectedOrgId) {
+            selectedOrgId.value = sessionOrg.selectedOrgId;
+            console.log("[useSelectedOrg] Initialized from session:", selectedOrgId.value);
+          }
+        } catch (error) {
+          console.warn("[useSelectedOrg] Failed to fetch from session:", error);
+        }
+
+        // Fallback to localStorage on client
+        if (!selectedOrgId.value && import.meta.client) {
+          const stored = localStorage.getItem("selectedOrgId");
+          if (stored) {
+            selectedOrgId.value = stored;
+            console.log("[useSelectedOrg] Initialized from localStorage:", stored);
+            // Sync to session for SSR on next load
+            await syncToSession(stored);
+          }
+        }
+      }
+
+      // STEP 2: Fetch memberships
       const result = await listMembers({
         fields: [
           "id",
@@ -43,6 +77,23 @@ export const useSelectedOrg = () => {
       });
 
       console.log("[useSelectedOrg] Memberships result:", result);
+
+      // STEP 3: Auto-select first org if no org is selected yet
+      if (!selectedOrgId.value && result && result.length > 0) {
+        const firstOrg = result[0].organization?.id;
+        if (firstOrg) {
+          console.log("[useSelectedOrg] Auto-selecting first organization:", firstOrg);
+          selectedOrgId.value = firstOrg;
+
+          // Sync to session and localStorage
+          await syncToSession(firstOrg);
+          if (import.meta.client) {
+            localStorage.setItem("selectedOrgId", firstOrg);
+          }
+        }
+      }
+
+      isInitialized.value = true;
       return result || [];
     } catch (error) {
       console.error("[useSelectedOrg] Error fetching memberships:", error);
@@ -65,34 +116,19 @@ export const useSelectedOrg = () => {
   const currentRole = computed(() => currentOrg.value?.role || "Guest");
 
   // Set selected organization
-  const setOrganization = (orgId: string) => {
+  const setOrganization = async (orgId: string) => {
     selectedOrgId.value = orgId;
+
+    // Store in localStorage (client-side)
     if (import.meta.client) {
       localStorage.setItem("selectedOrgId", orgId);
     }
+
+    // Store in session (works on both server and client)
+    await syncToSession(orgId);
+
+    console.log("[useSelectedOrg] Organization set to:", orgId);
   };
-
-  // Auto-select first org if none selected
-  const initializeOrg = () => {
-    if (!selectedOrgId.value && memberships.value?.length) {
-      console.log("[useSelectedOrg] Auto-selecting first organization:", memberships.value[0].organization);
-      setOrganization(memberships.value[0].organization.id);
-    } else if (!memberships.value?.length) {
-      console.warn("[useSelectedOrg] No memberships found to initialize");
-    } else {
-      console.log("[useSelectedOrg] Organization already selected:", selectedOrgId.value);
-    }
-  };
-
-  // Initialize on mount
-  onMounted(() => {
-    initializeOrg();
-  });
-
-  // Watch for memberships load
-  watch(memberships, () => {
-    initializeOrg();
-  });
 
   return {
     selectedOrgId: computed(() => selectedOrgId.value),
