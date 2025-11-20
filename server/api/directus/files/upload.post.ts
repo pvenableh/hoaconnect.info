@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     const uploadFormData = new FormData()
     
     // Add file
-    const blob = new Blob([fileData.data], { type: fileData.type || 'application/octet-stream' })
+    const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.type || 'application/octet-stream' })
     uploadFormData.append('file', blob, fileData.filename || 'upload')
     
     // Add metadata
