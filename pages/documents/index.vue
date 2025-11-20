@@ -32,11 +32,11 @@ const { data: documents, refresh } = await useAsyncData(
       sort: ["sort", "-date_published"],
     });
     return result || [];
+  },
+  {
+    watch: [category, status, orgId],
   }
 );
-
-// Watch filters and refresh
-watch([category, status, orgId], () => refresh());
 
 // Delete document
 const handleDelete = async (id: string) => {
