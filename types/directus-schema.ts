@@ -148,6 +148,23 @@ export interface HoaMember {
   phone?: string | null;
   member_type?: "owner" | "renter" | "board_member" | string | null;
   unit?: ID | HoaUnit | null;
+  units?: (ID | HoaMemberUnit)[] | null;
+
+  // Timestamps
+  date_created?: string;
+  date_updated?: string | null;
+}
+
+export interface HoaMemberUnit {
+  id: ID;
+  status: "published" | "draft" | "archived";
+
+  // Relations
+  member_id: ID | HoaMember;
+  unit_id: ID | HoaUnit;
+
+  // Junction Fields
+  is_primary_unit?: boolean | null;
 
   // Timestamps
   date_created?: string;
@@ -380,6 +397,7 @@ export interface DirectusSchema {
   // HOA Collections (Multi-tenant)
   hoa_organizations: HoaOrganization[];
   hoa_members: HoaMember[];
+  hoa_member_units: HoaMemberUnit[];
   hoa_invitations: HoaInvitation[];
   hoa_units: HoaUnit[];
   hoa_documents: HoaDocument[];
