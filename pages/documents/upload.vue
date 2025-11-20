@@ -55,7 +55,7 @@ const handleSubmit = async () => {
       category: form.category,
       status: form.status,
       organization: orgId.value,
-      file: fileResult.file.id,
+      file: fileResult.id,
       date_published:
         form.status === "published" ? new Date().toISOString() : null,
       sort: 0,
