@@ -28,7 +28,7 @@ export const useSelectedOrg = () => {
     data: memberships,
     pending,
     refresh: refreshMemberships,
-  } = await useAsyncData("user-members", async () => {
+  } = useAsyncData("user-members", async () => {
     if (!user.value?.id) {
       console.warn("[useSelectedOrg] No user ID found, skipping membership fetch");
       return [];
