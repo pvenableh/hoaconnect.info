@@ -37,6 +37,7 @@ const { data: documents, refresh } = await useAsyncData(
   },
   {
     watch: [category, status, orgId],
+    server: false, // Fetch client-side only to ensure auth session is available
   }
 );
 

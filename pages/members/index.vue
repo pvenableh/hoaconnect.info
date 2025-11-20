@@ -27,16 +27,19 @@ const activeTab = ref<"members" | "invite" | "pending">("members");
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
 
+// Use selectedOrgId directly (primitive value) for immediate reactivity
+const orgId = computed(() => selectedOrgId.value);
+
 // Fetch members list
 const { data: members, refresh: refreshMembers } = await useAsyncData(
-  "hoa-members-list",
+  `hoa-members-list-${orgId.value}`,
   async () => {
-    if (!organization.value?.id) {
+    if (!orgId.value) {
       console.log("🔍 Members query skipped - no organization ID");
       return [];
     }
 
-    console.log("🔍 Fetching members for organization:", organization.value.id);
+    console.log("🔍 Fetching members for organization:", orgId.value);
 
     try {
       const result = (await listMembers({
@@ -58,7 +61,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           "units.unit_id.unit_number",
         ],
         filter: {
-          organization: { _eq: organization.value.id },
+          organization: { _eq: orgId.value },
           status: { _in: ["active", "inactive", "pending"] },
         },
         sort: ["sort", "last_name"],
@@ -74,15 +77,16 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
     }
   },
   {
-    watch: [organization],
+    watch: [orgId],
+    server: false, // Fetch client-side only to ensure auth session is available
   }
 );
 
 // Fetch pending invitations
 const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
-  "hoa-invitations-list",
+  `hoa-invitations-list-${orgId.value}`,
   async () => {
-    if (!organization.value?.id) return [];
+    if (!orgId.value) return [];
     const result = (await listInvitations({
       fields: [
         "id",
@@ -95,7 +99,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
         "role",
       ],
       filter: {
-        organization: { _eq: organization.value.id },
+        organization: { _eq: orgId.value },
         invitation_status: { _in: ["pending", "expired"] },
       },
       sort: ["-date_created"],
@@ -103,19 +107,20 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
     return result || [];
   },
   {
-    watch: [organization],
+    watch: [orgId],
+    server: false, // Fetch client-side only to ensure auth session is available
   }
 );
 
 // Fetch available units for dropdown
 const { data: units } = await useAsyncData(
-  "units-dropdown",
+  `units-dropdown-${orgId.value}`,
   async () => {
-    if (!organization.value?.id) return [];
+    if (!orgId.value) return [];
     const result = (await listUnits({
       fields: ["id", "unit_number"],
       filter: {
-        organization: { _eq: organization.value.id },
+        organization: { _eq: orgId.value },
         status: { _eq: "active" },
       },
       sort: ["unit_number"],
@@ -123,7 +128,8 @@ const { data: units } = await useAsyncData(
     return result || [];
   },
   {
-    watch: [organization],
+    watch: [orgId],
+    server: false, // Fetch client-side only to ensure auth session is available
   }
 );
 
