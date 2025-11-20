@@ -21,26 +21,63 @@ const { selectedOrgId, currentOrg, isLoading } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed(() => currentOrg.value?.organization || null);
 
+console.log("[units/index] Component loaded");
+console.log("[units/index] User:", user.value);
+console.log("[units/index] Selected Org ID:", orgId.value);
+console.log("[units/index] Current Org:", currentOrg.value);
+console.log("[units/index] Organization:", organization.value);
+
 // Fetch units
-const { data: units, refresh } = await useAsyncData(
+const { data: units, refresh, error: unitsError } = await useAsyncData(
   `units-${orgId.value}`,
   async () => {
-    if (!orgId.value) return [];
-    const result = await listUnits({
-      fields: ["id", "unit_number", "status"],
-      filter: {
-        organization: { _eq: orgId.value },
-        status: { _in: ["active", "inactive"] },
-      },
-      sort: ["sort", "unit_number"],
-    });
-    return result || [];
+    console.log("[units/index] Fetching units for org:", orgId.value);
+
+    if (!orgId.value) {
+      console.warn("[units/index] No orgId, returning empty array");
+      return [];
+    }
+
+    try {
+      const query = {
+        fields: ["id", "unit_number", "status"],
+        filter: {
+          organization: { _eq: orgId.value },
+          status: { _in: ["active", "inactive"] },
+        },
+        sort: ["sort", "unit_number"],
+      };
+
+      console.log("[units/index] Calling listUnits with query:", JSON.stringify(query, null, 2));
+
+      const result = await listUnits(query);
+
+      console.log("[units/index] listUnits result:", result);
+      console.log("[units/index] Number of units:", result?.length || 0);
+
+      return result || [];
+    } catch (error) {
+      console.error("[units/index] Error fetching units:", error);
+      throw error;
+    }
   },
   {
     watch: [orgId],
     server: false, // Fetch client-side only to ensure auth session is available
   }
 );
+
+// Watch for units data changes
+watch(units, (newUnits) => {
+  console.log("[units/index] Units data changed:", newUnits);
+});
+
+// Watch for errors
+watch(unitsError, (error) => {
+  if (error) {
+    console.error("[units/index] Units error:", error);
+  }
+});
 
 // Add/edit modal
 const showModal = ref(false);
@@ -140,6 +177,27 @@ const handleDelete = async (id: string) => {
 
         <!-- Main Content -->
         <template v-else>
+          <!-- Error State -->
+          <div v-if="unitsError" class="mb-4">
+            <Alert variant="destructive">
+              <Icon name="lucide:alert-circle" class="w-4 h-4" />
+              <AlertTitle>Error Loading Units</AlertTitle>
+              <AlertDescription>
+                {{ unitsError.message || 'Failed to load units' }}
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <!-- Debug Info (remove in production) -->
+          <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <strong>Debug Info:</strong><br>
+            Org ID: {{ orgId }}<br>
+            Units Array: {{ units ? 'exists' : 'null' }}<br>
+            Units Length: {{ units?.length || 0 }}<br>
+            Is Loading: {{ isLoading }}<br>
+            Has Error: {{ !!unitsError }}
+          </div>
+
           <!-- Header -->
           <div class="flex justify-between items-center">
             <h1 class="text-3xl font-bold">Units</h1>

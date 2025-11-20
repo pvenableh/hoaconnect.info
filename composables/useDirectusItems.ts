@@ -25,18 +25,44 @@ export const useDirectusItems = <T extends DirectusCollections>(
    * List items from collection
    */
   const list = async (query: ItemsQuery<T> = {}) => {
+    console.log(`[useDirectusItems:${collection}] list() called`);
+    console.log(`[useDirectusItems:${collection}] requireAuth:`, requireAuth);
+    console.log(`[useDirectusItems:${collection}] loggedIn:`, loggedIn.value);
+    console.log(`[useDirectusItems:${collection}] query:`, JSON.stringify(query, null, 2));
+
     if (requireAuth && !loggedIn.value) {
+      console.error(`[useDirectusItems:${collection}] Authentication required but user not logged in`);
       throw new Error("Authentication required");
     }
 
-    return await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
+    try {
+      const requestBody = {
         collection,
         operation: "list",
         query,
-      },
-    });
+      };
+
+      console.log(`[useDirectusItems:${collection}] Calling /api/directus/items with:`, JSON.stringify(requestBody, null, 2));
+
+      const result = await $fetch("/api/directus/items", {
+        method: "POST",
+        body: requestBody,
+      });
+
+      console.log(`[useDirectusItems:${collection}] API response:`, result);
+      console.log(`[useDirectusItems:${collection}] Response is array:`, Array.isArray(result));
+      console.log(`[useDirectusItems:${collection}] Response length:`, result?.length);
+
+      return result;
+    } catch (error: any) {
+      console.error(`[useDirectusItems:${collection}] Error calling API:`, error);
+      console.error(`[useDirectusItems:${collection}] Error details:`, {
+        message: error.message,
+        statusCode: error.statusCode,
+        data: error.data,
+      });
+      throw error;
+    }
   };
 
   /**
