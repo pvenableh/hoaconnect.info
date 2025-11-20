@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
     );
 
     // Auto-login after registration
-    const authClient = createDirectus(config.public.directus.url).with(rest());
+    const authClient = createDirectus(config.directus.url).with(rest());
     const authResult = await authClient.request(login(email, password));
 
     if (!authResult.access_token) {
@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Create authenticated client to fetch user data
-    const userClient = createDirectus(config.public.directus.url)
+    const userClient = createDirectus(config.directus.url)
       .with(rest())
       .with(authentication("json"));
 

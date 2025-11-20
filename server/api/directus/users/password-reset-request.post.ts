@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
 
     // Create a public client (no authentication needed)
-    const directus = createDirectus(config.public.directus.url).with(rest());
+    const directus = createDirectus(config.directus.url).with(rest());
 
     // Request password reset using SDK
     await directus.request(

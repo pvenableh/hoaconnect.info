@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
 
     // Create authenticated client
-    const directus = createDirectus(config.public.directus.url)
+    const directus = createDirectus(config.directus.url)
       .with(rest())
       .with(authentication("json"));
 

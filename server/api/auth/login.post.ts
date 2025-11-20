@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
 
     // Create a temporary client for login
-    const directus = createDirectus(config.public.directus.url).with(rest());
+    const directus = createDirectus(config.directus.url).with(rest());
 
     // Authenticate with Directus
     const authResult = await directus.request(login({ email, password }));
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Create an authenticated client to fetch user data
-    const authClient = createDirectus(config.public.directus.url)
+    const authClient = createDirectus(config.directus.url)
       .with(rest())
       .with(authentication("json"));
 

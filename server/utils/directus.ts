@@ -60,7 +60,7 @@ export async function getUserDirectus(event: any) {
       console.log('[getUserDirectus] Token expired or expiring soon, refreshing...');
 
       // Create client with authentication to refresh token
-      const directus = createDirectus(config.public.directus.url)
+      const directus = createDirectus(config.directus.url)
         .with(rest())
         .with(authentication("json"));
 
