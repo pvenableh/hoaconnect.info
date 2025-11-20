@@ -13,12 +13,17 @@ export default defineEventHandler(async (event) => {
 
   const directus = getTypedDirectus();
 
-  // Build filter - prioritize custom_domain, then slug
+  // Build filter - prioritize custom_domain (with verification check), then slug
   const filters: any[] = [];
 
   if (domain) {
-    // Check exact custom_domain match
-    filters.push({ custom_domain: { _eq: domain as string } });
+    // Check exact custom_domain match - MUST be verified for security
+    filters.push({
+      _and: [
+        { custom_domain: { _eq: domain as string } },
+        { domain_verified: { _eq: true } }
+      ]
+    });
     // Also check slug as fallback (extract subdomain from domain)
     const potentialSlug = (domain as string).split(".")[0];
     filters.push({ slug: { _eq: potentialSlug } });

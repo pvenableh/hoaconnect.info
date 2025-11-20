@@ -19,11 +19,25 @@
     </div>
 
     <!-- Main Content -->
-    <AdminCustomDomainSetup v-else :hoaId="selectedOrgId" />
+    <AdminCustomDomainSetup v-else :hoaId="effectiveOrgId" />
   </div>
 </template>
 <script setup lang="ts">
 const { selectedOrgId, isLoading } = useSelectedOrg();
+const { user } = useDirectusAuth();
+
+// Use selectedOrgId from memberships, but fallback to user.organization if available
+const effectiveOrgId = computed(() => {
+  if (selectedOrgId.value) {
+    return selectedOrgId.value;
+  }
+  // Fallback to user's organization from auth
+  if (user.value?.organization?.id) {
+    return user.value.organization.id;
+  }
+  return null;
+});
+
 definePageMeta({
   middleware: "auth",
   layout: "auth",

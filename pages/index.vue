@@ -600,13 +600,18 @@ const { activeHoa, isMainDomain, fetchActiveHoa } = useActiveHoa();
 const { user } = useDirectusAuth();
 const config = useRuntimeConfig();
 
+// Redirect logged-in users with organizations to their slug page when on main domain
+if (isMainDomain.value && user.value?.organization?.slug) {
+  await navigateTo(`/${user.value.organization.slug}`);
+}
+
 // CRITICAL: Fetch HOA data server-side for SEO
 await useAsyncData("active-hoa", async () => {
-  // If on main domain and user is logged in with an organization, fetch their org
-  if (isMainDomain.value && user.value?.organization?.slug) {
-    return await fetchActiveHoa(user.value.organization.slug);
+  // Only fetch if not on main domain (for custom domains/subdomains)
+  if (!isMainDomain.value) {
+    return await fetchActiveHoa();
   }
-  return await fetchActiveHoa();
+  return null;
 });
 
 // Set dynamic meta tags based on active HOA
