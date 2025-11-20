@@ -8,7 +8,9 @@ const { user } = useDirectusAuth();
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listMembers } = useDirectusItems("hoa_members");
 const { list: listUnits } = useDirectusItems("hoa_units");
-const { selectedOrgId, currentOrg, currentRole } = useSelectedOrg();
+
+// Await to ensure org is loaded during SSR
+const { selectedOrgId, currentOrg, currentRole } = await useSelectedOrg();
 
 // Watch for org changes and refresh data
 const orgId = computed(() => selectedOrgId.value);

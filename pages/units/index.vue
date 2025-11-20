@@ -8,7 +8,9 @@ definePageMeta({
 
 const { user } = useDirectusAuth();
 const { list: listUnits, create: createUnit, update: updateUnit, remove: removeUnit } = useDirectusItems("hoa_units");
-const { selectedOrgId } = useSelectedOrg();
+
+// Await to ensure org is loaded during SSR
+const { selectedOrgId } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
 

@@ -9,7 +9,9 @@ definePageMeta({
 const { user } = useDirectusAuth();
 const { list: listDocuments, remove: removeDocument } = useDirectusItems("hoa_documents");
 const { getFileUrl } = useDirectusFiles();
-const { selectedOrgId } = useSelectedOrg();
+
+// Await to ensure org is loaded during SSR
+const { selectedOrgId } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
 

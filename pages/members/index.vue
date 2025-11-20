@@ -13,8 +13,8 @@ const { list: listInvitations } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
 
-// Use the org switcher composable instead of duplicating logic
-const { currentOrg, selectedOrgId, isLoading } = useSelectedOrg();
+// Await to ensure org is loaded during SSR
+const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Current tab
 const activeTab = ref<"members" | "invite" | "pending">("members");
