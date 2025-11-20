@@ -38,10 +38,17 @@ export default defineEventHandler(async (event) => {
 
     if (domainType === "apex") {
       dnsInstructions = {
-        type: "A+AAAA",
+        type: "A",
         primary: [
           { type: "A", name: "@", value: "76.76.21.21" },
-          { type: "AAAA", name: "@", value: "2606:4700:3033::6815:48e" },
+        ],
+        recommended: [
+          {
+            type: "A",
+            name: "@",
+            value: "216.198.79.1",
+            note: "New Vercel IP (recommended as of Nov 2025)",
+          },
         ],
         www: [
           { type: "CNAME", name: "www", value: "cname.vercel-dns.com" },
@@ -50,8 +57,16 @@ export default defineEventHandler(async (event) => {
           type: "CNAME",
           name: "@",
           value: "cname.vercel-dns.com",
-          note: "Only if DNS supports CNAME flattening",
+          note: "Only if DNS supports CNAME flattening (recommended)",
         },
+        legacy: [
+          {
+            type: "AAAA",
+            name: "@",
+            value: "2606:4700:3033::6815:48e",
+            note: "DEPRECATED - Remove this if present",
+          },
+        ],
       };
     } else {
       const subdomain = parts[0];
