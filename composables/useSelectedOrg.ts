@@ -3,7 +3,7 @@
  * Handles users with multiple HOA memberships (e.g., property managers)
  * Now supports SSR by storing the selected org in the session
  */
-export const useSelectedOrg = () => {
+export const useSelectedOrg = async () => {
   const { user } = useDirectusAuth();
   const { list: listMembers } = useDirectusItems("hoa_members");
 
