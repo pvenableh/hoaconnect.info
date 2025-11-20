@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 definePageMeta({
   middleware: "auth",
@@ -15,9 +16,10 @@ const {
 } = useDirectusItems("hoa_units");
 
 // Await to ensure org is loaded during SSR
-const { selectedOrgId } = await useSelectedOrg();
+const { selectedOrgId, currentOrg, isLoading } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
+const organization = computed(() => currentOrg.value?.organization || null);
 
 // Fetch units
 const { data: units, refresh } = await useAsyncData(
@@ -115,13 +117,35 @@ const handleDelete = async (id: string) => {
   <div class="min-h-screen bg-stone-50">
     <div class="p-6">
       <div class="max-w-4xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="flex justify-between items-center">
-          <h1 class="text-3xl font-bold">Units</h1>
-          <Button @click="handleAdd">Add Unit</Button>
+        <!-- Loading State -->
+        <div v-if="isLoading" class="text-center py-12">
+          <Icon
+            name="lucide:loader-2"
+            class="w-8 h-8 animate-spin mx-auto mb-4"
+          />
+          <p class="text-sm text-stone-600">Loading your organization...</p>
         </div>
 
-        <!-- Units Grid -->
+        <!-- No Organization State -->
+        <div v-else-if="!organization" class="text-center py-12">
+          <Alert variant="destructive" class="max-w-md mx-auto">
+            <Icon name="lucide:alert-circle" class="w-4 h-4" />
+            <AlertTitle>No Organization Found</AlertTitle>
+            <AlertDescription>
+              You are not associated with any HOA organization.
+            </AlertDescription>
+          </Alert>
+        </div>
+
+        <!-- Main Content -->
+        <template v-else>
+          <!-- Header -->
+          <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold">Units</h1>
+            <Button @click="handleAdd">Add Unit</Button>
+          </div>
+
+          <!-- Units Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card v-for="unit in units" :key="unit.id" class="relative">
             <CardHeader>
@@ -201,6 +225,7 @@ const handleDelete = async (id: string) => {
             </CardContent>
           </Card>
         </div>
+        </template>
       </div>
     </div>
   </div>

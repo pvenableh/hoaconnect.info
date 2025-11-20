@@ -18,13 +18,24 @@ export const useSelectedOrg = async () => {
       return;
     }
 
+    // Don't attempt to sync if user is not authenticated yet
+    if (!user.value?.id) {
+      console.warn("[useSelectedOrg] Skipping session sync - user not authenticated yet");
+      return;
+    }
+
     try {
       await $fetch("/api/org/selected", {
         method: "POST",
         body: { orgId },
       });
-    } catch (error) {
-      console.error("[useSelectedOrg] Failed to sync to session:", error);
+    } catch (error: any) {
+      // During hydration, session might not be available yet - fail silently
+      if (error?.statusCode === 401 || error?.status === 401) {
+        console.warn("[useSelectedOrg] Session not yet available for sync, will retry on next interaction");
+      } else {
+        console.error("[useSelectedOrg] Failed to sync to session:", error);
+      }
     }
   };
 
@@ -62,8 +73,8 @@ export const useSelectedOrg = async () => {
               console.log("[useSelectedOrg] Initialized from session:", selectedOrgId.value);
             }
           } catch (error) {
-            // Session not available during SSR is expected - fail silently
-            console.warn("[useSelectedOrg] Session not available during SSR");
+            // Session not available during SSR is expected - this is normal, no action needed
+            // Will be initialized from localStorage on client side or auto-selected
           }
         }
       }
