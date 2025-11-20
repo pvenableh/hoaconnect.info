@@ -32,8 +32,8 @@ const effectiveOrgId = computed(() => {
     return selectedOrgId.value;
   }
   // Fallback to user's organization from auth
-  if (user.value?.organization?.id) {
-    return user.value.organization.id;
+  if (user.value?.organizationId) {
+    return user.value.organizationId;
   }
   return null;
 });
