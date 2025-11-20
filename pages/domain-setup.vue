@@ -2,7 +2,7 @@
   <div>
     <!-- Loading State -->
     <div
-      v-if="isLoading"
+      v-if="isLoading || !isHydrated"
       class="flex items-center justify-center min-h-[400px]"
     >
       <div class="text-center">
@@ -23,8 +23,14 @@
   </div>
 </template>
 <script setup lang="ts">
-const { selectedOrgId, isLoading } = useSelectedOrg();
+const { selectedOrgId, isLoading } = await useSelectedOrg();
 const { user } = useDirectusAuth();
+
+// Track client-side hydration
+const isHydrated = ref(false);
+onMounted(() => {
+  isHydrated.value = true;
+});
 
 // Use selectedOrgId from memberships, but fallback to user.organization if available
 const effectiveOrgId = computed(() => {
