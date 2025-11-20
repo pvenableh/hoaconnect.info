@@ -57,7 +57,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           status: { _in: ["active", "inactive", "pending"] },
         },
         sort: ["sort", "last_name"],
-      });
+      }) as any[];
 
       console.log("🔍 Members query result:", result);
       console.log("🔍 Number of members:", result?.length || 0);
@@ -94,7 +94,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
         invitation_status: { _in: ["pending", "expired"] },
       },
       sort: ["-date_created"],
-    });
+    }) as any[];
     return result || [];
   },
   {
@@ -114,7 +114,7 @@ const { data: units } = await useAsyncData(
         status: { _eq: "published" },
       },
       sort: ["unit_number"],
-    });
+    }) as any[];
     return result || [];
   },
   {
@@ -197,10 +197,10 @@ const handleSubmit = async () => {
         member_type: form.member_type,
         organization: organization.value.id,
         status: form.status,
-      });
+      }) as any;
 
       // If a unit was selected, create the junction record
-      if (form.unit && newMember.id) {
+      if (form.unit && newMember?.id) {
         await createMemberUnit({
           member_id: newMember.id,
           unit_id: form.unit,
