@@ -44,7 +44,7 @@
       </CardHeader>
       <CardContent>
         <div class="space-y-4">
-          <!-- Slug-based subdomain (always available) -->
+          <!-- Slug-based URL (always available) -->
           <div
             class="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3"
           >
@@ -67,7 +67,7 @@
             </div>
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1">
-                <span class="font-semibold">Default Subdomain</span>
+                <span class="font-semibold">Default URL</span>
                 <span
                   class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full"
                   >Active</span
@@ -75,11 +75,11 @@
               </div>
               <a
                 v-if="organizationSlug"
-                :href="`https://${organizationSlug}.${config.public.mainDomain}`"
+                :href="`https://${config.public.mainDomain}/${organizationSlug}`"
                 target="_blank"
                 class="text-blue-600 hover:underline font-mono text-sm"
               >
-                {{ organizationSlug }}.{{ config.public.mainDomain }}
+                {{ config.public.mainDomain }}/{{ organizationSlug }}
               </a>
               <p class="text-gray-600 text-sm mt-2">
                 Your default portal URL - always available even if you set up a
