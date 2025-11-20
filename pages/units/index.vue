@@ -7,7 +7,12 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { list: listUnits, create: createUnit, update: updateUnit, remove: removeUnit } = useDirectusItems("hoa_units");
+const {
+  list: listUnits,
+  create: createUnit,
+  update: updateUnit,
+  remove: removeUnit,
+} = useDirectusItems("hoa_units");
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId } = await useSelectedOrg();
@@ -23,7 +28,7 @@ const { data: units, refresh } = await useAsyncData(
       fields: ["id", "unit_number", "status"],
       filter: {
         organization: { _eq: orgId.value },
-        status: { _in: ["published", "draft"] },
+        status: { _in: ["active", "inactive"] },
       },
       sort: ["sort", "unit_number"],
     });
@@ -39,12 +44,12 @@ const showModal = ref(false);
 const editingId = ref<string | null>(null);
 const form = reactive({
   unit_number: "",
-  status: "published",
+  status: "active",
 });
 
 const resetForm = () => {
   form.unit_number = "";
-  form.status = "published";
+  form.status = "active";
   editingId.value = null;
 };
 

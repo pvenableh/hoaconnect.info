@@ -8,7 +8,12 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { list: listMembers, create: createMember, update: updateMember, remove: removeMember } = useDirectusItems("hoa_members");
+const {
+  list: listMembers,
+  create: createMember,
+  update: updateMember,
+  remove: removeMember,
+} = useDirectusItems("hoa_members");
 const { list: listInvitations } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
@@ -34,7 +39,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
     console.log("🔍 Fetching members for organization:", organization.value.id);
 
     try {
-      const result = await listMembers({
+      const result = (await listMembers({
         fields: [
           "id",
           "first_name",
@@ -57,7 +62,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           status: { _in: ["active", "inactive", "pending"] },
         },
         sort: ["sort", "last_name"],
-      }) as any[];
+      })) as any[];
 
       console.log("🔍 Members query result:", result);
       console.log("🔍 Number of members:", result?.length || 0);
@@ -78,7 +83,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
   "hoa-invitations-list",
   async () => {
     if (!organization.value?.id) return [];
-    const result = await listInvitations({
+    const result = (await listInvitations({
       fields: [
         "id",
         "email",
@@ -94,7 +99,7 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
         invitation_status: { _in: ["pending", "expired"] },
       },
       sort: ["-date_created"],
-    }) as any[];
+    })) as any[];
     return result || [];
   },
   {
@@ -107,14 +112,14 @@ const { data: units } = await useAsyncData(
   "units-dropdown",
   async () => {
     if (!organization.value?.id) return [];
-    const result = await listUnits({
+    const result = (await listUnits({
       fields: ["id", "unit_number"],
       filter: {
         organization: { _eq: organization.value.id },
-        status: { _eq: "published" },
+        status: { _eq: "active" },
       },
       sort: ["unit_number"],
-    }) as any[];
+    })) as any[];
     return result || [];
   },
   {
@@ -189,7 +194,7 @@ const handleSubmit = async () => {
       toast.success("Member updated");
     } else {
       // Create new member (without user account)
-      const newMember = await createMember({
+      const newMember = (await createMember({
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
@@ -197,7 +202,7 @@ const handleSubmit = async () => {
         member_type: form.member_type,
         organization: organization.value.id,
         status: form.status,
-      }) as any;
+      })) as any;
 
       // If a unit was selected, create the junction record
       if (form.unit && newMember?.id) {
