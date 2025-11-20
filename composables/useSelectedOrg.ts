@@ -11,8 +11,13 @@ export const useSelectedOrg = async () => {
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
   const isInitialized = useState<boolean>("selectedOrgInitialized", () => false);
 
-  // Sync selected org to session
+  // Sync selected org to session (client-side only)
   const syncToSession = async (orgId: string) => {
+    // Only sync on client side - SSR doesn't have session cookies properly hydrated
+    if (!import.meta.client) {
+      return;
+    }
+
     try {
       await $fetch("/api/org/selected", {
         method: "POST",
@@ -37,26 +42,28 @@ export const useSelectedOrg = async () => {
     console.log("[useSelectedOrg] Fetching memberships for user:", user.value.id);
 
     try {
-      // STEP 1: First, try to get selected org from session (SSR-compatible)
+      // STEP 1: Initialize selected org from session (SSR) or localStorage (client)
       if (!selectedOrgId.value && !isInitialized.value) {
-        try {
-          const sessionOrg = await $fetch("/api/org/selected");
-          if (sessionOrg?.selectedOrgId) {
-            selectedOrgId.value = sessionOrg.selectedOrgId;
-            console.log("[useSelectedOrg] Initialized from session:", selectedOrgId.value);
-          }
-        } catch (error) {
-          console.warn("[useSelectedOrg] Failed to fetch from session:", error);
-        }
-
-        // Fallback to localStorage on client
-        if (!selectedOrgId.value && import.meta.client) {
+        // On client: prefer localStorage first
+        if (import.meta.client) {
           const stored = localStorage.getItem("selectedOrgId");
           if (stored) {
             selectedOrgId.value = stored;
             console.log("[useSelectedOrg] Initialized from localStorage:", stored);
-            // Sync to session for SSR on next load
+            // Sync to session for future SSR renders
             await syncToSession(stored);
+          }
+        } else {
+          // On server (SSR): try to get from session
+          try {
+            const sessionOrg = await $fetch("/api/org/selected");
+            if (sessionOrg?.selectedOrgId) {
+              selectedOrgId.value = sessionOrg.selectedOrgId;
+              console.log("[useSelectedOrg] Initialized from session:", selectedOrgId.value);
+            }
+          } catch (error) {
+            // Session not available during SSR is expected - fail silently
+            console.warn("[useSelectedOrg] Session not available during SSR");
           }
         }
       }
