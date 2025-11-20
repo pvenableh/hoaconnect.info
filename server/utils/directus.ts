@@ -24,19 +24,81 @@ export function getTypedDirectus() {
 /**
  * Get a Directus client with user authentication
  * Uses the session token from nuxt-auth-utils
+ * Automatically refreshes expired tokens
  */
 export async function getUserDirectus(event: any) {
   const config = useRuntimeConfig();
-  const session = await getUserSession(event);
+  let session = await getUserSession(event);
+
+  // Check if session exists
+  if (!session || !session.user) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: "No active session",
+    });
+  }
 
   // Access token from secure section
-  const accessToken = getSessionAccessToken(session);
+  let accessToken = getSessionAccessToken(session);
+  const refreshToken = getSessionRefreshToken(session);
 
   if (!accessToken) {
     throw createError({
       statusCode: 401,
       statusMessage: "No authentication token available",
     });
+  }
+
+  // Check if token is expired or about to expire (within 1 minute)
+  const now = Date.now();
+  const expiresAt = session.expiresAt || 0;
+  const isExpired = expiresAt <= now;
+  const isExpiringSoon = expiresAt - now < 60000; // 1 minute buffer
+
+  if ((isExpired || isExpiringSoon) && refreshToken) {
+    try {
+      console.log('[getUserDirectus] Token expired or expiring soon, refreshing...');
+
+      // Create client with authentication to refresh token
+      const directus = createDirectus(config.public.directus.url)
+        .with(rest())
+        .with(authentication("json"));
+
+      // Set the refresh token
+      await directus.setToken(refreshToken);
+
+      // Refresh the token
+      const authResult = await directus.request(refresh());
+
+      if (!authResult.access_token) {
+        throw new Error("Token refresh failed - no access token returned");
+      }
+
+      // Update session with new tokens
+      await setUserSession(event, {
+        ...session,
+        expiresAt: Date.now() + (authResult.expires || 900000),
+        secure: {
+          directusAccessToken: authResult.access_token,
+          directusRefreshToken: authResult.refresh_token || refreshToken,
+        },
+      });
+
+      // Use the new access token
+      accessToken = authResult.access_token;
+
+      console.log('[getUserDirectus] Token refreshed successfully');
+    } catch (error: any) {
+      console.error('[getUserDirectus] Token refresh failed:', error);
+
+      // Clear session on refresh failure
+      await clearUserSession(event);
+
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Session expired - please log in again",
+      });
+    }
   }
 
   const client = createDirectus<DirectusSchema>(config.directus.url)
