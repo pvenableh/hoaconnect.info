@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
         provider: "local",
       },
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires || 900000), // Default 15 min
+      expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
         directusRefreshToken: authResult.refresh_token,

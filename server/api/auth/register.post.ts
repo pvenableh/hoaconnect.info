@@ -72,10 +72,12 @@ export default defineEventHandler(async (event) => {
         role: userData.role,
         provider: "local",
       },
-      directusAccessToken: authResult.access_token,
-      directusRefreshToken: authResult.refresh_token,
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires || 900000),
+      expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
+      secure: {
+        directusAccessToken: authResult.access_token,
+        directusRefreshToken: authResult.refresh_token,
+      },
     });
 
     return {

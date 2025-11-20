@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     // Update session with new tokens
     await setUserSession(event, {
       ...session,
-      expiresAt: Date.now() + (authResult.expires || 900000),
+      expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
         directusRefreshToken: authResult.refresh_token || refreshToken,
