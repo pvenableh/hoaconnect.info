@@ -28,6 +28,9 @@ const { data: documents, refresh: refreshDocs } = await useAsyncData(
       limit: 5,
     });
     return result || [];
+  },
+  {
+    watch: [orgId],
   }
 );
 
@@ -44,6 +47,9 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
       },
     });
     return result || [];
+  },
+  {
+    watch: [orgId],
   }
 );
 
@@ -60,6 +66,9 @@ const { data: units, refresh: refreshUnits } = await useAsyncData(
       },
     });
     return result || [];
+  },
+  {
+    watch: [orgId],
   }
 );
 

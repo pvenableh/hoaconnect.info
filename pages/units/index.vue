@@ -26,6 +26,9 @@ const { data: units, refresh } = await useAsyncData(
       sort: ["sort", "unit_number"],
     });
     return result || [];
+  },
+  {
+    watch: [orgId],
   }
 );
 
