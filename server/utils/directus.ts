@@ -64,11 +64,8 @@ export async function getUserDirectus(event: any) {
         .with(rest())
         .with(authentication("json"));
 
-      // Set the refresh token
-      await directus.setToken(refreshToken);
-
-      // Refresh the token
-      const authResult = await directus.request(refresh());
+      // Refresh the token with explicit mode and refresh token
+      const authResult = await directus.request(refresh('json', refreshToken));
 
       if (!authResult.access_token) {
         throw new Error("Token refresh failed - no access token returned");
