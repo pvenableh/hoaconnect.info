@@ -16,6 +16,7 @@ declare module "#auth-utils" {
     user: User;
     loggedInAt?: number;
     expiresAt?: number;
+    selectedOrgId?: string;
   }
 
   // Tokens stored in secure encrypted section
