@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-    <!-- Main Domain - Logged In User: Redirect to dashboard -->
-    <div v-if="isMainDomain && user" class="container mx-auto px-4 py-12">
+    <!-- Main Domain - Logged In User WITHOUT Organization: Redirect to dashboard -->
+    <div v-if="isMainDomain && user && !activeHoa" class="container mx-auto px-4 py-12">
       <div class="max-w-3xl mx-auto text-center py-20">
         <h2 class="text-4xl font-bold text-gray-900 mb-6">
           Welcome back, {{ user.firstName }}!
@@ -602,6 +602,10 @@ const config = useRuntimeConfig();
 
 // CRITICAL: Fetch HOA data server-side for SEO
 await useAsyncData("active-hoa", async () => {
+  // If on main domain and user is logged in with an organization, fetch their org
+  if (isMainDomain.value && user.value?.organization?.slug) {
+    return await fetchActiveHoa(user.value.organization.slug);
+  }
   return await fetchActiveHoa();
 });
 

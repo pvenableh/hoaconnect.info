@@ -37,10 +37,10 @@ export default defineEventHandler(async (event) => {
     // Set the token
     await authClient.setToken(authResult.access_token);
 
-    // Fetch user data (only role ID, not nested role fields due to core collection restrictions)
+    // Fetch user data with organization info
     const user = await authClient.request(
       readMe({
-        fields: ["*", "role"],
+        fields: ["*", "role", { organization: ["id", "slug", "name"] }],
       })
     );
 
@@ -52,6 +52,7 @@ export default defineEventHandler(async (event) => {
         firstName: user.first_name,
         lastName: user.last_name,
         role: user.role,
+        organization: user.organization,
         provider: "local",
       },
       loggedInAt: Date.now(),
@@ -70,6 +71,7 @@ export default defineEventHandler(async (event) => {
         firstName: user.first_name,
         lastName: user.last_name,
         role: user.role,
+        organization: user.organization,
       },
     };
   } catch (error: any) {

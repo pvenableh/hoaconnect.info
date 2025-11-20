@@ -32,9 +32,20 @@ export default defineEventHandler(async (event) => {
     const organizations = await directus.request(
       readItems("hoa_organizations", {
         filter: {
-          _and: [{ _or: filters }, { status: { _eq: "published" } }],
+          _and: [{ _or: filters }, { status: { _in: ["active", "published"] } }],
         },
-        fields: ["*", "amenities", "settings", "hero", "subscription_plan"],
+        fields: [
+          "*",
+          {
+            invitations: ["*"],
+            amenities: ["*"],
+            subscription: ["*"],
+            subscription_plan: ["*"],
+            logo: ["*"],
+            settings: ["*", { logo: ["*"], icon: ["*"] }],
+            hero: ["*", { background_image: ["*"], foreground_image: ["*"] }],
+          },
+        ],
         limit: 1,
         // Sort to prioritize custom_domain matches over slug matches
         sort: ["-custom_domain"],
