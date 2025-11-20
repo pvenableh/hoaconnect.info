@@ -35,20 +35,20 @@ export const useActiveHoa = () => {
         return null;
       }
 
-      // Fetch HOA by slug or custom domain
-      let response;
+      // Use the unified find endpoint that handles both slug and custom domain
+      const query: Record<string, string> = {};
 
       if (slug) {
-        // Fetch by slug (subdomain of main domain)
-        response = await $fetch("/api/hoa/by-slug", {
-          query: { slug },
-        });
+        // If we have a slug (subdomain), use that
+        query.slug = slug;
       } else {
-        // Fetch by custom domain
-        response = await $fetch("/api/hoa/by-domain", {
-          query: { domain },
-        });
+        // Otherwise, use the full domain for custom domain lookup
+        query.domain = domain;
       }
+
+      const response = await $fetch("/api/hoa/find", {
+        query,
+      });
 
       if (response) {
         activeHoa.value = response;
