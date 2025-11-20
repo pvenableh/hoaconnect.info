@@ -1,9 +1,40 @@
 <template>
   <div class="max-w-4xl mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-2">Custom Domain Setup</h1>
-    <p class="text-gray-600 mb-8">
-      Configure a custom domain for your organization's portal
-    </p>
+    <!-- No Organization Selected State -->
+    <div
+      v-if="!hoaId"
+      class="flex flex-col items-center justify-center py-12 px-4"
+    >
+      <div
+        class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4"
+      >
+        <svg
+          class="w-8 h-8 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">
+        No Organization Selected
+      </h2>
+      <p class="text-gray-600 text-center max-w-md">
+        Please select an organization to configure custom domain settings.
+      </p>
+    </div>
+
+    <div v-else>
+      <h1 class="text-3xl font-bold mb-2">Custom Domain Setup</h1>
+      <p class="text-gray-600 mb-8">
+        Configure a custom domain for your organization's portal
+      </p>
 
     <!-- Current Status Card -->
     <Card class="mb-6">
@@ -432,6 +463,7 @@
         </div>
       </CardContent>
     </Card>
+    </div>
   </div>
 </template>
 
@@ -439,7 +471,7 @@
 import type { AddDomainResponse } from "~/types/domains";
 
 const props = defineProps<{
-  hoaId: string;
+  hoaId: string | null;
 }>();
 
 const config = useRuntimeConfig();
@@ -451,23 +483,24 @@ const addError = ref("");
 const verifyError = ref("");
 const verifySuccess = ref("");
 
-// Fetch organization data
-const { data: organization, refresh: refreshOrganization } =
-  await useDirectusItems("hoa_organizations", {
-    query: {
-      filter: { id: { _eq: props.hoaId } },
-      fields: [
-        "id",
-        "name",
-        "slug",
-        "custom_domain",
-        "domain_verified",
-        "domain_type",
-        "domain_config",
-      ],
-      limit: 1,
-    },
-  });
+// Fetch organization data only if hoaId is provided
+const { data: organization, refresh: refreshOrganization } = props.hoaId
+  ? await useDirectusItems("hoa_organizations", {
+      query: {
+        filter: { id: { _eq: props.hoaId } },
+        fields: [
+          "id",
+          "name",
+          "slug",
+          "custom_domain",
+          "domain_verified",
+          "domain_type",
+          "domain_config",
+        ],
+        limit: 1,
+      },
+    })
+  : { data: ref(null), refresh: async () => {} };
 
 const organizationData = computed(() => {
   return Array.isArray(organization.value)
