@@ -27,6 +27,11 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event);
     const { collection: collectionName, operation, id, data, query } = body;
 
+    console.log("[/api/directus/items] Request received");
+    console.log("[/api/directus/items] Collection:", collectionName);
+    console.log("[/api/directus/items] Operation:", operation);
+    console.log("[/api/directus/items] Query:", JSON.stringify(query, null, 2));
+
     if (!collectionName || !operation) {
       throw createError({
         statusCode: 400,
@@ -39,20 +44,35 @@ export default defineEventHandler(async (event) => {
 
     // Check if user is authenticated
     const session = await getUserSession(event);
+    console.log("[/api/directus/items] Session exists:", !!session);
+    console.log("[/api/directus/items] User exists:", !!session?.user);
+    console.log("[/api/directus/items] User ID:", session?.user?.id);
+
     let directus: DirectusClient<DirectusSchema> & RestClient<DirectusSchema>;
 
     if (session?.user) {
       // User is authenticated, use their token
+      console.log("[/api/directus/items] Using authenticated client");
       directus = await getUserDirectus(event);
     } else {
       // No authenticated user, use public client
+      console.log("[/api/directus/items] Using public client");
       directus = getPublicDirectus();
     }
 
     // Handle different operations using native SDK methods
     switch (operation) {
       case "list":
-        return await directus.request(readItems(collection, query || {}));
+        console.log("[/api/directus/items] Calling readItems with collection:", collection);
+        console.log("[/api/directus/items] readItems query:", JSON.stringify(query, null, 2));
+
+        const result = await directus.request(readItems(collection, query || {}));
+
+        console.log("[/api/directus/items] readItems result:", result);
+        console.log("[/api/directus/items] Result is array:", Array.isArray(result));
+        console.log("[/api/directus/items] Result length:", result?.length);
+
+        return result;
 
       case "get":
         if (!id) throw new Error("ID required for get operation");
@@ -94,7 +114,11 @@ export default defineEventHandler(async (event) => {
         throw new Error(`Unknown operation: ${operation}`);
     }
   } catch (error: any) {
-    console.error("Directus items API error:", error);
+    console.error("[/api/directus/items] Error occurred:", error);
+    console.error("[/api/directus/items] Error message:", error.message);
+    console.error("[/api/directus/items] Error statusCode:", error.statusCode);
+    console.error("[/api/directus/items] Error stack:", error.stack);
+    console.error("[/api/directus/items] Full error object:", JSON.stringify(error, null, 2));
 
     throw createError({
       statusCode: error.statusCode || 500,
