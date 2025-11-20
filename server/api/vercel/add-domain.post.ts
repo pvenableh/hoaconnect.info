@@ -1,4 +1,5 @@
 // server/api/vercel/add-domain.post.ts
+import { updateItem } from "@directus/sdk";
 import type { VercelDomainResponse } from "~/types/vercel";
 
 export default defineEventHandler(async (event) => {
@@ -63,16 +64,19 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update Directus
-    await updateTypedDirectusItem("hoa_organizations", hoaId, {
-      custom_domain: domain,
-      domain_type: domainType,
-      domain_verified: false,
-      domain_config: {
-        vercel_domain: vercelResponse.name,
-        dns_instructions: dnsInstructions,
-        added_at: new Date().toISOString(),
-      },
-    });
+    const directus = getTypedDirectus();
+    await directus.request(
+      updateItem("hoa_organizations", hoaId, {
+        custom_domain: domain,
+        domain_type: domainType,
+        domain_verified: false,
+        domain_config: {
+          vercel_domain: vercelResponse.name,
+          dns_instructions: dnsInstructions,
+          added_at: new Date().toISOString(),
+        },
+      })
+    );
 
     return {
       success: true,

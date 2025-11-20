@@ -1,4 +1,5 @@
 // server/api/vercel/verify-domain.post.ts
+import { updateItem } from "@directus/sdk";
 import type { VercelDomainResponse } from "~/types/vercel";
 
 export default defineEventHandler(async (event) => {
@@ -28,13 +29,16 @@ export default defineEventHandler(async (event) => {
 
     // Update Directus if verified
     if (isVerified) {
-      await updateTypedDirectusItem("hoa_organizations", hoaId, {
-        domain_verified: true,
-        domain_config: {
-          verified_at: new Date().toISOString(),
-          vercel_response: domainInfo,
-        },
-      });
+      const directus = getTypedDirectus();
+      await directus.request(
+        updateItem("hoa_organizations", hoaId, {
+          domain_verified: true,
+          domain_config: {
+            verified_at: new Date().toISOString(),
+            vercel_response: domainInfo,
+          },
+        })
+      );
     }
 
     return {
