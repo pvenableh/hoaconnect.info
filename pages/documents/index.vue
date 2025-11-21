@@ -116,7 +116,7 @@ const { data: documents, refresh } = await useAsyncData(
   async () => {
     if (!orgId.value) return [];
     const result = await listDocuments({
-      fields: ["id", "title", "category", "status", "date_published", "file.*"],
+      fields: ["id", "title", "category", "status", "date_published", "file.*", "file.folder.*"],
       filter: {
         organization: { _eq: orgId.value },
         status: { _in: [status.value] },
@@ -131,6 +131,29 @@ const { data: documents, refresh } = await useAsyncData(
     server: false, // Fetch client-side only to ensure auth session is available
   }
 );
+
+// Group documents by folder
+const documentsByFolder = computed(() => {
+  if (!documents.value) return new Map();
+
+  const grouped = new Map<string, { folder: any; documents: any[] }>();
+
+  documents.value.forEach((doc: any) => {
+    const folderId = doc.file?.folder?.id || 'root';
+    const folderName = doc.file?.folder?.name || 'Uncategorized';
+
+    if (!grouped.has(folderId)) {
+      grouped.set(folderId, {
+        folder: doc.file?.folder || { id: 'root', name: 'Uncategorized' },
+        documents: []
+      });
+    }
+
+    grouped.get(folderId)!.documents.push(doc);
+  });
+
+  return grouped;
+});
 
 // Delete document
 const handleDelete = async (id: string) => {
@@ -329,52 +352,108 @@ watch(
           </CardContent>
         </Card>
 
-        <!-- Documents List -->
-        <div class="grid grid-cols-1 gap-4" ref="dropZoneRef">
-          <Card
-            v-for="doc in documents"
-            :key="doc.id"
-            :draggable="true"
-            @dragstart="startDrag(doc, 'file')"
-            @dragend="endDrag"
-            class="cursor-move"
-          >
-            <CardHeader>
-              <div class="flex justify-between items-start">
-                <div>
-                  <CardTitle>{{ doc.title }}</CardTitle>
+        <!-- Documents by Folder - Column View -->
+        <div v-if="documentsByFolder.size > 0" class="overflow-x-auto pb-4">
+          <div class="flex gap-6 min-w-min">
+            <!-- Column for each folder -->
+            <div
+              v-for="[folderId, folderGroup] in documentsByFolder"
+              :key="folderId"
+              class="flex-shrink-0 w-80"
+            >
+              <Card class="h-full">
+                <CardHeader class="bg-stone-100 border-b">
+                  <div class="flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5 text-amber-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                      />
+                    </svg>
+                    <CardTitle class="text-lg">{{ folderGroup.folder.name }}</CardTitle>
+                  </div>
                   <CardDescription>
-                    {{ doc.category }} •
-                    {{ new Date(doc.date_published).toLocaleDateString() }}
+                    {{ folderGroup.documents.length }} document{{ folderGroup.documents.length !== 1 ? 's' : '' }}
                   </CardDescription>
-                </div>
-                <div class="flex gap-2">
-                  <Button
-                    v-if="doc.file"
-                    @click="window.open(getUrl(doc.file.id), '_blank')"
-                    variant="outline"
-                    size="sm"
+                </CardHeader>
+                <CardContent class="p-4 space-y-3">
+                  <!-- Document items in this folder -->
+                  <Card
+                    v-for="doc in folderGroup.documents"
+                    :key="doc.id"
+                    :draggable="true"
+                    @dragstart="startDrag(doc, 'file')"
+                    @dragend="endDrag"
+                    class="cursor-move hover:shadow-md transition-shadow"
                   >
-                    View
-                  </Button>
-                  <Button
-                    @click="handleDelete(doc.id)"
-                    variant="destructive"
-                    size="sm"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <div
-            v-if="!documents?.length"
-            class="text-center py-12 text-stone-500"
-          >
-            No documents found
+                    <CardContent class="p-4">
+                      <div class="space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                          <h3 class="font-semibold text-sm line-clamp-2">{{ doc.title }}</h3>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-stone-500">
+                          <span class="px-2 py-1 bg-stone-100 rounded">{{ doc.category }}</span>
+                          <span>{{ new Date(doc.date_published).toLocaleDateString() }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-stone-600 bg-amber-50 px-2 py-1 rounded">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-3 w-3 text-amber-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                            />
+                          </svg>
+                          <span class="truncate">{{ folderGroup.folder.name }}</span>
+                        </div>
+                        <div class="flex gap-2 pt-2">
+                          <Button
+                            v-if="doc.file"
+                            @click="window.open(getUrl(doc.file.id), '_blank')"
+                            variant="outline"
+                            size="sm"
+                            class="flex-1 text-xs"
+                          >
+                            View
+                          </Button>
+                          <Button
+                            @click="handleDelete(doc.id)"
+                            variant="destructive"
+                            size="sm"
+                            class="flex-1 text-xs"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-else
+          class="text-center py-12 text-stone-500"
+        >
+          No documents found
         </div>
       </div>
     </div>
