@@ -355,25 +355,131 @@ watch(
         <!-- Filters -->
         <Card>
           <CardContent class="pt-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-6">
+              <!-- Category Filters -->
               <div>
-                <label class="text-sm font-medium mb-2 block">Category</label>
-                <select v-model="category" class="w-full p-2 border rounded">
-                  <option value="all">All Categories</option>
-                  <option value="bylaws">Bylaws</option>
-                  <option value="financials">Financials</option>
-                  <option value="meeting_minutes">Meeting Minutes</option>
-                  <option value="notices">Notices</option>
-                </select>
+                <label class="text-sm font-medium mb-3 block">Category</label>
+                <div class="flex gap-2 flex-wrap">
+                  <button
+                    @click="category = 'all'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      category === 'all'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="All Categories"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="category = 'bylaws'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      category === 'bylaws'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Bylaws"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="category = 'financials'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      category === 'financials'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Financials"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="category = 'meeting_minutes'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      category === 'meeting_minutes'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Meeting Minutes"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="category = 'notices'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      category === 'notices'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Notices"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
+              <!-- Status Filters -->
               <div>
-                <label class="text-sm font-medium mb-2 block">Status</label>
-                <select v-model="status" class="w-full p-2 border rounded">
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                  <option value="archived">Archived</option>
-                </select>
+                <label class="text-sm font-medium mb-3 block">Status</label>
+                <div class="flex gap-2 flex-wrap">
+                  <button
+                    @click="status = 'published'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      status === 'published'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Published"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="status = 'draft'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      status === 'draft'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Draft"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="status = 'archived'"
+                    :class="[
+                      'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                      status === 'archived'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border hover:border-primary/50'
+                    ]"
+                    title="Archived"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </CardContent>
