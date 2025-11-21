@@ -9,43 +9,27 @@ definePageMeta({
 const { user } = useDirectusAuth();
 const { create: createDocument } = useDirectusItems("hoa_documents");
 const { upload: uploadFile } = useDirectusFiles();
-const { selectedOrgId } = await useSelectedOrg();
-const { getItems: getOrganizations } = useDirectusItems("hoa_organizations");
+const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const folderComposable = useDirectusFolders();
 const router = useRouter();
 
 const orgId = computed(() => selectedOrgId.value);
-
-// Fetch organization details including the folder
-const organization = ref<any>(null);
-const orgFolder = ref<string | null>(null);
+const organization = computed(() => currentOrg.value?.organization || null);
+const orgFolder = computed(() => organization.value?.folder || null);
 const subfolders = ref<any[]>([]);
 
-onMounted(async () => {
-  if (orgId.value) {
+// Load subfolders when organization folder is available
+watch(orgFolder, async (newFolder) => {
+  if (newFolder) {
     try {
-      const orgs = await getOrganizations({
-        filter: {
-          id: { _eq: orgId.value },
-        },
-        fields: ["id", "name", "folder"],
-        limit: 1,
-      });
-      if (orgs && orgs.length > 0) {
-        organization.value = orgs[0];
-        orgFolder.value = orgs[0].folder;
-
-        // Load subfolders
-        if (orgFolder.value) {
-          const folders = await folderComposable.getByParent(orgFolder.value);
-          subfolders.value = folders || [];
-        }
-      }
+      const folders = await folderComposable.getByParent(newFolder);
+      subfolders.value = folders || [];
     } catch (error) {
-      console.error("Failed to fetch organization:", error);
+      console.error("Failed to fetch subfolders:", error);
+      subfolders.value = [];
     }
   }
-});
+}, { immediate: true });
 
 // Form state
 const form = reactive({

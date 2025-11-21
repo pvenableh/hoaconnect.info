@@ -105,6 +105,7 @@ export const useSelectedOrg = async () => {
             "id",
             "organization.id",
             "organization.name",
+            "organization.folder",
             "organization.settings.logo",
             "role",
           ],

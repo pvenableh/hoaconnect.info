@@ -11,17 +11,16 @@ const { user } = useDirectusAuth();
 const { list: listDocuments, remove: removeDocument } =
   useDirectusItems("hoa_documents");
 const { getUrl, moveToFolder } = useDirectusFiles();
-const { getItems: getOrganizations } = useDirectusItems("hoa_organizations");
 const folderComposable = useDirectusFolders();
 
 // Await to ensure org is loaded during SSR
-const { selectedOrgId } = await useSelectedOrg();
+const { selectedOrgId, currentOrg } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
+const organization = computed(() => currentOrg.value?.organization || null);
+const orgFolder = computed(() => organization.value?.folder || null);
 
-// Organization and folder state
-const organization = ref<any>(null);
-const orgFolder = ref<string | null>(null);
+// Folder state
 const folders = ref<any[]>([]);
 const currentFolder = ref<string | null>(null);
 
@@ -39,31 +38,6 @@ const creatingFolder = ref(false);
 // Drag and drop state
 const draggedItem = ref<any>(null);
 const draggedItemType = ref<"file" | "folder" | null>(null);
-
-// Fetch organization details including the folder
-const loadOrganization = async () => {
-  if (orgId.value) {
-    try {
-      const orgs = await getOrganizations({
-        filter: {
-          id: { _eq: orgId.value },
-        },
-        fields: ["id", "name", "folder"],
-        limit: 1,
-      });
-      if (orgs && orgs.length > 0) {
-        organization.value = orgs[0];
-        orgFolder.value = orgs[0].folder;
-        if (orgFolder.value) {
-          currentFolder.value = orgFolder.value;
-          await loadFolders();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch organization:", error);
-    }
-  }
-};
 
 // Load folders (children of organization folder)
 const loadFolders = async () => {
@@ -204,10 +178,13 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
   },
 });
 
-// Initialize
-onMounted(async () => {
-  await loadOrganization();
-});
+// Initialize folders when organization is loaded
+watch(orgFolder, async (newFolder) => {
+  if (newFolder) {
+    currentFolder.value = newFolder;
+    await loadFolders();
+  }
+}, { immediate: true });
 </script>
 
 <template>
