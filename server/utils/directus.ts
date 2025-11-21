@@ -67,6 +67,16 @@ export async function getUserDirectus(event: any, forceRefresh: boolean = false)
 
   console.log('[getUserDirectus] Token check - now:', now, 'expiresAt:', expiresAt, 'isExpired:', isExpired, 'isExpiringSoon:', isExpiringSoon, 'forceRefresh:', forceRefresh);
 
+  // If token needs refresh but no refresh token is available, clear session
+  if ((isExpired || isExpiringSoon || forceRefresh) && !refreshToken) {
+    console.error('[getUserDirectus] Token needs refresh but no refresh token available');
+    await clearUserSession(event);
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Session expired - please log in again",
+    });
+  }
+
   if ((isExpired || isExpiringSoon || forceRefresh) && refreshToken) {
     try {
       console.log('[getUserDirectus] Token expired or expiring soon, refreshing...');
