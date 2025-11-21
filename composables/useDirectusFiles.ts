@@ -190,7 +190,7 @@ export const useDirectusFiles = () => {
     if (!loggedIn.value) {
       throw new Error('Authentication required')
     }
-    
+
     const { data, error } = await useFetch('/api/directus/files/import', {
       method: 'POST',
       body: {
@@ -198,15 +198,82 @@ export const useDirectusFiles = () => {
         ...metadata
       }
     })
-    
+
     if (error.value) {
       throw new Error(error.value.message || 'Failed to import file')
     }
-    
+
     return data.value
   }
-  
+
+  /**
+   * List files by folder
+   */
+  const listByFolder = async (folderId: string | null, query?: {
+    fields?: string[]
+    sort?: string[]
+    limit?: number
+    search?: string
+  }) => {
+    const filter = folderId
+      ? { folder: { _eq: folderId } }
+      : { folder: { _null: true } }
+
+    return await list({
+      filter,
+      ...query
+    })
+  }
+
+  /**
+   * Get files in root folder (no folder assigned)
+   */
+  const listRootFiles = async (query?: {
+    fields?: string[]
+    sort?: string[]
+    limit?: number
+    search?: string
+  }) => {
+    return await listByFolder(null, query)
+  }
+
+  /**
+   * Move file(s) to a folder
+   */
+  const moveToFolder = async (fileId: string | string[], folderId: string | null) => {
+    if (!loggedIn.value) {
+      throw new Error('Authentication required')
+    }
+
+    const fileIds = Array.isArray(fileId) ? fileId : [fileId]
+
+    // Update each file's folder
+    const promises = fileIds.map(id => update(id, { folder: folderId }))
+
+    const results = await Promise.all(promises)
+
+    return Array.isArray(fileId) ? results : results[0]
+  }
+
+  /**
+   * Count files in a folder
+   */
+  const countInFolder = async (folderId: string | null) => {
+    const filter = folderId
+      ? { folder: { _eq: folderId } }
+      : { folder: { _null: true } }
+
+    const result = await list({
+      filter,
+      fields: ['id'],
+      limit: -1
+    })
+
+    return Array.isArray(result) ? result.length : 0
+  }
+
   return {
+    // Basic operations
     list,
     get,
     upload,
@@ -214,6 +281,12 @@ export const useDirectusFiles = () => {
     remove,
     delete: remove, // Alias
     importFromUrl,
-    getUrl
+    getUrl,
+
+    // Folder operations
+    listByFolder,
+    listRootFiles,
+    moveToFolder,
+    countInFolder
   }
 }
