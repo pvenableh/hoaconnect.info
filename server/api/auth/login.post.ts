@@ -1,7 +1,7 @@
 import {
   createDirectus,
   rest,
-  authentication,
+  staticToken,
   login,
   readMe,
 } from "@directus/sdk";
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   try {
     const config = useRuntimeConfig();
 
-    // Create a temporary client for login
+    // Create a client for login
     const directus = createDirectus(config.directus.url).with(rest());
 
     // Authenticate with Directus
@@ -31,11 +31,8 @@ export default defineEventHandler(async (event) => {
 
     // Create an authenticated client to fetch user data
     const authClient = createDirectus(config.directus.url)
-      .with(rest())
-      .with(authentication("json"));
-
-    // Set the token
-    await authClient.setToken(authResult.access_token);
+      .with(staticToken(authResult.access_token))
+      .with(rest());
 
     // Fetch user data with organization info
     const user = await authClient.request(
