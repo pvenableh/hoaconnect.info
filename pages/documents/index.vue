@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import { useDropZone } from "@vueuse/core";
 
 definePageMeta({
   middleware: "auth",
   layout: "auth",
 });
+
+interface TreeNode {
+  id: string;
+  name: string;
+  type: "folder" | "file";
+  parent: string | null;
+  children?: TreeNode[];
+  data?: any;
+  expanded?: boolean;
+}
 
 const { user } = useDirectusAuth();
 const { list: listDocuments, remove: removeDocument } =
@@ -21,8 +30,8 @@ const organization = computed(() => currentOrg.value?.organization || null);
 const orgFolder = computed(() => organization.value?.folder || null);
 
 // Folder state
-const folders = ref<any[]>([]);
-const currentFolder = ref<string | null>(null);
+const allFolders = ref<any[]>([]);
+const selectedParentFolder = ref<string | null>(null);
 
 // Filter state
 const category = ref<
@@ -34,30 +43,91 @@ const status = ref<"published" | "draft" | "archived">("published");
 const showCreateFolderDialog = ref(false);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
+const expandedFolders = ref<Set<string>>(new Set());
 
 // Drag and drop state
 const draggedItem = ref<any>(null);
 const draggedItemType = ref<"file" | "folder" | null>(null);
+const dragOverItem = ref<string | null>(null);
 
-// Load folders (children of organization folder)
-const loadFolders = async () => {
+// Load all folders recursively
+const loadAllFolders = async () => {
   if (!orgFolder.value) return;
 
   try {
-    const result = await folderComposable.getByParent(orgFolder.value);
-    // Ensure folders.value is always an array to satisfy the ref<any[]> type
+    // Get all folders that are descendants of the org folder
+    const result = await folderComposable.list({
+      filter: {
+        // This will get all folders - we'll filter client-side
+      },
+    });
+
     if (Array.isArray(result)) {
-      folders.value = result;
-    } else if (result && typeof result === "object") {
-      folders.value = [result as any];
+      // Filter to only include folders that are part of our organization's tree
+      // For now, we'll just use all folders and build the tree
+      allFolders.value = result;
     } else {
-      folders.value = [];
+      allFolders.value = [];
     }
   } catch (error) {
     console.error("Failed to fetch folders:", error);
-    folders.value = [];
+    allFolders.value = [];
   }
 };
+
+// Build tree structure from flat folder list
+const buildTree = (folders: any[], parentId: string | null = null): TreeNode[] => {
+  return folders
+    .filter((folder) => folder.parent === parentId)
+    .map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      type: "folder" as const,
+      parent: folder.parent,
+      data: folder,
+      expanded: expandedFolders.value.has(folder.id),
+      children: buildTree(folders, folder.id),
+    }));
+};
+
+// Build complete tree with folders and documents
+const documentTree = computed(() => {
+  if (!orgFolder.value) return [];
+
+  const tree = buildTree(allFolders.value, orgFolder.value);
+
+  // Add documents to their respective folders
+  if (documents.value) {
+    const addDocumentsToTree = (nodes: TreeNode[]) => {
+      nodes.forEach((node) => {
+        if (node.type === "folder") {
+          // Find documents in this folder
+          const folderDocs = documents.value?.filter(
+            (doc: any) => doc.file?.folder?.id === node.id
+          ) || [];
+
+          // Add document nodes
+          const docNodes: TreeNode[] = folderDocs.map((doc: any) => ({
+            id: doc.id,
+            name: doc.title,
+            type: "file" as const,
+            parent: node.id,
+            data: doc,
+          }));
+
+          node.children = [...(node.children || []), ...docNodes];
+
+          // Recursively add documents to child folders
+          addDocumentsToTree(node.children.filter(n => n.type === "folder"));
+        }
+      });
+    };
+
+    addDocumentsToTree(tree);
+  }
+
+  return tree;
+});
 
 // Create a new subfolder
 const createFolder = async () => {
@@ -66,7 +136,7 @@ const createFolder = async () => {
     return;
   }
 
-  if (!currentFolder.value) {
+  if (!selectedParentFolder.value) {
     toast.error("No parent folder selected");
     return;
   }
@@ -76,13 +146,13 @@ const createFolder = async () => {
   try {
     await folderComposable.create({
       name: newFolderName.value.trim(),
-      parent: currentFolder.value,
+      parent: selectedParentFolder.value,
     });
 
     toast.success("Folder created successfully");
     newFolderName.value = "";
     showCreateFolderDialog.value = false;
-    await loadFolders();
+    await loadAllFolders();
   } catch (error) {
     console.error("Failed to create folder:", error);
     toast.error("Failed to create folder");
@@ -102,7 +172,8 @@ const deleteFolder = async (folderId: string) => {
 
   try {
     await folderComposable.remove(folderId);
-    await loadFolders();
+    await loadAllFolders();
+    await refresh();
     toast.success("Folder deleted");
   } catch (error) {
     console.error("Failed to delete folder:", error);
@@ -128,32 +199,9 @@ const { data: documents, refresh } = await useAsyncData(
   },
   {
     watch: [category, status, orgId],
-    server: false, // Fetch client-side only to ensure auth session is available
+    server: false,
   }
 );
-
-// Group documents by folder
-const documentsByFolder = computed(() => {
-  if (!documents.value) return new Map();
-
-  const grouped = new Map<string, { folder: any; documents: any[] }>();
-
-  documents.value.forEach((doc: any) => {
-    const folderId = doc.file?.folder?.id || 'root';
-    const folderName = doc.file?.folder?.name || 'Uncategorized';
-
-    if (!grouped.has(folderId)) {
-      grouped.set(folderId, {
-        folder: doc.file?.folder || { id: 'root', name: 'Uncategorized' },
-        documents: []
-      });
-    }
-
-    grouped.get(folderId)!.documents.push(doc);
-  });
-
-  return grouped;
-});
 
 // Delete document
 const handleDelete = async (id: string) => {
@@ -177,16 +225,46 @@ const startDrag = (item: any, type: "file" | "folder") => {
 const endDrag = () => {
   draggedItem.value = null;
   draggedItemType.value = null;
+  dragOverItem.value = null;
 };
 
-const onDrop = async (targetFolderId: string) => {
+const onDragOver = (targetId: string, event: DragEvent) => {
+  event.preventDefault();
+  dragOverItem.value = targetId;
+};
+
+const onDragLeave = () => {
+  dragOverItem.value = null;
+};
+
+const onDrop = async (targetFolderId: string, event: DragEvent) => {
+  event.preventDefault();
+  dragOverItem.value = null;
+
   if (!draggedItem.value || !draggedItemType.value) return;
 
-  // Prevent folders from being dropped into other folders
-  if (draggedItemType.value === "folder") {
-    toast.error("Cannot move folders into other folders");
+  // Prevent dropping a folder into itself
+  if (draggedItemType.value === "folder" && draggedItem.value.id === targetFolderId) {
+    toast.error("Cannot move a folder into itself");
     endDrag();
     return;
+  }
+
+  // Prevent dropping a folder into its own descendant
+  if (draggedItemType.value === "folder") {
+    const isDescendant = (folderId: string, potentialDescendantId: string): boolean => {
+      const folder = allFolders.value.find(f => f.id === potentialDescendantId);
+      if (!folder) return false;
+      if (folder.parent === folderId) return true;
+      if (folder.parent) return isDescendant(folderId, folder.parent);
+      return false;
+    };
+
+    if (isDescendant(draggedItem.value.id, targetFolderId)) {
+      toast.error("Cannot move a folder into its own subfolder");
+      endDrag();
+      return;
+    }
   }
 
   try {
@@ -195,6 +273,13 @@ const onDrop = async (targetFolderId: string) => {
       await moveToFolder(draggedItem.value.file.id, targetFolderId);
       toast.success("File moved successfully");
       await refresh();
+    } else if (draggedItemType.value === "folder") {
+      // Update folder's parent
+      await folderComposable.update(draggedItem.value.id, {
+        parent: targetFolderId,
+      });
+      toast.success("Folder moved successfully");
+      await loadAllFolders();
     }
   } catch (error) {
     console.error("Failed to move item:", error);
@@ -204,22 +289,31 @@ const onDrop = async (targetFolderId: string) => {
   }
 };
 
-// Drop zone setup
-const dropZoneRef = ref<HTMLElement | null>(null);
-const { isOverDropZone } = useDropZone(dropZoneRef, {
-  onDrop: (files) => {
-    // Handle file upload via drag-and-drop
-    console.log("Files dropped:", files);
-  },
-});
+// Toggle folder expansion
+const toggleFolder = (folderId: string) => {
+  if (expandedFolders.value.has(folderId)) {
+    expandedFolders.value.delete(folderId);
+  } else {
+    expandedFolders.value.add(folderId);
+  }
+};
+
+// Open create folder dialog with selected parent
+const openCreateFolderDialog = (parentFolderId: string) => {
+  selectedParentFolder.value = parentFolderId;
+  showCreateFolderDialog.value = true;
+};
 
 // Initialize folders when organization is loaded
 watch(
   orgFolder,
   async (newFolder) => {
     if (newFolder) {
-      currentFolder.value = newFolder;
-      await loadFolders();
+      selectedParentFolder.value = newFolder;
+      await loadAllFolders();
+      // Expand root folders by default
+      const rootFolders = allFolders.value.filter(f => f.parent === newFolder);
+      rootFolders.forEach(f => expandedFolders.value.add(f.id));
     }
   },
   { immediate: true }
@@ -234,7 +328,7 @@ watch(
         <div class="flex justify-between items-center">
           <h1 class="text-3xl font-bold">Documents</h1>
           <div class="flex gap-2">
-            <Button @click="showCreateFolderDialog = true" variant="outline">
+            <Button @click="openCreateFolderDialog(orgFolder!)" variant="outline">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-4 w-4 mr-2"
@@ -251,7 +345,7 @@ watch(
               </svg>
               New Folder
             </Button>
-            <Button @click="navigateTo(`/documents/upload?folderId=${currentFolder}`)">
+            <Button @click="navigateTo(`/documents/upload?folderId=${orgFolder}`)">
               Upload Document
             </Button>
           </div>
@@ -284,177 +378,47 @@ watch(
           </CardContent>
         </Card>
 
-        <!-- Folder Tree -->
-        <Card v-if="folders.length > 0">
+        <!-- Document Tree -->
+        <Card>
           <CardHeader>
-            <CardTitle>Folders</CardTitle>
+            <CardTitle>Documents & Folders</CardTitle>
             <CardDescription>
-              Organize your documents into folders. Drag and drop files to move
-              them.
+              Organize your documents into folders. Drag and drop to move items.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div
-                v-for="folder in folders"
-                :key="folder.id"
-                :draggable="true"
-                @dragstart="startDrag(folder, 'folder')"
-                @dragend="endDrag"
-                @dragover.prevent
-                @drop.prevent="onDrop(folder.id)"
-                class="relative p-4 border rounded-lg hover:border-stone-400 cursor-pointer transition-colors"
-                :class="{
-                  'border-blue-500 bg-blue-50': isOverDropZone,
-                  'border-stone-200': !isOverDropZone,
-                }"
-              >
-                <div class="flex flex-col items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-12 w-12 text-amber-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <span class="text-sm font-medium text-center">{{
-                    folder.name
-                  }}</span>
-                </div>
-                <button
-                  @click.stop="deleteFolder(folder.id)"
-                  class="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
+          <CardContent class="p-4">
+            <div class="space-y-1">
+              <!-- Recursive Tree Component -->
+              <template v-for="node in documentTree" :key="node.id">
+                <TreeNodeComponent
+                  :node="node"
+                  :level="0"
+                  :dragged-item="draggedItem"
+                  :dragged-item-type="draggedItemType"
+                  :drag-over-item="dragOverItem"
+                  @toggle="toggleFolder"
+                  @start-drag="startDrag"
+                  @end-drag="endDrag"
+                  @drag-over="onDragOver"
+                  @drag-leave="onDragLeave"
+                  @drop="onDrop"
+                  @delete-folder="deleteFolder"
+                  @delete-document="handleDelete"
+                  @create-subfolder="openCreateFolderDialog"
+                  @view-document="(doc) => window.open(getUrl(doc.file.id), '_blank')"
+                />
+              </template>
+            </div>
+
+            <!-- Empty state -->
+            <div
+              v-if="documentTree.length === 0"
+              class="text-center py-12 text-stone-500"
+            >
+              No folders or documents found
             </div>
           </CardContent>
         </Card>
-
-        <!-- Documents by Folder - Column View -->
-        <div v-if="documentsByFolder.size > 0" class="overflow-x-auto pb-4">
-          <div class="flex gap-6 min-w-min">
-            <!-- Column for each folder -->
-            <div
-              v-for="[folderId, folderGroup] in documentsByFolder"
-              :key="folderId"
-              class="flex-shrink-0 w-80"
-            >
-              <Card class="h-full">
-                <CardHeader class="bg-stone-100 border-b">
-                  <div class="flex items-center gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-amber-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                      />
-                    </svg>
-                    <CardTitle class="text-lg">{{ folderGroup.folder.name }}</CardTitle>
-                  </div>
-                  <CardDescription>
-                    {{ folderGroup.documents.length }} document{{ folderGroup.documents.length !== 1 ? 's' : '' }}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent class="p-4 space-y-3">
-                  <!-- Document items in this folder -->
-                  <Card
-                    v-for="doc in folderGroup.documents"
-                    :key="doc.id"
-                    :draggable="true"
-                    @dragstart="startDrag(doc, 'file')"
-                    @dragend="endDrag"
-                    class="cursor-move hover:shadow-md transition-shadow"
-                  >
-                    <CardContent class="p-4">
-                      <div class="space-y-2">
-                        <div class="flex justify-between items-start gap-2">
-                          <h3 class="font-semibold text-sm line-clamp-2">{{ doc.title }}</h3>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs text-stone-500">
-                          <span class="px-2 py-1 bg-stone-100 rounded">{{ doc.category }}</span>
-                          <span>{{ new Date(doc.date_published).toLocaleDateString() }}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs text-stone-600 bg-amber-50 px-2 py-1 rounded">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-3 w-3 text-amber-600"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                            />
-                          </svg>
-                          <span class="truncate">{{ folderGroup.folder.name }}</span>
-                        </div>
-                        <div class="flex gap-2 pt-2">
-                          <Button
-                            v-if="doc.file"
-                            @click="window.open(getUrl(doc.file.id), '_blank')"
-                            variant="outline"
-                            size="sm"
-                            class="flex-1 text-xs"
-                          >
-                            View
-                          </Button>
-                          <Button
-                            @click="handleDelete(doc.id)"
-                            variant="destructive"
-                            size="sm"
-                            class="flex-1 text-xs"
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty state -->
-        <div
-          v-else
-          class="text-center py-12 text-stone-500"
-        >
-          No documents found
-        </div>
       </div>
     </div>
 
@@ -495,5 +459,278 @@ watch(
         </CardContent>
       </Card>
     </div>
+  </div>
+</template>
+
+<!-- Tree Node Component -->
+<script lang="ts">
+export default {
+  name: "TreeNodeComponent",
+  props: {
+    node: {
+      type: Object as PropType<TreeNode>,
+      required: true,
+    },
+    level: {
+      type: Number,
+      default: 0,
+    },
+    draggedItem: {
+      type: Object,
+      default: null,
+    },
+    draggedItemType: {
+      type: String,
+      default: null,
+    },
+    dragOverItem: {
+      type: String,
+      default: null,
+    },
+  },
+  emits: [
+    "toggle",
+    "start-drag",
+    "end-drag",
+    "drag-over",
+    "drag-leave",
+    "drop",
+    "delete-folder",
+    "delete-document",
+    "create-subfolder",
+    "view-document",
+  ],
+  setup(props, { emit }) {
+    const isExpanded = computed(() => props.node.expanded);
+    const hasChildren = computed(() => props.node.children && props.node.children.length > 0);
+    const isDragOver = computed(() => props.dragOverItem === props.node.id);
+    const indentStyle = computed(() => ({
+      paddingLeft: `${props.level * 20}px`,
+    }));
+
+    return {
+      isExpanded,
+      hasChildren,
+      isDragOver,
+      indentStyle,
+    };
+  },
+};
+</script>
+
+<template>
+  <div>
+    <!-- Folder or File Item -->
+    <div
+      :draggable="true"
+      @dragstart="$emit('start-drag', node.type === 'folder' ? node.data : node.data, node.type)"
+      @dragend="$emit('end-drag')"
+      @dragover="node.type === 'folder' ? $emit('drag-over', node.id, $event) : null"
+      @dragleave="$emit('drag-leave')"
+      @drop="node.type === 'folder' ? $emit('drop', node.id, $event) : null"
+      :style="indentStyle"
+      class="group flex items-center gap-2 px-3 py-2 rounded hover:bg-stone-100 cursor-pointer transition-colors"
+      :class="{
+        'bg-blue-50 border border-blue-300': isDragOver && node.type === 'folder',
+        'bg-stone-50': !isDragOver,
+      }"
+    >
+      <!-- Expand/Collapse Button (only for folders with children) -->
+      <button
+        v-if="node.type === 'folder' && hasChildren"
+        @click.stop="$emit('toggle', node.id)"
+        class="w-4 h-4 flex items-center justify-center text-stone-500 hover:text-stone-700"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-3 h-3 transition-transform"
+          :class="{ 'rotate-90': isExpanded }"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+      <div v-else-if="node.type === 'folder'" class="w-4"></div>
+
+      <!-- Icon -->
+      <div class="flex-shrink-0">
+        <!-- Folder Icon -->
+        <svg
+          v-if="node.type === 'folder'"
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5"
+          :class="isExpanded ? 'text-amber-500' : 'text-amber-400'"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+          />
+        </svg>
+
+        <!-- File Icon -->
+        <svg
+          v-else
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4 text-stone-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      </div>
+
+      <!-- Name -->
+      <span class="flex-1 text-sm truncate" :class="node.type === 'folder' ? 'font-medium' : ''">
+        {{ node.name }}
+      </span>
+
+      <!-- Document metadata -->
+      <div v-if="node.type === 'file'" class="flex items-center gap-2">
+        <span class="text-xs px-2 py-0.5 bg-stone-200 rounded">
+          {{ node.data.category }}
+        </span>
+        <span class="text-xs text-stone-500">
+          {{ new Date(node.data.date_published).toLocaleDateString() }}
+        </span>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <!-- Folder Actions -->
+        <template v-if="node.type === 'folder'">
+          <button
+            @click.stop="$emit('create-subfolder', node.id)"
+            class="p-1 hover:bg-stone-200 rounded"
+            title="Create subfolder"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-stone-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+          <button
+            @click.stop="$emit('delete-folder', node.id)"
+            class="p-1 hover:bg-red-100 rounded"
+            title="Delete folder"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </template>
+
+        <!-- File Actions -->
+        <template v-else>
+          <button
+            @click.stop="$emit('view-document', node.data)"
+            class="p-1 hover:bg-stone-200 rounded"
+            title="View document"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-stone-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              />
+            </svg>
+          </button>
+          <button
+            @click.stop="$emit('delete-document', node.data.id)"
+            class="p-1 hover:bg-red-100 rounded"
+            title="Delete document"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Recursively render children -->
+    <template v-if="node.type === 'folder' && isExpanded && hasChildren">
+      <TreeNodeComponent
+        v-for="child in node.children"
+        :key="child.id"
+        :node="child"
+        :level="level + 1"
+        :dragged-item="draggedItem"
+        :dragged-item-type="draggedItemType"
+        :drag-over-item="dragOverItem"
+        @toggle="(id) => $emit('toggle', id)"
+        @start-drag="(item, type) => $emit('start-drag', item, type)"
+        @end-drag="$emit('end-drag')"
+        @drag-over="(id, e) => $emit('drag-over', id, e)"
+        @drag-leave="$emit('drag-leave')"
+        @drop="(id, e) => $emit('drop', id, e)"
+        @delete-folder="(id) => $emit('delete-folder', id)"
+        @delete-document="(id) => $emit('delete-document', id)"
+        @create-subfolder="(id) => $emit('create-subfolder', id)"
+        @view-document="(doc) => $emit('view-document', doc)"
+      />
+    </template>
   </div>
 </template>
