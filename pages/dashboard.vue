@@ -45,7 +45,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
       fields: ["id"],
       filter: {
         organization: { _eq: orgId.value },
-        status: { _in: ["published", "draft"] },
+        status: { _in: ["active", "inactive"] },
       },
     });
     return result || [];
@@ -64,7 +64,7 @@ const { data: units, refresh: refreshUnits } = await useAsyncData(
       fields: ["id"],
       filter: {
         organization: { _eq: orgId.value },
-        status: { _in: ["published", "draft"] },
+        status: { _in: ["active", "inactive"] },
       },
     });
     return result || [];
