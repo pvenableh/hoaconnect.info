@@ -97,7 +97,7 @@ export const useSelectedOrg = async () => {
       console.log("[useSelectedOrg] Memberships result:", result);
 
       // STEP 3: Auto-select first org if no org is selected yet
-      if (!selectedOrgId.value && result && result.length > 0) {
+      if (!selectedOrgId.value && result && Array.isArray(result) && result.length > 0) {
         const firstOrg = result[0].organization?.id;
         if (firstOrg) {
           console.log("[useSelectedOrg] Auto-selecting first organization:", firstOrg);
@@ -123,7 +123,7 @@ export const useSelectedOrg = async () => {
 
   // Get current organization details
   const currentOrg = computed(() => {
-    if (!selectedOrgId.value || !memberships.value) return null;
+    if (!selectedOrgId.value || !memberships.value || !Array.isArray(memberships.value)) return null;
 
     return memberships.value.find(
       (m) => m.organization?.id === selectedOrgId.value
@@ -155,7 +155,7 @@ export const useSelectedOrg = async () => {
     memberships: computed(() => memberships.value || []),
     setOrganization,
     refreshMemberships,
-    hasMultipleOrgs: computed(() => (memberships.value?.length || 0) > 1),
+    hasMultipleOrgs: computed(() => (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1),
     isLoading: pending, // Add this to expose loading state
   };
 };
