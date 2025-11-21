@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       .with(authentication("json"));
 
     // Refresh with explicit mode and refresh token
-    const authResult = await directus.request(refresh('json', refreshToken));
+    const authResult = await directus.request(refresh({ mode: 'json', refresh_token: refreshToken }));
 
     if (!authResult.access_token) {
       throw new Error("Token refresh failed");
