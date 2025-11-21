@@ -294,7 +294,7 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen bg-stone-50">
-    <DebugOrgData />
+    <!-- <DebugOrgData /> -->
     <div class="container mx-auto p-6">
       <div class="mb-8">
         <h1 class="text-3xl font-bold mb-2">Manage Members</h1>
