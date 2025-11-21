@@ -23,7 +23,28 @@ const subfolders = ref<any[]>([]);
 // Get folder ID from query params
 const parentFolderId = computed(() => route.query.folderId as string || "");
 
-// Load subfolders when organization folder is available
+/**
+ * Flatten nested folder tree into a flat array with indentation info
+ */
+const flattenFolders = (folders: any[], level = 0): any[] => {
+  const result: any[] = [];
+
+  for (const folder of folders) {
+    result.push({
+      id: folder.id,
+      name: folder.name,
+      level: level
+    });
+
+    if (folder.children && folder.children.length > 0) {
+      result.push(...flattenFolders(folder.children, level + 1));
+    }
+  }
+
+  return result;
+};
+
+// Load all nested subfolders when organization folder is available
 watch(orgFolder, async (newFolder) => {
   if (newFolder) {
     // Set default folder to org folder if not already set
@@ -31,8 +52,10 @@ watch(orgFolder, async (newFolder) => {
       form.folder = newFolder;
     }
     try {
-      const folders = await folderComposable.getByParent(newFolder);
-      subfolders.value = folders || [];
+      // Get the entire folder tree starting from the org folder
+      const folderTree = await folderComposable.getTree(newFolder);
+      // Flatten the tree for display in dropdown
+      subfolders.value = flattenFolders(folderTree);
     } catch (error) {
       console.error("Failed to fetch subfolders:", error);
       subfolders.value = [];
@@ -182,7 +205,7 @@ const handleSubmit = async () => {
               <select v-model="form.folder" class="w-full p-2 border rounded">
                 <option :value="orgFolder">{{ organization?.name }} (Root)</option>
                 <option v-for="folder in subfolders" :key="folder.id" :value="folder.id">
-                  {{ folder.name }}
+                  {{ '├─ '.repeat(folder.level) }}{{ folder.name }}
                 </option>
               </select>
             </div>
