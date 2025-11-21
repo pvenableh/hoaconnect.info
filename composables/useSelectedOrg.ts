@@ -9,7 +9,10 @@ export const useSelectedOrg = async () => {
 
   // Store selected org ID - initialize from session during SSR, localStorage on client
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
-  const isInitialized = useState<boolean>("selectedOrgInitialized", () => false);
+  const isInitialized = useState<boolean>(
+    "selectedOrgInitialized",
+    () => false
+  );
 
   // Sync selected org to session (client-side only)
   const syncToSession = async (orgId: string) => {
@@ -20,7 +23,9 @@ export const useSelectedOrg = async () => {
 
     // Don't attempt to sync if user is not authenticated yet
     if (!user.value?.id) {
-      console.warn("[useSelectedOrg] Skipping session sync - user not authenticated yet");
+      console.warn(
+        "[useSelectedOrg] Skipping session sync - user not authenticated yet"
+      );
       return;
     }
 
@@ -32,7 +37,9 @@ export const useSelectedOrg = async () => {
     } catch (error: any) {
       // During hydration, session might not be available yet - fail silently
       if (error?.statusCode === 401 || error?.status === 401) {
-        console.warn("[useSelectedOrg] Session not yet available for sync, will retry on next interaction");
+        console.warn(
+          "[useSelectedOrg] Session not yet available for sync, will retry on next interaction"
+        );
       } else {
         console.error("[useSelectedOrg] Failed to sync to session:", error);
       }
@@ -44,89 +51,119 @@ export const useSelectedOrg = async () => {
     data: memberships,
     pending,
     refresh: refreshMemberships,
-  } = await useAsyncData("user-members", async () => {
-    if (!user.value?.id) {
-      console.warn("[useSelectedOrg] No user ID found, skipping membership fetch");
-      return [];
-    }
-
-    console.log("[useSelectedOrg] Fetching memberships for user:", user.value.id);
-
-    try {
-      // STEP 1: Initialize selected org from session (SSR) or localStorage (client)
-      if (!selectedOrgId.value && !isInitialized.value) {
-        // On client: prefer localStorage first
-        if (import.meta.client) {
-          const stored = localStorage.getItem("selectedOrgId");
-          if (stored) {
-            selectedOrgId.value = stored;
-            console.log("[useSelectedOrg] Initialized from localStorage:", stored);
-            // Sync to session for future SSR renders
-            await syncToSession(stored);
-          }
-        } else {
-          // On server (SSR): try to get from session
-          try {
-            const sessionOrg = await $fetch("/api/org/selected");
-            if (sessionOrg?.selectedOrgId) {
-              selectedOrgId.value = sessionOrg.selectedOrgId;
-              console.log("[useSelectedOrg] Initialized from session:", selectedOrgId.value);
-            }
-          } catch (error) {
-            // Session not available during SSR is expected - this is normal, no action needed
-            // Will be initialized from localStorage on client side or auto-selected
-          }
-        }
+  } = await useAsyncData(
+    "user-members",
+    async () => {
+      if (!user.value?.id) {
+        console.warn(
+          "[useSelectedOrg] No user ID found, skipping membership fetch"
+        );
+        return [];
       }
 
-      // STEP 2: Fetch memberships
-      const result = await listMembers({
-        fields: [
-          "id",
-          "organization.id",
-          "organization.name",
-          "organization.settings.logo",
-          "role",
-        ],
-        filter: {
-          user: { _eq: user.value.id },
-        },
-        sort: ["organization.name"],
-      });
+      console.log(
+        "[useSelectedOrg] Fetching memberships for user:",
+        user.value.id
+      );
 
-      console.log("[useSelectedOrg] Memberships result:", result);
-
-      // STEP 3: Auto-select first org if no org is selected yet
-      if (!selectedOrgId.value && result && Array.isArray(result) && result.length > 0) {
-        const firstOrg = result[0].organization?.id;
-        if (firstOrg) {
-          console.log("[useSelectedOrg] Auto-selecting first organization:", firstOrg);
-          selectedOrgId.value = firstOrg;
-
-          // Sync to session and localStorage
-          await syncToSession(firstOrg);
+      try {
+        // STEP 1: Initialize selected org from session (SSR) or localStorage (client)
+        if (!selectedOrgId.value && !isInitialized.value) {
+          // On client: prefer localStorage first
           if (import.meta.client) {
-            localStorage.setItem("selectedOrgId", firstOrg);
+            const stored = localStorage.getItem("selectedOrgId");
+            if (stored) {
+              selectedOrgId.value = stored;
+              console.log(
+                "[useSelectedOrg] Initialized from localStorage:",
+                stored
+              );
+              // Sync to session for future SSR renders
+              await syncToSession(stored);
+            }
+          } else {
+            // On server (SSR): try to get from session
+            try {
+              const sessionOrg = await $fetch("/api/org/selected");
+              if (sessionOrg?.selectedOrgId) {
+                selectedOrgId.value = sessionOrg.selectedOrgId;
+                console.log(
+                  "[useSelectedOrg] Initialized from session:",
+                  selectedOrgId.value
+                );
+              }
+            } catch (error) {
+              // Session not available during SSR is expected - this is normal, no action needed
+              // Will be initialized from localStorage on client side or auto-selected
+            }
           }
         }
-      }
 
-      isInitialized.value = true;
-      return result || [];
-    } catch (error) {
-      console.error("[useSelectedOrg] Error fetching memberships:", error);
-      return [];
+        // STEP 2: Fetch memberships
+        const result = await listMembers({
+          fields: [
+            "id",
+            "organization.id",
+            "organization.name",
+            "organization.settings.logo",
+            "role",
+          ],
+          filter: {
+            user: { _eq: user.value.id },
+          },
+          sort: ["organization.name"],
+        });
+
+        console.log("[useSelectedOrg] Memberships result:", result);
+
+        // STEP 3: Auto-select first org if no org is selected yet
+        if (
+          !selectedOrgId.value &&
+          result &&
+          Array.isArray(result) &&
+          result.length > 0
+        ) {
+          const firstOrg = result[0].organization?.id;
+          if (firstOrg) {
+            console.log(
+              "[useSelectedOrg] Auto-selecting first organization:",
+              firstOrg
+            );
+            selectedOrgId.value = firstOrg;
+
+            // Sync to session and localStorage
+            await syncToSession(firstOrg);
+            if (import.meta.client) {
+              localStorage.setItem("selectedOrgId", firstOrg);
+            }
+          }
+        }
+
+        isInitialized.value = true;
+        return result || [];
+      } catch (error) {
+        console.error("[useSelectedOrg] Error fetching memberships:", error);
+        return [];
+      }
+    },
+    {
+      watch: [user],
     }
-  }, {
-    watch: [user]
-  });
+  );
 
   // Get current organization details
   const currentOrg = computed(() => {
-    if (!selectedOrgId.value || !memberships.value || !Array.isArray(memberships.value)) return null;
+    if (
+      !selectedOrgId.value ||
+      !memberships.value ||
+      !Array.isArray(memberships.value)
+    )
+      return null;
 
-    return memberships.value.find(
-      (m) => m.organization?.id === selectedOrgId.value
+    return (
+      (memberships.value as any[]).find(
+        (m: any) => m?.organization?.id === selectedOrgId.value
+      ) || null
     );
   });
 
@@ -155,7 +192,10 @@ export const useSelectedOrg = async () => {
     memberships: computed(() => memberships.value || []),
     setOrganization,
     refreshMemberships,
-    hasMultipleOrgs: computed(() => (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1),
+    hasMultipleOrgs: computed(
+      () =>
+        (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1
+    ),
     isLoading: pending, // Add this to expose loading state
   };
 };

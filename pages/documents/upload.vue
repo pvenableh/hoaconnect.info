@@ -9,7 +9,7 @@ definePageMeta({
 const { user } = useDirectusAuth();
 const { create: createDocument } = useDirectusItems("hoa_documents");
 const { upload: uploadFile } = useDirectusFiles();
-const { selectedOrgId } = useSelectedOrg();
+const { selectedOrgId } = await useSelectedOrg();
 const router = useRouter();
 
 const orgId = computed(() => selectedOrgId.value);
