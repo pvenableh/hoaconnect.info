@@ -26,6 +26,10 @@ const parentFolderId = computed(() => route.query.folderId as string || "");
 // Load subfolders when organization folder is available
 watch(orgFolder, async (newFolder) => {
   if (newFolder) {
+    // Set default folder to org folder if not already set
+    if (!form.folder) {
+      form.folder = newFolder;
+    }
     try {
       const folders = await folderComposable.getByParent(newFolder);
       subfolders.value = folders || [];
@@ -113,6 +117,7 @@ const handleSubmit = async () => {
       status: form.status,
       organization: orgId.value,
       file: fileResult.id,
+      folder: selectedFolder || null,
       date_published:
         form.status === "published" ? new Date().toISOString() : null,
       sort: 0,
@@ -172,10 +177,10 @@ const handleSubmit = async () => {
               </select>
             </div>
 
-            <div v-if="subfolders.length > 0">
-              <label class="text-sm font-medium mb-2 block">Folder</label>
+            <div v-if="orgFolder">
+              <label class="text-sm font-medium mb-2 block">Folder *</label>
               <select v-model="form.folder" class="w-full p-2 border rounded">
-                <option value="">{{ organization?.name }} (Root)</option>
+                <option :value="orgFolder">{{ organization?.name }} (Root)</option>
                 <option v-for="folder in subfolders" :key="folder.id" :value="folder.id">
                   {{ folder.name }}
                 </option>
