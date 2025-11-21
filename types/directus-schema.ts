@@ -56,6 +56,12 @@ export interface DirectusFile {
   metadata?: Record<string, any> | null;
 }
 
+export interface DirectusFolder {
+  id: ID;
+  name: string;
+  parent?: ID | DirectusFolder | null;
+}
+
 export interface DirectusUser {
   id: ID;
   status: "active" | "suspended" | "inactive" | "invited";
@@ -121,6 +127,7 @@ export interface HoaOrganization {
   settings?: ID | HoaSettings | null;
   hero?: ID | HoaHero | null;
   subscription_plan?: ID | SubscriptionPlan | null;
+  folder?: ID | DirectusFolder | null;
 
   // Relational Fields (One-to-Many reverse relations)
   invitations?: (ID | HoaInvitation)[] | null;
