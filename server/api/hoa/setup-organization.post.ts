@@ -6,6 +6,7 @@ import {
   updateItem,
   authentication,
   rest,
+  createFolder,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
 import { sendWelcomeEmail } from "../../utils/sendgrid";
@@ -96,7 +97,21 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 2. Get the "HOA Admin" role UUID
+    // 2. Create a default folder for the organization
+    const defaultFolder = await directus.request(
+      createFolder({
+        name: organizationName,
+      })
+    );
+
+    // 3. Update organization with the folder reference
+    await directus.request(
+      updateItem("hoa_organizations", organization.id, {
+        folder: defaultFolder.id,
+      })
+    );
+
+    // 4. Get the "HOA Admin" role UUID
     const roles = await directus.request(
       readRoles({
         filter: {
@@ -116,7 +131,7 @@ export default defineEventHandler(async (event) => {
 
     const hoaAdminRoleId = roles[0].id;
 
-    // 3. Create the Directus user (admin for this HOA)
+    // 5. Create the Directus user (admin for this HOA)
     const newUser = await directus.request(
       createUser({
         email,
@@ -129,7 +144,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 4. Create the hoa_member record with personal info
+    // 6. Create the hoa_member record with personal info
     const hoaMember = await directus.request(
       createItem("hoa_members", {
         user: newUser.id,
@@ -144,7 +159,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 5. Automatically log the user in
+    // 7. Automatically log the user in
     const authClient = createDirectus(config.directus.url)
       .with(authentication("json"))
       .with(rest());
@@ -203,7 +218,7 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    // 6. Send welcome email via SendGrid
+    // 8. Send welcome email via SendGrid
     try {
       await sendWelcomeEmail({
         to: email,

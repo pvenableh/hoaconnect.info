@@ -10,9 +10,42 @@ const { user } = useDirectusAuth();
 const { create: createDocument } = useDirectusItems("hoa_documents");
 const { upload: uploadFile } = useDirectusFiles();
 const { selectedOrgId } = await useSelectedOrg();
+const { getItems: getOrganizations } = useDirectusItems("hoa_organizations");
+const folderComposable = useDirectusFolders();
 const router = useRouter();
 
 const orgId = computed(() => selectedOrgId.value);
+
+// Fetch organization details including the folder
+const organization = ref<any>(null);
+const orgFolder = ref<string | null>(null);
+const subfolders = ref<any[]>([]);
+
+onMounted(async () => {
+  if (orgId.value) {
+    try {
+      const orgs = await getOrganizations({
+        filter: {
+          id: { _eq: orgId.value },
+        },
+        fields: ["id", "name", "folder"],
+        limit: 1,
+      });
+      if (orgs && orgs.length > 0) {
+        organization.value = orgs[0];
+        orgFolder.value = orgs[0].folder;
+
+        // Load subfolders
+        if (orgFolder.value) {
+          const folders = await folderComposable.getByParent(orgFolder.value);
+          subfolders.value = folders || [];
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch organization:", error);
+    }
+  }
+});
 
 // Form state
 const form = reactive({
@@ -20,6 +53,7 @@ const form = reactive({
   category: "notices",
   status: "draft",
   file: null as File | null,
+  folder: "" as string,
 });
 
 const loading = ref(false);
@@ -43,10 +77,11 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    // Upload file
+    // Upload file to selected folder or organization's default folder
+    const selectedFolder = form.folder || orgFolder.value;
     const fileResult = (await uploadFile(form.file, {
       title: form.title,
-      folder: "documents",
+      folder: selectedFolder || undefined,
     })) as any;
 
     // Create document record
@@ -112,6 +147,16 @@ const handleSubmit = async () => {
               <select v-model="form.status" class="w-full p-2 border rounded">
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
+              </select>
+            </div>
+
+            <div v-if="subfolders.length > 0">
+              <label class="text-sm font-medium mb-2 block">Folder</label>
+              <select v-model="form.folder" class="w-full p-2 border rounded">
+                <option value="">{{ organization?.name }} (Root)</option>
+                <option v-for="folder in subfolders" :key="folder.id" :value="folder.id">
+                  {{ folder.name }}
+                </option>
               </select>
             </div>
 
