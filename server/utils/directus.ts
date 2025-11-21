@@ -28,10 +28,15 @@ export function getTypedDirectus() {
  */
 export async function getUserDirectus(event: any) {
   const config = useRuntimeConfig();
+  console.log('[getUserDirectus] Starting...');
+
   let session = await getUserSession(event);
+  console.log('[getUserDirectus] Session retrieved:', !!session);
+  console.log('[getUserDirectus] Session user:', session?.user?.email);
 
   // Check if session exists
   if (!session || !session.user) {
+    console.error('[getUserDirectus] No active session found');
     throw createError({
       statusCode: 401,
       statusMessage: "No active session",
@@ -42,7 +47,12 @@ export async function getUserDirectus(event: any) {
   let accessToken = getSessionAccessToken(session);
   const refreshToken = getSessionRefreshToken(session);
 
+  console.log('[getUserDirectus] Access token exists:', !!accessToken);
+  console.log('[getUserDirectus] Refresh token exists:', !!refreshToken);
+  console.log('[getUserDirectus] Access token (first 20 chars):', accessToken?.substring(0, 20));
+
   if (!accessToken) {
+    console.error('[getUserDirectus] No access token available');
     throw createError({
       statusCode: 401,
       statusMessage: "No authentication token available",
@@ -98,10 +108,14 @@ export async function getUserDirectus(event: any) {
     }
   }
 
+  console.log('[getUserDirectus] Creating client with token');
+  console.log('[getUserDirectus] Directus URL:', config.directus.url);
+
   const client = createDirectus<DirectusSchema>(config.directus.url)
     .with(staticToken(accessToken))
     .with(rest());
 
+  console.log('[getUserDirectus] Client created successfully');
   return client;
 }
 

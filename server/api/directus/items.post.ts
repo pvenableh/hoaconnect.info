@@ -66,13 +66,23 @@ export default defineEventHandler(async (event) => {
         console.log("[/api/directus/items] Calling readItems with collection:", collection);
         console.log("[/api/directus/items] readItems query:", JSON.stringify(query, null, 2));
 
-        const result = await directus.request(readItems(collection, query || {}));
+        try {
+          const result = await directus.request(readItems(collection, query || {}));
 
-        console.log("[/api/directus/items] readItems result:", result);
-        console.log("[/api/directus/items] Result is array:", Array.isArray(result));
-        console.log("[/api/directus/items] Result length:", result?.length);
+          console.log("[/api/directus/items] readItems SUCCESS");
+          console.log("[/api/directus/items] Result is array:", Array.isArray(result));
+          console.log("[/api/directus/items] Result length:", result?.length);
+          console.log("[/api/directus/items] First item (if exists):", result?.[0] ? JSON.stringify(result[0], null, 2) : 'N/A');
 
-        return result;
+          return result;
+        } catch (readError: any) {
+          console.error("[/api/directus/items] readItems FAILED");
+          console.error("[/api/directus/items] Error:", readError);
+          console.error("[/api/directus/items] Error message:", readError.message);
+          console.error("[/api/directus/items] Error response:", readError.response);
+          console.error("[/api/directus/items] Error errors:", readError.errors);
+          throw readError;
+        }
 
       case "get":
         if (!id) throw new Error("ID required for get operation");
