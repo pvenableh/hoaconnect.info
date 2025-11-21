@@ -60,6 +60,7 @@ const loadAllFolders = async () => {
       filter: {
         // This will get all folders - we'll filter client-side
       },
+      fields: ['id', 'name', 'parent', 'date_created', 'date_modified'],
     });
 
     if (Array.isArray(result)) {
@@ -148,7 +149,7 @@ const createFolder = async () => {
   creatingFolder.value = true;
 
   try {
-    await folderComposable.create({
+    const newFolder = await folderComposable.create({
       name: newFolderName.value.trim(),
       parent: selectedParentFolder.value,
     });
@@ -157,6 +158,10 @@ const createFolder = async () => {
     newFolderName.value = "";
     showCreateFolderDialog.value = false;
     await loadAllFolders();
+    // Auto-expand the parent folder
+    if (selectedParentFolder.value) {
+      expandedFolders.value.add(selectedParentFolder.value);
+    }
   } catch (error) {
     console.error("Failed to create folder:", error);
     toast.error("Failed to create folder");
@@ -300,7 +305,10 @@ const onDrop = async (targetFolderId: string, event: DragEvent) => {
         parent: targetFolderId,
       });
       toast.success("Folder moved successfully");
+      // Force reload of folders to get updated date_modified
       await loadAllFolders();
+      // Force reactivity update by creating new Set reference
+      expandedFolders.value = new Set(expandedFolders.value);
     }
   } catch (error) {
     console.error("Failed to move item:", error);
