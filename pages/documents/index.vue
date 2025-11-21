@@ -228,7 +228,7 @@ watch(
               </svg>
               New Folder
             </Button>
-            <Button @click="navigateTo('/documents/upload')">
+            <Button @click="navigateTo(`/documents/upload?folderId=${currentFolder}`)">
               Upload Document
             </Button>
           </div>
