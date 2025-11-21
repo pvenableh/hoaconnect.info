@@ -228,6 +228,7 @@ export interface HoaDocument {
   organization: ID | HoaOrganization;
   created_by?: ID | DirectusUser;
   file?: ID | DirectusFile | null;
+  folder?: ID | DirectusFolder | null;
 
   // Document Info
   title: string;
