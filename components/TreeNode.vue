@@ -41,7 +41,7 @@ const isExpanded = computed(() => props.node.expanded);
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0);
 const isDragOver = computed(() => props.dragOverItem === props.node.id);
 const indentStyle = computed(() => ({
-  paddingLeft: `${props.level * 20}px`,
+  paddingLeft: `${props.level * 40}px`,
 }));
 </script>
 
@@ -135,7 +135,7 @@ const indentStyle = computed(() => ({
           {{ node.data.category }}
         </span>
         <span class="text-xs text-stone-500">
-          {{ new Date(node.data.date_published).toLocaleDateString() }}
+          {{ node.data.date_published ? new Date(node.data.date_published).toLocaleDateString() : 'No date' }}
         </span>
       </div>
 

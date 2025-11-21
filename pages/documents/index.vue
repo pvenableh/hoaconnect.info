@@ -272,7 +272,8 @@ const onDrop = async (targetFolderId: string, event: DragEvent) => {
       // Move file to the target folder
       await moveToFolder(draggedItem.value.file.id, targetFolderId);
       toast.success("File moved successfully");
-      await refresh();
+      // Refresh both folders and documents to ensure UI updates
+      await Promise.all([refresh(), loadAllFolders()]);
     } else if (draggedItemType.value === "folder") {
       // Update folder's parent
       await folderComposable.update(draggedItem.value.id, {
