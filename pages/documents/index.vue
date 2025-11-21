@@ -182,19 +182,19 @@ const endDrag = () => {
 const onDrop = async (targetFolderId: string) => {
   if (!draggedItem.value || !draggedItemType.value) return;
 
+  // Prevent folders from being dropped into other folders
+  if (draggedItemType.value === "folder") {
+    toast.error("Cannot move folders into other folders");
+    endDrag();
+    return;
+  }
+
   try {
     if (draggedItemType.value === "file") {
       // Move file to the target folder
       await moveToFolder(draggedItem.value.file.id, targetFolderId);
       toast.success("File moved successfully");
       await refresh();
-    } else if (draggedItemType.value === "folder") {
-      // Move folder to be a child of the target folder
-      await folderComposable.update(draggedItem.value.id, {
-        parent: targetFolderId,
-      });
-      toast.success("Folder moved successfully");
-      await loadFolders();
     }
   } catch (error) {
     console.error("Failed to move item:", error);
