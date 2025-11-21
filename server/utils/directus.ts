@@ -26,7 +26,7 @@ export function getTypedDirectus() {
  * Uses the session token from nuxt-auth-utils
  * Automatically refreshes expired tokens
  */
-export async function getUserDirectus(event: any) {
+export async function getUserDirectus(event: any, forceRefresh: boolean = false) {
   const config = useRuntimeConfig();
   console.log('[getUserDirectus] Starting...');
 
@@ -65,7 +65,9 @@ export async function getUserDirectus(event: any) {
   const isExpired = expiresAt <= now;
   const isExpiringSoon = expiresAt - now < 60000; // 1 minute buffer
 
-  if ((isExpired || isExpiringSoon) && refreshToken) {
+  console.log('[getUserDirectus] Token check - now:', now, 'expiresAt:', expiresAt, 'isExpired:', isExpired, 'isExpiringSoon:', isExpiringSoon, 'forceRefresh:', forceRefresh);
+
+  if ((isExpired || isExpiringSoon || forceRefresh) && refreshToken) {
     try {
       console.log('[getUserDirectus] Token expired or expiring soon, refreshing...');
 

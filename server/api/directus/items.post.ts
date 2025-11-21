@@ -22,44 +22,32 @@ import type {
   DirectusSchema,
 } from "~/types/directus-schema";
 
-export default defineEventHandler(async (event) => {
+/**
+ * Execute a Directus operation with automatic token refresh on expiration
+ */
+async function executeOperation(
+  event: any,
+  collection: DirectusCollections,
+  operation: string,
+  id?: string | number | (string | number)[],
+  data?: Record<string, any>,
+  query?: any,
+  retryCount: number = 0
+): Promise<any> {
+  const session = await getUserSession(event);
+  let directus: DirectusClient<DirectusSchema> & RestClient<DirectusSchema>;
+
+  if (session?.user) {
+    // User is authenticated, use their token
+    console.log("[/api/directus/items] Using authenticated client");
+    directus = await getUserDirectus(event, retryCount > 0);
+  } else {
+    // No authenticated user, use public client
+    console.log("[/api/directus/items] Using public client");
+    directus = getPublicDirectus();
+  }
+
   try {
-    const body = await readBody(event);
-    const { collection: collectionName, operation, id, data, query } = body;
-
-    console.log("[/api/directus/items] Request received");
-    console.log("[/api/directus/items] Collection:", collectionName);
-    console.log("[/api/directus/items] Operation:", operation);
-    console.log("[/api/directus/items] Query:", JSON.stringify(query, null, 2));
-
-    if (!collectionName || !operation) {
-      throw createError({
-        statusCode: 400,
-        message: "Collection and operation are required",
-      });
-    }
-
-    // Cast collection name to DirectusCollections type
-    const collection = collectionName as DirectusCollections;
-
-    // Check if user is authenticated
-    const session = await getUserSession(event);
-    console.log("[/api/directus/items] Session exists:", !!session);
-    console.log("[/api/directus/items] User exists:", !!session?.user);
-    console.log("[/api/directus/items] User ID:", session?.user?.id);
-
-    let directus: DirectusClient<DirectusSchema> & RestClient<DirectusSchema>;
-
-    if (session?.user) {
-      // User is authenticated, use their token
-      console.log("[/api/directus/items] Using authenticated client");
-      directus = await getUserDirectus(event);
-    } else {
-      // No authenticated user, use public client
-      console.log("[/api/directus/items] Using public client");
-      directus = getPublicDirectus();
-    }
-
     // Handle different operations using native SDK methods
     switch (operation) {
       case "list":
@@ -123,6 +111,52 @@ export default defineEventHandler(async (event) => {
       default:
         throw new Error(`Unknown operation: ${operation}`);
     }
+  } catch (error: any) {
+    // Check if this is a token expiration error
+    const isTokenExpired =
+      error.message?.includes("Token expired") ||
+      error.errors?.[0]?.extensions?.code === "TOKEN_EXPIRED" ||
+      (error.response?.status === 401 && error.message?.includes("Token"));
+
+    // Retry once with force refresh if token is expired
+    if (isTokenExpired && retryCount === 0 && session?.user) {
+      console.log("[/api/directus/items] Token expired, refreshing and retrying...");
+      return executeOperation(event, collection, operation, id, data, query, retryCount + 1);
+    }
+
+    // Re-throw if not a token error or already retried
+    throw error;
+  }
+}
+
+export default defineEventHandler(async (event) => {
+  try {
+    const body = await readBody(event);
+    const { collection: collectionName, operation, id, data, query } = body;
+
+    console.log("[/api/directus/items] Request received");
+    console.log("[/api/directus/items] Collection:", collectionName);
+    console.log("[/api/directus/items] Operation:", operation);
+    console.log("[/api/directus/items] Query:", JSON.stringify(query, null, 2));
+
+    if (!collectionName || !operation) {
+      throw createError({
+        statusCode: 400,
+        message: "Collection and operation are required",
+      });
+    }
+
+    // Cast collection name to DirectusCollections type
+    const collection = collectionName as DirectusCollections;
+
+    // Check if user is authenticated
+    const session = await getUserSession(event);
+    console.log("[/api/directus/items] Session exists:", !!session);
+    console.log("[/api/directus/items] User exists:", !!session?.user);
+    console.log("[/api/directus/items] User ID:", session?.user?.id);
+
+    // Execute the operation with automatic retry on token expiration
+    return await executeOperation(event, collection, operation, id, data, query);
   } catch (error: any) {
     console.error("[/api/directus/items] Error occurred:", error);
     console.error("[/api/directus/items] Error message:", error.message);
