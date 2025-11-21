@@ -7,8 +7,9 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { list: listDocuments, remove: removeDocument } = useDirectusItems("hoa_documents");
-const { getFileUrl } = useDirectusFiles();
+const { list: listDocuments, remove: removeDocument } =
+  useDirectusItems("hoa_documents");
+const { getUrl } = useDirectusFiles();
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId } = await useSelectedOrg();
@@ -16,8 +17,10 @@ const { selectedOrgId } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
 
 // Filter state
-const category = ref("all");
-const status = ref("published");
+const category = ref<
+  "all" | "bylaws" | "financials" | "meeting_minutes" | "notices"
+>("all");
+const status = ref<"published" | "draft" | "archived">("published");
 
 // Fetch documents
 const { data: documents, refresh } = await useAsyncData(
@@ -109,7 +112,7 @@ const handleDelete = async (id: string) => {
                 <div class="flex gap-2">
                   <Button
                     v-if="doc.file"
-                    @click="window.open(getFileUrl(doc.file.id), '_blank')"
+                    @click="window.open(getUrl(doc.file.id), '_blank')"
                     variant="outline"
                     size="sm"
                   >

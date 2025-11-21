@@ -28,7 +28,11 @@ console.log("[units/index] Current Org:", currentOrg.value);
 console.log("[units/index] Organization:", organization.value);
 
 // Fetch units
-const { data: units, refresh, error: unitsError } = await useAsyncData(
+const {
+  data: units,
+  refresh,
+  error: unitsError,
+} = await useAsyncData(
   `units-${orgId.value}`,
   async () => {
     console.log("[units/index] Fetching units for org:", orgId.value);
@@ -43,17 +47,21 @@ const { data: units, refresh, error: unitsError } = await useAsyncData(
         fields: ["id", "unit_number", "status"],
         filter: {
           organization: { _eq: orgId.value },
-          status: { _in: ["active", "inactive"] },
+          status: { _in: ["active", "inactive"] as ("active" | "inactive")[] },
         },
         sort: ["sort", "unit_number"],
       };
 
-      console.log("[units/index] Calling listUnits with query:", JSON.stringify(query, null, 2));
+      console.log(
+        "[units/index] Calling listUnits with query:",
+        JSON.stringify(query, null, 2)
+      );
 
       const result = await listUnits(query);
 
       console.log("[units/index] listUnits result:", result);
-      console.log("[units/index] Number of units:", result?.length || 0);
+      const numUnits = Array.isArray(result) ? result.length : 0;
+      console.log("[units/index] Number of units:", numUnits);
 
       return result || [];
     } catch (error) {
@@ -183,18 +191,20 @@ const handleDelete = async (id: string) => {
               <Icon name="lucide:alert-circle" class="w-4 h-4" />
               <AlertTitle>Error Loading Units</AlertTitle>
               <AlertDescription>
-                {{ unitsError.message || 'Failed to load units' }}
+                {{ unitsError.message || "Failed to load units" }}
               </AlertDescription>
             </Alert>
           </div>
 
           <!-- Debug Info (remove in production) -->
-          <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <strong>Debug Info:</strong><br>
-            Org ID: {{ orgId }}<br>
-            Units Array: {{ units ? 'exists' : 'null' }}<br>
-            Units Length: {{ units?.length || 0 }}<br>
-            Is Loading: {{ isLoading }}<br>
+          <div
+            class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-xs"
+          >
+            <strong>Debug Info:</strong><br />
+            Org ID: {{ orgId }}<br />
+            Units Array: {{ units ? "exists" : "null" }}<br />
+            Units Length: {{ units?.length || 0 }}<br />
+            Is Loading: {{ isLoading }}<br />
             Has Error: {{ !!unitsError }}
           </div>
 
@@ -205,85 +215,88 @@ const handleDelete = async (id: string) => {
           </div>
 
           <!-- Units Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card v-for="unit in units" :key="unit.id" class="relative">
-            <CardHeader>
-              <CardTitle class="text-center text-2xl">{{
-                unit.unit_number
-              }}</CardTitle>
-              <CardDescription class="text-center capitalize">{{
-                unit.status
-              }}</CardDescription>
-            </CardHeader>
-            <CardFooter class="flex gap-2">
-              <Button
-                @click="handleEdit(unit)"
-                variant="outline"
-                size="sm"
-                class="flex-1"
-              >
-                Edit
-              </Button>
-              <Button
-                @click="handleDelete(unit.id)"
-                variant="destructive"
-                size="sm"
-                class="flex-1"
-              >
-                Delete
-              </Button>
-            </CardFooter>
-          </Card>
-
-          <div
-            v-if="!units?.length"
-            class="col-span-full text-center py-12 text-stone-500"
-          >
-            No units added yet
-          </div>
-        </div>
-
-        <!-- Add/Edit Modal -->
-        <div
-          v-if="showModal"
-          class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        >
-          <Card class="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>{{ editingId ? "Edit" : "Add" }} Unit</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-4">
-              <div>
-                <label class="text-sm font-medium mb-2 block"
-                  >Unit Number *</label
-                >
-                <Input v-model="form.unit_number" placeholder="101" />
-              </div>
-
-              <div>
-                <label class="text-sm font-medium mb-2 block">Status</label>
-                <select v-model="form.status" class="w-full p-2 border rounded">
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
-
-              <div class="flex gap-2">
-                <Button @click="handleSubmit" class="flex-1">Save</Button>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card v-for="unit in units" :key="unit.id" class="relative">
+              <CardHeader>
+                <CardTitle class="text-center text-2xl">{{
+                  unit.unit_number
+                }}</CardTitle>
+                <CardDescription class="text-center capitalize">{{
+                  unit.status
+                }}</CardDescription>
+              </CardHeader>
+              <CardFooter class="flex gap-2">
                 <Button
-                  @click="
-                    showModal = false;
-                    resetForm();
-                  "
+                  @click="handleEdit(unit)"
                   variant="outline"
+                  size="sm"
                   class="flex-1"
                 >
-                  Cancel
+                  Edit
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <Button
+                  @click="handleDelete(unit.id)"
+                  variant="destructive"
+                  size="sm"
+                  class="flex-1"
+                >
+                  Delete
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <div
+              v-if="!units?.length"
+              class="col-span-full text-center py-12 text-stone-500"
+            >
+              No units added yet
+            </div>
+          </div>
+
+          <!-- Add/Edit Modal -->
+          <div
+            v-if="showModal"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <Card class="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>{{ editingId ? "Edit" : "Add" }} Unit</CardTitle>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <div>
+                  <label class="text-sm font-medium mb-2 block"
+                    >Unit Number *</label
+                  >
+                  <Input v-model="form.unit_number" placeholder="101" />
+                </div>
+
+                <div>
+                  <label class="text-sm font-medium mb-2 block">Status</label>
+                  <select
+                    v-model="form.status"
+                    class="w-full p-2 border rounded"
+                  >
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
+
+                <div class="flex gap-2">
+                  <Button @click="handleSubmit" class="flex-1">Save</Button>
+                  <Button
+                    @click="
+                      showModal = false;
+                      resetForm();
+                    "
+                    variant="outline"
+                    class="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </template>
       </div>
     </div>
