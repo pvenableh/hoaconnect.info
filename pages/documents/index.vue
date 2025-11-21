@@ -45,7 +45,14 @@ const loadFolders = async () => {
 
   try {
     const result = await folderComposable.getByParent(orgFolder.value);
-    folders.value = result || [];
+    // Ensure folders.value is always an array to satisfy the ref<any[]> type
+    if (Array.isArray(result)) {
+      folders.value = result;
+    } else if (result && typeof result === "object") {
+      folders.value = [result as any];
+    } else {
+      folders.value = [];
+    }
   } catch (error) {
     console.error("Failed to fetch folders:", error);
     folders.value = [];
@@ -86,7 +93,12 @@ const createFolder = async () => {
 
 // Delete a folder
 const deleteFolder = async (folderId: string) => {
-  if (!confirm("Delete this folder? All files inside will be moved to the parent folder.")) return;
+  if (
+    !confirm(
+      "Delete this folder? All files inside will be moved to the parent folder."
+    )
+  )
+    return;
 
   try {
     await folderComposable.remove(folderId);
@@ -179,12 +191,16 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
 });
 
 // Initialize folders when organization is loaded
-watch(orgFolder, async (newFolder) => {
-  if (newFolder) {
-    currentFolder.value = newFolder;
-    await loadFolders();
-  }
-}, { immediate: true });
+watch(
+  orgFolder,
+  async (newFolder) => {
+    if (newFolder) {
+      currentFolder.value = newFolder;
+      await loadFolders();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -250,7 +266,8 @@ watch(orgFolder, async (newFolder) => {
           <CardHeader>
             <CardTitle>Folders</CardTitle>
             <CardDescription>
-              Organize your documents into folders. Drag and drop files to move them.
+              Organize your documents into folders. Drag and drop files to move
+              them.
             </CardDescription>
           </CardHeader>
           <CardContent>
