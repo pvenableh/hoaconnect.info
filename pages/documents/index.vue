@@ -376,117 +376,173 @@ watch(
 
         <!-- Filters -->
 
-        <div class="space-y-6 flex flex-row justify-between">
-          <!-- Category Filters -->
-          <div>
-            <label class="text-sm font-medium mb-3 block">Category</label>
-            <div class="flex gap-2 flex-wrap">
-              <button
-                @click="category = 'all'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  category === 'all'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="All Categories"
-              >
-                <Icon name="heroicons:bars-3" class="h-6 w-6" />
-              </button>
-              <button
-                @click="category = 'bylaws'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  category === 'bylaws'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Bylaws"
-              >
-                <Icon name="heroicons:scale" class="h-6 w-6" />
-              </button>
-              <button
-                @click="category = 'financials'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  category === 'financials'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Financials"
-              >
-                <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
-              </button>
-              <button
-                @click="category = 'meeting_minutes'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  category === 'meeting_minutes'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Meeting Minutes"
-              >
-                <Icon name="heroicons:user-group" class="h-6 w-6" />
-              </button>
-              <button
-                @click="category = 'notices'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  category === 'notices'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Notices"
-              >
-                <Icon name="heroicons:bell" class="h-6 w-6" />
-              </button>
-            </div>
-          </div>
+        <TooltipProvider>
+          <div class="space-y-6 flex flex-row justify-between">
+            <!-- Category Filters -->
+            <div>
+              <label class="text-sm font-medium mb-3 block">Category</label>
+              <div class="flex gap-2 flex-wrap">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="category = 'all'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        category === 'all'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:bars-3" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    All Categories
+                  </TooltipContent>
+                </Tooltip>
 
-          <!-- Status Filters -->
-          <div>
-            <label class="text-sm font-medium mb-3 block">Status</label>
-            <div class="flex gap-2 flex-wrap">
-              <button
-                @click="status = 'published'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  status === 'published'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Published"
-              >
-                <Icon name="heroicons:check" class="h-6 w-6" />
-              </button>
-              <button
-                @click="status = 'draft'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  status === 'draft'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Draft"
-              >
-                <Icon name="heroicons:pencil-square" class="h-6 w-6" />
-              </button>
-              <button
-                @click="status = 'archived'"
-                :class="[
-                  'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                  status === 'archived'
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'bg-background border-border hover:border-primary/50',
-                ]"
-                title="Archived"
-              >
-                <Icon name="heroicons:archive-box" class="h-6 w-6" />
-              </button>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="category = 'bylaws'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        category === 'bylaws'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:scale" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Bylaws
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="category = 'financials'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        category === 'financials'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Financials
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="category = 'meeting_minutes'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        category === 'meeting_minutes'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:user-group" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Meeting Minutes
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="category = 'notices'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        category === 'notices'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:bell" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Notices
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+
+            <!-- Status Filters -->
+            <div>
+              <label class="text-sm font-medium mb-3 block">Status</label>
+              <div class="flex gap-2 flex-wrap">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="status = 'published'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        status === 'published'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:check" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Published
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="status = 'draft'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        status === 'draft'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:pencil-square" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Draft
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      @click="status = 'archived'"
+                      :class="[
+                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                        status === 'archived'
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50',
+                      ]"
+                    >
+                      <Icon name="heroicons:archive-box" class="h-6 w-6" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Archived
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
-        </div>
+        </TooltipProvider>
 
         <!-- Document Tree -->
         <Card>

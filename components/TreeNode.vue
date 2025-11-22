@@ -129,13 +129,6 @@ const indentStyle = computed(() => ({
         {{ node.name }}
       </span>
 
-      <!-- Folder metadata -->
-      <div v-if="node.type === 'folder'" class="flex items-center gap-2">
-        <span class="text-xs text-stone-500">
-          {{ node.data.date_modified ? new Date(node.data.date_modified).toLocaleDateString() : 'No date' }}
-        </span>
-      </div>
-
       <!-- Document metadata -->
       <div v-if="node.type === 'file'" class="flex items-center gap-2">
         <span class="text-xs px-2 py-0.5 bg-stone-200 rounded">
