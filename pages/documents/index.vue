@@ -50,6 +50,9 @@ const draggedItem = ref<any>(null);
 const draggedItemType = ref<"file" | "folder" | null>(null);
 const dragOverItem = ref<string | null>(null);
 
+// Edit state
+const editingId = ref<string | null>(null);
+
 // Load all folders recursively
 const loadAllFolders = async () => {
   if (!orgFolder.value) return;
@@ -188,6 +191,40 @@ const deleteFolder = async (folderId: string) => {
     console.error("Failed to delete folder:", error);
     toast.error("Failed to delete folder");
   }
+};
+
+// Rename a folder
+const renameFolder = async (folderId: string, newName: string) => {
+  try {
+    await folderComposable.update(folderId, { name: newName });
+    await loadAllFolders();
+    toast.success("Folder renamed");
+  } catch (error) {
+    console.error("Failed to rename folder:", error);
+    toast.error("Failed to rename folder");
+  }
+};
+
+// Rename a document
+const renameDocument = async (documentId: string, newName: string) => {
+  try {
+    const { update: updateDocument } = useDirectusItems("hoa_documents");
+    await updateDocument(documentId, { title: newName });
+    await refresh();
+    toast.success("Document renamed");
+  } catch (error) {
+    console.error("Failed to rename document:", error);
+    toast.error("Failed to rename document");
+  }
+};
+
+// Edit handlers
+const startEdit = (id: string) => {
+  editingId.value = id;
+};
+
+const cancelEdit = () => {
+  editingId.value = null;
 };
 
 // Fetch documents
@@ -563,6 +600,7 @@ watch(
                 :dragged-item="draggedItem"
                 :dragged-item-type="draggedItemType"
                 :drag-over-item="dragOverItem"
+                :editing-id="editingId"
                 @toggle="toggleFolder"
                 @start-drag="startDrag"
                 @end-drag="endDrag"
@@ -573,8 +611,12 @@ watch(
                 @delete-document="handleDelete"
                 @create-subfolder="openCreateFolderDialog"
                 @view-document="
-                  (doc) => window.open(getUrl(doc.file.id), '_blank')
+                  (doc) => window.open(`https://property.huestudios.company/assets/${doc.file.id}`, '_blank')
                 "
+                @rename-folder="renameFolder"
+                @rename-document="renameDocument"
+                @start-edit="startEdit"
+                @cancel-edit="cancelEdit"
               />
             </div>
 

@@ -15,6 +15,7 @@ interface Props {
   draggedItem?: any;
   draggedItemType?: string | null;
   dragOverItem?: string | null;
+  editingId?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   draggedItem: null,
   draggedItemType: null,
   dragOverItem: null,
+  editingId: null,
 });
 
 const emit = defineEmits<{
@@ -35,14 +37,47 @@ const emit = defineEmits<{
   deleteDocument: [id: string];
   createSubfolder: [id: string];
   viewDocument: [doc: any];
+  renameFolder: [id: string, newName: string];
+  renameDocument: [id: string, newName: string];
+  startEdit: [id: string];
+  cancelEdit: [];
 }>();
 
 const isExpanded = computed(() => props.node.expanded);
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0);
 const isDragOver = computed(() => props.dragOverItem === props.node.id);
+const isEditing = computed(() => props.editingId === props.node.id);
 const indentStyle = computed(() => ({
   paddingLeft: `${props.level * 40}px`,
 }));
+
+const editName = ref("");
+const editInput = ref<HTMLInputElement | null>(null);
+
+const startEditing = () => {
+  editName.value = props.node.name;
+  emit("startEdit", props.node.id);
+  nextTick(() => {
+    editInput.value?.focus();
+    editInput.value?.select();
+  });
+};
+
+const saveEdit = () => {
+  if (editName.value.trim() && editName.value !== props.node.name) {
+    if (props.node.type === "folder") {
+      emit("renameFolder", props.node.id, editName.value.trim());
+    } else {
+      emit("renameDocument", props.node.id, editName.value.trim());
+    }
+  }
+  emit("cancelEdit");
+};
+
+const cancelEditing = () => {
+  editName.value = "";
+  emit("cancelEdit");
+};
 </script>
 
 <template>
@@ -125,7 +160,24 @@ const indentStyle = computed(() => ({
       </div>
 
       <!-- Name -->
-      <span class="flex-1 text-sm truncate" :class="node.type === 'folder' ? 'font-medium' : ''">
+      <input
+        v-if="isEditing"
+        v-model="editName"
+        @keyup.enter="saveEdit"
+        @keyup.esc="cancelEditing"
+        @blur="saveEdit"
+        class="flex-1 text-sm px-2 py-1 border border-primary rounded focus:outline-none focus:ring-2 focus:ring-primary"
+        :class="node.type === 'folder' ? 'font-medium' : ''"
+        ref="editInput"
+        @click.stop
+      />
+      <span
+        v-else
+        @dblclick="startEditing"
+        class="flex-1 text-sm truncate cursor-pointer"
+        :class="node.type === 'folder' ? 'font-medium' : ''"
+        :title="'Double-click to rename'"
+      >
         {{ node.name }}
       </span>
 
@@ -247,6 +299,7 @@ const indentStyle = computed(() => ({
         :dragged-item="draggedItem"
         :dragged-item-type="draggedItemType"
         :drag-over-item="dragOverItem"
+        :editing-id="editingId"
         @toggle="(id) => emit('toggle', id)"
         @start-drag="(item, type) => emit('startDrag', item, type)"
         @end-drag="emit('endDrag')"
@@ -257,6 +310,10 @@ const indentStyle = computed(() => ({
         @delete-document="(id) => emit('deleteDocument', id)"
         @create-subfolder="(id) => emit('createSubfolder', id)"
         @view-document="(doc) => emit('viewDocument', doc)"
+        @rename-folder="(id, name) => emit('renameFolder', id, name)"
+        @rename-document="(id, name) => emit('renameDocument', id, name)"
+        @start-edit="(id) => emit('startEdit', id)"
+        @cancel-edit="emit('cancelEdit')"
       />
     </template>
   </div>
