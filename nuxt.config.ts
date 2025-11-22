@@ -37,6 +37,10 @@ export default defineNuxtConfig({
     sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID,
     sendgridInvitationAcceptedTemplateId:
       process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID,
+    // Stripe configuration
+    stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
+    stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 
     public: {
       directus: {
@@ -51,6 +55,12 @@ export default defineNuxtConfig({
       siteSubtitle: "",
       siteDescription:
         "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
+      // Stripe public key
+      stripePublicKey:
+        process.env.NODE_ENV === "production"
+          ? process.env.STRIPE_PUBLIC_KEY_LIVE
+          : process.env.STRIPE_PUBLIC_KEY_TEST,
+      companyName: "Property Flow",
     },
   },
 
