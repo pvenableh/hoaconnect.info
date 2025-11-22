@@ -63,7 +63,7 @@ const loadAllFolders = async () => {
       filter: {
         // This will get all folders - we'll filter client-side
       },
-      fields: ['id', 'name', 'parent'],
+      fields: ["id", "name", "parent"],
     });
 
     if (Array.isArray(result)) {
@@ -239,6 +239,8 @@ const { data: documents, refresh } = await useAsyncData(
         "category",
         "status",
         "date_published",
+        "date_created",
+        "date_updated",
         "file.*",
         "file.folder.*",
       ],
@@ -247,7 +249,7 @@ const { data: documents, refresh } = await useAsyncData(
         status: { _in: [status.value] },
         ...(category.value !== "all" && { category: { _eq: category.value } }),
       },
-      sort: ["sort", "-date_published"],
+      sort: ["sort", "-date_published", "-date_updated", "-date_created"],
     });
     return result || [];
   },
@@ -433,9 +435,7 @@ watch(
                       <Icon name="heroicons:bars-3" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    All Categories
-                  </TooltipContent>
+                  <TooltipContent> All Categories </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -452,9 +452,7 @@ watch(
                       <Icon name="heroicons:scale" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Bylaws
-                  </TooltipContent>
+                  <TooltipContent> Bylaws </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -471,9 +469,7 @@ watch(
                       <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Financials
-                  </TooltipContent>
+                  <TooltipContent> Financials </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -490,9 +486,7 @@ watch(
                       <Icon name="heroicons:user-group" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Meeting Minutes
-                  </TooltipContent>
+                  <TooltipContent> Meeting Minutes </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -509,9 +503,7 @@ watch(
                       <Icon name="heroicons:bell" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Notices
-                  </TooltipContent>
+                  <TooltipContent> Notices </TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -534,9 +526,7 @@ watch(
                       <Icon name="heroicons:check" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Published
-                  </TooltipContent>
+                  <TooltipContent> Published </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -553,9 +543,7 @@ watch(
                       <Icon name="heroicons:pencil-square" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Draft
-                  </TooltipContent>
+                  <TooltipContent> Draft </TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -572,9 +560,7 @@ watch(
                       <Icon name="heroicons:archive-box" class="h-6 w-6" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Archived
-                  </TooltipContent>
+                  <TooltipContent> Archived </TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -611,7 +597,11 @@ watch(
                 @delete-document="handleDelete"
                 @create-subfolder="openCreateFolderDialog"
                 @view-document="
-                  (doc) => window.open(`https://property.huestudios.company/assets/${doc.file.id}`, '_blank')
+                  (doc) =>
+                    window.open(
+                      `https://property.huestudios.company/assets/${doc.file.id}`,
+                      '_blank'
+                    )
                 "
                 @rename-folder="renameFolder"
                 @rename-document="renameDocument"
