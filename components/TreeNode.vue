@@ -78,6 +78,30 @@ const cancelEditing = () => {
   editName.value = "";
   emit("cancelEdit");
 };
+
+// Get the display date with priority: date_published > date_updated > date_created
+const displayDate = computed(() => {
+  if (props.node.type !== "file" || !props.node.data) return null;
+
+  const data = props.node.data;
+
+  // Priority 1: date_published
+  if (data.date_published) {
+    return new Date(data.date_published).toLocaleDateString();
+  }
+
+  // Priority 2: date_updated
+  if (data.date_updated) {
+    return new Date(data.date_updated).toLocaleDateString();
+  }
+
+  // Priority 3: date_created (default, should always exist)
+  if (data.date_created) {
+    return new Date(data.date_created).toLocaleDateString();
+  }
+
+  return 'No date';
+});
 </script>
 
 <template>
@@ -187,7 +211,7 @@ const cancelEditing = () => {
           {{ node.data.category }}
         </span>
         <span class="text-xs text-stone-500">
-          {{ node.data.date_published ? new Date(node.data.date_published).toLocaleDateString() : 'No date' }}
+          {{ displayDate }}
         </span>
       </div>
 
