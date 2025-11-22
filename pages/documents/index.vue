@@ -60,7 +60,7 @@ const loadAllFolders = async () => {
       filter: {
         // This will get all folders - we'll filter client-side
       },
-      fields: ['id', 'name', 'parent', 'date_created', 'date_modified'],
+      fields: ['id', 'name', 'parent'],
     });
 
     if (Array.isArray(result)) {
@@ -305,7 +305,7 @@ const onDrop = async (targetFolderId: string, event: DragEvent) => {
         parent: targetFolderId,
       });
       toast.success("Folder moved successfully");
-      // Force reload of folders to get updated date_modified
+      // Force reload of folders
       await loadAllFolders();
       // Force reactivity update by creating new Set reference
       expandedFolders.value = new Set(expandedFolders.value);
