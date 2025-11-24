@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
-import { createDirectusClient } from '~/server/utils/directus';
+import { createItem, updateItem, readItems, readItem } from '@directus/sdk';
+import { getTypedDirectus } from '~/server/utils/directus';
 
 export default defineEventHandler(async (event) => {
 	const config = useRuntimeConfig();
@@ -66,8 +67,8 @@ export default defineEventHandler(async (event) => {
 			timestamp: new Date().toISOString(),
 		});
 
-		// Initialize Directus client
-		const directus = await createDirectusClient(event);
+		// Initialize Directus client with admin access (webhooks have no user session)
+		const directus = getTypedDirectus();
 
 		// Handle different event types
 		switch (stripeEvent.type) {
@@ -136,8 +137,8 @@ async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe
 
 	// Create payment transaction record
 	try {
-		const transactionData: any = {
-			status: 'succeeded',
+		const transactionData = {
+			status: 'succeeded' as const,
 			organization: organizationId || null,
 			member: memberId || null,
 			payment_request: paymentRequestId || null,
@@ -145,16 +146,12 @@ async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe
 			currency: paymentIntent.currency,
 			description: paymentIntent.description || '',
 			stripe_payment_intent_id: paymentIntent.id,
-			stripe_customer_id: paymentIntent.customer as string | null,
+			stripe_customer_id: (paymentIntent.customer as string) || null,
 			receipt_email: paymentIntent.receipt_email,
 			metadata: paymentIntent.metadata,
 		};
 
-		await directus.request({
-			method: 'POST',
-			path: '/items/payment_transactions',
-			body: transactionData,
-		});
+		await directus.request(createItem('payment_transactions', transactionData));
 
 		// Update payment request if linked
 		if (paymentRequestId) {
@@ -176,11 +173,9 @@ async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.Pa
 	const paymentRequestId = metadata.payment_request_id;
 
 	try {
-		await directus.request({
-			method: 'POST',
-			path: '/items/payment_transactions',
-			body: {
-				status: 'failed',
+		await directus.request(
+			createItem('payment_transactions', {
+				status: 'failed' as const,
 				organization: organizationId || null,
 				member: memberId || null,
 				payment_request: paymentRequestId || null,
@@ -188,8 +183,8 @@ async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.Pa
 				currency: paymentIntent.currency,
 				stripe_payment_intent_id: paymentIntent.id,
 				metadata: paymentIntent.metadata,
-			},
-		});
+			})
+		);
 	} catch (err) {
 		console.error('Error creating failed transaction record:', err);
 	}
@@ -207,22 +202,18 @@ async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
 	// Update transaction with charge details
 	try {
 		// Find transaction by payment intent ID
-		const transactions = await directus.request({
-			method: 'GET',
-			path: '/items/payment_transactions',
-			params: {
+		const transactions = await directus.request(
+			readItems('payment_transactions', {
 				filter: {
 					stripe_payment_intent_id: { _eq: charge.payment_intent },
 				},
-			},
-		});
+			})
+		);
 
-		if (transactions.data && transactions.data.length > 0) {
-			const transaction = transactions.data[0];
-			await directus.request({
-				method: 'PATCH',
-				path: `/items/payment_transactions/${transaction.id}`,
-				body: {
+		if (transactions && transactions.length > 0) {
+			const transaction = transactions[0];
+			await directus.request(
+				updateItem('payment_transactions', transaction.id, {
 					stripe_charge_id: charge.id,
 					receipt_url: charge.receipt_url,
 					payment_method_type: charge.payment_method_details?.type,
@@ -232,8 +223,8 @@ async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
 						null,
 					processing_fee: charge.application_fee_amount ? charge.application_fee_amount / 100 : null,
 					net_amount: charge.amount_captured / 100,
-				},
-			});
+				})
+			);
 		}
 	} catch (err) {
 		console.error('Error updating transaction with charge details:', err);
@@ -244,25 +235,21 @@ async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
 	console.log('Charge Refunded:', charge.id);
 
 	try {
-		const transactions = await directus.request({
-			method: 'GET',
-			path: '/items/payment_transactions',
-			params: {
+		const transactions = await directus.request(
+			readItems('payment_transactions', {
 				filter: {
 					stripe_charge_id: { _eq: charge.id },
 				},
-			},
-		});
+			})
+		);
 
-		if (transactions.data && transactions.data.length > 0) {
-			const transaction = transactions.data[0];
-			await directus.request({
-				method: 'PATCH',
-				path: `/items/payment_transactions/${transaction.id}`,
-				body: {
+		if (transactions && transactions.length > 0) {
+			const transaction = transactions[0];
+			await directus.request(
+				updateItem('payment_transactions', transaction.id, {
 					status: 'refunded',
-				},
-			});
+				})
+			);
 
 			// Update payment request if linked
 			if (transaction.payment_request) {
@@ -281,19 +268,17 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 
 	try {
 		// Find organization by stripe_customer_id
-		const organizations = await directus.request({
-			method: 'GET',
-			path: '/items/hoa_organizations',
-			params: {
+		const organizations = await directus.request(
+			readItems('hoa_organizations', {
 				filter: {
 					stripe_customer_id: { _eq: customerId },
 				},
-			},
-		});
+			})
+		);
 
-		if (organizations.data && organizations.data.length > 0) {
-			const org = organizations.data[0];
-			const updateData: any = {
+		if (organizations && organizations.length > 0) {
+			const org = organizations[0];
+			const updateData: Record<string, any> = {
 				stripe_subscription_id: subscription.id,
 				subscription_status: subscription.status,
 			};
@@ -302,11 +287,7 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 				updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
 			}
 
-			await directus.request({
-				method: 'PATCH',
-				path: `/items/hoa_organizations/${org.id}`,
-				body: updateData,
-			});
+			await directus.request(updateItem('hoa_organizations', org.id, updateData));
 		}
 	} catch (err) {
 		console.error('Error updating organization subscription:', err);
@@ -316,32 +297,27 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 async function updatePaymentRequest(directus: any, paymentRequestId: string, amount: number) {
 	try {
 		// Get current payment request
-		const request = await directus.request({
-			method: 'GET',
-			path: `/items/payment_requests/${paymentRequestId}`,
-		});
+		const request = await directus.request(readItem('payment_requests', paymentRequestId));
 
-		if (request.data) {
-			const currentPaid = request.data.amount_paid || 0;
+		if (request) {
+			const currentPaid = request.amount_paid || 0;
 			const newPaid = currentPaid + amount;
-			const totalAmount = request.data.amount;
+			const totalAmount = request.amount;
 			const remaining = totalAmount - newPaid;
 
-			let newStatus = 'partially_paid';
+			let newStatus: 'partially_paid' | 'paid' = 'partially_paid';
 			if (remaining <= 0) {
 				newStatus = 'paid';
 			}
 
-			await directus.request({
-				method: 'PATCH',
-				path: `/items/payment_requests/${paymentRequestId}`,
-				body: {
+			await directus.request(
+				updateItem('payment_requests', paymentRequestId, {
 					amount_paid: newPaid,
 					amount_remaining: Math.max(0, remaining),
 					status: newStatus,
 					...(newStatus === 'paid' && { paid_at: new Date().toISOString() }),
-				},
-			});
+				})
+			);
 		}
 	} catch (err) {
 		console.error('Error updating payment request:', err);
