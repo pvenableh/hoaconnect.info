@@ -95,7 +95,13 @@ export interface DirectusUser {
 
 export interface HoaOrganization {
   id: ID;
-  status: "published" | "draft" | "archived" | "active" | "inactive" | "suspended";
+  status:
+    | "published"
+    | "draft"
+    | "archived"
+    | "active"
+    | "inactive"
+    | "suspended";
 
   // Basic Info
   name: string;
@@ -387,6 +393,83 @@ export interface HoaSubscription {
   // Timestamps
   date_created?: string;
   date_updated?: string | null;
+}
+
+export interface PaymentTransaction {
+  id: ID;
+  status: "pending" | "succeeded" | "failed" | "canceled" | "refunded";
+  date_created: string;
+  date_updated: string;
+  user_created?: ID | DirectusUser;
+  user_updated?: ID | DirectusUser;
+  organization: ID | HoaOrganization;
+  member?: ID | HoaMember;
+  payment_request?: ID | PaymentRequest;
+  amount: number;
+  currency: string;
+  description?: string;
+  stripe_payment_intent_id: string;
+  stripe_charge_id?: string;
+  stripe_customer_id?: string;
+  stripe_payment_method_id?: string;
+  payment_method_type?: "card" | "us_bank_account";
+  last4?: string;
+  receipt_url?: string;
+  receipt_email?: string;
+  processing_fee?: number;
+  net_amount?: number;
+  metadata?: any;
+  notes?: string;
+}
+
+export interface PaymentRequest {
+  id: ID;
+  status:
+    | "draft"
+    | "active"
+    | "paid"
+    | "partially_paid"
+    | "overdue"
+    | "canceled";
+  date_created: string;
+  date_updated: string;
+  user_created?: ID | DirectusUser;
+  user_updated?: ID | DirectusUser;
+  organization: ID | HoaOrganization;
+  member: ID | HoaMember;
+  request_type: "monthly_dues" | "assessment" | "late_fee" | "other";
+  title: string;
+  description?: string;
+  amount: number;
+  due_date?: string;
+  amount_paid: number;
+  amount_remaining: number;
+  paid_at?: string;
+  transactions?: PaymentTransaction[];
+  email_sent: boolean;
+  email_sent_at?: string;
+  reminder_sent: boolean;
+  reminder_sent_at?: string;
+  notes?: string;
+  metadata?: any;
+}
+
+export interface PaymentSchedule {
+  id: ID;
+  status: "active" | "paused" | "completed" | "canceled";
+  date_created: string;
+  date_updated: string;
+  organization: ID | HoaOrganization;
+  member: ID | HoaMember;
+  title: string;
+  description?: string;
+  amount: number;
+  frequency: "monthly" | "quarterly" | "annually";
+  start_date: string;
+  end_date?: string;
+  next_payment_date: string;
+  total_payments_generated: number;
+  last_payment_generated_at?: string;
 }
 
 // ============================================
