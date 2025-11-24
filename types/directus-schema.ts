@@ -501,6 +501,11 @@ export interface DirectusSchema {
 
   // Subscription Plans
   subscription_plans: SubscriptionPlan[];
+
+  // Payment Collections
+  payment_transactions: PaymentTransaction[];
+  payment_requests: PaymentRequest[];
+  payment_schedules: PaymentSchedule[];
 }
 
 // ============================================
