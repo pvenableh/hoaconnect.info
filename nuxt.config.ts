@@ -2,8 +2,14 @@
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
+  // Nuxt 4 compatibility
+  compatibilityDate: "2024-11-01",
+  future: {
+    compatibilityVersion: 4,
+  },
+
   devtools: { enabled: true },
-  debug: true,
+
   modules: [
     "nuxt-auth-utils",
     "@nuxt/icon",
@@ -47,6 +53,10 @@ export default defineNuxtConfig({
         url: process.env.DIRECTUS_URL,
         websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
       },
+      // Role IDs for permission checking
+      directusRoleAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN,
+      directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,
+      // Legacy - can be removed after migration
       directusUrl: process.env.DIRECTUS_URL,
       mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN,
       appUrl: process.env.APP_URL || "http://localhost:3000",
@@ -67,9 +77,11 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+
   build: {
     transpile: ["gsap", "swiper"],
   },
+
   app: {
     head: {
       charset: "utf-8",
@@ -98,15 +110,17 @@ export default defineNuxtConfig({
         },
       ],
     },
+    pageTransition: { name: "page", mode: "out-in" },
+    layoutTransition: { name: "layout", mode: "out-in" },
   },
+
   shadcn: {
     prefix: "",
-    componentDir: "./components/ui",
+    componentDir: "./app/components/ui",
   },
+
   veeValidate: {
-    // disable or enable auto imports
     autoImports: true,
-    // Use different names for components
     componentNames: {
       Form: "VeeForm",
       Field: "VeeField",
@@ -114,17 +128,38 @@ export default defineNuxtConfig({
       ErrorMessage: "VeeErrorMessage",
     },
   },
+
+  icon: {
+    serverBundle: "remote",
+    collections: ["heroicons-outline", "heroicons-solid", "lucide"],
+  },
+
+  image: {
+    quality: 80,
+    format: ["webp", "avif", "png", "jpg"],
+    providers: {
+      directus: {
+        provider: "~/providers/directus",
+        options: {
+          baseURL: process.env.DIRECTUS_URL,
+        },
+      },
+    },
+  },
+
   site: {
-    url: process.env.DIRECTUS_URL,
+    url: process.env.APP_URL || "http://localhost:3000",
     name: "Property Flow - Premier Property Management App",
     description:
       "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
     defaultLocale: "en",
     ogImage: "",
   },
+
   seo: {
     fallbackTitle: false,
   },
+
   ogImage: {
     enabled: true,
     defaults: {
@@ -134,6 +169,7 @@ export default defineNuxtConfig({
       emojis: "noto",
     },
   },
+
   schemaOrg: {
     identity: {
       type: "Business",
@@ -148,7 +184,6 @@ export default defineNuxtConfig({
       address: {
         type: "PostalAddress",
         streetAddress: "605 Lincoln Road",
-
         addressLocality: "Miami Beach",
         addressRegion: "FL",
         postalCode: "33139",
@@ -166,9 +201,10 @@ export default defineNuxtConfig({
       },
     },
   },
+
   typescript: {
     strict: false,
-    typeCheck: false, // Disable type checking during build
+    typeCheck: false,
     shim: false,
   },
 });

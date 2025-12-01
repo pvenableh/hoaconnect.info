@@ -1,24 +1,22 @@
+// server/api/roles/list.get.ts
+import { readRoles } from "@directus/sdk";
+
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
 
   try {
-    const config = useRuntimeConfig();
+    const directus = getTypedDirectus();
 
-    // Use direct REST API call to fetch roles instead of SDK
-    // This avoids the readItems restriction on core collections
-    const response = await $fetch(`${config.directusUrl}/roles`, {
-      headers: {
-        Authorization: `Bearer ${config.directusToken}`,
-      },
-      params: {
-        filter: JSON.stringify({
+    const roles = await directus.request(
+      readRoles({
+        filter: {
           name: { _neq: "Administrator" },
-        }),
-        fields: ['id', 'name', 'description'].join(','),
-      },
-    });
+        },
+        fields: ["id", "name", "description", "icon"],
+      })
+    );
 
-    return response;
+    return { data: roles };
   } catch (error: any) {
     console.error("Error fetching roles:", error);
     throw createError({
