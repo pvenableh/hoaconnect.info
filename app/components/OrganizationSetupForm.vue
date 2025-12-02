@@ -26,9 +26,17 @@ const router = useRouter();
 const config = useRuntimeConfig();
 const { list: listPlans } = useDirectusItems("subscription_plans");
 
+// Total steps: 4 (Org Info, Plan Selection, Account Details, Payment)
+// Beta mode: skips step 2 (Plan Selection), but still shows payment if plan costs money
+const TOTAL_STEPS = 4;
+
 // Form state
 const currentStep = ref(1);
 const loading = ref(false);
+
+// Payment state
+const paymentIntentId = ref<string | null>(null);
+const paymentCompleted = ref(false);
 
 // Step 1: Organization Details
 const orgForm = ref({
@@ -162,10 +170,28 @@ const loadPlans = async () => {
   }
 };
 
+// Always load plans to determine if payment is required
 onMounted(() => {
-  if (!props.betaMode) {
-    loadPlans();
-  }
+  loadPlans();
+});
+
+// Get the selected plan object
+const selectedPlanObject = computed(() => {
+  if (!selectedPlan.value) return null;
+  return subscriptionPlans.value.find((p: any) => p.id === selectedPlan.value);
+});
+
+// Check if payment is required based on selected plan price
+const paymentRequired = computed(() => {
+  if (!selectedPlanObject.value) return false;
+  const price = parseFloat(selectedPlanObject.value.price_monthly || "0");
+  return price > 0;
+});
+
+// Get the plan price for payment
+const planPrice = computed(() => {
+  if (!selectedPlanObject.value) return 0;
+  return parseFloat(selectedPlanObject.value.price_monthly || "0");
 });
 
 // Validation
@@ -193,6 +219,11 @@ const step3Valid = computed(() => {
   );
 });
 
+// Step 4 is valid when payment is completed (or not required)
+const step4Valid = computed(() => {
+  return !paymentRequired.value || paymentCompleted.value;
+});
+
 // Navigation
 const nextStep = () => {
   if (currentStep.value === 1 && !step1Valid.value) {
@@ -203,28 +234,67 @@ const nextStep = () => {
     toast.error("Please select a subscription plan");
     return;
   }
+  if (currentStep.value === 3 && !step3Valid.value) {
+    toast.error("Please complete all account details");
+    return;
+  }
 
-  // Skip subscription step in BETA mode
+  // Handle step transitions
   if (props.betaMode && currentStep.value === 1) {
+    // Skip subscription step in BETA mode: 1 -> 3
     currentStep.value = 3;
+  } else if (currentStep.value === 3) {
+    // After account details, go to payment step if payment is required
+    if (paymentRequired.value) {
+      currentStep.value = 4;
+    } else {
+      // No payment required, submit directly
+      handleSubmit();
+    }
   } else {
     currentStep.value++;
   }
 };
 
 const prevStep = () => {
-  // Skip subscription step in BETA mode
-  if (props.betaMode && currentStep.value === 3) {
+  if (currentStep.value === 4) {
+    // Payment step back to account details
+    currentStep.value = 3;
+  } else if (props.betaMode && currentStep.value === 3) {
+    // Skip subscription step in BETA mode: 3 -> 1
     currentStep.value = 1;
   } else {
     currentStep.value--;
   }
 };
 
+// Payment handlers
+const handlePaymentSuccess = (intentId: string) => {
+  paymentIntentId.value = intentId;
+  paymentCompleted.value = true;
+  toast.success("Payment successful!", {
+    description: "Processing your organization setup...",
+  });
+  // Automatically proceed to create the organization
+  handleSubmit();
+};
+
+const handlePaymentError = (error: Error) => {
+  toast.error("Payment failed", {
+    description: error.message || "Please try again or use a different payment method.",
+  });
+};
+
 // Submit
 const handleSubmit = async () => {
   if (!step3Valid.value) {
     toast.error("Please complete all admin details");
+    return;
+  }
+
+  // If payment is required but not completed, don't submit
+  if (paymentRequired.value && !paymentCompleted.value) {
+    toast.error("Please complete payment first");
     return;
   }
 
@@ -243,7 +313,7 @@ const handleSubmit = async () => {
         org_phone: orgForm.value.org_phone,
         org_email: orgForm.value.org_email,
         slug: orgForm.value.slug,
-        subscriptionPlanId: props.betaMode ? null : selectedPlan.value,
+        subscriptionPlanId: selectedPlan.value,
 
         // Admin
         firstName: adminForm.value.firstName,
@@ -251,6 +321,9 @@ const handleSubmit = async () => {
         email: adminForm.value.email,
         phone: adminForm.value.phone,
         password: adminForm.value.password,
+
+        // Payment (if applicable)
+        paymentIntentId: paymentIntentId.value,
       },
     });
 
@@ -273,6 +346,34 @@ const handleSubmit = async () => {
     loading.value = false;
   }
 };
+
+// Computed property for visible steps in progress indicator
+// In beta mode: 1 (Org Info), 3 (Account Details), 4 (Payment - if required)
+// In non-beta mode: 1, 2, 3, 4 (Payment - if required)
+const visibleSteps = computed(() => {
+  const steps = props.betaMode ? [1, 3] : [1, 2, 3];
+  if (paymentRequired.value) {
+    steps.push(4);
+  }
+  return steps;
+});
+
+// Get display number for a step (for showing in the UI)
+const getStepDisplayNumber = (step: number) => {
+  const index = visibleSteps.value.indexOf(step);
+  return index + 1;
+};
+
+// Check if this is the last visible step
+const isLastVisibleStep = (step: number) => {
+  const steps = visibleSteps.value;
+  return step === steps[steps.length - 1];
+};
+
+// Get the final step number (for button logic)
+const finalStep = computed(() => {
+  return paymentRequired.value ? 4 : 3;
+});
 </script>
 
 <template>
@@ -284,7 +385,7 @@ const handleSubmit = async () => {
       <!-- Progress Indicator -->
       <div class="flex items-center justify-between mt-4">
         <div
-          v-for="step in betaMode ? [1, 3] : [1, 2, 3]"
+          v-for="step in visibleSteps"
           :key="step"
           class="flex items-center flex-1"
         >
@@ -296,12 +397,10 @@ const handleSubmit = async () => {
                 : 'bg-muted text-muted-foreground',
             ]"
           >
-            {{
-              betaMode && step === 3 ? 2 : step === 3 ? 3 : step === 2 ? 2 : 1
-            }}
+            {{ getStepDisplayNumber(step) }}
           </div>
           <div
-            v-if="step !== (betaMode ? 3 : 3)"
+            v-if="!isLastVisibleStep(step)"
             class="flex-1 h-1 mx-2 transition-colors"
             :class="[currentStep > step ? 'bg-primary' : 'bg-muted']"
           />
@@ -608,6 +707,26 @@ const handleSubmit = async () => {
           </FormItem>
         </FormField>
       </div>
+
+      <!-- Step 4: Payment -->
+      <div v-if="currentStep === 4" class="space-y-4">
+        <h3 class="text-lg font-semibold">Complete Payment</h3>
+        <p class="text-sm text-muted-foreground mb-4">
+          Complete your payment to activate your {{ selectedPlanObject?.name }} subscription.
+        </p>
+
+        <PaymentMethods
+          :email="adminForm.email"
+          :amount="planPrice"
+          :metadata="{
+            organization_name: orgForm.organizationName,
+            subscription_plan_id: selectedPlan,
+            subscription_plan_name: selectedPlanObject?.name,
+          }"
+          @success="handlePaymentSuccess"
+          @error="handlePaymentError"
+        />
+      </div>
     </CardContent>
 
     <CardFooter class="flex justify-between">
@@ -622,11 +741,24 @@ const handleSubmit = async () => {
 
       <div class="flex-1" />
 
+      <!-- Show Continue button for steps before step 3 -->
       <Button v-if="currentStep < 3" @click="nextStep"> Continue </Button>
 
-      <Button v-else @click="handleSubmit" :disabled="loading || !step3Valid">
-        {{ loading ? "Setting up..." : "Complete Setup" }}
+      <!-- Step 3: Show "Continue to Payment" if payment required, otherwise "Complete Setup" -->
+      <Button
+        v-else-if="currentStep === 3"
+        @click="nextStep"
+        :disabled="loading || !step3Valid"
+      >
+        {{ loading ? "Setting up..." : (paymentRequired ? "Continue to Payment" : "Complete Setup") }}
       </Button>
+
+      <!-- Step 4: No button needed - PaymentMethods handles submission -->
+      <!-- Show a loading indicator if payment was successful and we're creating the org -->
+      <div v-else-if="currentStep === 4 && loading" class="flex items-center gap-2 text-muted-foreground">
+        <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+        <span>Creating your organization...</span>
+      </div>
     </CardFooter>
   </Card>
 </template>
