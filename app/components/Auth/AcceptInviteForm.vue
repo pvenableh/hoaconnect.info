@@ -4,12 +4,12 @@ import { ref, onMounted, watch } from "vue";
 import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
-import { useDebounce } from "@vueuse/core";
+import { refDebounced } from "@vueuse/core";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { CustomInput } from "@/components/Form";
+
 import {
   Card,
   CardContent,
@@ -61,18 +61,18 @@ const formSchema = toTypedSchema(
 const { handleSubmit, isSubmitting } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    firstName: '',
-    lastName: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    password: "",
+    confirmPassword: "",
   },
-})
+});
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 const successRef = ref<HTMLElement | null>(null);
 const isSuccess = ref(false);
 const passwordValue = ref("");
-const debouncedPassword = useDebounce(passwordValue, 300);
+const debouncedPassword = refDebounced(passwordValue, 300);
 
 const passwordRequirements = ref([
   { label: "At least 8 characters", met: false },
@@ -181,38 +181,39 @@ onMounted(() => {
 
           <div class="grid grid-cols-2 gap-4">
             <VeeField v-slot="{ field, errors }" name="firstName">
-              <CustomInput
+              <FormCustomInput
                 id="firstName"
                 label="First name"
                 type="text"
                 placeholder="John"
                 v-bind="field"
                 :error-message="errors[0]"
+                variant="underline"
               />
             </VeeField>
 
             <VeeField v-slot="{ field, errors }" name="lastName">
-              <CustomInput
+              <FormCustomInput
                 id="lastName"
                 label="Last name"
                 type="text"
                 placeholder="Doe"
                 v-bind="field"
                 :error-message="errors[0]"
+                variant="underline"
               />
             </VeeField>
           </div>
 
           <VeeField v-slot="{ field, errors }" name="password">
-            <CustomInput
+            <FormCustomInput
               id="password"
               label="Password"
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              @input="
-                passwordValue = ($event.target as HTMLInputElement).value
-              "
+              @input="passwordValue = ($event.target as HTMLInputElement).value"
+              variant="underline"
             >
               <template #after>
                 <div class="mt-2 mb-3 space-y-1">
@@ -239,16 +240,17 @@ onMounted(() => {
                   </TransitionGroup>
                 </div>
               </template>
-            </CustomInput>
+            </FormCustomInput>
           </VeeField>
 
           <VeeField v-slot="{ field, errors }" name="confirmPassword">
-            <CustomInput
+            <FormCustomInput
               id="confirmPassword"
               label="Confirm Password"
               type="password"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
             />
           </VeeField>
 

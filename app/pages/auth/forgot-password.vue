@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PasswordResetRequestForm } from "@/components/auth";
 import { toast } from "vue-sonner";
 
 const router = useRouter();
@@ -40,7 +39,7 @@ const handleBackToLogin = () => {
           &larr; Back to home
         </NuxtLink>
       </div>
-      <PasswordResetRequestForm
+      <AuthPasswordResetRequestForm
         @submit="handleSubmit"
         @back-to-login="handleBackToLogin"
       />

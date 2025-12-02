@@ -8,7 +8,6 @@ import { z } from "zod";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { CustomInput } from "@/components/Form";
 import {
   Card,
   CardContent,
@@ -37,9 +36,9 @@ const formSchema = toTypedSchema(
 const { handleSubmit, isSubmitting } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    email: '',
+    email: "",
   },
-})
+});
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 const successRef = ref<HTMLElement | null>(null);
@@ -107,13 +106,14 @@ onMounted(() => {
       <CardContent>
         <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
           <VeeField v-slot="{ field, errors }" name="email">
-            <CustomInput
+            <FormCustomInput
               id="email"
               label="Email"
               type="email"
               placeholder="m@example.com"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
             />
           </VeeField>
 
