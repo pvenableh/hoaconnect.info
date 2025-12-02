@@ -162,7 +162,7 @@ export default defineEventHandler(async (event) => {
 
     // 7. Automatically log the user in (using same pattern as login.post.ts)
     // Add a small delay to ensure user is fully persisted in Directus
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     console.log("User created successfully:", newUser.id);
     console.log("Attempting login with email:", email);
@@ -171,7 +171,7 @@ export default defineEventHandler(async (event) => {
 
     const loginClient = createDirectus(config.directus.url).with(rest());
 
-    const authResult = await loginClient.request(login(email, password));
+    const authResult = await loginClient.request(login({ email, password }));
 
     if (!authResult.access_token || !authResult.refresh_token) {
       throw createError({
@@ -204,7 +204,7 @@ export default defineEventHandler(async (event) => {
         provider: "local",
       },
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + ((authResult.expires || 900) * 1000),
+      expiresAt: Date.now() + (authResult.expires || 900) * 1000,
       secure: {
         directusAccessToken: authResult.access_token,
         directusRefreshToken: authResult.refresh_token,

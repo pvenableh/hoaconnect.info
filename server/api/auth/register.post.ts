@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
 
     // Auto-login after registration
     const authClient = createDirectus(config.directus.url).with(rest());
-    const authResult = await authClient.request(login(email, password));
+    const authResult = await authClient.request(login({ email, password }));
 
     if (!authResult.access_token) {
       throw new Error("Auto-login failed after registration");
@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
         provider: "local",
       },
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
+      expiresAt: Date.now() + (authResult.expires || 900) * 1000, // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
         directusRefreshToken: authResult.refresh_token,
