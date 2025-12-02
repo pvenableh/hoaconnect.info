@@ -21,7 +21,7 @@ const navItems = [
   { label: "Documents", path: "/documents", icon: "file" },
   { label: "Units", path: "/units", icon: "door-closed" },
   { label: "Members", path: "/members", icon: "users" },
-  { label: "Domain Setup", path: "/domain-setup", icon: "globe" },
+  { label: "Settings", path: "/settings/organization", icon: "settings" },
 ];
 
 // Public nav items
