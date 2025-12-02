@@ -17,7 +17,7 @@ export interface CustomInputProps {
   label?: string;
 }
 
-const props = withDefaults(defineProps<FormCustomInputProps>(), {
+const props = withDefaults(defineProps<CustomInputProps>(), {
   variant: "full",
 });
 
