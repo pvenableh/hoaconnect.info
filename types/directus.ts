@@ -49,6 +49,53 @@ export interface BlockSetting {
 	organization?: HoaOrganization | string | null;
 }
 
+export interface Coupon {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	code?: string | null;
+	status?: 'active' | 'inactive' | 'expired' | null;
+	valid_from?: string | null;
+	max_uses?: number | null;
+	max_uses_per_user?: number | null;
+	min_purchase_amount?: number | null;
+	/** @description Only for new signups. */
+	is_first_purchase_only?: boolean | null;
+	amount?: number | null;
+	title?: string | null;
+	description?: string | null;
+	type?: 'percentage' | 'amount' | null;
+	usage?: CouponUsage[] | string[];
+	applicable_plans?: CouponsSubscriptionPlan[] | string[];
+}
+
+export interface CouponsSubscriptionPlan {
+	/** @primaryKey */
+	id: number;
+	coupons_id?: Coupon | string | null;
+	subscription_plans_id?: SubscriptionPlan | string | null;
+}
+
+export interface CouponUsage {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	coupon?: Coupon | string | null;
+	user?: DirectusUser | string | null;
+	organization?: HoaOrganization | string | null;
+	used_at?: string | null;
+	discount_applied?: number | null;
+	subscription_plan?: SubscriptionPlan | string | null;
+}
+
 export interface HoaAmenity {
 	/** @primaryKey */
 	id: string;
@@ -797,6 +844,9 @@ export interface DirectusExtension {
 export interface Schema {
 	block_hero: BlockHero[];
 	block_settings: BlockSetting[];
+	coupons: Coupon[];
+	coupons_subscription_plans: CouponsSubscriptionPlan[];
+	coupon_usage: CouponUsage[];
 	hoa_amenities: HoaAmenity[];
 	hoa_documents: HoaDocument[];
 	hoa_invitations: HoaInvitation[];
@@ -842,6 +892,9 @@ export interface Schema {
 export enum CollectionNames {
 	block_hero = 'block_hero',
 	block_settings = 'block_settings',
+	coupons = 'coupons',
+	coupons_subscription_plans = 'coupons_subscription_plans',
+	coupon_usage = 'coupon_usage',
 	hoa_amenities = 'hoa_amenities',
 	hoa_documents = 'hoa_documents',
 	hoa_invitations = 'hoa_invitations',
