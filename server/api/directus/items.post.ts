@@ -1,8 +1,9 @@
 // server/api/directus/items.post.ts
-
 /**
- * Server API route for Directus items operations
+ * Generic server API route for Directus items operations
  * Supports both authenticated and public requests
+ *
+ * Operations: list, get, create, update, delete, aggregate
  */
 
 import {
@@ -13,21 +14,14 @@ import {
   deleteItem,
   deleteItems,
   aggregate as directusAggregate,
-  type DirectusClient, // ← ADDED
-  type RestClient, // ← ADDED
-  type StaticTokenClient,
 } from "@directus/sdk";
-import type {
-  DirectusCollections,
-  DirectusSchema,
-} from "~/types/directus-schema";
 
 /**
  * Execute a Directus operation with automatic token refresh on expiration
  */
 async function executeOperation(
   event: any,
-  collection: DirectusCollections,
+  collection: string,
   operation: string,
   id?: string | number | (string | number)[],
   data?: Record<string, any>,
@@ -35,42 +29,20 @@ async function executeOperation(
   retryCount: number = 0
 ): Promise<any> {
   const session = await getUserSession(event);
-  let directus: DirectusClient<DirectusSchema> & RestClient<DirectusSchema>;
+  let directus;
 
   if (session?.user) {
     // User is authenticated, use their token
-    console.log("[/api/directus/items] Using authenticated client");
     directus = await getUserDirectus(event, retryCount > 0);
   } else {
     // No authenticated user, use public client
-    console.log("[/api/directus/items] Using public client");
     directus = getPublicDirectus();
   }
 
   try {
-    // Handle different operations using native SDK methods
     switch (operation) {
       case "list":
-        console.log("[/api/directus/items] Calling readItems with collection:", collection);
-        console.log("[/api/directus/items] readItems query:", JSON.stringify(query, null, 2));
-
-        try {
-          const result = await directus.request(readItems(collection, query || {}));
-
-          console.log("[/api/directus/items] readItems SUCCESS");
-          console.log("[/api/directus/items] Result is array:", Array.isArray(result));
-          console.log("[/api/directus/items] Result length:", result?.length);
-          console.log("[/api/directus/items] First item (if exists):", result?.[0] ? JSON.stringify(result[0], null, 2) : 'N/A');
-
-          return result;
-        } catch (readError: any) {
-          console.error("[/api/directus/items] readItems FAILED");
-          console.error("[/api/directus/items] Error:", readError);
-          console.error("[/api/directus/items] Error message:", readError.message);
-          console.error("[/api/directus/items] Error response:", readError.response);
-          console.error("[/api/directus/items] Error errors:", readError.errors);
-          throw readError;
-        }
+        return await directus.request(readItems(collection, query || {}));
 
       case "get":
         if (!id) throw new Error("ID required for get operation");
@@ -87,8 +59,6 @@ async function executeOperation(
 
       case "delete":
         if (!id) throw new Error("ID required for delete operation");
-
-        // Handle single or multiple deletions
         if (Array.isArray(id)) {
           await directus.request(deleteItems(collection, id));
           return { deleted: id.length };
@@ -120,11 +90,9 @@ async function executeOperation(
 
     // Retry once with force refresh if token is expired
     if (isTokenExpired && retryCount === 0 && session?.user) {
-      console.log("[/api/directus/items] Token expired, refreshing and retrying...");
       return executeOperation(event, collection, operation, id, data, query, retryCount + 1);
     }
 
-    // Re-throw if not a token error or already retried
     throw error;
   }
 }
@@ -132,37 +100,18 @@ async function executeOperation(
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
-    const { collection: collectionName, operation, id, data, query } = body;
+    const { collection, operation, id, data, query } = body;
 
-    console.log("[/api/directus/items] Request received");
-    console.log("[/api/directus/items] Collection:", collectionName);
-    console.log("[/api/directus/items] Operation:", operation);
-    console.log("[/api/directus/items] Query:", JSON.stringify(query, null, 2));
-
-    if (!collectionName || !operation) {
+    if (!collection || !operation) {
       throw createError({
         statusCode: 400,
         message: "Collection and operation are required",
       });
     }
 
-    // Cast collection name to DirectusCollections type
-    const collection = collectionName as DirectusCollections;
-
-    // Check if user is authenticated
-    const session = await getUserSession(event);
-    console.log("[/api/directus/items] Session exists:", !!session);
-    console.log("[/api/directus/items] User exists:", !!session?.user);
-    console.log("[/api/directus/items] User ID:", session?.user?.id);
-
-    // Execute the operation with automatic retry on token expiration
     return await executeOperation(event, collection, operation, id, data, query);
   } catch (error: any) {
-    console.error("[/api/directus/items] Error occurred:", error);
-    console.error("[/api/directus/items] Error message:", error.message);
-    console.error("[/api/directus/items] Error statusCode:", error.statusCode);
-    console.error("[/api/directus/items] Error stack:", error.stack);
-    console.error("[/api/directus/items] Full error object:", JSON.stringify(error, null, 2));
+    console.error("[/api/directus/items] Error:", error);
 
     throw createError({
       statusCode: error.statusCode || 500,

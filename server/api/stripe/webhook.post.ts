@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createItem, updateItem, readItems, readItem } from '@directus/sdk';
-import { getTypedDirectus } from '~/server/utils/directus';
+// Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
 	const config = useRuntimeConfig();

@@ -1,9 +1,22 @@
-import type { QueryFilter } from "@directus/sdk";
-import type { DirectusCollections, DirectusSchema, DirectusItem } from "~/types/directus-schema";
+// composables/useDirectusItems.ts
+/**
+ * useDirectusItems - Generic CRUD composable for any Directus collection
+ *
+ * Collection-agnostic composable that provides list, get, create, update,
+ * delete, and aggregate operations for any Directus collection.
+ *
+ * Usage:
+ * const posts = useDirectusItems('posts')
+ * const items = await posts.list({ filter: { status: { _eq: 'published' } } })
+ * const item = await posts.get('item-id')
+ * const newItem = await posts.create({ title: 'Hello' })
+ * const updated = await posts.update('item-id', { title: 'Updated' })
+ * await posts.remove('item-id')
+ */
 
-interface ItemsQuery<T extends DirectusCollections> {
+export interface ItemsQuery {
   fields?: string[];
-  filter?: QueryFilter<DirectusSchema, DirectusItem<T>>;
+  filter?: Record<string, any>;
   sort?: string[];
   limit?: number;
   offset?: number;
@@ -14,8 +27,8 @@ interface ItemsQuery<T extends DirectusCollections> {
   groupBy?: string[];
 }
 
-export const useDirectusItems = <T extends DirectusCollections>(
-  collection: T,
+export const useDirectusItems = <T = any>(
+  collection: string,
   options: { requireAuth?: boolean } = {}
 ) => {
   const { requireAuth = true } = options;
@@ -24,45 +37,21 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * List items from collection
    */
-  const list = async (query: ItemsQuery<T> = {}) => {
-    console.log(`[useDirectusItems:${collection}] list() called`);
-    console.log(`[useDirectusItems:${collection}] requireAuth:`, requireAuth);
-    console.log(`[useDirectusItems:${collection}] loggedIn:`, loggedIn.value);
-    console.log(`[useDirectusItems:${collection}] query:`, JSON.stringify(query, null, 2));
-
+  const list = async (query: ItemsQuery = {}): Promise<T[]> => {
     if (requireAuth && !loggedIn.value) {
-      console.error(`[useDirectusItems:${collection}] Authentication required but user not logged in`);
       throw new Error("Authentication required");
     }
 
-    try {
-      const requestBody = {
+    const result = await $fetch("/api/directus/items", {
+      method: "POST",
+      body: {
         collection,
         operation: "list",
         query,
-      };
+      },
+    });
 
-      console.log(`[useDirectusItems:${collection}] Calling /api/directus/items with:`, JSON.stringify(requestBody, null, 2));
-
-      const result = await $fetch("/api/directus/items", {
-        method: "POST",
-        body: requestBody,
-      });
-
-      console.log(`[useDirectusItems:${collection}] API response:`, result);
-      console.log(`[useDirectusItems:${collection}] Response is array:`, Array.isArray(result));
-      console.log(`[useDirectusItems:${collection}] Response length:`, result?.length);
-
-      return result;
-    } catch (error: any) {
-      console.error(`[useDirectusItems:${collection}] Error calling API:`, error);
-      console.error(`[useDirectusItems:${collection}] Error details:`, {
-        message: error.message,
-        statusCode: error.statusCode,
-        data: error.data,
-      });
-      throw error;
-    }
+    return result as T[];
   };
 
   /**
@@ -70,8 +59,8 @@ export const useDirectusItems = <T extends DirectusCollections>(
    */
   const get = async (
     id: string | number,
-    query: Pick<ItemsQuery<T>, "fields" | "deep"> = {}
-  ) => {
+    query: Pick<ItemsQuery, "fields" | "deep"> = {}
+  ): Promise<T> => {
     if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
     }
@@ -91,9 +80,9 @@ export const useDirectusItems = <T extends DirectusCollections>(
    * Create new item
    */
   const create = async (
-    data: Record<string, any>,
-    query: Pick<ItemsQuery<T>, "fields"> = {}
-  ) => {
+    data: Partial<T>,
+    query: Pick<ItemsQuery, "fields"> = {}
+  ): Promise<T> => {
     if (!loggedIn.value) {
       throw new Error("Authentication required");
     }
@@ -114,9 +103,9 @@ export const useDirectusItems = <T extends DirectusCollections>(
    */
   const update = async (
     id: string | number,
-    data: Record<string, any>,
-    query: Pick<ItemsQuery<T>, "fields"> = {}
-  ) => {
+    data: Partial<T>,
+    query: Pick<ItemsQuery, "fields"> = {}
+  ): Promise<T> => {
     if (!loggedIn.value) {
       throw new Error("Authentication required");
     }
@@ -136,7 +125,9 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * Delete item(s)
    */
-  const remove = async (id: string | number | (string | number)[]) => {
+  const remove = async (
+    id: string | number | (string | number)[]
+  ): Promise<boolean> => {
     if (!loggedIn.value) {
       throw new Error("Authentication required");
     }
@@ -157,7 +148,7 @@ export const useDirectusItems = <T extends DirectusCollections>(
    * Aggregate data
    */
   const aggregate = async (
-    query: Pick<ItemsQuery<T>, "aggregate" | "groupBy" | "filter">
+    query: Pick<ItemsQuery, "aggregate" | "groupBy" | "filter">
   ) => {
     if (requireAuth && !loggedIn.value) {
       throw new Error("Authentication required");
@@ -176,13 +167,13 @@ export const useDirectusItems = <T extends DirectusCollections>(
   /**
    * Count items
    */
-  const count = async (filter?: QueryFilter<DirectusSchema, DirectusItem<T>>) => {
+  const count = async (filter?: Record<string, any>): Promise<number> => {
     const result = await aggregate({
       aggregate: { count: ["*"] },
       filter,
     });
 
-    return result?.[0]?.count || 0;
+    return (result as any)?.[0]?.count || 0;
   };
 
   return {
