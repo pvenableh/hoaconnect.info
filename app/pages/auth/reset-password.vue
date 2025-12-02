@@ -52,7 +52,7 @@ const handleLogin = () => {
           &larr; Back to home
         </NuxtLink>
       </div>
-      <PasswordResetForm
+      <AuthPasswordResetForm
         :token="token"
         @submit="handleSubmit"
         @login="handleLogin"
