@@ -28,14 +28,16 @@ const emit = defineEmits<{
   (e: "register"): void;
 }>();
 
-const formSchema = toTypedSchema(
-  z.object({
-    email: z.string().email("Please enter a valid email address"),
-    password: z.string().min(1, "Password is required"),
-  })
-);
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
-const { handleSubmit, isSubmitting, resetForm } = useForm({
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+const formSchema = toTypedSchema(loginSchema);
+
+const { handleSubmit, isSubmitting, resetForm } = useForm<LoginFormValues>({
   validationSchema: formSchema,
   initialValues: {
     email: "",
