@@ -1,565 +1,885 @@
-// types/directus.ts
-// Directus collection types and schema
 
-// ============================================
-// BASE TYPES
-// ============================================
-
-export type ID = string | number;
-
-// ============================================
-// SYSTEM COLLECTIONS
-// ============================================
-
-export interface DirectusRole {
-  id: ID;
-  name: string;
-  icon?: string | null;
-  description?: string | null;
-  admin_access: boolean;
-  app_access: boolean;
+export interface ExtensionSeoMetadata {
+    title?: string;
+    meta_description?: string;
+    og_image?: string;
+    additional_fields?: Record<string, unknown>;
+    sitemap?: {
+        change_frequency: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+        priority: string;
+    };
+    no_index?: boolean;
+    no_follow?: boolean;
 }
 
-export interface DirectusPermission {
-  id: ID;
-  role?: ID | DirectusRole | null;
-  collection: string;
-  action: string;
-  permissions?: Record<string, any> | null;
-  validation?: Record<string, any> | null;
-  fields?: string[] | null;
-  limit?: number | null;
-  presets?: Record<string, any> | null;
+export interface BlockHero {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	title?: string | null;
+	subtitle?: string | null;
+	cta_text?: string | null;
+	cta_link?: string | null;
+	background_image?: DirectusFile | string | null;
+	foreground_image?: DirectusFile | string | null;
 }
 
-export interface DirectusFile {
-  id: ID;
-  storage: string;
-  filename_disk: string;
-  filename_download: string;
-  title?: string | null;
-  type?: string | null;
-  folder?: ID | null;
-  uploaded_by?: ID | DirectusUser | null;
-  uploaded_on: string;
-  modified_by?: ID | DirectusUser | null;
-  modified_on?: string | null;
-  charset?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  duration?: number | null;
-  embed?: string | null;
-  description?: string | null;
-  location?: string | null;
-  tags?: string[] | null;
-  metadata?: Record<string, any> | null;
-}
-
-export interface DirectusFolder {
-  id: ID;
-  name: string;
-  parent?: ID | DirectusFolder | null;
-}
-
-export interface DirectusUser {
-  id: ID;
-  status: "active" | "suspended" | "inactive" | "invited";
-  email: string;
-  password?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar?: ID | DirectusFile | null;
-  role?: ID | DirectusRole | null;
-  token?: string | null;
-  last_access?: string | null;
-  last_page?: string | null;
-  provider?: string | null;
-  external_identifier?: string | null;
-  auth_data?: any | null;
-  email_notifications?: boolean | null;
-  appearance?: string | null;
-  theme_dark?: string | null;
-  theme_light?: string | null;
-  theme_light_overrides?: any | null;
-  theme_dark_overrides?: any | null;
-
-  // Custom fields (if you added any to directus_users)
-  organization?: ID | HoaOrganization | null;
-  member?: ID | HoaMember | null;
-}
-
-// ============================================
-// HOA COLLECTIONS (Multi-tenant)
-// ============================================
-
-export interface HoaOrganization {
-  id: ID;
-  status:
-    | "published"
-    | "draft"
-    | "archived"
-    | "active"
-    | "inactive"
-    | "suspended";
-
-  // Basic Info
-  name: string;
-  slug?: string | null;
-  domain?: string | null;
-  custom_domain?: string | null;
-  domain_verified?: boolean | null;
-  domain_type?: "apex" | "subdomain" | null;
-  domain_config?: Record<string, any> | null;
-  logo?: ID | DirectusFile | null;
-
-  // Contact Info
-  email?: string | null;
-  phone?: string | null;
-  street_address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-
-  // Subscription & Billing
-  billing_cycle?: "monthly" | "yearly" | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-  subscription_status?: "active" | "trial" | "canceled" | "expired" | null;
-  trial_ends_at?: string | null;
-  member_count?: number | null;
-
-  // Settings & Configuration
-  settings?: ID | HoaSettings | null;
-  hero?: ID | HoaHero | null;
-  subscription_plan?: ID | SubscriptionPlan | null;
-  folder?: ID | DirectusFolder | null;
-
-  // Relational Fields (One-to-Many reverse relations)
-  invitations?: (ID | HoaInvitation)[] | null;
-  amenities?: (ID | HoaAmenity)[] | null;
-  subscription?: ID | HoaSubscription | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaMember {
-  id: ID;
-  status: "active" | "inactive" | "pending";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  user: ID | DirectusUser;
-  role?: ID | DirectusRole | null;
-
-  // Member Info
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  member_type?: "owner" | "renter" | "board_member" | string | null;
-  unit?: ID | HoaUnit | null;
-  units?: (ID | HoaMemberUnit)[] | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaMemberUnit {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Relations
-  member_id: ID | HoaMember;
-  unit_id: ID | HoaUnit;
-
-  // Junction Fields
-  is_primary_unit?: boolean | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaInvitation {
-  id: ID;
-  invitation_status: "pending" | "accepted" | "expired" | "canceled";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  invited_by: ID | DirectusUser;
-
-  // Invitation Data
-  email: string;
-  name?: string | null;
-  role?: ID | DirectusRole | null;
-  token: string;
-
-  // Timestamps
-  invited_at: string;
-  expires_at: string;
-  accepted_at?: string | null;
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaUnit {
-  id: ID;
-  status: "active" | "inactive";
-
-  // Relations
-  organization: ID | HoaOrganization;
-
-  // Unit Info
-  unit_number: string;
-  address?: string | null;
-  floor?: number | null;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
-  square_feet?: number | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaDocument {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  created_by?: ID | DirectusUser;
-  file?: ID | DirectusFile | null;
-  folder?: ID | DirectusFolder | null;
-
-  // Document Info
-  title: string;
-  description?: string | null;
-  category?: string | null;
-  tags?: string[] | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaPet {
-  id: ID;
-  status: "active" | "inactive";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  unit?: ID | HoaUnit | null;
-
-  // Pet Info
-  name: string;
-  type?: string | null;
-  breed?: string | null;
-  weight?: number | null;
-  photo?: ID | DirectusFile | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
-}
-
-export interface HoaVehicle {
-  id: ID;
-  status: "active" | "inactive";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  unit?: ID | HoaUnit | null;
-
-  // Vehicle Info
-  make?: string | null;
-  model?: string | null;
-  year?: number | null;
-  color?: string | null;
-  license_plate?: string | null;
-  parking_spot?: string | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+export interface BlockSetting {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	heading_font?: 'serif' | `sans-serif` | null;
+	body_font?: 'serif' | `sans-serif` | null;
+	logo?: DirectusFile | string | null;
+	icon?: DirectusFile | string | null;
+	colors?: Array<{ primary: string; secondary: string; accent: string }> | null;
+	description?: string | null;
+	title?: string | null;
+	seo?: ExtensionSeoMetadata | null;
+	organization?: HoaOrganization | string | null;
 }
 
 export interface HoaAmenity {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Relations
-  organization: ID | HoaOrganization;
-
-  // Amenity Info
-  title: string;
-  icon?: string | null;
-  description?: string | null;
-  location?: string | null;
-  availability?: string | null;
-  image?: ID | DirectusFile | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	title?: string | null;
+	icon?: string | null;
+	description?: string | null;
+	image?: DirectusFile | string | null;
+	organization?: HoaOrganization | string | null;
 }
 
-export interface HoaSettings {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Relations
-  organization?: ID | HoaOrganization | null;
-
-  // Brand & Styling
-  heading_font?: string | null;
-  body_font?: string | null;
-  logo?: ID | DirectusFile | null;
-  icon?: ID | DirectusFile | null;
-  colors?: Record<string, any>[] | null;
-
-  // SEO & Content
-  title?: string | null;
-  description?: string | null;
-  seo?: {
-    title?: string;
-    meta_description?: string;
-  } | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+export interface HoaDocument {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	title?: string | null;
+	file?: DirectusFile | string | null;
+	organization?: HoaOrganization | string | null;
+	date_published?: string | null;
+	category?: 'bylaws' | 'financials' | 'minutes' | 'agendas' | 'notices' | null;
+	folder?: DirectusFolder | string | null;
 }
 
-export interface HoaHero {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Hero Content
-  title?: string | null;
-  subtitle?: string | null;
-  cta_text?: string | null;
-  cta_link?: string | null;
-
-  // Hero Images
-  background_image?: ID | DirectusFile | null;
-  foreground_image?: ID | DirectusFile | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+export interface HoaInvitation {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	email?: string | null;
+	organization?: HoaOrganization | string | null;
+	invited_by?: DirectusUser | string | null;
+	role?: DirectusRole | string | null;
+	token?: string | null;
+	invitation_status?: 'pending' | 'accepted' | 'expired' | `canceled ` | null;
+	/** @required */
+	expires_at: string;
+	accepted_at?: string | null;
 }
 
-export interface SubscriptionPlan {
-  id: ID;
-  status: "published" | "draft" | "archived";
-
-  // Plan Info
-  name: string;
-  description?: string | null;
-  price_monthly?: number | null;
-  price_yearly?: number | null;
-  trial_days?: number | null;
-  is_featured?: boolean | null;
-
-  // Limits
-  max_members?: number | null;
-  max_storage_gb?: number | null;
-  features?: string[] | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+export interface HoaMember {
+	/** @primaryKey */
+	id: string;
+	status?: 'archived' | 'active' | 'inactive' | 'pending';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	user?: DirectusUser | string | null;
+	organization?: HoaOrganization | string | null;
+	role?: DirectusRole | string | null;
+	first_name?: string | null;
+	last_name?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	member_type?: 'owner' | 'tenant' | null;
+	total_payments?: number | null;
+	last_payment_date?: string | null;
+	last_payment_amount?: number | null;
+	payment_status?: 'current' | 'overdue' | 'delinquent' | null;
+	outstanding_balance?: number | null;
+	units?: HoaMemberUnit[] | string[];
+	pets?: HoaPet[] | string[];
+	vehicles?: HoaVehicle[] | string[];
 }
 
-export interface HoaSubscription {
-  id: ID;
-  status: "active" | "canceled" | "expired" | "trial";
-
-  // Relations
-  organization: ID | HoaOrganization;
-  plan: ID | SubscriptionPlan;
-
-  // Subscription Info
-  start_date: string;
-  end_date?: string | null;
-  trial_end_date?: string | null;
-  canceled_at?: string | null;
-
-  // Timestamps
-  date_created?: string;
-  date_updated?: string | null;
+export interface HoaMemberUnit {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	is_primary_unit?: boolean | null;
+	start_date?: string | null;
+	end_date?: string | null;
+	ownership_percentage?: number | null;
+	member_id?: HoaMember | string | null;
+	unit_id?: HoaUnit | string | null;
 }
 
-export interface PaymentTransaction {
-  id: ID;
-  status: "pending" | "succeeded" | "failed" | "canceled" | "refunded";
-  date_created: string;
-  date_updated: string;
-  user_created?: ID | DirectusUser;
-  user_updated?: ID | DirectusUser;
-  organization: ID | HoaOrganization;
-  member?: ID | HoaMember;
-  payment_request?: ID | PaymentRequest;
-  amount: number;
-  currency: string;
-  description?: string;
-  stripe_payment_intent_id: string;
-  stripe_charge_id?: string;
-  stripe_customer_id?: string;
-  stripe_payment_method_id?: string;
-  payment_method_type?: "card" | "us_bank_account";
-  last4?: string;
-  receipt_url?: string;
-  receipt_email?: string;
-  processing_fee?: number;
-  net_amount?: number;
-  metadata?: any;
-  notes?: string;
+export interface HoaOrganization {
+	/** @primaryKey */
+	id: string;
+	status?: 'active' | 'inactive' | 'archived' | 'suspended';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	name?: string | null;
+	billing_cycle?: 'monthly' | 'yearly' | null;
+	city?: string | null;
+	state?: string | null;
+	zip?: string | null;
+	street_address?: string | null;
+	stripe_customer_id?: string | null;
+	stripe_subscription_id?: string | null;
+	subscription_status?: 'active' | 'trial' | 'canceled' | 'expired' | null;
+	trial_ends_at?: string | null;
+	member_count?: number | null;
+	custom_domain?: string | null;
+	domain_verified?: boolean | null;
+	phone?: string | null;
+	email?: string | null;
+	settings?: BlockSetting | string | null;
+	hero?: BlockHero | string | null;
+	domain_type?: string | null;
+	domain_config?: unknown[] | null;
+	/** @required */
+	slug: string;
+	folder?: DirectusFolder | string | null;
+	subscription_plan?: SubscriptionPlan | string | null;
+	default_monthly_dues?: number | null;
+	payment_grace_period_days?: number | null;
+	late_fee_amount?: number | null;
+	late_fee_enabled?: boolean | null;
+	payment_instructions?: string | null;
+	amenities?: HoaAmenity[] | string[];
+}
+
+export interface HoaPet {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	member_id?: HoaMember | string | null;
+	name?: string | null;
+	type?: 'dog' | 'cat' | null;
+	breed?: string | null;
+	weight?: string | null;
+	image?: DirectusFile | string | null;
+}
+
+export interface HoaUnit {
+	/** @primaryKey */
+	id: string;
+	status?: 'active' | 'inactive' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	organization?: HoaOrganization | string | null;
+	unit_number?: string | null;
+	members?: HoaMemberUnit[] | string[];
+}
+
+export interface HoaVehicle {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	make?: string | null;
+	model?: string | null;
+	year?: string | null;
+	license_plate?: string | null;
+	parking_spot?: string | null;
+	image?: DirectusFile | string | null;
+	member_id?: HoaMember | string | null;
 }
 
 export interface PaymentRequest {
-  id: ID;
-  status:
-    | "draft"
-    | "active"
-    | "paid"
-    | "partially_paid"
-    | "overdue"
-    | "canceled";
-  date_created: string;
-  date_updated: string;
-  user_created?: ID | DirectusUser;
-  user_updated?: ID | DirectusUser;
-  organization: ID | HoaOrganization;
-  member: ID | HoaMember;
-  request_type: "monthly_dues" | "assessment" | "late_fee" | "other";
-  title: string;
-  description?: string;
-  amount: number;
-  due_date?: string;
-  amount_paid: number;
-  amount_remaining: number;
-  paid_at?: string;
-  transactions?: PaymentTransaction[];
-  email_sent: boolean;
-  email_sent_at?: string;
-  reminder_sent: boolean;
-  reminder_sent_at?: string;
-  notes?: string;
-  metadata?: any;
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	status?: 'draft' | 'active' | 'paid' | 'partially_paid' | 'overdue' | 'canceled' | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	member: HoaMember | string;
+	/** @required */
+	request_type: 'monthly_dues' | 'assessment' | 'late_fee' | 'other';
+	/** @required */
+	title: string;
+	description?: string | null;
+	amount?: number | null;
+	due_date?: string | null;
+	amount_paid?: number | null;
+	amount_remaining?: number | null;
+	paid_at?: string | null;
+	email_sent?: boolean | null;
+	email_sent_at?: string | null;
+	reminder_sent?: boolean | null;
+	reminder_sent_at?: string | null;
+	notes?: string | null;
+	metadata?: 'json' | null;
+	transactions?: PaymentTransaction[] | string[];
 }
 
 export interface PaymentSchedule {
-  id: ID;
-  status: "active" | "paused" | "completed" | "canceled";
-  date_created: string;
-  date_updated: string;
-  organization: ID | HoaOrganization;
-  member: ID | HoaMember;
-  title: string;
-  description?: string;
-  amount: number;
-  frequency: "monthly" | "quarterly" | "annually";
-  start_date: string;
-  end_date?: string;
-  next_payment_date: string;
-  total_payments_generated: number;
-  last_payment_generated_at?: string;
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	status?: 'active' | 'paused' | 'completed' | 'canceled' | null;
+	organization?: HoaOrganization | string | null;
+	member?: HoaMember | string | null;
+	/** @required */
+	title: string;
+	description?: string | null;
+	/** @required */
+	amount: number;
+	/** @required */
+	frequency: 'monthly' | 'quarterly' | 'annually';
+	/** @required */
+	start_date: string;
+	end_date?: string | null;
+	/** @required */
+	next_payment_date: string;
+	total_payments_generated?: number | null;
+	last_payment_gnerated_at?: string | null;
 }
 
-// ============================================
-// DIRECTUS SCHEMA TYPE
-// ============================================
-
-// Per Directus SDK docs, collections must be defined as array types
-// See: https://directus.io/docs/tutorials/tips-and-tricks/advanced-types-with-the-directus-sdk
-export interface DirectusSchema {
-  // System Collections
-  directus_users: DirectusUser[];
-  directus_roles: DirectusRole[];
-  directus_files: DirectusFile[];
-  directus_permissions: DirectusPermission[];
-
-  // HOA Collections (Multi-tenant)
-  hoa_organizations: HoaOrganization[];
-  hoa_members: HoaMember[];
-  hoa_member_units: HoaMemberUnit[];
-  hoa_invitations: HoaInvitation[];
-  hoa_units: HoaUnit[];
-  hoa_documents: HoaDocument[];
-  hoa_pets: HoaPet[];
-  hoa_vehicles: HoaVehicle[];
-  hoa_amenities: HoaAmenity[];
-  hoa_settings: HoaSettings[];
-  hoa_heroes: HoaHero[];
-  hoa_subscriptions: HoaSubscription[];
-
-  // Subscription Plans
-  subscription_plans: SubscriptionPlan[];
-
-  // Payment Collections
-  payment_transactions: PaymentTransaction[];
-  payment_requests: PaymentRequest[];
-  payment_schedules: PaymentSchedule[];
+export interface PaymentTransaction {
+	/** @primaryKey */
+	id: string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	status?: 'pending' | 'succeeded' | 'failed' | 'canceled' | 'refunded' | null;
+	organization?: HoaOrganization | string | null;
+	member?: HoaMember | string | null;
+	amount?: number | null;
+	currency?: string | null;
+	description?: string | null;
+	/** @required */
+	stripe_payment_intent_id: string;
+	stripe_charge_id?: string | null;
+	stripe_customer_id?: string | null;
+	stripe_payment_method_id?: string | null;
+	stripe_payment_method?: 'card' | 'us_bank_account' | null;
+	last4?: string | null;
+	receipt_url?: string | null;
+	receipt_email?: string | null;
+	processing_fee?: number | null;
+	net_amount?: number | null;
+	notes?: string | null;
+	metadata?: 'json' | null;
+	payment_request?: PaymentRequest | string | null;
 }
 
-// ============================================
-// UTILITY TYPES
-// ============================================
-
-// Type helper for collection names
-export type DirectusCollections = keyof DirectusSchema;
-
-// Type helper for getting item type from collection name
-// Since collections are arrays in the schema, we need to extract the element type
-export type DirectusItem<T extends DirectusCollections> =
-  DirectusSchema[T] extends (infer U)[] ? U : DirectusSchema[T];
-
-// Type helper for create/update operations (without readonly fields)
-export type CreateDirectusItem<T extends DirectusCollections> = Omit<
-  DirectusItem<T>,
-  "id" | "date_created" | "date_updated"
->;
-
-export type UpdateDirectusItem<T extends DirectusCollections> = Partial<
-  Omit<DirectusItem<T>, "id" | "date_created" | "date_updated">
->;
-
-// ============================================
-// AUTHENTICATION TYPES
-// ============================================
-
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  expires: number;
+export interface SubscriptionPlan {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	name?: string | null;
+	slug?: string | null;
+	description?: string | null;
+	price_monthly?: number | null;
+	stripe_price_id_monthly?: string | null;
+	stripe_price_id_yearly?: string | null;
+	price_yearly?: number | null;
+	features?: 'json' | null;
+	max_members?: number | null;
+	max_storage_gb?: number | null;
+	max_documents?: number | null;
+	is_active?: boolean | null;
+	is_featured?: boolean | null;
+	trial_days?: number | null;
 }
 
-export interface SessionUser {
-  id: string;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar?: string | null;
-  role?: DirectusRole | null;
-  organization?: HoaOrganization | null;
-  member?: HoaMember | null;
+export interface DirectusAccess {
+	/** @primaryKey */
+	id: string;
+	role?: DirectusRole | string | null;
+	user?: DirectusUser | string | null;
+	policy?: DirectusPolicy | string;
+	sort?: number | null;
 }
 
-export interface LoginCredentials {
-  email: string;
-  password: string;
+export interface DirectusActivity {
+	/** @primaryKey */
+	id: number;
+	action?: string;
+	user?: DirectusUser | string | null;
+	timestamp?: string;
+	ip?: string | null;
+	user_agent?: string | null;
+	collection?: string;
+	item?: string;
+	origin?: string | null;
+	revisions?: DirectusRevision[] | string[];
 }
 
-export interface RegisterData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
+export interface DirectusCollection {
+	/** @primaryKey */
+	collection: string;
+	icon?: string | null;
+	note?: string | null;
+	display_template?: string | null;
+	hidden?: boolean;
+	singleton?: boolean;
+	translations?: Array<{ language: string; translation: string; singular: string; plural: string }> | null;
+	archive_field?: string | null;
+	archive_app_filter?: boolean;
+	archive_value?: string | null;
+	unarchive_value?: string | null;
+	sort_field?: string | null;
+	accountability?: 'all' | 'activity' | null | null;
+	color?: string | null;
+	item_duplication_fields?: 'json' | null;
+	sort?: number | null;
+	group?: DirectusCollection | string | null;
+	collapse?: string;
+	preview_url?: string | null;
+	versioning?: boolean;
+}
+
+export interface DirectusComment {
+	/** @primaryKey */
+	id: string;
+	collection?: DirectusCollection | string;
+	item?: string;
+	comment?: string;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	user_updated?: DirectusUser | string | null;
+}
+
+export interface DirectusField {
+	/** @primaryKey */
+	id: number;
+	collection?: DirectusCollection | string;
+	field?: string;
+	special?: string[] | null;
+	interface?: string | null;
+	options?: 'json' | null;
+	display?: string | null;
+	display_options?: 'json' | null;
+	readonly?: boolean;
+	hidden?: boolean;
+	sort?: number | null;
+	width?: string | null;
+	translations?: 'json' | null;
+	note?: string | null;
+	conditions?: 'json' | null;
+	required?: boolean | null;
+	group?: DirectusField | string | null;
+	validation?: 'json' | null;
+	validation_message?: string | null;
+	searchable?: boolean;
+}
+
+export interface DirectusFile {
+	/** @primaryKey */
+	id: string;
+	storage?: string;
+	filename_disk?: string | null;
+	filename_download?: string;
+	title?: string | null;
+	type?: string | null;
+	folder?: DirectusFolder | string | null;
+	uploaded_by?: DirectusUser | string | null;
+	created_on?: string;
+	modified_by?: DirectusUser | string | null;
+	modified_on?: string;
+	charset?: string | null;
+	filesize?: number | null;
+	width?: number | null;
+	height?: number | null;
+	duration?: number | null;
+	embed?: string | null;
+	description?: string | null;
+	location?: string | null;
+	tags?: string[] | null;
+	metadata?: 'json' | null;
+	focal_point_x?: number | null;
+	focal_point_y?: number | null;
+	tus_id?: string | null;
+	tus_data?: 'json' | null;
+	uploaded_on?: string | null;
+}
+
+export interface DirectusFolder {
+	/** @primaryKey */
+	id: string;
+	name?: string;
+	parent?: DirectusFolder | string | null;
+}
+
+export interface DirectusMigration {
+	/** @primaryKey */
+	version: string;
+	name?: string;
+	timestamp?: string | null;
+}
+
+export interface DirectusPermission {
+	/** @primaryKey */
+	id: number;
+	collection?: string;
+	action?: string;
+	permissions?: 'json' | null;
+	validation?: 'json' | null;
+	presets?: 'json' | null;
+	fields?: string[] | null;
+	policy?: DirectusPolicy | string;
+}
+
+export interface DirectusPolicy {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	name: string;
+	icon?: string;
+	description?: string | null;
+	ip_access?: string[] | null;
+	enforce_tfa?: boolean;
+	admin_access?: boolean;
+	app_access?: boolean;
+	permissions?: DirectusPermission[] | string[];
+	users?: DirectusAccess[] | string[];
+	roles?: DirectusAccess[] | string[];
+}
+
+export interface DirectusPreset {
+	/** @primaryKey */
+	id: number;
+	bookmark?: string | null;
+	user?: DirectusUser | string | null;
+	role?: DirectusRole | string | null;
+	collection?: string | null;
+	search?: string | null;
+	layout?: string | null;
+	layout_query?: 'json' | null;
+	layout_options?: 'json' | null;
+	refresh_interval?: number | null;
+	filter?: 'json' | null;
+	icon?: string | null;
+	color?: string | null;
+}
+
+export interface DirectusRelation {
+	/** @primaryKey */
+	id: number;
+	many_collection?: string;
+	many_field?: string;
+	one_collection?: string | null;
+	one_field?: string | null;
+	one_collection_field?: string | null;
+	one_allowed_collections?: string[] | null;
+	junction_field?: string | null;
+	sort_field?: string | null;
+	one_deselect_action?: string;
+}
+
+export interface DirectusRevision {
+	/** @primaryKey */
+	id: number;
+	activity?: DirectusActivity | string;
+	collection?: string;
+	item?: string;
+	data?: 'json' | null;
+	delta?: 'json' | null;
+	parent?: DirectusRevision | string | null;
+	version?: DirectusVersion | string | null;
+}
+
+export interface DirectusRole {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	name: string;
+	icon?: string;
+	description?: string | null;
+	parent?: DirectusRole | string | null;
+	children?: DirectusRole[] | string[];
+	policies?: DirectusAccess[] | string[];
+	users?: DirectusUser[] | string[];
+}
+
+export interface DirectusSession {
+	/** @primaryKey */
+	token: string;
+	user?: DirectusUser | string | null;
+	expires?: string;
+	ip?: string | null;
+	user_agent?: string | null;
+	share?: DirectusShare | string | null;
+	origin?: string | null;
+	next_token?: string | null;
+}
+
+export interface DirectusSettings {
+	/** @primaryKey */
+	id: number;
+	project_name?: string;
+	project_url?: string | null;
+	project_color?: string;
+	project_logo?: DirectusFile | string | null;
+	public_foreground?: DirectusFile | string | null;
+	public_background?: DirectusFile | string | null;
+	public_note?: string | null;
+	auth_login_attempts?: number | null;
+	auth_password_policy?: null | `/^.{8,}$/` | `/(?=^.{8,}$)(?=.*\\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+}{';'?>.<,])(?!.*\\s).*$/` | null;
+	storage_asset_transform?: 'all' | 'none' | 'presets' | null;
+	storage_asset_presets?: Array<{ key: string; fit: 'contain' | 'cover' | 'inside' | 'outside'; width: number; height: number; quality: number; withoutEnlargement: boolean; format: 'auto' | 'jpeg' | 'png' | 'webp' | 'tiff' | 'avif'; transforms: 'json' }> | null;
+	custom_css?: string | null;
+	storage_default_folder?: DirectusFolder | string | null;
+	basemaps?: Array<{ name: string; type: 'raster' | 'tile' | 'style'; url: string; tileSize: number; attribution: string }> | null;
+	mapbox_key?: string | null;
+	module_bar?: 'json' | null;
+	project_descriptor?: string | null;
+	default_language?: string;
+	custom_aspect_ratios?: Array<{ text: string; value: number }> | null;
+	public_favicon?: DirectusFile | string | null;
+	default_appearance?: 'auto' | 'light' | 'dark';
+	default_theme_light?: string | null;
+	theme_light_overrides?: 'json' | null;
+	default_theme_dark?: string | null;
+	theme_dark_overrides?: 'json' | null;
+	report_error_url?: string | null;
+	report_bug_url?: string | null;
+	report_feature_url?: string | null;
+	public_registration?: boolean;
+	public_registration_verify_email?: boolean;
+	public_registration_role?: DirectusRole | string | null;
+	public_registration_email_filter?: 'json' | null;
+	visual_editor_urls?: Array<{ url: string }> | null;
+	project_id?: string | null;
+	mcp_enabled?: boolean;
+	mcp_allow_deletes?: boolean;
+	mcp_prompts_collection?: string | null;
+	mcp_system_prompt_enabled?: boolean;
+	mcp_system_prompt?: string | null;
+	project_owner?: string | null;
+	project_usage?: string | null;
+	org_name?: string | null;
+	product_updates?: boolean | null;
+	project_status?: string | null;
+}
+
+export interface DirectusUser {
+	/** @primaryKey */
+	id: string;
+	first_name?: string | null;
+	last_name?: string | null;
+	email?: string | null;
+	password?: string | null;
+	location?: string | null;
+	title?: string | null;
+	description?: string | null;
+	tags?: string[] | null;
+	avatar?: DirectusFile | string | null;
+	language?: string | null;
+	tfa_secret?: string | null;
+	status?: 'draft' | 'invited' | 'unverified' | 'active' | 'suspended' | 'archived';
+	role?: DirectusRole | string | null;
+	token?: string | null;
+	last_access?: string | null;
+	last_page?: string | null;
+	provider?: string;
+	external_identifier?: string | null;
+	auth_data?: 'json' | null;
+	email_notifications?: boolean | null;
+	appearance?: null | 'auto' | 'light' | 'dark' | null;
+	theme_dark?: string | null;
+	theme_light?: string | null;
+	theme_light_overrides?: 'json' | null;
+	theme_dark_overrides?: 'json' | null;
+	text_direction?: 'auto' | 'ltr' | 'rtl';
+	policies?: DirectusAccess[] | string[];
+}
+
+export interface DirectusWebhook {
+	/** @primaryKey */
+	id: number;
+	name?: string;
+	method?: null;
+	url?: string;
+	status?: 'active' | 'inactive';
+	data?: boolean;
+	actions?: 'create' | 'update' | 'delete';
+	collections?: string[];
+	headers?: Array<{ header: string; value: string }> | null;
+	was_active_before_deprecation?: boolean;
+	migrated_flow?: DirectusFlow | string | null;
+}
+
+export interface DirectusDashboard {
+	/** @primaryKey */
+	id: string;
+	name?: string;
+	icon?: string;
+	note?: string | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	color?: string | null;
+	panels?: DirectusPanel[] | string[];
+}
+
+export interface DirectusPanel {
+	/** @primaryKey */
+	id: string;
+	dashboard?: DirectusDashboard | string;
+	name?: string | null;
+	icon?: string | null;
+	color?: string | null;
+	show_header?: boolean;
+	note?: string | null;
+	type?: string;
+	position_x?: number;
+	position_y?: number;
+	width?: number;
+	height?: number;
+	options?: 'json' | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
+export interface DirectusNotification {
+	/** @primaryKey */
+	id: number;
+	timestamp?: string | null;
+	status?: string | null;
+	recipient?: DirectusUser | string;
+	sender?: DirectusUser | string | null;
+	subject?: string;
+	message?: string | null;
+	collection?: string | null;
+	item?: string | null;
+}
+
+export interface DirectusShare {
+	/** @primaryKey */
+	id: string;
+	name?: string | null;
+	collection?: DirectusCollection | string;
+	item?: string;
+	role?: DirectusRole | string | null;
+	password?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	date_start?: string | null;
+	date_end?: string | null;
+	times_used?: number | null;
+	max_uses?: number | null;
+}
+
+export interface DirectusFlow {
+	/** @primaryKey */
+	id: string;
+	name?: string;
+	icon?: string | null;
+	color?: string | null;
+	description?: string | null;
+	status?: string;
+	trigger?: string | null;
+	accountability?: string | null;
+	options?: 'json' | null;
+	operation?: DirectusOperation | string | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	operations?: DirectusOperation[] | string[];
+}
+
+export interface DirectusOperation {
+	/** @primaryKey */
+	id: string;
+	name?: string | null;
+	key?: string;
+	type?: string;
+	position_x?: number;
+	position_y?: number;
+	options?: 'json' | null;
+	resolve?: DirectusOperation | string | null;
+	reject?: DirectusOperation | string | null;
+	flow?: DirectusFlow | string;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
+export interface DirectusTranslation {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	language: string;
+	/** @required */
+	key: string;
+	/** @required */
+	value: string;
+}
+
+export interface DirectusVersion {
+	/** @primaryKey */
+	id: string;
+	key?: string;
+	name?: string | null;
+	collection?: DirectusCollection | string;
+	item?: string;
+	hash?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	user_updated?: DirectusUser | string | null;
+	delta?: 'json' | null;
+}
+
+export interface DirectusExtension {
+	enabled?: boolean;
+	/** @primaryKey */
+	id: string;
+	folder?: string;
+	source?: string;
+	bundle?: string | null;
+}
+
+export interface Schema {
+	block_hero: BlockHero[];
+	block_settings: BlockSetting[];
+	hoa_amenities: HoaAmenity[];
+	hoa_documents: HoaDocument[];
+	hoa_invitations: HoaInvitation[];
+	hoa_members: HoaMember[];
+	hoa_member_units: HoaMemberUnit[];
+	hoa_organizations: HoaOrganization[];
+	hoa_pets: HoaPet[];
+	hoa_units: HoaUnit[];
+	hoa_vehicles: HoaVehicle[];
+	payment_requests: PaymentRequest[];
+	payment_schedules: PaymentSchedule[];
+	payment_transactions: PaymentTransaction[];
+	subscription_plans: SubscriptionPlan[];
+	directus_access: DirectusAccess[];
+	directus_activity: DirectusActivity[];
+	directus_collections: DirectusCollection[];
+	directus_comments: DirectusComment[];
+	directus_fields: DirectusField[];
+	directus_files: DirectusFile[];
+	directus_folders: DirectusFolder[];
+	directus_migrations: DirectusMigration[];
+	directus_permissions: DirectusPermission[];
+	directus_policies: DirectusPolicy[];
+	directus_presets: DirectusPreset[];
+	directus_relations: DirectusRelation[];
+	directus_revisions: DirectusRevision[];
+	directus_roles: DirectusRole[];
+	directus_sessions: DirectusSession[];
+	directus_settings: DirectusSettings;
+	directus_users: DirectusUser[];
+	directus_webhooks: DirectusWebhook[];
+	directus_dashboards: DirectusDashboard[];
+	directus_panels: DirectusPanel[];
+	directus_notifications: DirectusNotification[];
+	directus_shares: DirectusShare[];
+	directus_flows: DirectusFlow[];
+	directus_operations: DirectusOperation[];
+	directus_translations: DirectusTranslation[];
+	directus_versions: DirectusVersion[];
+	directus_extensions: DirectusExtension[];
+}
+
+export enum CollectionNames {
+	block_hero = 'block_hero',
+	block_settings = 'block_settings',
+	hoa_amenities = 'hoa_amenities',
+	hoa_documents = 'hoa_documents',
+	hoa_invitations = 'hoa_invitations',
+	hoa_members = 'hoa_members',
+	hoa_member_units = 'hoa_member_units',
+	hoa_organizations = 'hoa_organizations',
+	hoa_pets = 'hoa_pets',
+	hoa_units = 'hoa_units',
+	hoa_vehicles = 'hoa_vehicles',
+	payment_requests = 'payment_requests',
+	payment_schedules = 'payment_schedules',
+	payment_transactions = 'payment_transactions',
+	subscription_plans = 'subscription_plans',
+	directus_access = 'directus_access',
+	directus_activity = 'directus_activity',
+	directus_collections = 'directus_collections',
+	directus_comments = 'directus_comments',
+	directus_fields = 'directus_fields',
+	directus_files = 'directus_files',
+	directus_folders = 'directus_folders',
+	directus_migrations = 'directus_migrations',
+	directus_permissions = 'directus_permissions',
+	directus_policies = 'directus_policies',
+	directus_presets = 'directus_presets',
+	directus_relations = 'directus_relations',
+	directus_revisions = 'directus_revisions',
+	directus_roles = 'directus_roles',
+	directus_sessions = 'directus_sessions',
+	directus_settings = 'directus_settings',
+	directus_users = 'directus_users',
+	directus_webhooks = 'directus_webhooks',
+	directus_dashboards = 'directus_dashboards',
+	directus_panels = 'directus_panels',
+	directus_notifications = 'directus_notifications',
+	directus_shares = 'directus_shares',
+	directus_flows = 'directus_flows',
+	directus_operations = 'directus_operations',
+	directus_translations = 'directus_translations',
+	directus_versions = 'directus_versions',
+	directus_extensions = 'directus_extensions'
 }

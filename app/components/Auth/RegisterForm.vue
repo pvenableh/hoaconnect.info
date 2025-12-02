@@ -4,7 +4,7 @@ import { ref, onMounted, watch } from "vue";
 import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
-import { useDebounce } from "@vueuse/core";
+import { refDebounced } from "@vueuse/core";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ const { handleSubmit, isSubmitting, values } = useForm({
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 const passwordValue = ref("");
-const debouncedPassword = useDebounce(passwordValue, 300);
+const debouncedPassword = refDebounced(passwordValue, 300);
 
 const passwordRequirements = ref([
   { label: "At least 8 characters", met: false },
