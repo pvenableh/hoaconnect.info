@@ -5,6 +5,7 @@ import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
 import { refDebounced } from "@vueuse/core";
+import type { AppliedCoupon } from "@/composables/useCoupons";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
@@ -32,10 +33,28 @@ const emit = defineEmits<{
       lastName: string;
       email: string;
       password: string;
+      coupon?: AppliedCoupon;
     }
   ): void;
   (e: "login"): void;
 }>();
+
+// Coupon state
+const appliedCoupon = ref<AppliedCoupon | null>(null);
+
+const handleCouponApplied = (coupon: AppliedCoupon) => {
+  appliedCoupon.value = coupon;
+};
+
+const handleCouponRemoved = () => {
+  appliedCoupon.value = null;
+};
+
+const handleCouponError = (error: string) => {
+  toast.error("Invalid coupon", {
+    description: error,
+  });
+};
 
 const formSchema = toTypedSchema(
   z
@@ -90,7 +109,10 @@ watch(debouncedPassword, (newPassword) => {
 const onSubmit = handleSubmit(async (values) => {
   try {
     const { confirmPassword, ...submitValues } = values;
-    emit("submit", submitValues);
+    emit("submit", {
+      ...submitValues,
+      coupon: appliedCoupon.value || undefined,
+    });
   } catch (error) {
     toast.error("Registration failed", {
       description: "Please try again later.",
@@ -202,6 +224,15 @@ onMounted(() => {
               :error-message="errors[0]"
             />
           </VeeField>
+
+          <!-- Coupon Code Input -->
+          <FormCouponCodeInput
+            id="couponCode"
+            class="pt-2"
+            @applied="handleCouponApplied"
+            @removed="handleCouponRemoved"
+            @error="handleCouponError"
+          />
 
           <div class="flex flex-col gap-3 pt-2">
             <Button type="submit" class="w-full" :disabled="isSubmitting">
