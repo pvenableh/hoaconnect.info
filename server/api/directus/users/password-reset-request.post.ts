@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
     // Request password reset using SDK
     await directus.request(
-      passwordRequest(email, `${process.env.APP_URL}/reset-password`)
+      passwordRequest(email, `${process.env.APP_URL}/auth/reset-password`)
     );
 
     return {
