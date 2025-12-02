@@ -50,7 +50,7 @@ const handleLogin = () => {
           &larr; Back to home
         </NuxtLink>
       </div>
-      <RegisterForm @submit="handleSubmit" @login="handleLogin" />
+      <AuthRegisterForm @submit="handleSubmit" @login="handleLogin" />
     </div>
   </div>
 </template>
