@@ -49,7 +49,7 @@ const cardRef = ref<InstanceType<typeof Card> | null>(null);
 
 const onSubmit = handleSubmit(async (values) => {
   try {
-    emit("submit", values);
+    emit("submit", { email: values.email!, password: values.password! });
   } catch (error) {
     toast.error("Login failed", {
       description: "Please check your credentials and try again.",
