@@ -4,9 +4,11 @@ import {
   readItems,
   readRoles,
   updateItem,
-  authentication,
   rest,
   createFolder,
+  login,
+  staticToken,
+  readMe,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
 import { sendWelcomeEmail } from "../../utils/sendgrid";
@@ -159,59 +161,42 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 7. Automatically log the user in
+    // 7. Automatically log the user in (using same pattern as login.post.ts)
+    const authDirectus = createDirectus(config.directus.url).with(rest());
+    const authResult = await authDirectus.request(login({ email, password }));
+
+    if (!authResult.access_token) {
+      throw createError({
+        statusCode: 500,
+        message: "Authentication failed - no access token returned",
+      });
+    }
+
+    // Create an authenticated client to fetch complete user data
     const authClient = createDirectus(config.directus.url)
-      .with(authentication("json"))
+      .with(staticToken(authResult.access_token))
       .with(rest());
 
-    const authResult = await authClient.login({ email, password });
+    // Fetch user data to ensure we have complete info
+    const userData = await authClient.request(
+      readMe({
+        fields: ["*", "role"],
+      })
+    );
 
-    if (!authResult.access_token || !authResult.refresh_token) {
-      throw createError({
-        statusCode: 500,
-        message: "Authentication succeeded but tokens were not returned",
-      });
-    }
-
-    // Ensure expires is present
-    if (authResult.expires === null || authResult.expires === undefined) {
-      throw createError({
-        statusCode: 500,
-        message:
-          "Authentication succeeded but expiration time was not returned",
-      });
-    }
-
-    // Set user session with Directus tokens for API proxy
+    // Set user session with Directus tokens (matching login.post.ts structure)
     await setUserSession(event, {
       user: {
-        id: newUser.id as string,
-        email: newUser.email as string,
-        first_name: newUser.first_name || null,
-        last_name: newUser.last_name || null,
-        avatar: null,
-        role: null,
-        organization: {
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug || null,
-          domain: organization.domain || null,
-          logo: organization.logo || null,
-          email: organization.email || null,
-          phone: organization.phone || null,
-          address: organization.street_address || null,
-          city: organization.city || null,
-          state: organization.state || null,
-          zip: organization.zip || null,
-          settings: organization.settings || null,
-          status: organization.status,
-          date_created: organization.date_created,
-          date_updated: organization.date_updated || null,
-        },
-        member: null,
+        id: userData.id as string,
+        email: userData.email as string,
+        firstName: userData.first_name || undefined,
+        lastName: userData.last_name || undefined,
+        role: userData.role || undefined,
+        organizationId: organization.id,
+        provider: "local",
       },
       loggedInAt: Date.now(),
-      expiresAt: Date.now() + authResult.expires * 1000,
+      expiresAt: Date.now() + ((authResult.expires || 900) * 1000),
       secure: {
         directusAccessToken: authResult.access_token,
         directusRefreshToken: authResult.refresh_token,
