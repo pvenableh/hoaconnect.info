@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const config = useRuntimeConfig();
-const { list: listPlans } = useDirectusItems("subscription_plans");
+const { list: listPlans } = useDirectusItems("subscription_plans", { requireAuth: false });
 
 // Total steps: 4 (Org Info, Plan Selection, Account Details, Payment)
 // Beta mode: skips step 2 (Plan Selection), but still shows payment if plan costs money
