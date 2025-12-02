@@ -1,60 +1,55 @@
-<template>
-  <div
-    class="container flex h-screen w-screen flex-col items-center justify-center"
-  >
-    <div
-      class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]"
-    >
-      <!-- Logo/Brand -->
-      <div class="flex flex-col space-y-2 text-center">
-        <Icon name="lucide:shield" class="mx-auto h-12 w-12 text-primary" />
-        <h1 class="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p class="text-sm text-muted-foreground">
-          Sign in to your HOA management account
-        </p>
-      </div>
-
-      <!-- Login Form Component -->
-      <AuthLoginForm @success="handleLoginSuccess" :show-o-auth="false" />
-
-      <!-- Sign Up Link -->
-      <p class="px-8 text-center text-sm text-muted-foreground">
-        Don't have an account?
-        <NuxtLink
-          to="/auth/register"
-          class="hover:text-primary underline underline-offset-4"
-        >
-          Sign up
-        </NuxtLink>
-      </p>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 
-definePageMeta({
-  layout: false,
-  middleware: "guest",
-});
-
 const router = useRouter();
-const route = useRoute();
+const { login } = useDirectusAuth();
+const isLoading = ref(false);
 
-// Get redirect URL from query params
-const redirectTo = computed(
-  () => (route.query.redirect as string) || "/dashboard"
-);
-
-// Handle successful login
-const handleLoginSuccess = async (user: any) => {
-  toast.success("Successfully logged in!");
-  await router.push(redirectTo.value);
+const handleSubmit = async (values: { email: string; password: string }) => {
+  isLoading.value = true;
+  try {
+    await login(values.email, values.password);
+    toast.success("Login successful!", {
+      description: "Welcome back!",
+    });
+    router.push("/");
+  } catch (error: any) {
+    toast.error("Login failed", {
+      description:
+        error.message || "Please check your credentials and try again.",
+    });
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-// Page metadata
-useHead({
-  title: "Sign In",
-});
+const handleForgotPassword = () => {
+  router.push("/auth/forgot-password");
+};
+
+const handleRegister = () => {
+  router.push("/auth/register");
+};
 </script>
+
+<template>
+  <div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4"
+  >
+    <div class="w-full max-w-md">
+      <div class="mb-8 text-center">
+        <NuxtLink
+          to="/"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          &larr; Back to home
+        </NuxtLink>
+      </div>
+      <AuthLoginForm
+        @submit="handleSubmit"
+        @forgot-password="handleForgotPassword"
+        @register="handleRegister"
+      />
+    </div>
+  </div>
+</template>

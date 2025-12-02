@@ -1,33 +1,39 @@
 <script setup lang="ts">
-import { PasswordResetForm } from "@/components/auth";
+import { AcceptInviteForm } from "@/components/auth";
 import { toast } from "vue-sonner";
 
 const router = useRouter();
 const route = useRoute();
-const { resetPassword } = useDirectusAuth();
+const { acceptInvite } = useDirectusUser();
 const isLoading = ref(false);
 
-// Get token from query params (e.g., /auth/reset-password?token=abc123)
+// Get token and email from query params (e.g., /auth/accept-invite?token=abc123&email=user@example.com)
 const token = computed(() => (route.query.token as string) || "");
+const email = computed(() => (route.query.email as string) || "");
 
-const handleSubmit = async (values: { password: string; token: string }) => {
+const handleSubmit = async (values: {
+  firstName: string;
+  lastName: string;
+  password: string;
+  token: string;
+}) => {
   if (!values.token) {
-    toast.error("Invalid reset link", {
-      description: "Please use the link from your email.",
+    toast.error("Invalid invitation link", {
+      description: "Please use the link from your invitation email.",
     });
     return;
   }
 
   isLoading.value = true;
   try {
-    await resetPassword(values.token, values.password);
-    toast.success("Password updated!", {
-      description: "Your password has been successfully reset.",
+    await acceptInvite(values.token, values.password);
+    toast.success("Welcome to the team!", {
+      description: "Your account has been created successfully.",
     });
     router.push("/auth/login");
   } catch (error: any) {
-    toast.error("Reset failed", {
-      description: error.message || "Please try again or request a new reset link.",
+    toast.error("Failed to accept invitation", {
+      description: error.message || "Please try again or contact support.",
     });
   } finally {
     isLoading.value = false;
@@ -52,8 +58,9 @@ const handleLogin = () => {
           &larr; Back to home
         </NuxtLink>
       </div>
-      <PasswordResetForm
+      <AcceptInviteForm
         :token="token"
+        :email="email"
         @submit="handleSubmit"
         @login="handleLogin"
       />

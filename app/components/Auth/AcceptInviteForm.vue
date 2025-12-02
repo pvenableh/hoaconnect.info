@@ -1,184 +1,282 @@
 <script setup lang="ts">
+import type { HTMLAttributes } from "vue";
+import { ref, onMounted, watch } from "vue";
+import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
-import { useForm } from "vee-validate";
+import { z } from "zod";
+import { useDebounce } from "@vueuse/core";
+
+const { $gsap } = useNuxtApp();
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { CustomInput } from "@/components/Form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "vue-sonner";
-import { acceptInviteSchema, type AcceptInviteSchema } from "~/schemas/auth";
+import { Loader2, Check, X, PartyPopper } from "lucide-vue-next";
 
-interface Props {
-  token: string;
-  title?: string;
-  description?: string;
-  redirectTo?: string;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  title: "Accept invitation",
-  description: "Set up your account to get started",
-  redirectTo: "/",
-});
-
-const emit = defineEmits<{
-  success: [user: any];
-  error: [error: Error];
+const props = defineProps<{
+  class?: HTMLAttributes["class"];
+  token?: string;
+  email?: string;
 }>();
 
-const { acceptInvite } = useDirectusAuth();
-const router = useRouter();
+const emit = defineEmits<{
+  (
+    e: "submit",
+    values: {
+      firstName: string;
+      lastName: string;
+      password: string;
+      token: string;
+    }
+  ): void;
+  (e: "login"): void;
+}>();
 
-const loading = ref(false);
-const hasSubmitted = ref(false);
-const {
-  animateError,
-  animateValidationError,
-  animateSuccess,
-  animateButtonLoading,
-  resetButtonLoading,
-} = useFormAnimations();
+const formSchema = toTypedSchema(
+  z
+    .object({
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      password: z
+        .string()
+        .min(8, "Password must be at least 8 characters")
+        .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+        .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+        .regex(/[0-9]/, "Password must contain at least one number"),
+      confirmPassword: z.string(),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"],
+    })
+);
 
-const form = useForm({
-  validationSchema: toTypedSchema(acceptInviteSchema),
+const { handleSubmit, isSubmitting } = useForm({
+  validationSchema: formSchema,
   initialValues: {
-    firstName: "",
-    lastName: "",
-    password: "",
-    confirmPassword: "",
+    firstName: '',
+    lastName: '',
+    password: '',
+    confirmPassword: '',
   },
+})
+
+const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const successRef = ref<HTMLElement | null>(null);
+const isSuccess = ref(false);
+const passwordValue = ref("");
+const debouncedPassword = useDebounce(passwordValue, 300);
+
+const passwordRequirements = ref([
+  { label: "At least 8 characters", met: false },
+  { label: "One uppercase letter", met: false },
+  { label: "One lowercase letter", met: false },
+  { label: "One number", met: false },
+]);
+
+watch(debouncedPassword, (newPassword) => {
+  const reqs = passwordRequirements.value;
+  if (reqs[0]) reqs[0].met = newPassword.length >= 8;
+  if (reqs[1]) reqs[1].met = /[A-Z]/.test(newPassword);
+  if (reqs[2]) reqs[2].met = /[a-z]/.test(newPassword);
+  if (reqs[3]) reqs[3].met = /[0-9]/.test(newPassword);
 });
 
-const handleBlur = async (fieldName: keyof AcceptInviteSchema) => {
-  const result = await form.validateField(fieldName);
-  if (result.errors.length > 0) {
-    animateValidationError(fieldName as string);
-  }
-};
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    const { confirmPassword, ...submitValues } = values;
+    emit("submit", { ...submitValues, token: props.token || "" });
 
-const onSubmit = form.handleSubmit(
-  async (values: AcceptInviteSchema) => {
-    hasSubmitted.value = true;
-    loading.value = true;
-    const submitBtn = document.querySelector(".submit-button");
-    if (submitBtn) {
-      animateButtonLoading(submitBtn as HTMLElement);
-    }
+    // Animate transition to success state
+    const cardEl = cardRef.value?.$el;
+    if (cardEl && $gsap) {
+      $gsap.to(cardEl.querySelector("form"), {
+        opacity: 0,
+        y: -10,
+        duration: 0.2,
+        onComplete: () => {
+          isSuccess.value = true;
+          nextTick(() => {
+            if (successRef.value && $gsap) {
+              // Animate success content
+              $gsap.fromTo(
+                successRef.value,
+                { opacity: 0, y: 10, scale: 0.95 },
+                {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  duration: 0.3,
+                  ease: "power2.out",
+                }
+              );
 
-    try {
-      const result = await acceptInvite(props.token, values.password);
-
-      if (submitBtn) {
-        animateSuccess(submitBtn as HTMLElement);
-      }
-
-      toast.success("Welcome aboard!", {
-        description: "Your account has been set up successfully.",
+              // Add a fun bounce to the icon
+              const icon = successRef.value.querySelector(".success-icon");
+              if (icon) {
+                $gsap.fromTo(
+                  icon,
+                  { scale: 0, rotation: -180 },
+                  {
+                    scale: 1,
+                    rotation: 0,
+                    duration: 0.5,
+                    ease: "back.out(1.7)",
+                    delay: 0.1,
+                  }
+                );
+              }
+            }
+          });
+        },
       });
-
-      emit("success", result.user);
-      await router.push(props.redirectTo);
-    } catch (err: any) {
-      const errorMessage =
-        err.message || "Failed to accept invitation. The link may be expired.";
-
-      const card = document.querySelector(".auth-card");
-      if (card) {
-        animateError(card as HTMLElement);
-      }
-
-      toast.error("Invitation failed", {
-        description: errorMessage,
-      });
-
-      emit("error", err);
-    } finally {
-      loading.value = false;
-      if (submitBtn) {
-        resetButtonLoading(submitBtn as HTMLElement);
-      }
     }
-  },
-  async () => {
-    hasSubmitted.value = true;
-    Object.keys(form.errors.value).forEach((fieldName) => {
-      animateValidationError(fieldName);
+  } catch (error) {
+    toast.error("Failed to accept invitation", {
+      description: "Please try again or contact support.",
     });
   }
-);
+});
+
+onMounted(() => {
+  const el = cardRef.value?.$el;
+  if (el && $gsap) {
+    $gsap.fromTo(
+      el,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
+    );
+  }
+});
 </script>
 
 <template>
-  <Card class="w-full max-w-md mx-auto auth-card">
-    <CardHeader>
-      <CardTitle>{{ title }}</CardTitle>
-      <CardDescription>{{ description }}</CardDescription>
-    </CardHeader>
+  <div :class="cn('flex flex-col gap-6', props.class)">
+    <Card ref="cardRef">
+      <CardHeader>
+        <CardTitle class="text-2xl">
+          {{ isSuccess ? "Welcome aboard!" : "Accept invitation" }}
+        </CardTitle>
+        <CardDescription>
+          {{
+            isSuccess
+              ? "Your account has been created successfully"
+              : "Complete your account setup to get started"
+          }}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
+          <div v-if="email" class="rounded-lg bg-muted p-3 text-sm mb-2">
+            <span class="text-muted-foreground">Invitation sent to: </span>
+            <span class="font-medium">{{ email }}</span>
+          </div>
 
-    <CardContent>
-      <form @submit="onSubmit" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <FormField v-slot="{ componentField }" name="firstName">
-            <FormItem class="form-field">
-              <FormLabel>First name</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  placeholder="John"
-                  v-bind="componentField"
-                  @blur="handleBlur('firstName')"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+          <div class="grid grid-cols-2 gap-4">
+            <VeeField v-slot="{ field, errors }" name="firstName">
+              <CustomInput
+                id="firstName"
+                label="First name"
+                type="text"
+                placeholder="John"
+                v-bind="field"
+                :error-message="errors[0]"
+              />
+            </VeeField>
 
-          <FormField v-slot="{ componentField }" name="lastName">
-            <FormItem class="form-field">
-              <FormLabel>Last name</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  placeholder="Doe"
-                  v-bind="componentField"
-                  @blur="handleBlur('lastName')"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+            <VeeField v-slot="{ field, errors }" name="lastName">
+              <CustomInput
+                id="lastName"
+                label="Last name"
+                type="text"
+                placeholder="Doe"
+                v-bind="field"
+                :error-message="errors[0]"
+              />
+            </VeeField>
+          </div>
+
+          <VeeField v-slot="{ field, errors }" name="password">
+            <CustomInput
+              id="password"
+              label="Password"
+              type="password"
+              v-bind="field"
+              :error-message="errors[0]"
+              @input="
+                passwordValue = ($event.target as HTMLInputElement).value
+              "
+            >
+              <template #after>
+                <div class="mt-2 mb-3 space-y-1">
+                  <TransitionGroup
+                    enter-active-class="transition-all duration-200 ease-out"
+                    leave-active-class="transition-all duration-150 ease-in"
+                    enter-from-class="opacity-0 -translate-x-2"
+                    enter-to-class="opacity-100 translate-x-0"
+                    leave-from-class="opacity-100 translate-x-0"
+                    leave-to-class="opacity-0 -translate-x-2"
+                  >
+                    <div
+                      v-for="req in passwordRequirements"
+                      :key="req.label"
+                      class="flex items-center gap-2 text-xs"
+                      :class="
+                        req.met ? 'text-green-600' : 'text-muted-foreground'
+                      "
+                    >
+                      <Check v-if="req.met" class="h-3 w-3" />
+                      <X v-else class="h-3 w-3" />
+                      <span>{{ req.label }}</span>
+                    </div>
+                  </TransitionGroup>
+                </div>
+              </template>
+            </CustomInput>
+          </VeeField>
+
+          <VeeField v-slot="{ field, errors }" name="confirmPassword">
+            <CustomInput
+              id="confirmPassword"
+              label="Confirm Password"
+              type="password"
+              v-bind="field"
+              :error-message="errors[0]"
+            />
+          </VeeField>
+
+          <div class="flex flex-col gap-3 pt-2">
+            <Button type="submit" class="w-full" :disabled="isSubmitting">
+              <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
+              {{ isSubmitting ? "Creating account..." : "Accept invitation" }}
+            </Button>
+          </div>
+        </form>
+
+        <div v-else ref="successRef" class="space-y-4 text-center">
+          <div
+            class="success-icon mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"
+          >
+            <PartyPopper class="h-6 w-6 text-primary" />
+          </div>
+          <div class="space-y-2">
+            <p class="text-sm text-muted-foreground">
+              Your account has been created and you're ready to go. Click below
+              to sign in.
+            </p>
+          </div>
+          <Button type="button" class="w-full mt-4" @click="emit('login')">
+            Continue to login
+          </Button>
         </div>
-
-        <FormField v-slot="{ componentField }" name="password">
-          <FormItem class="form-field">
-            <FormLabel>Password</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                v-bind="componentField"
-                @blur="handleBlur('password')"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-
-        <FormField v-slot="{ componentField }" name="confirmPassword">
-          <FormItem class="form-field">
-            <FormLabel>Confirm password</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                v-bind="componentField"
-                @blur="handleBlur('confirmPassword')"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-
-        <Button type="submit" class="w-full submit-button" :disabled="loading">
-          {{ loading ? "Setting up..." : "Complete setup" }}
-        </Button>
-      </form>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
+  </div>
 </template>

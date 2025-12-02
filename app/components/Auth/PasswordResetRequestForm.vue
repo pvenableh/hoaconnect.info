@@ -1,152 +1,166 @@
 <script setup lang="ts">
+import type { HTMLAttributes } from "vue";
+import { ref, onMounted } from "vue";
+import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
-import { useForm } from "vee-validate";
-import { toast } from "vue-sonner";
+import { z } from "zod";
+
+const { $gsap } = useNuxtApp();
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { CustomInput } from "@/components/Form";
 import {
-  passwordResetRequestSchema,
-  type PasswordResetRequestSchema,
-} from "~/schemas/auth";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "vue-sonner";
+import { Loader2, ArrowLeft, Mail } from "lucide-vue-next";
 
-interface Props {
-  title?: string;
-  description?: string;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  title: "Reset your password",
-  description: "Enter your email to receive a password reset link",
-});
-
-const emit = defineEmits<{
-  success: [];
-  error: [error: Error];
+const props = defineProps<{
+  class?: HTMLAttributes["class"];
 }>();
 
-const { requestPasswordReset } = useDirectusAuth();
+const emit = defineEmits<{
+  (e: "submit", values: { email: string }): void;
+  (e: "back-to-login"): void;
+}>();
 
-const loading = ref(false);
-const success = ref(false);
-const hasSubmitted = ref(false);
-const {
-  animateError,
-  animateValidationError,
-  animateSuccess,
-  animateButtonLoading,
-  resetButtonLoading,
-} = useFormAnimations();
+const formSchema = toTypedSchema(
+  z.object({
+    email: z.string().email("Please enter a valid email address"),
+  })
+);
 
-const form = useForm({
-  validationSchema: toTypedSchema(passwordResetRequestSchema),
+const { handleSubmit, isSubmitting } = useForm({
+  validationSchema: formSchema,
   initialValues: {
-    email: "",
+    email: '',
   },
-});
+})
 
-const handleBlur = async (fieldName: keyof PasswordResetRequestSchema) => {
-  const result = await form.validateField(fieldName);
-  if (result.errors.length > 0) {
-    animateValidationError(fieldName as string);
-  }
-};
-const onSubmit = form.handleSubmit(
-  async (values: PasswordResetRequestSchema) => {
-    hasSubmitted.value = true;
-    loading.value = true;
-    const submitBtn = document.querySelector(".submit-button");
-    if (submitBtn) {
-      animateButtonLoading(submitBtn as HTMLElement);
-    }
+const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const successRef = ref<HTMLElement | null>(null);
+const isSuccess = ref(false);
+const submittedEmail = ref("");
 
-    try {
-      await requestPasswordReset(values.email);
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    submittedEmail.value = values.email;
+    emit("submit", values);
 
-      success.value = true;
-
-      if (submitBtn) {
-        animateSuccess(submitBtn as HTMLElement);
-      }
-
-      toast.success("Reset link sent!", {
-        description: "Check your email for the password reset link.",
+    // Animate transition to success state
+    const cardEl = cardRef.value?.$el;
+    if (cardEl && $gsap) {
+      $gsap.to(cardEl.querySelector("form"), {
+        opacity: 0,
+        y: -10,
+        duration: 0.2,
+        onComplete: () => {
+          isSuccess.value = true;
+          nextTick(() => {
+            if (successRef.value && $gsap) {
+              $gsap.fromTo(
+                successRef.value,
+                { opacity: 0, y: 10 },
+                { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }
+              );
+            }
+          });
+        },
       });
-
-      emit("success");
-    } catch (err: any) {
-      const errorMessage =
-        err.message || "Failed to send reset link. Please try again.";
-
-      const card = document.querySelector(".auth-card");
-      if (card) {
-        animateError(card as HTMLElement);
-      }
-
-      toast.error("Request failed", {
-        description: errorMessage,
-      });
-
-      emit("error", err);
-    } finally {
-      loading.value = false;
-      if (submitBtn) {
-        resetButtonLoading(submitBtn as HTMLElement);
-      }
     }
-  },
-  async () => {
-    hasSubmitted.value = true;
-    Object.keys(form.errors.value).forEach((fieldName) => {
-      animateValidationError(fieldName);
+  } catch (error) {
+    toast.error("Request failed", {
+      description: "Please try again later.",
     });
   }
-);
+});
+
+onMounted(() => {
+  const el = cardRef.value?.$el;
+  if (el && $gsap) {
+    $gsap.fromTo(
+      el,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
+    );
+  }
+});
 </script>
 
 <template>
-  <Card class="w-full max-w-md mx-auto auth-card">
-    <CardHeader>
-      <CardTitle>{{ title }}</CardTitle>
-      <CardDescription>{{ description }}</CardDescription>
-    </CardHeader>
+  <div :class="cn('flex flex-col gap-6', props.class)">
+    <Card ref="cardRef">
+      <CardHeader>
+        <CardTitle class="text-2xl">Reset your password</CardTitle>
+        <CardDescription>
+          {{
+            isSuccess
+              ? "Check your email for a reset link"
+              : "Enter your email address and we'll send you a link to reset your password"
+          }}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
+          <VeeField v-slot="{ field, errors }" name="email">
+            <CustomInput
+              id="email"
+              label="Email"
+              type="email"
+              placeholder="m@example.com"
+              v-bind="field"
+              :error-message="errors[0]"
+            />
+          </VeeField>
 
-    <CardContent>
-      <div v-if="success" class="space-y-4">
-        <Alert>
-          <AlertDescription>
-            Check your email for a link to reset your password. If it doesn't
-            appear within a few minutes, check your spam folder.
-          </AlertDescription>
-        </Alert>
-        <Button as-child variant="outline" class="w-full">
-          <NuxtLink to="/auth/login"> Back to login </NuxtLink>
-        </Button>
-      </div>
+          <div class="flex flex-col gap-3 pt-2">
+            <Button type="submit" class="w-full" :disabled="isSubmitting">
+              <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
+              {{ isSubmitting ? "Sending..." : "Send reset link" }}
+            </Button>
 
-      <form v-else @submit="onSubmit" class="space-y-4">
-        <FormField v-slot="{ componentField }" name="email">
-          <FormItem class="form-field">
-            <FormLabel>Email</FormLabel>
-            <FormControl>
-              <Input
-                type="email"
-                placeholder="name@example.com"
-                v-bind="componentField"
-                @blur="handleBlur('email')"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
+            <Button
+              type="button"
+              variant="ghost"
+              class="w-full"
+              @click="emit('back-to-login')"
+            >
+              <ArrowLeft class="mr-2 h-4 w-4" />
+              Back to login
+            </Button>
+          </div>
+        </form>
 
-        <Button type="submit" class="w-full submit-button" :disabled="loading">
-          {{ loading ? "Sending..." : "Send reset link" }}
-        </Button>
-      </form>
-    </CardContent>
-
-    <CardFooter v-if="!success" class="flex justify-center">
-      <NuxtLink to="/auth/login" class="text-sm text-primary hover:underline">
-        Back to login
-      </NuxtLink>
-    </CardFooter>
-  </Card>
+        <div v-else ref="successRef" class="space-y-4 text-center">
+          <div
+            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"
+          >
+            <Mail class="h-6 w-6 text-primary" />
+          </div>
+          <div class="space-y-2">
+            <p class="text-sm text-muted-foreground">
+              We've sent a password reset link to
+            </p>
+            <p class="font-medium">{{ submittedEmail }}</p>
+            <p class="text-sm text-muted-foreground">
+              Please check your inbox and spam folder.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full mt-4"
+            @click="emit('back-to-login')"
+          >
+            <ArrowLeft class="mr-2 h-4 w-4" />
+            Back to login
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
 </template>
