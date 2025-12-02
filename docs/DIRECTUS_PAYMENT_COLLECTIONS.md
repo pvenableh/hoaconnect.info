@@ -316,7 +316,7 @@ CREATE INDEX idx_payment_requests_due_date ON payment_requests(due_date);
 
 ## TypeScript Types
 
-After creating these collections, update `/types/directus-schema.ts` with:
+After creating these collections, update `/types/directus.ts` with:
 
 ```typescript
 export interface PaymentTransaction {

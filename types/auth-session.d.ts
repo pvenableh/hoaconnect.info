@@ -1,5 +1,5 @@
 // types/auth-session.d.ts
-import type { DirectusRole } from "./directus-schema";
+import type { DirectusRole } from "./directus";
 
 declare module "#auth-utils" {
   interface User {

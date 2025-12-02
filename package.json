@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus-schema.ts'",
+    "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js"
   },
   "dependencies": {

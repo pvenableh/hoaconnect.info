@@ -331,7 +331,7 @@ Generate TypeScript types from your Directus schema:
 
 ```bash
 # Add to package.json scripts
-"generate:types": "dotenv -e .env -- npx directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus-schema.ts"
+"generate:types": "dotenv -e .env -- npx directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts"
 
 # Run generation
 pnpm generate:types
