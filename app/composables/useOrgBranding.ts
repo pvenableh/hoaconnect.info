@@ -47,12 +47,26 @@ export const useOrgBranding = () => {
     const org = activeHoa.value as HoaOrganization | null;
     const settings = org?.settings as HoaSettings | null;
 
-    // Get file IDs
-    const iconFileId = getFileId(settings?.icon);
-    const logoFileId = getFileId(settings?.logo) || getFileId(org?.logo);
+    // Get file IDs - fall back to default Property Flow assets from config
+    const iconFileId =
+      getFileId(settings?.icon) || config.public.defaultIconId || null;
+    const logoFileId =
+      getFileId(settings?.logo) ||
+      getFileId(org?.logo) ||
+      config.public.defaultLogoId ||
+      null;
 
     // Extract primary color from colors array if available
     const primaryColor = settings?.colors?.[0]?.primary || "#2563eb";
+
+    // Generate URLs - all icons come from Directus when IDs are configured
+    const faviconUrl = iconFileId
+      ? getDirectusAssetUrl(iconFileId, { width: 32, height: 32, format: "png" })!
+      : "/favicon.ico";
+    const logoUrl = logoFileId ? getDirectusAssetUrl(logoFileId)! : "/logo.png";
+    const appleTouchIconUrl = iconFileId
+      ? getDirectusAssetUrl(iconFileId, { width: 180, height: 180, format: "png" })!
+      : "/apple-touch-icon.png";
 
     return {
       siteName:
@@ -66,15 +80,9 @@ export const useOrgBranding = () => {
         config.public.siteDescription ||
         "Premier Property Management App",
       themeColor: primaryColor,
-      faviconUrl: iconFileId
-        ? getDirectusAssetUrl(iconFileId, { width: 32, height: 32, format: "png" })!
-        : "/favicon.ico",
-      logoUrl: logoFileId
-        ? getDirectusAssetUrl(logoFileId)!
-        : "/logo.png",
-      appleTouchIconUrl: iconFileId
-        ? getDirectusAssetUrl(iconFileId, { width: 180, height: 180, format: "png" })!
-        : "/apple-touch-icon.png",
+      faviconUrl,
+      logoUrl,
+      appleTouchIconUrl,
     };
   });
 

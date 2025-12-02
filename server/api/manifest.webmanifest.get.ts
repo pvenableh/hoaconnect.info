@@ -102,24 +102,31 @@ export default defineEventHandler(async (event) => {
   const icons: ManifestIcon[] = [];
   const iconSizes = [72, 96, 128, 144, 152, 192, 384, 512];
 
-  if (orgBranding?.iconUrl) {
-    // Dynamic icons from Directus
+  // Determine icon base URL - org-specific or default from config
+  const iconBaseUrl =
+    orgBranding?.iconUrl ||
+    (config.public.defaultIconId
+      ? `${config.public.directus.url}/assets/${config.public.defaultIconId}`
+      : null);
+
+  if (iconBaseUrl) {
+    // Dynamic icons from Directus (org-specific or default)
     iconSizes.forEach((size) => {
       icons.push({
-        src: `${orgBranding!.iconUrl}?width=${size}&height=${size}&format=png`,
+        src: `${iconBaseUrl}?width=${size}&height=${size}&format=png`,
         sizes: `${size}x${size}`,
         type: "image/png",
       });
     });
     // Maskable icon
     icons.push({
-      src: `${orgBranding.iconUrl}?width=512&height=512&format=png`,
+      src: `${iconBaseUrl}?width=512&height=512&format=png`,
       sizes: "512x512",
       type: "image/png",
       purpose: "maskable",
     });
   } else {
-    // Default static icons (assumes they exist in public/)
+    // Fallback to static icons only if no Directus icons configured
     iconSizes.forEach((size) => {
       icons.push({
         src: `/icon-${size}x${size}.png`,

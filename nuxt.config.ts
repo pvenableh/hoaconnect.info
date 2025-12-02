@@ -71,6 +71,10 @@ export default defineNuxtConfig({
           ? process.env.STRIPE_PUBLIC_KEY_LIVE
           : process.env.STRIPE_PUBLIC_KEY_TEST,
       companyName: "Property Flow",
+      // Default branding assets (Directus file IDs)
+      // These are used when no organization is active or org has no custom branding
+      defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
+      defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
     },
   },
 
