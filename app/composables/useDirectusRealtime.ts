@@ -9,7 +9,7 @@
  */
 
 import { createDirectus, realtime, rest, authentication } from '@directus/sdk'
-import type { DirectusSchema } from '~/types/directus-schema'
+import type { DirectusSchema } from '~/types/directus'
 
 interface SubscriptionCallback {
   (event: 'create' | 'update' | 'delete', data: any): void

@@ -1,4 +1,4 @@
-// types/directus-schema.ts
+// types/directus.ts
 // Directus collection types and schema
 
 // ============================================
