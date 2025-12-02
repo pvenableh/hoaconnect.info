@@ -48,7 +48,7 @@
 
         <!-- General Tab -->
         <div v-if="activeTab === 'general'" class="space-y-6">
-          <OrganizationInfoForm
+          <SettingsOrganizationInfoForm
             :organization="organization"
             @updated="handleOrganizationUpdate"
           />
@@ -56,7 +56,7 @@
 
         <!-- Branding Tab -->
         <div v-if="activeTab === 'branding'" class="space-y-6">
-          <BrandingSettingsForm
+          <SettingsBrandingSettingsForm
             :organization="organization"
             :settings="settings"
             @updated="handleSettingsUpdate"
@@ -65,7 +65,7 @@
 
         <!-- SEO Tab -->
         <div v-if="activeTab === 'seo'" class="space-y-6">
-          <SeoSettingsForm
+          <SettingsSeoSettingsForm
             :settings="settings"
             @updated="handleSettingsUpdate"
           />
@@ -73,14 +73,12 @@
 
         <!-- Subscription Tab -->
         <div v-if="activeTab === 'subscription'" class="space-y-6">
-          <SubscriptionSettingsCard
-            :organization="organization"
-          />
+          <SettingsSubscriptionSettingsCard :organization="organization" />
         </div>
 
         <!-- Payment Settings Tab -->
         <div v-if="activeTab === 'payments'" class="space-y-6">
-          <PaymentSettingsForm
+          <SettingsPaymentSettingsForm
             :organization="organization"
             @updated="handleOrganizationUpdate"
           />
@@ -89,7 +87,10 @@
 
       <!-- No Organization -->
       <div v-else class="text-center py-12">
-        <Icon name="lucide:building-2" class="h-12 w-12 mx-auto text-muted-foreground" />
+        <Icon
+          name="lucide:building-2"
+          class="h-12 w-12 mx-auto text-muted-foreground"
+        />
         <h2 class="mt-4 text-lg font-medium">No Organization Selected</h2>
         <p class="text-muted-foreground mt-2">
           Please select an organization to manage its settings.
@@ -119,8 +120,10 @@ onMounted(() => {
 
 // Get selected organization
 const { selectedOrgId, isLoading } = await useSelectedOrg();
-const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
-const { get: getSettings, create: createSettings } = useDirectusItems<BlockSetting>("block_settings");
+const { get: getOrganization } =
+  useDirectusItems<HoaOrganization>("hoa_organizations");
+const { get: getSettings, create: createSettings } =
+  useDirectusItems<BlockSetting>("block_settings");
 
 // Tab management
 const tabs = [
@@ -142,12 +145,7 @@ const fetchOrganization = async () => {
 
   try {
     const org = await getOrganization(selectedOrgId.value, {
-      fields: [
-        "*",
-        "settings.*",
-        "subscription_plan.*",
-        "hero.*",
-      ],
+      fields: ["*", "settings.*", "subscription_plan.*", "hero.*"],
     });
     organization.value = org;
 
