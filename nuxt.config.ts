@@ -71,6 +71,10 @@ export default defineNuxtConfig({
           ? process.env.STRIPE_PUBLIC_KEY_LIVE
           : process.env.STRIPE_PUBLIC_KEY_TEST,
       companyName: "Property Flow",
+      // Default branding assets (Directus file IDs)
+      // These are used when no organization is active or org has no custom branding
+      defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
+      defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
     },
   },
 
@@ -98,16 +102,14 @@ export default defineNuxtConfig({
       link: [
         {
           rel: "preconnect",
-          href: process.env.DIRECTUS_URL,
+          href: process.env.DIRECTUS_URL || "",
         },
         {
           rel: "dns-prefetch",
-          href: process.env.DIRECTUS_URL,
+          href: process.env.DIRECTUS_URL || "",
         },
-        {
-          rel: "manifest",
-          href: "/manifest.webmanifest",
-        },
+        // Note: manifest, favicon, and apple-touch-icon are set dynamically
+        // via useOrgBranding composable to support multi-tenant branding
       ],
     },
     pageTransition: { name: "page", mode: "out-in" },
@@ -131,12 +133,23 @@ export default defineNuxtConfig({
 
   icon: {
     serverBundle: "remote",
+    clientBundle: {
+      scan: true,
+    },
     collections: ["heroicons-outline", "heroicons-solid", "lucide"],
   },
 
   image: {
     quality: 80,
     format: ["webp", "avif", "png", "jpg"],
+    screens: {
+      xs: 320,
+      sm: 640,
+      md: 768,
+      lg: 1024,
+      xl: 1280,
+      xxl: 1536,
+    },
     providers: {
       directus: {
         provider: "~/providers/directus",
