@@ -57,7 +57,8 @@ export interface Coupon {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
-	code?: string | null;
+	/** @required */
+	code: string;
 	status?: 'active' | 'inactive' | 'expired' | null;
 	valid_from?: string | null;
 	max_uses?: number | null;
@@ -65,10 +66,13 @@ export interface Coupon {
 	min_purchase_amount?: number | null;
 	/** @description Only for new signups. */
 	is_first_purchase_only?: boolean | null;
-	amount?: number | null;
+	/** @required */
+	amount: number;
 	title?: string | null;
 	description?: string | null;
-	type?: 'percentage' | 'amount' | null;
+	/** @required */
+	type: 'percentage' | 'amount';
+	valid_until?: string | null;
 	usage?: CouponUsage[] | string[];
 	applicable_plans?: CouponsSubscriptionPlan[] | string[];
 }
