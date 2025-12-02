@@ -142,7 +142,6 @@ export default defineEventHandler(async (event) => {
         last_name: lastName,
         role: hoaAdminRoleId,
         status: "active",
-        provider: "local",
       })
     );
 
@@ -162,9 +161,17 @@ export default defineEventHandler(async (event) => {
     );
 
     // 7. Automatically log the user in (using same pattern as login.post.ts)
+    // Add a small delay to ensure user is fully persisted in Directus
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    console.log("User created successfully:", newUser.id);
+    console.log("Attempting login with email:", email);
+    console.log("Password length:", password?.length);
+    console.log("Directus URL:", config.directus.url);
+
     const loginClient = createDirectus(config.directus.url).with(rest());
 
-    const authResult = await loginClient.request(login({ email, password }));
+    const authResult = await loginClient.request(login(email, password));
 
     if (!authResult.access_token || !authResult.refresh_token) {
       throw createError({
