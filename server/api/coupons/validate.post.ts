@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
           "is_first_purchase_only",
           "status",
           // Include applicable plans if configured
-          "applicable_plans.subscription_plan_id",
+          "applicable_plans.subscription_plans_id",
         ],
         limit: 1,
       })
@@ -132,7 +132,7 @@ export default defineEventHandler(async (event) => {
     // Check plan applicability if plans are restricted and a plan ID is provided
     if (planId && coupon.applicable_plans && coupon.applicable_plans.length > 0) {
       const applicablePlanIds = coupon.applicable_plans.map(
-        (p: any) => p.subscription_plan_id
+        (p: any) => p.subscription_plans_id
       );
       if (!applicablePlanIds.includes(planId)) {
         return {
