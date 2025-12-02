@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PasswordResetForm } from "@/components/auth";
 import { toast } from "vue-sonner";
 
 const router = useRouter();
@@ -27,7 +26,8 @@ const handleSubmit = async (values: { password: string; token: string }) => {
     router.push("/auth/login");
   } catch (error: any) {
     toast.error("Reset failed", {
-      description: error.message || "Please try again or request a new reset link.",
+      description:
+        error.message || "Please try again or request a new reset link.",
     });
   } finally {
     isLoading.value = false;

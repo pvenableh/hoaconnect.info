@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { AcceptInviteForm } from "@/components/auth";
 import { toast } from "vue-sonner";
 
 const router = useRouter();

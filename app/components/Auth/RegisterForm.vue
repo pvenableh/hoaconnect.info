@@ -9,7 +9,7 @@ import { useDebounce } from "@vueuse/core";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { CustomInput } from "@/components/Form";
+
 import {
   Card,
   CardContent,
@@ -60,13 +60,13 @@ const formSchema = toTypedSchema(
 const { handleSubmit, isSubmitting, values } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   },
-})
+});
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 const passwordValue = ref("");
@@ -123,7 +123,7 @@ onMounted(() => {
         <form @submit="onSubmit" class="space-y-2">
           <div class="grid grid-cols-2 gap-4">
             <VeeField v-slot="{ field, errors }" name="firstName">
-              <CustomInput
+              <FormCustomInput
                 id="firstName"
                 label="First name"
                 type="text"
@@ -134,7 +134,7 @@ onMounted(() => {
             </VeeField>
 
             <VeeField v-slot="{ field, errors }" name="lastName">
-              <CustomInput
+              <FormCustomInput
                 id="lastName"
                 label="Last name"
                 type="text"
@@ -146,7 +146,7 @@ onMounted(() => {
           </div>
 
           <VeeField v-slot="{ field, errors }" name="email">
-            <CustomInput
+            <FormCustomInput
               id="email"
               label="Email"
               type="email"
@@ -157,15 +157,13 @@ onMounted(() => {
           </VeeField>
 
           <VeeField v-slot="{ field, errors }" name="password">
-            <CustomInput
+            <FormCustomInput
               id="password"
               label="Password"
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              @input="
-                passwordValue = ($event.target as HTMLInputElement).value
-              "
+              @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
                 <div class="mt-2 mb-3 space-y-1">
@@ -192,11 +190,11 @@ onMounted(() => {
                   </TransitionGroup>
                 </div>
               </template>
-            </CustomInput>
+            </FormCustomInput>
           </VeeField>
 
           <VeeField v-slot="{ field, errors }" name="confirmPassword">
-            <CustomInput
+            <FormCustomInput
               id="confirmPassword"
               label="Confirm Password"
               type="password"

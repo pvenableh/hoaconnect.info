@@ -9,7 +9,7 @@ import { useDebounce } from "@vueuse/core";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { CustomInput } from "@/components/Form";
+
 import {
   Card,
   CardContent,
@@ -50,10 +50,10 @@ const formSchema = toTypedSchema(
 const { handleSubmit, isSubmitting } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    password: '',
-    confirmPassword: '',
+    password: "",
+    confirmPassword: "",
   },
-})
+});
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 const successRef = ref<HTMLElement | null>(null);
@@ -144,15 +144,13 @@ onMounted(() => {
       <CardContent>
         <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
           <VeeField v-slot="{ field, errors }" name="password">
-            <CustomInput
+            <FormCustomInput
               id="password"
               label="New Password"
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              @input="
-                passwordValue = ($event.target as HTMLInputElement).value
-              "
+              @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
                 <div class="mt-2 mb-3 space-y-1">
@@ -179,11 +177,11 @@ onMounted(() => {
                   </TransitionGroup>
                 </div>
               </template>
-            </CustomInput>
+            </FormCustomInput>
           </VeeField>
 
           <VeeField v-slot="{ field, errors }" name="confirmPassword">
-            <CustomInput
+            <FormCustomInput
               id="confirmPassword"
               label="Confirm New Password"
               type="password"

@@ -1,54 +1,54 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue'
-import { computed } from 'vue'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import type { HTMLAttributes } from "vue";
+import { computed } from "vue";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 export interface CustomInputProps {
-  id?: string
-  defaultValue?: string | number
-  modelValue?: string | number
-  class?: HTMLAttributes['class']
-  variant?: 'full' | 'underline'
-  errorMessage?: string
-  type?: string
-  placeholder?: string
-  disabled?: boolean
-  label?: string
+  id?: string;
+  defaultValue?: string | number;
+  modelValue?: string | number;
+  class?: HTMLAttributes["class"];
+  variant?: "full" | "underline";
+  errorMessage?: string;
+  type?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  label?: string;
 }
 
-const props = withDefaults(defineProps<CustomInputProps>(), {
-  variant: 'full',
-})
+const props = withDefaults(defineProps<FormCustomInputProps>(), {
+  variant: "full",
+});
 
 defineOptions({
   inheritAttrs: false,
-})
+});
 
 const emits = defineEmits<{
-  (e: 'update:modelValue', payload: string | number): void
-}>()
+  (e: "update:modelValue", payload: string | number): void;
+}>();
 
 const inputValue = computed({
   get: () => props.modelValue,
-  set: (value) => emits('update:modelValue', value as string | number),
-})
+  set: (value) => emits("update:modelValue", value as string | number),
+});
 
 const variantClasses = computed(() => {
-  if (props.variant === 'underline') {
-    return 'border-0 border-b border-input rounded-none focus-visible:ring-0 focus-visible:border-ring'
+  if (props.variant === "underline") {
+    return "border-0 border-b border-input rounded-none focus-visible:ring-0 focus-visible:border-ring";
   }
-  return ''
-})
+  return "";
+});
 
 const errorClasses = computed(() => {
   if (props.errorMessage) {
-    return props.variant === 'underline'
-      ? 'border-destructive'
-      : 'border-destructive'
+    return props.variant === "underline"
+      ? "border-destructive"
+      : "border-destructive";
   }
-  return ''
-})
+  return "";
+});
 </script>
 
 <template>
