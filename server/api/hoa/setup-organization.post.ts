@@ -161,22 +161,55 @@ export default defineEventHandler(async (event) => {
     );
 
     // 7. Automatically log the user in (using same pattern as login.post.ts)
-    // Add a small delay to ensure user is fully persisted in Directus
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     console.log("User created successfully:", newUser.id);
     console.log("Attempting login with email:", email);
     console.log("Password length:", password?.length);
     console.log("Directus URL:", config.directus.url);
 
+    // Retry login with exponential backoff to handle Directus propagation delay
     const loginClient = createDirectus(config.directus.url).with(rest());
+    let authResult: any = null;
+    let lastError: any = null;
+    const maxRetries = 5;
+    const delays = [500, 1000, 2000, 3000, 5000]; // Increasing delays in ms
 
-    const authResult = await loginClient.request(login({ email, password }));
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`Login attempt ${attempt + 1}/${maxRetries}...`);
 
-    if (!authResult.access_token || !authResult.refresh_token) {
+        // Wait before each attempt (including first, to let user propagate)
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+
+        authResult = await loginClient.request(login({ email, password }));
+
+        console.log("Login response received:", {
+          hasAccessToken: !!authResult?.access_token,
+          hasRefreshToken: !!authResult?.refresh_token,
+          expires: authResult?.expires,
+        });
+
+        if (authResult?.access_token && authResult?.refresh_token) {
+          console.log(`Login successful on attempt ${attempt + 1}`);
+          break;
+        }
+
+        lastError = new Error("No tokens in response");
+      } catch (err: any) {
+        lastError = err;
+        console.log(`Login attempt ${attempt + 1} failed:`, err.message || err);
+
+        // If it's the last attempt, we'll throw after the loop
+        if (attempt < maxRetries - 1) {
+          console.log(`Retrying in ${delays[attempt + 1]}ms...`);
+        }
+      }
+    }
+
+    if (!authResult?.access_token || !authResult?.refresh_token) {
+      console.error("All login attempts failed. Last error:", lastError);
       throw createError({
         statusCode: 500,
-        message: "Authentication failed - no tokens returned",
+        message: `Authentication failed after ${maxRetries} attempts - ${lastError?.message || "no tokens returned"}`,
       });
     }
 
