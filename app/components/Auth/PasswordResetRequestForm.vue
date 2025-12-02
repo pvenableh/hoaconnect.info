@@ -47,8 +47,8 @@ const submittedEmail = ref("");
 
 const onSubmit = handleSubmit(async (values) => {
   try {
-    submittedEmail.value = values.email;
-    emit("submit", values);
+    submittedEmail.value = values.email!;
+    emit("submit", { email: values.email! });
 
     // Animate transition to success state
     const cardEl = cardRef.value?.$el;

@@ -92,7 +92,12 @@ watch(debouncedPassword, (newPassword) => {
 const onSubmit = handleSubmit(async (values) => {
   try {
     const { confirmPassword, ...submitValues } = values;
-    emit("submit", { ...submitValues, token: props.token || "" });
+    emit("submit", {
+      firstName: submitValues.firstName!,
+      lastName: submitValues.lastName!,
+      password: submitValues.password!,
+      token: props.token || "",
+    });
 
     // Animate transition to success state
     const cardEl = cardRef.value?.$el;
