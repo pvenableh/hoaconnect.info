@@ -2,7 +2,9 @@
 // Manages dynamic branding based on active organization
 // Falls back to Property Flow defaults when no org or no custom branding
 
-import type { ID, DirectusFile, HoaSettings, HoaOrganization } from "~/types/directus";
+import type { DirectusFile, BlockSetting, HoaOrganization } from "~/types/directus";
+
+type ID = string | number;
 
 interface BrandingConfig {
   siteName: string;
@@ -45,7 +47,7 @@ export const useOrgBranding = () => {
   // Compute branding config with fallbacks
   const branding = computed<BrandingConfig>(() => {
     const org = activeHoa.value as HoaOrganization | null;
-    const settings = org?.settings as HoaSettings | null;
+    const settings = org?.settings as BlockSetting | null;
 
     // Get file IDs - fall back to default Property Flow assets from config
     const iconFileId =
