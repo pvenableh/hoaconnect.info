@@ -6,8 +6,7 @@ import {
   updateItem,
   rest,
   createFolder,
-  login,
-  staticToken,
+  authentication,
   readMe,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
@@ -161,21 +160,22 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 7. Automatically log the user in (using same pattern as login.post.ts)
-    const authDirectus = createDirectus(config.directus.url).with(rest());
-    const authResult = await authDirectus.request(login({ email, password }));
+    // 7. Automatically log the user in (using same pattern as accept-invitation.post.ts)
+    const authClient = createDirectus(config.directus.url)
+      .with(authentication("json"))
+      .with(rest());
 
-    if (!authResult.access_token) {
+    const authResult = await authClient.login({
+      email,
+      password,
+    });
+
+    if (!authResult.access_token || !authResult.refresh_token) {
       throw createError({
         statusCode: 500,
-        message: "Authentication failed - no access token returned",
+        message: "Authentication failed - no tokens returned",
       });
     }
-
-    // Create an authenticated client to fetch complete user data
-    const authClient = createDirectus(config.directus.url)
-      .with(staticToken(authResult.access_token))
-      .with(rest());
 
     // Fetch user data to ensure we have complete info
     const userData = await authClient.request(
