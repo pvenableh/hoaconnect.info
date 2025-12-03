@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     // Fetch user data with organization info
     const user = await authClient.request(
       readMe({
-        fields: ["*", "role", { organization: ["id", "slug", "name"] }],
+        fields: ["*", "role", { organization: ["id", "slug", "name", "custom_domain", "domain_verified"] }],
       })
     );
 
