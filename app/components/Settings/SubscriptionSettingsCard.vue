@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization, SubscriptionPlan } from "~/types/directus";
+import type { HoaOrganization, SubscriptionPlan } from "~~/types/directus";
 
 const props = defineProps<{
   organization: HoaOrganization;

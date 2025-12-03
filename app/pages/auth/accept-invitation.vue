@@ -194,7 +194,7 @@ import {
   type AcceptInvitationSchema,
 } from "~/lib/validations";
 import { toast } from "vue-sonner";
-import type { HoaInvitation } from "~/types/directus";
+import type { HoaInvitation } from "~~/types/directus";
 
 definePageMeta({
   layout: false,

@@ -1,7 +1,7 @@
 // composables/useDirectusRoles.ts
 // Composable for managing Directus roles
 
-import type { DirectusRole } from "~/types/directus";
+import type { DirectusRole } from "~~/types/directus";
 
 export function useDirectusRoles() {
   const config = useRuntimeConfig();

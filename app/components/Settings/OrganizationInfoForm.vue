@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization } from "~/types/directus";
+import type { HoaOrganization } from "~~/types/directus";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{

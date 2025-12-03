@@ -9,7 +9,7 @@ import {
   refresh,
 } from "@directus/sdk";
 import type { H3Event } from "h3";
-import type { DirectusSchema } from "~/types/directus";
+import type { DirectusSchema } from "~~/types/directus";
 
 /**
  * Get a typed Directus client with admin access

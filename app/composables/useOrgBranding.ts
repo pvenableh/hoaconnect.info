@@ -2,7 +2,7 @@
 // Manages dynamic branding based on active organization
 // Falls back to Property Flow defaults when no org or no custom branding
 
-import type { DirectusFile, BlockSetting, HoaOrganization } from "~/types/directus";
+import type { DirectusFile, BlockSetting, HoaOrganization } from "~~/types/directus";
 
 type ID = string | number;
 

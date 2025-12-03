@@ -235,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BlockSetting, ExtensionSeoMetadata } from "~/types/directus";
+import type { BlockSetting, ExtensionSeoMetadata } from "~~/types/directus";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{

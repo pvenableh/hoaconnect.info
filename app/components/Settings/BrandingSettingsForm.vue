@@ -300,7 +300,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization, BlockSetting, DirectusFile } from "~/types/directus";
+import type { HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
