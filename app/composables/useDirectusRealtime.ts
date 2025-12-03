@@ -9,7 +9,7 @@
  */
 
 import { createDirectus, realtime, rest, authentication } from "@directus/sdk";
-import type { DirectusSchema } from "~~/types/directus";
+import type { Schema } from "~~/types/directus";
 
 interface SubscriptionCallback {
   (event: "create" | "update" | "delete", data: any): void;
@@ -49,7 +49,7 @@ export const useDirectusRealtime = () => {
         config.public.directus.websocketUrl ||
         config.public.directus.url.replace("http", "ws");
 
-      client.value = createDirectus<DirectusSchema>(wsUrl)
+      client.value = createDirectus<Schema>(wsUrl)
         .with(realtime())
         .with(rest())
         .with(authentication("json"));

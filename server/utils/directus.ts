@@ -9,7 +9,7 @@ import {
   refresh,
 } from "@directus/sdk";
 import type { H3Event } from "h3";
-import type { DirectusSchema } from "~~/types/directus";
+import type { Schema } from "~~/types/directus";
 
 /**
  * Get a typed Directus client with admin access
@@ -18,7 +18,7 @@ import type { DirectusSchema } from "~~/types/directus";
 export function getTypedDirectus() {
   const config = useRuntimeConfig();
 
-  return createDirectus<DirectusSchema>(config.directus.url)
+  return createDirectus<Schema>(config.directus.url)
     .with(staticToken(config.directus.staticToken))
     .with(rest());
 }
@@ -104,7 +104,7 @@ export async function getUserDirectus(
     }
   }
 
-  return createDirectus<DirectusSchema>(config.directus.url)
+  return createDirectus<Schema>(config.directus.url)
     .with(staticToken(accessToken))
     .with(rest());
 }
@@ -116,5 +116,5 @@ export async function getUserDirectus(
 export function getPublicDirectus() {
   const config = useRuntimeConfig();
 
-  return createDirectus<DirectusSchema>(config.directus.url).with(rest());
+  return createDirectus<Schema>(config.directus.url).with(rest());
 }
