@@ -2,14 +2,14 @@
 // Client-side Directus helper for creating typed clients
 
 import { createDirectus, rest, authentication, realtime } from "@directus/sdk";
-import type { DirectusSchema } from "~~/types/directus";
+import type { Schema } from "~~/types/directus";
 
 /**
  * Create a typed Directus REST client
  * Use this for general API operations
  */
 export function createDirectusClient(url: string) {
-  return createDirectus<DirectusSchema>(url)
+  return createDirectus<Schema>(url)
     .with(authentication("json"))
     .with(rest());
 }
@@ -19,7 +19,7 @@ export function createDirectusClient(url: string) {
  * Use this for WebSocket subscriptions
  */
 export function createDirectusRealtimeClient(url: string, websocketUrl: string) {
-  return createDirectus<DirectusSchema>(url)
+  return createDirectus<Schema>(url)
     .with(authentication("json"))
     .with(rest())
     .with(realtime({ url: websocketUrl }));
