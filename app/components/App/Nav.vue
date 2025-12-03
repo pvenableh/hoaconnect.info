@@ -9,8 +9,8 @@ const config = useRuntimeConfig();
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
 
-// Get active HOA for public org pages (when viewing /my-org)
-const { activeHoa } = useActiveHoa();
+// Get active HOA for public org pages (when viewing /my-org or custom domain)
+const { activeHoa, isCustomDomain } = useActiveHoa();
 
 // Get current organization for logged-in users
 const { currentOrg } = user.value
@@ -43,8 +43,8 @@ const orgName = computed(() => {
   return currentOrg.value?.organization?.name || null;
 });
 
-// Determine if we should show org branding (logged in OR on org page)
-const showOrgBranding = computed(() => user.value || isOnOrgPage.value);
+// Determine if we should show org branding (logged in OR on org page OR on custom domain)
+const showOrgBranding = computed(() => user.value || isOnOrgPage.value || isCustomDomain.value);
 
 const handleLogout = async () => {
   try {
@@ -77,9 +77,12 @@ const publicNavItems = [
     <div class="max-w-7xl mx-auto px-6 py-4">
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
+        <!-- On custom domain: always link to landing page (/) -->
+        <!-- On org page (slug route): link to org root -->
+        <!-- Otherwise: logged in goes to dashboard, public goes to home -->
         <NuxtLink
           :to="
-            user ? '/dashboard' : isOnOrgPage ? `/${route.params.slug}` : '/'
+            isCustomDomain ? '/' : user ? '/dashboard' : isOnOrgPage ? `/${route.params.slug}` : '/'
           "
           class="flex items-center gap-2 hover:opacity-80 transition"
         >
@@ -115,8 +118,8 @@ const publicNavItems = [
           </NuxtLink>
         </div>
 
-        <!-- Public Nav Links - Only show on main home page, not on org pages -->
-        <div v-else-if="!isOnOrgPage" class="hidden md:flex gap-6">
+        <!-- Public Nav Links - Only show on main home page, not on org pages or custom domains -->
+        <div v-else-if="!isOnOrgPage && !isCustomDomain" class="hidden md:flex gap-6">
           <a
             v-for="item in publicNavItems"
             :key="item.path"
@@ -127,7 +130,7 @@ const publicNavItems = [
           </a>
         </div>
 
-        <!-- Empty spacer when on org page but not logged in -->
+        <!-- Empty spacer when on org page or custom domain but not logged in -->
         <div v-else class="hidden md:flex"></div>
 
         <!-- User Menu (Authenticated) -->
@@ -154,9 +157,9 @@ const publicNavItems = [
           >
             Login
           </NuxtLink>
-          <!-- Hide Get Started on org pages -->
+          <!-- Hide Get Started on org pages and custom domains -->
           <NuxtLink
-            v-if="!isOnOrgPage"
+            v-if="!isOnOrgPage && !isCustomDomain"
             to="/setup"
             class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-xs uppercase tracking-wider"
           >
@@ -179,8 +182,8 @@ const publicNavItems = [
         </NuxtLink>
       </div>
 
-      <!-- Mobile Nav (Public) - Only show on main home page -->
-      <div v-else-if="!isOnOrgPage" class="md:hidden flex gap-4 mt-4">
+      <!-- Mobile Nav (Public) - Only show on main home page, not on org pages or custom domains -->
+      <div v-else-if="!isOnOrgPage && !isCustomDomain" class="md:hidden flex gap-4 mt-4">
         <a
           v-for="item in publicNavItems"
           :key="item.path"
