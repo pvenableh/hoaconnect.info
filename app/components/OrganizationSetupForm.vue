@@ -24,6 +24,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const config = useRuntimeConfig();
+const session = useUserSession();
 const { list: listPlans } = useDirectusItems("subscription_plans", { requireAuth: false });
 
 // Total steps: 4 (Org Info, Plan Selection, Account Details, Payment)
@@ -330,6 +331,9 @@ const handleSubmit = async () => {
     toast.success("Welcome aboard!", {
       description: "Your organization has been set up successfully.",
     });
+
+    // Refresh the client-side session to reflect the server-side login
+    await session.fetch();
 
     emit("success", response);
     await router.push(props.redirectTo);
