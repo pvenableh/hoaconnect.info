@@ -188,12 +188,13 @@ export default defineEventHandler(async (event) => {
           expires: authResult?.expires,
         });
 
-        if (authResult?.access_token && authResult?.refresh_token) {
+        // Only require access_token - refresh_token is optional in JSON mode
+        if (authResult?.access_token) {
           console.log(`Login successful on attempt ${attempt + 1}`);
           break;
         }
 
-        lastError = new Error("No tokens in response");
+        lastError = new Error("No access token in response");
       } catch (err: any) {
         lastError = err;
         console.log(`Login attempt ${attempt + 1} failed:`, err.message || err);
@@ -205,11 +206,12 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    if (!authResult?.access_token || !authResult?.refresh_token) {
+    // Only require access_token - refresh_token is optional in JSON mode
+    if (!authResult?.access_token) {
       console.error("All login attempts failed. Last error:", lastError);
       throw createError({
         statusCode: 500,
-        message: `Authentication failed after ${maxRetries} attempts - ${lastError?.message || "no tokens returned"}`,
+        message: `Authentication failed after ${maxRetries} attempts - ${lastError?.message || "no access token returned"}`,
       });
     }
 
