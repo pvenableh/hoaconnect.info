@@ -38,6 +38,7 @@ const loading = ref(false);
 // Payment state
 const paymentIntentId = ref<string | null>(null);
 const paymentCompleted = ref(false);
+const pendingSetupToken = ref<string | null>(null);
 
 // Step 1: Organization Details
 const orgForm = ref({
@@ -226,7 +227,7 @@ const step4Valid = computed(() => {
 });
 
 // Navigation
-const nextStep = () => {
+const nextStep = async () => {
   if (currentStep.value === 1 && !step1Valid.value) {
     toast.error("Please complete all organization details");
     return;
@@ -249,8 +250,17 @@ const nextStep = () => {
     if (paymentRequired.value) {
       // Save setup data before going to payment step
       // This is needed because Stripe will redirect to a new page after payment
-      saveSetupDataForPayment();
-      currentStep.value = 4;
+      // Use loading state to show feedback while saving
+      loading.value = true;
+      try {
+        await saveSetupDataForPayment();
+        currentStep.value = 4;
+      } catch (err) {
+        toast.error("Failed to prepare payment. Please try again.");
+        console.error('Error saving setup data:', err);
+      } finally {
+        loading.value = false;
+      }
     } else {
       // No payment required, submit directly
       handleSubmit();
@@ -272,9 +282,10 @@ const prevStep = () => {
   }
 };
 
-// Save setup data to sessionStorage before payment is initiated
+// Save setup data to sessionStorage AND server before payment is initiated
 // This is needed because Stripe redirects to a new page after payment
-const saveSetupDataForPayment = () => {
+// Server-side storage provides a fallback if sessionStorage is cleared during redirect
+const saveSetupDataForPayment = async () => {
   const setupData = {
     // Organization
     organizationName: orgForm.value.organizationName,
@@ -298,13 +309,31 @@ const saveSetupDataForPayment = () => {
     redirectTo: props.redirectTo,
   };
 
+  // Save to sessionStorage as primary storage
   sessionStorage.setItem('pendingSetupData', JSON.stringify(setupData));
+
+  // Also save to server as fallback (in case sessionStorage is cleared during Stripe redirect)
+  try {
+    const response = await $fetch<{ token: string }>('/api/hoa/pending-setup', {
+      method: 'POST',
+      body: setupData,
+    });
+    pendingSetupToken.value = response.token;
+  } catch (err) {
+    console.error('Failed to save pending setup data to server:', err);
+    // Continue anyway - sessionStorage might still work
+  }
 };
 
 // Computed return URL for Stripe payment - points to setup completion page
+// Includes the pending setup token as a query parameter for server-side fallback
 const setupPaymentReturnUrl = computed(() => {
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/setup/complete`;
+    const baseUrl = `${window.location.origin}/setup/complete`;
+    if (pendingSetupToken.value) {
+      return `${baseUrl}?setup_token=${pendingSetupToken.value}`;
+    }
+    return baseUrl;
   }
   return '/setup/complete';
 });
