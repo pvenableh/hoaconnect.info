@@ -56,10 +56,28 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       if (currentHost !== org.custom_domain) {
         const targetPath = to.path === '/' ? '' : to.path;
         const protocol = window.location.protocol;
-        const customDomainUrl = `${protocol}//${org.custom_domain}${targetPath}`;
 
-        console.log('[org-redirect] Redirecting to custom domain:', customDomainUrl);
-        return navigateTo(customDomainUrl, { external: true });
+        // Generate cross-domain auth token before redirecting
+        try {
+          const tokenResponse = await $fetch('/api/auth/cross-domain-token', {
+            method: 'POST',
+            body: { targetDomain: org.custom_domain },
+          });
+
+          // Build URL with auth token for session transfer
+          const customDomainUrl = new URL(`${protocol}//${org.custom_domain}${targetPath}`);
+          if (tokenResponse?.token) {
+            customDomainUrl.searchParams.set('_auth_token', tokenResponse.token);
+          }
+
+          console.log('[org-redirect] Redirecting to custom domain with auth token');
+          return navigateTo(customDomainUrl.toString(), { external: true });
+        } catch (tokenError) {
+          // If token generation fails, redirect anyway (user will need to re-login)
+          console.warn('[org-redirect] Failed to generate cross-domain token:', tokenError);
+          const customDomainUrl = `${protocol}//${org.custom_domain}${targetPath}`;
+          return navigateTo(customDomainUrl, { external: true });
+        }
       }
 
       // Already on custom domain, no redirect needed
