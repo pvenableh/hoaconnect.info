@@ -48,6 +48,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       return;
     }
 
+    // Skip if path already starts with the org slug (prevent redirect loop)
+    if (to.path.startsWith(`/${org.slug}/`) || to.path === `/${org.slug}`) {
+      return;
+    }
+
     // Check if organization has a verified custom domain
     if (org.custom_domain && org.domain_verified) {
       const currentHost = window.location.hostname;
