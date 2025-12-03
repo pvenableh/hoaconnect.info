@@ -3,13 +3,30 @@ import { toast } from "vue-sonner";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
+
+// Check if we're on an organization page (slug route)
+const isOnOrgPage = computed(() => !!route.params.slug);
+
+// Get active HOA for public org pages (when viewing /my-org)
+const { activeHoa } = useActiveHoa();
 
 // Get current organization for logged-in users
 const { currentOrg } = user.value ? await useSelectedOrg() : { currentOrg: ref(null) };
 
-// Build logo URL from Directus asset
+// Build logo URL from Directus asset - prefer activeHoa for public pages, then currentOrg for logged-in users
 const orgLogoUrl = computed(() => {
+  // First check activeHoa (public org page)
+  const activeLogoId = activeHoa.value?.logo;
+  if (activeLogoId) {
+    const fileId = typeof activeLogoId === 'string' ? activeLogoId : activeLogoId?.id;
+    if (fileId) {
+      return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
+    }
+  }
+
+  // Fall back to currentOrg for logged-in users
   const logoId = currentOrg.value?.organization?.settings?.logo;
   if (!logoId) return null;
   const fileId = typeof logoId === 'string' ? logoId : logoId?.id;
@@ -17,8 +34,14 @@ const orgLogoUrl = computed(() => {
   return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
 });
 
-// Get organization name for fallback
-const orgName = computed(() => currentOrg.value?.organization?.name || null);
+// Get organization name - prefer activeHoa for public pages
+const orgName = computed(() => {
+  if (activeHoa.value?.name) return activeHoa.value.name;
+  return currentOrg.value?.organization?.name || null;
+});
+
+// Determine if we should show org branding (logged in OR on org page)
+const showOrgBranding = computed(() => user.value || isOnOrgPage.value);
 
 const handleLogout = async () => {
   try {
@@ -52,22 +75,22 @@ const publicNavItems = [
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
         <NuxtLink
-          :to="user ? '/dashboard' : '/'"
+          :to="user ? '/dashboard' : (isOnOrgPage ? `/${route.params.slug}` : '/')"
           class="flex items-center gap-2 hover:opacity-80 transition"
         >
-          <!-- Show org logo when logged in and org has a logo -->
-          <template v-if="user && orgLogoUrl">
+          <!-- Show org logo when on org page or logged in with org logo -->
+          <template v-if="showOrgBranding && orgLogoUrl">
             <img
               :src="orgLogoUrl"
               :alt="orgName || 'Organization logo'"
               class="h-8 max-w-[150px] object-contain"
             />
           </template>
-          <!-- Show org name when logged in but no logo -->
-          <template v-else-if="user && orgName">
+          <!-- Show org name when on org page or logged in but no logo -->
+          <template v-else-if="showOrgBranding && orgName">
             <span class="text-xl font-bold text-blue-600">{{ orgName }}</span>
           </template>
-          <!-- Default brand for public/fallback -->
+          <!-- Default brand for main home page -->
           <template v-else>
             <span class="text-xl font-bold text-blue-600">HOA Connect</span>
           </template>
@@ -87,8 +110,8 @@ const publicNavItems = [
           </NuxtLink>
         </div>
 
-        <!-- Public Nav Links -->
-        <div v-else class="hidden md:flex gap-6">
+        <!-- Public Nav Links - Only show on main home page, not on org pages -->
+        <div v-else-if="!isOnOrgPage" class="hidden md:flex gap-6">
           <a
             v-for="item in publicNavItems"
             :key="item.path"
@@ -98,6 +121,9 @@ const publicNavItems = [
             {{ item.label }}
           </a>
         </div>
+
+        <!-- Empty spacer when on org page but not logged in -->
+        <div v-else class="hidden md:flex"></div>
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
@@ -123,7 +149,9 @@ const publicNavItems = [
           >
             Login
           </NuxtLink>
+          <!-- Hide Get Started on org pages -->
           <NuxtLink
+            v-if="!isOnOrgPage"
             to="/setup"
             class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-xs uppercase tracking-wider"
           >
@@ -146,8 +174,8 @@ const publicNavItems = [
         </NuxtLink>
       </div>
 
-      <!-- Mobile Nav (Public) -->
-      <div v-else class="md:hidden flex gap-4 mt-4">
+      <!-- Mobile Nav (Public) - Only show on main home page -->
+      <div v-else-if="!isOnOrgPage" class="md:hidden flex gap-4 mt-4">
         <a
           v-for="item in publicNavItems"
           :key="item.path"

@@ -1,8 +1,12 @@
 <script setup lang="ts">
 const { user } = useDirectusAuth();
+const route = useRoute();
 const config = useRuntimeConfig();
 
 const currentYear = new Date().getFullYear();
+
+// Check if we're on an organization page (slug route)
+const isOnOrgPage = computed(() => !!route.params.slug);
 
 // Footer links for authenticated users
 const authenticatedLinks = [
@@ -24,14 +28,15 @@ const authenticatedLinks = [
   },
 ];
 
-// Footer links for public users
-const publicLinks = [
+// Footer links for public users (filter out "Get Started" on org pages)
+const publicLinks = computed(() => [
   {
     title: "Product",
     links: [
       { label: "Features", path: "/#features" },
       { label: "Pricing", path: "/#plans" },
-      { label: "Get Started", path: "/setup" },
+      // Only show "Get Started" if not on an org page
+      ...(isOnOrgPage.value ? [] : [{ label: "Get Started", path: "/setup" }]),
     ],
   },
   {
@@ -48,9 +53,9 @@ const publicLinks = [
       { label: "Terms of Service", path: "/terms" },
     ],
   },
-];
+]);
 
-const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLinks));
+const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLinks.value));
 </script>
 
 <template>
