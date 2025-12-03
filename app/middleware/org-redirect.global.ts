@@ -1,5 +1,5 @@
 // middleware/org-redirect.global.ts
-// Redirects logged-in users from main pages to their organization's slug path
+// Redirects logged-in users from main pages to their organization's slug path or custom domain
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // Only run on client side
@@ -42,7 +42,25 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       return;
     }
 
-    // Redirect to the org's slug path
+    // Check if organization has a verified custom domain
+    if (org.custom_domain && org.domain_verified) {
+      const currentHost = window.location.hostname;
+
+      // Only redirect if we're not already on the custom domain
+      if (currentHost !== org.custom_domain) {
+        const targetPath = to.path === '/' ? '' : to.path;
+        const protocol = window.location.protocol;
+        const customDomainUrl = `${protocol}//${org.custom_domain}${targetPath}`;
+
+        console.log('[org-redirect] Redirecting to custom domain:', customDomainUrl);
+        return navigateTo(customDomainUrl, { external: true });
+      }
+
+      // Already on custom domain, no redirect needed
+      return;
+    }
+
+    // No custom domain, redirect to the org's slug path
     // Preserve the current path under the org slug
     const targetPath = to.path === '/' ? `/${org.slug}` : `/${org.slug}${to.path}`;
     return navigateTo(targetPath);
