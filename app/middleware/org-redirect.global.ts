@@ -1,5 +1,6 @@
 // middleware/org-redirect.global.ts
 // Redirects logged-in users from main pages to their organization's slug path or custom domain
+// Skips redirect on home page to allow viewing main domain marketing content
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // Only run on client side
@@ -18,6 +19,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   ];
 
   if (skipPaths.some(path => to.path.startsWith(path))) {
+    return;
+  }
+
+  // Skip redirect on home page - allow logged-in users to view main domain
+  if (to.path === '/') {
     return;
   }
 
