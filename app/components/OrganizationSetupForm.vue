@@ -124,10 +124,10 @@ const handleSlugInput = () => {
   slugTouched.value = true;
 };
 
-// Computed URL preview
+// Computed URL preview (path-based, not subdomain)
 const urlPreview = computed(() => {
   if (orgForm.value.slug) {
-    return `${orgForm.value.slug}.${config.public.mainDomain}`;
+    return `${config.public.mainDomain}/${orgForm.value.slug}`;
   }
   return "";
 });

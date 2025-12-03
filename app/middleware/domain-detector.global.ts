@@ -1,52 +1,23 @@
 // middleware/domain-detector.global.ts
+// Simplified middleware - uses path-based routing instead of subdomains
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  const config = useRuntimeConfig();
-  const { activeHoa, fetchActiveHoa } = useActiveHoa();
+  const { activeHoa, fetchActiveHoa, clearActiveHoa } = useActiveHoa();
 
-  // Get domain from server or client
-  const domain = import.meta.server
-    ? useRequestURL().hostname
-    : window.location.hostname;
+  // Check if we're on a slug route (e.g., /my-org or /my-org/dashboard)
+  const slug = to.params.slug as string | undefined;
 
-  // Check if main domain
-  const mainDomains = [
-    config.public.mainDomain,
-    `www.${config.public.mainDomain}`,
-    "localhost",
-    "127.0.0.1",
-  ];
-
-  const isMainDomain = mainDomains.includes(domain);
-
-  // Store domain type (set on both server and client for proper SSR)
-  const isMainDomainState = useState("isMainDomain", () => isMainDomain);
-  isMainDomainState.value = isMainDomain;
-
-  // Only fetch HOA data on client side
-  if (import.meta.client) {
-    // Check if it's a subdomain of main domain (e.g., myorg.property.huestudios.com)
-    const isSubdomainOfMain =
-      !isMainDomain &&
-      config.public.mainDomain &&
-      domain.endsWith(`.${config.public.mainDomain}`);
-
-    // Fetch HOA if custom domain or subdomain
-    if (!isMainDomain && !activeHoa.value) {
-      let slug = null;
-
-      // Extract slug from subdomain if applicable
-      if (isSubdomainOfMain) {
-        slug = domain.replace(`.${config.public.mainDomain}`, "");
-      }
-
+  // Only fetch HOA data on client side for slug routes
+  if (import.meta.client && slug) {
+    // Fetch HOA by slug if we don't have it loaded or it's a different org
+    if (!activeHoa.value || activeHoa.value.slug !== slug) {
       await fetchActiveHoa(slug);
-
-      // Redirect to main if no HOA found
-      if (!activeHoa.value) {
-        return navigateTo(`https://${config.public.mainDomain}`, {
-          external: true,
-        });
-      }
     }
+  } else if (import.meta.client && !slug && activeHoa.value) {
+    // Clear active HOA when navigating away from org pages
+    clearActiveHoa();
   }
+
+  // Set isMainDomain state based on whether we're on a slug route
+  const isMainDomainState = useState("isMainDomain", () => !slug);
+  isMainDomainState.value = !slug;
 });

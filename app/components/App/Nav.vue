@@ -3,7 +3,11 @@ import { toast } from "vue-sonner";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
+
+// Check if we're on an organization page (slug route)
+const isOnOrgPage = computed(() => !!route.params.slug);
 
 // Get current organization for logged-in users
 const { currentOrg } = user.value ? await useSelectedOrg() : { currentOrg: ref(null) };
@@ -123,7 +127,9 @@ const publicNavItems = [
           >
             Login
           </NuxtLink>
+          <!-- Hide Get Started on org pages -->
           <NuxtLink
+            v-if="!isOnOrgPage"
             to="/setup"
             class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-xs uppercase tracking-wider"
           >
