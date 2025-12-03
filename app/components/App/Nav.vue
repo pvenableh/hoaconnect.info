@@ -12,6 +12,11 @@ const isOnOrgPage = computed(() => !!route.params.slug);
 // Get active HOA for public org pages (when viewing /my-org or custom domain)
 const { activeHoa, isCustomDomain } = useActiveHoa();
 
+// Check if we're on the main marketing domain (not custom domain, not org page)
+const isMainMarketingDomain = computed(
+  () => !isCustomDomain.value && !isOnOrgPage.value
+);
+
 // Get current organization for logged-in users
 const { currentOrg } = user.value
   ? await useSelectedOrg()
@@ -43,8 +48,10 @@ const orgName = computed(() => {
   return currentOrg.value?.organization?.name || null;
 });
 
-// Determine if we should show org branding (logged in OR on org page OR on custom domain)
-const showOrgBranding = computed(() => user.value || isOnOrgPage.value || isCustomDomain.value);
+// Determine if we should show org branding (on org page OR on custom domain, but NOT on main marketing domain even if logged in)
+const showOrgBranding = computed(
+  () => isOnOrgPage.value || isCustomDomain.value
+);
 
 const handleLogout = async () => {
   try {
@@ -77,13 +84,10 @@ const publicNavItems = [
     <div class="max-w-7xl mx-auto px-6 py-4">
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
-        <!-- On custom domain: always link to landing page (/) -->
         <!-- On org page (slug route): link to org root -->
-        <!-- Otherwise: logged in goes to dashboard, public goes to home -->
+        <!-- Otherwise (main domain or custom domain): link to home -->
         <NuxtLink
-          :to="
-            isCustomDomain ? '/' : user ? '/dashboard' : isOnOrgPage ? `/${route.params.slug}` : '/'
-          "
+          :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
           class="flex items-center gap-2 hover:opacity-80 transition"
         >
           <!-- Show org logo when on org page or logged in with org logo -->
@@ -104,8 +108,20 @@ const publicNavItems = [
           </template>
         </NuxtLink>
 
-        <!-- Authenticated Nav Links -->
-        <div v-if="user" class="hidden md:flex gap-6">
+        <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->
+        <div v-if="isMainMarketingDomain" class="hidden md:flex gap-6">
+          <a
+            v-for="item in publicNavItems"
+            :key="item.path"
+            :href="item.path"
+            class="text-gray-600 hover:text-blue-600 transition uppercase text-xs tracking-wider"
+          >
+            {{ item.label }}
+          </a>
+        </div>
+
+        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in -->
+        <div v-else-if="user" class="hidden md:flex gap-6">
           <NuxtLink
             v-for="item in navItems"
             :key="item.path"
@@ -116,18 +132,6 @@ const publicNavItems = [
             <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4" />
             {{ item.label }}
           </NuxtLink>
-        </div>
-
-        <!-- Public Nav Links - Only show on main home page, not on org pages or custom domains -->
-        <div v-else-if="!isOnOrgPage && !isCustomDomain" class="hidden md:flex gap-6">
-          <a
-            v-for="item in publicNavItems"
-            :key="item.path"
-            :href="item.path"
-            class="text-gray-600 hover:text-blue-600 transition uppercase text-xs tracking-wider"
-          >
-            {{ item.label }}
-          </a>
         </div>
 
         <!-- Empty spacer when on org page or custom domain but not logged in -->
@@ -168,8 +172,20 @@ const publicNavItems = [
         </div>
       </div>
 
-      <!-- Mobile Nav (Authenticated) -->
-      <div v-if="user" class="md:hidden flex gap-4 mt-4 overflow-x-auto">
+      <!-- Mobile Nav (Marketing) - Show on main marketing domain (even if logged in) -->
+      <div v-if="isMainMarketingDomain" class="md:hidden flex gap-4 mt-4">
+        <a
+          v-for="item in publicNavItems"
+          :key="item.path"
+          :href="item.path"
+          class="flex-1 text-center py-2 text-sm hover:bg-stone-100 rounded"
+        >
+          {{ item.label }}
+        </a>
+      </div>
+
+      <!-- Mobile Nav (Authenticated) - Show on org pages and custom domains when logged in -->
+      <div v-else-if="user" class="md:hidden flex gap-4 mt-4 overflow-x-auto">
         <NuxtLink
           v-for="item in navItems"
           :key="item.path"
@@ -180,18 +196,6 @@ const publicNavItems = [
           <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4 inline mr-1" />
           {{ item.label }}
         </NuxtLink>
-      </div>
-
-      <!-- Mobile Nav (Public) - Only show on main home page, not on org pages or custom domains -->
-      <div v-else-if="!isOnOrgPage && !isCustomDomain" class="md:hidden flex gap-4 mt-4">
-        <a
-          v-for="item in publicNavItems"
-          :key="item.path"
-          :href="item.path"
-          class="flex-1 text-center py-2 text-sm hover:bg-stone-100 rounded"
-        >
-          {{ item.label }}
-        </a>
       </div>
     </div>
   </nav>
