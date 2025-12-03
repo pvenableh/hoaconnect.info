@@ -260,7 +260,10 @@ const handleSubmit = async () => {
     error.value = null;
     isSubmitting.value = true;
 
-    const { error: stripeError } = await stripe.confirmPayment({
+    // confirmPayment can either redirect (for 3DS, ACH, etc.) or return directly
+    // When it redirects, this code won't continue executing
+    // When it returns directly (for simple card payments), we need to handle the result
+    const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: defaultReturnUrl.value,
@@ -270,10 +273,29 @@ const handleSubmit = async () => {
           },
         },
       },
+      redirect: 'if_required', // Only redirect if the payment method requires it
     });
 
     if (stripeError) {
       throw stripeError;
+    }
+
+    // If we get here, payment completed without redirect
+    // This happens for some payment methods that don't require additional authentication
+    if (paymentIntent) {
+      if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing') {
+        // Payment successful or initiated (ACH) - redirect to return URL manually
+        const returnUrl = new URL(defaultReturnUrl.value);
+        returnUrl.searchParams.set('payment_intent', paymentIntent.id);
+        returnUrl.searchParams.set('payment_intent_client_secret', paymentIntent.client_secret || '');
+        returnUrl.searchParams.set('redirect_status', 'succeeded');
+        window.location.href = returnUrl.toString();
+      } else if (paymentIntent.status === 'requires_action') {
+        // Additional action required - Stripe should have handled this with redirect
+        throw new Error('Additional verification required. Please try again.');
+      } else {
+        throw new Error(`Payment not completed. Status: ${paymentIntent.status}`);
+      }
     }
   } catch (err: any) {
     handleError(err.message || "Payment failed", err);
