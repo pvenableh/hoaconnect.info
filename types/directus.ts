@@ -940,3 +940,6 @@ export enum CollectionNames {
 	directus_versions = 'directus_versions',
 	directus_extensions = 'directus_extensions'
 }
+
+// Type alias for backwards compatibility with Directus SDK generic type parameter
+export type DirectusSchema = Schema;
