@@ -1,6 +1,6 @@
 export default defineNuxtRouteMiddleware((to, from) => {
   const { loggedIn } = useUserSession()
-  
+
   // Pages that don't require authentication
   const publicPages = [
     '/',
@@ -8,11 +8,13 @@ export default defineNuxtRouteMiddleware((to, from) => {
     '/auth/register',
     '/auth/forgot-password',
     '/auth/reset-password',
-    '/auth/accept-invitation'
+    '/auth/accept-invitation',
+    '/setup',
+    '/setup/complete'
   ]
-  
+
   // Check if the current route requires authentication
-  const isPublicPage = publicPages.includes(to.path) || to.path.startsWith('/auth/')
+  const isPublicPage = publicPages.includes(to.path) || to.path.startsWith('/auth/') || to.path.startsWith('/setup/')
   const requiresAuth = !isPublicPage
   
   if (requiresAuth && !loggedIn.value) {
