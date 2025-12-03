@@ -34,7 +34,7 @@ const orgLogoUrl = computed(() => {
   if (!logoId) return null;
   const fileId = typeof logoId === "string" ? logoId : logoId?.id;
   if (!fileId) return null;
-  return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
+  return `${config.public.directus.url}/assets/${fileId}?medium-contain`;
 });
 
 // Get organization name - prefer activeHoa for public pages
