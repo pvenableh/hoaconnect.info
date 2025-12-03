@@ -63,8 +63,8 @@ export default defineNuxtPlugin(() => {
       // Fetch current session to get expiration time
       await fetchSession();
 
-      // Get expiration time from session data
-      const expiresAt = (data.value as any)?.expiresAt;
+      // Get expiration time from session data (data may be undefined during hydration)
+      const expiresAt = (data?.value as any)?.expiresAt;
 
       if (!expiresAt) {
         console.warn('[auth-refresh] No expiration time found in session');
