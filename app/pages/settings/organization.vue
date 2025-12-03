@@ -6,5 +6,5 @@ definePageMeta({
 </script>
 
 <template>
-  <SettingsOrganizationPage />
+  <PagesSettingsOrganizationPage />
 </template>
