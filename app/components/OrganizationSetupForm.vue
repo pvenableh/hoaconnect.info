@@ -247,6 +247,9 @@ const nextStep = () => {
   } else if (currentStep.value === 3) {
     // After account details, go to payment step if payment is required
     if (paymentRequired.value) {
+      // Save setup data before going to payment step
+      // This is needed because Stripe will redirect to a new page after payment
+      saveSetupDataForPayment();
       currentStep.value = 4;
     } else {
       // No payment required, submit directly
@@ -268,6 +271,43 @@ const prevStep = () => {
     currentStep.value--;
   }
 };
+
+// Save setup data to sessionStorage before payment is initiated
+// This is needed because Stripe redirects to a new page after payment
+const saveSetupDataForPayment = () => {
+  const setupData = {
+    // Organization
+    organizationName: orgForm.value.organizationName,
+    street_address: orgForm.value.street_address,
+    city: orgForm.value.city,
+    state: orgForm.value.state,
+    zip: orgForm.value.zip,
+    org_phone: orgForm.value.org_phone,
+    org_email: orgForm.value.org_email,
+    slug: orgForm.value.slug,
+    subscriptionPlanId: selectedPlan.value,
+
+    // Admin
+    firstName: adminForm.value.firstName,
+    lastName: adminForm.value.lastName,
+    email: adminForm.value.email,
+    phone: adminForm.value.phone,
+    password: adminForm.value.password,
+
+    // Redirect destination after setup is complete
+    redirectTo: props.redirectTo,
+  };
+
+  sessionStorage.setItem('pendingSetupData', JSON.stringify(setupData));
+};
+
+// Computed return URL for Stripe payment - points to setup completion page
+const setupPaymentReturnUrl = computed(() => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/setup/complete`;
+  }
+  return '/setup/complete';
+});
 
 // Payment handlers
 const handlePaymentSuccess = (intentId: string) => {
@@ -727,6 +767,7 @@ const finalStep = computed(() => {
             subscription_plan_id: selectedPlan,
             subscription_plan_name: selectedPlanObject?.name,
           }"
+          :return-url="setupPaymentReturnUrl"
           @success="handlePaymentSuccess"
           @error="handlePaymentError"
         />
