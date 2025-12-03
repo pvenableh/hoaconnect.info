@@ -893,9 +893,6 @@ export interface Schema {
 	directus_extensions: DirectusExtension[];
 }
 
-// Alias for backward compatibility with SDK usage
-export type DirectusSchema = Schema;
-
 export enum CollectionNames {
 	block_hero = 'block_hero',
 	block_settings = 'block_settings',

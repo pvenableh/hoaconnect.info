@@ -13,23 +13,26 @@ const isOnOrgPage = computed(() => !!route.params.slug);
 const { activeHoa } = useActiveHoa();
 
 // Get current organization for logged-in users
-const { currentOrg } = user.value ? await useSelectedOrg() : { currentOrg: ref(null) };
+const { currentOrg } = user.value
+  ? await useSelectedOrg()
+  : { currentOrg: ref(null) };
 
 // Build logo URL from Directus asset - prefer activeHoa for public pages, then currentOrg for logged-in users
 const orgLogoUrl = computed(() => {
   // First check activeHoa (public org page)
   const activeLogoId = activeHoa.value?.logo;
   if (activeLogoId) {
-    const fileId = typeof activeLogoId === 'string' ? activeLogoId : activeLogoId?.id;
+    const fileId =
+      typeof activeLogoId === "string" ? activeLogoId : activeLogoId?.id;
     if (fileId) {
-      return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
+      return `${config.public.directus.url}/assets/${fileId}?key=medium`;
     }
   }
 
   // Fall back to currentOrg for logged-in users
   const logoId = currentOrg.value?.organization?.settings?.logo;
   if (!logoId) return null;
-  const fileId = typeof logoId === 'string' ? logoId : logoId?.id;
+  const fileId = typeof logoId === "string" ? logoId : logoId?.id;
   if (!fileId) return null;
   return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
 });
@@ -75,7 +78,9 @@ const publicNavItems = [
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
         <NuxtLink
-          :to="user ? '/dashboard' : (isOnOrgPage ? `/${route.params.slug}` : '/')"
+          :to="
+            user ? '/dashboard' : isOnOrgPage ? `/${route.params.slug}` : '/'
+          "
           class="flex items-center gap-2 hover:opacity-80 transition"
         >
           <!-- Show org logo when on org page or logged in with org logo -->
