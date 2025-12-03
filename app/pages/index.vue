@@ -1,7 +1,26 @@
 <template>
   <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
     <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
-    <div v-if="isMainDomain" class="container mx-auto px-4 py-12">
+    <!-- Only show on main domain AND not on custom domain -->
+    <div v-if="isMainDomain && !isCustomDomain" class="container mx-auto px-4 py-12">
+      <!-- Logged-in user with org banner -->
+      <div
+        v-if="user && currentOrg?.organization?.slug"
+        class="bg-blue-600 text-white rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <span class="font-medium">Welcome back! You're a member of <strong>{{ currentOrg.organization.name }}</strong></span>
+        </div>
+        <a
+          :href="getOrgUrl(currentOrg.organization)"
+          class="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50 transition whitespace-nowrap"
+        >
+          Go to {{ currentOrg.organization.name }}
+        </a>
+      </div>
       <!-- Hero Section -->
       <section class="pt-20 pb-16 px-4">
         <div class="max-w-7xl mx-auto text-center">
@@ -578,15 +597,29 @@
 </template>
 
 <script setup>
-const { activeHoa, isMainDomain, fetchActiveHoa } = useActiveHoa();
+const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } = useActiveHoa();
 const { user } = useDirectusAuth();
+const { currentOrg } = await useSelectedOrg();
 const config = useRuntimeConfig();
 
-// CRITICAL: Fetch HOA data server-side for SEO
+// CRITICAL: Fetch HOA data server-side for SEO on custom domains
+// The domain-detector middleware handles setting isCustomDomain, but we need to ensure
+// the HOA data is fetched server-side for proper SEO
 await useAsyncData("active-hoa", async () => {
-  // Only fetch if not on main domain (for custom domains/subdomains)
-  if (!isMainDomain.value) {
-    return await fetchActiveHoa();
+  // Only fetch if on custom domain and HOA not already loaded
+  if (isCustomDomain.value && !activeHoa.value) {
+    // Get the hostname to fetch by domain
+    let hostname = "";
+    if (import.meta.server) {
+      const event = useRequestEvent();
+      const host = event?.node?.req?.headers?.host || "";
+      hostname = host.split(":")[0];
+    } else if (import.meta.client) {
+      hostname = window.location.hostname;
+    }
+    if (hostname) {
+      return await fetchActiveHoaByDomain(hostname);
+    }
   }
   return null;
 });
@@ -614,6 +647,18 @@ const getFileUrl = (file) => {
   if (!file) return "";
   const fileId = typeof file === "object" ? file.id : file;
   return `${config.public.directus.url}/assets/${fileId}`;
+};
+
+// Helper function to get organization URL (custom domain or slug path)
+const getOrgUrl = (org) => {
+  if (!org) return "/";
+  if (org.custom_domain && org.domain_verified) {
+    // Use custom domain
+    const protocol = import.meta.client ? window.location.protocol : "https:";
+    return `${protocol}//${org.custom_domain}`;
+  }
+  // Fall back to slug path
+  return `/${org.slug}`;
 };
 
 // Subscription plans (only fetch if on main domain)
