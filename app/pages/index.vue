@@ -1,25 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-    <!-- Main Domain - Logged In User WITHOUT Organization: Redirect to dashboard -->
-    <div v-if="isMainDomain && user && !activeHoa" class="container mx-auto px-4 py-12">
-      <div class="max-w-3xl mx-auto text-center py-20">
-        <h2 class="text-4xl font-bold text-gray-900 mb-6">
-          Welcome back, {{ user.firstName }}!
-        </h2>
-        <p class="text-xl text-gray-600 mb-8">
-          You're all set. Head to your dashboard to manage your HOA.
-        </p>
-        <NuxtLink
-          to="/dashboard"
-          class="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition shadow-lg"
-        >
-          Go to Dashboard
-        </NuxtLink>
-      </div>
-    </div>
-
-    <!-- Main Domain - Public: Marketing Page -->
-    <div v-else-if="isMainDomain && !user" class="container mx-auto px-4 py-12">
+    <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
+    <div v-if="isMainDomain" class="container mx-auto px-4 py-12">
       <!-- Hero Section -->
       <section class="pt-20 pb-16 px-4">
         <div class="max-w-7xl mx-auto text-center">
@@ -599,11 +581,6 @@
 const { activeHoa, isMainDomain, fetchActiveHoa } = useActiveHoa();
 const { user } = useDirectusAuth();
 const config = useRuntimeConfig();
-
-// Redirect logged-in users with organizations to their slug page when on main domain
-if (isMainDomain.value && user.value?.organization?.slug) {
-  await navigateTo(`/${user.value.organization.slug}`);
-}
 
 // CRITICAL: Fetch HOA data server-side for SEO
 await useAsyncData("active-hoa", async () => {
