@@ -5,6 +5,21 @@ const { user, logout } = useDirectusAuth();
 const router = useRouter();
 const config = useRuntimeConfig();
 
+// Get current organization for logged-in users
+const { currentOrg } = user.value ? await useSelectedOrg() : { currentOrg: ref(null) };
+
+// Build logo URL from Directus asset
+const orgLogoUrl = computed(() => {
+  const logoId = currentOrg.value?.organization?.settings?.logo;
+  if (!logoId) return null;
+  const fileId = typeof logoId === 'string' ? logoId : logoId?.id;
+  if (!fileId) return null;
+  return `${config.public.directus.url}/assets/${fileId}?width=200&height=50&fit=contain`;
+});
+
+// Get organization name for fallback
+const orgName = computed(() => currentOrg.value?.organization?.name || null);
+
 const handleLogout = async () => {
   try {
     await logout();
@@ -38,9 +53,24 @@ const publicNavItems = [
         <!-- Logo / Brand -->
         <NuxtLink
           :to="user ? '/dashboard' : '/'"
-          class="text-xl font-bold text-blue-600 hover:text-blue-700 transition"
+          class="flex items-center gap-2 hover:opacity-80 transition"
         >
-          HOA Connect
+          <!-- Show org logo when logged in and org has a logo -->
+          <template v-if="user && orgLogoUrl">
+            <img
+              :src="orgLogoUrl"
+              :alt="orgName || 'Organization logo'"
+              class="h-8 max-w-[150px] object-contain"
+            />
+          </template>
+          <!-- Show org name when logged in but no logo -->
+          <template v-else-if="user && orgName">
+            <span class="text-xl font-bold text-blue-600">{{ orgName }}</span>
+          </template>
+          <!-- Default brand for public/fallback -->
+          <template v-else>
+            <span class="text-xl font-bold text-blue-600">HOA Connect</span>
+          </template>
         </NuxtLink>
 
         <!-- Authenticated Nav Links -->
