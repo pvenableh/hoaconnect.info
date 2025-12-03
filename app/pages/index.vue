@@ -2,17 +2,33 @@
   <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
     <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
     <!-- Only show on main domain AND not on custom domain -->
-    <div v-if="isMainDomain && !isCustomDomain" class="container mx-auto px-4 py-12">
+    <div
+      v-if="isMainDomain && !isCustomDomain"
+      class="container mx-auto px-4 py-12"
+    >
       <!-- Logged-in user with org banner -->
       <div
         v-if="user && currentOrg?.organization?.slug"
         class="bg-blue-600 text-white rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4"
       >
         <div class="flex items-center gap-3">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+            />
           </svg>
-          <span class="font-medium">Welcome back! You're a member of <strong>{{ currentOrg.organization.name }}</strong></span>
+          <span class="font-medium"
+            >Welcome back! You're a member of
+            <strong>{{ currentOrg.organization.name }}</strong></span
+          >
         </div>
         <a
           :href="getOrgUrl(currentOrg.organization)"
@@ -597,7 +613,8 @@
 </template>
 
 <script setup>
-const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } = useActiveHoa();
+const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } =
+  useActiveHoa();
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
 const config = useRuntimeConfig();
@@ -710,7 +727,7 @@ const scrollToPlans = () => {
 };
 
 const selectPlan = (planSlug) => {
-  navigateTo(`/signup?plan=${planSlug}`);
+  navigateTo(`/setup?plan=${planSlug}`);
 };
 </script>
 
