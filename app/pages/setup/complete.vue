@@ -215,8 +215,12 @@ onMounted(async () => {
     paymentAmount.value = paymentIntent.amount;
 
     // Check payment status
-    if (paymentIntent.status === 'succeeded') {
-      // Payment successful - proceed to create organization
+    // For ACH (US bank account) payments, status will be 'processing' because
+    // ACH payments take 3-5 business days to clear. We should still create the
+    // organization since the payment has been successfully initiated.
+    if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing') {
+      // Payment successful or initiated - proceed to create organization
+      const isProcessing = paymentIntent.status === 'processing';
       loadingMessage.value = 'Creating your organization...';
 
       try {
@@ -280,8 +284,6 @@ onMounted(async () => {
           throw setupErr;
         }
       }
-    } else if (paymentIntent.status === 'processing') {
-      setupStatus.value = 'processing';
     } else if (paymentIntent.status === 'requires_payment_method') {
       setupStatus.value = 'failed';
       errorMessage.value = 'Payment was not completed. Please try again.';
