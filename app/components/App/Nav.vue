@@ -25,7 +25,7 @@ const orgLogoUrl = computed(() => {
     const fileId =
       typeof activeLogoId === "string" ? activeLogoId : activeLogoId?.id;
     if (fileId) {
-      return `${config.public.directus.url}/assets/${fileId}?key=medium`;
+      return `${config.public.directus.url}/assets/${fileId}?key=medium-contain`;
     }
   }
 
