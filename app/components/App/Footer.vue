@@ -28,15 +28,26 @@ const authenticatedLinks = [
   },
 ];
 
-// Footer links for public users (filter out "Get Started" on org pages)
+// Get Started URL - redirects to main domain setup page when on org pages
+const getStartedUrl = computed(() => {
+  if (isOnOrgPage.value && config.public.mainDomain) {
+    return `https://${config.public.mainDomain}/setup`;
+  }
+  return "/setup";
+});
+
+// Check if Get Started link should be external (on org pages)
+const isGetStartedExternal = computed(() => isOnOrgPage.value && !!config.public.mainDomain);
+
+// Footer links for public users
 const publicLinks = computed(() => [
   {
     title: "Product",
     links: [
       { label: "Features", path: "/#features" },
       { label: "Pricing", path: "/#plans" },
-      // Only show "Get Started" if not on an org page
-      ...(isOnOrgPage.value ? [] : [{ label: "Get Started", path: "/setup" }]),
+      // Always show Get Started - links to main domain on org pages
+      { label: "Get Started", path: getStartedUrl.value, external: isGetStartedExternal.value },
     ],
   },
   {
@@ -81,14 +92,24 @@ const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLink
           </h4>
           <ul class="space-y-2">
             <li v-for="link in section.links" :key="link.path">
-              <component
-                :is="link.path.startsWith('/#') ? 'a' : 'NuxtLink'"
-                :to="link.path.startsWith('/#') ? undefined : link.path"
-                :href="link.path.startsWith('/#') ? link.path : undefined"
+              <!-- External links (including Get Started on org pages) -->
+              <a
+                v-if="link.external || link.path.startsWith('/#')"
+                :href="link.path"
+                :target="link.external ? '_blank' : undefined"
+                :rel="link.external ? 'noopener noreferrer' : undefined"
                 class="text-sm hover:text-white transition"
               >
                 {{ link.label }}
-              </component>
+              </a>
+              <!-- Internal NuxtLinks -->
+              <NuxtLink
+                v-else
+                :to="link.path"
+                class="text-sm hover:text-white transition"
+              >
+                {{ link.label }}
+              </NuxtLink>
             </li>
           </ul>
         </div>
