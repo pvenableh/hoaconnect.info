@@ -41,7 +41,7 @@
     <!-- Organization Landing Page -->
     <div v-else>
       <!-- Hero Section -->
-      <div
+      <section
         class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
         :class="{
           'bg-gradient-to-b from-black/70 via-black/50 to-black/90 bg-blend-darken':
@@ -130,7 +130,7 @@
             </a>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- About Section -->
       <section
