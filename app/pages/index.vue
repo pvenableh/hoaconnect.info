@@ -376,14 +376,14 @@
         class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
         :class="{
           'bg-gradient-to-b from-black/70 via-black/50 to-black/90 bg-blend-darken':
-            organization?.hero?.background_image,
+            activeHoa?.hero?.background_image,
         }"
         :style="
-          organization?.hero?.background_image
+          activeHoa?.hero?.background_image
             ? {
                 backgroundImage:
                   'url(https://property.huestudios.company/assets/' +
-                  organization.hero.background_image.id +
+                  activeHoa.hero.background_image.id +
                   ')',
                 backgroundColor: 'rgba(0, 0, 0, 0.6)',
               }
@@ -394,47 +394,47 @@
           ref="heroTitle"
           class="uppercase flex items-center justify-center flex-col px-4 sm:px-12 max-w-4xl w-full"
         >
-          <div v-if="organization.hero.foreground_image" class="mb-8">
+          <div v-if="activeHoa?.hero?.foreground_image" class="mb-8">
             <img
-              :src="getFileUrl(organization.hero.foreground_image)"
-              :alt="organization.name"
+              :src="getFileUrl(activeHoa.hero.foreground_image)"
+              :alt="activeHoa.name"
               class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
             />
           </div>
-          <div v-else-if="organization?.logo" class="mb-8">
+          <div v-else-if="activeHoa?.logo" class="mb-8">
             <img
-              :src="getFileUrl(organization.logo)"
-              :alt="organization.name"
+              :src="getFileUrl(activeHoa.logo)"
+              :alt="activeHoa.name"
               class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
             />
           </div>
           <h1
-            v-else-if="organization?.hero?.title"
+            v-else-if="activeHoa?.hero?.title"
             class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
           >
-            {{ organization?.hero?.title }}
+            {{ activeHoa?.hero?.title }}
           </h1>
           <!-- Organization Name -->
           <h1
             v-else
             class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
           >
-            {{ organization?.name }}
+            {{ activeHoa?.name }}
           </h1>
           <h5
-            v-if="organization?.hero?.subtitle"
+            v-if="activeHoa?.hero?.subtitle"
             class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
           >
-            {{ organization.hero.subtitle }}
+            {{ activeHoa.hero.subtitle }}
           </h5>
 
           <!-- Address -->
           <h5
-            v-else-if="organization?.street_address"
+            v-else-if="activeHoa?.street_address"
             class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
           >
-            {{ organization?.street_address }} {{ organization?.city }},
-            {{ organization?.state }} {{ organization?.zip }}
+            {{ activeHoa?.street_address }} {{ activeHoa?.city }},
+            {{ activeHoa?.state }} {{ activeHoa?.zip }}
           </h5>
           <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <a
