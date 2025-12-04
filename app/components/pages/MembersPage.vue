@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { useDirectusAuth, useDirectusItems } from "#imports";
 import { toast } from "vue-sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const {
   list: listMembers,
@@ -560,49 +568,42 @@ useSeoMeta({
         </div>
 
         <!-- Add/Edit Member Modal -->
-        <div
-          v-if="showAddModal"
-          class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          @click.self="showAddModal = false"
-        >
-          <Card class="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>{{ editingId ? "Edit" : "Add" }} Member</CardTitle>
-              <CardDescription>
+        <Dialog v-model:open="showAddModal">
+          <DialogContent class="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>{{ editingId ? "Edit" : "Add" }} Member</DialogTitle>
+              <DialogDescription>
                 Adding a member without sending an invitation. They won't have
                 system access.
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-4">
+              </DialogDescription>
+            </DialogHeader>
+            <div class="grid gap-4 py-4">
               <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="text-sm font-medium mb-2 block"
-                    >First Name</label
-                  >
-                  <Input v-model="form.first_name" required />
+                <div class="grid gap-2">
+                  <Label for="first-name">First Name</Label>
+                  <Input id="first-name" v-model="form.first_name" required />
                 </div>
-                <div>
-                  <label class="text-sm font-medium mb-2 block"
-                    >Last Name</label
-                  >
-                  <Input v-model="form.last_name" required />
+                <div class="grid gap-2">
+                  <Label for="last-name">Last Name</Label>
+                  <Input id="last-name" v-model="form.last_name" required />
                 </div>
               </div>
 
-              <div>
-                <label class="text-sm font-medium mb-2 block">Email</label>
-                <Input v-model="form.email" type="email" required />
+              <div class="grid gap-2">
+                <Label for="email">Email</Label>
+                <Input id="email" v-model="form.email" type="email" required />
               </div>
 
-              <div>
-                <label class="text-sm font-medium mb-2 block">Phone</label>
-                <Input v-model="form.phone" type="tel" />
+              <div class="grid gap-2">
+                <Label for="phone">Phone</Label>
+                <Input id="phone" v-model="form.phone" type="tel" />
               </div>
 
               <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Type</label>
+                <div class="grid gap-2">
+                  <Label for="member-type">Type</Label>
                   <select
+                    id="member-type"
                     v-model="form.member_type"
                     class="w-full p-2 border rounded"
                   >
@@ -610,11 +611,9 @@ useSeoMeta({
                     <option value="tenant">Tenant</option>
                   </select>
                 </div>
-                <div>
-                  <label class="text-sm font-medium mb-2 block"
-                    >Primary Unit</label
-                  >
-                  <select v-model="form.unit" class="w-full p-2 border rounded">
+                <div class="grid gap-2">
+                  <Label for="primary-unit">Primary Unit</Label>
+                  <select id="primary-unit" v-model="form.unit" class="w-full p-2 border rounded">
                     <option :value="null">No Unit</option>
                     <option
                       v-for="unit in units"
@@ -624,7 +623,7 @@ useSeoMeta({
                       {{ unit.unit_number }}
                     </option>
                   </select>
-                  <p v-if="!units?.length" class="text-xs text-stone-500 mt-1">
+                  <p v-if="!units?.length" class="text-xs text-stone-500">
                     No units available.
                     <NuxtLink :to="buildOrgPath('/units')" class="text-primary underline"
                       >Add units first</NuxtLink
@@ -633,31 +632,29 @@ useSeoMeta({
                 </div>
               </div>
 
-              <div>
-                <label class="text-sm font-medium mb-2 block">Status</label>
-                <select v-model="form.status" class="w-full p-2 border rounded">
+              <div class="grid gap-2">
+                <Label for="status">Status</Label>
+                <select id="status" v-model="form.status" class="w-full p-2 border rounded">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="pending">Pending</option>
                 </select>
               </div>
-
-              <div class="flex gap-2">
-                <Button @click="handleSubmit" class="flex-1">Save</Button>
-                <Button
-                  @click="
-                    showAddModal = false;
-                    resetForm();
-                  "
-                  variant="outline"
-                  class="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <DialogFooter>
+              <Button
+                @click="
+                  showAddModal = false;
+                  resetForm();
+                "
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button @click="handleSubmit">Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   </div>
