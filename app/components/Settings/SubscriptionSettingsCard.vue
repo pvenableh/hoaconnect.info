@@ -213,11 +213,13 @@ const formattedPrice = computed(() => {
   const plan = subscriptionPlan.value;
   if (!plan) return "$0";
 
-  const price = billingCycle.value === "yearly"
+  const rawPrice = billingCycle.value === "yearly"
     ? plan.price_yearly
     : plan.price_monthly;
 
-  if (!price || price === 0) return "Free";
+  if (!rawPrice || rawPrice === 0) return "Free";
+  const price = typeof rawPrice === "string" ? parseFloat(rawPrice) : rawPrice;
+  if (isNaN(price)) return "Free";
   return `$${price.toFixed(2)}`;
 });
 
