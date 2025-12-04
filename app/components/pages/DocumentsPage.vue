@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface TreeNode {
   id: string;
@@ -272,6 +280,35 @@ const handleDelete = async (id: string) => {
     toast.success("Document deleted");
   } catch (error) {
     toast.error("Failed to delete document");
+  }
+};
+
+// Download document
+const downloadDocument = async (doc: any) => {
+  try {
+    const fileUrl = getUrl(doc.file.id);
+    const response = await fetch(fileUrl);
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch file");
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Use the document title or original filename for download
+    const filename = doc.file.filename_download || doc.title || "document";
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Failed to download document:", error);
+    toast.error("Failed to download document");
   }
 };
 
@@ -592,13 +629,7 @@ watch(
                 @delete-folder="deleteFolder"
                 @delete-document="handleDelete"
                 @create-subfolder="openCreateFolderDialog"
-                @view-document="
-                  (doc) =>
-                    window.open(
-                      `https://property.huestudios.company/assets/${doc.file.id}`,
-                      '_blank'
-                    )
-                "
+                @view-document="downloadDocument"
                 @rename-folder="renameFolder"
                 @rename-document="renameDocument"
                 @start-edit="startEdit"
@@ -619,41 +650,38 @@ watch(
     </div>
 
     <!-- Create Folder Dialog -->
-    <div
-      v-if="showCreateFolderDialog"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      @click.self="showCreateFolderDialog = false"
-    >
-      <Card class="w-full max-w-md mx-4">
-        <CardHeader>
-          <CardTitle>Create New Folder</CardTitle>
-          <CardDescription>
+    <Dialog v-model:open="showCreateFolderDialog">
+      <DialogContent class="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Create New Folder</DialogTitle>
+          <DialogDescription>
             Create a subfolder in {{ organization?.name }}
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <div>
-            <label class="text-sm font-medium mb-2 block">Folder Name</label>
+          </DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid gap-2">
+            <Label for="folder-name">Folder Name</Label>
             <Input
+              id="folder-name"
               v-model="newFolderName"
               placeholder="Enter folder name"
               @keyup.enter="createFolder"
             />
           </div>
-          <div class="flex gap-2 justify-end">
-            <Button
-              @click="showCreateFolderDialog = false"
-              variant="outline"
-              :disabled="creatingFolder"
-            >
-              Cancel
-            </Button>
-            <Button @click="createFolder" :disabled="creatingFolder">
-              {{ creatingFolder ? "Creating..." : "Create Folder" }}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+        <DialogFooter>
+          <Button
+            @click="showCreateFolderDialog = false"
+            variant="outline"
+            :disabled="creatingFolder"
+          >
+            Cancel
+          </Button>
+          <Button @click="createFolder" :disabled="creatingFolder">
+            {{ creatingFolder ? "Creating..." : "Create Folder" }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
