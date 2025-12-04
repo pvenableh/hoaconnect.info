@@ -1,16 +1,15 @@
 <template>
   <div class="min-h-screen">
     <!-- Loading State -->
-    <div
-      v-if="pending"
-      class="flex items-center justify-center min-h-[400px]"
-    >
+    <div v-if="pending" class="flex items-center justify-center min-h-[400px]">
       <div class="text-center">
         <div
           class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
           role="status"
         >
-          <span class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+          <span
+            class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+          >
             Loading...
           </span>
         </div>
@@ -42,6 +41,29 @@
     <!-- Organization Landing Page -->
     <div v-else>
       <!-- Hero Section -->
+      <div
+        class="min-h-screen bg-white bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
+        style="
+          background-image: url(https://admin.605lincolnroad.com/assets/cd403a2c-f326-461d-9f8a-5adf7560bfb4);
+        "
+      >
+        <div
+          ref="heroTitle"
+          class="uppercase flex items-center justify-center flex-col px-4 sm:px-12 max-w-4xl w-full"
+        >
+          <img
+            src="https://admin.605lincolnroad.com/assets/e0b855bc-01ad-4773-b91b-5ec9d7090ae7?key=large-contain"
+            alt="605 Lincoln Road"
+            class="w-full h-auto drop-shadow-2xl"
+          />
+          <p
+            class="text-center tracking-[0.75em] text-white uppercase text-[4.75vw] sm:text-[4vw] md:text-[28px] mt-20 hue-text-gradient font-bold text-shadow-2xl"
+          >
+            Coming soon
+          </p>
+        </div>
+      </div>
+
       <section
         class="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white"
       >
@@ -116,7 +138,9 @@
 
       <!-- About Section -->
       <section
-        v-if="organization?.settings?.description || organization?.settings?.about"
+        v-if="
+          organization?.settings?.description || organization?.settings?.about
+        "
         class="py-20 bg-white"
       >
         <div class="container mx-auto px-4">
@@ -128,7 +152,10 @@
               class="prose prose-lg max-w-none text-gray-700 leading-relaxed"
             >
               <p>
-                {{ organization.settings.description || organization.settings.about }}
+                {{
+                  organization.settings.description ||
+                  organization.settings.about
+                }}
               </p>
             </div>
           </div>
@@ -290,6 +317,19 @@ const config = useRuntimeConfig();
 // Get slug from route params
 const slug = computed(() => route.params.slug);
 
+const heroTitle = ref(null);
+use3DMouseRotation(heroTitle, {
+  orbitalMode: true,
+  intensity: 0.2,
+  maxRotation: 6,
+  ease: 0.12,
+  perspective: 300,
+  enableTranslation: true,
+  orbitalDepth: 60,
+  hoverScale: 1.05,
+  resetOnLeave: true,
+});
+
 // Fetch organization by slug
 const { data: organization, pending } = await useAsyncData(
   `organization-${slug.value}`,
@@ -306,8 +346,7 @@ useSeoMeta({
       ? `${organization.value.name} - HOA Community Portal`
       : "Organization Not Found",
   description: () =>
-    organization.value?.settings?.description ||
-    "HOA Community Portal",
+    organization.value?.settings?.description || "HOA Community Portal",
   ogTitle: () => organization.value?.name || "Organization",
   ogDescription: () =>
     organization.value?.settings?.description || "HOA Community Portal",
