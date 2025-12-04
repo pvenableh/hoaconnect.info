@@ -116,7 +116,7 @@
 
             <a
               v-else
-              href="/login"
+              href="/auth/login"
               class="inline-block glass-container tracking-extra-wide text-sm text-white"
             >
               Resident Login
