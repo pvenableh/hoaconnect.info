@@ -152,11 +152,38 @@ const userEmail = ref<string | null>(null);
 const errorMessage = ref<string | null>(null);
 const redirectTo = ref('/dashboard');
 
+// Helper function to fetch setup data from server using token
+const fetchSetupDataFromServer = async (token: string) => {
+  try {
+    const data = await $fetch<any>('/api/hoa/pending-setup', {
+      query: { token },
+    });
+    return data;
+  } catch (err) {
+    console.error('Failed to fetch setup data from server:', err);
+    return null;
+  }
+};
+
+// Helper function to clean up server token after use
+const cleanupServerToken = async (token: string) => {
+  try {
+    await $fetch('/api/hoa/pending-setup', {
+      method: 'DELETE',
+      query: { token },
+    });
+  } catch (err) {
+    // Non-critical, just log
+    console.error('Failed to cleanup server token:', err);
+  }
+};
+
 // Process setup on mount
 onMounted(async () => {
   const clientSecret = route.query.payment_intent_client_secret as string;
   const intentId = route.query.payment_intent as string;
   const redirectStatus = route.query.redirect_status as string;
+  const setupToken = route.query.setup_token as string;
 
   // Check for payment intent params
   if (!clientSecret || !intentId) {
@@ -168,25 +195,35 @@ onMounted(async () => {
 
   paymentIntentId.value = intentId;
 
-  // Retrieve setup data from sessionStorage
+  // Try to retrieve setup data from sessionStorage first
+  let setupData: any = null;
   const pendingDataStr = sessionStorage.getItem('pendingSetupData');
-  if (!pendingDataStr) {
+
+  if (pendingDataStr) {
+    try {
+      setupData = JSON.parse(pendingDataStr);
+    } catch (e) {
+      console.error('Failed to parse sessionStorage data:', e);
+    }
+  }
+
+  // If sessionStorage is empty or invalid, try to fetch from server using the token
+  if (!setupData && setupToken) {
+    loadingMessage.value = 'Retrieving setup data...';
+    setupData = await fetchSetupDataFromServer(setupToken);
+  }
+
+  // If we still don't have data, show error
+  if (!setupData) {
     setupStatus.value = 'no_data';
     isLoading.value = false;
     return;
   }
 
-  let setupData: any;
-  try {
-    setupData = JSON.parse(pendingDataStr);
-    organizationName.value = setupData.organizationName;
-    userEmail.value = setupData.email;
-    redirectTo.value = setupData.redirectTo || '/dashboard';
-  } catch (e) {
-    setupStatus.value = 'no_data';
-    isLoading.value = false;
-    return;
-  }
+  // Store the setup data for later use
+  organizationName.value = setupData.organizationName;
+  userEmail.value = setupData.email;
+  redirectTo.value = setupData.redirectTo || '/dashboard';
 
   try {
     // Initialize Stripe to verify payment
@@ -250,8 +287,11 @@ onMounted(async () => {
           },
         });
 
-        // Clear the pending setup data
+        // Clear the pending setup data from sessionStorage and server
         sessionStorage.removeItem('pendingSetupData');
+        if (setupToken) {
+          cleanupServerToken(setupToken);
+        }
 
         // Refresh the client-side session
         await session.fetch();
@@ -274,10 +314,16 @@ onMounted(async () => {
 
             await session.fetch();
             sessionStorage.removeItem('pendingSetupData');
+            if (setupToken) {
+              cleanupServerToken(setupToken);
+            }
             setupStatus.value = 'succeeded';
           } catch (loginErr) {
             // If login fails, show success but user may need to log in
             sessionStorage.removeItem('pendingSetupData');
+            if (setupToken) {
+              cleanupServerToken(setupToken);
+            }
             setupStatus.value = 'succeeded';
           }
         } else {
