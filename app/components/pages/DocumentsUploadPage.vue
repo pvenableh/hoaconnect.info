@@ -12,7 +12,12 @@ const { navigateToOrg } = useOrgNavigation();
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed(() => currentOrg.value?.organization || null);
-const orgFolder = computed(() => organization.value?.folder || null);
+// Extract folder ID whether folder is a string or object
+const orgFolder = computed(() => {
+  const folder = organization.value?.folder;
+  if (!folder) return null;
+  return typeof folder === 'string' ? folder : folder.id;
+});
 const subfolders = ref<any[]>([]);
 
 // Get folder ID from query params

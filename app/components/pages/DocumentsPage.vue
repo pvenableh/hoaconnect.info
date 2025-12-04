@@ -22,7 +22,12 @@ const { selectedOrgId, currentOrg } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed(() => currentOrg.value?.organization || null);
-const orgFolder = computed(() => organization.value?.folder || null);
+// Extract folder ID whether folder is a string or object
+const orgFolder = computed(() => {
+  const folder = organization.value?.folder;
+  if (!folder) return null;
+  return typeof folder === 'string' ? folder : folder.id;
+});
 
 // Folder state
 const allFolders = ref<any[]>([]);
@@ -91,16 +96,29 @@ const buildTree = (
 const documentTree = computed(() => {
   if (!orgFolder.value) return [];
 
-  const tree = buildTree(allFolders.value, orgFolder.value);
+  // Build subfolders tree
+  const subfolderTree = buildTree(allFolders.value, orgFolder.value);
+
+  // Create the root org folder node
+  const rootNode: TreeNode = {
+    id: orgFolder.value,
+    name: organization.value?.name || "Documents",
+    type: "folder" as const,
+    parent: null,
+    expanded: expandedFolders.value.has(orgFolder.value),
+    children: subfolderTree,
+  };
 
   if (documents.value) {
     const addDocumentsToTree = (nodes: TreeNode[]) => {
       nodes.forEach((node) => {
         if (node.type === "folder") {
+          // Get folder ID from document's file.folder (handle both string and object)
           const folderDocs =
-            documents.value?.filter(
-              (doc: any) => doc.file?.folder?.id === node.id
-            ) || [];
+            documents.value?.filter((doc: any) => {
+              const docFolderId = doc.file?.folder?.id || doc.file?.folder;
+              return docFolderId === node.id;
+            }) || [];
 
           const docNodes: TreeNode[] = folderDocs.map((doc: any) => ({
             id: doc.id,
@@ -117,10 +135,10 @@ const documentTree = computed(() => {
       });
     };
 
-    addDocumentsToTree(tree);
+    addDocumentsToTree([rootNode]);
   }
 
-  return tree;
+  return [rootNode];
 });
 
 // Create a new subfolder
@@ -357,6 +375,8 @@ watch(
     if (newFolder) {
       selectedParentFolder.value = newFolder;
       await loadAllFolders();
+      // Expand the org folder and its immediate children by default
+      expandedFolders.value.add(newFolder);
       const rootFolders = allFolders.value.filter(
         (f) => f.parent === newFolder
       );
