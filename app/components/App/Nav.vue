@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
@@ -100,7 +101,10 @@ const publicNavItems = [
           </template>
           <!-- Show org name when on org page or logged in but no logo -->
           <template v-else-if="showOrgBranding && orgName">
-            <span class="text-xl font-bold text-blue-600">{{ orgName }}</span>
+            <span
+              class="text-sm font-semibold tracking-extra-wide uppercase text-zinc-800"
+              >{{ orgName }}</span
+            >
           </template>
           <!-- Default brand for main home page -->
           <template v-else>
@@ -140,9 +144,22 @@ const publicNavItems = [
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
           <OrgSelector />
-          <span class="text-xs text-stone-600 uppercase tracking-wider">
-            {{ user?.firstName }} {{ user?.lastName }}
-          </span>
+          <Avatar>
+            <AvatarImage
+              :src="
+                'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
+                user?.firstNameuser +
+                '+' +
+                user?.lastName
+              "
+              :alt="user?.firstNameuser + ' ' + user?.lastName"
+            />
+            <AvatarFallback>
+              {{ user?.firstName[0] }} {{ user?.lastName[0] }}</AvatarFallback
+            >
+          </Avatar>
+
+          <span class="text-xs text-stone-600 uppercase tracking-wider"> </span>
           <Button
             @click="handleLogout"
             variant="outline"

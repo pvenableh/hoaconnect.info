@@ -42,99 +42,95 @@
     <div v-else>
       <!-- Hero Section -->
       <div
-        class="min-h-screen bg-white bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
-        style="
-          background-image: url(https://admin.605lincolnroad.com/assets/cd403a2c-f326-461d-9f8a-5adf7560bfb4);
+        class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
+        :class="{
+          'bg-gradient-to-b from-black/70 via-black/50 to-black/90 bg-blend-darken':
+            organization?.hero?.background_image,
+        }"
+        :style="
+          organization?.hero?.background_image
+            ? {
+                backgroundImage:
+                  'url(https://property.huestudios.company/assets/' +
+                  organization.hero.background_image.id +
+                  ')',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              }
+            : null
         "
       >
         <div
           ref="heroTitle"
           class="uppercase flex items-center justify-center flex-col px-4 sm:px-12 max-w-4xl w-full"
         >
-          <img
-            src="https://admin.605lincolnroad.com/assets/e0b855bc-01ad-4773-b91b-5ec9d7090ae7?key=large-contain"
-            alt="605 Lincoln Road"
-            class="w-full h-auto drop-shadow-2xl"
-          />
-          <p
-            class="text-center tracking-[0.75em] text-white uppercase text-[4.75vw] sm:text-[4vw] md:text-[28px] mt-20 hue-text-gradient font-bold text-shadow-2xl"
+          <div v-if="organization.hero.foreground_image" class="mb-8">
+            <img
+              :src="getFileUrl(organization.hero.foreground_image)"
+              :alt="organization.name"
+              class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
+            />
+          </div>
+          <div v-else-if="organization?.logo" class="mb-8">
+            <img
+              :src="getFileUrl(organization.logo)"
+              :alt="organization.name"
+              class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
+            />
+          </div>
+          <h1
+            v-else-if="organization?.hero?.title"
+            class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
           >
-            Coming soon
-          </p>
-        </div>
-      </div>
+            {{ organization?.hero?.title }}
+          </h1>
+          <!-- Organization Name -->
+          <h1
+            v-else
+            class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
+          >
+            {{ organization?.name }}
+          </h1>
+          <h5
+            v-if="organization?.hero?.subtitle"
+            class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          >
+            {{ organization.hero.subtitle }}
+          </h5>
 
-      <section
-        class="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white"
-      >
-        <div class="container mx-auto px-4 py-20 lg:py-32">
-          <div class="max-w-4xl mx-auto text-center">
-            <!-- Organization Logo -->
-            <div v-if="organization?.logo" class="mb-8">
-              <img
-                :src="getFileUrl(organization.logo)"
-                :alt="organization.name"
-                class="w-32 h-32 mx-auto object-contain bg-white rounded-full p-4 shadow-xl"
-              />
-            </div>
+          <!-- Address -->
+          <h5
+            v-else-if="organization?.street_address"
+            class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          >
+            {{ organization?.street_address }} {{ organization?.city }},
+            {{ organization?.state }} {{ organization?.zip }}
+          </h5>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+            <a
+              v-if="user"
+              href="/dashboard"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Resident Portal
+            </a>
 
-            <!-- Organization Name -->
-            <h1 class="text-5xl lg:text-6xl font-bold mb-6">
-              {{ organization?.name }}
-            </h1>
+            <a
+              v-else
+              href="/login"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Resident Login
+            </a>
 
-            <!-- Address -->
-            <div class="text-xl lg:text-2xl text-blue-100 mb-8">
-              <p class="mb-2">{{ organization?.street_address }}</p>
-              <p>
-                {{ organization?.city }}, {{ organization?.state }}
-                {{ organization?.zip }}
-              </p>
-            </div>
-
-            <!-- Hero CTA -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
-              <a
-                v-if="user"
-                href="/dashboard"
-                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
-              >
-                Access Portal
-              </a>
-
-              <a
-                v-else
-                href="/login"
-                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
-              >
-                Resident Login
-              </a>
-
-              <a
-                href="#contact"
-                class="inline-block bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition border-2 border-white"
-              >
-                Contact Us
-              </a>
-            </div>
+            <a
+              href="#contact"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Contact Us
+            </a>
           </div>
         </div>
-
-        <!-- Decorative Wave -->
-        <div class="absolute bottom-0 left-0 right-0">
-          <svg
-            viewBox="0 0 1440 120"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-full h-auto"
-          >
-            <path
-              d="M0 0L60 10C120 20 240 40 360 46.7C480 53 600 47 720 43.3C840 40 960 40 1080 46.7C1200 53 1320 67 1380 73.3L1440 80V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V0Z"
-              fill="white"
-            />
-          </svg>
-        </div>
-      </section>
+      </div>
 
       <!-- About Section -->
       <section

@@ -85,8 +85,8 @@ export default {
         "bauer-bodoni": ["Bauer Bodoni Pro_1 W05 Roman", ...fontFamily.serif],
       },
       letterSpacing: {
-        "ultra-wide": "0.15em",
-        "extra-wide": "0.1em",
+        "ultra-wide": "0.25em",
+        "extra-wide": "0.15em",
       },
       spacing: {
         18: "4.5rem",
