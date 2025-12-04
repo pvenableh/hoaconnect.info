@@ -15,7 +15,12 @@
         </div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Welcome to Your New HOA Portal!</h2>
         <p class="text-gray-600 dark:text-gray-400 mb-6">
-          Your payment of <strong>{{ formatCurrency(paymentAmount) }}</strong> has been processed and your organization is ready.
+          <template v-if="paymentAmount > 0">
+            Your payment of <strong>{{ formatCurrency(paymentAmount) }}</strong> has been processed and your organization is ready.
+          </template>
+          <template v-else>
+            Your free trial has started and your organization is ready!
+          </template>
         </p>
 
         <div v-if="organizationName" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 text-left">
@@ -180,12 +185,22 @@ const cleanupServerToken = async (token: string) => {
 
 // Process setup on mount
 onMounted(async () => {
-  const clientSecret = route.query.payment_intent_client_secret as string;
-  const intentId = route.query.payment_intent as string;
+  // Check for both PaymentIntent (regular) and SetupIntent (trial) params
+  const paymentIntentClientSecret = route.query.payment_intent_client_secret as string;
+  const paymentIntentIdParam = route.query.payment_intent as string;
+  const setupIntentClientSecret = route.query.setup_intent_client_secret as string;
+  const setupIntentIdParam = route.query.setup_intent as string;
   const redirectStatus = route.query.redirect_status as string;
   const setupToken = route.query.setup_token as string;
 
-  // Check for payment intent params
+  // Determine which type of intent we're processing
+  const isSetupIntent = !!setupIntentClientSecret && !!setupIntentIdParam;
+  const isPaymentIntent = !!paymentIntentClientSecret && !!paymentIntentIdParam;
+
+  const clientSecret = isSetupIntent ? setupIntentClientSecret : paymentIntentClientSecret;
+  const intentId = isSetupIntent ? setupIntentIdParam : paymentIntentIdParam;
+
+  // Check for intent params
   if (!clientSecret || !intentId) {
     setupStatus.value = 'failed';
     errorMessage.value = 'Invalid payment confirmation link.';
@@ -237,54 +252,93 @@ onMounted(async () => {
       throw new Error('Failed to load Stripe');
     }
 
-    // Retrieve payment intent to verify status
-    loadingMessage.value = 'Verifying payment...';
-    const { paymentIntent, error } = await stripe.retrievePaymentIntent(clientSecret);
+    // Retrieve intent to verify status
+    loadingMessage.value = isSetupIntent ? 'Verifying subscription...' : 'Verifying payment...';
 
-    if (error) {
-      throw error;
+    let intentSucceeded = false;
+    let intentStatus = '';
+
+    if (isSetupIntent) {
+      // Retrieve SetupIntent (for free trials)
+      const { setupIntent, error } = await stripe.retrieveSetupIntent(clientSecret);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!setupIntent) {
+        throw new Error('Setup intent not found');
+      }
+
+      intentStatus = setupIntent.status;
+      intentSucceeded = setupIntent.status === 'succeeded';
+
+      // For trials, use the plan price from setup data
+      paymentAmount.value = setupData.trialDays > 0 ? 0 : (setupData.planPrice || 0) * 100;
+    } else {
+      // Retrieve PaymentIntent (for immediate payment)
+      const { paymentIntent, error } = await stripe.retrievePaymentIntent(clientSecret);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!paymentIntent) {
+        throw new Error('Payment intent not found');
+      }
+
+      intentStatus = paymentIntent.status;
+      paymentAmount.value = paymentIntent.amount;
+
+      // For ACH (US bank account) payments, status will be 'processing' because
+      // ACH payments take 3-5 business days to clear. We should still create the
+      // organization since the payment has been successfully initiated.
+      intentSucceeded = paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing';
     }
 
-    if (!paymentIntent) {
-      throw new Error('Payment intent not found');
-    }
-
-    paymentAmount.value = paymentIntent.amount;
-
-    // Check payment status
-    // For ACH (US bank account) payments, status will be 'processing' because
-    // ACH payments take 3-5 business days to clear. We should still create the
-    // organization since the payment has been successfully initiated.
-    if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing') {
+    // Check payment/setup status
+    if (intentSucceeded) {
       // Payment successful or initiated - proceed to create organization
-      const isProcessing = paymentIntent.status === 'processing';
+      const isProcessing = intentStatus === 'processing';
       loadingMessage.value = 'Creating your organization...';
 
       try {
+        // Build request body
+        const requestBody: Record<string, any> = {
+          // Organization
+          organizationName: setupData.organizationName,
+          street_address: setupData.street_address,
+          city: setupData.city,
+          state: setupData.state,
+          zip: setupData.zip,
+          org_phone: setupData.org_phone,
+          org_email: setupData.org_email,
+          slug: setupData.slug,
+          subscriptionPlanId: setupData.subscriptionPlanId,
+
+          // Subscription details
+          billingCycle: setupData.billingCycle,
+          stripeSubscriptionId: setupData.stripeSubscriptionId || null,
+          stripeCustomerId: setupData.stripeCustomerId || null,
+          subscriptionStatus: setupData.trialDays > 0 ? 'trialing' : 'active',
+          trialEndsAt: setupData.trialEndsAt || null,
+
+          // Flow flags
+          isLoggedIn: setupData.isLoggedIn || false,
+        };
+
+        // Only include admin details if not logged in
+        if (!setupData.isLoggedIn) {
+          requestBody.firstName = setupData.firstName;
+          requestBody.lastName = setupData.lastName;
+          requestBody.email = setupData.email;
+          requestBody.phone = setupData.phone;
+          requestBody.password = setupData.password;
+        }
+
         const response = await $fetch('/api/hoa/setup-organization', {
           method: 'POST',
-          body: {
-            // Organization
-            organizationName: setupData.organizationName,
-            street_address: setupData.street_address,
-            city: setupData.city,
-            state: setupData.state,
-            zip: setupData.zip,
-            org_phone: setupData.org_phone,
-            org_email: setupData.org_email,
-            slug: setupData.slug,
-            subscriptionPlanId: setupData.subscriptionPlanId,
-
-            // Admin
-            firstName: setupData.firstName,
-            lastName: setupData.lastName,
-            email: setupData.email,
-            phone: setupData.phone,
-            password: setupData.password,
-
-            // Payment
-            paymentIntentId: intentId,
-          },
+          body: requestBody,
         });
 
         // Clear the pending setup data from sessionStorage and server
