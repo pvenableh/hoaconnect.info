@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const {
   list: listUnits,
@@ -206,25 +213,21 @@ const handleDelete = async (id: string) => {
           </div>
 
           <!-- Add/Edit Modal -->
-          <div
-            v-if="showModal"
-            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          >
-            <Card class="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>{{ editingId ? "Edit" : "Add" }} Unit</CardTitle>
-              </CardHeader>
-              <CardContent class="space-y-4">
-                <div>
-                  <label class="text-sm font-medium mb-2 block"
-                    >Unit Number *</label
-                  >
-                  <Input v-model="form.unit_number" placeholder="101" />
+          <Dialog v-model:open="showModal">
+            <DialogContent class="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{{ editingId ? "Edit" : "Add" }} Unit</DialogTitle>
+              </DialogHeader>
+              <div class="grid gap-4 py-4">
+                <div class="grid gap-2">
+                  <Label for="unit-number">Unit Number *</Label>
+                  <Input id="unit-number" v-model="form.unit_number" placeholder="101" />
                 </div>
 
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Status</label>
+                <div class="grid gap-2">
+                  <Label for="unit-status">Status</Label>
                   <select
+                    id="unit-status"
                     v-model="form.status"
                     class="w-full p-2 border rounded"
                   >
@@ -232,23 +235,21 @@ const handleDelete = async (id: string) => {
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
-
-                <div class="flex gap-2">
-                  <Button @click="handleSubmit" class="flex-1">Save</Button>
-                  <Button
-                    @click="
-                      showModal = false;
-                      resetForm();
-                    "
-                    variant="outline"
-                    class="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  @click="
+                    showModal = false;
+                    resetForm();
+                  "
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                <Button @click="handleSubmit">Save</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </template>
       </div>
     </div>

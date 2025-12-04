@@ -25,64 +25,57 @@
         </div>
 
         <!-- Settings Tabs -->
-        <div class="flex space-x-1 border-b mb-6 overflow-x-auto">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="activeTab = tab.id"
-            :class="[
-              'px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap',
-              activeTab === tab.id
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground',
-            ]"
-          >
-            <Icon :name="tab.icon" class="h-4 w-4 mr-2 inline-block" />
-            {{ tab.label }}
-            <span
-              v-if="activeTab === tab.id"
-              class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+        <Tabs v-model="activeTab" default-value="general">
+          <TabsList class="mb-6 flex-wrap h-auto gap-1">
+            <TabsTrigger
+              v-for="tab in tabs"
+              :key="tab.id"
+              :value="tab.id"
+              class="whitespace-nowrap"
+            >
+              <Icon :name="tab.icon" class="h-4 w-4 mr-2" />
+              {{ tab.label }}
+            </TabsTrigger>
+          </TabsList>
+
+          <!-- General Tab -->
+          <TabsContent value="general" class="space-y-6">
+            <SettingsOrganizationInfoForm
+              :organization="organization"
+              @updated="handleOrganizationUpdate"
             />
-          </button>
-        </div>
+          </TabsContent>
 
-        <!-- General Tab -->
-        <div v-if="activeTab === 'general'" class="space-y-6">
-          <SettingsOrganizationInfoForm
-            :organization="organization"
-            @updated="handleOrganizationUpdate"
-          />
-        </div>
+          <!-- Branding Tab -->
+          <TabsContent value="branding" class="space-y-6">
+            <SettingsBrandingSettingsForm
+              :organization="organization"
+              :settings="settings"
+              @updated="handleSettingsUpdate"
+            />
+          </TabsContent>
 
-        <!-- Branding Tab -->
-        <div v-if="activeTab === 'branding'" class="space-y-6">
-          <SettingsBrandingSettingsForm
-            :organization="organization"
-            :settings="settings"
-            @updated="handleSettingsUpdate"
-          />
-        </div>
+          <!-- SEO Tab -->
+          <TabsContent value="seo" class="space-y-6">
+            <SettingsSeoSettingsForm
+              :settings="settings"
+              @updated="handleSettingsUpdate"
+            />
+          </TabsContent>
 
-        <!-- SEO Tab -->
-        <div v-if="activeTab === 'seo'" class="space-y-6">
-          <SettingsSeoSettingsForm
-            :settings="settings"
-            @updated="handleSettingsUpdate"
-          />
-        </div>
+          <!-- Subscription Tab -->
+          <TabsContent value="subscription" class="space-y-6">
+            <SettingsSubscriptionSettingsCard :organization="organization" />
+          </TabsContent>
 
-        <!-- Subscription Tab -->
-        <div v-if="activeTab === 'subscription'" class="space-y-6">
-          <SettingsSubscriptionSettingsCard :organization="organization" />
-        </div>
-
-        <!-- Payment Settings Tab -->
-        <div v-if="activeTab === 'payments'" class="space-y-6">
-          <SettingsPaymentSettingsForm
-            :organization="organization"
-            @updated="handleOrganizationUpdate"
-          />
-        </div>
+          <!-- Payment Settings Tab -->
+          <TabsContent value="payments" class="space-y-6">
+            <SettingsPaymentSettingsForm
+              :organization="organization"
+              @updated="handleOrganizationUpdate"
+            />
+          </TabsContent>
+        </Tabs>
       </template>
 
       <!-- No Organization -->
@@ -106,6 +99,12 @@
 <script setup lang="ts">
 import type { HoaOrganization, BlockSetting } from "~~/types/directus";
 import { toast } from "vue-sonner";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 const { navigateToOrg } = useOrgNavigation();
 
