@@ -373,74 +373,93 @@
     <div v-else>
       <!-- Hero Section -->
       <section
-        class="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white"
+        class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
+        :class="{
+          'bg-gradient-to-b from-black/70 via-black/50 to-black/90 bg-blend-darken':
+            organization?.hero?.background_image,
+        }"
+        :style="
+          organization?.hero?.background_image
+            ? {
+                backgroundImage:
+                  'url(https://property.huestudios.company/assets/' +
+                  organization.hero.background_image.id +
+                  ')',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              }
+            : null
+        "
       >
-        <div class="container mx-auto px-4 py-20 lg:py-32">
-          <div class="max-w-4xl mx-auto text-center">
-            <!-- Organization Logo -->
-            <div v-if="activeHoa?.logo" class="mb-8">
-              <img
-                :src="getFileUrl(activeHoa.logo)"
-                :alt="activeHoa.name"
-                class="w-32 h-32 mx-auto object-contain bg-white rounded-full p-4 shadow-xl"
-              />
-            </div>
-
-            <!-- Organization Name -->
-            <h1 class="text-5xl lg:text-6xl font-bold mb-6">
-              {{ activeHoa?.name }}
-            </h1>
-
-            <!-- Address -->
-            <div class="text-xl lg:text-2xl text-blue-100 mb-8">
-              <p class="mb-2">{{ activeHoa?.street_address }}</p>
-              <p>
-                {{ activeHoa?.city }}, {{ activeHoa?.state }}
-                {{ activeHoa?.zip }}
-              </p>
-            </div>
-
-            <!-- Hero CTA -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
-              <a
-                v-if="user"
-                href="/dashboard"
-                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
-              >
-                Access Portal
-              </a>
-
-              <a
-                v-else
-                href="/login"
-                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
-              >
-                Resident Login
-              </a>
-
-              <a
-                href="#contact"
-                class="inline-block bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition border-2 border-white"
-              >
-                Contact Us
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Decorative Wave -->
-        <div class="absolute bottom-0 left-0 right-0">
-          <svg
-            viewBox="0 0 1440 120"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-full h-auto"
-          >
-            <path
-              d="M0 0L60 10C120 20 240 40 360 46.7C480 53 600 47 720 43.3C840 40 960 40 1080 46.7C1200 53 1320 67 1380 73.3L1440 80V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V0Z"
-              fill="white"
+        <div
+          ref="heroTitle"
+          class="uppercase flex items-center justify-center flex-col px-4 sm:px-12 max-w-4xl w-full"
+        >
+          <div v-if="organization.hero.foreground_image" class="mb-8">
+            <img
+              :src="getFileUrl(organization.hero.foreground_image)"
+              :alt="organization.name"
+              class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
             />
-          </svg>
+          </div>
+          <div v-else-if="organization?.logo" class="mb-8">
+            <img
+              :src="getFileUrl(organization.logo)"
+              :alt="organization.name"
+              class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
+            />
+          </div>
+          <h1
+            v-else-if="organization?.hero?.title"
+            class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
+          >
+            {{ organization?.hero?.title }}
+          </h1>
+          <!-- Organization Name -->
+          <h1
+            v-else
+            class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
+          >
+            {{ organization?.name }}
+          </h1>
+          <h5
+            v-if="organization?.hero?.subtitle"
+            class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          >
+            {{ organization.hero.subtitle }}
+          </h5>
+
+          <!-- Address -->
+          <h5
+            v-else-if="organization?.street_address"
+            class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          >
+            {{ organization?.street_address }} {{ organization?.city }},
+            {{ organization?.state }} {{ organization?.zip }}
+          </h5>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+            <a
+              v-if="user"
+              href="/dashboard"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Resident Portal
+            </a>
+
+            <a
+              v-else
+              href="/auth/login"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Resident Login
+            </a>
+
+            <a
+              href="#contact"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white"
+            >
+              Contact Us
+            </a>
+          </div>
         </div>
       </section>
 
@@ -618,6 +637,19 @@ const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } =
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
 const config = useRuntimeConfig();
+
+const heroTitle = ref(null);
+use3DMouseRotation(heroTitle, {
+  orbitalMode: true,
+  intensity: 0.2,
+  maxRotation: 6,
+  ease: 0.12,
+  perspective: 300,
+  enableTranslation: true,
+  orbitalDepth: 60,
+  hoverScale: 1.05,
+  resetOnLeave: true,
+});
 
 // CRITICAL: Fetch HOA data server-side for SEO on custom domains
 // The domain-detector middleware handles setting isCustomDomain, but we need to ensure
