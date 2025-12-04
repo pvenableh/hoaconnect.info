@@ -97,20 +97,27 @@ export const useDirectusFiles = () => {
   const upload = async (file: File, metadata?: {
     title?: string
     description?: string
-    folder?: string
+    folder?: string | { id: string }
     tags?: string[]
   }) => {
     if (!loggedIn.value) {
       throw new Error('Authentication required')
     }
-    
+
     const formData = new FormData()
     formData.append('file', file)
-    
+
     if (metadata) {
       Object.entries(metadata).forEach(([key, value]) => {
         if (value !== undefined) {
-          formData.append(key, Array.isArray(value) ? JSON.stringify(value) : value)
+          // Handle folder as either string ID or object with id property
+          if (key === 'folder' && typeof value === 'object' && value !== null && 'id' in value) {
+            formData.append(key, (value as { id: string }).id)
+          } else if (Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value))
+          } else {
+            formData.append(key, String(value))
+          }
         }
       })
     }
