@@ -110,6 +110,13 @@ export default defineEventHandler(async (event) => {
 				break;
 			}
 
+			case 'invoice.paid':
+			case 'invoice.payment_failed': {
+				const invoice = stripeEvent.data.object as Stripe.Invoice;
+				await handleInvoiceEvent(directus, invoice, stripeEvent.type);
+				break;
+			}
+
 			default:
 				console.log(`Unhandled event type: ${stripeEvent.type}`);
 		}
@@ -278,19 +285,96 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 
 		if (organizations && organizations.length > 0) {
 			const org = organizations[0];
+
+			// Map Stripe subscription status to our subscription status
+			let orgStatus: 'active' | 'trial' | 'canceled' | 'expired' = 'active';
+			switch (subscription.status) {
+				case 'trialing':
+					orgStatus = 'trial';
+					break;
+				case 'active':
+					orgStatus = 'active';
+					break;
+				case 'canceled':
+				case 'unpaid':
+					orgStatus = 'canceled';
+					break;
+				case 'past_due':
+				case 'incomplete':
+				case 'incomplete_expired':
+					orgStatus = 'expired';
+					break;
+				default:
+					orgStatus = 'active';
+			}
+
 			const updateData: Record<string, any> = {
 				stripe_subscription_id: subscription.id,
-				subscription_status: subscription.status,
+				subscription_status: orgStatus,
 			};
 
+			// Update trial end date
 			if (subscription.trial_end) {
 				updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
 			}
 
+			// For canceled subscriptions, we might want to set a canceled_at date
+			if (eventType === 'customer.subscription.deleted') {
+				updateData.subscription_status = 'canceled';
+			}
+
+			// Get the price ID to determine billing cycle
+			const priceItem = subscription.items?.data?.[0];
+			if (priceItem?.price?.recurring?.interval) {
+				updateData.billing_cycle = priceItem.price.recurring.interval === 'year' ? 'yearly' : 'monthly';
+			}
+
 			await directus.request(updateItem('hoa_organizations', org.id, updateData));
+			console.log(`Updated organization ${org.id} subscription status to ${orgStatus}`);
+		} else {
+			console.log(`No organization found for customer ${customerId}`);
 		}
 	} catch (err) {
 		console.error('Error updating organization subscription:', err);
+	}
+}
+
+// Handler for invoice events (important for subscription renewals)
+async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventType: string) {
+	console.log('Invoice Event:', eventType, invoice.id);
+
+	const customerId = invoice.customer as string;
+	const subscriptionId = invoice.subscription as string;
+
+	try {
+		// Find organization by stripe_customer_id
+		const organizations = await directus.request(
+			readItems('hoa_organizations', {
+				filter: {
+					stripe_customer_id: { _eq: customerId },
+				},
+			})
+		);
+
+		if (organizations && organizations.length > 0) {
+			const org = organizations[0];
+
+			if (eventType === 'invoice.paid') {
+				// Subscription renewal successful
+				await directus.request(
+					updateItem('hoa_organizations', org.id, {
+						subscription_status: 'active',
+					})
+				);
+				console.log(`Organization ${org.id} subscription renewed successfully`);
+			} else if (eventType === 'invoice.payment_failed') {
+				// Payment failed - might need to handle grace period
+				console.log(`Payment failed for organization ${org.id}`);
+				// Could notify the user here via email
+			}
+		}
+	} catch (err) {
+		console.error('Error handling invoice event:', err);
 	}
 }
 
