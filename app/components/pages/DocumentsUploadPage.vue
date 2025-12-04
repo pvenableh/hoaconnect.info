@@ -18,6 +18,15 @@ const subfolders = ref<any[]>([]);
 // Get folder ID from query params
 const parentFolderId = computed(() => route.query.folderId as string || "");
 
+// Form state - must be declared before watchers that reference it
+const form = reactive({
+  title: "",
+  category: "notices",
+  status: "draft",
+  file: null as File | null,
+  folder: "" as string,
+});
+
 /**
  * Flatten nested folder tree into a flat array with indentation info
  */
@@ -40,8 +49,10 @@ const flattenFolders = (folders: any[], level = 0): any[] => {
 };
 
 // Load all nested subfolders when organization folder is available
+// Also set default folder to org folder if no folder is selected
 watch(orgFolder, async (newFolder) => {
   if (newFolder) {
+    // Default to org folder if no folder is currently selected
     if (!form.folder) {
       form.folder = newFolder;
     }
@@ -55,18 +66,9 @@ watch(orgFolder, async (newFolder) => {
   }
 }, { immediate: true });
 
-// Form state
-const form = reactive({
-  title: "",
-  category: "notices",
-  status: "draft",
-  file: null as File | null,
-  folder: "" as string,
-});
-
-// Set the folder from query params
+// Set the folder from query params (overrides org folder default)
 watch(parentFolderId, (newFolderId) => {
-  if (newFolderId && !form.folder) {
+  if (newFolderId) {
     form.folder = newFolderId;
   }
 }, { immediate: true });
