@@ -1,5 +1,6 @@
 node_modules
-admin
+# Ignore root-level admin directory (Directus), not nested admin folders
+/admin
 logs/
 *.log*
 .nuxt
