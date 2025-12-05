@@ -148,8 +148,6 @@ export interface HoaDocument {
 	file?: DirectusFile | string | null;
 	organization?: HoaOrganization | string | null;
 	date_published?: string | null;
-	/** @deprecated Use document_category relationship instead */
-	category?: 'bylaws' | 'financials' | 'minutes' | 'agendas' | 'notices' | null;
 	/** Dynamic category reference */
 	document_category?: HoaDocumentCategory | string | null;
 	folder?: DirectusFolder | string | null;

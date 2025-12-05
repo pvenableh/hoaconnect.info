@@ -67,7 +67,6 @@ const { data: documents } = await useAsyncData(
       fields: [
         "id",
         "title",
-        "category",
         "document_category.id",
         "document_category.name",
         "document_category.slug",
@@ -106,11 +105,9 @@ const documentsByCategory = computed(() => {
     }
   }
 
-  // Group documents
+  // Group documents by document_category
   for (const doc of documents.value) {
-    // Try document_category first (new relationship), fall back to legacy category
     const docCategory = doc.document_category;
-    const legacyCategory = doc.category;
 
     if (docCategory) {
       const catId = typeof docCategory === "string" ? docCategory : docCategory.id;
@@ -125,24 +122,8 @@ const documentsByCategory = computed(() => {
           documents: [doc]
         });
       }
-    } else if (legacyCategory) {
-      // Handle legacy enum category
-      const legacyId = `legacy-${legacyCategory}`;
-      const existing = grouped.get(legacyId);
-      if (existing) {
-        existing.documents.push(doc);
-      } else {
-        // Create a pseudo-category for legacy
-        const legacyCat: HoaDocumentCategory = {
-          id: legacyId,
-          name: formatLegacyCategory(legacyCategory),
-          slug: legacyCategory,
-          sort_by_date: ["minutes", "agendas", "notices"].includes(legacyCategory),
-        };
-        grouped.set(legacyId, { category: legacyCat, documents: [doc] });
-      }
     } else {
-      // Uncategorized
+      // Uncategorized documents
       const uncatId = "uncategorized";
       const existing = grouped.get(uncatId);
       if (existing) {
@@ -176,18 +157,6 @@ const documentsByCategory = computed(() => {
 
   return grouped;
 });
-
-// Format legacy category names
-function formatLegacyCategory(category: string): string {
-  const names: Record<string, string> = {
-    bylaws: "Bylaws & Governance",
-    financials: "Financial Documents",
-    minutes: "Meeting Minutes",
-    agendas: "Meeting Agendas",
-    notices: "Community Notices",
-  };
-  return names[category] || category;
-}
 
 // Format date for display
 function formatDate(dateString: string | null | undefined): string {

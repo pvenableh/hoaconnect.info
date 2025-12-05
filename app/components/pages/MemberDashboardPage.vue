@@ -33,7 +33,6 @@ const { data: recentDocuments } = await useAsyncData(
       fields: [
         "id",
         "title",
-        "category",
         "document_category.name",
         "date_published",
         "date_created",
@@ -73,16 +72,6 @@ function getCategoryName(doc: HoaDocument): string {
     return typeof doc.document_category === "string"
       ? doc.document_category
       : doc.document_category.name || "Document";
-  }
-  if (doc.category) {
-    const names: Record<string, string> = {
-      bylaws: "Bylaws",
-      financials: "Financials",
-      minutes: "Minutes",
-      agendas: "Agendas",
-      notices: "Notices",
-    };
-    return names[doc.category] || doc.category;
   }
   return "Document";
 }

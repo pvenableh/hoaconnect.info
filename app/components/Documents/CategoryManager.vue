@@ -161,6 +161,110 @@ async function deleteCategory(category: HoaDocumentCategory) {
     toast.error("Failed to delete category");
   }
 }
+
+// Predefined category templates
+const predefinedCategories = [
+  {
+    name: "Bylaws & Governance",
+    slug: "bylaws",
+    description: "HOA bylaws, rules, regulations, and governing documents",
+    icon: "heroicons:scale",
+    sort_by_date: false,
+  },
+  {
+    name: "Financial Documents",
+    slug: "financials",
+    description: "Budgets, financial reports, and statements",
+    icon: "heroicons:currency-dollar",
+    sort_by_date: true,
+  },
+  {
+    name: "Meeting Minutes",
+    slug: "minutes",
+    description: "Board meeting and annual meeting minutes",
+    icon: "heroicons:user-group",
+    sort_by_date: true,
+  },
+  {
+    name: "Meeting Agendas",
+    slug: "agendas",
+    description: "Upcoming meeting agendas and schedules",
+    icon: "heroicons:clipboard-document-list",
+    sort_by_date: true,
+  },
+  {
+    name: "Community Notices",
+    slug: "notices",
+    description: "Announcements, newsletters, and community updates",
+    icon: "heroicons:bell",
+    sort_by_date: true,
+  },
+];
+
+// Check which predefined categories already exist
+const existingCategorySlugs = computed(() => {
+  if (!categories.value) return new Set<string>();
+  return new Set(categories.value.map(c => c.slug).filter(Boolean));
+});
+
+// Get available predefined categories (not yet created)
+const availablePredefinedCategories = computed(() => {
+  return predefinedCategories.filter(pc => !existingCategorySlugs.value.has(pc.slug));
+});
+
+// Create a single predefined category
+const creatingPredefined = ref(false);
+async function createPredefinedCategory(template: typeof predefinedCategories[0]) {
+  creatingPredefined.value = true;
+  try {
+    await create({
+      name: template.name,
+      slug: template.slug,
+      description: template.description,
+      icon: template.icon,
+      sort_by_date: template.sort_by_date,
+      organization: orgId.value,
+      status: "published",
+    });
+    toast.success(`Created "${template.name}" category`);
+    await refresh();
+  } catch (error) {
+    console.error("Failed to create category:", error);
+    toast.error("Failed to create category");
+  } finally {
+    creatingPredefined.value = false;
+  }
+}
+
+// Create all predefined categories at once
+async function createAllPredefinedCategories() {
+  if (availablePredefinedCategories.value.length === 0) {
+    toast.info("All predefined categories already exist");
+    return;
+  }
+
+  creatingPredefined.value = true;
+  try {
+    for (const template of availablePredefinedCategories.value) {
+      await create({
+        name: template.name,
+        slug: template.slug,
+        description: template.description,
+        icon: template.icon,
+        sort_by_date: template.sort_by_date,
+        organization: orgId.value,
+        status: "published",
+      });
+    }
+    toast.success(`Created ${availablePredefinedCategories.value.length} categories`);
+    await refresh();
+  } catch (error) {
+    console.error("Failed to create categories:", error);
+    toast.error("Failed to create categories");
+  } finally {
+    creatingPredefined.value = false;
+  }
+}
 </script>
 
 <template>
@@ -230,6 +334,44 @@ async function deleteCategory(category: HoaDocumentCategory) {
       <div v-else class="text-center py-8 text-stone-500">
         <Icon name="heroicons:folder" class="h-12 w-12 mx-auto mb-3 text-stone-300" />
         <p>No categories yet. Create one to organize your documents.</p>
+      </div>
+
+      <!-- Quick Setup Section -->
+      <div v-if="availablePredefinedCategories.length > 0" class="mt-6 pt-6 border-t">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h4 class="font-medium text-stone-900">Quick Setup</h4>
+            <p class="text-sm text-stone-500">Add common HOA document categories</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            @click="createAllPredefinedCategories"
+            :disabled="creatingPredefined"
+          >
+            <Icon name="heroicons:sparkles" class="h-4 w-4 mr-2" />
+            {{ creatingPredefined ? 'Creating...' : 'Add All' }}
+          </Button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <button
+            v-for="template in availablePredefinedCategories"
+            :key="template.slug"
+            @click="createPredefinedCategory(template)"
+            :disabled="creatingPredefined"
+            class="flex items-center gap-3 p-3 rounded-lg border border-dashed border-stone-300 hover:border-primary hover:bg-primary/5 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div class="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0">
+              <Icon :name="template.icon" class="h-4 w-4 text-stone-600" />
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-stone-900 truncate">{{ template.name }}</p>
+              <p class="text-xs text-stone-500 truncate">{{ template.description }}</p>
+            </div>
+            <Icon name="heroicons:plus" class="h-4 w-4 text-stone-400 ml-auto flex-shrink-0" />
+          </button>
+        </div>
       </div>
     </CardContent>
   </Card>
