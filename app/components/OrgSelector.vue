@@ -10,13 +10,65 @@ const handleSelect = (orgId: string) => {
   // Reload the page to refresh all data
   window.location.reload();
 };
+
+// Get status badge color
+const getStatusColor = (status: string | null | undefined) => {
+  switch (status) {
+    case "active":
+      return "bg-green-500";
+    case "trial":
+      return "bg-blue-500";
+    case "expired":
+      return "bg-red-500";
+    case "canceled":
+      return "bg-gray-400";
+    default:
+      return "bg-gray-400";
+  }
+};
+
+// Get days remaining in trial
+const getTrialDaysRemaining = (trialEndsAt: string | null | undefined) => {
+  if (!trialEndsAt) return null;
+  const endDate = new Date(trialEndsAt);
+  const now = new Date();
+  const diffTime = endDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+};
 </script>
 
 <template>
   <!-- Show organization name for single org (no dropdown) -->
   <div v-if="!hasMultipleOrgs && currentOrg" class="flex items-center gap-2 px-3 py-2 text-sm">
-    <span>🏢</span>
+    <div class="relative">
+      <Icon name="i-lucide-building-2" class="w-4 h-4" />
+      <!-- Status indicator dot -->
+      <span
+        :class="[
+          'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white',
+          getStatusColor(currentOrg?.organization?.subscription_status),
+        ]"
+      />
+    </div>
     <span class="font-medium">{{ currentOrg?.organization?.name }}</span>
+    <!-- Show trial days remaining -->
+    <span
+      v-if="
+        currentOrg?.organization?.subscription_status === 'trial' &&
+        getTrialDaysRemaining(currentOrg?.organization?.trial_ends_at) !== null
+      "
+      class="text-xs text-blue-600 font-medium"
+    >
+      ({{ getTrialDaysRemaining(currentOrg?.organization?.trial_ends_at) }}d left)
+    </span>
+    <!-- Show expired warning -->
+    <span
+      v-else-if="currentOrg?.organization?.subscription_status === 'expired'"
+      class="text-xs text-red-600 font-medium"
+    >
+      (Expired)
+    </span>
   </div>
 
   <!-- Show dropdown for multiple orgs -->
@@ -25,7 +77,16 @@ const handleSelect = (orgId: string) => {
       @click="showDropdown = !showDropdown"
       class="flex items-center gap-2 px-3 py-2 text-sm border rounded hover:bg-stone-50 transition-colors"
     >
-      <span>🏢</span>
+      <div class="relative">
+        <Icon name="i-lucide-building-2" class="w-4 h-4" />
+        <!-- Status indicator dot -->
+        <span
+          :class="[
+            'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white',
+            getStatusColor(currentOrg?.organization?.subscription_status),
+          ]"
+        />
+      </div>
       <span class="font-medium">{{
         currentOrg?.organization?.name || "Select HOA"
       }}</span>
@@ -35,10 +96,19 @@ const handleSelect = (orgId: string) => {
     <!-- Dropdown -->
     <div
       v-if="showDropdown"
-      class="absolute top-full left-0 mt-2 w-64 bg-white border rounded-lg shadow-lg z-50"
+      class="absolute top-full right-0 mt-2 w-72 bg-white border rounded-lg shadow-lg z-50"
     >
       <div class="p-2">
-        <p class="text-xs text-stone-500 px-2 py-1 mb-1">Switch Organization</p>
+        <div class="flex items-center justify-between px-2 py-1 mb-1">
+          <p class="text-xs text-stone-500">Switch Organization</p>
+          <NuxtLink
+            to="/organizations"
+            class="text-xs text-blue-600 hover:text-blue-700"
+            @click="showDropdown = false"
+          >
+            Manage All
+          </NuxtLink>
+        </div>
         <button
           v-for="membership in memberships"
           :key="membership.id"
@@ -49,10 +119,35 @@ const handleSelect = (orgId: string) => {
               membership.organization.id === currentOrg?.organization?.id,
           }"
         >
-          <p class="font-medium">{{ membership.organization.name }}</p>
-          <p class="text-xs text-stone-500">
-            {{ membership.role?.name || "Guest" }}
-          </p>
+          <div class="flex items-center justify-between">
+            <p class="font-medium">{{ membership.organization.name }}</p>
+            <!-- Status badge -->
+            <span
+              :class="[
+                'w-2 h-2 rounded-full',
+                getStatusColor(membership.organization?.subscription_status),
+              ]"
+              :title="membership.organization?.subscription_status || 'Unknown'"
+            />
+          </div>
+          <div class="flex items-center justify-between mt-0.5">
+            <p class="text-xs text-stone-500">
+              {{ membership.role?.name || "Guest" }}
+            </p>
+            <!-- Trial/expired info -->
+            <span
+              v-if="membership.organization?.subscription_status === 'trial'"
+              class="text-xs text-blue-600"
+            >
+              {{ getTrialDaysRemaining(membership.organization?.trial_ends_at) }}d trial
+            </span>
+            <span
+              v-else-if="membership.organization?.subscription_status === 'expired'"
+              class="text-xs text-red-600"
+            >
+              Expired
+            </span>
+          </div>
         </button>
       </div>
     </div>

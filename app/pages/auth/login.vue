@@ -9,6 +9,30 @@ const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
   try {
     const response = await login(values.email, values.password);
+
+    // Check subscription status from response
+    const subscriptionInfo = response?.subscriptionInfo;
+
+    // If all organizations have expired subscriptions, redirect to organizations page
+    if (subscriptionInfo?.allExpired) {
+      toast.warning("Subscription Expired", {
+        description: "Your organization subscriptions have expired. Please renew to continue.",
+        duration: 5000,
+      });
+      router.push("/organizations");
+      return;
+    }
+
+    // If user has no active org but has some memberships, show warning and redirect to orgs
+    if (subscriptionInfo?.memberships?.length > 0 && !subscriptionInfo?.hasActiveOrg) {
+      toast.warning("No Active Subscription", {
+        description: "Please select an organization or renew your subscription.",
+        duration: 5000,
+      });
+      router.push("/organizations");
+      return;
+    }
+
     toast.success("Login successful!", {
       description: "Welcome back!",
     });
@@ -42,8 +66,8 @@ const handleSubmit = async (values: { email: string; password: string }) => {
       // Redirect to organization slug path
       router.push(`/${org.slug}`);
     } else {
-      // No organization, redirect to home
-      router.push("/");
+      // No organization, redirect to dashboard
+      router.push("/dashboard");
     }
   } catch (error: any) {
     toast.error("Login failed", {
