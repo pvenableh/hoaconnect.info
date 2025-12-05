@@ -18,10 +18,10 @@ const isMainMarketingDomain = computed(
   () => !isCustomDomain.value && !isOnOrgPage.value
 );
 
-// Get current organization for logged-in users
-const { currentOrg } = user.value
+// Get current organization and role for logged-in users
+const { currentOrg, isAdmin, isMember } = user.value
   ? await useSelectedOrg()
-  : { currentOrg: ref(null) };
+  : { currentOrg: ref(null), isAdmin: ref(false), isMember: ref(false) };
 
 // Build logo URL from Directus asset - prefer activeHoa for public pages, then currentOrg for logged-in users
 const orgLogoUrl = computed(() => {
@@ -64,14 +64,32 @@ const handleLogout = async () => {
   }
 };
 
-// Authenticated nav items
-const navItems = [
+// Admin nav items (full access)
+const adminNavItems = [
   { label: "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
   { label: "Documents", path: "/documents", icon: "file" },
   { label: "Units", path: "/units", icon: "door-closed" },
   { label: "Members", path: "/members", icon: "users" },
   { label: "Settings", path: "/settings/organization", icon: "settings" },
 ];
+
+// Member nav items (limited access)
+const memberNavItems = [
+  { label: "Home", path: "/", icon: "home" },
+  { label: "Documents", path: "/documents", icon: "file" },
+];
+
+// Computed nav items based on role
+const navItems = computed(() => {
+  if (isAdmin.value) {
+    return adminNavItems;
+  }
+  if (isMember.value) {
+    return memberNavItems;
+  }
+  // Fallback for any authenticated user (show member view)
+  return memberNavItems;
+});
 
 // Public nav items
 const publicNavItems = [

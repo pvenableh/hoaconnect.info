@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { useDropZone } from "@vueuse/core";
+import type { HoaDocumentCategory } from "~~/types/directus";
 
 const { create: createDocument } = useDirectusItems("hoa_documents");
+const { list: listCategories } = useDirectusItems("hoa_document_categories");
 const { upload: uploadFile } = useDirectusFiles();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const folderComposable = useDirectusFolders();
@@ -19,6 +21,7 @@ const orgFolder = computed(() => {
   return typeof folder === 'string' ? folder : folder.id;
 });
 const subfolders = ref<any[]>([]);
+const documentCategories = ref<HoaDocumentCategory[]>([]);
 
 // Get folder ID from query params
 const parentFolderId = computed(() => route.query.folderId as string || "");
@@ -26,11 +29,40 @@ const parentFolderId = computed(() => route.query.folderId as string || "");
 // Form state - must be declared before watchers that reference it
 const form = reactive({
   title: "",
-  category: "notices",
+  document_category: "" as string,
   status: "draft",
   file: null as File | null,
   folder: "" as string,
 });
+
+// Load document categories for the organization
+const loadCategories = async () => {
+  if (!orgId.value) return;
+
+  try {
+    const result = await listCategories({
+      fields: ["id", "name", "slug", "icon"],
+      filter: {
+        organization: { _eq: orgId.value },
+        status: { _eq: "published" },
+      },
+      sort: ["sort", "name"],
+    });
+    documentCategories.value = (result || []) as HoaDocumentCategory[];
+
+    // Set default category if available and not already set
+    if (documentCategories.value.length > 0 && !form.document_category) {
+      form.document_category = documentCategories.value[0].id;
+    }
+  } catch (error) {
+    console.error("Failed to load categories:", error);
+  }
+};
+
+// Load categories when org is available
+watch(orgId, async () => {
+  await loadCategories();
+}, { immediate: true });
 
 /**
  * Flatten nested folder tree into a flat array with indentation info
@@ -133,7 +165,7 @@ const handleSubmit = async () => {
 
     await createDocument({
       title: form.title,
-      category: form.category,
+      document_category: form.document_category || null,
       status: form.status,
       organization: orgId.value,
       file: fileResult.id,
@@ -180,13 +212,28 @@ const handleSubmit = async () => {
             </div>
 
             <div>
-              <label class="text-sm font-medium mb-2 block">Category *</label>
-              <select v-model="form.category" class="w-full p-2 border rounded">
-                <option value="bylaws">Bylaws</option>
-                <option value="financials">Financials</option>
-                <option value="meeting_minutes">Meeting Minutes</option>
-                <option value="notices">Notices</option>
+              <label class="text-sm font-medium mb-2 block">Category</label>
+              <select
+                v-if="documentCategories.length > 0"
+                v-model="form.document_category"
+                class="w-full p-2 border rounded"
+              >
+                <option value="">No Category</option>
+                <option
+                  v-for="cat in documentCategories"
+                  :key="cat.id"
+                  :value="cat.id"
+                >
+                  {{ cat.name }}
+                </option>
               </select>
+              <p v-else class="text-sm text-stone-500 p-2 border rounded bg-stone-50">
+                No categories available.
+                <NuxtLink to="/documents" class="text-primary hover:underline">
+                  Create categories
+                </NuxtLink>
+                first.
+              </p>
             </div>
 
             <div>

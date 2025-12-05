@@ -49,6 +49,7 @@ const status = ref<"published" | "draft" | "archived">("published");
 
 // UI state
 const showCreateFolderDialog = ref(false);
+const showCategoryManager = ref(false);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
 const expandedFolders = ref<Set<string>>(new Set());
@@ -433,6 +434,14 @@ watch(
           <h1 class="text-3xl font-bold">Documents</h1>
           <div class="flex gap-2">
             <Button
+              @click="showCategoryManager = !showCategoryManager"
+              variant="outline"
+              :class="showCategoryManager ? 'bg-stone-100' : ''"
+            >
+              <Icon name="heroicons:tag" class="h-4 w-4 mr-2" />
+              Categories
+            </Button>
+            <Button
               @click="openCreateFolderDialog(orgFolder!)"
               variant="outline"
             >
@@ -446,6 +455,9 @@ watch(
             </Button>
           </div>
         </div>
+
+        <!-- Category Manager (collapsible) -->
+        <DocumentsCategoryManager v-if="showCategoryManager" />
 
         <!-- Filters -->
         <TooltipProvider>
