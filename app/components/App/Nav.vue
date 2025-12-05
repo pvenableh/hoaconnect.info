@@ -78,6 +78,14 @@ const publicNavItems = [
   { label: "Features", path: "/#features" },
   { label: "Pricing", path: "/#plans" },
 ];
+
+// User avatar URL - show Directus avatar if available
+const userAvatarUrl = computed(() => {
+  if (user.value?.avatar) {
+    return `${config.public.directus.url}/assets/${user.value.avatar}?key=small-contain`;
+  }
+  return null;
+});
 </script>
 
 <template>
@@ -144,22 +152,28 @@ const publicNavItems = [
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
           <OrgSelector />
-          <Avatar>
-            <AvatarImage
-              :src="
-                'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
-                user?.firstNameuser +
-                '+' +
-                user?.lastName
-              "
-              :alt="user?.firstNameuser + ' ' + user?.lastName"
-            />
-            <AvatarFallback>
-              {{ user?.firstName[0] }} {{ user?.lastName[0] }}</AvatarFallback
-            >
-          </Avatar>
-
-          <span class="text-xs text-stone-600 uppercase tracking-wider"> </span>
+          <NuxtLink to="/account" class="hover:opacity-80 transition" title="My Profile">
+            <Avatar>
+              <AvatarImage
+                v-if="userAvatarUrl"
+                :src="userAvatarUrl"
+                :alt="user?.firstName + ' ' + user?.lastName"
+              />
+              <AvatarImage
+                v-else
+                :src="
+                  'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
+                  user?.firstName +
+                  '+' +
+                  user?.lastName
+                "
+                :alt="user?.firstName + ' ' + user?.lastName"
+              />
+              <AvatarFallback>
+                {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
+              </AvatarFallback>
+            </Avatar>
+          </NuxtLink>
           <Button
             @click="handleLogout"
             variant="outline"

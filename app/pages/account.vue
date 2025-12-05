@@ -3,11 +3,73 @@
     <div class="max-w-4xl mx-auto">
       <!-- Page Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold">Account Settings</h1>
+        <h1 class="text-3xl font-bold">My Profile</h1>
         <p class="text-muted-foreground mt-2">
           Manage your account information and preferences
         </p>
       </div>
+
+      <!-- Avatar Section -->
+      <Card class="mb-6">
+        <CardHeader>
+          <CardTitle>Profile Picture</CardTitle>
+          <CardDescription>
+            Upload a profile picture to personalize your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div class="flex items-center gap-6">
+            <!-- Avatar Preview -->
+            <div class="relative">
+              <Avatar class="h-24 w-24">
+                <AvatarImage
+                  v-if="avatarUrl"
+                  :src="avatarUrl"
+                  :alt="user?.firstName + ' ' + user?.lastName"
+                />
+                <AvatarFallback class="text-2xl">
+                  {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                v-if="avatarUrl && !isUploadingAvatar"
+                @click="removeAvatar"
+                class="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90 transition"
+                title="Remove avatar"
+              >
+                <Icon name="lucide:x" class="h-3 w-3" />
+              </button>
+            </div>
+
+            <!-- Upload Controls -->
+            <div class="flex-1">
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleAvatarUpload"
+              />
+              <Button
+                @click="$refs.avatarInput.click()"
+                :disabled="isUploadingAvatar"
+                variant="outline"
+              >
+                <Icon
+                  v-if="isUploadingAvatar"
+                  name="lucide:loader-2"
+                  class="mr-2 h-4 w-4 animate-spin"
+                />
+                <Icon v-else name="lucide:upload" class="mr-2 h-4 w-4" />
+                {{ isUploadingAvatar ? "Uploading..." : "Upload Photo" }}
+              </Button>
+              <p class="text-xs text-muted-foreground mt-2">
+                JPG, PNG or GIF. Max 5MB.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <!-- Account Tabs -->
       <div class="flex space-x-1 border-b mb-6">
@@ -63,17 +125,6 @@
                 </div>
               </div>
 
-              <!-- Display Name -->
-              <div class="space-y-2">
-                <Label for="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  v-model="profileForm.display_name"
-                  placeholder="How you want to be displayed"
-                  :disabled="isUpdating"
-                />
-              </div>
-
               <!-- Email (Read-only) -->
               <div class="space-y-2">
                 <Label for="email">Email</Label>
@@ -87,65 +138,6 @@
                 <p class="text-xs text-muted-foreground">
                   Primary email cannot be changed
                 </p>
-              </div>
-
-              <!-- Phone -->
-              <div class="space-y-2">
-                <Label for="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  v-model="profileForm.phone"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                  :disabled="isUpdating"
-                />
-              </div>
-
-              <!-- Bio -->
-              <div class="space-y-2">
-                <Label for="bio">Bio</Label>
-                <textarea
-                  id="bio"
-                  v-model="profileForm.bio"
-                  rows="4"
-                  class="w-full px-3 py-2 border rounded-md bg-background"
-                  placeholder="Tell us about yourself..."
-                  :disabled="isUpdating"
-                />
-              </div>
-
-              <!-- Company & Job Title -->
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <Label for="company">Company</Label>
-                  <Input
-                    id="company"
-                    v-model="profileForm.company"
-                    placeholder="Your company"
-                    :disabled="isUpdating"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label for="jobTitle">Job Title</Label>
-                  <Input
-                    id="jobTitle"
-                    v-model="profileForm.job_title"
-                    placeholder="Your role"
-                    :disabled="isUpdating"
-                  />
-                </div>
-              </div>
-
-              <!-- Website -->
-              <div class="space-y-2">
-                <Label for="website">Website</Label>
-                <Input
-                  id="website"
-                  v-model="profileForm.website"
-                  type="url"
-                  placeholder="https://example.com"
-                  :disabled="isUpdating"
-                />
               </div>
 
               <!-- Success/Error Messages -->
@@ -173,139 +165,51 @@
             </form>
           </CardContent>
         </Card>
-
-        <!-- Address Section -->
-        <Card>
-          <CardHeader>
-            <CardTitle>Address</CardTitle>
-            <CardDescription> Your mailing address </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form @submit.prevent="updateAddress" class="space-y-4">
-              <div class="space-y-2">
-                <Label>Street Address</Label>
-                <Input
-                  v-model="addressForm.address_line1"
-                  placeholder="123 Main Street"
-                  :disabled="isUpdating"
-                />
-                <Input
-                  v-model="addressForm.address_line2"
-                  placeholder="Apartment, suite, etc. (optional)"
-                  :disabled="isUpdating"
-                />
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <Label>City</Label>
-                  <Input
-                    v-model="addressForm.city"
-                    placeholder="San Francisco"
-                    :disabled="isUpdating"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label>State/Province</Label>
-                  <Input
-                    v-model="addressForm.state_province"
-                    placeholder="CA"
-                    :disabled="isUpdating"
-                  />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <Label>Postal Code</Label>
-                  <Input
-                    v-model="addressForm.postal_code"
-                    placeholder="12345"
-                    :disabled="isUpdating"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label>Country</Label>
-                  <Input
-                    v-model="addressForm.country"
-                    placeholder="United States"
-                    :disabled="isUpdating"
-                  />
-                </div>
-              </div>
-
-              <div class="flex justify-end">
-                <Button type="submit" :disabled="isUpdating">
-                  Save Address
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
       </div>
 
       <!-- Security Tab -->
       <div v-if="activeTab === 'security'" class="space-y-6">
-        <!-- Password Change -->
+        <!-- Password Reset Request -->
         <Card>
           <CardHeader>
-            <CardTitle>Change Password</CardTitle>
+            <CardTitle>Reset Password</CardTitle>
             <CardDescription>
-              Update your password to keep your account secure
+              Request a password reset link to be sent to your email
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form @submit.prevent="changePassword" class="space-y-4">
-              <div class="space-y-2">
-                <Label for="currentPassword">Current Password</Label>
-                <Input
-                  id="currentPassword"
-                  v-model="passwordForm.currentPassword"
-                  type="password"
-                  :disabled="isUpdating"
-                />
-              </div>
+            <div class="space-y-4">
+              <p class="text-sm text-muted-foreground">
+                Click the button below to receive a password reset link at
+                <strong>{{ user?.email }}</strong>
+              </p>
 
-              <div class="space-y-2">
-                <Label for="newPassword">New Password</Label>
-                <Input
-                  id="newPassword"
-                  v-model="passwordForm.newPassword"
-                  type="password"
-                  :disabled="isUpdating"
-                />
-                <p class="text-xs text-muted-foreground">
-                  Must be at least 8 characters with uppercase, lowercase, and
-                  numbers
-                </p>
-              </div>
-
-              <div class="space-y-2">
-                <Label for="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  v-model="passwordForm.confirmPassword"
-                  type="password"
-                  :disabled="isUpdating"
-                />
-              </div>
-
-              <Alert v-if="passwordError" variant="destructive">
-                <Icon name="lucide:alert-circle" class="h-4 w-4" />
-                <div class="ml-2">{{ passwordError }}</div>
-              </Alert>
-
-              <Alert v-if="passwordSuccess" variant="success">
+              <Alert v-if="resetRequestSuccess" variant="success">
                 <Icon name="lucide:check-circle" class="h-4 w-4" />
-                <div class="ml-2">Password changed successfully!</div>
+                <div class="ml-2">
+                  Password reset link sent! Check your email.
+                </div>
               </Alert>
 
-              <div class="flex justify-end">
-                <Button type="submit" :disabled="isUpdating">
-                  Change Password
-                </Button>
-              </div>
-            </form>
+              <Alert v-if="resetRequestError" variant="destructive">
+                <Icon name="lucide:alert-circle" class="h-4 w-4" />
+                <div class="ml-2">{{ resetRequestError }}</div>
+              </Alert>
+
+              <Button
+                @click="requestPasswordReset"
+                :disabled="isRequestingReset"
+                variant="outline"
+              >
+                <Icon
+                  v-if="isRequestingReset"
+                  name="lucide:loader-2"
+                  class="mr-2 h-4 w-4 animate-spin"
+                />
+                <Icon v-else name="lucide:mail" class="mr-2 h-4 w-4" />
+                {{ isRequestingReset ? "Sending..." : "Send Reset Link" }}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -473,9 +377,13 @@
 
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Auth & user data
-const { user, fetchUser } = useDirectusAuth();
+const { user, refreshUser } = useDirectusAuth();
+const { updateProfile: updateUserProfile, requestPasswordReset: requestReset } =
+  useDirectusUser();
+const config = useRuntimeConfig();
 
 // Tab management
 const tabs = [
@@ -487,38 +395,29 @@ const activeTab = ref("profile");
 
 // Loading states
 const isUpdating = ref(false);
+const isUploadingAvatar = ref(false);
+const isRequestingReset = ref(false);
 const updateSuccess = ref(false);
 const updateError = ref<string | null>(null);
-const passwordSuccess = ref(false);
-const passwordError = ref<string | null>(null);
+const resetRequestSuccess = ref(false);
+const resetRequestError = ref<string | null>(null);
+
+// Avatar state
+const currentAvatarId = ref<string | null>(null);
+
+// Avatar URL computed
+const avatarUrl = computed(() => {
+  const avatarId = currentAvatarId.value || user.value?.avatar;
+  if (avatarId) {
+    return `${config.public.directus.url}/assets/${avatarId}?key=medium-contain`;
+  }
+  return null;
+});
 
 // Profile form
 const profileForm = ref({
   first_name: "",
   last_name: "",
-  display_name: "",
-  phone: "",
-  bio: "",
-  company: "",
-  job_title: "",
-  website: "",
-});
-
-// Address form
-const addressForm = ref({
-  address_line1: "",
-  address_line2: "",
-  city: "",
-  state_province: "",
-  postal_code: "",
-  country: "",
-});
-
-// Password form
-const passwordForm = ref({
-  currentPassword: "",
-  newPassword: "",
-  confirmPassword: "",
 });
 
 // Preferences form
@@ -533,28 +432,84 @@ const preferencesForm = ref({
 // Load profile data
 onMounted(async () => {
   if (user.value) {
-    // Load profile form from user data
     profileForm.value = {
-      first_name: user.value?.first_name || "",
-      last_name: user.value?.last_name || "",
-      display_name: "",
-      phone: "",
-      bio: "",
-      company: "",
-      job_title: "",
-      website: "",
+      first_name: user.value?.firstName || "",
+      last_name: user.value?.lastName || "",
     };
-
-    // Load preferences
-    preferencesForm.value = {
-      email_notifications: true,
-      newsletter_subscribed: false,
-      theme: user.value?.theme || "auto",
-      locale: "en",
-      timezone: "America/New_York",
-    };
+    currentAvatarId.value = user.value?.avatar || null;
   }
 });
+
+// Handle avatar upload
+const handleAvatarUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+
+  if (!file) return;
+
+  // Validate file size (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("File size must be less than 5MB");
+    return;
+  }
+
+  // Validate file type
+  if (!file.type.startsWith("image/")) {
+    toast.error("Please upload an image file");
+    return;
+  }
+
+  isUploadingAvatar.value = true;
+
+  try {
+    // Create form data for upload
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", `Avatar - ${user.value?.firstName} ${user.value?.lastName}`);
+
+    // Upload file to Directus
+    const uploadResult = await $fetch("/api/directus/files/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (uploadResult?.id) {
+      // Update user profile with new avatar
+      await updateUserProfile({ avatar: uploadResult.id });
+
+      // Update local state
+      currentAvatarId.value = uploadResult.id;
+
+      // Refresh user session
+      await refreshUser();
+
+      toast.success("Profile picture updated!");
+    }
+  } catch (error: any) {
+    console.error("Avatar upload error:", error);
+    toast.error(error?.message || "Failed to upload avatar");
+  } finally {
+    isUploadingAvatar.value = false;
+    // Reset file input
+    target.value = "";
+  }
+};
+
+// Remove avatar
+const removeAvatar = async () => {
+  isUploadingAvatar.value = true;
+
+  try {
+    await updateUserProfile({ avatar: null });
+    currentAvatarId.value = null;
+    await refreshUser();
+    toast.success("Profile picture removed");
+  } catch (error: any) {
+    toast.error(error?.message || "Failed to remove avatar");
+  } finally {
+    isUploadingAvatar.value = false;
+  }
+};
 
 // Update profile
 const updateProfile = async () => {
@@ -563,22 +518,14 @@ const updateProfile = async () => {
   updateSuccess.value = false;
 
   try {
-    // Note: Profiles collection has been removed
-    // Only updating user fields in directus_users
-    toast.warning(
-      "Profile updates are temporarily disabled while we migrate to the new data model"
-    );
+    await updateUserProfile({
+      first_name: profileForm.value.first_name,
+      last_name: profileForm.value.last_name,
+    });
 
-    // TODO: Implement user update endpoint
-    // await $fetch('/api/account/update-user', {
-    //   method: 'PATCH',
-    //   body: {
-    //     first_name: profileForm.value.first_name,
-    //     last_name: profileForm.value.last_name
-    //   }
-    // })
-
-    updateSuccess.value = false;
+    await refreshUser();
+    updateSuccess.value = true;
+    toast.success("Profile updated successfully!");
   } catch (error: any) {
     updateError.value = error?.message || "Failed to update profile";
     toast.error(updateError.value || "Failed to update profile");
@@ -587,56 +534,23 @@ const updateProfile = async () => {
   }
 };
 
-// Update address
-const updateAddress = async () => {
-  isUpdating.value = true;
+// Request password reset
+const requestPasswordReset = async () => {
+  if (!user.value?.email) return;
+
+  isRequestingReset.value = true;
+  resetRequestError.value = null;
+  resetRequestSuccess.value = false;
 
   try {
-    // Note: Profiles collection has been removed
-    toast.warning(
-      "Address updates are temporarily disabled while we migrate to the new data model"
-    );
+    await requestReset(user.value.email);
+    resetRequestSuccess.value = true;
+    toast.success("Password reset link sent to your email!");
   } catch (error: any) {
-    toast.error("Failed to update address");
+    resetRequestError.value = error?.message || "Failed to send reset link";
+    toast.error(resetRequestError.value || "Failed to send reset link");
   } finally {
-    isUpdating.value = false;
-  }
-};
-
-// Change password
-const changePassword = async () => {
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    passwordError.value = "Passwords don't match";
-    return;
-  }
-
-  isUpdating.value = true;
-  passwordError.value = null;
-  passwordSuccess.value = false;
-
-  try {
-    await $fetch("/api/account/change-password", {
-      method: "POST",
-      body: {
-        currentPassword: passwordForm.value.currentPassword,
-        newPassword: passwordForm.value.newPassword,
-      },
-    });
-
-    passwordSuccess.value = true;
-    toast.success("Password changed successfully!");
-
-    // Clear form
-    passwordForm.value = {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    };
-  } catch (error: any) {
-    passwordError.value = error?.message || "Failed to change password";
-    toast.error(passwordError.value || "Failed to change password");
-  } finally {
-    isUpdating.value = false;
+    isRequestingReset.value = false;
   }
 };
 
@@ -645,18 +559,9 @@ const updatePreferences = async () => {
   isUpdating.value = true;
 
   try {
-    // Note: Profiles collection has been removed
     toast.warning(
       "Preference updates are temporarily disabled while we migrate to the new data model"
     );
-
-    // TODO: Implement user update endpoint for theme
-    // await $fetch('/api/account/update-user', {
-    //   method: 'PATCH',
-    //   body: {
-    //     theme: preferencesForm.value.theme
-    //   }
-    // })
   } catch (error) {
     toast.error("Failed to update preferences");
   } finally {
@@ -666,13 +571,11 @@ const updatePreferences = async () => {
 
 // Update theme immediately
 const updateTheme = () => {
-  // Apply theme to document
   if (preferencesForm.value.theme === "dark") {
     document.documentElement.classList.add("dark");
   } else if (preferencesForm.value.theme === "light") {
     document.documentElement.classList.remove("dark");
   } else {
-    // Auto - use system preference
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     if (isDark) {
       document.documentElement.classList.add("dark");
@@ -685,18 +588,5 @@ const updateTheme = () => {
 // OAuth connections
 const connectOAuth = (provider: string) => {
   window.location.href = `/api/auth/${provider}`;
-};
-
-const disconnectOAuth = async (provider: string) => {
-  try {
-    await $fetch(`/api/account/disconnect-oauth`, {
-      method: "POST",
-      body: { provider },
-    });
-    toast.success(`${provider} disconnected`);
-    await fetchUser();
-  } catch (error) {
-    toast.error(`Failed to disconnect ${provider}`);
-  }
 };
 </script>
