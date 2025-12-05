@@ -116,7 +116,9 @@ const userAvatarUrl = computed(() => {
           </template>
           <!-- Default brand for main home page -->
           <template v-else>
-            <span class="text-xl font-bold text-blue-600">HOA Connect</span>
+            <span class="text-xl font-semibold uppercase tracking-extra-wide"
+              ><span class="font-light">HOA</span>Connect</span
+            >
           </template>
         </NuxtLink>
 
@@ -126,7 +128,7 @@ const userAvatarUrl = computed(() => {
             v-for="item in publicNavItems"
             :key="item.path"
             :href="item.path"
-            class="text-gray-600 hover:text-blue-600 transition uppercase text-xs tracking-wider"
+            class="text-gray-600 hover:text-zinc-300 transition uppercase text-xs tracking-wider"
           >
             {{ item.label }}
           </a>
@@ -152,7 +154,11 @@ const userAvatarUrl = computed(() => {
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
           <OrgSelector />
-          <NuxtLink to="/account" class="hover:opacity-80 transition" title="My Profile">
+          <NuxtLink
+            to="/account"
+            class="hover:opacity-80 transition"
+            title="My Profile"
+          >
             <Avatar>
               <AvatarImage
                 v-if="userAvatarUrl"
@@ -188,18 +194,18 @@ const userAvatarUrl = computed(() => {
         <div v-else class="flex items-center gap-4">
           <NuxtLink
             to="/auth/login"
-            class="text-gray-600 hover:text-blue-600 uppercase text-xs tracking-wider"
+            class="text-gray-600 hover:text-stone-600 uppercase text-xs tracking-wider"
           >
             Login
           </NuxtLink>
           <!-- Hide Get Started on org pages and custom domains -->
-          <NuxtLink
+          <Button
             v-if="!isOnOrgPage && !isCustomDomain"
-            to="/setup"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-xs uppercase tracking-wider"
+            as-child
+            class="uppercase font-body tracking-widest text-xs"
           >
-            Get Started
-          </NuxtLink>
+            <NuxtLink to="/setup"> Get Started </NuxtLink>
+          </Button>
         </div>
       </div>
 
