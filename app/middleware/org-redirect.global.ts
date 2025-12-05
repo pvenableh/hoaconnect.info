@@ -11,11 +11,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // Skip if not logged in
   if (!loggedIn.value) return;
 
-  // Skip redirect for auth pages, setup pages, and other public routes
+  // Skip redirect for auth pages, setup pages, account page, and other public routes
+  // Account page lives on main domain since user accounts are user-specific, not org-specific
   const skipPaths = [
     '/auth/',
     '/setup',
     '/api/',
+    '/account',
   ];
 
   if (skipPaths.some(path => to.path.startsWith(path))) {
