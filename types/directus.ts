@@ -125,12 +125,10 @@ export interface HoaDocumentCategory {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
-	/** @required */
-	name: string;
+	name?: string | null;
 	slug?: string | null;
 	description?: string | null;
 	icon?: string | null;
-	/** Whether documents in this category should be sorted by date (e.g., meeting minutes, agendas) */
 	sort_by_date?: boolean | null;
 	organization?: HoaOrganization | string | null;
 }
@@ -148,9 +146,8 @@ export interface HoaDocument {
 	file?: DirectusFile | string | null;
 	organization?: HoaOrganization | string | null;
 	date_published?: string | null;
-	/** Dynamic category reference */
-	document_category?: HoaDocumentCategory | string | null;
 	folder?: DirectusFolder | string | null;
+	document_category?: HoaDocumentCategory | string | null;
 }
 
 export interface HoaInvitation {
@@ -872,6 +869,7 @@ export interface Schema {
 	coupons_subscription_plans: CouponsSubscriptionPlan[];
 	coupon_usage: CouponUsage[];
 	hoa_amenities: HoaAmenity[];
+	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_invitations: HoaInvitation[];
 	hoa_members: HoaMember[];
@@ -920,6 +918,7 @@ export enum CollectionNames {
 	coupons_subscription_plans = 'coupons_subscription_plans',
 	coupon_usage = 'coupon_usage',
 	hoa_amenities = 'hoa_amenities',
+	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_invitations = 'hoa_invitations',
 	hoa_members = 'hoa_members',
