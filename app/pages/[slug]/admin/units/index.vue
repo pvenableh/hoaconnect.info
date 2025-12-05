@@ -1,10 +1,10 @@
 <script setup lang="ts">
 definePageMeta({
-  middleware: "auth",
+  middleware: "admin",
   layout: "auth",
 });
 </script>
 
 <template>
-  <PagesSettingsOrganizationPage />
+  <PagesUnitsPage />
 </template>

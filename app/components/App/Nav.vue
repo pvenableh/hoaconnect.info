@@ -64,13 +64,13 @@ const handleLogout = async () => {
   }
 };
 
-// Admin nav items (full access)
+// Admin nav items (full access) - paths are relative and will be prefixed with org slug
 const adminNavItems = [
   { label: "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
-  { label: "Documents", path: "/documents", icon: "file" },
-  { label: "Units", path: "/units", icon: "door-closed" },
-  { label: "Members", path: "/members", icon: "users" },
-  { label: "Settings", path: "/settings/organization", icon: "settings" },
+  { label: "Documents", path: "/admin/documents", icon: "file" },
+  { label: "Units", path: "/admin/units", icon: "door-closed" },
+  { label: "Members", path: "/admin/members", icon: "users" },
+  { label: "Settings", path: "/admin/settings/organization", icon: "settings" },
 ];
 
 // Member nav items (limited access)

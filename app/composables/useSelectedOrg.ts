@@ -192,22 +192,35 @@ export const useSelectedOrg = async () => {
   // Get current role in selected org (returns role ID since we can't query role name from core collection)
   const currentRole = computed(() => currentOrg.value?.role || "Guest");
 
-  // Check if current user is an admin in the selected organization
-  const isAdmin = computed(() => {
+  // Get the actual role ID (handles both string and object role references)
+  const actualRoleId = computed(() => {
     const roleId = currentOrg.value?.role;
-    if (!roleId) return false;
-    // Handle both string and object role references
-    const actualRoleId = typeof roleId === "string" ? roleId : roleId?.id;
-    return actualRoleId === config.public.directusRoleAdmin;
+    if (!roleId) return null;
+    return typeof roleId === "string" ? roleId : roleId?.id;
+  });
+
+  // Check if current user is an admin in the selected organization
+  // Admin access is granted to both App Administrators and HOA Admins
+  const isAdmin = computed(() => {
+    if (!actualRoleId.value) return false;
+    // Check against both admin role types
+    const adminRoles = [
+      config.public.directusRoleAppAdmin, // App Administrator (c4903b32-db6f-4479-a627-55be7f328321)
+      config.public.directusRoleHoaAdmin, // HOA Admin (38494e81-9b49-4c64-a197-fcb8097cd433)
+      config.public.directusRoleAdmin, // Legacy fallback
+    ].filter(Boolean);
+    return adminRoles.includes(actualRoleId.value);
   });
 
   // Check if current user is a regular member (not admin) in the selected organization
   const isMember = computed(() => {
-    const roleId = currentOrg.value?.role;
-    if (!roleId) return false;
-    // Handle both string and object role references
-    const actualRoleId = typeof roleId === "string" ? roleId : roleId?.id;
-    return actualRoleId === config.public.directusRoleUser;
+    if (!actualRoleId.value) return false;
+    // Check against member role
+    const memberRoles = [
+      config.public.directusRoleMember, // HOA Member (558b04ed-fdcc-48c2-9cd0-977cccf988b9)
+      config.public.directusRoleUser, // Legacy fallback
+    ].filter(Boolean);
+    return memberRoles.includes(actualRoleId.value);
   });
 
   // Check if user has any role in the organization (is authenticated member)

@@ -54,6 +54,13 @@ export default defineNuxtConfig({
         websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
       },
       // Role IDs for permission checking
+      // App Administrator - full system access
+      directusRoleAppAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_APP_ADMIN || "c4903b32-db6f-4479-a627-55be7f328321",
+      // HOA Admin - organization-level admin access
+      directusRoleHoaAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_HOA_ADMIN || "38494e81-9b49-4c64-a197-fcb8097cd433",
+      // HOA Member - regular member access (front-facing only)
+      directusRoleMember: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_MEMBER || "558b04ed-fdcc-48c2-9cd0-977cccf988b9",
+      // Legacy - keeping for backwards compatibility
       directusRoleAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN,
       directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,
       // Legacy - can be removed after migration
