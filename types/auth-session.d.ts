@@ -7,6 +7,7 @@ declare module "#auth-utils" {
     email: string;
     firstName?: string;
     lastName?: string;
+    avatar?: string | null;
     role?: DirectusRole;
     organizationId?: string;
     provider?: "local" | "google" | "github";

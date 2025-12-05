@@ -1,40 +1,34 @@
+/**
+ * Server API route to refresh the user session with fresh data from Directus
+ * POST: Refresh user session
+ */
+
 import {
   createDirectus,
   rest,
   staticToken,
-  login,
   readMe,
 } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
-  const { email, password } = await readBody(event);
-
-  if (!email || !password) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Email and password are required",
-    });
-  }
-
   try {
-    const config = useRuntimeConfig();
+    const session = await getUserSession(event);
 
-    // Create a client for login
-    const directus = createDirectus(config.directus.url).with(rest());
-
-    // Authenticate with Directus
-    const authResult = await directus.request(login({ email, password }));
-
-    if (!authResult.access_token) {
-      throw new Error("Authentication failed");
+    if (!session?.secure?.directusAccessToken) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Not authenticated",
+      });
     }
 
-    // Create an authenticated client to fetch user data
+    const config = useRuntimeConfig();
+
+    // Create an authenticated client to fetch fresh user data
     const authClient = createDirectus(config.directus.url)
-      .with(staticToken(authResult.access_token))
+      .with(staticToken(session.secure.directusAccessToken))
       .with(rest());
 
-    // Fetch user data with organization info
+    // Fetch fresh user data
     const user = await authClient.request(
       readMe({
         fields: ["*", "role", { organization: ["id", "slug", "name", "custom_domain", "domain_verified"] }],
@@ -44,7 +38,7 @@ export default defineEventHandler(async (event) => {
     // Extract avatar ID (can be string or object with id)
     const avatarId = typeof user.avatar === 'string' ? user.avatar : user.avatar?.id || null;
 
-    // Set user session with tokens in secure section
+    // Update user session with fresh data
     await setUserSession(event, {
       user: {
         id: user.id,
@@ -54,14 +48,12 @@ export default defineEventHandler(async (event) => {
         avatar: avatarId,
         role: user.role,
         organization: user.organization,
-        provider: "local",
+        provider: session.user?.provider || "local",
       },
-      loggedInAt: Date.now(),
-      expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
-      secure: {
-        directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token,
-      },
+      loggedInAt: session.loggedInAt,
+      expiresAt: session.expiresAt,
+      selectedOrgId: session.selectedOrgId,
+      secure: session.secure,
     });
 
     return {
@@ -77,11 +69,11 @@ export default defineEventHandler(async (event) => {
       },
     };
   } catch (error: any) {
-    console.error("Login error:", error);
+    console.error("Session refresh error:", error);
 
     throw createError({
-      statusCode: 401,
-      statusMessage: error.message || "Invalid email or password",
+      statusCode: error.statusCode || 500,
+      statusMessage: error.message || "Failed to refresh session",
     });
   }
 });

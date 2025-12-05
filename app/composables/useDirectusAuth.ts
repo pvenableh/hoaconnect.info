@@ -116,11 +116,23 @@ export const useDirectusAuth = () => {
   };
 
   /**
-   * Refresh current user session
+   * Refresh current user session with fresh data from Directus
    */
   const refreshUser = async () => {
-    await session.fetch();
-    return session.user.value;
+    try {
+      // Call the refresh endpoint to get fresh user data from Directus
+      await $fetch("/api/auth/refresh-session", {
+        method: "POST",
+      });
+
+      // Fetch the updated session
+      await session.fetch();
+      return session.user.value;
+    } catch (error: any) {
+      // Fallback to just refreshing the session
+      await session.fetch();
+      return session.user.value;
+    }
   };
 
   return {

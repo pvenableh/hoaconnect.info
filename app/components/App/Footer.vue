@@ -20,8 +20,9 @@ const authenticatedLinks = [
     ],
   },
   {
-    title: "Support",
+    title: "Account",
     links: [
+      { label: "My Profile", path: "/account" },
       { label: "Help Center", path: "/help" },
       { label: "Contact", path: "/contact" },
     ],
