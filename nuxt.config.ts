@@ -190,10 +190,10 @@ export default defineNuxtConfig({
       alternateName: "Property Flow",
       url: process.env.NUXT_PUBLIC_MAIN_DOMAIN
         ? `https://${process.env.NUXT_PUBLIC_MAIN_DOMAIN}`
-        : "https://property.huestudios.com",
+        : "https://www.hoaconnect.info",
       logo: process.env.NUXT_PUBLIC_MAIN_DOMAIN
         ? `https://${process.env.NUXT_PUBLIC_MAIN_DOMAIN}/logo.png`
-        : "https://property.huestudios.com/logo.png",
+        : "https://www.hoaconnect.info/logo.png",
       address: {
         type: "PostalAddress",
         streetAddress: "605 Lincoln Road",

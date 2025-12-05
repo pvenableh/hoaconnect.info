@@ -382,7 +382,7 @@
           activeHoa?.hero?.background_image
             ? {
                 backgroundImage:
-                  'url(https://property.huestudios.company/assets/' +
+                  'url(https://admin.hoaconnect.info/assets/' +
                   activeHoa.hero.background_image.id +
                   ')',
                 backgroundColor: 'rgba(0, 0, 0, 0.6)',
