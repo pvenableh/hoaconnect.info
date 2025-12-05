@@ -5,6 +5,8 @@
     <PagesSellSheet
       v-if="isMainDomain && !isCustomDomain"
       :plans="activePlans"
+      :error="error"
+      :pending="pending"
     />
 
     <!-- Custom Domain (605lincolnroad.com, etc) - Organization Landing Page -->

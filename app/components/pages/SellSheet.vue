@@ -228,92 +228,47 @@
                 :key="index"
                 class="flex items-start"
               >
-                <svg
+                <Icon
+                  name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                />
                 <span>{{ feature }}</span>
               </li>
 
               <!-- Additional info -->
               <li v-if="plan.max_members" class="flex items-start">
-                <svg
+                <Icon
+                  name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                />
                 <span>Up to {{ plan.max_members }} members</span>
               </li>
               <li
                 v-if="!plan.max_members && plan.slug !== 'starter'"
                 class="flex items-start"
               >
-                <svg
+                <Icon
+                  name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                />
                 <span>Unlimited members</span>
               </li>
 
               <li v-if="plan.max_storage_gb" class="flex items-start">
-                <svg
+                <Icon
+                  name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                />
                 <span>{{ plan.max_storage_gb }}GB storage</span>
               </li>
               <li
                 v-if="!plan.max_storage_gb && plan.slug !== 'starter'"
                 class="flex items-start"
               >
-                <svg
+                <Icon
+                  name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                />
                 <span>Unlimited storage</span>
               </li>
             </ul>
@@ -369,6 +324,16 @@ const props = defineProps({
     type: Array,
     required: false,
     default: () => [],
+  },
+  error: {
+    type: String,
+    required: false,
+    default: null,
+  },
+  pending: {
+    type: Boolean,
+    required: false,
+    default: false,
   },
 });
 
