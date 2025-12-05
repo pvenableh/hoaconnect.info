@@ -170,20 +170,20 @@
 
         <!-- Plans Grid -->
         <div
-          v-else-if="activePlans && activePlans.length > 0"
+          v-else-if="plans && plans.length > 0"
           class="grid gap-8 max-w-6xl mx-auto"
           :class="[
-            activePlans.length === 1
+            plans.length === 1
               ? 'md:grid-cols-1 max-w-md'
-              : activePlans.length === 2
+              : plans.length === 2
                 ? 'md:grid-cols-2'
-                : activePlans.length === 3
+                : plans.length === 3
                   ? 'md:grid-cols-3'
                   : 'md:grid-cols-4',
           ]"
         >
           <div
-            v-for="plan in activePlans"
+            v-for="plan in plans"
             :key="plan.id"
             class="bg-white rounded-2xl shadow-lg p-8 border-2 transition relative"
             :class="[
@@ -363,4 +363,40 @@
 <script setup>
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
+
+const props = defineProps({
+  plans: {
+    type: Array,
+    required: false,
+    default: () => [],
+  },
+});
+
+// Helper function to get organization URL (custom domain or slug path)
+const getOrgUrl = (org) => {
+  if (!org) return "/";
+  if (org.custom_domain && org.domain_verified) {
+    // Use custom domain
+    const protocol = import.meta.client ? window.location.protocol : "https:";
+    return `${protocol}//${org.custom_domain}`;
+  }
+  // Fall back to slug path
+  return `/${org.slug}`;
+};
+
+const formatPrice = (price) => {
+  const numPrice = parseFloat(price);
+  return numPrice % 1 === 0 ? numPrice.toFixed(0) : numPrice.toFixed(2);
+};
+
+const scrollToPlans = () => {
+  if (import.meta.client) {
+    const plansSection = document.getElementById("plans");
+    plansSection?.scrollIntoView({ behavior: "smooth" });
+  }
+};
+
+const selectPlan = (planSlug) => {
+  navigateTo(`/setup?plan=${planSlug}`);
+};
 </script>

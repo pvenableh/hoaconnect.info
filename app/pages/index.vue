@@ -2,7 +2,10 @@
   <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
     <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
     <!-- Only show on main domain AND not on custom domain -->
-    <PagesSellSheet v-if="isMainDomain && !isCustomDomain" />
+    <PagesSellSheet
+      v-if="isMainDomain && !isCustomDomain"
+      :plans="activePlans"
+    />
 
     <!-- Custom Domain (605lincolnroad.com, etc) - Organization Landing Page -->
     <div v-else>
@@ -333,18 +336,6 @@ const getFileUrl = (file) => {
   return `${config.public.directus.url}/assets/${fileId}`;
 };
 
-// Helper function to get organization URL (custom domain or slug path)
-const getOrgUrl = (org) => {
-  if (!org) return "/";
-  if (org.custom_domain && org.domain_verified) {
-    // Use custom domain
-    const protocol = import.meta.client ? window.location.protocol : "https:";
-    return `${protocol}//${org.custom_domain}`;
-  }
-  // Fall back to slug path
-  return `/${org.slug}`;
-};
-
 // Subscription plans (only fetch if on main domain)
 const { list } = useDirectusItems("subscription_plans", { requireAuth: false });
 const {
@@ -380,22 +371,6 @@ const activePlans = computed(() => {
     (plan) => plan.is_active && plan.status === "published"
   );
 });
-
-const formatPrice = (price) => {
-  const numPrice = parseFloat(price);
-  return numPrice % 1 === 0 ? numPrice.toFixed(0) : numPrice.toFixed(2);
-};
-
-const scrollToPlans = () => {
-  if (process.client) {
-    const plansSection = document.getElementById("plans");
-    plansSection?.scrollIntoView({ behavior: "smooth" });
-  }
-};
-
-const selectPlan = (planSlug) => {
-  navigateTo(`/setup?plan=${planSlug}`);
-};
 </script>
 
 <style scoped>
