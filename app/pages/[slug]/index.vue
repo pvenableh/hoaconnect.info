@@ -38,7 +38,10 @@
       </div>
     </div>
 
-    <!-- Organization Landing Page -->
+    <!-- Member Dashboard (for logged-in members who are not admins) -->
+    <MemberDashboardPage v-else-if="user && isMember" />
+
+    <!-- Organization Public Landing Page (for public visitors or admins) -->
     <div v-else>
       <!-- Hero Section -->
       <section
@@ -312,6 +315,11 @@ const config = useRuntimeConfig();
 
 // Get slug from route params
 const slug = computed(() => route.params.slug);
+
+// Get role info for logged-in users
+const { isMember } = user.value
+  ? await useSelectedOrg()
+  : { isMember: ref(false) };
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {

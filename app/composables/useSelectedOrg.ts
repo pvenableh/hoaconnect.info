@@ -176,6 +176,32 @@ export const useSelectedOrg = async () => {
   // Get current role in selected org (returns role ID since we can't query role name from core collection)
   const currentRole = computed(() => currentOrg.value?.role || "Guest");
 
+  // Role checking helpers
+  const config = useRuntimeConfig();
+
+  // Check if current user is an admin in the selected organization
+  const isAdmin = computed(() => {
+    const roleId = currentOrg.value?.role;
+    if (!roleId) return false;
+    // Handle both string and object role references
+    const actualRoleId = typeof roleId === 'string' ? roleId : roleId?.id;
+    return actualRoleId === config.public.directusRoleAdmin;
+  });
+
+  // Check if current user is a regular member (not admin) in the selected organization
+  const isMember = computed(() => {
+    const roleId = currentOrg.value?.role;
+    if (!roleId) return false;
+    // Handle both string and object role references
+    const actualRoleId = typeof roleId === 'string' ? roleId : roleId?.id;
+    return actualRoleId === config.public.directusRoleUser;
+  });
+
+  // Check if user has any role in the organization (is authenticated member)
+  const isOrgMember = computed(() => {
+    return !!currentOrg.value?.role;
+  });
+
   // Set selected organization
   const setOrganization = async (orgId: string) => {
     selectedOrgId.value = orgId;
@@ -203,5 +229,9 @@ export const useSelectedOrg = async () => {
         (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1
     ),
     isLoading: pending, // Add this to expose loading state
+    // Role checking helpers
+    isAdmin,
+    isMember,
+    isOrgMember,
   };
 };

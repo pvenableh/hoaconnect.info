@@ -116,6 +116,25 @@ export interface HoaAmenity {
 	organization?: HoaOrganization | string | null;
 }
 
+export interface HoaDocumentCategory {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	/** @required */
+	name: string;
+	slug?: string | null;
+	description?: string | null;
+	icon?: string | null;
+	/** Whether documents in this category should be sorted by date (e.g., meeting minutes, agendas) */
+	sort_by_date?: boolean | null;
+	organization?: HoaOrganization | string | null;
+}
+
 export interface HoaDocument {
 	/** @primaryKey */
 	id: string;
@@ -129,7 +148,10 @@ export interface HoaDocument {
 	file?: DirectusFile | string | null;
 	organization?: HoaOrganization | string | null;
 	date_published?: string | null;
+	/** @deprecated Use document_category relationship instead */
 	category?: 'bylaws' | 'financials' | 'minutes' | 'agendas' | 'notices' | null;
+	/** Dynamic category reference */
+	document_category?: HoaDocumentCategory | string | null;
 	folder?: DirectusFolder | string | null;
 }
 
