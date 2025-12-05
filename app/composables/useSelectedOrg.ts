@@ -99,7 +99,7 @@ export const useSelectedOrg = async () => {
           }
         }
 
-        // STEP 2: Fetch memberships
+        // STEP 2: Fetch memberships with subscription info
         const result = await listMembers({
           fields: [
             "id",
@@ -110,6 +110,8 @@ export const useSelectedOrg = async () => {
             "organization.custom_domain",
             "organization.domain_verified",
             "organization.settings.logo",
+            "organization.subscription_status",
+            "organization.trial_ends_at",
             "role",
           ],
           filter: {

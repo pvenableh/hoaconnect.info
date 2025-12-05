@@ -1,4 +1,4 @@
-import { readItem, createItem } from "@directus/sdk";
+import { readItem, createItem, readItems } from "@directus/sdk";
 import { sendHoaInvitationEmail } from "../../utils/sendgrid";
 import { randomBytes } from "crypto";
 
@@ -16,9 +16,80 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Normalize email to lowercase
+  const normalizedEmail = email.toLowerCase().trim();
+
   try {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
+
+    // Check if email already exists as a member in this organization
+    const existingMembers = await directus.request(
+      readItems("hoa_members", {
+        filter: {
+          email: { _eq: normalizedEmail },
+          organization: { _eq: organizationId },
+        },
+        fields: ["id", "status", "user"],
+        limit: 1,
+      })
+    );
+
+    if (existingMembers && existingMembers.length > 0) {
+      const existingMember = existingMembers[0];
+      throw createError({
+        statusCode: 409,
+        message: existingMember.user
+          ? "This email is already a member of this organization"
+          : "This email already has a pending invitation for this organization",
+      });
+    }
+
+    // Check if there's already a pending invitation for this email in this org
+    const existingInvitations = await directus.request(
+      readItems("hoa_invitations", {
+        filter: {
+          email: { _eq: normalizedEmail },
+          organization: { _eq: organizationId },
+          invitation_status: { _eq: "pending" },
+          expires_at: { _gt: new Date().toISOString() },
+        },
+        fields: ["id", "expires_at"],
+        limit: 1,
+      })
+    );
+
+    if (existingInvitations && existingInvitations.length > 0) {
+      throw createError({
+        statusCode: 409,
+        message: "A pending invitation already exists for this email. Please wait for it to expire or cancel it first.",
+      });
+    }
+
+    // Check if user already exists in the system (has an account)
+    let existingUser = null;
+    try {
+      const existingUsers = await $fetch(
+        `${config.directus.url}/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${config.directus.token}`,
+          },
+          query: {
+            filter: JSON.stringify({
+              email: { _eq: normalizedEmail },
+            }),
+            fields: ["id", "email", "first_name", "last_name"],
+            limit: 1,
+          },
+        }
+      );
+      if (existingUsers?.data && existingUsers.data.length > 0) {
+        existingUser = existingUsers.data[0];
+      }
+    } catch (userCheckError) {
+      console.warn("Could not check for existing user:", userCheckError);
+    }
 
     // Generate unique invitation token
     const token = randomBytes(32).toString("hex");
@@ -52,10 +123,10 @@ export default defineEventHandler(async (event) => {
       console.warn("Could not fetch role name, using default:", roleError);
     }
 
-    // Create invitation record
+    // Create invitation record (use normalized email)
     const invitation = await directus.request(
       createItem("hoa_invitations", {
-        email,
+        email: normalizedEmail,
         organization: organizationId,
         role: roleId,
         invited_by: session.user.id,
@@ -96,9 +167,22 @@ export default defineEventHandler(async (event) => {
         email: invitation.email,
         expiresAt: invitation.expires_at,
       },
+      // Include info about whether user already has an account
+      existingUser: existingUser
+        ? {
+            id: existingUser.id,
+            firstName: existingUser.first_name,
+            lastName: existingUser.last_name,
+            hasAccount: true,
+          }
+        : null,
     };
   } catch (error: any) {
     console.error("Invitation error:", error);
+    // Re-throw if it's already a createError (preserves status code)
+    if (error.statusCode) {
+      throw error;
+    }
     throw createError({
       statusCode: 400,
       message: error.message || "Failed to send invitation",

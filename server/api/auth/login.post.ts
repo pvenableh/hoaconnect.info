@@ -4,6 +4,7 @@ import {
   staticToken,
   login,
   readMe,
+  readItems,
 } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
@@ -44,6 +45,43 @@ export default defineEventHandler(async (event) => {
     // Extract avatar ID (can be string or object with id)
     const avatarId = typeof user.avatar === 'string' ? user.avatar : user.avatar?.id || null;
 
+    // Fetch user's organization memberships with subscription status
+    const adminDirectus = getTypedDirectus();
+    let memberships: any[] = [];
+    try {
+      memberships = await adminDirectus.request(
+        readItems("hoa_members", {
+          filter: {
+            user: { _eq: user.id },
+          },
+          fields: [
+            "id",
+            "organization.id",
+            "organization.name",
+            "organization.slug",
+            "organization.subscription_status",
+            "organization.trial_ends_at",
+            "role",
+          ],
+          sort: ["organization.name"],
+        })
+      );
+    } catch (memberError) {
+      console.warn("Could not fetch memberships:", memberError);
+    }
+
+    // Check subscription status for all organizations
+    const hasActiveOrg = memberships.some(
+      (m) =>
+        m.organization?.subscription_status === "active" ||
+        m.organization?.subscription_status === "trial"
+    );
+    const allExpired = memberships.length > 0 && memberships.every(
+      (m) =>
+        m.organization?.subscription_status === "expired" ||
+        m.organization?.subscription_status === "canceled"
+    );
+
     // Set user session with tokens in secure section
     await setUserSession(event, {
       user: {
@@ -74,6 +112,17 @@ export default defineEventHandler(async (event) => {
         avatar: avatarId,
         role: user.role,
         organization: user.organization,
+      },
+      // Include subscription status info for redirect logic
+      subscriptionInfo: {
+        hasActiveOrg,
+        allExpired,
+        memberships: memberships.map((m) => ({
+          organizationId: m.organization?.id,
+          organizationName: m.organization?.name,
+          subscriptionStatus: m.organization?.subscription_status,
+          trialEndsAt: m.organization?.trial_ends_at,
+        })),
       },
     };
   } catch (error: any) {
