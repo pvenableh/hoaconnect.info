@@ -39,7 +39,7 @@
     </div>
 
     <!-- Member Dashboard (for logged-in members who are not admins) -->
-    <MemberDashboardPage v-else-if="user && isMember" />
+    <PagesMemberDashboardPage v-else-if="user && isMember" />
 
     <!-- Organization Public Landing Page (for public visitors or admins) -->
     <div v-else>

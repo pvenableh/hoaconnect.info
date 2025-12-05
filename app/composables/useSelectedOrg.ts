@@ -1,11 +1,16 @@
+// composables/useSelectedOrg.ts
 /**
  * Composable to manage the currently selected organization
  * Handles users with multiple HOA memberships (e.g., property managers)
  * Now supports SSR by storing the selected org in the session
  */
 export const useSelectedOrg = async () => {
+  // Capture Nuxt context IMMEDIATELY at the top, before any awaits
+  const nuxtApp = useNuxtApp();
+
   const { user } = useDirectusAuth();
   const { list: listMembers } = useDirectusItems("hoa_members");
+  const config = useRuntimeConfig();
 
   // Store selected org ID - initialize from session during SSR, localStorage on client
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -15,7 +20,7 @@ export const useSelectedOrg = async () => {
   );
 
   // Sync selected org to session (client-side only)
-  const syncToSession = async (orgId: string) => {
+  const syncToSession = (orgId: string) => {
     // Only sync on client side - SSR doesn't have session cookies properly hydrated
     if (!import.meta.client) {
       return;
@@ -29,12 +34,11 @@ export const useSelectedOrg = async () => {
       return;
     }
 
-    try {
-      await $fetch("/api/org/selected", {
-        method: "POST",
-        body: { orgId },
-      });
-    } catch (error: any) {
+    // Fire-and-forget - no need to await
+    $fetch("/api/org/selected", {
+      method: "POST",
+      body: { orgId },
+    }).catch((error: any) => {
       // During hydration, session might not be available yet - fail silently
       if (error?.statusCode === 401 || error?.status === 401) {
         console.warn(
@@ -43,7 +47,7 @@ export const useSelectedOrg = async () => {
       } else {
         console.error("[useSelectedOrg] Failed to sync to session:", error);
       }
-    }
+    });
   };
 
   // Fetch all organizations user has access to
@@ -73,20 +77,25 @@ export const useSelectedOrg = async () => {
           if (import.meta.client) {
             const stored = localStorage.getItem("selectedOrgId");
             if (stored) {
-              selectedOrgId.value = stored;
+              // Use runWithContext for state updates after potential async operations
+              nuxtApp.runWithContext(() => {
+                selectedOrgId.value = stored;
+              });
               console.log(
                 "[useSelectedOrg] Initialized from localStorage:",
                 stored
               );
-              // Sync to session for future SSR renders
-              await syncToSession(stored);
+              // Sync to session for future SSR renders (fire-and-forget)
+              syncToSession(stored);
             }
           } else {
             // On server (SSR): try to get from session
             try {
               const sessionOrg = await $fetch("/api/org/selected");
               if (sessionOrg?.selectedOrgId) {
-                selectedOrgId.value = sessionOrg.selectedOrgId;
+                nuxtApp.runWithContext(() => {
+                  selectedOrgId.value = sessionOrg.selectedOrgId;
+                });
                 console.log(
                   "[useSelectedOrg] Initialized from session:",
                   selectedOrgId.value
@@ -135,17 +144,24 @@ export const useSelectedOrg = async () => {
               "[useSelectedOrg] Auto-selecting first organization:",
               firstOrg
             );
-            selectedOrgId.value = firstOrg;
 
-            // Sync to session and localStorage
-            await syncToSession(firstOrg);
-            if (import.meta.client) {
-              localStorage.setItem("selectedOrgId", firstOrg);
-            }
+            // Wrap all state mutations in runWithContext
+            nuxtApp.runWithContext(() => {
+              selectedOrgId.value = firstOrg;
+
+              // Sync to session and localStorage (fire-and-forget)
+              syncToSession(firstOrg);
+              if (import.meta.client) {
+                localStorage.setItem("selectedOrgId", firstOrg);
+              }
+            });
           }
         }
 
-        isInitialized.value = true;
+        nuxtApp.runWithContext(() => {
+          isInitialized.value = true;
+        });
+
         return result || [];
       } catch (error) {
         console.error("[useSelectedOrg] Error fetching memberships:", error);
@@ -176,15 +192,12 @@ export const useSelectedOrg = async () => {
   // Get current role in selected org (returns role ID since we can't query role name from core collection)
   const currentRole = computed(() => currentOrg.value?.role || "Guest");
 
-  // Role checking helpers
-  const config = useRuntimeConfig();
-
   // Check if current user is an admin in the selected organization
   const isAdmin = computed(() => {
     const roleId = currentOrg.value?.role;
     if (!roleId) return false;
     // Handle both string and object role references
-    const actualRoleId = typeof roleId === 'string' ? roleId : roleId?.id;
+    const actualRoleId = typeof roleId === "string" ? roleId : roleId?.id;
     return actualRoleId === config.public.directusRoleAdmin;
   });
 
@@ -193,7 +206,7 @@ export const useSelectedOrg = async () => {
     const roleId = currentOrg.value?.role;
     if (!roleId) return false;
     // Handle both string and object role references
-    const actualRoleId = typeof roleId === 'string' ? roleId : roleId?.id;
+    const actualRoleId = typeof roleId === "string" ? roleId : roleId?.id;
     return actualRoleId === config.public.directusRoleUser;
   });
 
@@ -211,8 +224,8 @@ export const useSelectedOrg = async () => {
       localStorage.setItem("selectedOrgId", orgId);
     }
 
-    // Store in session (works on both server and client)
-    await syncToSession(orgId);
+    // Store in session (fire-and-forget)
+    syncToSession(orgId);
 
     console.log("[useSelectedOrg] Organization set to:", orgId);
   };
@@ -228,7 +241,7 @@ export const useSelectedOrg = async () => {
       () =>
         (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1
     ),
-    isLoading: pending, // Add this to expose loading state
+    isLoading: pending,
     // Role checking helpers
     isAdmin,
     isMember,
