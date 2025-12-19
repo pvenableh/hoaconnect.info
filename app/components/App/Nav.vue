@@ -225,6 +225,7 @@ const userAvatarUrl = computed(() => {
           </span>
           <NuxtLink
             to="/account"
+            target="_blank"
             class="hover:opacity-80 transition"
             title="My Profile"
           >
