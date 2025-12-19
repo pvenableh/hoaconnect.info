@@ -108,7 +108,15 @@
             {{ organization?.street_address }} {{ organization?.city }},
             {{ organization?.state }} {{ organization?.zip }}
           </h5>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <!-- Under Construction Message (shown when in maintenance mode) -->
+          <p
+            v-if="organization?.maintenance_mode"
+            class="text-lg text-white/90 mt-8 bg-amber-500/80 px-6 py-3 rounded-lg"
+          >
+            The site is currently under construction
+          </p>
+
+          <div v-if="!organization?.maintenance_mode" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <a
               v-if="user"
               href="/dashboard"
@@ -135,13 +143,15 @@
         </div>
       </section>
 
-      <!-- About Section -->
-      <section
-        v-if="
-          organization?.settings?.description || organization?.settings?.about
-        "
-        class="py-20 bg-white"
-      >
+      <!-- Content Sections (hidden in maintenance mode) -->
+      <template v-if="!organization?.maintenance_mode">
+        <!-- About Section -->
+        <section
+          v-if="
+            organization?.settings?.description || organization?.settings?.about
+          "
+          class="py-20 bg-white"
+        >
         <div class="container mx-auto px-4">
           <div class="max-w-4xl mx-auto">
             <h2 class="text-4xl font-bold text-gray-900 mb-8 text-center">
@@ -212,8 +222,8 @@
         </div>
       </section>
 
-      <!-- Board Members Section Link -->
-      <section class="py-16 bg-white">
+      <!-- Board Members Section Link (hidden when show_board is false) -->
+      <section v-if="organization?.show_board !== false" class="py-16 bg-white">
         <div class="container mx-auto px-4">
           <div class="max-w-4xl mx-auto text-center">
             <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -328,6 +338,7 @@
           </div>
         </div>
       </section>
+      </template>
     </div>
   </div>
 </template>

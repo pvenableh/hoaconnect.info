@@ -76,7 +76,15 @@
             {{ activeHoa?.street_address }} {{ activeHoa?.city }},
             {{ activeHoa?.state }} {{ activeHoa?.zip }}
           </h5>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <!-- Under Construction Message (shown when in maintenance mode) -->
+          <p
+            v-if="activeHoa?.maintenance_mode"
+            class="text-lg text-white/90 mt-8 bg-amber-500/80 px-6 py-3 rounded-lg"
+          >
+            The site is currently under construction
+          </p>
+
+          <div v-if="!activeHoa?.maintenance_mode" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <a
               v-if="user"
               href="/dashboard"
@@ -103,11 +111,13 @@
         </div>
       </section>
 
-      <!-- About Section -->
-      <section
-        v-if="activeHoa?.settings?.description || activeHoa?.settings?.about"
-        class="py-20 bg-white"
-      >
+      <!-- Content Sections (hidden in maintenance mode) -->
+      <template v-if="!activeHoa?.maintenance_mode">
+        <!-- About Section -->
+        <section
+          v-if="activeHoa?.settings?.description || activeHoa?.settings?.about"
+          class="py-20 bg-white"
+        >
         <div class="container mx-auto px-4">
           <div class="max-w-4xl mx-auto">
             <h2 class="text-4xl font-bold text-gray-900 mb-8 text-center">
@@ -267,6 +277,7 @@
           </div>
         </div>
       </section>
+      </template>
     </div>
   </div>
 </template>
