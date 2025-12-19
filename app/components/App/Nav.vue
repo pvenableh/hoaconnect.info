@@ -96,6 +96,10 @@ const handleLogout = async () => {
 
 // Helper to build org-prefixed paths
 const buildPath = (path: string) => {
+  // On custom domains, never add slug prefix - the domain IS the org context
+  if (isCustomDomain.value) {
+    return path.startsWith('/') ? path : `/${path}`;
+  }
   if (!currentSlug.value) return path;
   // Home path just goes to org root
   if (path === "/") return `/${currentSlug.value}`;
@@ -107,6 +111,11 @@ const buildPath = (path: string) => {
 const showBoard = computed(() => {
   // Check activeHoa for public pages, fall back to true if not set
   return activeHoa.value?.show_board !== false;
+});
+
+// Check if maintenance mode is enabled (hide public nav when true)
+const isMaintenanceMode = computed(() => {
+  return activeHoa.value?.maintenance_mode === true;
 });
 
 // Public navigation items (visible to all authenticated users)
@@ -226,8 +235,8 @@ watch(
           </a>
         </div>
 
-        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in -->
-        <div v-else-if="user" class="hidden md:flex gap-6">
+        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in (hidden in maintenance mode) -->
+        <div v-else-if="user && !isMaintenanceMode" class="hidden md:flex gap-6">
           <!-- Public Navigation Items -->
           <NuxtLink
             v-for="item in publicNavItems"
@@ -240,6 +249,9 @@ watch(
             {{ item.label }}
           </NuxtLink>
         </div>
+
+        <!-- Empty spacer when logged in but in maintenance mode -->
+        <div v-else-if="user && isMaintenanceMode" class="hidden md:flex"></div>
 
         <!-- Empty spacer when on org page or custom domain but not logged in -->
         <div v-else class="hidden md:flex"></div>
@@ -355,8 +367,8 @@ watch(
                 <OrgSelector class="w-full" />
               </div>
 
-              <!-- Public Navigation -->
-              <div class="py-4">
+              <!-- Public Navigation (hidden in maintenance mode) -->
+              <div v-if="!isMaintenanceMode" class="py-4">
                 <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
                   Navigation
                 </p>

@@ -9,6 +9,7 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
+const { isCustomDomain } = useActiveHoa();
 
 // Get role info for logged-in users
 const { isAdmin, currentOrg } = user.value
@@ -17,10 +18,12 @@ const { isAdmin, currentOrg } = user.value
 
 // Redirect to org-specific documents page
 if (currentOrg.value?.organization?.slug) {
+  // On custom domains, don't include slug in URL
+  const basePath = isCustomDomain.value ? '' : `/${currentOrg.value.organization.slug}`;
   if (isAdmin.value) {
-    await navigateTo(`/${currentOrg.value.organization.slug}/admin/documents`);
+    await navigateTo(`${basePath}/admin/documents`);
   } else {
-    await navigateTo(`/${currentOrg.value.organization.slug}/documents`);
+    await navigateTo(`${basePath}/documents`);
   }
 }
 </script>
