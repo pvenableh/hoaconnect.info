@@ -3,7 +3,7 @@ import { readItems } from "@directus/sdk";
 
 /**
  * Public API endpoint to fetch current board members for an organization
- * Returns only active board member terms (published status, within date range)
+ * Returns published board members filtered by organization
  */
 export default defineEventHandler(async (event) => {
   const { slug, orgId } = getQuery(event);
@@ -46,9 +46,9 @@ export default defineEventHandler(async (event) => {
     // Get current date for filtering active terms
     const now = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
 
-    // Fetch board member terms with member info
-    const boardTerms = await directus.request(
-      readItems("hoa_board_member_terms", {
+    // Fetch board members with member info from hoa_board_members table
+    const boardMembers = await directus.request(
+      readItems("hoa_board_members", {
         filter: {
           _and: [
             { status: { _eq: "published" } },
@@ -99,7 +99,7 @@ export default defineEventHandler(async (event) => {
       director: 5,
     };
 
-    const sortedTerms = [...(boardTerms || [])].sort((a, b) => {
+    const sortedMembers = [...(boardMembers || [])].sort((a, b) => {
       const priorityA = titlePriority[a.title || ""] || 99;
       const priorityB = titlePriority[b.title || ""] || 99;
       return priorityA - priorityB;
@@ -107,7 +107,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       organizationId,
-      boardMembers: sortedTerms,
+      boardMembers: sortedMembers,
     };
   } catch (error: any) {
     if (error.statusCode) {

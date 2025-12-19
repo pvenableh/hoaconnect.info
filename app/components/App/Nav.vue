@@ -107,12 +107,13 @@ const buildPath = (path: string) => {
 const publicNavItems = computed(() => [
   { label: "Home", path: buildPath("/"), icon: "home" },
   { label: "Board", path: buildPath("/board"), icon: "award" },
-  { label: "Documents", path: isAdmin.value ? buildPath("/admin/documents") : buildPath("/documents"), icon: "file" },
+  { label: "Documents", path: buildPath("/documents"), icon: "file" },
 ]);
 
 // Admin-only navigation items
 const adminNavItems = computed(() => [
   { label: "Dashboard", path: buildPath("/dashboard"), icon: "layout-dashboard" },
+  { label: "Documents", path: buildPath("/admin/documents"), icon: "file-text" },
   { label: "Units", path: buildPath("/admin/units"), icon: "door-closed" },
   { label: "Members", path: buildPath("/admin/members"), icon: "users" },
   { label: "Settings", path: buildPath("/admin/settings/organization"), icon: "settings" },
