@@ -4,7 +4,7 @@
  * This is used when users navigate to /settings/organization from the main domain
  */
 definePageMeta({
-  middleware: "admin",
+  middleware: ["admin", "subscription"],
   layout: "auth",
 });
 

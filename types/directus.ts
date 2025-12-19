@@ -73,6 +73,8 @@ export interface Coupon {
 	/** @required */
 	type: 'percentage' | 'amount';
 	valid_until?: string | null;
+	/** @description Stripe coupon ID for applying discounts at checkout */
+	stripe_coupon_id?: string | null;
 	usage?: CouponUsage[] | string[];
 	applicable_plans?: CouponsSubscriptionPlan[] | string[];
 }

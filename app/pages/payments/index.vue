@@ -334,7 +334,7 @@ const handlePaymentError = (error: Error) => {
 // Set page meta
 definePageMeta({
   layout: "default",
-  middleware: "auth",
+  middleware: ["auth", "subscription"],
 });
 
 useSeoMeta({

@@ -2,7 +2,7 @@
 import { toast } from "vue-sonner";
 
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "subscription"],
 });
 
 const { user } = useDirectusAuth();
