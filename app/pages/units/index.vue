@@ -9,11 +9,14 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
+const { isCustomDomain } = useActiveHoa();
 const { currentOrg } = user.value ? await useSelectedOrg() : { currentOrg: ref(null) };
 
 // Redirect to org-specific admin units page
 if (currentOrg.value?.organization?.slug) {
-  await navigateTo(`/${currentOrg.value.organization.slug}/admin/units`);
+  // On custom domains, don't include slug in URL
+  const basePath = isCustomDomain.value ? '' : `/${currentOrg.value.organization.slug}`;
+  await navigateTo(`${basePath}/admin/units`);
 }
 </script>
 
