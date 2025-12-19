@@ -61,6 +61,7 @@ export default defineEventHandler(async (event) => {
             "organization.slug",
             "organization.subscription_status",
             "organization.trial_ends_at",
+            "organization.is_free_account",
             "role",
           ],
           sort: ["organization.name"],
@@ -71,15 +72,18 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check subscription status for all organizations
+    // Free accounts bypass subscription checking entirely
     const hasActiveOrg = memberships.some(
       (m) =>
+        m.organization?.is_free_account === true ||
         m.organization?.subscription_status === "active" ||
         m.organization?.subscription_status === "trial"
     );
     const allExpired = memberships.length > 0 && memberships.every(
       (m) =>
-        m.organization?.subscription_status === "expired" ||
-        m.organization?.subscription_status === "canceled"
+        !m.organization?.is_free_account &&
+        (m.organization?.subscription_status === "expired" ||
+        m.organization?.subscription_status === "canceled")
     );
 
     // Set user session with tokens in secure section
@@ -122,6 +126,7 @@ export default defineEventHandler(async (event) => {
           organizationName: m.organization?.name,
           subscriptionStatus: m.organization?.subscription_status,
           trialEndsAt: m.organization?.trial_ends_at,
+          isFreeAccount: m.organization?.is_free_account || false,
         })),
       },
     };

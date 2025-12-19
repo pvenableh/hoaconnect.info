@@ -4,7 +4,7 @@
  * Admins go to admin documents, members go to member documents view
  */
 definePageMeta({
-  middleware: "auth",
+  middleware: ["auth", "subscription"],
   layout: "auth",
 });
 

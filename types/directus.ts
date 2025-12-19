@@ -73,6 +73,8 @@ export interface Coupon {
 	/** @required */
 	type: 'percentage' | 'amount';
 	valid_until?: string | null;
+	/** @description Stripe coupon ID for applying discounts at checkout */
+	stripe_coupon_id?: string | null;
 	usage?: CouponUsage[] | string[];
 	applicable_plans?: CouponsSubscriptionPlan[] | string[];
 }
@@ -270,6 +272,8 @@ export interface HoaOrganization {
 	payment_instructions?: string | null;
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
+	/** @description Free accounts bypass subscription checking entirely */
+	is_free_account?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

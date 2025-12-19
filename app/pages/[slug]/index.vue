@@ -116,7 +116,23 @@
             The site is currently under construction
           </p>
 
-          <div v-if="!organization?.maintenance_mode" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <!-- Account Expired Message (shown when subscription is expired/canceled and not a free account) -->
+          <div
+            v-else-if="isAccountExpired"
+            class="mt-8 text-center"
+          >
+            <p class="text-lg text-white/90 bg-red-500/80 px-6 py-3 rounded-lg mb-4">
+              This account has expired
+            </p>
+            <a
+              href="/auth/login"
+              class="inline-block glass-container tracking-extra-wide text-sm text-white hover:bg-white/20 transition"
+            >
+              Login here to renew your account
+            </a>
+          </div>
+
+          <div v-if="!organization?.maintenance_mode && !isAccountExpired" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <a
               v-if="user"
               href="/dashboard"
@@ -143,8 +159,8 @@
         </div>
       </section>
 
-      <!-- Content Sections (hidden in maintenance mode) -->
-      <template v-if="!organization?.maintenance_mode">
+      <!-- Content Sections (hidden in maintenance mode or when account is expired) -->
+      <template v-if="!organization?.maintenance_mode && !isAccountExpired">
         <!-- About Section -->
         <section
           v-if="
@@ -377,6 +393,16 @@ const { data: organization, pending } = await useAsyncData(
     return response;
   }
 );
+
+// Check if account is expired (not free and subscription is expired/canceled)
+const isAccountExpired = computed(() => {
+  if (!organization.value) return false;
+  // Free accounts never expire
+  if (organization.value.is_free_account) return false;
+  // Check subscription status
+  const status = organization.value.subscription_status;
+  return status === 'expired' || status === 'canceled';
+});
 
 // Set dynamic meta tags based on organization
 useSeoMeta({

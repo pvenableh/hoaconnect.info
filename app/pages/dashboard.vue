@@ -2,7 +2,7 @@
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 definePageMeta({
-  middleware: "auth",
+  middleware: ["auth", "subscription"],
   layout: "auth",
 });
 
