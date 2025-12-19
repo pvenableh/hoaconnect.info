@@ -268,6 +268,8 @@ export interface HoaOrganization {
 	late_fee_amount?: number | null;
 	late_fee_enabled?: boolean | null;
 	payment_instructions?: string | null;
+	maintenance_mode?: boolean | null;
+	show_board?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
