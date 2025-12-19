@@ -1,6 +1,7 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
+  <div class="min-h-screen bg-stone-50">
+    <div class="p-6">
+      <div class="max-w-7xl mx-auto">
       <!-- Loading State -->
       <div
         v-if="isLoading || !isHydrated"
@@ -91,6 +92,7 @@
         <Button @click="navigateToOrg('/dashboard')" class="mt-4">
           Go to Dashboard
         </Button>
+      </div>
       </div>
     </div>
   </div>

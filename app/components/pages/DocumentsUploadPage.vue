@@ -189,7 +189,7 @@ const handleSubmit = async () => {
 <template>
   <div class="min-h-screen bg-stone-50">
     <div class="p-6">
-      <div class="max-w-2xl mx-auto space-y-6">
+      <div class="max-w-7xl mx-auto space-y-6">
         <!-- Header -->
         <div>
           <Button

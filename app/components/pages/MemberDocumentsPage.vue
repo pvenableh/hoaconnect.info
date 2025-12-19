@@ -224,7 +224,7 @@ const defaultOpenCategories = computed(() => {
 <template>
   <div class="min-h-screen bg-stone-50">
     <div class="p-6">
-      <div class="max-w-4xl mx-auto space-y-6">
+      <div class="max-w-7xl mx-auto space-y-6">
         <!-- Header -->
         <div class="text-center mb-8">
           <h1 class="text-3xl font-bold text-stone-900">Documents</h1>

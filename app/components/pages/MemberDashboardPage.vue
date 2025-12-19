@@ -166,7 +166,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 <template>
   <div class="min-h-screen bg-stone-50">
     <div class="p-6">
-      <div class="max-w-4xl mx-auto space-y-8">
+      <div class="max-w-7xl mx-auto space-y-8">
         <!-- Welcome Header -->
         <div class="text-center py-8">
           <!-- Organization Logo -->

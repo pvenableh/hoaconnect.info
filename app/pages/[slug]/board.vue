@@ -97,7 +97,7 @@ useSeoMeta({
 
     <!-- Content -->
     <div v-else class="p-6">
-      <div class="max-w-5xl mx-auto">
+      <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="text-center mb-12 pt-8">
           <!-- Organization Logo -->
