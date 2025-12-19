@@ -16,6 +16,7 @@ const { currentOrg } = user.value
       :subscription-status="currentOrg.organization.subscription_status"
       :trial-ends-at="currentOrg.organization.trial_ends_at"
       :organization-name="currentOrg.organization.name"
+      :is-free-account="currentOrg.organization.is_free_account"
     />
     <main class="flex-1">
       <slot />

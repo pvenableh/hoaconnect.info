@@ -128,6 +128,7 @@ export const useSelectedOrg = async () => {
             "organization.settings.logo",
             "organization.subscription_status",
             "organization.trial_ends_at",
+            "organization.is_free_account",
             "role",
             "member_type",
             "board_member_terms.id",
@@ -325,6 +326,11 @@ export const useSelectedOrg = async () => {
     return displayNames[title] || title;
   });
 
+  // Check if current organization is a free account (bypasses subscription checking)
+  const isFreeAccount = computed(() => {
+    return currentOrg.value?.organization?.is_free_account === true;
+  });
+
   // Set selected organization
   const setOrganization = async (orgId: string) => {
     selectedOrgId.value = orgId;
@@ -365,5 +371,7 @@ export const useSelectedOrg = async () => {
     activeBoardTerms,
     currentBoardTitle,
     boardTitleDisplay,
+    // Free account (bypasses subscription checking)
+    isFreeAccount,
   };
 };

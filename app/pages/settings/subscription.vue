@@ -56,6 +56,7 @@ const currentSubscription = computed(() => {
     status: currentOrg.value?.organization?.subscription_status,
     trialEndsAt: currentOrg.value?.organization?.trial_ends_at,
     plan: currentOrg.value?.organization?.subscription_plan,
+    isFreeAccount: currentOrg.value?.organization?.is_free_account === true,
   };
 });
 
@@ -87,7 +88,10 @@ const formatPrice = (price: number | null | undefined) => {
   }).format(price);
 };
 
-const getStatusColor = (status: string | null | undefined) => {
+const getStatusColor = (status: string | null | undefined, isFree?: boolean) => {
+  // Free accounts get a special purple badge
+  if (isFree) return "bg-purple-100 text-purple-800";
+
   switch (status) {
     case "active":
       return "bg-green-100 text-green-800";
@@ -102,7 +106,10 @@ const getStatusColor = (status: string | null | undefined) => {
   }
 };
 
-const getStatusLabel = (status: string | null | undefined) => {
+const getStatusLabel = (status: string | null | undefined, isFree?: boolean) => {
+  // Free accounts show as "Free Account"
+  if (isFree) return "Free Account";
+
   switch (status) {
     case "active":
       return "Active";
@@ -201,10 +208,10 @@ const handleManageBilling = async () => {
           <span
             :class="[
               'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
-              getStatusColor(currentSubscription.status),
+              getStatusColor(currentSubscription.status, currentSubscription.isFreeAccount),
             ]"
           >
-            {{ getStatusLabel(currentSubscription.status) }}
+            {{ getStatusLabel(currentSubscription.status, currentSubscription.isFreeAccount) }}
           </span>
         </div>
 
@@ -231,9 +238,29 @@ const handleManageBilling = async () => {
         </div>
       </div>
 
+      <!-- Free account notice -->
+      <div
+        v-if="currentSubscription.isFreeAccount"
+        class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg"
+      >
+        <div class="flex items-start gap-3">
+          <Icon
+            name="i-lucide-gift"
+            class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5"
+          />
+          <div>
+            <p class="font-medium text-purple-800">Free Account</p>
+            <p class="text-sm text-purple-700 mt-1">
+              Your organization has a free account with full access to all features.
+              No subscription payment is required.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Warning for expired/canceled -->
       <div
-        v-if="
+        v-else-if="
           currentSubscription.status === 'expired' ||
           currentSubscription.status === 'canceled'
         "
@@ -266,8 +293,8 @@ const handleManageBilling = async () => {
       </div>
     </div>
 
-    <!-- Billing Cycle Toggle -->
-    <div class="flex justify-center mb-8">
+    <!-- Billing Cycle Toggle (hidden for free accounts) -->
+    <div v-if="!currentSubscription.isFreeAccount" class="flex justify-center mb-8">
       <div class="bg-stone-100 rounded-lg p-1 inline-flex">
         <button
           @click="billingCycle = 'monthly'"
@@ -295,16 +322,16 @@ const handleManageBilling = async () => {
       </div>
     </div>
 
-    <!-- Plans Loading -->
-    <div v-if="plansPending" class="flex justify-center py-12">
+    <!-- Plans Loading (hidden for free accounts) -->
+    <div v-if="!currentSubscription.isFreeAccount && plansPending" class="flex justify-center py-12">
       <div
         class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
       ></div>
     </div>
 
-    <!-- Plans Grid -->
+    <!-- Plans Grid (hidden for free accounts) -->
     <div
-      v-else-if="plans && plans.length > 0"
+      v-else-if="!currentSubscription.isFreeAccount && plans && plans.length > 0"
       class="grid md:grid-cols-3 gap-6"
     >
       <div
@@ -407,9 +434,9 @@ const handleManageBilling = async () => {
       </div>
     </div>
 
-    <!-- No Plans Available -->
+    <!-- No Plans Available (hidden for free accounts) -->
     <div
-      v-else
+      v-else-if="!currentSubscription.isFreeAccount"
       class="text-center py-12 bg-white rounded-xl border border-stone-200"
     >
       <Icon

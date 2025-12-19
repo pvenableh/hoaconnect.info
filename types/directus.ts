@@ -270,6 +270,8 @@ export interface HoaOrganization {
 	payment_instructions?: string | null;
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
+	/** @description Free accounts bypass subscription checking entirely */
+	is_free_account?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

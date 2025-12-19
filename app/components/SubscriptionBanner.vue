@@ -3,6 +3,7 @@ const props = defineProps<{
   subscriptionStatus?: string | null;
   trialEndsAt?: string | null;
   organizationName?: string | null;
+  isFreeAccount?: boolean | null;
 }>();
 
 const emit = defineEmits<{
@@ -25,6 +26,9 @@ const trialDaysRemaining = computed(() => {
 // Determine if we should show the banner
 const shouldShow = computed(() => {
   if (isDismissed.value) return false;
+
+  // Never show banner for free accounts
+  if (props.isFreeAccount) return false;
 
   // Show for expired subscriptions
   if (props.subscriptionStatus === "expired") return true;
