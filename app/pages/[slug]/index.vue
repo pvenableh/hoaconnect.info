@@ -212,6 +212,30 @@
         </div>
       </section>
 
+      <!-- Board Members Section Link -->
+      <section class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+          <div class="max-w-4xl mx-auto text-center">
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Icon name="heroicons:user-group" class="h-8 w-8 text-amber-600" />
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">
+              Meet Our Board of Directors
+            </h2>
+            <p class="text-lg text-gray-600 mb-8">
+              Our dedicated board members volunteer their time to help guide our community.
+            </p>
+            <NuxtLink
+              :to="`/${slug}/board`"
+              class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-600 transition"
+            >
+              <Icon name="heroicons:users" class="w-5 h-5" />
+              View Board Members
+            </NuxtLink>
+          </div>
+        </div>
+      </section>
+
       <!-- Contact CTA Section -->
       <section
         id="contact"

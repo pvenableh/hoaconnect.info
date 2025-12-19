@@ -91,12 +91,14 @@ const adminNavItems = [
 const memberNavItems = [
   { label: "Home", path: "/", icon: "home" },
   { label: "Documents", path: "/documents", icon: "file" },
+  { label: "Board", path: "/board", icon: "users" },
 ];
 
 // Board member gets additional navigation options (can see more but not edit)
 const boardMemberNavItems = [
   { label: "Home", path: "/", icon: "home" },
   { label: "Documents", path: "/documents", icon: "file" },
+  { label: "Board", path: "/board", icon: "users" },
 ];
 
 // Computed nav items based on role and board member status
