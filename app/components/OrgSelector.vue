@@ -1,14 +1,28 @@
 <script setup lang="ts">
+const router = useRouter();
+
 const { currentOrg, memberships, setOrganization, hasMultipleOrgs } =
   useSelectedOrg();
 
 const showDropdown = ref(false);
 
-const handleSelect = (orgId: string) => {
-  setOrganization(orgId);
+const handleSelect = async (orgId: string) => {
+  // Find the selected organization to get its slug
+  const selectedMembership = (memberships.value as any[])?.find(
+    (m: any) => m?.organization?.id === orgId
+  );
+  const newSlug = selectedMembership?.organization?.slug;
+
+  await setOrganization(orgId);
   showDropdown.value = false;
-  // Reload the page to refresh all data
-  window.location.reload();
+
+  // Navigate to the new organization's page
+  if (newSlug) {
+    await router.push(`/${newSlug}`);
+  } else {
+    // Fallback: reload if no slug available
+    window.location.reload();
+  }
 };
 
 // Get status badge color

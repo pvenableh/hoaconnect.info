@@ -1,14 +1,30 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
 const route = useRoute();
 const config = useRuntimeConfig();
 
+// Mobile sheet open state
+const mobileMenuOpen = ref(false);
+
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
+
+// Get the current org slug from route or selectedOrg
+const currentSlug = computed(() => {
+  if (route.params.slug) return route.params.slug as string;
+  return null;
+});
 
 // Get active HOA for public org pages (when viewing /my-org or custom domain)
 const { activeHoa, isCustomDomain } = useActiveHoa();
@@ -78,46 +94,29 @@ const handleLogout = async () => {
   }
 };
 
-// Admin nav items (full access) - includes both public pages and admin-only pages
-const adminNavItems = [
-  { label: "Home", path: "/", icon: "home" },
-  { label: "Board", path: "/board", icon: "award" },
-  { label: "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
-  { label: "Documents", path: "/admin/documents", icon: "file" },
-  { label: "Units", path: "/admin/units", icon: "door-closed" },
-  { label: "Members", path: "/admin/members", icon: "users" },
-  { label: "Settings", path: "/admin/settings/organization", icon: "settings" },
-];
+// Helper to build org-prefixed paths
+const buildPath = (path: string) => {
+  if (!currentSlug.value) return path;
+  // Home path just goes to org root
+  if (path === "/") return `/${currentSlug.value}`;
+  // Other paths get prefixed
+  return `/${currentSlug.value}${path}`;
+};
 
-// Member nav items (limited access) - includes dashboard for better UX
-const memberNavItems = [
-  { label: "Home", path: "/", icon: "home" },
-  { label: "Documents", path: "/documents", icon: "file" },
-  { label: "Board", path: "/board", icon: "users" },
-];
+// Public navigation items (visible to all authenticated users)
+const publicNavItems = computed(() => [
+  { label: "Home", path: buildPath("/"), icon: "home" },
+  { label: "Board", path: buildPath("/board"), icon: "award" },
+  { label: "Documents", path: isAdmin.value ? buildPath("/admin/documents") : buildPath("/documents"), icon: "file" },
+]);
 
-// Board member gets additional navigation options (can see more but not edit)
-const boardMemberNavItems = [
-  { label: "Home", path: "/", icon: "home" },
-  { label: "Documents", path: "/documents", icon: "file" },
-  { label: "Board", path: "/board", icon: "users" },
-];
-
-// Computed nav items based on role and board member status
-const navItems = computed(() => {
-  if (isAdmin.value) {
-    return adminNavItems;
-  }
-  // Board members get slightly enhanced navigation
-  if (isBoardMember.value) {
-    return boardMemberNavItems;
-  }
-  if (isMember.value) {
-    return memberNavItems;
-  }
-  // Fallback for any authenticated user (show member view)
-  return memberNavItems;
-});
+// Admin-only navigation items
+const adminNavItems = computed(() => [
+  { label: "Dashboard", path: buildPath("/dashboard"), icon: "layout-dashboard" },
+  { label: "Units", path: buildPath("/admin/units"), icon: "door-closed" },
+  { label: "Members", path: buildPath("/admin/members"), icon: "users" },
+  { label: "Settings", path: buildPath("/admin/settings/organization"), icon: "settings" },
+]);
 
 // Get role/status badge text for user
 const userStatusBadge = computed(() => {
@@ -130,8 +129,8 @@ const userStatusBadge = computed(() => {
   return null;
 });
 
-// Public nav items
-const publicNavItems = [
+// Marketing nav items (for main domain)
+const marketingNavItems = [
   { label: "Features", path: "/#features" },
   { label: "Pricing", path: "/#plans" },
 ];
@@ -142,6 +141,11 @@ const userAvatarUrl = computed(() => {
     return `${config.public.directus.url}/assets/${user.value.avatar}?key=small-contain`;
   }
   return null;
+});
+
+// Close mobile menu on route change
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false;
 });
 </script>
 
@@ -182,7 +186,7 @@ const userAvatarUrl = computed(() => {
         <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->
         <div v-if="isMainMarketingDomain" class="hidden md:flex gap-6">
           <a
-            v-for="item in publicNavItems"
+            v-for="item in marketingNavItems"
             :key="item.path"
             :href="item.path"
             class="text-gray-600 hover:text-zinc-300 transition uppercase text-xs tracking-wider"
@@ -193,8 +197,9 @@ const userAvatarUrl = computed(() => {
 
         <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in -->
         <div v-else-if="user" class="hidden md:flex gap-6">
+          <!-- Public Navigation Items -->
           <NuxtLink
-            v-for="item in navItems"
+            v-for="item in publicNavItems"
             :key="item.path"
             :to="item.path"
             class="flex items-center gap-2 hover:text-stone-600 transition-colors uppercase text-xs tracking-wider"
@@ -210,7 +215,7 @@ const userAvatarUrl = computed(() => {
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
-          <OrgSelector />
+          <OrgSelector class="hidden sm:flex" />
           <!-- User status badge -->
           <span
             v-if="userStatusBadge && !isMainMarketingDomain"
@@ -226,7 +231,7 @@ const userAvatarUrl = computed(() => {
           <NuxtLink
             to="/account"
             target="_blank"
-            class="hover:opacity-80 transition"
+            class="hover:opacity-80 transition hidden sm:block"
             title="My Profile"
           >
             <Avatar>
@@ -254,10 +259,119 @@ const userAvatarUrl = computed(() => {
             @click="handleLogout"
             variant="outline"
             size="sm"
-            class="uppercase tracking-wider text-xs"
+            class="uppercase tracking-wider text-xs hidden sm:flex"
           >
             Logout
           </Button>
+
+          <!-- Mobile Menu Trigger -->
+          <Sheet v-model:open="mobileMenuOpen">
+            <SheetTrigger class="sm:hidden p-2 -mr-2">
+              <Icon name="i-lucide-menu" class="w-6 h-6" />
+            </SheetTrigger>
+            <SheetContent side="right" class="w-[300px] sm:w-[350px]">
+              <SheetHeader class="text-left">
+                <SheetTitle>Menu</SheetTitle>
+              </SheetHeader>
+
+              <!-- User Info in Mobile Menu -->
+              <div class="flex items-center gap-3 py-4 border-b border-stone-200">
+                <Avatar>
+                  <AvatarImage
+                    v-if="userAvatarUrl"
+                    :src="userAvatarUrl"
+                    :alt="user?.firstName + ' ' + user?.lastName"
+                  />
+                  <AvatarImage
+                    v-else
+                    :src="
+                      'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
+                      user?.firstName +
+                      '+' +
+                      user?.lastName
+                    "
+                    :alt="user?.firstName + ' ' + user?.lastName"
+                  />
+                  <AvatarFallback>
+                    {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
+                  </AvatarFallback>
+                </Avatar>
+                <div class="flex-1">
+                  <p class="font-medium text-sm">{{ user?.firstName }} {{ user?.lastName }}</p>
+                  <span
+                    v-if="userStatusBadge"
+                    class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                    :class="{
+                      'bg-amber-100 text-amber-800': isAdmin,
+                      'bg-blue-100 text-blue-800': isBoardMember && !isAdmin,
+                      'bg-stone-100 text-stone-700': !isAdmin && !isBoardMember,
+                    }"
+                  >
+                    {{ userStatusBadge }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Organization Selector in Mobile Menu -->
+              <div class="py-4 border-b border-stone-200">
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-2">Organization</p>
+                <OrgSelector class="w-full" />
+              </div>
+
+              <!-- Public Navigation -->
+              <div class="py-4">
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">Navigation</p>
+                <nav class="space-y-1">
+                  <NuxtLink
+                    v-for="item in publicNavItems"
+                    :key="item.path"
+                    :to="item.path"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
+                    active-class="bg-stone-100 font-medium"
+                  >
+                    <Icon :name="'i-lucide-' + item.icon" class="w-5 h-5 text-stone-600" />
+                    <span>{{ item.label }}</span>
+                  </NuxtLink>
+                </nav>
+              </div>
+
+              <!-- Admin Navigation -->
+              <div v-if="isAdmin" class="py-4 border-t border-stone-200">
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">Admin</p>
+                <nav class="space-y-1">
+                  <NuxtLink
+                    v-for="item in adminNavItems"
+                    :key="item.path"
+                    :to="item.path"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
+                    active-class="bg-stone-100 font-medium"
+                  >
+                    <Icon :name="'i-lucide-' + item.icon" class="w-5 h-5 text-stone-600" />
+                    <span>{{ item.label }}</span>
+                  </NuxtLink>
+                </nav>
+              </div>
+
+              <!-- Account & Logout -->
+              <div class="py-4 border-t border-stone-200 space-y-1">
+                <NuxtLink
+                  to="/account"
+                  target="_blank"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
+                >
+                  <Icon name="i-lucide-user" class="w-5 h-5 text-stone-600" />
+                  <span>My Profile</span>
+                </NuxtLink>
+                <button
+                  @click="handleLogout"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors w-full text-left text-red-600"
+                >
+                  <Icon name="i-lucide-log-out" class="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
 
         <!-- Public User Menu -->
@@ -282,7 +396,7 @@ const userAvatarUrl = computed(() => {
       <!-- Mobile Nav (Marketing) - Show on main marketing domain (even if logged in) -->
       <div v-if="isMainMarketingDomain" class="md:hidden flex gap-4 mt-4">
         <a
-          v-for="item in publicNavItems"
+          v-for="item in marketingNavItems"
           :key="item.path"
           :href="item.path"
           class="flex-1 text-center py-2 text-sm hover:bg-stone-100 rounded"
@@ -291,16 +405,20 @@ const userAvatarUrl = computed(() => {
         </a>
       </div>
 
-      <!-- Mobile Nav (Authenticated) - Show on org pages and custom domains when logged in -->
-      <div v-else-if="user" class="md:hidden flex gap-4 mt-4 overflow-x-auto">
+      <!-- Admin Navigation Row - Desktop only -->
+      <div
+        v-if="user && isAdmin && !isMainMarketingDomain"
+        class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t border-stone-100"
+      >
+        <span class="text-xs uppercase tracking-wider text-stone-400 mr-4">Admin</span>
         <NuxtLink
-          v-for="item in navItems"
+          v-for="item in adminNavItems"
           :key="item.path"
           :to="item.path"
-          class="flex-shrink-0 text-center py-2 px-3 text-sm hover:bg-stone-100 rounded whitespace-nowrap"
-          active-class="bg-stone-100 font-medium"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-stone-100 transition-colors text-xs uppercase tracking-wider text-stone-600"
+          active-class="bg-stone-100 text-stone-900 font-medium"
         >
-          <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4 inline mr-1" />
+          <Icon :name="'i-lucide-' + item.icon" class="w-3.5 h-3.5" />
           {{ item.label }}
         </NuxtLink>
       </div>

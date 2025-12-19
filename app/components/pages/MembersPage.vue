@@ -19,13 +19,19 @@ const {
 const { list: listInvitations } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
+const {
+  list: listBoardTerms,
+  create: createBoardTerm,
+  update: updateBoardTerm,
+  remove: removeBoardTerm,
+} = useDirectusItems("hoa_board_member_terms");
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Current tab
-const activeTab = ref<"members" | "invite" | "pending">("members");
+const activeTab = ref<"members" | "invite" | "pending" | "board">("members");
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -126,6 +132,74 @@ const { data: units } = await useAsyncData(
     watch: [orgId],
     server: false,
   }
+);
+
+// Fetch board member terms
+const { data: boardTerms, refresh: refreshBoardTerms } = await useAsyncData(
+  `board-terms-${orgId.value}`,
+  async () => {
+    if (!orgId.value) return [];
+    try {
+      const result = (await listBoardTerms({
+        fields: [
+          "id",
+          "title",
+          "term_start",
+          "term_end",
+          "message",
+          "status",
+          "hoa_member.id",
+          "hoa_member.first_name",
+          "hoa_member.last_name",
+          "hoa_member.email",
+        ],
+        filter: {
+          hoa_member: {
+            organization: { _eq: orgId.value },
+          },
+        },
+        sort: ["-term_start", "title"],
+      })) as any[];
+      return result || [];
+    } catch (error) {
+      console.error("Error fetching board terms:", error);
+      return [];
+    }
+  },
+  {
+    watch: [orgId],
+    server: false,
+  }
+);
+
+// Board title options
+const boardTitleOptions = [
+  { value: "president", label: "President" },
+  { value: "vice_president", label: "Vice President" },
+  { value: "secretary", label: "Secretary" },
+  { value: "treasurer", label: "Treasurer" },
+  { value: "director", label: "Director" },
+];
+
+// Check if a board term is currently active
+const isActiveTerm = (term: any) => {
+  const now = new Date();
+  const start = term.term_start ? new Date(term.term_start) : null;
+  const end = term.term_end ? new Date(term.term_end) : null;
+
+  if (term.status !== "published") return false;
+  if (start && start > now) return false;
+  if (end && end < now) return false;
+  return true;
+};
+
+// Separate active and past board terms
+const activeBoardTerms = computed(() =>
+  (boardTerms.value || []).filter((term: any) => isActiveTerm(term))
+);
+
+const pastBoardTerms = computed(() =>
+  (boardTerms.value || []).filter((term: any) => !isActiveTerm(term))
 );
 
 // Add member modal (for non-account members)
@@ -246,6 +320,106 @@ const handleInviteSuccess = () => {
   activeTab.value = "pending";
 };
 
+// Board term modal
+const showBoardModal = ref(false);
+const editingBoardTermId = ref<string | null>(null);
+const boardForm = reactive({
+  hoa_member: null as string | null,
+  title: "director" as string,
+  term_start: "",
+  term_end: "",
+  message: "",
+  status: "published" as string,
+});
+
+const resetBoardForm = () => {
+  boardForm.hoa_member = null;
+  boardForm.title = "director";
+  boardForm.term_start = "";
+  boardForm.term_end = "";
+  boardForm.message = "";
+  boardForm.status = "published";
+  editingBoardTermId.value = null;
+};
+
+const handleAddBoardTerm = () => {
+  resetBoardForm();
+  showBoardModal.value = true;
+};
+
+const handleEditBoardTerm = (term: any) => {
+  boardForm.hoa_member = term.hoa_member?.id || null;
+  boardForm.title = term.title || "director";
+  boardForm.term_start = term.term_start ? term.term_start.split("T")[0] : "";
+  boardForm.term_end = term.term_end ? term.term_end.split("T")[0] : "";
+  boardForm.message = term.message || "";
+  boardForm.status = term.status || "published";
+  editingBoardTermId.value = term.id;
+  showBoardModal.value = true;
+};
+
+const handleSubmitBoardTerm = async () => {
+  if (!boardForm.hoa_member) {
+    toast.error("Please select a member");
+    return;
+  }
+
+  try {
+    const data = {
+      hoa_member: boardForm.hoa_member,
+      title: boardForm.title,
+      term_start: boardForm.term_start || null,
+      term_end: boardForm.term_end || null,
+      message: boardForm.message || null,
+      status: boardForm.status,
+    };
+
+    if (editingBoardTermId.value) {
+      await updateBoardTerm(editingBoardTermId.value, data);
+      toast.success("Board position updated");
+    } else {
+      await createBoardTerm(data);
+      toast.success("Board position added");
+    }
+
+    await refreshBoardTerms();
+    showBoardModal.value = false;
+    resetBoardForm();
+  } catch (error: any) {
+    console.error("Save error:", error);
+    toast.error(error.message || "Failed to save board position");
+  }
+};
+
+const handleDeleteBoardTerm = async (id: string) => {
+  if (!confirm("Remove this board position?")) return;
+
+  try {
+    await removeBoardTerm(id);
+    await refreshBoardTerms();
+    toast.success("Board position removed");
+  } catch (error) {
+    toast.error("Failed to remove board position");
+  }
+};
+
+const formatBoardTitle = (title: string | null): string => {
+  if (!title) return "Board Member";
+  const option = boardTitleOptions.find((o) => o.value === title);
+  return option?.label || title.replace(/_/g, " ");
+};
+
+const getBoardTitleColor = (title: string | null): string => {
+  const colors: Record<string, string> = {
+    president: "bg-amber-100 text-amber-700",
+    vice_president: "bg-blue-100 text-blue-700",
+    secretary: "bg-emerald-100 text-emerald-700",
+    treasurer: "bg-purple-100 text-purple-700",
+    director: "bg-stone-100 text-stone-700",
+  };
+  return colors[title || ""] || "bg-stone-100 text-stone-700";
+};
+
 const getPrimaryUnit = (member: any) => {
   if (!member.units || member.units.length === 0) return null;
   const primary = member.units.find((u: any) => u.is_primary_unit);
@@ -356,6 +530,18 @@ useSeoMeta({
               ]"
             >
               Pending Invitations ({{ invitations?.length || 0 }})
+            </button>
+            <button
+              @click="activeTab = 'board'"
+              :class="[
+                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                activeTab === 'board'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+              ]"
+            >
+              <Icon name="lucide:award" class="w-4 h-4 inline mr-1" />
+              Board ({{ activeBoardTerms?.length || 0 }})
             </button>
           </nav>
         </div>
@@ -567,6 +753,154 @@ useSeoMeta({
           </Card>
         </div>
 
+        <!-- Board Tab -->
+        <div v-if="activeTab === 'board'" class="space-y-6">
+          <!-- Info Box -->
+          <Card class="bg-amber-50 border-amber-200">
+            <CardContent class="pt-6">
+              <p class="text-sm text-amber-900">
+                <strong>Manage your HOA Board:</strong>
+                Assign board positions to members. Active board members will be displayed on the public Board page.
+              </p>
+            </CardContent>
+          </Card>
+
+          <!-- Action Button -->
+          <div class="flex justify-end">
+            <Button @click="handleAddBoardTerm">
+              <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
+              Add Board Position
+            </Button>
+          </div>
+
+          <!-- Active Board Members -->
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Board Members</CardTitle>
+              <CardDescription>
+                Active board positions displayed on your public Board page
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div v-if="activeBoardTerms?.length" class="space-y-3">
+                <div
+                  v-for="term in activeBoardTerms"
+                  :key="term.id"
+                  class="flex items-center justify-between p-4 border rounded-lg hover:bg-stone-50"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
+                      :class="getBoardTitleColor(term.title)"
+                    >
+                      {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
+                    </div>
+                    <div>
+                      <p class="font-medium">
+                        {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
+                      </p>
+                      <span
+                        class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                        :class="getBoardTitleColor(term.title)"
+                      >
+                        {{ formatBoardTitle(term.title) }}
+                      </span>
+                      <p v-if="term.term_start || term.term_end" class="text-xs text-stone-500 mt-1">
+                        <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                        <span v-if="term.term_start && term.term_end"> - </span>
+                        <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                        <span v-if="term.term_start && !term.term_end"> - Present</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <Button
+                      @click="handleEditBoardTerm(term)"
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Icon name="lucide:edit" class="w-4 h-4" />
+                    </Button>
+                    <Button
+                      @click="handleDeleteBoardTerm(term.id)"
+                      variant="destructive"
+                      size="sm"
+                    >
+                      <Icon name="lucide:trash-2" class="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-center py-12 text-stone-500">
+                <Icon
+                  name="lucide:award"
+                  class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                />
+                <p class="font-medium">No active board members</p>
+                <p class="text-sm mt-1">
+                  Add board positions to display on your public Board page
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Past Board Members -->
+          <Card v-if="pastBoardTerms?.length">
+            <CardHeader>
+              <CardTitle>Past Board Members</CardTitle>
+              <CardDescription>
+                Historical board positions (expired or inactive)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-3">
+                <div
+                  v-for="term in pastBoardTerms"
+                  :key="term.id"
+                  class="flex items-center justify-between p-4 border rounded-lg bg-stone-50"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 text-stone-600"
+                    >
+                      {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
+                    </div>
+                    <div>
+                      <p class="font-medium text-stone-600">
+                        {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
+                      </p>
+                      <span class="text-xs text-stone-500">
+                        {{ formatBoardTitle(term.title) }}
+                      </span>
+                      <p v-if="term.term_start || term.term_end" class="text-xs text-stone-400 mt-1">
+                        <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                        <span v-if="term.term_start && term.term_end"> - </span>
+                        <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <Button
+                      @click="handleEditBoardTerm(term)"
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Icon name="lucide:edit" class="w-4 h-4" />
+                    </Button>
+                    <Button
+                      @click="handleDeleteBoardTerm(term.id)"
+                      variant="ghost"
+                      size="sm"
+                    >
+                      <Icon name="lucide:trash-2" class="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <!-- Add/Edit Member Modal -->
         <Dialog v-model:open="showAddModal">
           <DialogContent class="sm:max-w-[500px]">
@@ -652,6 +986,113 @@ useSeoMeta({
                 Cancel
               </Button>
               <Button @click="handleSubmit">Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <!-- Add/Edit Board Position Modal -->
+        <Dialog v-model:open="showBoardModal">
+          <DialogContent class="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>{{ editingBoardTermId ? "Edit" : "Add" }} Board Position</DialogTitle>
+              <DialogDescription>
+                Assign a board position to a member. Active positions will be displayed on the public Board page.
+              </DialogDescription>
+            </DialogHeader>
+            <div class="grid gap-4 py-4">
+              <div class="grid gap-2">
+                <Label for="board-member">Member</Label>
+                <select
+                  id="board-member"
+                  v-model="boardForm.hoa_member"
+                  class="w-full p-2 border rounded"
+                  :disabled="!!editingBoardTermId"
+                >
+                  <option :value="null">Select a member...</option>
+                  <option
+                    v-for="member in members"
+                    :key="member.id"
+                    :value="member.id"
+                  >
+                    {{ member.first_name }} {{ member.last_name }}
+                  </option>
+                </select>
+                <p v-if="!members?.length" class="text-xs text-stone-500">
+                  No members available. Add members first.
+                </p>
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="board-title">Position</Label>
+                <select
+                  id="board-title"
+                  v-model="boardForm.title"
+                  class="w-full p-2 border rounded"
+                >
+                  <option
+                    v-for="option in boardTitleOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                  <Label for="term-start">Term Start</Label>
+                  <Input
+                    id="term-start"
+                    v-model="boardForm.term_start"
+                    type="date"
+                  />
+                </div>
+                <div class="grid gap-2">
+                  <Label for="term-end">Term End</Label>
+                  <Input
+                    id="term-end"
+                    v-model="boardForm.term_end"
+                    type="date"
+                  />
+                  <p class="text-xs text-stone-500">Leave empty for ongoing</p>
+                </div>
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="board-message">Bio/Message (optional)</Label>
+                <Textarea
+                  id="board-message"
+                  v-model="boardForm.message"
+                  placeholder="Brief bio or message from this board member..."
+                  rows="3"
+                />
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="board-status">Status</Label>
+                <select
+                  id="board-status"
+                  v-model="boardForm.status"
+                  class="w-full p-2 border rounded"
+                >
+                  <option value="published">Published (Active)</option>
+                  <option value="draft">Draft (Hidden)</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                @click="
+                  showBoardModal = false;
+                  resetBoardForm();
+                "
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button @click="handleSubmitBoardTerm">Save Position</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
