@@ -103,12 +103,27 @@ const buildPath = (path: string) => {
   return `/${currentSlug.value}${path}`;
 };
 
+// Check if board should be shown (defaults to true if not set)
+const showBoard = computed(() => {
+  // Check activeHoa for public pages, fall back to true if not set
+  return activeHoa.value?.show_board !== false;
+});
+
 // Public navigation items (visible to all authenticated users)
-const publicNavItems = computed(() => [
-  { label: "Home", path: buildPath("/"), icon: "home" },
-  { label: "Board", path: buildPath("/board"), icon: "award" },
-  { label: "Documents", path: buildPath("/documents"), icon: "file" },
-]);
+const publicNavItems = computed(() => {
+  const items = [
+    { label: "Home", path: buildPath("/"), icon: "home" },
+  ];
+
+  // Only show Board link if show_board is not false
+  if (showBoard.value) {
+    items.push({ label: "Board", path: buildPath("/board"), icon: "award" });
+  }
+
+  items.push({ label: "Documents", path: buildPath("/documents"), icon: "file" });
+
+  return items;
+});
 
 // Admin-only navigation items
 const adminNavItems = computed(() => [
