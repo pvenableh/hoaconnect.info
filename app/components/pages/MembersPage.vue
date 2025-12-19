@@ -455,36 +455,37 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen bg-stone-50">
-    <div class="container mx-auto p-6">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">Manage Members</h1>
-        <p class="text-stone-600">
-          Invite new members and manage existing memberships
-        </p>
-      </div>
+    <div class="p-6">
+      <div class="max-w-7xl mx-auto">
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold mb-2">Manage Members</h1>
+          <p class="text-stone-600">
+            Invite new members and manage existing memberships
+          </p>
+        </div>
 
-      <!-- Loading State -->
-      <div v-if="isLoading" class="text-center py-12">
-        <Icon
-          name="lucide:loader-2"
-          class="w-8 h-8 animate-spin mx-auto mb-4"
-        />
-        <p class="text-sm text-stone-600">Loading your organization...</p>
-      </div>
+        <!-- Loading State -->
+        <div v-if="isLoading" class="text-center py-12">
+          <Icon
+            name="lucide:loader-2"
+            class="w-8 h-8 animate-spin mx-auto mb-4"
+          />
+          <p class="text-sm text-stone-600">Loading your organization...</p>
+        </div>
 
-      <!-- No Organization State -->
-      <div v-else-if="!organization" class="text-center py-12">
-        <Alert variant="destructive" class="max-w-md mx-auto">
-          <Icon name="lucide:alert-circle" class="w-4 h-4" />
-          <AlertTitle>No Organization Found</AlertTitle>
-          <AlertDescription>
-            You are not associated with any HOA organization.
-          </AlertDescription>
-        </Alert>
-      </div>
+        <!-- No Organization State -->
+        <div v-else-if="!organization" class="text-center py-12">
+          <Alert variant="destructive" class="max-w-md mx-auto">
+            <Icon name="lucide:alert-circle" class="w-4 h-4" />
+            <AlertTitle>No Organization Found</AlertTitle>
+            <AlertDescription>
+              You are not associated with any HOA organization.
+            </AlertDescription>
+          </Alert>
+        </div>
 
-      <!-- Main Content -->
-      <div v-else class="max-w-7xl mx-auto space-y-6">
+        <!-- Main Content -->
+        <div v-else class="space-y-6">
         <!-- Organization Info -->
         <Card>
           <CardHeader>
@@ -1096,6 +1097,7 @@ useSeoMeta({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     </div>
   </div>
