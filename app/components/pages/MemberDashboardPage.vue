@@ -7,8 +7,18 @@ const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { getUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
-// Get organization context
-const { selectedOrgId, currentOrg, isAdmin } = await useSelectedOrg();
+// Get organization context including member type and board member status
+const {
+  selectedOrgId,
+  currentOrg,
+  isAdmin,
+  memberType,
+  isOwner,
+  isTenant,
+  isBoardMember,
+  boardTitleDisplay,
+  activeBoardTerms,
+} = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed<HoaOrganization | null>(() => currentOrg.value?.organization || null);
@@ -124,6 +134,33 @@ const welcomeMessage = computed(() => {
 const userName = computed(() => {
   return user.value?.firstName || "Member";
 });
+
+// Get member type display text
+const memberTypeDisplay = computed(() => {
+  if (memberType.value === "owner") return "Owner";
+  if (memberType.value === "tenant") return "Resident";
+  return "Member";
+});
+
+// Get member status description
+const memberStatusDescription = computed(() => {
+  const parts: string[] = [];
+  parts.push(memberTypeDisplay.value);
+  if (isBoardMember.value && boardTitleDisplay.value) {
+    parts.push(`Board ${boardTitleDisplay.value}`);
+  }
+  return parts.join(" · ");
+});
+
+// Format date for board term display
+function formatBoardTermDate(dateString: string | null | undefined): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+  });
+}
 </script>
 
 <template>
@@ -147,6 +184,31 @@ const userName = computed(() => {
           <p class="text-stone-600 mt-2">
             Welcome to the {{ organization?.name }} resident portal
           </p>
+
+          <!-- Member Status Badge -->
+          <div class="flex items-center justify-center gap-2 mt-4">
+            <span
+              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full"
+              :class="{
+                'bg-emerald-100 text-emerald-800': isOwner,
+                'bg-blue-100 text-blue-800': isTenant,
+                'bg-stone-100 text-stone-700': !isOwner && !isTenant,
+              }"
+            >
+              <Icon
+                :name="isOwner ? 'heroicons:home' : 'heroicons:user'"
+                class="w-4 h-4 mr-1.5"
+              />
+              {{ memberTypeDisplay }}
+            </span>
+            <span
+              v-if="isBoardMember && boardTitleDisplay"
+              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-800"
+            >
+              <Icon name="heroicons:star" class="w-4 h-4 mr-1.5" />
+              Board {{ boardTitleDisplay }}
+            </span>
+          </div>
         </div>
 
         <!-- Quick Actions -->
@@ -169,6 +231,48 @@ const userName = computed(() => {
             </CardContent>
           </Card>
         </div>
+
+        <!-- Board Member Status (only shown if user is a board member) -->
+        <Card v-if="isBoardMember && activeBoardTerms.length > 0" class="border-amber-200 bg-amber-50/50">
+          <CardHeader>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <Icon name="heroicons:star" class="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <CardTitle class="text-amber-900">Board Member Status</CardTitle>
+                <CardDescription class="text-amber-700">Your current board position(s)</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div class="space-y-3">
+              <div
+                v-for="term in activeBoardTerms"
+                :key="term.id"
+                class="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100"
+              >
+                <div class="flex items-center gap-3">
+                  <Icon name="heroicons:identification" class="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p class="font-medium text-stone-900 capitalize">
+                      {{ term.title?.replace('_', ' ') || 'Board Member' }}
+                    </p>
+                    <p class="text-sm text-stone-500">
+                      <span v-if="term.term_start">{{ formatBoardTermDate(term.term_start) }}</span>
+                      <span v-if="term.term_start && term.term_end"> - </span>
+                      <span v-if="term.term_end">{{ formatBoardTermDate(term.term_end) }}</span>
+                      <span v-if="!term.term_end && term.term_start">- Present</span>
+                    </p>
+                  </div>
+                </div>
+                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                  Active
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <!-- Recent Documents -->
         <Card>

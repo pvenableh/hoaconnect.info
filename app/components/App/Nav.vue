@@ -18,10 +18,24 @@ const isMainMarketingDomain = computed(
   () => !isCustomDomain.value && !isOnOrgPage.value
 );
 
-// Get current organization and role for logged-in users
-const { currentOrg, isAdmin, isMember } = user.value
+// Get current organization, role, and member details for logged-in users
+const {
+  currentOrg,
+  isAdmin,
+  isMember,
+  isBoardMember,
+  boardTitleDisplay,
+  memberType,
+} = user.value
   ? await useSelectedOrg()
-  : { currentOrg: ref(null), isAdmin: ref(false), isMember: ref(false) };
+  : {
+      currentOrg: ref(null),
+      isAdmin: ref(false),
+      isMember: ref(false),
+      isBoardMember: ref(false),
+      boardTitleDisplay: ref(null),
+      memberType: ref(null),
+    };
 
 // Build logo URL from Directus asset - prefer activeHoa for public pages, then currentOrg for logged-in users
 const orgLogoUrl = computed(() => {
@@ -73,22 +87,43 @@ const adminNavItems = [
   { label: "Settings", path: "/admin/settings/organization", icon: "settings" },
 ];
 
-// Member nav items (limited access)
+// Member nav items (limited access) - includes dashboard for better UX
 const memberNavItems = [
   { label: "Home", path: "/", icon: "home" },
   { label: "Documents", path: "/documents", icon: "file" },
 ];
 
-// Computed nav items based on role
+// Board member gets additional navigation options (can see more but not edit)
+const boardMemberNavItems = [
+  { label: "Home", path: "/", icon: "home" },
+  { label: "Documents", path: "/documents", icon: "file" },
+];
+
+// Computed nav items based on role and board member status
 const navItems = computed(() => {
   if (isAdmin.value) {
     return adminNavItems;
+  }
+  // Board members get slightly enhanced navigation
+  if (isBoardMember.value) {
+    return boardMemberNavItems;
   }
   if (isMember.value) {
     return memberNavItems;
   }
   // Fallback for any authenticated user (show member view)
   return memberNavItems;
+});
+
+// Get role/status badge text for user
+const userStatusBadge = computed(() => {
+  if (isAdmin.value) return "Admin";
+  if (isBoardMember.value && boardTitleDisplay.value) {
+    return boardTitleDisplay.value;
+  }
+  if (memberType.value === "owner") return "Owner";
+  if (memberType.value === "tenant") return "Resident";
+  return null;
 });
 
 // Public nav items
@@ -172,6 +207,18 @@ const userAvatarUrl = computed(() => {
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
           <OrgSelector />
+          <!-- User status badge -->
+          <span
+            v-if="userStatusBadge && !isMainMarketingDomain"
+            class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
+            :class="{
+              'bg-amber-100 text-amber-800': isAdmin,
+              'bg-blue-100 text-blue-800': isBoardMember && !isAdmin,
+              'bg-stone-100 text-stone-700': !isAdmin && !isBoardMember,
+            }"
+          >
+            {{ userStatusBadge }}
+          </span>
           <NuxtLink
             to="/account"
             class="hover:opacity-80 transition"
