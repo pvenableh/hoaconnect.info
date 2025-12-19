@@ -78,8 +78,10 @@ const handleLogout = async () => {
   }
 };
 
-// Admin nav items (full access) - paths are relative and will be prefixed with org slug
+// Admin nav items (full access) - includes both public pages and admin-only pages
 const adminNavItems = [
+  { label: "Home", path: "/", icon: "home" },
+  { label: "Board", path: "/board", icon: "award" },
   { label: "Dashboard", path: "/dashboard", icon: "layout-dashboard" },
   { label: "Documents", path: "/admin/documents", icon: "file" },
   { label: "Units", path: "/admin/units", icon: "door-closed" },
