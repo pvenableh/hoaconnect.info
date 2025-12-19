@@ -7,6 +7,7 @@ import { X } from "lucide-vue-next"
 import {
   DialogClose,
   DialogContent,
+  DialogOverlay,
   DialogPortal,
   useForwardPropsEmits,
 } from "reka-ui"
@@ -45,7 +46,7 @@ const sideClasses = computed(() => {
 
 <template>
   <DialogPortal>
-    <div
+    <DialogOverlay
       class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
       data-slot="sheet-overlay"
     />

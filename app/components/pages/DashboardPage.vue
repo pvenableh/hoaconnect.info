@@ -174,7 +174,7 @@ const stats = computed(() => ({
                 Upload Document
               </Button>
               <Button
-                @click="navigateToOrg('/units')"
+                @click="navigateToOrg('/admin/units')"
                 variant="outline"
                 class="w-full"
               >

@@ -572,7 +572,7 @@ useSeoMeta({
           <!-- Action Buttons -->
           <div class="flex justify-between items-center">
             <div class="flex gap-2">
-              <Button @click="navigateToOrg('/units')" variant="outline">
+              <Button @click="navigateToOrg('/admin/units')" variant="outline">
                 <Icon name="lucide:building" class="w-4 h-4 mr-2" />
                 Manage Units
               </Button>
@@ -959,7 +959,7 @@ useSeoMeta({
                   </select>
                   <p v-if="!units?.length" class="text-xs text-stone-500">
                     No units available.
-                    <NuxtLink :to="buildOrgPath('/units')" class="text-primary underline"
+                    <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
                       >Add units first</NuxtLink
                     >
                   </p>
