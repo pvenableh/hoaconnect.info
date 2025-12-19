@@ -112,11 +112,23 @@ const publicNavItems = computed(() => [
 
 // Admin-only navigation items
 const adminNavItems = computed(() => [
-  { label: "Dashboard", path: buildPath("/dashboard"), icon: "layout-dashboard" },
-  { label: "Documents", path: buildPath("/admin/documents"), icon: "file-text" },
+  {
+    label: "Dashboard",
+    path: buildPath("/dashboard"),
+    icon: "layout-dashboard",
+  },
+  {
+    label: "Documents",
+    path: buildPath("/admin/documents"),
+    icon: "file-text",
+  },
   { label: "Units", path: buildPath("/admin/units"), icon: "door-closed" },
   { label: "Members", path: buildPath("/admin/members"), icon: "users" },
-  { label: "Settings", path: buildPath("/admin/settings/organization"), icon: "settings" },
+  {
+    label: "Settings",
+    path: buildPath("/admin/settings/organization"),
+    icon: "settings",
+  },
 ]);
 
 // Get role/status badge text for user
@@ -145,14 +157,17 @@ const userAvatarUrl = computed(() => {
 });
 
 // Close mobile menu on route change
-watch(() => route.path, () => {
-  mobileMenuOpen.value = false;
-});
+watch(
+  () => route.path,
+  () => {
+    mobileMenuOpen.value = false;
+  }
+);
 </script>
 
 <template>
-  <nav class="bg-white border-b border-stone-200">
-    <div class="max-w-7xl mx-auto px-6 py-4">
+  <nav class="bg-white border-b border-stone-200 px-6">
+    <div class="max-w-7xl mx-auto py-4">
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
         <!-- On org page (slug route): link to org root -->
@@ -276,7 +291,9 @@ watch(() => route.path, () => {
               </SheetHeader>
 
               <!-- User Info in Mobile Menu -->
-              <div class="flex items-center gap-3 py-4 border-b border-stone-200">
+              <div
+                class="flex items-center gap-3 py-4 border-b border-stone-200"
+              >
                 <Avatar>
                   <AvatarImage
                     v-if="userAvatarUrl"
@@ -298,7 +315,9 @@ watch(() => route.path, () => {
                   </AvatarFallback>
                 </Avatar>
                 <div class="flex-1">
-                  <p class="font-medium text-sm">{{ user?.firstName }} {{ user?.lastName }}</p>
+                  <p class="font-medium text-sm">
+                    {{ user?.firstName }} {{ user?.lastName }}
+                  </p>
                   <span
                     v-if="userStatusBadge"
                     class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
@@ -315,13 +334,17 @@ watch(() => route.path, () => {
 
               <!-- Organization Selector in Mobile Menu -->
               <div class="py-4 border-b border-stone-200">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-2">Organization</p>
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-2">
+                  Organization
+                </p>
                 <OrgSelector class="w-full" />
               </div>
 
               <!-- Public Navigation -->
               <div class="py-4">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">Navigation</p>
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
+                  Navigation
+                </p>
                 <nav class="space-y-1">
                   <NuxtLink
                     v-for="item in publicNavItems"
@@ -330,7 +353,10 @@ watch(() => route.path, () => {
                     class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
                     active-class="bg-stone-100 font-medium"
                   >
-                    <Icon :name="'i-lucide-' + item.icon" class="w-5 h-5 text-stone-600" />
+                    <Icon
+                      :name="'i-lucide-' + item.icon"
+                      class="w-5 h-5 text-stone-600"
+                    />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
                 </nav>
@@ -338,7 +364,9 @@ watch(() => route.path, () => {
 
               <!-- Admin Navigation -->
               <div v-if="isAdmin" class="py-4 border-t border-stone-200">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">Admin</p>
+                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
+                  Admin
+                </p>
                 <nav class="space-y-1">
                   <NuxtLink
                     v-for="item in adminNavItems"
@@ -347,7 +375,10 @@ watch(() => route.path, () => {
                     class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
                     active-class="bg-stone-100 font-medium"
                   >
-                    <Icon :name="'i-lucide-' + item.icon" class="w-5 h-5 text-stone-600" />
+                    <Icon
+                      :name="'i-lucide-' + item.icon"
+                      class="w-5 h-5 text-stone-600"
+                    />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
                 </nav>
@@ -411,7 +442,9 @@ watch(() => route.path, () => {
         v-if="user && isAdmin && !isMainMarketingDomain"
         class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t border-stone-100"
       >
-        <span class="text-xs uppercase tracking-wider text-stone-400 mr-4">Admin</span>
+        <span class="text-xs uppercase tracking-wider text-stone-400 mr-4"
+          >Admin</span
+        >
         <NuxtLink
           v-for="item in adminNavItems"
           :key="item.path"
