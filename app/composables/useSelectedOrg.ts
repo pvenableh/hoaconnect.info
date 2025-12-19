@@ -1,8 +1,15 @@
 // composables/useSelectedOrg.ts
+import type { HoaBoardMemberTerm } from "~~/types/directus";
+
 /**
  * Composable to manage the currently selected organization
  * Handles users with multiple HOA memberships (e.g., property managers)
  * Now supports SSR by storing the selected org in the session
+ *
+ * Exposes permission helpers for:
+ * - Role-based access (isAdmin, isMember)
+ * - Member type (isOwner, isTenant)
+ * - Board member status (isBoardMember, currentBoardTitle)
  */
 export const useSelectedOrg = async () => {
   // Capture Nuxt context IMMEDIATELY at the top, before any awaits
@@ -108,7 +115,7 @@ export const useSelectedOrg = async () => {
           }
         }
 
-        // STEP 2: Fetch memberships with subscription info
+        // STEP 2: Fetch memberships with subscription info, member type, and board member terms
         const result = await listMembers({
           fields: [
             "id",
@@ -122,6 +129,12 @@ export const useSelectedOrg = async () => {
             "organization.subscription_status",
             "organization.trial_ends_at",
             "role",
+            "member_type",
+            "board_member_terms.id",
+            "board_member_terms.status",
+            "board_member_terms.term_start",
+            "board_member_terms.term_end",
+            "board_member_terms.title",
           ],
           filter: {
             user: { _eq: user.value.id },
@@ -228,6 +241,90 @@ export const useSelectedOrg = async () => {
     return !!currentOrg.value?.role;
   });
 
+  // Get member type (owner or tenant)
+  const memberType = computed<"owner" | "tenant" | null>(() => {
+    return currentOrg.value?.member_type || null;
+  });
+
+  // Check if member is an owner
+  const isOwner = computed(() => {
+    return memberType.value === "owner";
+  });
+
+  // Check if member is a tenant
+  const isTenant = computed(() => {
+    return memberType.value === "tenant";
+  });
+
+  // Get active board member terms (published and within date range)
+  const activeBoardTerms = computed<HoaBoardMemberTerm[]>(() => {
+    const terms = currentOrg.value?.board_member_terms;
+    if (!terms || !Array.isArray(terms)) return [];
+
+    const now = new Date();
+    return terms.filter((term: any) => {
+      // Must be published status
+      if (term.status !== "published") return false;
+
+      // Check if term is active (between start and end dates)
+      const startDate = term.term_start ? new Date(term.term_start) : null;
+      const endDate = term.term_end ? new Date(term.term_end) : null;
+
+      // If no start date, term hasn't started
+      if (startDate && now < startDate) return false;
+
+      // If end date exists and has passed, term is expired
+      if (endDate && now > endDate) return false;
+
+      return true;
+    }) as HoaBoardMemberTerm[];
+  });
+
+  // Check if member is currently a board member
+  const isBoardMember = computed(() => {
+    return activeBoardTerms.value.length > 0;
+  });
+
+  // Get the highest-ranking board title (president > vice_president > secretary > treasurer > director)
+  const currentBoardTitle = computed<string | null>(() => {
+    const terms = activeBoardTerms.value;
+    if (terms.length === 0) return null;
+
+    // Priority order for board titles
+    const titlePriority = [
+      "president",
+      "vice_president",
+      "secretary",
+      "treasurer",
+      "director",
+    ];
+
+    // Find the highest-priority title
+    for (const title of titlePriority) {
+      const term = terms.find((t) => t.title === title);
+      if (term) return term.title;
+    }
+
+    // Return first title if none match priority
+    return terms[0]?.title || null;
+  });
+
+  // Format board title for display
+  const boardTitleDisplay = computed<string | null>(() => {
+    const title = currentBoardTitle.value;
+    if (!title) return null;
+
+    const displayNames: Record<string, string> = {
+      president: "President",
+      vice_president: "Vice President",
+      secretary: "Secretary",
+      treasurer: "Treasurer",
+      director: "Director",
+    };
+
+    return displayNames[title] || title;
+  });
+
   // Set selected organization
   const setOrganization = async (orgId: string) => {
     selectedOrgId.value = orgId;
@@ -255,9 +352,18 @@ export const useSelectedOrg = async () => {
         (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1
     ),
     isLoading: pending,
-    // Role checking helpers
+    // Role checking helpers (HOA Admin vs HOA Member)
     isAdmin,
     isMember,
     isOrgMember,
+    // Member type helpers (owner vs tenant)
+    memberType,
+    isOwner,
+    isTenant,
+    // Board member helpers
+    isBoardMember,
+    activeBoardTerms,
+    currentBoardTitle,
+    boardTitleDisplay,
   };
 };

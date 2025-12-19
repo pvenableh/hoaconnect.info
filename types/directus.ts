@@ -169,6 +169,23 @@ export interface HoaInvitation {
 	accepted_at?: string | null;
 }
 
+export interface HoaBoardMemberTerm {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	hoa_member?: HoaMember | string | null;
+	term_start?: string | null;
+	term_end?: string | null;
+	title?: 'president' | 'vice_president' | 'secretary' | 'treasurer' | 'director' | null;
+	icon?: string | null;
+	message?: string | null;
+}
+
 export interface HoaMember {
 	/** @primaryKey */
 	id: string;
@@ -194,6 +211,7 @@ export interface HoaMember {
 	units?: HoaMemberUnit[] | string[];
 	pets?: HoaPet[] | string[];
 	vehicles?: HoaVehicle[] | string[];
+	board_member_terms?: HoaBoardMemberTerm[] | string[];
 }
 
 export interface HoaMemberUnit {
@@ -869,6 +887,7 @@ export interface Schema {
 	coupons_subscription_plans: CouponsSubscriptionPlan[];
 	coupon_usage: CouponUsage[];
 	hoa_amenities: HoaAmenity[];
+	hoa_board_member_terms: HoaBoardMemberTerm[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_invitations: HoaInvitation[];
@@ -918,6 +937,7 @@ export enum CollectionNames {
 	coupons_subscription_plans = 'coupons_subscription_plans',
 	coupon_usage = 'coupon_usage',
 	hoa_amenities = 'hoa_amenities',
+	hoa_board_member_terms = 'hoa_board_member_terms',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_invitations = 'hoa_invitations',
