@@ -169,7 +169,7 @@ function buildHeader(
  */
 function isHtmlContent(content: string): boolean {
   // Check for common HTML tags that indicate rich text content
-  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote)[^>]*>/i.test(content);
+  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img)[^>]*>/i.test(content);
 }
 
 /**
@@ -195,7 +195,9 @@ function processContent(content: string): string {
       // Style links
       .replace(/<a([^>]*href[^>]*)>/gi, '<a$1 style="color: #3b82f6; text-decoration: underline;">')
       // Style horizontal rules
-      .replace(/<hr([^>]*)>/gi, '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">');
+      .replace(/<hr([^>]*)>/gi, '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">')
+      // Style images - make them responsive and centered for email
+      .replace(/<img([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px;">');
   }
 
   // Legacy markdown-style content processing
@@ -403,6 +405,10 @@ function htmlToPlainText(html: string): string {
     .replace(/<hr\s*\/?>/gi, "\n---\n")
     // Add bullet points for list items
     .replace(/<li[^>]*>/gi, "• ")
+    // Convert images to text description with link
+    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, "[Image: $2] ($1)")
+    .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, "[Image: $1] ($2)")
+    .replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, "[Image] ($1)")
     // Strip remaining HTML tags
     .replace(/<[^>]*>/g, "")
     // Clean up whitespace
