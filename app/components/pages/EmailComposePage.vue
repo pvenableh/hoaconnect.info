@@ -400,17 +400,13 @@ useSeoMeta({
 
                 <div class="space-y-2">
                   <Label for="content">Message *</Label>
-                  <Textarea
-                    id="content"
+                  <TiptapEditor
                     v-model="form.content"
-                    placeholder="Write your email message here...
-
-You can use **bold** and *italic* formatting."
-                    rows="12"
-                    class="font-mono text-sm"
+                    placeholder="Write your email message here..."
                   />
                   <p class="text-xs text-stone-500">
-                    Tip: Use **text** for bold and *text* for italic
+                    Use the toolbar above to format your text with bold, italic,
+                    headings, lists, and more.
                   </p>
                 </div>
               </CardContent>
