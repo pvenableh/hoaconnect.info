@@ -2,10 +2,15 @@
  * Admin middleware - protects admin-only routes
  * Only allows access to users with admin roles (App Administrator or HOA Admin)
  * Regular members will be redirected to the documents page
+ *
+ * SECURITY: This middleware checks admin access for the CURRENT domain/organization
+ * being viewed, not just the user's selected organization. This prevents users
+ * who are admins of Org A from accessing admin routes on Org B's domain.
  */
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
   const { user } = useDirectusAuth();
+  const { activeHoa, isCustomDomain } = useActiveHoa();
 
   // First check if user is logged in
   if (!loggedIn.value) {
@@ -18,17 +23,46 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Get user's role in current organization
   if (user.value) {
+    // Ensure useSelectedOrg is called to populate memberships state
     const { isAdmin, currentOrg } = await useSelectedOrg();
 
-    // If not an admin, redirect to documents page (front-facing content)
-    if (!isAdmin.value) {
-      // Get org slug for redirect
-      const slug = currentOrg.value?.organization?.slug;
-      if (slug) {
-        return navigateTo(`/${slug}/documents`);
+    // Determine if we're on an org-specific context (custom domain or slug route)
+    const isOnOrgContext = isCustomDomain.value || !!to.params.slug;
+
+    // If on an org-specific context, check admin access for THAT org specifically
+    if (isOnOrgContext) {
+      const { isAdminOfCurrentDomain, isMemberOfCurrentDomain } =
+        useCurrentDomainAccess();
+
+      // If user is not an admin of the current domain's organization, deny access
+      if (!isAdminOfCurrentDomain.value) {
+        // Get the slug for redirect - prefer route param, then activeHoa
+        const slug =
+          (to.params.slug as string) || activeHoa.value?.slug || null;
+
+        // If user is at least a member, redirect to documents
+        if (isMemberOfCurrentDomain.value && slug) {
+          return navigateTo(`/${slug}/documents`);
+        }
+
+        // If user is not a member at all, redirect to the org's public page or home
+        if (slug) {
+          return navigateTo(`/${slug}`);
+        }
+
+        // Fallback to home if no slug available
+        return navigateTo("/");
       }
-      // Fallback to dashboard if no org slug
-      return navigateTo("/dashboard");
+    } else {
+      // On main domain (e.g., /dashboard route without org context)
+      // Use the original selectedOrg logic
+      if (!isAdmin.value) {
+        const slug = currentOrg.value?.organization?.slug;
+        if (slug) {
+          return navigateTo(`/${slug}/documents`);
+        }
+        return navigateTo("/dashboard");
+      }
     }
   }
 });

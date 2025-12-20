@@ -53,6 +53,52 @@ const {
       memberType: ref(null),
     };
 
+// Get current domain access - checks if user is admin/member of the org they're VIEWING
+// This is critical for security: prevents showing admin UI to users who are admins
+// of a different org than the one they're currently viewing
+const {
+  isAdminOfCurrentDomain,
+  isMemberOfCurrentDomain,
+  isBoardMemberOfCurrentDomain,
+} = useCurrentDomainAccess();
+
+// Determine if admin UI should be shown
+// On org context (custom domain or slug route): only show if admin of THAT org
+// On main domain: show based on selected org admin status
+const showAdminUI = computed(() => {
+  // If not logged in, never show admin UI
+  if (!user.value) return false;
+
+  // If on org context (custom domain or slug route), check current domain access
+  if (isOnOrgPage.value || isCustomDomain.value) {
+    return isAdminOfCurrentDomain.value;
+  }
+
+  // On main domain, use selected org admin status
+  return isAdmin.value;
+});
+
+// Determine the appropriate user status badge for current context
+const contextAwareStatusBadge = computed(() => {
+  // On org context, use current domain membership info
+  if (isOnOrgPage.value || isCustomDomain.value) {
+    if (isAdminOfCurrentDomain.value) return "Admin";
+    if (isBoardMemberOfCurrentDomain.value) return "Board Member";
+    if (isMemberOfCurrentDomain.value) return "Member";
+    // User is not a member of this org - don't show any badge
+    return null;
+  }
+
+  // On main domain, use selected org info
+  if (isAdmin.value) return "Admin";
+  if (isBoardMember.value && boardTitleDisplay.value) {
+    return boardTitleDisplay.value;
+  }
+  if (memberType.value === "owner") return "Owner";
+  if (memberType.value === "tenant") return "Resident";
+  return null;
+});
+
 // Build logo URL from Directus asset - prefer activeHoa for public pages, then currentOrg for logged-in users
 const orgLogoUrl = computed(() => {
   // First check activeHoa (public org page)
@@ -155,15 +201,10 @@ const adminNavItems = computed(() => [
   },
 ]);
 
-// Get role/status badge text for user
+// Legacy userStatusBadge - kept for backwards compatibility but prefer contextAwareStatusBadge
 const userStatusBadge = computed(() => {
-  if (isAdmin.value) return "Admin";
-  if (isBoardMember.value && boardTitleDisplay.value) {
-    return boardTitleDisplay.value;
-  }
-  if (memberType.value === "owner") return "Owner";
-  if (memberType.value === "tenant") return "Resident";
-  return null;
+  // Use context-aware badge which properly checks current domain membership
+  return contextAwareStatusBadge.value;
 });
 
 // Marketing nav items (for main domain)
@@ -259,14 +300,14 @@ watch(
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
           <OrgSelector class="hidden sm:flex" />
-          <!-- User status badge -->
+          <!-- User status badge - uses context-aware admin check -->
           <span
             v-if="userStatusBadge && !isMainMarketingDomain"
             class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
             :class="{
-              'bg-amber-100 text-amber-800': isAdmin,
-              'bg-blue-100 text-blue-800': isBoardMember && !isAdmin,
-              'bg-stone-100 text-stone-700': !isAdmin && !isBoardMember,
+              'bg-amber-100 text-amber-800': showAdminUI,
+              'bg-blue-100 text-blue-800': !showAdminUI && userStatusBadge === 'Board Member',
+              'bg-stone-100 text-stone-700': !showAdminUI && userStatusBadge !== 'Board Member',
             }"
           >
             {{ userStatusBadge }}
@@ -349,9 +390,9 @@ watch(
                     v-if="userStatusBadge"
                     class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
                     :class="{
-                      'bg-amber-100 text-amber-800': isAdmin,
-                      'bg-blue-100 text-blue-800': isBoardMember && !isAdmin,
-                      'bg-stone-100 text-stone-700': !isAdmin && !isBoardMember,
+                      'bg-amber-100 text-amber-800': showAdminUI,
+                      'bg-blue-100 text-blue-800': !showAdminUI && userStatusBadge === 'Board Member',
+                      'bg-stone-100 text-stone-700': !showAdminUI && userStatusBadge !== 'Board Member',
                     }"
                   >
                     {{ userStatusBadge }}
@@ -389,8 +430,8 @@ watch(
                 </nav>
               </div>
 
-              <!-- Admin Navigation -->
-              <div v-if="isAdmin" class="py-4 border-t border-stone-200">
+              <!-- Admin Navigation - only show if user is admin of current domain's org -->
+              <div v-if="showAdminUI" class="py-4 border-t border-stone-200">
                 <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
                   Admin
                 </p>
@@ -464,9 +505,9 @@ watch(
         </a>
       </div>
 
-      <!-- Admin Navigation Row - Desktop only -->
+      <!-- Admin Navigation Row - Desktop only, only show if user is admin of current domain's org -->
       <div
-        v-if="user && isAdmin && !isMainMarketingDomain"
+        v-if="user && showAdminUI && !isMainMarketingDomain"
         class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t border-stone-100"
       >
         <span class="text-xs uppercase tracking-wider text-stone-400 mr-4"
