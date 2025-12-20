@@ -194,6 +194,7 @@ const adminNavItems = computed(() => [
   },
   { label: "Units", path: buildPath("/admin/units"), icon: "door-closed" },
   { label: "Members", path: buildPath("/admin/members"), icon: "users" },
+  { label: "Email", path: buildPath("/admin/email"), icon: "mail" },
   {
     label: "Settings",
     path: buildPath("/admin/settings/organization"),
