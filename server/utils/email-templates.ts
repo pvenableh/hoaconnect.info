@@ -165,6 +165,50 @@ function buildHeader(
 }
 
 /**
+ * Check if content appears to be HTML
+ */
+function isHtmlContent(content: string): boolean {
+  // Check for common HTML tags that indicate rich text content
+  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img)[^>]*>/i.test(content);
+}
+
+/**
+ * Process content for email body
+ * Handles both HTML (from Tiptap editor) and plain text/markdown
+ */
+function processContent(content: string): string {
+  if (isHtmlContent(content)) {
+    // Content is already HTML from Tiptap editor - add inline styles for email compatibility
+    return content
+      // Style headings
+      .replace(/<h1([^>]*)>/gi, '<h1$1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1f2937;">')
+      .replace(/<h2([^>]*)>/gi, '<h2$1 style="margin: 0 0 14px 0; font-size: 20px; font-weight: 700; color: #1f2937;">')
+      .replace(/<h3([^>]*)>/gi, '<h3$1 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #1f2937;">')
+      // Style paragraphs
+      .replace(/<p([^>]*)>/gi, '<p$1 style="margin: 0 0 16px 0; line-height: 1.6;">')
+      // Style lists
+      .replace(/<ul([^>]*)>/gi, '<ul$1 style="margin: 0 0 16px 0; padding-left: 24px;">')
+      .replace(/<ol([^>]*)>/gi, '<ol$1 style="margin: 0 0 16px 0; padding-left: 24px;">')
+      .replace(/<li([^>]*)>/gi, '<li$1 style="margin: 0 0 8px 0; line-height: 1.6;">')
+      // Style blockquotes
+      .replace(/<blockquote([^>]*)>/gi, '<blockquote$1 style="margin: 16px 0; padding: 12px 16px; border-left: 4px solid #d1d5db; background-color: #f9fafb; font-style: italic; color: #4b5563;">')
+      // Style links
+      .replace(/<a([^>]*href[^>]*)>/gi, '<a$1 style="color: #3b82f6; text-decoration: underline;">')
+      // Style horizontal rules
+      .replace(/<hr([^>]*)>/gi, '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">')
+      // Style images - make them responsive and centered for email
+      .replace(/<img([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px;">');
+  }
+
+  // Legacy markdown-style content processing
+  return content
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/\n\n/g, '</p><p style="margin: 0 0 16px 0; line-height: 1.6;">')
+    .replace(/\n/g, "<br>");
+}
+
+/**
  * Build the email body with content
  */
 function buildBody(
@@ -176,12 +220,8 @@ function buildBody(
 ): string {
   const style = emailTypeStyles[emailType];
 
-  // Process content - convert markdown-style formatting to HTML
-  const processedContent = content
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    .replace(/\n\n/g, "</p><p style=\"margin: 0 0 16px 0; line-height: 1.6;\">")
-    .replace(/\n/g, "<br>");
+  // Process content - handles both HTML and markdown
+  const processedContent = processContent(content);
 
   // Process greeting with template variable replacement
   const greetingTemplate = greeting || getDefaultGreeting(orgName || "");
@@ -197,7 +237,7 @@ function buildBody(
         <td style="padding: 32px; background-color: #ffffff;">
           ${greetingHtml}
           <div style="color: #374151; font-size: 16px; line-height: 1.6;">
-            <p style="margin: 0 0 16px 0; line-height: 1.6;">${processedContent}</p>
+            ${processedContent}
           </div>
         </td>
       </tr>
@@ -352,6 +392,31 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
 }
 
 /**
+ * Convert HTML content to plain text
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    // Convert line breaks and block elements to newlines
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/blockquote>/gi, "\n\n")
+    .replace(/<hr\s*\/?>/gi, "\n---\n")
+    // Add bullet points for list items
+    .replace(/<li[^>]*>/gi, "• ")
+    // Convert images to text description with link
+    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, "[Image: $2] ($1)")
+    .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, "[Image: $1] ($2)")
+    .replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, "[Image] ($1)")
+    // Strip remaining HTML tags
+    .replace(/<[^>]*>/g, "")
+    // Clean up whitespace
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * Build a plain text version of the email for fallback
  */
 export function buildEmailText(options: EmailTemplateOptions): string {
@@ -368,11 +433,15 @@ export function buildEmailText(options: EmailTemplateOptions): string {
     text += `${processedGreeting}\n\n`;
   }
 
-  // Content - strip HTML and markdown
-  const plainContent = content
-    .replace(/<[^>]*>/g, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1");
+  // Content - convert HTML to plain text, also handle legacy markdown
+  let plainContent: string;
+  if (isHtmlContent(content)) {
+    plainContent = htmlToPlainText(content);
+  } else {
+    plainContent = content
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1");
+  }
   text += `${plainContent}\n\n`;
 
   // Salutation

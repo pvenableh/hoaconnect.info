@@ -24,6 +24,13 @@ const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
 
+// Get organization folder ID for file uploads
+const orgFolderId = computed(() => {
+  const folder = organization.value?.folder;
+  if (!folder) return null;
+  return typeof folder === "string" ? folder : folder.id;
+});
+
 // Form state
 const form = reactive({
   subject: "",
@@ -400,17 +407,14 @@ useSeoMeta({
 
                 <div class="space-y-2">
                   <Label for="content">Message *</Label>
-                  <Textarea
-                    id="content"
+                  <TiptapEditor
                     v-model="form.content"
-                    placeholder="Write your email message here...
-
-You can use **bold** and *italic* formatting."
-                    rows="12"
-                    class="font-mono text-sm"
+                    placeholder="Write your email message here..."
+                    :folder-id="orgFolderId"
                   />
                   <p class="text-xs text-stone-500">
-                    Tip: Use **text** for bold and *text* for italic
+                    Use the toolbar to format text, add images, or browse your
+                    organization's files.
                   </p>
                 </div>
               </CardContent>
