@@ -47,21 +47,275 @@ async function collectionExists(collection: string): Promise<boolean> {
   }
 }
 
-// Check if a field exists
-async function fieldExists(collection: string, field: string): Promise<boolean> {
-  try {
-    await schemaRequest("GET", `/fields/${collection}/${field}`);
-    return true;
-  } catch {
-    return false;
+async function createEmailRecipientsCollection() {
+  const collectionName = "hoa_email_recipients";
+
+  if (await collectionExists(collectionName)) {
+    console.log(
+      `⏭️  Collection "${collectionName}" already exists, skipping...`
+    );
+    return;
   }
+
+  console.log(`📦 Creating collection: ${collectionName}`);
+
+  await schemaRequest("POST", "/collections", {
+    collection: collectionName,
+    meta: {
+      collection: collectionName,
+      icon: "mark_email_read",
+      note: "Individual email recipients for tracking delivery status",
+      hidden: false,
+      singleton: false,
+      accountability: "all",
+    },
+    schema: {
+      name: collectionName,
+    },
+    fields: [
+      {
+        field: "id",
+        type: "uuid",
+        meta: {
+          hidden: true,
+          interface: "input",
+          readonly: true,
+          special: ["uuid"],
+        },
+        schema: {
+          is_primary_key: true,
+          has_auto_increment: false,
+        },
+      },
+      {
+        field: "sort",
+        type: "integer",
+        meta: {
+          interface: "input",
+          hidden: true,
+        },
+        schema: {},
+      },
+      {
+        field: "user_created",
+        type: "uuid",
+        meta: {
+          special: ["user-created"],
+          interface: "select-dropdown-m2o",
+          readonly: true,
+          hidden: true,
+          width: "half",
+        },
+        schema: {},
+      },
+      {
+        field: "date_created",
+        type: "timestamp",
+        meta: {
+          special: ["date-created"],
+          interface: "datetime",
+          readonly: true,
+          hidden: true,
+          width: "half",
+          display: "datetime",
+          display_options: {
+            relative: true,
+          },
+        },
+        schema: {},
+      },
+      {
+        field: "recipient_email",
+        type: "string",
+        meta: {
+          interface: "input",
+          display: "formatted-value",
+          width: "half",
+          note: "Email address at time of sending",
+        },
+        schema: {
+          max_length: 255,
+        },
+      },
+      {
+        field: "recipient_name",
+        type: "string",
+        meta: {
+          interface: "input",
+          width: "half",
+          note: "Recipient name at time of sending",
+        },
+        schema: {
+          max_length: 255,
+        },
+      },
+      {
+        field: "status",
+        type: "string",
+        meta: {
+          interface: "select-dropdown",
+          options: {
+            choices: [
+              { text: "Pending", value: "pending" },
+              { text: "Sent", value: "sent" },
+              { text: "Delivered", value: "delivered" },
+              { text: "Failed", value: "failed" },
+              { text: "Bounced", value: "bounced" },
+            ],
+          },
+          display: "labels",
+          display_options: {
+            choices: [
+              {
+                text: "Pending",
+                value: "pending",
+                foreground: "#78716C",
+                background: "#F5F5F4",
+              },
+              {
+                text: "Sent",
+                value: "sent",
+                foreground: "#1E40AF",
+                background: "#DBEAFE",
+              },
+              {
+                text: "Delivered",
+                value: "delivered",
+                foreground: "#059669",
+                background: "#D1FAE5",
+              },
+              {
+                text: "Failed",
+                value: "failed",
+                foreground: "#DC2626",
+                background: "#FEE2E2",
+              },
+              {
+                text: "Bounced",
+                value: "bounced",
+                foreground: "#EA580C",
+                background: "#FFEDD5",
+              },
+            ],
+          },
+          default_value: "pending",
+          width: "half",
+        },
+        schema: {
+          default_value: "pending",
+        },
+      },
+      {
+        field: "sent_at",
+        type: "timestamp",
+        meta: {
+          interface: "datetime",
+          display: "datetime",
+          display_options: {
+            relative: true,
+          },
+          width: "half",
+        },
+        schema: {},
+      },
+      {
+        field: "error_message",
+        type: "text",
+        meta: {
+          interface: "input-multiline",
+          width: "full",
+          note: "Error message if delivery failed",
+        },
+        schema: {},
+      },
+      {
+        field: "sg_message_id",
+        type: "string",
+        meta: {
+          interface: "input",
+          width: "half",
+          note: "SendGrid message ID for tracking",
+          hidden: true,
+        },
+        schema: {
+          max_length: 255,
+        },
+      },
+    ],
+  });
+
+  // Create the email field first
+  await schemaRequest("POST", `/fields/${collectionName}`, {
+    field: "email",
+    type: "uuid",
+    meta: {
+      interface: "select-dropdown-m2o",
+      special: ["m2o"],
+      display: "related-values",
+      display_options: {
+        template: "{{subject}}",
+      },
+      width: "half",
+    },
+    schema: {},
+  });
+
+  // Then create relation to hoa_emails
+  await schemaRequest("POST", "/relations", {
+    collection: collectionName,
+    field: "email",
+    related_collection: "hoa_emails",
+    meta: {
+      one_field: "recipients",
+      sort_field: "sort",
+      one_deselect_action: "nullify",
+    },
+    schema: {
+      on_delete: "CASCADE",
+    },
+  });
+
+  // Create the member field first
+  await schemaRequest("POST", `/fields/${collectionName}`, {
+    field: "member",
+    type: "uuid",
+    meta: {
+      interface: "select-dropdown-m2o",
+      special: ["m2o"],
+      display: "related-values",
+      display_options: {
+        template: "{{first_name}} {{last_name}}",
+      },
+      width: "half",
+    },
+    schema: {},
+  });
+
+  // Then create relation to hoa_members
+  await schemaRequest("POST", "/relations", {
+    collection: collectionName,
+    field: "member",
+    related_collection: "hoa_members",
+    meta: {
+      one_field: null,
+      sort_field: null,
+      one_deselect_action: "nullify",
+    },
+    schema: {
+      on_delete: "SET NULL",
+    },
+  });
+
+  console.log(`✅ Created collection: ${collectionName}`);
 }
 
 async function createEmailActivityCollection() {
   const collectionName = "hoa_email_activity";
 
   if (await collectionExists(collectionName)) {
-    console.log(`⏭️  Collection "${collectionName}" already exists, skipping...`);
+    console.log(
+      `⏭️  Collection "${collectionName}" already exists, skipping...`
+    );
     return;
   }
 
@@ -155,11 +409,36 @@ async function createEmailActivityCollection() {
           display: "labels",
           display_options: {
             choices: [
-              { text: "Open", value: "open", foreground: "#1E40AF", background: "#DBEAFE" },
-              { text: "Click", value: "click", foreground: "#7C3AED", background: "#EDE9FE" },
-              { text: "Delivered", value: "delivered", foreground: "#059669", background: "#D1FAE5" },
-              { text: "Bounce", value: "bounce", foreground: "#EA580C", background: "#FFEDD5" },
-              { text: "Dropped", value: "dropped", foreground: "#DC2626", background: "#FEE2E2" },
+              {
+                text: "Open",
+                value: "open",
+                foreground: "#1E40AF",
+                background: "#DBEAFE",
+              },
+              {
+                text: "Click",
+                value: "click",
+                foreground: "#7C3AED",
+                background: "#EDE9FE",
+              },
+              {
+                text: "Delivered",
+                value: "delivered",
+                foreground: "#059669",
+                background: "#D1FAE5",
+              },
+              {
+                text: "Bounce",
+                value: "bounce",
+                foreground: "#EA580C",
+                background: "#FFEDD5",
+              },
+              {
+                text: "Dropped",
+                value: "dropped",
+                foreground: "#DC2626",
+                background: "#FEE2E2",
+              },
             ],
           },
           required: true,
@@ -252,22 +531,7 @@ async function createEmailActivityCollection() {
   // Create relations after collection is created
   console.log(`🔗 Creating relations for ${collectionName}...`);
 
-  // Relation to hoa_email_recipients
-  await schemaRequest("POST", "/relations", {
-    collection: collectionName,
-    field: "email_recipient",
-    related_collection: "hoa_email_recipients",
-    meta: {
-      one_field: null,
-      sort_field: null,
-      one_deselect_action: "nullify",
-    },
-    schema: {
-      on_delete: "SET NULL",
-    },
-  });
-
-  // Create the email_recipient field
+  // Create the email_recipient field first
   await schemaRequest("POST", `/fields/${collectionName}`, {
     field: "email_recipient",
     type: "uuid",
@@ -283,11 +547,11 @@ async function createEmailActivityCollection() {
     schema: {},
   });
 
-  // Relation to hoa_members
+  // Then relation to hoa_email_recipients
   await schemaRequest("POST", "/relations", {
     collection: collectionName,
-    field: "member",
-    related_collection: "hoa_members",
+    field: "email_recipient",
+    related_collection: "hoa_email_recipients",
     meta: {
       one_field: null,
       sort_field: null,
@@ -298,7 +562,7 @@ async function createEmailActivityCollection() {
     },
   });
 
-  // Create the member field
+  // Create the member field first
   await schemaRequest("POST", `/fields/${collectionName}`, {
     field: "member",
     type: "uuid",
@@ -314,6 +578,21 @@ async function createEmailActivityCollection() {
     schema: {},
   });
 
+  // Then relation to hoa_members
+  await schemaRequest("POST", "/relations", {
+    collection: collectionName,
+    field: "member",
+    related_collection: "hoa_members",
+    meta: {
+      one_field: null,
+      sort_field: null,
+      one_deselect_action: "nullify",
+    },
+    schema: {
+      on_delete: "SET NULL",
+    },
+  });
+
   console.log(`✅ Created collection: ${collectionName}`);
 }
 
@@ -321,7 +600,9 @@ async function createMailingListsCollection() {
   const collectionName = "hoa_mailing_lists";
 
   if (await collectionExists(collectionName)) {
-    console.log(`⏭️  Collection "${collectionName}" already exists, skipping...`);
+    console.log(
+      `⏭️  Collection "${collectionName}" already exists, skipping...`
+    );
     return;
   }
 
@@ -370,9 +651,24 @@ async function createMailingListsCollection() {
           display: "labels",
           display_options: {
             choices: [
-              { text: "Published", value: "published", foreground: "#FFFFFF", background: "#22C55E" },
-              { text: "Draft", value: "draft", foreground: "#78716C", background: "#F5F5F4" },
-              { text: "Archived", value: "archived", foreground: "#FFFFFF", background: "#A8A29E" },
+              {
+                text: "Published",
+                value: "published",
+                foreground: "#FFFFFF",
+                background: "#22C55E",
+              },
+              {
+                text: "Draft",
+                value: "draft",
+                foreground: "#78716C",
+                background: "#F5F5F4",
+              },
+              {
+                text: "Archived",
+                value: "archived",
+                foreground: "#FFFFFF",
+                background: "#A8A29E",
+              },
             ],
           },
           default_value: "draft",
@@ -510,21 +806,7 @@ async function createMailingListsCollection() {
     ],
   });
 
-  // Create relation to organization
-  await schemaRequest("POST", "/relations", {
-    collection: collectionName,
-    field: "organization",
-    related_collection: "hoa_organizations",
-    meta: {
-      one_field: null,
-      sort_field: null,
-      one_deselect_action: "nullify",
-    },
-    schema: {
-      on_delete: "CASCADE",
-    },
-  });
-
+  // Create organization field first
   await schemaRequest("POST", `/fields/${collectionName}`, {
     field: "organization",
     type: "uuid",
@@ -540,6 +822,21 @@ async function createMailingListsCollection() {
     schema: {},
   });
 
+  // Then create relation to organization
+  await schemaRequest("POST", "/relations", {
+    collection: collectionName,
+    field: "organization",
+    related_collection: "hoa_organizations",
+    meta: {
+      one_field: null,
+      sort_field: null,
+      one_deselect_action: "nullify",
+    },
+    schema: {
+      on_delete: "CASCADE",
+    },
+  });
+
   console.log(`✅ Created collection: ${collectionName}`);
 }
 
@@ -547,7 +844,9 @@ async function createMailingListMembersCollection() {
   const collectionName = "hoa_mailing_list_members";
 
   if (await collectionExists(collectionName)) {
-    console.log(`⏭️  Collection "${collectionName}" already exists, skipping...`);
+    console.log(
+      `⏭️  Collection "${collectionName}" already exists, skipping...`
+    );
     return;
   }
 
@@ -606,7 +905,19 @@ async function createMailingListMembersCollection() {
     ],
   });
 
-  // Create relation to mailing_list
+  // Create mailing_list field first
+  await schemaRequest("POST", `/fields/${collectionName}`, {
+    field: "mailing_list",
+    type: "uuid",
+    meta: {
+      interface: "select-dropdown-m2o",
+      special: ["m2o"],
+      hidden: true,
+    },
+    schema: {},
+  });
+
+  // Then create relation to mailing_list
   await schemaRequest("POST", "/relations", {
     collection: collectionName,
     field: "mailing_list",
@@ -621,32 +932,7 @@ async function createMailingListMembersCollection() {
     },
   });
 
-  await schemaRequest("POST", `/fields/${collectionName}`, {
-    field: "mailing_list",
-    type: "uuid",
-    meta: {
-      interface: "select-dropdown-m2o",
-      special: ["m2o"],
-      hidden: true,
-    },
-    schema: {},
-  });
-
-  // Create relation to member
-  await schemaRequest("POST", "/relations", {
-    collection: collectionName,
-    field: "member",
-    related_collection: "hoa_members",
-    meta: {
-      one_field: null,
-      sort_field: null,
-      one_deselect_action: "nullify",
-    },
-    schema: {
-      on_delete: "CASCADE",
-    },
-  });
-
+  // Create member field first
   await schemaRequest("POST", `/fields/${collectionName}`, {
     field: "member",
     type: "uuid",
@@ -659,6 +945,21 @@ async function createMailingListMembersCollection() {
       },
     },
     schema: {},
+  });
+
+  // Then create relation to member
+  await schemaRequest("POST", "/relations", {
+    collection: collectionName,
+    field: "member",
+    related_collection: "hoa_members",
+    meta: {
+      one_field: null,
+      sort_field: null,
+      one_deselect_action: "nullify",
+    },
+    schema: {
+      on_delete: "CASCADE",
+    },
   });
 
   // Add O2M field to hoa_mailing_lists for the members relation
@@ -678,56 +979,29 @@ async function createMailingListMembersCollection() {
   console.log(`✅ Created collection: ${collectionName}`);
 }
 
-async function addSgMessageIdToRecipients() {
-  const collection = "hoa_email_recipients";
-  const field = "sg_message_id";
-
-  if (await fieldExists(collection, field)) {
-    console.log(`⏭️  Field "${collection}.${field}" already exists, skipping...`);
-    return;
-  }
-
-  console.log(`📝 Adding field: ${collection}.${field}`);
-
-  await schemaRequest("POST", `/fields/${collection}`, {
-    field: field,
-    type: "string",
-    meta: {
-      interface: "input",
-      width: "half",
-      note: "SendGrid message ID for tracking",
-      hidden: true,
-    },
-    schema: {
-      max_length: 255,
-    },
-  });
-
-  console.log(`✅ Added field: ${collection}.${field}`);
-}
-
 async function main() {
   console.log("🚀 Starting email activity migration...\n");
 
   try {
-    // Add sg_message_id to existing recipients collection
-    await addSgMessageIdToRecipients();
-
-    // Create new collections
+    // Create collections in order (dependencies first)
+    await createEmailRecipientsCollection();
     await createEmailActivityCollection();
     await createMailingListsCollection();
     await createMailingListMembersCollection();
 
     console.log("\n✅ Migration completed successfully!");
     console.log("\n📋 Collections created:");
+    console.log("   - hoa_email_recipients (Email recipient tracking)");
     console.log("   - hoa_email_activity (SendGrid event tracking)");
     console.log("   - hoa_mailing_lists (Custom mailing lists)");
     console.log("   - hoa_mailing_list_members (Junction table)");
-    console.log("\n📝 Fields added:");
-    console.log("   - hoa_email_recipients.sg_message_id");
     console.log("\n⚠️  Don't forget to:");
-    console.log("   1. Set up SendGrid webhook URL: YOUR_URL/api/email/activity");
-    console.log("   2. Enable event types in SendGrid: opens, clicks, bounces, delivered, etc.");
+    console.log(
+      "   1. Set up SendGrid webhook URL: YOUR_URL/api/email/activity"
+    );
+    console.log(
+      "   2. Enable event types in SendGrid: opens, clicks, bounces, delivered, etc."
+    );
     console.log("   3. Configure permissions for new collections in Directus");
   } catch (error) {
     console.error("\n❌ Migration failed:", error);

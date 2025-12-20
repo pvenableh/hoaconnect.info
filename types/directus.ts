@@ -73,7 +73,6 @@ export interface Coupon {
 	/** @required */
 	type: 'percentage' | 'amount';
 	valid_until?: string | null;
-	/** @description Stripe coupon ID for applying discounts at checkout */
 	stripe_coupon_id?: string | null;
 	usage?: CouponUsage[] | string[];
 	applicable_plans?: CouponsSubscriptionPlan[] | string[];
@@ -135,116 +134,6 @@ export interface HoaBoardMember {
 	message?: string | null;
 }
 
-export interface HoaEmail {
-	/** @primaryKey */
-	id: string;
-	status?: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
-	sort?: number | null;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	user_updated?: DirectusUser | string | null;
-	date_updated?: string | null;
-	organization?: HoaOrganization | string | null;
-	/** @required */
-	subject: string;
-	/** @required */
-	content: string;
-	/** @required */
-	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
-	scheduled_at?: string | null;
-	sent_at?: string | null;
-	/** @description Greeting template with {{first_name}} placeholder (e.g., "Hello {{first_name}},") */
-	greeting?: string | null;
-	/** @description Custom salutation for footer (e.g., "Warm regards", "Best wishes") */
-	salutation?: string | null;
-	/** @description Whether to include board members in footer */
-	include_board_footer?: boolean | null;
-	/** @description Total recipients count */
-	recipient_count?: number | null;
-	/** @description Delivered count */
-	delivered_count?: number | null;
-	/** @description Failed delivery count */
-	failed_count?: number | null;
-	recipients?: HoaEmailRecipient[] | string[];
-}
-
-export interface HoaEmailRecipient {
-	/** @primaryKey */
-	id: string;
-	sort?: number | null;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	email?: HoaEmail | string | null;
-	member?: HoaMember | string | null;
-	/** @description Email address at time of sending */
-	recipient_email?: string | null;
-	/** @description Recipient name at time of sending */
-	recipient_name?: string | null;
-	status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced';
-	sent_at?: string | null;
-	error_message?: string | null;
-	/** @description SendGrid message ID for tracking */
-	sg_message_id?: string | null;
-}
-
-export interface HoaEmailActivity {
-	/** @primaryKey */
-	id: string;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	/** @description The email recipient this activity belongs to */
-	email_recipient?: HoaEmailRecipient | string | null;
-	/** @description The member associated with this activity */
-	member?: HoaMember | string | null;
-	/** @description SendGrid event type: open, click, bounce, dropped, delivered, etc. */
-	event: 'processed' | 'dropped' | 'delivered' | 'deferred' | 'bounce' | 'open' | 'click' | 'spam_report' | 'unsubscribe' | 'group_unsubscribe' | 'group_resubscribe';
-	/** @description The email address this event relates to */
-	email?: string | null;
-	/** @description SendGrid message ID */
-	sg_message_id?: string | null;
-	/** @description URL that was clicked (for click events) */
-	clicked_url?: string | null;
-	/** @description User agent from the event */
-	user_agent?: string | null;
-	/** @description IP address from the event */
-	ip?: string | null;
-	/** @description Bounce/drop reason */
-	reason?: string | null;
-	/** @description Raw event timestamp from SendGrid */
-	event_timestamp?: number | null;
-}
-
-export interface HoaMailingList {
-	/** @primaryKey */
-	id: string;
-	status?: 'published' | 'draft' | 'archived';
-	sort?: number | null;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	user_updated?: DirectusUser | string | null;
-	date_updated?: string | null;
-	organization?: HoaOrganization | string | null;
-	/** @required */
-	name: string;
-	description?: string | null;
-	/** @description Filter type: all, owners, tenants, or custom */
-	filter_type?: 'all' | 'owners' | 'tenants' | 'custom' | null;
-	/** @description Custom filter criteria as JSON */
-	filter_criteria?: Record<string, unknown> | null;
-	/** @description Cached member count */
-	member_count?: number | null;
-	members?: HoaMailingListMember[] | string[];
-}
-
-export interface HoaMailingListMember {
-	/** @primaryKey */
-	id: string;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	mailing_list?: HoaMailingList | string | null;
-	member?: HoaMember | string | null;
-}
-
 export interface HoaDocumentCategory {
 	/** @primaryKey */
 	id: string;
@@ -279,6 +168,47 @@ export interface HoaDocument {
 	document_category?: HoaDocumentCategory | string | null;
 }
 
+export interface HoaEmailActivity {
+	/** @primaryKey */
+	id: string;
+	user_created?: string | null;
+	date_created?: string | null;
+	/** @required */
+	event: 'processed' | 'dropped' | 'delivered' | 'deferred' | 'bounce' | 'open' | 'click' | 'spam_report' | 'unsubscribe' | 'group_unsubscribe' | 'group_resubscribe';
+	/** @description Email address this event relates to */
+	email?: string | null;
+	/** @description SendGrid message ID for correlation */
+	sg_message_id?: string | null;
+	/** @description URL that was clicked (for click events) */
+	clicked_url?: string | null;
+	user_agent?: string | null;
+	ip?: string | null;
+	/** @description Bounce/drop reason */
+	reason?: string | null;
+	/** @description Raw event timestamp from SendGrid (Unix timestamp) */
+	event_timestamp?: number | null;
+	email_recipient?: HoaEmailRecipient | string | null;
+	member?: HoaMember | string | null;
+}
+
+export interface HoaEmailRecipient {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: string | null;
+	date_created?: string | null;
+	/** @description Email address at time of sending */
+	recipient_email?: string | null;
+	/** @description Recipient name at time of sending */
+	recipient_name?: string | null;
+	status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced' | null;
+	sent_at?: string | null;
+	/** @description Error message if delivery failed */
+	error_message?: string | null;
+	/** @description SendGrid message ID for tracking */
+	sg_message_id?: string | null;
+}
+
 export interface HoaInvitation {
 	/** @primaryKey */
 	id: string;
@@ -296,6 +226,37 @@ export interface HoaInvitation {
 	/** @required */
 	expires_at: string;
 	accepted_at?: string | null;
+}
+
+export interface HoaMailingListMember {
+	/** @primaryKey */
+	id: string;
+	user_created?: string | null;
+	date_created?: string | null;
+	mailing_list?: HoaMailingList | string | null;
+	member?: HoaMember | string | null;
+}
+
+export interface HoaMailingList {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived' | null;
+	sort?: number | null;
+	user_created?: string | null;
+	date_created?: string | null;
+	user_updated?: string | null;
+	date_updated?: string | null;
+	/** @required */
+	name: string;
+	description?: string | null;
+	/** @description Filter type for auto-populating members */
+	filter_type?: 'all' | 'owners' | 'tenants' | 'custom' | null;
+	/** @description Custom filter criteria (for custom filter type) */
+	filter_criteria?: Record<string, any> | null;
+	/** @description Cached member count */
+	member_count?: number | null;
+	organization?: HoaOrganization | string | null;
+	members?: HoaMailingListMember[] | string[];
 }
 
 export interface HoaMember {
@@ -382,7 +343,6 @@ export interface HoaOrganization {
 	payment_instructions?: string | null;
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
-	/** @description Free accounts bypass subscription checking entirely */
 	is_free_account?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
@@ -1006,12 +966,11 @@ export interface Schema {
 	hoa_board_members: HoaBoardMember[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
-	hoa_emails: HoaEmail[];
-	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_email_activity: HoaEmailActivity[];
-	hoa_mailing_lists: HoaMailingList[];
-	hoa_mailing_list_members: HoaMailingListMember[];
+	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_invitations: HoaInvitation[];
+	hoa_mailing_list_members: HoaMailingListMember[];
+	hoa_mailing_lists: HoaMailingList[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
 	hoa_organizations: HoaOrganization[];
@@ -1061,12 +1020,11 @@ export enum CollectionNames {
 	hoa_board_members = 'hoa_board_members',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
-	hoa_emails = 'hoa_emails',
-	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_email_activity = 'hoa_email_activity',
-	hoa_mailing_lists = 'hoa_mailing_lists',
-	hoa_mailing_list_members = 'hoa_mailing_list_members',
+	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_invitations = 'hoa_invitations',
+	hoa_mailing_list_members = 'hoa_mailing_list_members',
+	hoa_mailing_lists = 'hoa_mailing_lists',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
 	hoa_organizations = 'hoa_organizations',
