@@ -720,7 +720,7 @@ const getFileIcon = (file: DirectusFile): string => {
 </template>
 
 <style>
-@reference 'tailwindcss';
+@reference "tailwindcss";
 .tiptap-content .tiptap {
   @apply p-4 min-h-[200px] focus:outline-none;
 }
@@ -763,7 +763,8 @@ const getFileIcon = (file: DirectusFile): string => {
 }
 
 .tiptap-content .tiptap a {
-  @apply text-primary underline cursor-pointer;
+  @apply underline cursor-pointer;
+  color: var(--primary);
 }
 
 .tiptap-content .tiptap strong {
@@ -787,6 +788,7 @@ const getFileIcon = (file: DirectusFile): string => {
 }
 
 .tiptap-content .tiptap img.ProseMirror-selectednode {
-  @apply outline outline-2 outline-primary outline-offset-2;
+  @apply outline outline-2 outline-offset-2;
+  outline-color: var(--primary);
 }
 </style>
