@@ -9,6 +9,10 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import type { DirectusFile, DirectusFolder } from "~~/types/directus";
 
 const props = withDefaults(
@@ -68,6 +72,15 @@ const editor = useEditor({
         class: "tiptap-image",
       },
     }),
+    Table.configure({
+      resizable: true,
+      HTMLAttributes: {
+        class: "tiptap-table",
+      },
+    }),
+    TableRow,
+    TableHeader,
+    TableCell,
   ],
   onUpdate: ({ editor }) => {
     emit("update:modelValue", editor.getHTML());
@@ -532,6 +545,51 @@ const getFileIcon = (file: DirectusFile): string => {
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
+      <!-- Table -->
+      <div class="flex items-center gap-0.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
+          title="Insert Table"
+        >
+          <Icon name="lucide:table" class="w-4 h-4" />
+        </Button>
+        <Button
+          v-if="editor.can().addColumnAfter()"
+          type="button"
+          variant="ghost"
+          size="sm"
+          @click="editor.chain().focus().addColumnAfter().run()"
+          title="Add Column"
+        >
+          <Icon name="lucide:columns-3" class="w-4 h-4" />
+        </Button>
+        <Button
+          v-if="editor.can().addRowAfter()"
+          type="button"
+          variant="ghost"
+          size="sm"
+          @click="editor.chain().focus().addRowAfter().run()"
+          title="Add Row"
+        >
+          <Icon name="lucide:rows-3" class="w-4 h-4" />
+        </Button>
+        <Button
+          v-if="editor.can().deleteTable()"
+          type="button"
+          variant="ghost"
+          size="sm"
+          @click="editor.chain().focus().deleteTable().run()"
+          title="Delete Table"
+        >
+          <Icon name="lucide:trash-2" class="w-4 h-4" />
+        </Button>
+      </div>
+
+      <Separator orientation="vertical" class="mx-1 h-6" />
+
       <!-- Undo/Redo -->
       <div class="flex items-center gap-0.5">
         <Button
@@ -790,5 +848,38 @@ const getFileIcon = (file: DirectusFile): string => {
 .tiptap-content .tiptap img.ProseMirror-selectednode {
   @apply outline outline-2 outline-offset-2;
   outline-color: var(--primary);
+}
+
+/* Table styles */
+.tiptap-content .tiptap table {
+  @apply border-collapse w-full my-4;
+}
+
+.tiptap-content .tiptap table td,
+.tiptap-content .tiptap table th {
+  @apply border border-stone-300 p-2 min-w-[100px];
+}
+
+.tiptap-content .tiptap table th {
+  @apply bg-stone-100 font-semibold text-left;
+}
+
+.tiptap-content .tiptap table .selectedCell {
+  @apply bg-stone-100;
+}
+
+.tiptap-content .tiptap .tableWrapper {
+  @apply overflow-x-auto my-4;
+}
+
+/* Column resize handle */
+.tiptap-content .tiptap .column-resize-handle {
+  @apply absolute top-0 w-1 bg-stone-400 cursor-col-resize;
+  right: -2px;
+  bottom: -2px;
+}
+
+.tiptap-content .tiptap .resize-cursor {
+  cursor: col-resize;
 }
 </style>

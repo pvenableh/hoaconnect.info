@@ -169,7 +169,7 @@ function buildHeader(
  */
 function isHtmlContent(content: string): boolean {
   // Check for common HTML tags that indicate rich text content
-  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img)[^>]*>/i.test(content);
+  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img|table|tr|td|th)[^>]*>/i.test(content);
 }
 
 /**
@@ -197,7 +197,11 @@ function processContent(content: string): string {
       // Style horizontal rules
       .replace(/<hr([^>]*)>/gi, '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">')
       // Style images - make them responsive and centered for email
-      .replace(/<img([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px;">');
+      .replace(/<img([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto;">')
+      // Style tables for email
+      .replace(/<table([^>]*)>/gi, '<table$1 style="border-collapse: collapse; width: 100%; margin: 16px 0;">')
+      .replace(/<th([^>]*)>/gi, '<th$1 style="border: 1px solid #d1d5db; padding: 8px 12px; background-color: #f3f4f6; font-weight: 600; text-align: left;">')
+      .replace(/<td([^>]*)>/gi, '<td$1 style="border: 1px solid #d1d5db; padding: 8px 12px;">');
   }
 
   // Legacy markdown-style content processing
@@ -409,6 +413,12 @@ function htmlToPlainText(html: string): string {
     .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, "[Image: $2] ($1)")
     .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, "[Image: $1] ($2)")
     .replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, "[Image] ($1)")
+    // Handle tables - convert to simple text format
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, " | ")
+    .replace(/<\/th>/gi, " | ")
+    .replace(/<table[^>]*>/gi, "\n")
+    .replace(/<\/table>/gi, "\n")
     // Strip remaining HTML tags
     .replace(/<[^>]*>/g, "")
     // Clean up whitespace

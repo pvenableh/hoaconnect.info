@@ -452,7 +452,7 @@ useSeoMeta({
                 <p v-if="email.greeting" class="text-stone-600 italic mb-4">
                   Greeting: {{ email.greeting }}
                 </p>
-                <div class="whitespace-pre-wrap">{{ email.content }}</div>
+                <div class="email-content" v-html="email.content"></div>
               </div>
             </CardContent>
           </Card>
