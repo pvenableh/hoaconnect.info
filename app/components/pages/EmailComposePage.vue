@@ -28,7 +28,12 @@ const orgId = computed(() => selectedOrgId.value);
 const form = reactive({
   subject: "",
   content: "",
-  emailType: "basic" as "basic" | "newsletter" | "announcement" | "reminder" | "notice",
+  emailType: "basic" as
+    | "basic"
+    | "newsletter"
+    | "announcement"
+    | "reminder"
+    | "notice",
   greeting: "",
   salutation: "",
   includeBoardFooter: true,
@@ -54,7 +59,14 @@ const { data: allMembers } = await useAsyncData(
 
     try {
       const result = (await listMembers({
-        fields: ["id", "first_name", "last_name", "email", "status", "member_type"],
+        fields: [
+          "id",
+          "first_name",
+          "last_name",
+          "email",
+          "status",
+          "member_type",
+        ],
         filter: {
           organization: { _eq: orgId.value },
           status: { _eq: "active" },
@@ -81,7 +93,14 @@ const members = computed(() => {
   if (recipientFilter.value === "all") {
     return allMembersList;
   }
-  return allMembersList.filter((m) => m.member_type === recipientFilter.value.slice(0, -1)); // "owners" -> "owner"
+  return allMembersList.filter(
+    (m) => m.member_type === recipientFilter.value.slice(0, -1)
+  ); // "owners" -> "owner"
+});
+
+// Computed label for recipient type (fixes template parsing issue)
+const recipientTypeLabel = computed(() => {
+  return recipientFilter.value === "all" ? "members" : recipientFilter.value;
 });
 
 // Count members by type for display
@@ -114,17 +133,21 @@ const { data: existingEmail } = await useAsyncData(
 );
 
 // Populate form if editing
-watch(existingEmail, (email) => {
-  if (email) {
-    form.subject = email.subject || "";
-    form.content = email.content || "";
-    form.emailType = email.email_type || "basic";
-    form.greeting = email.greeting || "";
-    form.salutation = email.salutation || "";
-    form.includeBoardFooter = email.include_board_footer ?? true;
-    // Note: Recipients would need to be loaded separately for editing
-  }
-}, { immediate: true });
+watch(
+  existingEmail,
+  (email) => {
+    if (email) {
+      form.subject = email.subject || "";
+      form.content = email.content || "";
+      form.emailType = email.email_type || "basic";
+      form.greeting = email.greeting || "";
+      form.salutation = email.salutation || "";
+      form.includeBoardFooter = email.include_board_footer ?? true;
+      // Note: Recipients would need to be loaded separately for editing
+    }
+  },
+  { immediate: true }
+);
 
 // Computed recipients based on selection mode
 const selectedRecipients = computed(() => {
@@ -215,9 +238,10 @@ const handleSend = async () => {
     return;
   }
 
-  const recipientIds = selectionMode.value === "all"
-    ? members.value.map((m) => m.id)
-    : form.recipientIds;
+  const recipientIds =
+    selectionMode.value === "all"
+      ? members.value.map((m) => m.id)
+      : form.recipientIds;
 
   if (recipientIds.length === 0) {
     toast.error("Please select at least one recipient");
@@ -255,6 +279,14 @@ const handleSend = async () => {
 const handleCancel = () => {
   navigateToOrg("/admin/email");
 };
+
+// Placeholder text for greeting field
+const greetingPlaceholder = computed(() => emailSystem.defaultGreeting);
+
+// Default salutation based on email type
+const defaultSalutation = computed(
+  () => emailSystem.defaultSalutations[form.emailType]
+);
 
 useSeoMeta({
   title: props.emailId ? "Edit Email" : "Compose Email",
@@ -353,11 +385,16 @@ useSeoMeta({
                   <Input
                     id="greeting"
                     v-model="form.greeting"
-                    :placeholder="emailSystem.defaultGreeting"
+                    :placeholder="greetingPlaceholder"
                   />
                   <p class="text-xs text-stone-500">
-                    Use <code class="bg-stone-100 px-1 rounded">{{ "{{first_name}}" }}</code> for personalization.
-                    In the preview it shows "{{ organization?.name }} resident", but each email will have the recipient's first name.
+                    Use
+                    <code class="bg-stone-100 px-1 rounded"
+                      >&#123;&#123;first_name&#125;&#125;</code
+                    >
+                    for personalization. In the preview it shows the
+                    organization name, but each email will have the recipient's
+                    first name.
                   </p>
                 </div>
 
@@ -390,10 +427,11 @@ You can use **bold** and *italic* formatting."
                   <Input
                     id="salutation"
                     v-model="form.salutation"
-                    :placeholder="emailSystem.defaultSalutations[form.emailType]"
+                    :placeholder="defaultSalutation"
                   />
                   <p class="text-xs text-stone-500">
-                    Leave empty to use default: "{{ emailSystem.defaultSalutations[form.emailType] }}"
+                    Leave empty to use the default salutation for this email
+                    type.
                   </p>
                 </div>
 
@@ -417,7 +455,10 @@ You can use **bold** and *italic* formatting."
               <CardHeader>
                 <CardTitle>Recipients</CardTitle>
                 <CardDescription>
-                  {{ recipientCount }} member{{ recipientCount !== 1 ? 's' : '' }} selected
+                  {{ recipientCount }} member{{
+                    recipientCount !== 1 ? "s" : ""
+                  }}
+                  selected
                 </CardDescription>
               </CardHeader>
               <CardContent class="space-y-4">
@@ -458,7 +499,7 @@ You can use **bold** and *italic* formatting."
                       class="w-4 h-4"
                     />
                     <Label for="all-members" class="cursor-pointer">
-                      All {{ recipientFilter === 'all' ? 'members' : recipientFilter }} ({{ members.length }})
+                      All {{ recipientTypeLabel }} ({{ members.length }})
                     </Label>
                   </div>
                   <div class="flex items-center gap-3">
@@ -480,7 +521,9 @@ You can use **bold** and *italic* formatting."
                   v-if="selectionMode === 'selected'"
                   class="border rounded-lg max-h-80 overflow-y-auto"
                 >
-                  <div class="p-2 border-b bg-stone-50 flex justify-between items-center sticky top-0">
+                  <div
+                    class="p-2 border-b bg-stone-50 flex justify-between items-center sticky top-0"
+                  >
                     <span class="text-sm text-stone-600">
                       {{ form.recipientIds.length }} selected
                     </span>
@@ -499,7 +542,9 @@ You can use **bold** and *italic* formatting."
                     @click="toggleMember(member.id)"
                     :class="[
                       'p-3 border-b last:border-b-0 cursor-pointer hover:bg-stone-50 flex items-center gap-3',
-                      form.recipientIds.includes(member.id) ? 'bg-primary/5' : '',
+                      form.recipientIds.includes(member.id)
+                        ? 'bg-primary/5'
+                        : '',
                     ]"
                   >
                     <Checkbox
@@ -530,7 +575,7 @@ You can use **bold** and *italic* formatting."
                     v-if="!members.length"
                     class="p-4 text-center text-stone-500 text-sm"
                   >
-                    No {{ recipientFilter === 'all' ? 'members' : recipientFilter }} with email addresses found
+                    No {{ recipientTypeLabel }} with email addresses found
                   </div>
                 </div>
               </CardContent>
@@ -543,7 +588,9 @@ You can use **bold** and *italic* formatting."
                   class="w-full"
                   size="lg"
                   @click="handleSend"
-                  :disabled="emailSystem.isSending.value || recipientCount === 0"
+                  :disabled="
+                    emailSystem.isSending.value || recipientCount === 0
+                  "
                 >
                   <Icon
                     v-if="emailSystem.isSending.value"
@@ -551,7 +598,9 @@ You can use **bold** and *italic* formatting."
                     class="w-5 h-5 mr-2 animate-spin"
                   />
                   <Icon v-else name="lucide:send" class="w-5 h-5 mr-2" />
-                  Send to {{ recipientCount }} member{{ recipientCount !== 1 ? 's' : '' }}
+                  Send to {{ recipientCount }} member{{
+                    recipientCount !== 1 ? "s" : ""
+                  }}
                 </Button>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -595,8 +644,13 @@ You can use **bold** and *italic* formatting."
                 This is how your email will appear to recipients
               </DialogDescription>
             </DialogHeader>
-            <div class="overflow-auto max-h-[70vh] border rounded-lg bg-stone-100 p-4">
-              <div class="bg-white rounded shadow-sm" v-html="previewHtml"></div>
+            <div
+              class="overflow-auto max-h-[70vh] border rounded-lg bg-stone-100 p-4"
+            >
+              <div
+                class="bg-white rounded shadow-sm"
+                v-html="previewHtml"
+              ></div>
             </div>
           </DialogContent>
         </Dialog>
