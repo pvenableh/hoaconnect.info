@@ -8,8 +8,6 @@
  * - DIRECTUS_STATIC_TOKEN: Admin token with schema permissions
  */
 
-import { createDirectus, rest, staticToken } from "@directus/sdk";
-
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
 
@@ -18,10 +16,6 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   console.error("   DIRECTUS_URL and DIRECTUS_STATIC_TOKEN are required");
   process.exit(1);
 }
-
-const directus = createDirectus(DIRECTUS_URL)
-  .with(rest())
-  .with(staticToken(DIRECTUS_STATIC_TOKEN));
 
 // Helper to make schema API calls
 async function schemaRequest(method: string, path: string, body?: any) {
