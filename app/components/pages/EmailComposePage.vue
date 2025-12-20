@@ -29,6 +29,7 @@ const form = reactive({
   subject: "",
   content: "",
   emailType: "basic" as "basic" | "newsletter" | "announcement" | "reminder" | "notice",
+  greeting: "",
   salutation: "",
   includeBoardFooter: true,
   recipientIds: [] as string[],
@@ -91,6 +92,7 @@ watch(existingEmail, (email) => {
     form.subject = email.subject || "";
     form.content = email.content || "";
     form.emailType = email.email_type || "basic";
+    form.greeting = email.greeting || "";
     form.salutation = email.salutation || "";
     form.includeBoardFooter = email.include_board_footer ?? true;
     // Note: Recipients would need to be loaded separately for editing
@@ -140,9 +142,9 @@ const handlePreview = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
-      recipientName: "John Doe",
     });
     previewHtml.value = result.html;
     showPreview.value = true;
@@ -167,6 +169,7 @@ const handleSaveDraft = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
       status: "draft",
@@ -200,6 +203,7 @@ const handleSend = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
       recipientIds,
@@ -315,6 +319,19 @@ useSeoMeta({
                     placeholder="Enter email subject..."
                     class="text-lg"
                   />
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="greeting">Greeting</Label>
+                  <Input
+                    id="greeting"
+                    v-model="form.greeting"
+                    :placeholder="emailSystem.defaultGreeting"
+                  />
+                  <p class="text-xs text-stone-500">
+                    Use <code class="bg-stone-100 px-1 rounded">{{ "{{first_name}}" }}</code> for personalization.
+                    In the preview it shows "{{ organization?.name }} resident", but each email will have the recipient's first name.
+                  </p>
                 </div>
 
                 <div class="space-y-2">

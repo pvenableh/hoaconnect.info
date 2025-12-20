@@ -14,9 +14,11 @@ interface EmailTemplateOptions {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   boardMembers?: BoardMemberInfo[];
   recipientName?: string;
+  recipientFirstName?: string;
   directusUrl: string;
 }
 
@@ -62,6 +64,39 @@ const defaultSalutations: Record<EmailType, string> = {
   reminder: "Thank you",
   notice: "Respectfully",
 };
+
+/**
+ * Get the default greeting template for an organization
+ * Uses {{first_name}} as placeholder for personalization
+ */
+export function getDefaultGreeting(orgName: string): string {
+  return `Hello {{first_name}},`;
+}
+
+/**
+ * Process greeting template - replace variables with actual values
+ * For web preview: replaces {{first_name}} with org name fallback
+ * For actual emails: replaces {{first_name}} with recipient's first name
+ */
+function processGreeting(
+  greetingTemplate: string,
+  recipientFirstName?: string,
+  orgName?: string
+): string {
+  if (!greetingTemplate) return "";
+
+  let processed = greetingTemplate;
+
+  if (recipientFirstName) {
+    // For actual emails - use recipient's first name
+    processed = processed.replace(/\{\{first_name\}\}/gi, recipientFirstName);
+  } else if (orgName) {
+    // For web preview - use organization name fallback
+    processed = processed.replace(/\{\{first_name\}\}/gi, `${orgName} resident`);
+  }
+
+  return processed;
+}
 
 /**
  * Get the logo URL from organization settings
@@ -132,7 +167,13 @@ function buildHeader(
 /**
  * Build the email body with content
  */
-function buildBody(content: string, emailType: EmailType, recipientName?: string): string {
+function buildBody(
+  content: string,
+  emailType: EmailType,
+  greeting?: string,
+  recipientFirstName?: string,
+  orgName?: string
+): string {
   const style = emailTypeStyles[emailType];
 
   // Process content - convert markdown-style formatting to HTML
@@ -142,14 +183,19 @@ function buildBody(content: string, emailType: EmailType, recipientName?: string
     .replace(/\n\n/g, "</p><p style=\"margin: 0 0 16px 0; line-height: 1.6;\">")
     .replace(/\n/g, "<br>");
 
-  const greeting = recipientName ? `<p style="margin: 0 0 16px 0; line-height: 1.6;">Dear ${recipientName},</p>` : "";
+  // Process greeting with template variable replacement
+  const greetingTemplate = greeting || getDefaultGreeting(orgName || "");
+  const processedGreeting = processGreeting(greetingTemplate, recipientFirstName, orgName);
+  const greetingHtml = processedGreeting
+    ? `<p style="margin: 0 0 16px 0; line-height: 1.6;">${processedGreeting}</p>`
+    : "";
 
   return `
     <!-- Body -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0; padding: 0;">
       <tr>
         <td style="padding: 32px; background-color: #ffffff;">
-          ${greeting}
+          ${greetingHtml}
           <div style="color: #374151; font-size: 16px; line-height: 1.6;">
             <p style="margin: 0 0 16px 0; line-height: 1.6;">${processedContent}</p>
           </div>
@@ -233,10 +279,11 @@ function buildFooter(
  * Build a complete HTML email from the provided options
  */
 export function buildEmailHtml(options: EmailTemplateOptions): string {
-  const { organization, subject, content, emailType, salutation, boardMembers, recipientName, directusUrl } = options;
+  const { organization, subject, content, emailType, greeting, salutation, boardMembers, recipientFirstName, directusUrl } = options;
+  const orgName = organization.name || "Organization";
 
   const header = buildHeader(organization, emailType, directusUrl);
-  const body = buildBody(content, emailType, recipientName);
+  const body = buildBody(content, emailType, greeting, recipientFirstName, orgName);
   const footer = buildFooter(organization, emailType, salutation, boardMembers);
 
   return `
@@ -308,15 +355,17 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
  * Build a plain text version of the email for fallback
  */
 export function buildEmailText(options: EmailTemplateOptions): string {
-  const { organization, content, salutation, boardMembers, recipientName } = options;
+  const { organization, content, greeting, salutation, boardMembers, recipientFirstName } = options;
   const orgName = organization.name || "Organization";
   const finalSalutation = salutation || defaultSalutations[options.emailType];
 
   let text = "";
 
-  // Greeting
-  if (recipientName) {
-    text += `Dear ${recipientName},\n\n`;
+  // Greeting with template variable replacement
+  const greetingTemplate = greeting || getDefaultGreeting(orgName);
+  const processedGreeting = processGreeting(greetingTemplate, recipientFirstName, orgName);
+  if (processedGreeting) {
+    text += `${processedGreeting}\n\n`;
   }
 
   // Content - strip HTML and markdown

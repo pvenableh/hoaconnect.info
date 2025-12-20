@@ -9,6 +9,7 @@ interface SendEmailBody {
   content: string;
   emailType: EmailType;
   recipientIds: string[];
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   emailId?: string; // If updating existing draft
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, content, emailType, recipientIds, salutation, includeBoardFooter = true, emailId } = body;
+  const { organizationId, subject, content, emailType, recipientIds, greeting, salutation, includeBoardFooter = true, emailId } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -102,6 +103,7 @@ export default defineEventHandler(async (event) => {
           subject,
           content,
           email_type: emailType,
+          greeting: greeting || null,
           salutation: salutation || null,
           include_board_footer: includeBoardFooter,
           status: "sending",
@@ -115,6 +117,7 @@ export default defineEventHandler(async (event) => {
           subject,
           content,
           email_type: emailType,
+          greeting: greeting || null,
           salutation: salutation || null,
           include_board_footer: includeBoardFooter,
           status: "sending",
@@ -146,6 +149,7 @@ export default defineEventHandler(async (event) => {
       }
 
       const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
+      const recipientFirstName = member.first_name || undefined;
 
       // Build personalized email
       const html = buildEmailHtml({
@@ -153,9 +157,10 @@ export default defineEventHandler(async (event) => {
         subject,
         content,
         emailType,
+        greeting,
         salutation,
         boardMembers: includeBoardFooter ? boardMembers : undefined,
-        recipientName: recipientName || undefined,
+        recipientFirstName,
         directusUrl: config.directus.url,
       });
 
@@ -164,9 +169,10 @@ export default defineEventHandler(async (event) => {
         subject,
         content,
         emailType,
+        greeting,
         salutation,
         boardMembers: includeBoardFooter ? boardMembers : undefined,
-        recipientName: recipientName || undefined,
+        recipientFirstName,
         directusUrl: config.directus.url,
       });
 

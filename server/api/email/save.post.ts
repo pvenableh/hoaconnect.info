@@ -7,6 +7,7 @@ interface SaveEmailBody {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
     subject,
     content,
     emailType,
+    greeting,
     salutation,
     includeBoardFooter = true,
     status = "draft",
@@ -45,6 +47,7 @@ export default defineEventHandler(async (event) => {
       subject,
       content,
       email_type: emailType,
+      greeting: greeting || null,
       salutation: salutation || null,
       include_board_footer: includeBoardFooter,
       status,

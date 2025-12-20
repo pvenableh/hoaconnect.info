@@ -23,6 +23,7 @@ export interface EmailFormData {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   recipientIds: string[];
@@ -34,6 +35,7 @@ export interface EmailSaveData {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
@@ -50,9 +52,9 @@ export interface EmailPreviewData {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
-  recipientName?: string;
 }
 
 export interface EmailListResponse {
@@ -139,6 +141,9 @@ export const defaultSalutations: Record<EmailType, string> = {
   reminder: "Thank you",
   notice: "Respectfully",
 };
+
+// Default greeting template - {{first_name}} will be replaced with recipient's name or org fallback
+export const defaultGreeting = "Hello {{first_name}},";
 
 export const useEmailSystem = () => {
   const { loggedIn } = useUserSession();
@@ -368,5 +373,6 @@ export const useEmailSystem = () => {
     // Constants
     emailTypeOptions,
     defaultSalutations,
+    defaultGreeting,
   };
 };

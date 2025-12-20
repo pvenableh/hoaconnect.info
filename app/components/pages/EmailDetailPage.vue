@@ -254,18 +254,27 @@ useSeoMeta({
             </CardHeader>
             <CardContent>
               <div class="prose prose-stone max-w-none">
+                <p v-if="email.greeting" class="text-stone-600 italic mb-4">
+                  Greeting: {{ email.greeting }}
+                </p>
                 <div class="whitespace-pre-wrap">{{ email.content }}</div>
               </div>
             </CardContent>
           </Card>
 
-          <!-- Footer Settings -->
+          <!-- Email Settings -->
           <Card>
             <CardHeader>
-              <CardTitle>Footer Settings</CardTitle>
+              <CardTitle>Email Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <dt class="text-sm text-stone-500">Greeting</dt>
+                  <dd class="font-medium">
+                    {{ email.greeting || emailSystem.defaultGreeting }}
+                  </dd>
+                </div>
                 <div>
                   <dt class="text-sm text-stone-500">Salutation</dt>
                   <dd class="font-medium">

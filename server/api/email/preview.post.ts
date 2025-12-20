@@ -7,9 +7,9 @@ interface PreviewEmailBody {
   subject: string;
   content: string;
   emailType: EmailType;
+  greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
-  recipientName?: string;
 }
 
 export default defineEventHandler(async (event) => {
@@ -21,9 +21,9 @@ export default defineEventHandler(async (event) => {
     subject,
     content,
     emailType,
+    greeting,
     salutation,
     includeBoardFooter = true,
-    recipientName = "John Doe",
   } = body;
 
   // Validation
@@ -81,15 +81,15 @@ export default defineEventHandler(async (event) => {
         }));
     }
 
-    // Build preview HTML
+    // Build preview HTML - no recipientFirstName means it will use org name fallback in greeting
     const html = buildEmailHtml({
       organization,
       subject,
       content,
       emailType,
+      greeting,
       salutation,
       boardMembers: includeBoardFooter ? boardMembers : undefined,
-      recipientName,
       directusUrl: config.directus.url,
     });
 

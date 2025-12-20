@@ -153,6 +153,8 @@ export interface HoaEmail {
 	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
 	scheduled_at?: string | null;
 	sent_at?: string | null;
+	/** @description Greeting template with {{first_name}} placeholder (e.g., "Hello {{first_name}},") */
+	greeting?: string | null;
 	/** @description Custom salutation for footer (e.g., "Warm regards", "Best wishes") */
 	salutation?: string | null;
 	/** @description Whether to include board members in footer */

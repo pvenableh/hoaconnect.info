@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
           "subject",
           "content",
           "email_type",
+          "greeting",
           "salutation",
           "include_board_footer",
           "date_created",
