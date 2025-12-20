@@ -207,6 +207,44 @@ export interface HoaEmailRecipient {
 	error_message?: string | null;
 	/** @description SendGrid message ID for tracking */
 	sg_message_id?: string | null;
+	email?: HoaEmail | string | null;
+}
+
+export interface HoaEmail {
+	/** @primaryKey */
+	id: string;
+	status?: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | null;
+	sort?: number | null;
+	user_created?: string | null;
+	date_created?: string | null;
+	user_updated?: string | null;
+	date_updated?: string | null;
+	/** @description Email subject line @required */
+	subject: string;
+	/** @description Email body content (HTML supported) @required */
+	content: string;
+	/** @description Type of email for categorization @required */
+	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
+	/** @description When to send the email (leave empty for immediate send) */
+	scheduled_at?: string | null;
+	/** @description When the email was actually sent */
+	sent_at?: string | null;
+	/** @description Greeting template with {{first_name}} placeholder (e.g., 'Hello {{first_name}},') */
+	greeting?: string | null;
+	/** @description Custom salutation for footer (e.g., 'Warm regards', 'Best wishes') */
+	salutation?: string | null;
+	/** @description Whether to include board members in footer */
+	include_board_footer?: boolean | null;
+	/** @description Total recipients count */
+	recipient_count?: number | null;
+	/** @description Delivered count */
+	delivered_count?: number | null;
+	/** @description Failed delivery count */
+	failed_count?: number | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Email recipients and their delivery status */
+	recipients?: HoaEmailRecipient[] | string[];
 }
 
 export interface HoaInvitation {
@@ -968,6 +1006,7 @@ export interface Schema {
 	hoa_documents: HoaDocument[];
 	hoa_email_activity: HoaEmailActivity[];
 	hoa_email_recipients: HoaEmailRecipient[];
+	hoa_emails: HoaEmail[];
 	hoa_invitations: HoaInvitation[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
@@ -1022,6 +1061,7 @@ export enum CollectionNames {
 	hoa_documents = 'hoa_documents',
 	hoa_email_activity = 'hoa_email_activity',
 	hoa_email_recipients = 'hoa_email_recipients',
+	hoa_emails = 'hoa_emails',
 	hoa_invitations = 'hoa_invitations',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
