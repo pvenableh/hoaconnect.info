@@ -135,6 +135,54 @@ export interface HoaBoardMember {
 	message?: string | null;
 }
 
+export interface HoaEmail {
+	/** @primaryKey */
+	id: string;
+	status?: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	organization?: HoaOrganization | string | null;
+	/** @required */
+	subject: string;
+	/** @required */
+	content: string;
+	/** @required */
+	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
+	scheduled_at?: string | null;
+	sent_at?: string | null;
+	/** @description Custom salutation for footer (e.g., "Warm regards", "Best wishes") */
+	salutation?: string | null;
+	/** @description Whether to include board members in footer */
+	include_board_footer?: boolean | null;
+	/** @description Total recipients count */
+	recipient_count?: number | null;
+	/** @description Delivered count */
+	delivered_count?: number | null;
+	/** @description Failed delivery count */
+	failed_count?: number | null;
+	recipients?: HoaEmailRecipient[] | string[];
+}
+
+export interface HoaEmailRecipient {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	email?: HoaEmail | string | null;
+	member?: HoaMember | string | null;
+	/** @description Email address at time of sending */
+	recipient_email?: string | null;
+	/** @description Recipient name at time of sending */
+	recipient_name?: string | null;
+	status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced';
+	sent_at?: string | null;
+	error_message?: string | null;
+}
+
 export interface HoaDocumentCategory {
 	/** @primaryKey */
 	id: string;
@@ -896,6 +944,8 @@ export interface Schema {
 	hoa_board_members: HoaBoardMember[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
+	hoa_emails: HoaEmail[];
+	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_invitations: HoaInvitation[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
@@ -946,6 +996,8 @@ export enum CollectionNames {
 	hoa_board_members = 'hoa_board_members',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
+	hoa_emails = 'hoa_emails',
+	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_invitations = 'hoa_invitations',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
