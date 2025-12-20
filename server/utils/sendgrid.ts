@@ -278,6 +278,7 @@ export const sendBulkEmail = async ({
 
 /**
  * Send a single organization email with HTML template
+ * Returns the SendGrid message ID for tracking
  */
 export const sendOrganizationEmail = async ({
   to,
@@ -293,7 +294,7 @@ export const sendOrganizationEmail = async ({
   html: string;
   text: string;
   fromName?: string;
-}) => {
+}): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
@@ -308,9 +309,11 @@ export const sendOrganizationEmail = async ({
   };
 
   try {
-    await sg.send(msg);
-    console.log(`✅ Organization email sent to ${to}: ${subject}`);
-    return { success: true };
+    const [response] = await sg.send(msg);
+    // SendGrid returns message ID in the x-message-id header
+    const messageId = response.headers?.["x-message-id"] || null;
+    console.log(`✅ Organization email sent to ${to}: ${subject} (ID: ${messageId})`);
+    return { success: true, messageId };
   } catch (error: any) {
     console.error("❌ SendGrid Error:", error);
     if (error.response) {

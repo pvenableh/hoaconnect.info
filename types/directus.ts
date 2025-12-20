@@ -183,6 +183,66 @@ export interface HoaEmailRecipient {
 	status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced';
 	sent_at?: string | null;
 	error_message?: string | null;
+	/** @description SendGrid message ID for tracking */
+	sg_message_id?: string | null;
+}
+
+export interface HoaEmailActivity {
+	/** @primaryKey */
+	id: string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	/** @description The email recipient this activity belongs to */
+	email_recipient?: HoaEmailRecipient | string | null;
+	/** @description The member associated with this activity */
+	member?: HoaMember | string | null;
+	/** @description SendGrid event type: open, click, bounce, dropped, delivered, etc. */
+	event: 'processed' | 'dropped' | 'delivered' | 'deferred' | 'bounce' | 'open' | 'click' | 'spam_report' | 'unsubscribe' | 'group_unsubscribe' | 'group_resubscribe';
+	/** @description The email address this event relates to */
+	email?: string | null;
+	/** @description SendGrid message ID */
+	sg_message_id?: string | null;
+	/** @description URL that was clicked (for click events) */
+	clicked_url?: string | null;
+	/** @description User agent from the event */
+	user_agent?: string | null;
+	/** @description IP address from the event */
+	ip?: string | null;
+	/** @description Bounce/drop reason */
+	reason?: string | null;
+	/** @description Raw event timestamp from SendGrid */
+	event_timestamp?: number | null;
+}
+
+export interface HoaMailingList {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	organization?: HoaOrganization | string | null;
+	/** @required */
+	name: string;
+	description?: string | null;
+	/** @description Filter type: all, owners, tenants, or custom */
+	filter_type?: 'all' | 'owners' | 'tenants' | 'custom' | null;
+	/** @description Custom filter criteria as JSON */
+	filter_criteria?: Record<string, unknown> | null;
+	/** @description Cached member count */
+	member_count?: number | null;
+	members?: HoaMailingListMember[] | string[];
+}
+
+export interface HoaMailingListMember {
+	/** @primaryKey */
+	id: string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	mailing_list?: HoaMailingList | string | null;
+	member?: HoaMember | string | null;
 }
 
 export interface HoaDocumentCategory {
@@ -948,6 +1008,9 @@ export interface Schema {
 	hoa_documents: HoaDocument[];
 	hoa_emails: HoaEmail[];
 	hoa_email_recipients: HoaEmailRecipient[];
+	hoa_email_activity: HoaEmailActivity[];
+	hoa_mailing_lists: HoaMailingList[];
+	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_invitations: HoaInvitation[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
@@ -1000,6 +1063,9 @@ export enum CollectionNames {
 	hoa_documents = 'hoa_documents',
 	hoa_emails = 'hoa_emails',
 	hoa_email_recipients = 'hoa_email_recipients',
+	hoa_email_activity = 'hoa_email_activity',
+	hoa_mailing_lists = 'hoa_mailing_lists',
+	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_invitations = 'hoa_invitations',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',

@@ -177,7 +177,7 @@ export default defineEventHandler(async (event) => {
       });
 
       try {
-        await sendOrganizationEmail({
+        const sendResult = await sendOrganizationEmail({
           to: member.email,
           toName: recipientName || undefined,
           subject,
@@ -193,7 +193,7 @@ export default defineEventHandler(async (event) => {
           status: "sent",
         });
 
-        // Create recipient record
+        // Create recipient record with SendGrid message ID for tracking
         await directus.request(
           createItem("hoa_email_recipients", {
             email: email.id,
@@ -202,6 +202,7 @@ export default defineEventHandler(async (event) => {
             recipient_name: recipientName || null,
             status: "sent",
             sent_at: new Date().toISOString(),
+            sg_message_id: sendResult.messageId || null,
           })
         );
       } catch (sendError: any) {

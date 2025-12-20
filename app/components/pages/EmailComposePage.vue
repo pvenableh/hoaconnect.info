@@ -35,18 +35,26 @@ const form = reactive({
   recipientIds: [] as string[],
 });
 
-// Selection mode
+// Selection mode and filter type
 const selectionMode = ref<"all" | "selected">("all");
+const recipientFilter = ref<"all" | "owners" | "tenants">("all");
 
-// Fetch members for recipient selection
-const { data: members } = await useAsyncData(
+// Recipient filter options
+const recipientFilterOptions = [
+  { value: "all", label: "All Members", icon: "lucide:users" },
+  { value: "owners", label: "Owners Only", icon: "lucide:home" },
+  { value: "tenants", label: "Tenants Only", icon: "lucide:key" },
+] as const;
+
+// Fetch all members for recipient selection
+const { data: allMembers } = await useAsyncData(
   `email-members-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
 
     try {
       const result = (await listMembers({
-        fields: ["id", "first_name", "last_name", "email", "status"],
+        fields: ["id", "first_name", "last_name", "email", "status", "member_type"],
         filter: {
           organization: { _eq: orgId.value },
           status: { _eq: "active" },
@@ -66,6 +74,25 @@ const { data: members } = await useAsyncData(
     server: false,
   }
 );
+
+// Filter members based on recipient filter
+const members = computed(() => {
+  const allMembersList = allMembers.value || [];
+  if (recipientFilter.value === "all") {
+    return allMembersList;
+  }
+  return allMembersList.filter((m) => m.member_type === recipientFilter.value.slice(0, -1)); // "owners" -> "owner"
+});
+
+// Count members by type for display
+const memberCounts = computed(() => {
+  const all = allMembers.value || [];
+  return {
+    all: all.length,
+    owners: all.filter((m) => m.member_type === "owner").length,
+    tenants: all.filter((m) => m.member_type === "tenant").length,
+  };
+});
 
 // Load existing email if editing
 const { data: existingEmail } = await useAsyncData(
@@ -102,9 +129,9 @@ watch(existingEmail, (email) => {
 // Computed recipients based on selection mode
 const selectedRecipients = computed(() => {
   if (selectionMode.value === "all") {
-    return members.value || [];
+    return members.value;
   }
-  return (members.value || []).filter((m) => form.recipientIds.includes(m.id));
+  return members.value.filter((m) => form.recipientIds.includes(m.id));
 });
 
 const recipientCount = computed(() => selectedRecipients.value.length);
@@ -120,7 +147,7 @@ const toggleMember = (id: string) => {
 };
 
 const selectAll = () => {
-  form.recipientIds = (members.value || []).map((m) => m.id);
+  form.recipientIds = members.value.map((m) => m.id);
 };
 
 const deselectAll = () => {
@@ -189,7 +216,7 @@ const handleSend = async () => {
   }
 
   const recipientIds = selectionMode.value === "all"
-    ? (members.value || []).map((m) => m.id)
+    ? members.value.map((m) => m.id)
     : form.recipientIds;
 
   if (recipientIds.length === 0) {
@@ -394,6 +421,32 @@ You can use **bold** and *italic* formatting."
                 </CardDescription>
               </CardHeader>
               <CardContent class="space-y-4">
+                <!-- Recipient Filter -->
+                <div class="space-y-2">
+                  <Label class="text-sm font-medium">Filter Recipients</Label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button
+                      v-for="option in recipientFilterOptions"
+                      :key="option.value"
+                      @click="recipientFilter = option.value"
+                      :class="[
+                        'p-2 rounded-lg border text-center transition-all text-xs',
+                        recipientFilter === option.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-stone-200 hover:border-stone-300',
+                      ]"
+                    >
+                      <Icon :name="option.icon" class="w-4 h-4 mx-auto mb-1" />
+                      <div class="font-medium">{{ option.label }}</div>
+                      <div class="text-stone-500">
+                        ({{ memberCounts[option.value] }})
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <Separator />
+
                 <!-- Selection Mode -->
                 <div class="space-y-3">
                   <div class="flex items-center gap-3">
@@ -405,7 +458,7 @@ You can use **bold** and *italic* formatting."
                       class="w-4 h-4"
                     />
                     <Label for="all-members" class="cursor-pointer">
-                      All members ({{ members?.length || 0 }})
+                      All {{ recipientFilter === 'all' ? 'members' : recipientFilter }} ({{ members.length }})
                     </Label>
                   </div>
                   <div class="flex items-center gap-3">
@@ -454,8 +507,19 @@ You can use **bold** and *italic* formatting."
                       @click.stop="toggleMember(member.id)"
                     />
                     <div class="flex-1 min-w-0">
-                      <div class="font-medium truncate">
+                      <div class="font-medium truncate flex items-center gap-2">
                         {{ member.first_name }} {{ member.last_name }}
+                        <span
+                          v-if="member.member_type"
+                          :class="[
+                            'text-[10px] px-1.5 py-0.5 rounded-full uppercase font-semibold',
+                            member.member_type === 'owner'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-amber-100 text-amber-700',
+                          ]"
+                        >
+                          {{ member.member_type }}
+                        </span>
                       </div>
                       <div class="text-xs text-stone-500 truncate">
                         {{ member.email }}
@@ -463,10 +527,10 @@ You can use **bold** and *italic* formatting."
                     </div>
                   </div>
                   <div
-                    v-if="!members?.length"
+                    v-if="!members.length"
                     class="p-4 text-center text-stone-500 text-sm"
                   >
-                    No members with email addresses found
+                    No {{ recipientFilter === 'all' ? 'members' : recipientFilter }} with email addresses found
                   </div>
                 </div>
               </CardContent>

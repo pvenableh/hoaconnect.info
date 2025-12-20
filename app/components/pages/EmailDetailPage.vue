@@ -38,6 +38,42 @@ const {
 
 const email = computed(() => emailData.value?.email || null);
 
+// Fetch activity stats for sent emails
+const { data: activityData, status: activityStatus } = await useAsyncData(
+  `email-activity-${props.emailId}`,
+  async () => {
+    // Only fetch activity for sent emails
+    if (!email.value || email.value.status !== "sent") {
+      return null;
+    }
+    try {
+      return await $fetch(`/api/email/${props.emailId}/activity`);
+    } catch (error) {
+      console.error("Error fetching activity:", error);
+      return null;
+    }
+  },
+  {
+    watch: [email],
+    immediate: false,
+  }
+);
+
+// Trigger activity fetch when email is loaded
+watch(
+  () => email.value?.status,
+  (status) => {
+    if (status === "sent") {
+      activityData.value; // Trigger the fetch
+    }
+  },
+  { immediate: true }
+);
+
+const activityStats = computed(() => activityData.value?.stats || null);
+const clickedUrls = computed(() => activityData.value?.clickedUrls || []);
+const recentActivity = computed(() => activityData.value?.recentActivity || []);
+
 // Delete confirmation
 const showDeleteDialog = ref(false);
 
@@ -95,6 +131,21 @@ const getRecipientStatusBadgeClass = (status: string) => {
     bounced: "bg-orange-100 text-orange-700",
   };
   return classes[status] || classes.pending;
+};
+
+const getActivityEventInfo = (event: string) => {
+  const events: Record<string, { icon: string; color: string; label: string }> = {
+    open: { icon: "lucide:eye", color: "text-blue-600 bg-blue-100", label: "Opened" },
+    click: { icon: "lucide:mouse-pointer-click", color: "text-purple-600 bg-purple-100", label: "Clicked" },
+    delivered: { icon: "lucide:check-circle", color: "text-green-600 bg-green-100", label: "Delivered" },
+    bounce: { icon: "lucide:alert-triangle", color: "text-orange-600 bg-orange-100", label: "Bounced" },
+    dropped: { icon: "lucide:x-circle", color: "text-red-600 bg-red-100", label: "Dropped" },
+    spam_report: { icon: "lucide:shield-alert", color: "text-red-600 bg-red-100", label: "Spam Report" },
+    unsubscribe: { icon: "lucide:user-minus", color: "text-amber-600 bg-amber-100", label: "Unsubscribed" },
+    processed: { icon: "lucide:send", color: "text-stone-600 bg-stone-100", label: "Processed" },
+    deferred: { icon: "lucide:clock", color: "text-yellow-600 bg-yellow-100", label: "Deferred" },
+  };
+  return events[event] || { icon: "lucide:mail", color: "text-stone-600 bg-stone-100", label: event };
 };
 
 useSeoMeta({
@@ -246,6 +297,150 @@ useSeoMeta({
               </CardContent>
             </Card>
           </div>
+
+          <!-- Engagement Stats -->
+          <div
+            v-if="activityStats && (activityStats.opens > 0 || activityStats.clicks > 0)"
+            class="grid grid-cols-1 md:grid-cols-4 gap-4"
+          >
+            <Card>
+              <CardContent class="pt-6">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-blue-100 rounded-lg">
+                    <Icon name="lucide:eye" class="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold">{{ activityStats.uniqueOpens }}</p>
+                    <p class="text-sm text-stone-600">Unique Opens</p>
+                    <p class="text-xs text-stone-400">({{ activityStats.opens }} total)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent class="pt-6">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-purple-100 rounded-lg">
+                    <Icon name="lucide:mouse-pointer-click" class="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold">{{ activityStats.uniqueClicks }}</p>
+                    <p class="text-sm text-stone-600">Unique Clicks</p>
+                    <p class="text-xs text-stone-400">({{ activityStats.clicks }} total)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent class="pt-6">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-cyan-100 rounded-lg">
+                    <Icon name="lucide:trending-up" class="w-5 h-5 text-cyan-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold">
+                      {{ email.delivered_count ? Math.round((activityStats.uniqueOpens / email.delivered_count) * 100) : 0 }}%
+                    </p>
+                    <p class="text-sm text-stone-600">Open Rate</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent class="pt-6">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-indigo-100 rounded-lg">
+                    <Icon name="lucide:link" class="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold">
+                      {{ activityStats.uniqueOpens ? Math.round((activityStats.uniqueClicks / activityStats.uniqueOpens) * 100) : 0 }}%
+                    </p>
+                    <p class="text-sm text-stone-600">Click-to-Open Rate</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <!-- Clicked URLs -->
+          <Card v-if="clickedUrls.length > 0">
+            <CardHeader>
+              <CardTitle class="flex items-center gap-2">
+                <Icon name="lucide:link" class="w-5 h-5" />
+                Top Clicked Links
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-2">
+                <div
+                  v-for="link in clickedUrls"
+                  :key="link.url"
+                  class="flex items-center justify-between p-3 bg-stone-50 rounded-lg"
+                >
+                  <a
+                    :href="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-blue-600 hover:underline truncate max-w-[80%]"
+                  >
+                    {{ link.url }}
+                  </a>
+                  <span class="text-sm font-medium text-stone-600">
+                    {{ link.count }} click{{ link.count !== 1 ? 's' : '' }}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Recent Activity -->
+          <Card v-if="recentActivity.length > 0">
+            <CardHeader>
+              <CardTitle class="flex items-center gap-2">
+                <Icon name="lucide:activity" class="w-5 h-5" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>
+                Last {{ recentActivity.length }} events
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-2 max-h-80 overflow-y-auto">
+                <div
+                  v-for="activity in recentActivity"
+                  :key="activity.id"
+                  class="flex items-center gap-3 p-2 hover:bg-stone-50 rounded-lg"
+                >
+                  <div
+                    :class="[
+                      'p-1.5 rounded-full',
+                      getActivityEventInfo(activity.event).color,
+                    ]"
+                  >
+                    <Icon
+                      :name="getActivityEventInfo(activity.event).icon"
+                      class="w-4 h-4"
+                    />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium">
+                      {{ getActivityEventInfo(activity.event).label }}
+                      <span v-if="activity.recipientName" class="text-stone-500 font-normal">
+                        by {{ activity.recipientName }}
+                      </span>
+                    </div>
+                    <div v-if="activity.clickedUrl" class="text-xs text-blue-600 truncate">
+                      {{ activity.clickedUrl }}
+                    </div>
+                    <div class="text-xs text-stone-400">
+                      {{ formatDate(activity.timestamp) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <!-- Email Content -->
           <Card>
