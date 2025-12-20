@@ -224,7 +224,10 @@ const loadFilesAndFolders = async () => {
   }
 };
 
-const navigateToFolder = async (folderId: string | null, folderName: string) => {
+const navigateToFolder = async (
+  folderId: string | null,
+  folderName: string
+) => {
   currentBrowseFolder.value = folderId;
 
   // Update path
@@ -255,9 +258,7 @@ const selectFile = (file: DirectusFile) => {
       editor.value
         .chain()
         .focus()
-        .insertContent(
-          `<a href="${fileUrl}" target="_blank">${fileName}</a>`
-        )
+        .insertContent(`<a href="${fileUrl}" target="_blank">${fileName}</a>`)
         .run();
     }
   }
@@ -289,7 +290,11 @@ const isImageFile = (file: DirectusFile): boolean => {
 
 const getFileThumbnail = (file: DirectusFile): string | null => {
   if (!file.id || !isImageFile(file)) return null;
-  return filesComposable.getUrl(file.id, { width: 80, height: 80, fit: "cover" });
+  return filesComposable.getUrl(file.id, {
+    width: 80,
+    height: 80,
+    fit: "cover",
+  });
 };
 
 const getFileIcon = (file: DirectusFile): string => {
@@ -629,16 +634,28 @@ const getFileIcon = (file: DirectusFile): string => {
 
         <!-- File Grid -->
         <div class="flex-1 overflow-y-auto min-h-[300px]">
-          <div v-if="isLoadingFiles" class="flex items-center justify-center h-full">
-            <Icon name="lucide:loader-2" class="w-8 h-8 animate-spin text-stone-400" />
+          <div
+            v-if="isLoadingFiles"
+            class="flex items-center justify-center h-full"
+          >
+            <Icon
+              name="lucide:loader-2"
+              class="w-8 h-8 animate-spin text-stone-400"
+            />
           </div>
 
-          <div v-else-if="browseFolders.length === 0 && filteredFiles.length === 0" class="flex flex-col items-center justify-center h-full text-stone-500">
+          <div
+            v-else-if="browseFolders.length === 0 && filteredFiles.length === 0"
+            class="flex flex-col items-center justify-center h-full text-stone-500"
+          >
             <Icon name="lucide:folder-x" class="w-12 h-12 mb-2" />
             <p>No files found in this folder</p>
           </div>
 
-          <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
+          <div
+            v-else
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1"
+          >
             <!-- Folders -->
             <button
               v-for="folder in browseFolders"
@@ -647,7 +664,10 @@ const getFileIcon = (file: DirectusFile): string => {
               class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-stone-300 transition-colors"
               @click="navigateToFolder(folder.id, folder.name || 'Folder')"
             >
-              <Icon name="lucide:folder" class="w-10 h-10 text-amber-500 mb-2" />
+              <Icon
+                name="lucide:folder"
+                class="w-10 h-10 text-amber-500 mb-2"
+              />
               <span class="text-sm text-center truncate w-full">
                 {{ folder.name || "Folder" }}
               </span>
@@ -662,7 +682,9 @@ const getFileIcon = (file: DirectusFile): string => {
               @click="selectFile(file)"
             >
               <!-- Thumbnail or Icon -->
-              <div class="w-16 h-16 mb-2 flex items-center justify-center rounded overflow-hidden bg-stone-100">
+              <div
+                class="w-16 h-16 mb-2 flex items-center justify-center rounded overflow-hidden bg-stone-100"
+              >
                 <img
                   v-if="getFileThumbnail(file)"
                   :src="getFileThumbnail(file)!"
@@ -675,7 +697,9 @@ const getFileIcon = (file: DirectusFile): string => {
                   class="w-8 h-8 text-stone-400"
                 />
               </div>
-              <span class="text-sm text-center truncate w-full group-hover:text-primary">
+              <span
+                class="text-sm text-center truncate w-full group-hover:text-primary"
+              >
                 {{ file.title || file.filename_download || "File" }}
               </span>
               <span class="text-xs text-stone-400">
@@ -696,6 +720,7 @@ const getFileIcon = (file: DirectusFile): string => {
 </template>
 
 <style>
+@reference 'tailwindcss';
 .tiptap-content .tiptap {
   @apply p-4 min-h-[200px] focus:outline-none;
 }
