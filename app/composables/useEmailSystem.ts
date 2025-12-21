@@ -154,6 +154,15 @@ export const useEmailSystem = () => {
   const error = ref<string | null>(null);
 
   /**
+   * Helper to get fetch options with proper headers for SSR
+   * During SSR, cookies need to be explicitly forwarded to internal API calls
+   */
+  const getFetchOptions = () => {
+    const headers = useRequestHeaders(["cookie"]);
+    return { headers };
+  };
+
+  /**
    * Send emails to selected members
    */
   const sendEmail = async (data: EmailSendData): Promise<EmailSendResponse> => {
@@ -168,6 +177,7 @@ export const useEmailSystem = () => {
       const response = await $fetch<EmailSendResponse>("/api/email/send", {
         method: "POST",
         body: data,
+        ...getFetchOptions(),
       });
 
       return response;
@@ -194,6 +204,7 @@ export const useEmailSystem = () => {
       const response = await $fetch("/api/email/save", {
         method: "POST",
         body: data,
+        ...getFetchOptions(),
       });
 
       return response as { success: boolean; email: { id: string; status: string; subject: string } };
@@ -220,6 +231,7 @@ export const useEmailSystem = () => {
       const response = await $fetch<EmailPreviewResponse>("/api/email/preview", {
         method: "POST",
         body: data,
+        ...getFetchOptions(),
       });
 
       return response;
@@ -253,7 +265,9 @@ export const useEmailSystem = () => {
         ...(options.limit && { limit: options.limit.toString() }),
       });
 
-      const response = await $fetch<EmailListResponse>(`/api/email/list?${params}`);
+      const response = await $fetch<EmailListResponse>(`/api/email/list?${params}`, {
+        ...getFetchOptions(),
+      });
 
       return response;
     } catch (err: any) {
@@ -278,7 +292,9 @@ export const useEmailSystem = () => {
     error.value = null;
 
     try {
-      const response = await $fetch(`/api/email/${id}`);
+      const response = await $fetch(`/api/email/${id}`, {
+        ...getFetchOptions(),
+      });
       return response as { success: boolean; email: HoaEmail & { recipients: HoaEmailRecipient[] } };
     } catch (err: any) {
       error.value = err.data?.message || err.message || "Failed to fetch email";
@@ -302,6 +318,7 @@ export const useEmailSystem = () => {
     try {
       const response = await $fetch(`/api/email/${id}`, {
         method: "DELETE",
+        ...getFetchOptions(),
       });
       return response as { success: boolean; message: string };
     } catch (err: any) {

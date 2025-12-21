@@ -47,7 +47,9 @@ const { data: activityData, status: activityStatus } = await useAsyncData(
       return null;
     }
     try {
-      return await $fetch(`/api/email/${props.emailId}/activity`);
+      // Forward cookies for SSR authentication
+      const headers = useRequestHeaders(["cookie"]);
+      return await $fetch(`/api/email/${props.emailId}/activity`, { headers });
     } catch (error) {
       console.error("Error fetching activity:", error);
       return null;
