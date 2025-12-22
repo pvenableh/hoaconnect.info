@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
@@ -20,6 +20,9 @@ import { Loader2 } from "lucide-vue-next";
 
 const props = defineProps<{
   class?: HTMLAttributes["class"];
+  isLoading?: boolean;
+  organizationName?: string | null;
+  allowedDomain?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -37,7 +40,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const formSchema = toTypedSchema(loginSchema);
 
-const { handleSubmit, isSubmitting, resetForm } = useForm<LoginFormValues>({
+const { handleSubmit, isSubmitting, resetForm, values } = useForm<LoginFormValues>({
   validationSchema: formSchema,
   initialValues: {
     email: "",
@@ -47,7 +50,37 @@ const { handleSubmit, isSubmitting, resetForm } = useForm<LoginFormValues>({
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 
+// Combined loading state from form submission and external loading
+const isProcessing = computed(() => isSubmitting.value || props.isLoading);
+
+// Extract email domain from input
+const getEmailDomain = (email: string): string | null => {
+  const parts = email.split("@");
+  return parts.length === 2 ? parts[1].toLowerCase() : null;
+};
+
+// Validate email domain matches organization's allowed domain
+const validateEmailDomain = (email: string): boolean => {
+  if (!props.allowedDomain) return true; // No restriction if no allowed domain
+
+  const emailDomain = getEmailDomain(email);
+  if (!emailDomain) return false;
+
+  // Compare the email domain with the organization's custom domain
+  const normalizedAllowedDomain = props.allowedDomain.toLowerCase().replace(/^www\./, "");
+  return emailDomain === normalizedAllowedDomain;
+};
+
 const onSubmit = handleSubmit(async (values) => {
+  // Validate email domain if on a custom domain
+  if (props.allowedDomain && !validateEmailDomain(values.email!)) {
+    toast.error("Invalid email domain", {
+      description: `Please use an email address from ${props.allowedDomain} to login to this organization.`,
+      duration: 5000,
+    });
+    return;
+  }
+
   try {
     emit("submit", { email: values.email!, password: values.password! });
   } catch (error) {
@@ -73,9 +106,16 @@ onMounted(() => {
   <div :class="cn('flex flex-col gap-6', props.class)">
     <Card ref="cardRef">
       <CardHeader>
-        <CardTitle class="text-2xl">Login to your account</CardTitle>
+        <CardTitle class="text-2xl">
+          {{ organizationName ? `Login to ${organizationName}` : 'Login to your account' }}
+        </CardTitle>
         <CardDescription>
-          Enter your email below to login to your account
+          <template v-if="allowedDomain">
+            Enter your {{ allowedDomain }} email to login
+          </template>
+          <template v-else>
+            Enter your email below to login to your account
+          </template>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,10 +125,11 @@ onMounted(() => {
               id="email"
               label="Email"
               type="email"
-              placeholder="m@example.com"
+              :placeholder="allowedDomain ? `you@${allowedDomain}` : 'm@example.com'"
               v-bind="field"
               :error-message="errors[0]"
               variant="underline"
+              :disabled="isProcessing"
             />
           </VeeField>
 
@@ -99,6 +140,7 @@ onMounted(() => {
               v-bind="field"
               :error-message="errors[0]"
               variant="underline"
+              :disabled="isProcessing"
             >
               <template #label>
                 <label for="password" class="text-sm font-medium leading-none">
@@ -110,6 +152,7 @@ onMounted(() => {
                   type="button"
                   class="text-sm text-muted-foreground underline-offset-4 hover:underline hover:text-foreground transition-colors"
                   @click="emit('forgot-password')"
+                  :disabled="isProcessing"
                 >
                   Forgot your password?
                 </button>
@@ -118,9 +161,9 @@ onMounted(() => {
           </VeeField>
 
           <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isSubmitting">
-              <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
-              {{ isSubmitting ? "Signing in..." : "Login" }}
+            <Button type="submit" class="w-full" :disabled="isProcessing">
+              <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
+              {{ isProcessing ? "Verifying credentials..." : "Login" }}
             </Button>
 
             <p class="text-center text-sm text-muted-foreground">
@@ -129,6 +172,7 @@ onMounted(() => {
                 type="button"
                 class="text-foreground underline-offset-4 hover:underline font-medium transition-colors"
                 @click="emit('register')"
+                :disabled="isProcessing"
               >
                 Sign up
               </button>
