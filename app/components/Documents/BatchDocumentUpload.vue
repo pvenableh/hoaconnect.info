@@ -353,7 +353,8 @@ watch(
     } else if (orgFolder.value) {
       selectedFolder.value = orgFolder.value;
     }
-  }
+  },
+  { immediate: true }
 );
 
 // Load categories on mount

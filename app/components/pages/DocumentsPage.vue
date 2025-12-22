@@ -125,15 +125,11 @@ const documentTree = computed(() => {
     const addDocumentsToTree = (nodes: TreeNode[]) => {
       nodes.forEach((node) => {
         if (node.type === "folder") {
-          // Get folder ID from document - check both file.folder and document.folder
+          // Use file.folder as the source of truth for document location
           const folderDocs =
             documents.value?.filter((doc: any) => {
-              // Check file.folder first (Directus file location)
               const fileFolderId = doc.file?.folder?.id || doc.file?.folder;
-              // Also check document.folder (hoa_documents folder reference)
-              const docFolderId = typeof doc.folder === 'object' ? doc.folder?.id : doc.folder;
-              // Match if either folder reference points to this node
-              return fileFolderId === node.id || docFolderId === node.id;
+              return fileFolderId === node.id;
             }) || [];
 
           const docNodes: TreeNode[] = folderDocs.map((doc: any) => ({
@@ -383,7 +379,12 @@ const onDrop = async (targetFolderId: string, event: DragEvent) => {
 
   try {
     if (draggedItemType.value === "file") {
-      await moveToFolder(draggedItem.value.file.id, targetFolderId);
+      // Update both directus_files.folder and hoa_documents.folder
+      const { update: updateDocument } = useDirectusItems("hoa_documents");
+      await Promise.all([
+        moveToFolder(draggedItem.value.file.id, targetFolderId),
+        updateDocument(draggedItem.value.id, { folder: targetFolderId }),
+      ]);
       toast.success("File moved successfully");
       await Promise.all([refresh(), loadAllFolders()]);
     } else if (draggedItemType.value === "folder") {
