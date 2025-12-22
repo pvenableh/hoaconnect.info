@@ -171,7 +171,7 @@ const form = ref({
   city: props.organization.city || "",
   state: props.organization.state || "",
   zip: props.organization.zip || "",
-  maintenance_mode: props.organization.maintenance_mode || false,
+  maintenance_mode: props.organization.maintenance_mode ?? false,
 });
 
 // Site URL
@@ -193,7 +193,7 @@ const hasChanges = computed(() => {
     form.value.city !== (props.organization.city || "") ||
     form.value.state !== (props.organization.state || "") ||
     form.value.zip !== (props.organization.zip || "") ||
-    form.value.maintenance_mode !== (props.organization.maintenance_mode || false)
+    form.value.maintenance_mode !== (props.organization.maintenance_mode ?? false)
   );
 });
 
@@ -209,7 +209,7 @@ watch(
       city: newOrg.city || "",
       state: newOrg.state || "",
       zip: newOrg.zip || "",
-      maintenance_mode: newOrg.maintenance_mode || false,
+      maintenance_mode: newOrg.maintenance_mode ?? false,
     };
   },
   { deep: true }
