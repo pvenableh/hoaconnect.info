@@ -18,7 +18,7 @@
           </div>
           <Switch
             :checked="form.maintenance_mode"
-            @update:checked="form.maintenance_mode = $event"
+            @update:checked="onMaintenanceModeChange"
             :disabled="isSaving"
           />
         </div>
@@ -166,8 +166,8 @@ const { update: updateOrganization } = useDirectusItems<HoaOrganization>("hoa_or
 
 const isSaving = ref(false);
 
-// Form data
-const form = ref({
+// Form data - use reactive for better nested reactivity
+const form = reactive({
   name: props.organization.name || "",
   email: props.organization.email || "",
   phone: props.organization.phone || "",
@@ -190,14 +190,14 @@ const siteUrl = computed(() => {
 // Check if form has changes
 const hasChanges = computed(() => {
   return (
-    form.value.name !== (props.organization.name || "") ||
-    form.value.email !== (props.organization.email || "") ||
-    form.value.phone !== (props.organization.phone || "") ||
-    form.value.street_address !== (props.organization.street_address || "") ||
-    form.value.city !== (props.organization.city || "") ||
-    form.value.state !== (props.organization.state || "") ||
-    form.value.zip !== (props.organization.zip || "") ||
-    form.value.maintenance_mode !== (props.organization.maintenance_mode ?? false)
+    form.name !== (props.organization.name || "") ||
+    form.email !== (props.organization.email || "") ||
+    form.phone !== (props.organization.phone || "") ||
+    form.street_address !== (props.organization.street_address || "") ||
+    form.city !== (props.organization.city || "") ||
+    form.state !== (props.organization.state || "") ||
+    form.zip !== (props.organization.zip || "") ||
+    form.maintenance_mode !== (props.organization.maintenance_mode ?? false)
   );
 });
 
@@ -205,19 +205,22 @@ const hasChanges = computed(() => {
 watch(
   () => props.organization,
   (newOrg) => {
-    form.value = {
-      name: newOrg.name || "",
-      email: newOrg.email || "",
-      phone: newOrg.phone || "",
-      street_address: newOrg.street_address || "",
-      city: newOrg.city || "",
-      state: newOrg.state || "",
-      zip: newOrg.zip || "",
-      maintenance_mode: newOrg.maintenance_mode ?? false,
-    };
+    form.name = newOrg.name || "";
+    form.email = newOrg.email || "";
+    form.phone = newOrg.phone || "";
+    form.street_address = newOrg.street_address || "";
+    form.city = newOrg.city || "";
+    form.state = newOrg.state || "";
+    form.zip = newOrg.zip || "";
+    form.maintenance_mode = newOrg.maintenance_mode ?? false;
   },
   { deep: true }
 );
+
+// Handle maintenance mode toggle
+const onMaintenanceModeChange = (value: boolean) => {
+  form.maintenance_mode = value;
+};
 
 // Save changes
 const saveChanges = async () => {
@@ -227,14 +230,14 @@ const saveChanges = async () => {
 
   try {
     const updated = await updateOrganization(props.organization.id, {
-      name: form.value.name,
-      email: form.value.email,
-      phone: form.value.phone,
-      street_address: form.value.street_address,
-      city: form.value.city,
-      state: form.value.state,
-      zip: form.value.zip,
-      maintenance_mode: form.value.maintenance_mode,
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      street_address: form.street_address,
+      city: form.city,
+      state: form.state,
+      zip: form.zip,
+      maintenance_mode: form.maintenance_mode,
     });
 
     emit("updated", { ...props.organization, ...updated });
