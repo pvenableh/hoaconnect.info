@@ -330,7 +330,7 @@ const authorName = computed(() => {
 </template>
 
 <style scoped>
-@reference "tailwindcss";
+@reference "@/assets/css/tailwind.css";
 .prose :deep(p) {
   @apply mb-1;
 }
