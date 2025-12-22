@@ -11,13 +11,21 @@ interface QueuedFile {
   errorMessage?: string;
 }
 
+interface Props {
+  initialFolder?: string | null;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  initialFolder: null,
+});
+
 const emit = defineEmits<{
   (e: "complete"): void;
   (e: "close"): void;
 }>();
 
 const { create: createDocument } = useDirectusItems("hoa_documents");
-const { list: listCategories } = useDirectusItems("hoa_document_categories");
+const { list: listCategories, create: createCategory } = useDirectusItems("hoa_document_categories");
 const { upload: uploadFile } = useDirectusFiles();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const folderComposable = useDirectusFolders();
@@ -34,6 +42,11 @@ const orgFolder = computed(() => {
 const selectedCategory = ref<string>("");
 const selectedFolder = ref<string>("");
 const documentStatus = ref<"draft" | "published">("draft");
+
+// New category creation state
+const showNewCategoryInput = ref(false);
+const newCategoryName = ref("");
+const creatingCategory = ref(false);
 
 // File queue
 const fileQueue = ref<QueuedFile[]>([]);
@@ -270,12 +283,55 @@ const loadCategories = async () => {
   }
 };
 
+// Create a new category
+const handleCreateCategory = async () => {
+  if (!newCategoryName.value.trim()) {
+    toast.error("Please enter a category name");
+    return;
+  }
+
+  if (!orgId.value) {
+    toast.error("No organization selected");
+    return;
+  }
+
+  creatingCategory.value = true;
+
+  try {
+    // Generate slug from name
+    const slug = newCategoryName.value.trim().toLowerCase().replace(/\s+/g, "_");
+
+    const newCategory = await createCategory({
+      name: newCategoryName.value.trim(),
+      slug,
+      status: "published",
+      organization: orgId.value,
+      sort: documentCategories.value.length,
+    }) as HoaDocumentCategory;
+
+    // Add to local list and select it
+    documentCategories.value.push(newCategory);
+    selectedCategory.value = newCategory.id;
+
+    // Reset form
+    newCategoryName.value = "";
+    showNewCategoryInput.value = false;
+    toast.success("Category created successfully");
+  } catch (error: any) {
+    console.error("Failed to create category:", error);
+    toast.error(error.message || "Failed to create category");
+  } finally {
+    creatingCategory.value = false;
+  }
+};
+
 // Load folders
 watch(
   orgFolder,
   async (newFolder) => {
     if (newFolder) {
-      selectedFolder.value = newFolder;
+      // Use initialFolder if provided, otherwise default to org root folder
+      selectedFolder.value = props.initialFolder || newFolder;
       try {
         const folderTree = await folderComposable.getTree(newFolder);
         subfolders.value = flattenFolders(folderTree);
@@ -364,16 +420,56 @@ const allComplete = computed(
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="text-sm font-medium mb-2 block text-stone-700">Category</label>
-        <select
-          v-model="selectedCategory"
-          class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-          :disabled="isUploading"
-        >
-          <option value="">No Category</option>
-          <option v-for="cat in documentCategories" :key="cat.id" :value="cat.id">
-            {{ cat.name }}
-          </option>
-        </select>
+        <div v-if="!showNewCategoryInput" class="space-y-2">
+          <select
+            v-model="selectedCategory"
+            class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            :disabled="isUploading"
+          >
+            <option value="">No Category</option>
+            <option v-for="cat in documentCategories" :key="cat.id" :value="cat.id">
+              {{ cat.name }}
+            </option>
+          </select>
+          <button
+            type="button"
+            @click="showNewCategoryInput = true"
+            class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+            :disabled="isUploading"
+          >
+            <Icon name="heroicons:plus" class="h-4 w-4" />
+            Create New Category
+          </button>
+        </div>
+        <div v-else class="space-y-2">
+          <div class="flex gap-2">
+            <input
+              v-model="newCategoryName"
+              type="text"
+              placeholder="Category name"
+              class="flex-1 p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              :disabled="creatingCategory"
+              @keyup.enter="handleCreateCategory"
+            />
+            <button
+              type="button"
+              @click="handleCreateCategory"
+              :disabled="creatingCategory || !newCategoryName.trim()"
+              class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Icon v-if="creatingCategory" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+              <Icon v-else name="heroicons:check" class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              @click="showNewCategoryInput = false; newCategoryName = ''"
+              :disabled="creatingCategory"
+              class="px-3 py-2 border border-stone-300 rounded-lg hover:bg-stone-100 transition-colors"
+            >
+              <Icon name="heroicons:x-mark" class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div>

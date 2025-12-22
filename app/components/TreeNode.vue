@@ -36,6 +36,7 @@ const emit = defineEmits<{
   deleteFolder: [id: string];
   deleteDocument: [id: string];
   createSubfolder: [id: string];
+  uploadToFolder: [id: string];
   viewDocument: [doc: any];
   renameFolder: [id: string, newName: string];
   renameDocument: [id: string, newName: string];
@@ -233,6 +234,13 @@ const displayDate = computed(() => {
         <!-- Folder Actions -->
         <template v-if="node.type === 'folder'">
           <button
+            @click.stop="emit('uploadToFolder', node.id)"
+            class="p-1 hover:bg-blue-100 rounded"
+            title="Upload to this folder"
+          >
+            <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 text-blue-600" />
+          </button>
+          <button
             @click.stop="emit('createSubfolder', node.id)"
             class="p-1 hover:bg-stone-200 rounded"
             title="Create subfolder"
@@ -314,6 +322,7 @@ const displayDate = computed(() => {
         @delete-folder="(id) => emit('deleteFolder', id)"
         @delete-document="(id) => emit('deleteDocument', id)"
         @create-subfolder="(id) => emit('createSubfolder', id)"
+        @upload-to-folder="(id) => emit('uploadToFolder', id)"
         @view-document="(doc) => emit('viewDocument', doc)"
         @rename-folder="(id, name) => emit('renameFolder', id, name)"
         @rename-document="(id, name) => emit('renameDocument', id, name)"
