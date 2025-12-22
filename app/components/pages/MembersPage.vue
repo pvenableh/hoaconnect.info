@@ -24,7 +24,7 @@ const {
   create: createBoardTerm,
   update: updateBoardTerm,
   remove: removeBoardTerm,
-} = useDirectusItems("hoa_board_member_terms");
+} = useDirectusItems("hoa_board_members");
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
