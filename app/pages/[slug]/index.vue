@@ -43,6 +43,14 @@
 
     <!-- Organization Public Landing Page (for public visitors or admins) -->
     <div v-else>
+      <!-- Maintenance Mode Banner for Admins -->
+      <div
+        v-if="organization?.maintenance_mode && isAdminOfCurrentDomain"
+        class="bg-amber-500 text-white py-2 px-4 text-center font-medium text-sm sticky top-0 z-50"
+      >
+        <Icon name="lucide:wrench" class="w-4 h-4 inline-block mr-2" />
+        Maintenance Mode - This content is hidden from public visitors
+      </div>
       <!-- Hero Section -->
       <section
         class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
@@ -108,9 +116,9 @@
             {{ organization?.street_address }} {{ organization?.city }},
             {{ organization?.state }} {{ organization?.zip }}
           </h5>
-          <!-- Under Construction Message (shown when in maintenance mode) -->
+          <!-- Under Construction Message (shown when in maintenance mode for non-admins) -->
           <p
-            v-if="organization?.maintenance_mode"
+            v-if="organization?.maintenance_mode && !isAdminOfCurrentDomain"
             class="text-lg text-white/90 mt-8 bg-amber-500/80 px-6 py-3 rounded-lg"
           >
             The site is currently under construction
@@ -132,7 +140,7 @@
             </a>
           </div>
 
-          <div v-if="!organization?.maintenance_mode && !isAccountExpired" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <div v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired" class="flex flex-col sm:flex-row gap-4 justify-center mt-10">
             <a
               v-if="user"
               href="/dashboard"
@@ -159,8 +167,8 @@
         </div>
       </section>
 
-      <!-- Content Sections (hidden in maintenance mode or when account is expired) -->
-      <template v-if="!organization?.maintenance_mode && !isAccountExpired">
+      <!-- Content Sections (hidden in maintenance mode for non-admins, or when account is expired) -->
+      <template v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired">
         <!-- About Section -->
         <section
           v-if="
@@ -371,6 +379,9 @@ const slug = computed(() => route.params.slug);
 const { isMember } = user.value
   ? await useSelectedOrg()
   : { isMember: ref(false) };
+
+// Get admin status for current domain
+const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
