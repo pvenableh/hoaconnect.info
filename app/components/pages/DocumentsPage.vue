@@ -51,6 +51,7 @@ const status = ref<"published" | "draft" | "archived">("published");
 const showCreateFolderDialog = ref(false);
 const showCategoryManager = ref(false);
 const showBatchUploadDialog = ref(false);
+const batchUploadTargetFolder = ref<string | null>(null);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
 const expandedFolders = ref<Set<string>>(new Set());
@@ -409,6 +410,12 @@ const openCreateFolderDialog = (parentFolderId: string) => {
   showCreateFolderDialog.value = true;
 };
 
+// Open batch upload dialog for a specific folder
+const openBatchUploadForFolder = (folderId: string) => {
+  batchUploadTargetFolder.value = folderId;
+  showBatchUploadDialog.value = true;
+};
+
 // Initialize folders when organization is loaded
 watch(
   orgFolder,
@@ -459,14 +466,14 @@ const handleBatchUploadComplete = async () => {
               New Folder
             </Button>
             <Button
-              @click="showBatchUploadDialog = true"
+              @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
               variant="outline"
             >
               <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
               Batch Upload
             </Button>
             <Button
-              @click="navigateToOrg(`/documents/upload?folderId=${orgFolder}`)"
+              @click="navigateToOrg(`/admin/documents/upload?folderId=${orgFolder}`)"
             >
               Upload Document
             </Button>
@@ -658,6 +665,7 @@ const handleBatchUploadComplete = async () => {
                 @delete-folder="deleteFolder"
                 @delete-document="handleDelete"
                 @create-subfolder="openCreateFolderDialog"
+                @upload-to-folder="openBatchUploadForFolder"
                 @view-document="downloadDocument"
                 @rename-folder="renameFolder"
                 @rename-document="renameDocument"
@@ -723,6 +731,7 @@ const handleBatchUploadComplete = async () => {
           </DialogDescription>
         </DialogHeader>
         <DocumentsBatchDocumentUpload
+          :initial-folder="batchUploadTargetFolder"
           @complete="handleBatchUploadComplete"
           @close="showBatchUploadDialog = false"
         />
