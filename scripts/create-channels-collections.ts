@@ -69,7 +69,7 @@ async function collectionExists(collection: string): Promise<boolean> {
   }
 }
 
-// Create a collection
+// Create a collection with proper primary key
 async function createCollection(
   collection: string,
   meta: Record<string, any>
@@ -86,7 +86,25 @@ async function createCollection(
     body: JSON.stringify({
       collection,
       meta,
-      schema: {},
+      schema: {
+        name: collection,
+      },
+      fields: [
+        {
+          field: "id",
+          type: "uuid",
+          meta: {
+            hidden: true,
+            readonly: true,
+            interface: "input",
+            special: ["uuid"],
+          },
+          schema: {
+            is_primary_key: true,
+            has_auto_increment: false,
+          },
+        },
+      ],
     }),
   });
 
