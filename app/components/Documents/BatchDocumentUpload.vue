@@ -344,6 +344,18 @@ watch(
   { immediate: true }
 );
 
+// Update selected folder when initialFolder prop changes
+watch(
+  () => props.initialFolder,
+  (newInitialFolder) => {
+    if (newInitialFolder) {
+      selectedFolder.value = newInitialFolder;
+    } else if (orgFolder.value) {
+      selectedFolder.value = orgFolder.value;
+    }
+  }
+);
+
 // Load categories on mount
 watch(orgId, () => loadCategories(), { immediate: true });
 
@@ -420,53 +432,67 @@ const allComplete = computed(
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="text-sm font-medium mb-2 block text-stone-700">Category</label>
-        <div v-if="!showNewCategoryInput" class="space-y-2">
-          <select
-            v-model="selectedCategory"
-            class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-            :disabled="isUploading"
-          >
-            <option value="">No Category</option>
-            <option v-for="cat in documentCategories" :key="cat.id" :value="cat.id">
-              {{ cat.name }}
-            </option>
-          </select>
-          <button
-            type="button"
-            @click="showNewCategoryInput = true"
-            class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-            :disabled="isUploading"
-          >
-            <Icon name="heroicons:plus" class="h-4 w-4" />
-            Create New Category
-          </button>
-        </div>
-        <div v-else class="space-y-2">
-          <div class="flex gap-2">
-            <input
-              v-model="newCategoryName"
-              type="text"
-              placeholder="Category name"
-              class="flex-1 p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              :disabled="creatingCategory"
-              @keyup.enter="handleCreateCategory"
-            />
+        <!-- Fixed height container to prevent layout jump -->
+        <div class="min-h-[72px]">
+          <!-- Category select mode -->
+          <div v-if="!showNewCategoryInput" class="space-y-2">
+            <select
+              v-model="selectedCategory"
+              class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              :disabled="isUploading"
+            >
+              <option value="">No Category</option>
+              <option v-for="cat in documentCategories" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
             <button
               type="button"
-              @click="handleCreateCategory"
-              :disabled="creatingCategory || !newCategoryName.trim()"
-              class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              @click="showNewCategoryInput = true"
+              class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              :disabled="isUploading"
             >
-              <Icon v-if="creatingCategory" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-              <Icon v-else name="heroicons:check" class="h-4 w-4" />
+              <Icon name="heroicons:plus" class="h-4 w-4" />
+              Create New Category
             </button>
+          </div>
+          <!-- New category input mode -->
+          <div v-else class="space-y-2">
+            <div class="flex gap-2">
+              <input
+                v-model="newCategoryName"
+                type="text"
+                placeholder="Category name"
+                class="flex-1 p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                :disabled="creatingCategory"
+                @keyup.enter="handleCreateCategory"
+              />
+              <button
+                type="button"
+                @click="handleCreateCategory"
+                :disabled="creatingCategory || !newCategoryName.trim()"
+                class="flex-shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Icon v-if="creatingCategory" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+                <Icon v-else name="heroicons:check" class="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                @click="showNewCategoryInput = false; newCategoryName = ''"
+                :disabled="creatingCategory"
+                class="flex-shrink-0 px-3 py-2 bg-stone-100 border border-stone-300 rounded-lg hover:bg-stone-200 transition-colors text-stone-600"
+              >
+                <Icon name="heroicons:x-mark" class="h-4 w-4" />
+              </button>
+            </div>
             <button
               type="button"
               @click="showNewCategoryInput = false; newCategoryName = ''"
+              class="text-sm text-stone-500 hover:text-stone-700 font-medium flex items-center gap-1"
               :disabled="creatingCategory"
-              class="px-3 py-2 border border-stone-300 rounded-lg hover:bg-stone-100 transition-colors"
             >
-              <Icon name="heroicons:x-mark" class="h-4 w-4" />
+              <Icon name="heroicons:arrow-left" class="h-4 w-4" />
+              Back to category list
             </button>
           </div>
         </div>

@@ -467,15 +467,9 @@ const handleBatchUploadComplete = async () => {
             </Button>
             <Button
               @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
-              variant="outline"
             >
               <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
-              Batch Upload
-            </Button>
-            <Button
-              @click="navigateToOrg(`/admin/documents/upload?folderId=${orgFolder}`)"
-            >
-              Upload Document
+              Upload Documents
             </Button>
           </div>
         </div>

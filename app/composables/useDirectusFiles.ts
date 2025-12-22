@@ -109,15 +109,17 @@ export const useDirectusFiles = () => {
 
     if (metadata) {
       Object.entries(metadata).forEach(([key, value]) => {
-        if (value !== undefined) {
-          // Handle folder as either string ID or object with id property
-          if (key === 'folder' && typeof value === 'object' && value !== null && 'id' in value) {
-            formData.append(key, (value as { id: string }).id)
-          } else if (Array.isArray(value)) {
-            formData.append(key, JSON.stringify(value))
-          } else {
-            formData.append(key, String(value))
-          }
+        // Skip undefined and null values
+        if (value === undefined || value === null) {
+          return
+        }
+        // Handle folder as either string ID or object with id property
+        if (key === 'folder' && typeof value === 'object' && 'id' in value) {
+          formData.append(key, (value as { id: string }).id)
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value))
+        } else {
+          formData.append(key, String(value))
         }
       })
     }
