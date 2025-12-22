@@ -3,7 +3,24 @@ import { toast } from "vue-sonner";
 
 const router = useRouter();
 const { login } = useDirectusAuth();
+const { activeHoa, isCustomDomain } = useActiveHoa();
 const isLoading = ref(false);
+
+// Get organization context for custom domain login
+const organizationName = computed(() => {
+  if (isCustomDomain.value && activeHoa.value?.name) {
+    return activeHoa.value.name;
+  }
+  return null;
+});
+
+// Get allowed email domain from custom domain
+const allowedDomain = computed(() => {
+  if (isCustomDomain.value && activeHoa.value?.custom_domain) {
+    return activeHoa.value.custom_domain;
+  }
+  return null;
+});
 
 const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
@@ -70,10 +87,25 @@ const handleSubmit = async (values: { email: string; password: string }) => {
       router.push("/dashboard");
     }
   } catch (error: any) {
-    toast.error("Login failed", {
-      description:
-        error.message || "Please check your credentials and try again.",
-    });
+    // Provide specific toast notification for invalid credentials
+    const errorMessage = error.message?.toLowerCase() || "";
+
+    if (errorMessage.includes("invalid") || errorMessage.includes("incorrect") || errorMessage.includes("wrong")) {
+      toast.error("Invalid credentials", {
+        description: "The email or password you entered is incorrect. Please try again.",
+        duration: 5000,
+      });
+    } else if (errorMessage.includes("not found") || errorMessage.includes("no user")) {
+      toast.error("Account not found", {
+        description: "No account exists with this email address. Please check your email or sign up.",
+        duration: 5000,
+      });
+    } else {
+      toast.error("Login failed", {
+        description: error.message || "Please check your credentials and try again.",
+        duration: 5000,
+      });
+    }
   } finally {
     isLoading.value = false;
   }
@@ -102,6 +134,9 @@ const handleRegister = () => {
         </NuxtLink>
       </div>
       <AuthLoginForm
+        :is-loading="isLoading"
+        :organization-name="organizationName"
+        :allowed-domain="allowedDomain"
         @submit="handleSubmit"
         @forgot-password="handleForgotPassword"
         @register="handleRegister"
