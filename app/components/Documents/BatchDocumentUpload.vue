@@ -458,42 +458,33 @@ const allComplete = computed(
           </div>
           <!-- New category input mode -->
           <div v-else class="space-y-2">
+            <input
+              v-model="newCategoryName"
+              type="text"
+              placeholder="Category name"
+              class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              :disabled="creatingCategory"
+              @keyup.enter="handleCreateCategory"
+            />
             <div class="flex gap-2">
-              <input
-                v-model="newCategoryName"
-                type="text"
-                placeholder="Category name"
-                class="flex-1 p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                :disabled="creatingCategory"
-                @keyup.enter="handleCreateCategory"
-              />
               <button
                 type="button"
                 @click="handleCreateCategory"
                 :disabled="creatingCategory || !newCategoryName.trim()"
-                class="flex-shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               >
-                <Icon v-if="creatingCategory" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-                <Icon v-else name="heroicons:check" class="h-4 w-4" />
+                <Icon v-if="creatingCategory" name="heroicons:arrow-path" class="h-4 w-4 animate-spin inline mr-1" />
+                {{ creatingCategory ? 'Creating...' : 'Create Category' }}
               </button>
               <button
                 type="button"
                 @click="showNewCategoryInput = false; newCategoryName = ''"
                 :disabled="creatingCategory"
-                class="flex-shrink-0 px-3 py-2 bg-stone-100 border border-stone-300 rounded-lg hover:bg-stone-200 transition-colors text-stone-600"
+                class="px-3 py-2 bg-stone-100 border border-stone-300 rounded-lg hover:bg-stone-200 transition-colors text-stone-600 text-sm font-medium"
               >
-                <Icon name="heroicons:x-mark" class="h-4 w-4" />
+                Cancel
               </button>
             </div>
-            <button
-              type="button"
-              @click="showNewCategoryInput = false; newCategoryName = ''"
-              class="text-sm text-stone-500 hover:text-stone-700 font-medium flex items-center gap-1"
-              :disabled="creatingCategory"
-            >
-              <Icon name="heroicons:arrow-left" class="h-4 w-4" />
-              Back to category list
-            </button>
           </div>
         </div>
       </div>

@@ -75,7 +75,8 @@ const loadAllFolders = async () => {
     });
 
     if (Array.isArray(result)) {
-      allFolders.value = result;
+      // Create a new array to ensure reactivity triggers
+      allFolders.value = [...result];
     } else {
       allFolders.value = [];
     }
@@ -124,11 +125,15 @@ const documentTree = computed(() => {
     const addDocumentsToTree = (nodes: TreeNode[]) => {
       nodes.forEach((node) => {
         if (node.type === "folder") {
-          // Get folder ID from document's file.folder (handle both string and object)
+          // Get folder ID from document - check both file.folder and document.folder
           const folderDocs =
             documents.value?.filter((doc: any) => {
-              const docFolderId = doc.file?.folder?.id || doc.file?.folder;
-              return docFolderId === node.id;
+              // Check file.folder first (Directus file location)
+              const fileFolderId = doc.file?.folder?.id || doc.file?.folder;
+              // Also check document.folder (hoa_documents folder reference)
+              const docFolderId = typeof doc.folder === 'object' ? doc.folder?.id : doc.folder;
+              // Match if either folder reference points to this node
+              return fileFolderId === node.id || docFolderId === node.id;
             }) || [];
 
           const docNodes: TreeNode[] = folderDocs.map((doc: any) => ({
@@ -177,7 +182,8 @@ const createFolder = async () => {
     showCreateFolderDialog.value = false;
     await loadAllFolders();
     if (selectedParentFolder.value) {
-      expandedFolders.value.add(selectedParentFolder.value);
+      // Create new Set to ensure reactivity
+      expandedFolders.value = new Set([...expandedFolders.value, selectedParentFolder.value]);
     }
   } catch (error) {
     console.error("Failed to create folder:", error);
@@ -257,6 +263,7 @@ const { data: documents, refresh } = await useAsyncData(
         "date_published",
         "date_created",
         "date_updated",
+        "folder",
         "file.*",
         "file.folder.*",
       ],
@@ -397,11 +404,13 @@ const onDrop = async (targetFolderId: string, event: DragEvent) => {
 
 // Toggle folder expansion
 const toggleFolder = (folderId: string) => {
-  if (expandedFolders.value.has(folderId)) {
-    expandedFolders.value.delete(folderId);
+  const newSet = new Set(expandedFolders.value);
+  if (newSet.has(folderId)) {
+    newSet.delete(folderId);
   } else {
-    expandedFolders.value.add(folderId);
+    newSet.add(folderId);
   }
+  expandedFolders.value = newSet;
 };
 
 // Open create folder dialog with selected parent
@@ -424,11 +433,13 @@ watch(
       selectedParentFolder.value = newFolder;
       await loadAllFolders();
       // Expand the org folder and its immediate children by default
-      expandedFolders.value.add(newFolder);
+      const newSet = new Set(expandedFolders.value);
+      newSet.add(newFolder);
       const rootFolders = allFolders.value.filter(
         (f) => f.parent === newFolder
       );
-      rootFolders.forEach((f) => expandedFolders.value.add(f.id));
+      rootFolders.forEach((f) => newSet.add(f.id));
+      expandedFolders.value = newSet;
     }
   },
   { immediate: true }
