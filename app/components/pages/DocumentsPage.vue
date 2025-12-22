@@ -50,6 +50,7 @@ const status = ref<"published" | "draft" | "archived">("published");
 // UI state
 const showCreateFolderDialog = ref(false);
 const showCategoryManager = ref(false);
+const showBatchUploadDialog = ref(false);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
 const expandedFolders = ref<Set<string>>(new Set());
@@ -425,6 +426,13 @@ watch(
   },
   { immediate: true }
 );
+
+// Handle batch upload completion
+const handleBatchUploadComplete = async () => {
+  showBatchUploadDialog.value = false;
+  await Promise.all([refresh(), loadAllFolders()]);
+  toast.success("Documents added successfully");
+};
 </script>
 
 <template>
@@ -449,6 +457,13 @@ watch(
             >
               <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
               New Folder
+            </Button>
+            <Button
+              @click="showBatchUploadDialog = true"
+              variant="outline"
+            >
+              <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
+              Batch Upload
             </Button>
             <Button
               @click="navigateToOrg(`/documents/upload?folderId=${orgFolder}`)"
@@ -695,6 +710,22 @@ watch(
             {{ creatingFolder ? "Creating..." : "Create Folder" }}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Batch Upload Dialog -->
+    <Dialog v-model:open="showBatchUploadDialog">
+      <DialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Batch Upload Documents</DialogTitle>
+          <DialogDescription>
+            Upload multiple documents at once. Files will be created as drafts for review.
+          </DialogDescription>
+        </DialogHeader>
+        <DocumentsBatchDocumentUpload
+          @complete="handleBatchUploadComplete"
+          @close="showBatchUploadDialog = false"
+        />
       </DialogContent>
     </Dialog>
   </div>
