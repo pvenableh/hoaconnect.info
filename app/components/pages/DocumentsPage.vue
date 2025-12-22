@@ -248,7 +248,9 @@ const { data: documents, refresh } = await useAsyncData(
       fields: [
         "id",
         "title",
-        "category",
+        "document_category.id",
+        "document_category.name",
+        "document_category.slug",
         "status",
         "date_published",
         "date_created",
@@ -259,7 +261,7 @@ const { data: documents, refresh } = await useAsyncData(
       filter: {
         organization: { _eq: orgId.value },
         status: { _in: [status.value] },
-        ...(category.value !== "all" && { category: { _eq: category.value } }),
+        ...(category.value !== "all" && { document_category: { slug: { _eq: category.value } } }),
       },
       sort: ["sort", "-date_published", "-date_updated", "-date_created"],
     });
