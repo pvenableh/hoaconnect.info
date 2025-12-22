@@ -16,6 +16,8 @@ interface Props {
   draggedItemType?: string | null;
   dragOverItem?: string | null;
   editingId?: string | null;
+  selectedIds?: Set<string>;
+  selectionMode?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
   draggedItemType: null,
   dragOverItem: null,
   editingId: null,
+  selectedIds: () => new Set<string>(),
+  selectionMode: false,
 });
 
 const emit = defineEmits<{
@@ -42,6 +46,8 @@ const emit = defineEmits<{
   renameDocument: [id: string, newName: string];
   startEdit: [id: string];
   cancelEdit: [];
+  toggleSelect: [id: string, doc: any];
+  editDocument: [doc: any];
 }>();
 
 const isExpanded = computed(() => props.node.expanded);
@@ -50,9 +56,16 @@ const hasChildren = computed(
 );
 const isDragOver = computed(() => props.dragOverItem === props.node.id);
 const isEditing = computed(() => props.editingId === props.node.id);
+const isSelected = computed(() => props.selectedIds.has(props.node.id));
 const indentStyle = computed(() => ({
   paddingLeft: `${props.level * 40}px`,
 }));
+
+const toggleSelection = () => {
+  if (props.node.type === "file") {
+    emit("toggleSelect", props.node.id, props.node.data);
+  }
+};
 
 const editName = ref("");
 const editInput = ref<HTMLInputElement | null>(null);
@@ -130,7 +143,9 @@ const displayDate = computed(() => {
       :class="{
         'bg-blue-50 border border-blue-300':
           isDragOver && node.type === 'folder',
-        'bg-stone-50': !isDragOver,
+        'bg-blue-100 border border-blue-200':
+          isSelected && node.type === 'file',
+        'bg-stone-50': !isDragOver && !isSelected,
       }"
     >
       <!-- Expand/Collapse Button (only for folders with children) -->
@@ -156,6 +171,15 @@ const displayDate = computed(() => {
         </svg>
       </button>
       <div v-else-if="node.type === 'folder'" class="w-4"></div>
+
+      <!-- Checkbox for files (selection mode) -->
+      <div
+        v-if="node.type === 'file' && selectionMode"
+        class="flex-shrink-0"
+        @click.stop="toggleSelection"
+      >
+        <Checkbox :checked="isSelected" />
+      </div>
 
       <!-- Icon -->
       <div class="flex-shrink-0">
@@ -285,9 +309,16 @@ const displayDate = computed(() => {
         <!-- File Actions -->
         <template v-else>
           <button
+            @click.stop="emit('editDocument', node.data)"
+            class="p-1 hover:bg-blue-100 rounded"
+            title="Edit document metadata"
+          >
+            <Icon name="heroicons:pencil-square" class="h-4 w-4 text-blue-600" />
+          </button>
+          <button
             @click.stop="emit('viewDocument', node.data)"
             class="p-1 hover:bg-stone-200 rounded"
-            title="View document"
+            title="Download document"
           >
             <Icon name="i-lucide-download" class="h-4 w-4 text-stone-600" />
           </button>
@@ -313,6 +344,8 @@ const displayDate = computed(() => {
         :dragged-item-type="draggedItemType"
         :drag-over-item="dragOverItem"
         :editing-id="editingId"
+        :selected-ids="selectedIds"
+        :selection-mode="selectionMode"
         @toggle="(id) => emit('toggle', id)"
         @start-drag="(item, type) => emit('startDrag', item, type)"
         @end-drag="emit('endDrag')"
@@ -328,6 +361,8 @@ const displayDate = computed(() => {
         @rename-document="(id, name) => emit('renameDocument', id, name)"
         @start-edit="(id) => emit('startEdit', id)"
         @cancel-edit="emit('cancelEdit')"
+        @toggle-select="(id, doc) => emit('toggleSelect', id, doc)"
+        @edit-document="(doc) => emit('editDocument', doc)"
       />
     </template>
   </div>

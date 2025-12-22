@@ -64,6 +64,12 @@ const dragOverItem = ref<string | null>(null);
 // Edit state
 const editingId = ref<string | null>(null);
 
+// Selection state for batch editing
+const selectionMode = ref(false);
+const selectedDocumentIds = ref<Set<string>>(new Set());
+const selectedDocuments = ref<Map<string, any>>(new Map());
+const showBatchEditDialog = ref(false);
+
 // Load all folders recursively
 const loadAllFolders = async () => {
   if (!orgFolder.value) return;
@@ -242,6 +248,57 @@ const startEdit = (id: string) => {
 const cancelEdit = () => {
   editingId.value = null;
 };
+
+// Selection handlers for batch editing
+const toggleSelectionMode = () => {
+  selectionMode.value = !selectionMode.value;
+  if (!selectionMode.value) {
+    // Clear selection when exiting selection mode
+    selectedDocumentIds.value = new Set();
+    selectedDocuments.value = new Map();
+  }
+};
+
+const toggleDocumentSelection = (id: string, doc: any) => {
+  const newIds = new Set(selectedDocumentIds.value);
+  const newDocs = new Map(selectedDocuments.value);
+
+  if (newIds.has(id)) {
+    newIds.delete(id);
+    newDocs.delete(id);
+  } else {
+    newIds.add(id);
+    newDocs.set(id, doc);
+  }
+
+  selectedDocumentIds.value = newIds;
+  selectedDocuments.value = newDocs;
+};
+
+const openEditForDocument = (doc: any) => {
+  // Open batch edit dialog for a single document
+  selectedDocumentIds.value = new Set([doc.id]);
+  selectedDocuments.value = new Map([[doc.id, doc]]);
+  showBatchEditDialog.value = true;
+};
+
+const openBatchEdit = () => {
+  if (selectedDocuments.value.size > 0) {
+    showBatchEditDialog.value = true;
+  }
+};
+
+const handleBatchEditSaved = async () => {
+  await refresh();
+  // Clear selection after successful edit
+  selectedDocumentIds.value = new Set();
+  selectedDocuments.value = new Map();
+  selectionMode.value = false;
+};
+
+const selectedDocumentsArray = computed(() => {
+  return Array.from(selectedDocuments.value.values());
+});
 
 // Fetch documents
 const { data: documents, refresh } = await useAsyncData(
@@ -462,6 +519,24 @@ const handleBatchUploadComplete = async () => {
         <div class="flex justify-between items-center">
           <h1 class="text-3xl font-bold">Documents</h1>
           <div class="flex gap-2">
+            <!-- Edit Selected button (shown when documents are selected) -->
+            <Button
+              v-if="selectedDocuments.size > 0"
+              @click="openBatchEdit"
+              variant="default"
+            >
+              <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
+              Edit {{ selectedDocuments.size }} Selected
+            </Button>
+            <!-- Selection mode toggle -->
+            <Button
+              @click="toggleSelectionMode"
+              variant="outline"
+              :class="selectionMode ? 'bg-blue-100 border-blue-300' : ''"
+            >
+              <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
+              {{ selectionMode ? 'Cancel Select' : 'Select' }}
+            </Button>
             <Button
               @click="showCategoryManager = !showCategoryManager"
               variant="outline"
@@ -662,6 +737,8 @@ const handleBatchUploadComplete = async () => {
                 :dragged-item-type="draggedItemType"
                 :drag-over-item="dragOverItem"
                 :editing-id="editingId"
+                :selected-ids="selectedDocumentIds"
+                :selection-mode="selectionMode"
                 @toggle="toggleFolder"
                 @start-drag="startDrag"
                 @end-drag="endDrag"
@@ -677,6 +754,8 @@ const handleBatchUploadComplete = async () => {
                 @rename-document="renameDocument"
                 @start-edit="startEdit"
                 @cancel-edit="cancelEdit"
+                @toggle-select="toggleDocumentSelection"
+                @edit-document="openEditForDocument"
               />
             </div>
 
@@ -743,5 +822,12 @@ const handleBatchUploadComplete = async () => {
         />
       </DialogContent>
     </Dialog>
+
+    <!-- Batch Edit Dialog -->
+    <DocumentsDocumentBatchEdit
+      v-model:open="showBatchEditDialog"
+      :documents="selectedDocumentsArray"
+      @saved="handleBatchEditSaved"
+    />
   </div>
 </template>
