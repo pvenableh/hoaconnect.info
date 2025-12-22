@@ -159,9 +159,14 @@ const showBoard = computed(() => {
   return activeHoa.value?.show_board !== false;
 });
 
-// Check if maintenance mode is enabled (hide public nav when true)
+// Check if maintenance mode is enabled (hide public nav when true for non-admins)
 const isMaintenanceMode = computed(() => {
   return activeHoa.value?.maintenance_mode === true;
+});
+
+// Should hide navigation for maintenance mode (only for non-admins)
+const hideNavForMaintenance = computed(() => {
+  return isMaintenanceMode.value && !isAdminOfCurrentDomain.value;
 });
 
 // Public navigation items (visible to all authenticated users)
@@ -282,8 +287,8 @@ watch(
           </a>
         </div>
 
-        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in (hidden in maintenance mode) -->
-        <div v-else-if="user && !isMaintenanceMode" class="hidden md:flex gap-6">
+        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in (hidden in maintenance mode for non-admins) -->
+        <div v-else-if="user && !hideNavForMaintenance" class="hidden md:flex gap-6">
           <!-- Public Navigation Items -->
           <NuxtLink
             v-for="item in publicNavItems"
@@ -297,8 +302,8 @@ watch(
           </NuxtLink>
         </div>
 
-        <!-- Empty spacer when logged in but in maintenance mode -->
-        <div v-else-if="user && isMaintenanceMode" class="hidden md:flex"></div>
+        <!-- Empty spacer when logged in but in maintenance mode (non-admin) -->
+        <div v-else-if="user && hideNavForMaintenance" class="hidden md:flex"></div>
 
         <!-- Empty spacer when on org page or custom domain but not logged in -->
         <div v-else class="hidden md:flex"></div>
@@ -414,8 +419,8 @@ watch(
                 <OrgSelector class="w-full" />
               </div>
 
-              <!-- Public Navigation (hidden in maintenance mode) -->
-              <div v-if="!isMaintenanceMode" class="py-4">
+              <!-- Public Navigation (hidden in maintenance mode for non-admins) -->
+              <div v-if="!hideNavForMaintenance" class="py-4">
                 <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
                   Navigation
                 </p>

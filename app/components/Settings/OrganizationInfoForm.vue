@@ -8,6 +8,17 @@
     </CardHeader>
     <CardContent>
       <form @submit.prevent="saveChanges" class="space-y-4">
+        <!-- Maintenance Mode Toggle -->
+        <div class="flex items-center justify-between p-4 rounded-lg border bg-amber-50/50 border-amber-200">
+          <div class="space-y-0.5">
+            <Label class="text-base font-medium">Maintenance Mode</Label>
+            <p class="text-sm text-muted-foreground">
+              When enabled, public content is hidden from visitors. Admins can still view and manage the site.
+            </p>
+          </div>
+          <Switch v-model:checked="form.maintenance_mode" :disabled="isSaving" />
+        </div>
+
         <!-- Organization Name -->
         <div class="space-y-2">
           <Label for="name">Organization Name</Label>
@@ -160,6 +171,7 @@ const form = ref({
   city: props.organization.city || "",
   state: props.organization.state || "",
   zip: props.organization.zip || "",
+  maintenance_mode: props.organization.maintenance_mode || false,
 });
 
 // Site URL
@@ -180,7 +192,8 @@ const hasChanges = computed(() => {
     form.value.street_address !== (props.organization.street_address || "") ||
     form.value.city !== (props.organization.city || "") ||
     form.value.state !== (props.organization.state || "") ||
-    form.value.zip !== (props.organization.zip || "")
+    form.value.zip !== (props.organization.zip || "") ||
+    form.value.maintenance_mode !== (props.organization.maintenance_mode || false)
   );
 });
 
@@ -196,6 +209,7 @@ watch(
       city: newOrg.city || "",
       state: newOrg.state || "",
       zip: newOrg.zip || "",
+      maintenance_mode: newOrg.maintenance_mode || false,
     };
   },
   { deep: true }
@@ -216,6 +230,7 @@ const saveChanges = async () => {
       city: form.value.city,
       state: form.value.state,
       zip: form.value.zip,
+      maintenance_mode: form.value.maintenance_mode,
     });
 
     emit("updated", { ...props.organization, ...updated });
