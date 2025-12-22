@@ -850,6 +850,16 @@ interface Role {
   name: string;
 }
 
+interface Policy {
+  id: string;
+  name: string;
+}
+
+interface RoleWithPolicy {
+  role: Role;
+  policy: Policy | null;
+}
+
 async function getRoles(): Promise<Role[]> {
   try {
     const response = await directusFetch(
@@ -864,6 +874,26 @@ async function getRoles(): Promise<Role[]> {
   }
 }
 
+// Get the policy associated with a role (for newer Directus versions with policy-based permissions)
+async function getRolePolicy(roleId: string): Promise<Policy | null> {
+  try {
+    // In newer Directus, policies are linked via directus_access junction table
+    const response = await directusFetch(
+      `/access?filter=${JSON.stringify({
+        role: { _eq: roleId },
+      })}&fields=policy.id,policy.name&limit=1`
+    );
+
+    if (response.data && response.data.length > 0 && response.data[0].policy) {
+      return response.data[0].policy as Policy;
+    }
+    return null;
+  } catch (error) {
+    // Older Directus versions don't have the access endpoint
+    return null;
+  }
+}
+
 async function setupPermissions(): Promise<void> {
   console.log("\n🔐 Setting up permissions...");
 
@@ -871,12 +901,32 @@ async function setupPermissions(): Promise<void> {
 
   if (roles.length === 0) {
     console.log("   ⚠️  No HOA roles found. Skipping permissions setup.");
-    console.log("   ℹ️  Create 'HOA Admin' and 'HOA Member' roles, then run fix-permissions.ts");
+    console.log("   ℹ️  Create 'HOA Admin' and 'HOA Member' roles, then set up permissions manually.");
     return;
   }
 
-  const hoaAdmin = roles.find((r) => r.name === "HOA Admin");
-  const hoaMember = roles.find((r) => r.name === "HOA Member");
+  // Get policies for each role (newer Directus uses policy-based permissions)
+  const rolesWithPolicies: RoleWithPolicy[] = [];
+  for (const role of roles) {
+    const policy = await getRolePolicy(role.id);
+    rolesWithPolicies.push({ role, policy });
+    if (policy) {
+      console.log(`   ✅ Found policy "${policy.name}" for role "${role.name}"`);
+    } else {
+      console.log(`   ⚠️  No policy found for role "${role.name}"`);
+    }
+  }
+
+  const hoaAdminEntry = rolesWithPolicies.find((r) => r.role.name === "HOA Admin");
+  const hoaMemberEntry = rolesWithPolicies.find((r) => r.role.name === "HOA Member");
+
+  // Check if we have policies (required for newer Directus)
+  if (!hoaAdminEntry?.policy && !hoaMemberEntry?.policy) {
+    console.log("\n   ⚠️  No policies found for roles. This Directus version requires policy-based permissions.");
+    console.log("   ℹ️  Please set up permissions manually in Directus Admin:");
+    console.log("      Settings → Access Control → [Role] → Add permissions for channel collections");
+    return;
+  }
 
   // Organization filter - users can only access items in their organization
   const orgFilter = {
@@ -975,14 +1025,14 @@ async function setupPermissions(): Promise<void> {
 
   for (const { collection, adminPermissions, memberPermissions } of collections) {
     // HOA Admin permissions
-    if (hoaAdmin) {
+    if (hoaAdminEntry?.policy) {
       console.log(`\n   📋 ${collection} permissions for HOA Admin...`);
       for (const [action, config] of Object.entries(adminPermissions)) {
         try {
           await directusFetch("/permissions", {
             method: "POST",
             body: JSON.stringify({
-              role: hoaAdmin.id,
+              policy: hoaAdminEntry.policy.id,
               collection,
               action,
               ...config,
@@ -990,7 +1040,7 @@ async function setupPermissions(): Promise<void> {
           });
           console.log(`      ✅ ${action}`);
         } catch (error: any) {
-          if (error.message.includes("already exists") || error.message.includes("409")) {
+          if (error.message.includes("already exists") || error.message.includes("409") || error.message.includes("unique")) {
             console.log(`      ⏭️  ${action} (already exists)`);
           } else {
             console.log(`      ❌ ${action}: ${error.message}`);
@@ -1000,14 +1050,14 @@ async function setupPermissions(): Promise<void> {
     }
 
     // HOA Member permissions
-    if (hoaMember) {
+    if (hoaMemberEntry?.policy) {
       console.log(`\n   📋 ${collection} permissions for HOA Member...`);
       for (const [action, config] of Object.entries(memberPermissions)) {
         try {
           await directusFetch("/permissions", {
             method: "POST",
             body: JSON.stringify({
-              role: hoaMember.id,
+              policy: hoaMemberEntry.policy.id,
               collection,
               action,
               ...config,
@@ -1015,7 +1065,7 @@ async function setupPermissions(): Promise<void> {
           });
           console.log(`      ✅ ${action}`);
         } catch (error: any) {
-          if (error.message.includes("already exists") || error.message.includes("409")) {
+          if (error.message.includes("already exists") || error.message.includes("409") || error.message.includes("unique")) {
             console.log(`      ⏭️  ${action} (already exists)`);
           } else {
             console.log(`      ❌ ${action}: ${error.message}`);
