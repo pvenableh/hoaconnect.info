@@ -17,7 +17,9 @@ const props = defineProps<{
 
 const config = useRuntimeConfig();
 const { user: currentUser } = useDirectusAuth();
-const { create: createMessage, remove: deleteMessage } = useDirectusItems("hoa_channel_messages");
+const { create: createMessage, remove: deleteMessage } = useDirectusItems(
+  "hoa_channel_messages"
+);
 const filesComposable = useDirectusFiles();
 
 const showReplyInput = ref(false);
@@ -117,7 +119,11 @@ const getRelativeTime = (dateString?: string): string => {
 // Get user avatar URL
 const getAvatarUrl = (avatarId?: string): string | undefined => {
   if (!avatarId) return undefined;
-  return filesComposable.getUrl(avatarId, { width: 40, height: 40, fit: "cover" });
+  return filesComposable.getUrl(avatarId, {
+    width: 40,
+    height: 40,
+    fit: "cover",
+  });
 };
 
 // Check if current user is the author
@@ -131,7 +137,10 @@ const isAuthor = computed(() => {
 
 // Get author display name
 const authorName = computed(() => {
-  if (!props.message.user_created || typeof props.message.user_created === "string") {
+  if (
+    !props.message.user_created ||
+    typeof props.message.user_created === "string"
+  ) {
     return "Unknown User";
   }
   const { first_name, last_name } = props.message.user_created;
@@ -153,7 +162,9 @@ const authorName = computed(() => {
       <!-- Avatar -->
       <Avatar class="h-8 w-8 shrink-0">
         <AvatarImage
-          v-if="message.user_created && typeof message.user_created === 'object'"
+          v-if="
+            message.user_created && typeof message.user_created === 'object'
+          "
           :src="getAvatarUrl(message.user_created.avatar)"
           :alt="authorName"
         />
@@ -169,7 +180,11 @@ const authorName = computed(() => {
           <span class="text-xs text-stone-500">
             {{ getRelativeTime(message.date_created) }}
           </span>
-          <Badge v-if="message.is_edited" variant="outline" class="text-xs py-0">
+          <Badge
+            v-if="message.is_edited"
+            variant="outline"
+            class="text-xs py-0"
+          >
             edited
           </Badge>
         </div>
@@ -225,7 +240,10 @@ const authorName = computed(() => {
         </div>
 
         <!-- Reply Actions for replies -->
-        <div v-else class="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div
+          v-else
+          class="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
           <Button
             v-if="isAuthor"
             variant="ghost"
@@ -282,10 +300,16 @@ const authorName = computed(() => {
       <div v-if="showReplies && !isReply" class="space-y-1">
         <div v-if="repliesLoading" class="pl-11 space-y-2">
           <div v-for="n in 2" :key="n" class="flex items-start gap-3 p-2">
-            <div class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse" />
+            <div
+              class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse"
+            />
             <div class="flex-1 space-y-2">
-              <div class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-              <div class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+              <div
+                class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+              />
+              <div
+                class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+              />
             </div>
           </div>
         </div>
@@ -306,6 +330,7 @@ const authorName = computed(() => {
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 .prose :deep(p) {
   @apply mb-1;
 }
