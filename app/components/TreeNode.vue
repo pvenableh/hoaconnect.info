@@ -219,7 +219,7 @@ const displayDate = computed(() => {
       <!-- Document metadata -->
       <div v-if="node.type === 'file'" class="flex items-center gap-2">
         <span class="text-xs px-2 py-0.5 bg-stone-200 rounded">
-          {{ node.data.category }}
+          {{ node.data.document_category?.name }}
         </span>
         <span class="text-xs text-stone-500">
           {{ displayDate }}

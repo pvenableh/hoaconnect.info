@@ -16,7 +16,7 @@ const { data: documents } = await useAsyncData(
   async () => {
     if (!orgId.value) return [];
     const result = await listDocuments({
-      fields: ["id", "title", "category", "date_published"],
+      fields: ["id", "title", "document_category.name", "date_published"],
       filter: {
         organization: { _eq: orgId.value },
         status: { _eq: "published" },
@@ -149,7 +149,7 @@ const stats = computed(() => ({
                   class="block p-3 hover:bg-stone-100 rounded"
                 >
                   <p class="font-medium">{{ doc.title }}</p>
-                  <p class="text-sm text-stone-500">{{ doc.category }}</p>
+                  <p class="text-sm text-stone-500">{{ doc.document_category?.name }}</p>
                 </NuxtLink>
               </div>
               <p v-else class="text-stone-500">No documents yet</p>
