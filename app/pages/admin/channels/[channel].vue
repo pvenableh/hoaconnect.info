@@ -25,15 +25,16 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const editorRef = ref<any>(null);
 
 // Fetch channel data
-const { data: channels, isLoading: channelLoading } = useRealtimeSubscription<HoaChannel>(
-  "hoa_channels",
-  ["id", "name", "slug", "description", "is_private", "organization"],
-  {
-    slug: { _eq: channelSlug.value },
-    organization: { _eq: selectedOrgId.value },
-    status: { _eq: "published" },
-  }
-);
+const { data: channels, isLoading: channelLoading } =
+  useRealtimeSubscription<HoaChannel>(
+    "hoa_channels",
+    ["id", "name", "slug", "description", "is_private", "organization"],
+    {
+      slug: { _eq: channelSlug.value },
+      organization: { _eq: selectedOrgId.value },
+      status: { _eq: "published" },
+    }
+  );
 
 const currentChannel = computed(() => channels.value?.[0] || null);
 
@@ -138,7 +139,8 @@ const sendMessage = async () => {
 const scrollToBottom = () => {
   if (messagesContainer.value) {
     nextTick(() => {
-      messagesContainer.value!.scrollTop = messagesContainer.value!.scrollHeight;
+      messagesContainer.value!.scrollTop =
+        messagesContainer.value!.scrollHeight;
     });
   }
 };
@@ -203,25 +205,36 @@ watch(channelSlug, () => {
           </NuxtLink>
 
           <div v-if="channelLoading" class="space-y-1">
-            <div class="h-5 w-32 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-            <div class="h-4 w-48 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+            <div
+              class="h-5 w-32 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+            />
+            <div
+              class="h-4 w-48 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+            />
           </div>
 
           <div v-else-if="currentChannel">
             <div class="flex items-center gap-2">
               <Icon
-                :name="currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'"
+                :name="
+                  currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'
+                "
                 class="w-5 h-5 text-stone-500"
               />
               <h1 class="font-semibold text-lg">{{ currentChannel.name }}</h1>
             </div>
-            <p v-if="currentChannel.description" class="text-sm text-stone-500 truncate max-w-md">
+            <p
+              v-if="currentChannel.description"
+              class="text-sm text-stone-500 truncate max-w-md"
+            >
               {{ currentChannel.description }}
             </p>
           </div>
 
           <div v-else>
-            <h1 class="font-semibold text-lg text-red-500">Channel not found</h1>
+            <h1 class="font-semibold text-lg text-red-500">
+              Channel not found
+            </h1>
           </div>
         </div>
 
@@ -263,16 +276,20 @@ watch(channelSlug, () => {
       >
         <!-- Loading State -->
         <div v-if="messagesLoading && !messages?.length" class="space-y-4">
-          <div
-            v-for="n in 5"
-            :key="n"
-            class="flex items-start gap-3 p-2"
-          >
-            <div class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse" />
+          <div v-for="n in 5" :key="n" class="flex items-start gap-3 p-2">
+            <div
+              class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse"
+            />
             <div class="flex-1 space-y-2">
-              <div class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-              <div class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-              <div class="h-4 w-2/3 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+              <div
+                class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+              />
+              <div
+                class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+              />
+              <div
+                class="h-4 w-2/3 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+              />
             </div>
           </div>
         </div>
@@ -299,7 +316,9 @@ watch(channelSlug, () => {
             <Icon name="lucide:message-square" class="w-8 h-8" />
           </div>
           <p class="font-medium mb-1">No messages yet</p>
-          <p class="text-sm">Be the first to send a message in #{{ currentChannel.name }}!</p>
+          <p class="text-sm">
+            Be the first to send a message in #{{ currentChannel.name }}!
+          </p>
         </div>
 
         <!-- Channel Not Found -->
@@ -309,7 +328,9 @@ watch(channelSlug, () => {
         >
           <Icon name="lucide:search-x" class="w-12 h-12 mb-4" />
           <p class="font-medium mb-1">Channel not found</p>
-          <p class="text-sm mb-4">This channel may have been deleted or you don't have access.</p>
+          <p class="text-sm mb-4">
+            This channel may have been deleted or you don't have access.
+          </p>
           <Button variant="outline" @click="router.push('/admin/channels')">
             <Icon name="lucide:arrow-left" class="w-4 h-4 mr-2" />
             Back to Channels
@@ -338,7 +359,9 @@ watch(channelSlug, () => {
             </div>
             <Button
               class="shrink-0 self-end"
-              :disabled="!newMessage?.replace(/<[^>]*>/g, '').trim() || !currentChannel"
+              :disabled="
+                !newMessage?.replace(/<[^>]*>/g, '').trim() || !currentChannel
+              "
               @click="sendMessage"
             >
               <Icon name="lucide:send" class="w-4 h-4" />
@@ -346,9 +369,22 @@ watch(channelSlug, () => {
             </Button>
           </div>
           <p class="text-xs text-stone-500 mt-2">
-            Press <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">Enter</kbd> to send,
-            <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">Shift+Enter</kbd> for new line,
-            <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">@</kbd> to mention
+            Press
+            <kbd
+              class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs"
+              >Enter</kbd
+            >
+            to send,
+            <kbd
+              class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs"
+              >Shift+Enter</kbd
+            >
+            for new line,
+            <kbd
+              class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs"
+              >@</kbd
+            >
+            to mention
           </p>
         </div>
       </div>
@@ -365,6 +401,7 @@ watch(channelSlug, () => {
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 /* Smooth scrolling for messages container */
 .overflow-y-auto {
   scroll-behavior: smooth;
