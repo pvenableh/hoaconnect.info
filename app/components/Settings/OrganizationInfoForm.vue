@@ -16,7 +16,11 @@
               When enabled, public content is hidden from visitors. Admins can still view and manage the site.
             </p>
           </div>
-          <Switch v-model:checked="form.maintenance_mode" :disabled="isSaving" />
+          <Switch
+            :checked="form.maintenance_mode"
+            @update:checked="form.maintenance_mode = $event"
+            :disabled="isSaving"
+          />
         </div>
 
         <!-- Organization Name -->
