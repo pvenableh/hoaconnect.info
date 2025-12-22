@@ -148,7 +148,12 @@ async function createRelation(relationConfig: Record<string, any>): Promise<void
       `   ✅ Created relation: ${relationConfig.collection}.${relationConfig.field} → ${relationConfig.related_collection}`
     );
   } catch (error: any) {
-    if (error.message.includes("already exists") || error.message.includes("409")) {
+    // Handle various "already exists" error messages
+    if (
+      error.message.includes("already exists") ||
+      error.message.includes("already has an associated relationship") ||
+      error.message.includes("409")
+    ) {
       console.log(
         `   ⏭️  Relation ${relationConfig.collection}.${relationConfig.field} already exists, skipping...`
       );
@@ -875,21 +880,58 @@ async function getRoles(): Promise<Role[]> {
 }
 
 // Get the policy associated with a role (for newer Directus versions with policy-based permissions)
-async function getRolePolicy(roleId: string): Promise<Policy | null> {
+async function getRolePolicy(roleId: string, roleName: string): Promise<Policy | null> {
   try {
     // In newer Directus, policies are linked via directus_access junction table
+    // First, try to get the access entry with nested policy
     const response = await directusFetch(
       `/access?filter=${JSON.stringify({
         role: { _eq: roleId },
-      })}&fields=policy.id,policy.name&limit=1`
+      })}&fields=id,policy&limit=1`
     );
 
-    if (response.data && response.data.length > 0 && response.data[0].policy) {
-      return response.data[0].policy as Policy;
+    console.log(`   🔍 Access lookup for ${roleName}:`, JSON.stringify(response.data));
+
+    if (response.data && response.data.length > 0) {
+      const accessEntry = response.data[0];
+      const policyId = typeof accessEntry.policy === 'string'
+        ? accessEntry.policy
+        : accessEntry.policy?.id;
+
+      if (policyId) {
+        // Fetch the full policy details
+        try {
+          const policyResponse = await directusFetch(`/policies/${policyId}`);
+          return {
+            id: policyResponse.data.id,
+            name: policyResponse.data.name || roleName,
+          };
+        } catch {
+          // Policy endpoint might not be accessible, use the ID directly
+          return { id: policyId, name: roleName };
+        }
+      }
     }
+
+    // If no access entry found, check if policies exist with matching name
+    try {
+      const policiesResponse = await directusFetch(
+        `/policies?filter=${JSON.stringify({
+          name: { _icontains: roleName },
+        })}&fields=id,name&limit=1`
+      );
+
+      if (policiesResponse.data && policiesResponse.data.length > 0) {
+        console.log(`   🔍 Found policy by name for ${roleName}:`, policiesResponse.data[0]);
+        return policiesResponse.data[0] as Policy;
+      }
+    } catch {
+      // Policies endpoint might not exist
+    }
+
     return null;
-  } catch (error) {
-    // Older Directus versions don't have the access endpoint
+  } catch (error: any) {
+    console.log(`   ⚠️  Error looking up policy for ${roleName}:`, error.message);
     return null;
   }
 }
@@ -908,10 +950,10 @@ async function setupPermissions(): Promise<void> {
   // Get policies for each role (newer Directus uses policy-based permissions)
   const rolesWithPolicies: RoleWithPolicy[] = [];
   for (const role of roles) {
-    const policy = await getRolePolicy(role.id);
+    const policy = await getRolePolicy(role.id, role.name);
     rolesWithPolicies.push({ role, policy });
     if (policy) {
-      console.log(`   ✅ Found policy "${policy.name}" for role "${role.name}"`);
+      console.log(`   ✅ Found policy "${policy.name}" (${policy.id}) for role "${role.name}"`);
     } else {
       console.log(`   ⚠️  No policy found for role "${role.name}"`);
     }
