@@ -7,11 +7,11 @@
  * - hoa_channel_members: Channel membership/invitations
  * - hoa_channel_mentions: @mention tracking
  *
- * Run with: npx tsx scripts/create-channels-collections.ts
+ * Run with: pnpm run create:channels
  *
  * Prerequisites:
- * - DIRECTUS_URL environment variable
- * - DIRECTUS_STATIC_TOKEN environment variable (admin token)
+ * - DIRECTUS_URL in .env file
+ * - DIRECTUS_STATIC_TOKEN in .env file (admin token)
  */
 
 import {
