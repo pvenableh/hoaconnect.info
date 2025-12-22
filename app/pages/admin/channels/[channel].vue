@@ -401,7 +401,7 @@ watch(channelSlug, () => {
 </template>
 
 <style scoped>
-@reference "tailwindcss";
+@reference "@/assets/css/tailwind.css";
 /* Smooth scrolling for messages container */
 .overflow-y-auto {
   scroll-behavior: smooth;

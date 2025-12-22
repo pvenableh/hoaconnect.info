@@ -779,7 +779,7 @@ const getFileIcon = (file: DirectusFile): string => {
 </template>
 
 <style>
-@reference "tailwindcss";
+@reference "@/assets/css/tailwind.css";
 .tiptap-content .tiptap {
   @apply p-4 min-h-[200px] focus:outline-none;
 }

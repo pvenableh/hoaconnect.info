@@ -561,7 +561,7 @@ defineExpose({
 </template>
 
 <style>
-@reference "tailwindcss";
+@reference "@/assets/css/tailwind.css";
 
 .channel-editor-content .tiptap {
   @apply p-3 min-h-[60px] max-h-[200px] overflow-y-auto focus:outline-none text-sm;
