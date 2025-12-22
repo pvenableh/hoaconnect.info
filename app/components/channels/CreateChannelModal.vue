@@ -98,7 +98,7 @@ watch(isOpen, (open) => {
 
       <form @submit.prevent="onSubmit" class="space-y-4">
         <!-- Channel Name -->
-        <Field v-slot="{ field, errorMessage }" name="name">
+        <VeeField v-slot="{ field, errorMessage }" name="name">
           <FieldLabel>Channel Name</FieldLabel>
           <FieldContent>
             <div class="flex items-center">
@@ -115,10 +115,10 @@ watch(isOpen, (open) => {
           <FieldDescription>
             Lowercase letters, numbers, and hyphens only
           </FieldDescription>
-        </Field>
+        </VeeField>
 
         <!-- Description -->
-        <Field v-slot="{ field, errorMessage }" name="description">
+        <VeeField v-slot="{ field, errorMessage }" name="description">
           <FieldLabel>Description (optional)</FieldLabel>
           <FieldContent>
             <Textarea
@@ -129,10 +129,10 @@ watch(isOpen, (open) => {
             />
           </FieldContent>
           <FieldError v-if="errorMessage">{{ errorMessage }}</FieldError>
-        </Field>
+        </VeeField>
 
         <!-- Private Channel Toggle -->
-        <Field v-slot="{ field }" name="is_private">
+        <VeeField v-slot="{ field }" name="is_private">
           <div class="flex items-center justify-between">
             <div>
               <FieldLabel class="mb-0">Private Channel</FieldLabel>
@@ -146,10 +146,10 @@ watch(isOpen, (open) => {
               :disabled="isSubmitting"
             />
           </div>
-        </Field>
+        </VeeField>
 
         <!-- Default Channel Toggle -->
-        <Field v-slot="{ field }" name="is_default">
+        <VeeField v-slot="{ field }" name="is_default">
           <div class="flex items-center justify-between">
             <div>
               <FieldLabel class="mb-0">Default Channel</FieldLabel>
@@ -163,7 +163,7 @@ watch(isOpen, (open) => {
               :disabled="isSubmitting || values.is_private"
             />
           </div>
-        </Field>
+        </VeeField>
 
         <DialogFooter class="gap-2">
           <Button
