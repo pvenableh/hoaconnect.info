@@ -188,6 +188,11 @@ const adminNavItems = computed(() => [
     icon: "layout-dashboard",
   },
   {
+    label: "Channels",
+    path: buildPath("/admin/channels"),
+    icon: "message-square",
+  },
+  {
     label: "Documents",
     path: buildPath("/admin/documents"),
     icon: "file-text",

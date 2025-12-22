@@ -994,6 +994,87 @@ export interface DirectusExtension {
 	bundle?: string | null;
 }
 
+// ==========================================
+// Channel System Types
+// ==========================================
+
+export interface HoaChannel {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	/** @required */
+	name: string;
+	/** @required */
+	slug: string;
+	description?: string | null;
+	/** @description If true, only invited members can see the channel */
+	is_private?: boolean;
+	/** @description If true, all new members automatically join this channel */
+	is_default?: boolean;
+	/** @required */
+	organization: HoaOrganization | string;
+	created_by?: DirectusUser | string | null;
+	members?: HoaChannelMember[] | string[];
+	messages?: HoaChannelMessage[] | string[];
+}
+
+export interface HoaChannelMessage {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'deleted';
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	/** @required @description Message content (HTML with mentions) */
+	content: string;
+	/** @required */
+	channel: HoaChannel | string;
+	/** @description Parent message for threaded replies */
+	parent_message?: HoaChannelMessage | string | null;
+	is_edited?: boolean;
+	attachments?: string[] | null;
+	replies?: HoaChannelMessage[] | string[];
+	mentions?: HoaChannelMention[] | string[];
+}
+
+export interface HoaChannelMember {
+	/** @primaryKey */
+	id: string;
+	date_created?: string | null;
+	/** @required */
+	channel: HoaChannel | string;
+	/** @required */
+	user: DirectusUser | string;
+	/** @description Optional reference to hoa_members for hoa_member invitations */
+	hoa_member?: HoaMember | string | null;
+	/** @description Channel-specific role */
+	role?: 'admin' | 'member' | 'guest';
+	invited_by?: DirectusUser | string | null;
+	last_read_at?: string | null;
+	notifications_enabled?: boolean;
+}
+
+export interface HoaChannelMention {
+	/** @primaryKey */
+	id: string;
+	date_created?: string | null;
+	/** @required */
+	message: HoaChannelMessage | string;
+	/** @required */
+	mentioned_user: DirectusUser | string;
+	/** @required */
+	mentioned_by: DirectusUser | string;
+	/** @required */
+	channel: HoaChannel | string;
+	is_read?: boolean;
+}
+
 export interface Schema {
 	block_hero: BlockHero[];
 	block_settings: BlockSetting[];
@@ -1016,6 +1097,10 @@ export interface Schema {
 	hoa_pets: HoaPet[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
+	hoa_channels: HoaChannel[];
+	hoa_channel_messages: HoaChannelMessage[];
+	hoa_channel_members: HoaChannelMember[];
+	hoa_channel_mentions: HoaChannelMention[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
@@ -1071,6 +1156,10 @@ export enum CollectionNames {
 	hoa_pets = 'hoa_pets',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
+	hoa_channels = 'hoa_channels',
+	hoa_channel_messages = 'hoa_channel_messages',
+	hoa_channel_members = 'hoa_channel_members',
+	hoa_channel_mentions = 'hoa_channel_mentions',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',
