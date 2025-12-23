@@ -8,6 +8,9 @@
  * - File/folder access for organization assets
  * - Audit mode to check current permissions without making changes
  *
+ * NOTE: Directus 10.10+ uses a policy-based permission model where permissions
+ * are assigned to policies, and policies are assigned to roles.
+ *
  * Run with: dotenv -- tsx scripts/setup-directus-permissions.ts
  * Audit mode: dotenv -- tsx scripts/setup-directus-permissions.ts --audit
  *
@@ -15,16 +18,6 @@
  *   npm run setup:permissions
  *   npm run setup:permissions:audit
  */
-
-import {
-  createDirectus,
-  rest,
-  staticToken,
-  readPermissions,
-  createPermission,
-  updatePermission,
-  deletePermissions,
-} from "@directus/sdk";
 
 // ============================================================================
 // Configuration
@@ -398,9 +391,15 @@ interface Role {
   name: string;
 }
 
+interface Policy {
+  id: string;
+  name: string;
+  roles: string[];
+}
+
 interface Permission {
   id?: number;
-  role: string;
+  policy: string;  // Directus 10.10+ uses policy instead of role
   collection: string;
   action: "create" | "read" | "update" | "delete";
   permissions: any;
@@ -417,7 +416,7 @@ interface ExistingPermission {
 }
 
 // ============================================================================
-// Directus Client
+// Directus Client & API Helpers
 // ============================================================================
 
 if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
@@ -427,33 +426,108 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   process.exit(1);
 }
 
-const directus = createDirectus(DIRECTUS_URL)
-  .with(staticToken(DIRECTUS_STATIC_TOKEN))
-  .with(rest());
+/**
+ * Make authenticated API requests to Directus
+ * Using fetch directly for policy/permission operations since SDK doesn't support all policy operations
+ */
+async function directusApi<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${DIRECTUS_URL}${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${DIRECTUS_STATIC_TOKEN}`,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      `API Error ${response.status}: ${JSON.stringify(errorData)}`
+    );
+  }
+
+  const data = await response.json();
+  return data.data as T;
+}
+
+/**
+ * Get or create a policy for a role
+ * In Directus 10.10+, permissions are assigned to policies, not directly to roles
+ */
+async function getOrCreatePolicyForRole(
+  roleId: string,
+  roleName: string
+): Promise<string> {
+  const policyName = `${roleName} Policy`;
+
+  // First, check if a policy already exists for this role
+  try {
+    const policies = await directusApi<Policy[]>(
+      `/policies?filter=${encodeURIComponent(JSON.stringify({ name: { _eq: policyName } }))}&fields=id,name,roles`
+    );
+
+    if (policies && policies.length > 0) {
+      const policy = policies[0];
+      console.log(`   📋 Found existing policy: ${policy.name} (${policy.id})`);
+      return policy.id;
+    }
+  } catch (error: any) {
+    console.log(`   ⚠️  Error checking for existing policy: ${error.message}`);
+  }
+
+  // Create a new policy for this role
+  try {
+    console.log(`   🆕 Creating new policy: ${policyName}`);
+    const newPolicy = await directusApi<Policy>("/policies", {
+      method: "POST",
+      body: JSON.stringify({
+        name: policyName,
+        admin_access: false,
+        app_access: true,
+      }),
+    });
+
+    // Link the policy to the role
+    await directusApi(`/roles/${roleId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        policies: [newPolicy.id],
+      }),
+    });
+
+    console.log(`   ✅ Created and linked policy: ${newPolicy.id}`);
+    return newPolicy.id;
+  } catch (error: any) {
+    throw new Error(`Failed to create policy for ${roleName}: ${error.message}`);
+  }
+}
 
 // ============================================================================
 // Permission Management Functions
 // ============================================================================
 
 async function getExistingPermissions(
-  roleId: string,
+  policyId: string,
   collection: string
 ): Promise<ExistingPermission[]> {
   try {
-    const permissions = await directus.request(
-      readPermissions({
-        filter: {
-          role: { _eq: roleId },
-          collection: { _eq: collection },
-        },
-        fields: ["id", "action", "permissions", "validation", "fields"],
-      })
+    const filter = {
+      policy: { _eq: policyId },
+      collection: { _eq: collection },
+    };
+    const permissions = await directusApi<ExistingPermission[]>(
+      `/permissions?filter=${encodeURIComponent(JSON.stringify(filter))}&fields=id,action,permissions,validation,fields`
     );
-    return permissions as ExistingPermission[];
-  } catch (error) {
+    return permissions || [];
+  } catch (error: any) {
     console.error(
       `   ⚠️  Error fetching permissions for ${collection}:`,
-      error
+      error.message
     );
     return [];
   }
@@ -492,17 +566,21 @@ async function createOrUpdatePermission(
 
   try {
     if (existing) {
-      await directus.request(
-        updatePermission(existing.id, {
+      await directusApi(`/permissions/${existing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           permissions: permission.permissions,
           validation: permission.validation,
           fields: permission.fields,
-        })
-      );
+        }),
+      });
       console.log(`   ✅ Updated ${permission.action}`);
       return { created: false, updated: true, skipped: false };
     } else {
-      await directus.request(createPermission(permission));
+      await directusApi("/permissions", {
+        method: "POST",
+        body: JSON.stringify(permission),
+      });
       console.log(`   ✅ Created ${permission.action}`);
       return { created: true, updated: false, skipped: false };
     }
@@ -515,8 +593,6 @@ async function createOrUpdatePermission(
 }
 
 async function removePermissions(
-  roleId: string,
-  collection: string,
   existingPermissions: ExistingPermission[],
   auditMode: boolean
 ): Promise<number> {
@@ -529,7 +605,12 @@ async function removePermissions(
 
   try {
     const ids = existingPermissions.map((p) => p.id);
-    await directus.request(deletePermissions(ids));
+    // Delete permissions one by one (bulk delete may not be supported)
+    for (const id of ids) {
+      await directusApi(`/permissions/${id}`, {
+        method: "DELETE",
+      });
+    }
     console.log(`   🗑️  Removed ${ids.length} permissions`);
     return ids.length;
   } catch (error: any) {
@@ -543,7 +624,7 @@ async function removePermissions(
 // ============================================================================
 
 function buildPermissionsForLevel(
-  roleId: string,
+  policyId: string,
   collection: string,
   level: PermissionLevel,
   config: CollectionConfig
@@ -633,7 +714,7 @@ function buildPermissionsForLevel(
   switch (level) {
     case "read_only":
       permissions.push({
-        role: roleId,
+        policy: policyId,
         collection,
         action: "read",
         permissions: filter || {},
@@ -648,7 +729,7 @@ function buildPermissionsForLevel(
 
       permissions.push(
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "read",
           permissions: filter || {},
@@ -656,7 +737,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "create",
           permissions: {},
@@ -664,7 +745,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "update",
           permissions: memberFilter,
@@ -672,7 +753,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "delete",
           permissions: memberFilter,
@@ -685,7 +766,7 @@ function buildPermissionsForLevel(
     case "full":
       permissions.push(
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "create",
           permissions: {},
@@ -693,7 +774,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "read",
           permissions: filter || {},
@@ -701,7 +782,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "update",
           permissions: filter || {},
@@ -709,7 +790,7 @@ function buildPermissionsForLevel(
           fields: ["*"],
         },
         {
-          role: roleId,
+          policy: policyId,
           collection,
           action: "delete",
           permissions: filter || {},
@@ -724,7 +805,7 @@ function buildPermissionsForLevel(
 }
 
 async function setupCollectionPermissions(
-  roleId: string,
+  policyId: string,
   roleName: string,
   config: CollectionConfig,
   auditMode: boolean
@@ -736,7 +817,7 @@ async function setupCollectionPermissions(
   console.log(`   Level: ${level}`);
 
   const existingPermissions = await getExistingPermissions(
-    roleId,
+    policyId,
     config.collection
   );
 
@@ -746,8 +827,6 @@ async function setupCollectionPermissions(
     // Remove all existing permissions for this collection
     if (existingPermissions.length > 0) {
       stats.removed = await removePermissions(
-        roleId,
-        config.collection,
         existingPermissions,
         auditMode
       );
@@ -758,7 +837,7 @@ async function setupCollectionPermissions(
   }
 
   const desiredPermissions = buildPermissionsForLevel(
-    roleId,
+    policyId,
     config.collection,
     level,
     config
@@ -782,8 +861,6 @@ async function setupCollectionPermissions(
 
   if (extraPermissions.length > 0) {
     stats.removed = await removePermissions(
-      roleId,
-      config.collection,
       extraPermissions,
       auditMode
     );
@@ -797,18 +874,18 @@ async function setupCollectionPermissions(
 // ============================================================================
 
 async function setupFilePermissions(
-  roleId: string,
+  policyId: string,
   roleName: string,
   auditMode: boolean
 ): Promise<{ created: number; updated: number }> {
   console.log(`\n📁 Setting up file system permissions for ${roleName}...`);
 
   const existingFilePerms = await getExistingPermissions(
-    roleId,
+    policyId,
     "directus_files"
   );
   const existingFolderPerms = await getExistingPermissions(
-    roleId,
+    policyId,
     "directus_folders"
   );
 
@@ -825,7 +902,7 @@ async function setupFilePermissions(
 
   const filePermissions: Permission[] = [
     {
-      role: roleId,
+      policy: policyId,
       collection: "directus_files",
       action: "read",
       permissions: fileFilter,
@@ -838,7 +915,7 @@ async function setupFilePermissions(
   if (isAdmin) {
     filePermissions.push(
       {
-        role: roleId,
+        policy: policyId,
         collection: "directus_files",
         action: "create",
         permissions: {},
@@ -846,7 +923,7 @@ async function setupFilePermissions(
         fields: ["*"],
       },
       {
-        role: roleId,
+        policy: policyId,
         collection: "directus_files",
         action: "update",
         permissions: fileFilter,
@@ -854,7 +931,7 @@ async function setupFilePermissions(
         fields: ["*"],
       },
       {
-        role: roleId,
+        policy: policyId,
         collection: "directus_files",
         action: "delete",
         permissions: fileFilter,
@@ -883,7 +960,7 @@ async function setupFilePermissions(
 
   const folderPermissions: Permission[] = [
     {
-      role: roleId,
+      policy: policyId,
       collection: "directus_folders",
       action: "read",
       permissions: folderFilter,
@@ -894,7 +971,7 @@ async function setupFilePermissions(
 
   if (isAdmin) {
     folderPermissions.push({
-      role: roleId,
+      policy: policyId,
       collection: "directus_folders",
       action: "update",
       permissions: folderFilter,
@@ -921,13 +998,13 @@ async function setupFilePermissions(
 // ============================================================================
 
 async function setupUserPermissions(
-  roleId: string,
+  policyId: string,
   roleName: string,
   auditMode: boolean
 ): Promise<{ created: number; updated: number }> {
   console.log(`\n👤 Setting up user self-access for ${roleName}...`);
 
-  const existingPerms = await getExistingPermissions(roleId, "directus_users");
+  const existingPerms = await getExistingPermissions(policyId, "directus_users");
   let stats = { created: 0, updated: 0 };
 
   // Users can read their own user record
@@ -939,7 +1016,7 @@ async function setupUserPermissions(
 
   const permissions: Permission[] = [
     {
-      role: roleId,
+      policy: policyId,
       collection: "directus_users",
       action: "read",
       permissions: selfFilter,
@@ -955,7 +1032,7 @@ async function setupUserPermissions(
       ],
     },
     {
-      role: roleId,
+      policy: policyId,
       collection: "directus_users",
       action: "update",
       permissions: selfFilter,
@@ -1022,14 +1099,25 @@ async function main() {
     for (const role of rolesToProcess) {
       console.log("\n" + "═".repeat(60));
       console.log(`🎭 Processing role: ${role.name}`);
-      console.log(`   ID: ${role.id}`);
+      console.log(`   Role ID: ${role.id}`);
       console.log("═".repeat(60));
+
+      // Get or create policy for this role (Directus 10.10+ requires policies)
+      let policyId: string;
+      try {
+        policyId = await getOrCreatePolicyForRole(role.id, role.name);
+        console.log(`   Policy ID: ${policyId}`);
+      } catch (error: any) {
+        console.error(`   ❌ Failed to get/create policy: ${error.message}`);
+        totalStats.errors++;
+        continue; // Skip this role if we can't get/create a policy
+      }
 
       // Setup collection permissions
       for (const config of COLLECTION_CONFIGS) {
         try {
           const stats = await setupCollectionPermissions(
-            role.id,
+            policyId,
             role.name,
             config,
             auditMode
@@ -1046,7 +1134,7 @@ async function main() {
       // Setup file permissions
       try {
         const fileStats = await setupFilePermissions(
-          role.id,
+          policyId,
           role.name,
           auditMode
         );
@@ -1062,7 +1150,7 @@ async function main() {
       // Setup user self-access
       try {
         const userStats = await setupUserPermissions(
-          role.id,
+          policyId,
           role.name,
           auditMode
         );
