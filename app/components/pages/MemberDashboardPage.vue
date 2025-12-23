@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import type { HoaDocument, HoaOrganization } from "~~/types/directus";
+import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "~~/types/directus";
 
 const config = useRuntimeConfig();
 const { user } = useDirectusAuth();
 const { list: listDocuments } = useDirectusItems("hoa_documents");
+const { list: listMembers } = useDirectusItems("hoa_members");
+const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { getUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
@@ -58,6 +60,89 @@ const { data: recentDocuments } = await useAsyncData(
     });
 
     return (result || []) as HoaDocument[];
+  },
+  {
+    watch: [orgId],
+    server: false,
+  }
+);
+
+// Fetch member stats for community overview (board members see this)
+const { data: memberStats } = await useAsyncData(
+  `member-stats-${orgId.value}`,
+  async () => {
+    if (!orgId.value) return { total: 0, owners: 0, tenants: 0 };
+    try {
+      const result = await listMembers({
+        fields: ["id", "member_type"],
+        filter: {
+          organization: { _eq: orgId.value },
+          status: { _in: ["active", "inactive"] },
+        },
+      });
+      const members = result || [];
+      return {
+        total: members.length,
+        owners: members.filter((m: any) => m.member_type === "owner").length,
+        tenants: members.filter((m: any) => m.member_type === "tenant").length,
+      };
+    } catch (e) {
+      return { total: 0, owners: 0, tenants: 0 };
+    }
+  },
+  {
+    watch: [orgId],
+    server: false,
+  }
+);
+
+// Fetch announcements
+const { data: announcements } = await useAsyncData(
+  `member-announcements-${orgId.value}`,
+  async () => {
+    if (!orgId.value) return [];
+    try {
+      const now = new Date().toISOString();
+      const targetFilters: any[] = [
+        { target_audience: { _null: true } },
+        { target_audience: { _eq: "all" } },
+      ];
+
+      // Add audience-specific filters
+      if (isOwner.value) {
+        targetFilters.push({ target_audience: { _eq: "owners" } });
+      }
+      if (isTenant.value) {
+        targetFilters.push({ target_audience: { _eq: "tenants" } });
+      }
+      if (isBoardMember.value) {
+        targetFilters.push({ target_audience: { _eq: "board_members" } });
+      }
+
+      const result = await listAnnouncements({
+        fields: ["id", "title", "content", "announcement_type", "is_pinned", "publish_date", "date_created", "target_audience"],
+        filter: {
+          organization: { _eq: orgId.value },
+          status: { _eq: "published" },
+          _and: [
+            {
+              _or: [
+                { expiry_date: { _null: true } },
+                { expiry_date: { _gte: now } },
+              ],
+            },
+            {
+              _or: targetFilters,
+            },
+          ],
+        },
+        sort: ["-is_pinned", "-publish_date", "-date_created"],
+        limit: 5,
+      });
+      return (result || []) as HoaAnnouncement[];
+    } catch (e) {
+      return [];
+    }
   },
   {
     watch: [orgId],
@@ -211,6 +296,58 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </div>
         </div>
 
+        <!-- Board Member Stats (only for board members) -->
+        <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <DashboardStatsCard
+            title="Total Members"
+            :value="memberStats?.total || 0"
+            description="Active community members"
+            icon="heroicons:users"
+          />
+          <DashboardStatsCard
+            title="Owners"
+            :value="memberStats?.owners || 0"
+            description="Property owners"
+            icon="heroicons:home"
+          />
+          <DashboardStatsCard
+            title="Tenants"
+            :value="memberStats?.tenants || 0"
+            description="Residents"
+            icon="heroicons:user-group"
+          />
+        </div>
+
+        <!-- Board Member Charts (only for board members) -->
+        <div v-if="isBoardMember && memberStats" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DashboardMembershipDonutChart
+            :owners="memberStats.owners || 0"
+            :tenants="memberStats.tenants || 0"
+          />
+          <Card>
+            <CardHeader class="pb-2">
+              <CardTitle class="text-base">Board Member Resources</CardTitle>
+              <CardDescription>Tools and information for board members</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+              <Button @click="navigateToOrg('/documents')" variant="outline" class="w-full justify-start">
+                <Icon name="heroicons:document-text" class="h-4 w-4 mr-2" />
+                View All Documents
+              </Button>
+              <Button v-if="isAdmin" @click="navigateToOrg('/dashboard')" variant="outline" class="w-full justify-start">
+                <Icon name="heroicons:chart-bar" class="h-4 w-4 mr-2" />
+                Admin Dashboard
+              </Button>
+              <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p class="text-sm text-amber-800">
+                  <Icon name="heroicons:light-bulb" class="h-4 w-4 inline mr-1" />
+                  As a board member, you have access to community statistics and additional resources.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <!-- Quick Actions -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card
@@ -273,6 +410,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             </div>
           </CardContent>
         </Card>
+
+        <!-- Announcements -->
+        <DashboardAnnouncementsList :announcements="announcements || []" />
 
         <!-- Recent Documents -->
         <Card>
