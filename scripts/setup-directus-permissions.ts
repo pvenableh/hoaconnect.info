@@ -33,6 +33,13 @@ const ROLES = {
   APP_ADMIN: "c4903b32-db6f-4479-a627-55be7f328321", // Global admin (has all permissions)
 } as const;
 
+// Policy UUIDs - these must match your Directus instance
+// In Directus 10.10+, permissions are assigned to policies, not directly to roles
+const POLICIES = {
+  HOA_ADMIN: "d09e906c-b418-4cd1-a680-fe5fbbc05576",
+  HOA_MEMBER: "58d28da6-d31f-40bf-966e-cfbee05b3464",
+} as const;
+
 // Permission levels
 type PermissionLevel = "full" | "read_only" | "member_specific" | "none";
 
@@ -1090,28 +1097,20 @@ async function main() {
   };
 
   try {
-    // Process each role
+    // Process each role with its associated policy
     const rolesToProcess = [
-      { id: ROLES.HOA_ADMIN, name: "HOA Admin" },
-      { id: ROLES.HOA_MEMBER, name: "HOA Member" },
+      { id: ROLES.HOA_ADMIN, name: "HOA Admin", policyId: POLICIES.HOA_ADMIN },
+      { id: ROLES.HOA_MEMBER, name: "HOA Member", policyId: POLICIES.HOA_MEMBER },
     ];
 
     for (const role of rolesToProcess) {
       console.log("\n" + "═".repeat(60));
       console.log(`🎭 Processing role: ${role.name}`);
       console.log(`   Role ID: ${role.id}`);
+      console.log(`   Policy ID: ${role.policyId}`);
       console.log("═".repeat(60));
 
-      // Get or create policy for this role (Directus 10.10+ requires policies)
-      let policyId: string;
-      try {
-        policyId = await getOrCreatePolicyForRole(role.id, role.name);
-        console.log(`   Policy ID: ${policyId}`);
-      } catch (error: any) {
-        console.error(`   ❌ Failed to get/create policy: ${error.message}`);
-        totalStats.errors++;
-        continue; // Skip this role if we can't get/create a policy
-      }
+      const policyId = role.policyId;
 
       // Setup collection permissions
       for (const config of COLLECTION_CONFIGS) {
