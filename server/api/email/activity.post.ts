@@ -65,16 +65,16 @@ export default defineEventHandler(async (event) => {
             filter: {
               sg_message_id: { _eq: cleanMessageId },
             },
-            fields: ["id", "member", "email", "status"],
+            fields: ["id", "email", "status"],
             limit: 1,
           })
         ) as HoaEmailRecipient[];
 
         const recipient = recipients[0];
 
-        // If no recipient found by sg_message_id, try to find member by email
-        let memberId: string | null = recipient?.member as string || null;
-        if (!memberId && sgEvent.email) {
+        // Find member by email address
+        let memberId: string | null = null;
+        if (sgEvent.email) {
           try {
             const members = await directus.request(
               readItems("hoa_members", {
