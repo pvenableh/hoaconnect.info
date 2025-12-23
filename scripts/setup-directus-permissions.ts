@@ -458,7 +458,13 @@ async function directusApi<T>(
     );
   }
 
-  const data = await response.json();
+  // Handle empty responses (e.g., 204 No Content for DELETE operations)
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  const data = JSON.parse(text);
   return data.data as T;
 }
 
