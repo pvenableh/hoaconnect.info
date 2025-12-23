@@ -12,6 +12,7 @@ interface SaveEmailBody {
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
+  attachmentIds?: string[];
 }
 
 export default defineEventHandler(async (event) => {
@@ -29,6 +30,7 @@ export default defineEventHandler(async (event) => {
     includeBoardFooter = true,
     status = "draft",
     scheduledAt,
+    attachmentIds,
   } = body;
 
   // Validation
@@ -52,6 +54,7 @@ export default defineEventHandler(async (event) => {
       include_board_footer: includeBoardFooter,
       status,
       scheduled_at: scheduledAt || null,
+      attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
     };
 
     let email;

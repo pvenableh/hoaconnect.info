@@ -152,6 +152,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
+          attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
         })
       );
     } else {
@@ -166,6 +167,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
+          attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
         })
       );
     }

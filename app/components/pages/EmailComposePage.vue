@@ -164,7 +164,7 @@ const { data: existingEmail } = await useAsyncData(
 // Populate form if editing
 watch(
   existingEmail,
-  (email) => {
+  async (email) => {
     if (email) {
       form.subject = email.subject || "";
       form.content = email.content || "";
@@ -172,6 +172,27 @@ watch(
       form.greeting = email.greeting || "";
       form.salutation = email.salutation || "";
       form.includeBoardFooter = email.include_board_footer ?? true;
+
+      // Load attachments if they exist
+      if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
+        form.attachmentIds = email.attachments;
+        // Fetch attachment details from Directus
+        try {
+          const attachmentDetails = await filesComposable.getMany(email.attachments as string[], {
+            fields: ["id", "title", "filename_download", "type", "filesize"],
+          });
+          if (attachmentDetails && Array.isArray(attachmentDetails)) {
+            selectedAttachments.value = (attachmentDetails as DirectusFile[]).map((file) => ({
+              id: file.id,
+              filename: file.filename_download || file.title || "attachment",
+              type: file.type || "application/octet-stream",
+              size: file.filesize || 0,
+            }));
+          }
+        } catch (err) {
+          console.error("Failed to load attachment details:", err);
+        }
+      }
       // Note: Recipients would need to be loaded separately for editing
     }
   },
@@ -247,7 +268,7 @@ const handleSaveDraft = async () => {
   }
 
   try {
-    await emailSystem.saveDraft({
+    const result = await emailSystem.saveDraft({
       emailId: props.emailId,
       organizationId: orgId.value,
       subject: form.subject,
@@ -257,11 +278,14 @@ const handleSaveDraft = async () => {
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
       status: "draft",
+      attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
     toast.success("Draft saved");
     navigateToOrg("/admin/email");
+    return result;
   } catch (error: any) {
     toast.error(error.message || "Failed to save draft");
+    throw error;
   }
 };
 
@@ -283,6 +307,25 @@ const handleSend = async () => {
   }
 
   try {
+    // For new emails, save first to create the record, then send
+    let emailId = props.emailId;
+
+    if (!emailId) {
+      // Save as draft first to get an emailId
+      const saveResult = await emailSystem.saveDraft({
+        organizationId: orgId.value,
+        subject: form.subject,
+        content: form.content,
+        emailType: form.emailType,
+        greeting: form.greeting || undefined,
+        salutation: form.salutation || undefined,
+        includeBoardFooter: form.includeBoardFooter,
+        status: "draft",
+        attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+      });
+      emailId = saveResult.email.id;
+    }
+
     const result = await emailSystem.sendEmail({
       organizationId: orgId.value,
       subject: form.subject,
@@ -292,7 +335,7 @@ const handleSend = async () => {
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
       recipientIds,
-      emailId: props.emailId,
+      emailId,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
 

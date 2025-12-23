@@ -339,6 +339,8 @@ export interface HoaEmail {
 	delivered_count?: number | null;
 	/** @description Failed delivery count */
 	failed_count?: number | null;
+	/** @description Array of Directus file IDs for attachments */
+	attachments?: string[] | null;
 	/** @required */
 	organization: HoaOrganization | string;
 	/** @description Email recipients and their delivery status */

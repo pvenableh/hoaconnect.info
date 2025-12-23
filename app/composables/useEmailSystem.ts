@@ -48,6 +48,7 @@ export interface EmailSaveData {
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
+  attachmentIds?: string[];
 }
 
 export interface EmailSendData extends EmailFormData {

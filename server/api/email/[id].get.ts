@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
           "greeting",
           "salutation",
           "include_board_footer",
+          "attachments",
           "date_created",
           "sent_at",
           "scheduled_at",
