@@ -20,10 +20,10 @@ import {
   createDirectus,
   rest,
   staticToken,
-  readItems,
-  createItem,
-  updateItem,
-  deleteItems,
+  readPermissions,
+  createPermission,
+  updatePermission,
+  deletePermissions,
 } from "@directus/sdk";
 
 // ============================================================================
@@ -441,7 +441,7 @@ async function getExistingPermissions(
 ): Promise<ExistingPermission[]> {
   try {
     const permissions = await directus.request(
-      readItems("directus_permissions", {
+      readPermissions({
         filter: {
           role: { _eq: roleId },
           collection: { _eq: collection },
@@ -493,7 +493,7 @@ async function createOrUpdatePermission(
   try {
     if (existing) {
       await directus.request(
-        updateItem("directus_permissions", existing.id, {
+        updatePermission(existing.id, {
           permissions: permission.permissions,
           validation: permission.validation,
           fields: permission.fields,
@@ -502,7 +502,7 @@ async function createOrUpdatePermission(
       console.log(`   ✅ Updated ${permission.action}`);
       return { created: false, updated: true, skipped: false };
     } else {
-      await directus.request(createItem("directus_permissions", permission));
+      await directus.request(createPermission(permission));
       console.log(`   ✅ Created ${permission.action}`);
       return { created: true, updated: false, skipped: false };
     }
@@ -529,7 +529,7 @@ async function removePermissions(
 
   try {
     const ids = existingPermissions.map((p) => p.id);
-    await directus.request(deleteItems("directus_permissions", ids));
+    await directus.request(deletePermissions(ids));
     console.log(`   🗑️  Removed ${ids.length} permissions`);
     return ids.length;
   } catch (error: any) {
