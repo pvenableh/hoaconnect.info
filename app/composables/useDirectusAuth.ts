@@ -27,29 +27,33 @@ export const useDirectusAuth = () => {
     emailOrData: string | { email: string; password: string },
     password?: string
   ) => {
-    try {
-      // Handle both object and separate parameters
-      const credentials =
-        typeof emailOrData === "string"
-          ? { email: emailOrData, password: password! }
-          : emailOrData;
+    // Handle both object and separate parameters
+    const credentials =
+      typeof emailOrData === "string"
+        ? { email: emailOrData, password: password! }
+        : emailOrData;
 
-      const { data, error } = await useFetch("/api/auth/login", {
+    try {
+      // Use $fetch for better error handling (throws on error instead of returning error.value)
+      const data = await $fetch("/api/auth/login", {
         method: "POST",
         body: credentials,
       });
-
-      if (error.value) {
-        throw new Error(error.value.message || "Login failed");
-      }
 
       // Session is set by the server endpoint
       // Fetch the updated session
       await session.fetch();
 
-      return data.value;
+      return data;
     } catch (error: any) {
-      throw new Error(error.message || "Login failed");
+      // Re-throw with proper error details for the caller to handle
+      // Nuxt $fetch errors have a data property with the error details
+      const errorMessage = error?.data?.message || error?.statusMessage || error?.message || "Login failed";
+      const enhancedError = new Error(errorMessage);
+      // Attach additional error data if available
+      (enhancedError as any).data = error?.data;
+      (enhancedError as any).statusCode = error?.statusCode;
+      throw enhancedError;
     }
   };
 

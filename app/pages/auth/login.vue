@@ -6,6 +6,9 @@ const { login } = useDirectusAuth();
 const { activeHoa, isCustomDomain } = useActiveHoa();
 const isLoading = ref(false);
 
+// Ref to the login form component for setting errors
+const loginFormRef = ref<{ setFormError: (message: string | null, fieldErrors?: { email?: string; password?: string }) => void } | null>(null);
+
 // Get organization context for custom domain login
 const organizationName = computed(() => {
   if (isCustomDomain.value && activeHoa.value?.name) {
@@ -24,6 +27,10 @@ const allowedDomain = computed(() => {
 
 const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
+
+  // Clear any previous form errors
+  loginFormRef.value?.setFormError(null);
+
   try {
     const response = await login(values.email, values.password);
 
@@ -80,32 +87,54 @@ const handleSubmit = async (values: { email: string; password: string }) => {
         return;
       }
     } else if (org?.slug) {
-      // Redirect to organization slug path
-      router.push(`/${org.slug}`);
+      // Redirect to organization slug path - use window.location for full page refresh
+      // This ensures the navigation re-renders all components with updated auth state
+      window.location.href = `/${org.slug}`;
     } else {
-      // No organization, redirect to dashboard
-      router.push("/dashboard");
+      // No organization, redirect to dashboard with full page refresh
+      window.location.href = "/dashboard";
     }
   } catch (error: any) {
-    // Provide specific toast notification for invalid credentials
-    const errorMessage = error.message?.toLowerCase() || "";
+    // Extract error message - handle both Error objects and Nuxt H3 errors
+    const rawMessage = error?.data?.message || error?.statusMessage || error?.message || "";
+    const errorMessage = rawMessage.toLowerCase();
+
+    let toastTitle = "Login failed";
+    let toastDescription = "Please check your credentials and try again.";
+    let formErrorMessage: string | null = null;
+    let fieldErrors: { email?: string; password?: string } = {};
 
     if (errorMessage.includes("invalid") || errorMessage.includes("incorrect") || errorMessage.includes("wrong")) {
-      toast.error("Invalid credentials", {
-        description: "The email or password you entered is incorrect. Please try again.",
-        duration: 5000,
-      });
-    } else if (errorMessage.includes("not found") || errorMessage.includes("no user")) {
-      toast.error("Account not found", {
-        description: "No account exists with this email address. Please check your email or sign up.",
-        duration: 5000,
-      });
-    } else {
-      toast.error("Login failed", {
-        description: error.message || "Please check your credentials and try again.",
-        duration: 5000,
-      });
+      toastTitle = "Invalid credentials";
+      toastDescription = "The email or password you entered is incorrect. Please try again.";
+      formErrorMessage = "Invalid email or password";
+      fieldErrors = { email: " ", password: " " }; // Space to trigger error state without extra message
+    } else if (errorMessage.includes("not found") || errorMessage.includes("no user") || errorMessage.includes("user doesn't exist")) {
+      toastTitle = "Account not found";
+      toastDescription = "No account exists with this email address. Please check your email or sign up.";
+      formErrorMessage = "No account found with this email";
+      fieldErrors = { email: "No account found" };
+    } else if (errorMessage.includes("email") && errorMessage.includes("required")) {
+      toastTitle = "Email required";
+      toastDescription = "Please enter your email address.";
+      fieldErrors = { email: "Email is required" };
+    } else if (errorMessage.includes("password") && errorMessage.includes("required")) {
+      toastTitle = "Password required";
+      toastDescription = "Please enter your password.";
+      fieldErrors = { password: "Password is required" };
+    } else if (rawMessage) {
+      toastDescription = rawMessage;
+      formErrorMessage = rawMessage;
     }
+
+    // Show toast notification
+    toast.error(toastTitle, {
+      description: toastDescription,
+      duration: 5000,
+    });
+
+    // Set form-level error and field errors
+    loginFormRef.value?.setFormError(formErrorMessage, Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined);
   } finally {
     isLoading.value = false;
   }
@@ -134,6 +163,7 @@ const handleRegister = () => {
         </NuxtLink>
       </div>
       <AuthLoginForm
+        ref="loginFormRef"
         :is-loading="isLoading"
         :organization-name="organizationName"
         :allowed-domain="allowedDomain"

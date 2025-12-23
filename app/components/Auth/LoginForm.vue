@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "vue-sonner";
-import { Loader2 } from "lucide-vue-next";
+import { Loader2, AlertCircle } from "lucide-vue-next";
 
 const props = defineProps<{
   class?: HTMLAttributes["class"];
@@ -40,13 +40,36 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const formSchema = toTypedSchema(loginSchema);
 
-const { handleSubmit, isSubmitting, resetForm, values } = useForm<LoginFormValues>({
+const { handleSubmit, isSubmitting, resetForm, values, setErrors, setFieldError } = useForm<LoginFormValues>({
   validationSchema: formSchema,
   initialValues: {
     email: "",
     password: "",
   },
 });
+
+// Track form-level error (e.g., from server)
+const formError = ref<string | null>(null);
+
+// Expose method to set errors from parent
+const setFormError = (message: string | null, fieldErrors?: { email?: string; password?: string }) => {
+  formError.value = message;
+  if (fieldErrors) {
+    if (fieldErrors.email) {
+      setFieldError('email', fieldErrors.email);
+    }
+    if (fieldErrors.password) {
+      setFieldError('password', fieldErrors.password);
+    }
+  }
+};
+
+// Clear form error when user starts typing
+const clearFormError = () => {
+  formError.value = null;
+};
+
+defineExpose({ setFormError, resetForm });
 
 const cardRef = ref<InstanceType<typeof Card> | null>(null);
 
@@ -120,6 +143,24 @@ onMounted(() => {
       </CardHeader>
       <CardContent>
         <form @submit="onSubmit" class="space-y-2">
+          <!-- Form-level error alert -->
+          <Transition
+            enter-active-class="transition-all duration-300 ease-out"
+            leave-active-class="transition-all duration-200 ease-in"
+            enter-from-class="opacity-0 -translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-2"
+          >
+            <div
+              v-if="formError"
+              class="flex items-center gap-2 p-3 mb-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md"
+            >
+              <AlertCircle class="h-4 w-4 flex-shrink-0" />
+              <span>{{ formError }}</span>
+            </div>
+          </Transition>
+
           <VeeField v-slot="{ field, errors }" name="email">
             <FormCustomInput
               id="email"
@@ -130,6 +171,7 @@ onMounted(() => {
               :error-message="errors[0]"
               variant="underline"
               :disabled="isProcessing"
+              @input="clearFormError"
             />
           </VeeField>
 
@@ -141,6 +183,7 @@ onMounted(() => {
               :error-message="errors[0]"
               variant="underline"
               :disabled="isProcessing"
+              @input="clearFormError"
             >
               <template #label>
                 <label for="password" class="text-sm font-medium leading-none">
