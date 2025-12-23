@@ -180,6 +180,7 @@ const publicNavItems = computed(() => {
     items.push({ label: "Board", path: buildPath("/board"), icon: "award" });
   }
 
+  items.push({ label: "Announcements", path: buildPath("/announcements"), icon: "megaphone" });
   items.push({ label: "Documents", path: buildPath("/documents"), icon: "file" });
 
   return items;
@@ -191,6 +192,11 @@ const adminNavItems = computed(() => [
     label: "Dashboard",
     path: buildPath("/dashboard"),
     icon: "layout-dashboard",
+  },
+  {
+    label: "Announcements",
+    path: buildPath("/admin/announcements"),
+    icon: "megaphone",
   },
   {
     label: "Channels",
