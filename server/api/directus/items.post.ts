@@ -98,9 +98,14 @@ async function executeOperation(
 }
 
 export default defineEventHandler(async (event) => {
+  let collection: string | undefined;
+  let operation: string | undefined;
+
   try {
     const body = await readBody(event);
-    const { collection, operation, id, data, query } = body;
+    collection = body.collection;
+    operation = body.operation;
+    const { id, data, query } = body;
 
     if (!collection || !operation) {
       throw createError({
@@ -111,7 +116,22 @@ export default defineEventHandler(async (event) => {
 
     return await executeOperation(event, collection, operation, id, data, query);
   } catch (error: any) {
-    console.error("[/api/directus/items] Error:", error);
+    // Log detailed error info for debugging
+    console.error("[/api/directus/items] Error:", {
+      message: error.message,
+      statusCode: error.statusCode,
+      statusMessage: error.statusMessage,
+      collection,
+      operation,
+    });
+
+    // Check for auth-related errors
+    if (error.statusCode === 401 || error.statusMessage?.includes('session')) {
+      throw createError({
+        statusCode: 401,
+        message: error.statusMessage || "Authentication required - please log in again",
+      });
+    }
 
     throw createError({
       statusCode: error.statusCode || 500,
