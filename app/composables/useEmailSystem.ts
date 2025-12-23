@@ -19,6 +19,13 @@ import type { HoaEmail, HoaEmailRecipient, HoaMember } from "~~/types/directus";
 
 export type EmailType = "basic" | "newsletter" | "announcement" | "reminder" | "notice";
 
+export interface EmailAttachmentInfo {
+  id: string;
+  filename: string;
+  type: string;
+  size: number;
+}
+
 export interface EmailFormData {
   subject: string;
   content: string;
@@ -27,6 +34,7 @@ export interface EmailFormData {
   salutation?: string;
   includeBoardFooter?: boolean;
   recipientIds: string[];
+  attachmentIds?: string[];
 }
 
 export interface EmailSaveData {
@@ -55,6 +63,7 @@ export interface EmailPreviewData {
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
+  attachmentIds?: string[];
 }
 
 export interface EmailListResponse {
@@ -92,6 +101,7 @@ export interface EmailPreviewResponse {
     name: string;
   };
   boardMemberCount: number;
+  attachments?: EmailAttachmentInfo[];
 }
 
 // Email type display information

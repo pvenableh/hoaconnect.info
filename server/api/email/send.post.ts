@@ -1,7 +1,7 @@
 import { readItem, readItems, createItem, updateItem } from "@directus/sdk";
-import { sendOrganizationEmail } from "../../utils/sendgrid";
+import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgrid";
 import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates";
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "~~/types/directus";
+import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
 interface SendEmailBody {
   organizationId: string;
@@ -13,13 +13,14 @@ interface SendEmailBody {
   salutation?: string;
   includeBoardFooter?: boolean;
   emailId?: string; // If updating existing draft
+  attachmentIds?: string[]; // File IDs from Directus to attach
 }
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, content, emailType, recipientIds, greeting, salutation, includeBoardFooter = true, emailId } = body;
+  const { organizationId, subject, content, emailType, recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -93,6 +94,49 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         message: "No valid recipients found",
       });
+    }
+
+    // Process attachments if provided
+    let emailAttachments: EmailAttachment[] = [];
+    if (attachmentIds && attachmentIds.length > 0) {
+      // Fetch file metadata from Directus
+      const files = await directus.request(
+        readItems("directus_files", {
+          filter: {
+            id: { _in: attachmentIds },
+          },
+          fields: ["id", "filename_download", "type", "title"],
+        })
+      ) as DirectusFile[];
+
+      // Download each file and convert to base64
+      for (const file of files) {
+        try {
+          const fileUrl = `${config.directus.url}/assets/${file.id}`;
+          const response = await fetch(fileUrl, {
+            headers: {
+              Authorization: `Bearer ${config.directus.token}`,
+            },
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to download attachment ${file.id}: ${response.status}`);
+            continue;
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const base64Content = Buffer.from(arrayBuffer).toString("base64");
+
+          emailAttachments.push({
+            content: base64Content,
+            filename: file.filename_download || file.title || "attachment",
+            type: file.type || "application/octet-stream",
+            disposition: "attachment",
+          });
+        } catch (attachError) {
+          console.error(`Error processing attachment ${file.id}:`, attachError);
+        }
+      }
     }
 
     // Create or update email record
@@ -184,6 +228,7 @@ export default defineEventHandler(async (event) => {
           html,
           text,
           fromName: organization.name || undefined,
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
         });
 
         deliveredCount++;

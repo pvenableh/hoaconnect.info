@@ -1,6 +1,6 @@
 import { readItem, readItems } from "@directus/sdk";
 import { buildEmailHtml, type EmailType } from "../../utils/email-templates";
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "~~/types/directus";
+import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
 interface PreviewEmailBody {
   organizationId: string;
@@ -10,6 +10,7 @@ interface PreviewEmailBody {
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
+  attachmentIds?: string[];
 }
 
 export default defineEventHandler(async (event) => {
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event) => {
     greeting,
     salutation,
     includeBoardFooter = true,
+    attachmentIds,
   } = body;
 
   // Validation
@@ -82,6 +84,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Build preview HTML - no recipientFirstName means it will use org name fallback in greeting
+    // Use forPreview: true to get renderable HTML without full document wrapper
     const html = buildEmailHtml({
       organization,
       subject,
@@ -91,7 +94,28 @@ export default defineEventHandler(async (event) => {
       salutation,
       boardMembers: includeBoardFooter ? boardMembers : undefined,
       directusUrl: config.directus.url,
+      forPreview: true,
     });
+
+    // Fetch attachment info if provided
+    let attachments: Array<{ id: string; filename: string; type: string; size: number }> = [];
+    if (attachmentIds && attachmentIds.length > 0) {
+      const files = await directus.request(
+        readItems("directus_files", {
+          filter: {
+            id: { _in: attachmentIds },
+          },
+          fields: ["id", "filename_download", "type", "filesize", "title"],
+        })
+      ) as DirectusFile[];
+
+      attachments = files.map((file) => ({
+        id: file.id,
+        filename: file.filename_download || file.title || "attachment",
+        type: file.type || "application/octet-stream",
+        size: file.filesize || 0,
+      }));
+    }
 
     return {
       success: true,
@@ -101,6 +125,7 @@ export default defineEventHandler(async (event) => {
         name: organization.name,
       },
       boardMemberCount: boardMembers.length,
+      attachments,
     };
   } catch (error: any) {
     console.error("Email preview error:", error);

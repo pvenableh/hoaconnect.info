@@ -321,14 +321,29 @@ function buildFooter(
 
 /**
  * Build a complete HTML email from the provided options
+ * @param forPreview - If true, returns just the email body content without the full document wrapper
  */
-export function buildEmailHtml(options: EmailTemplateOptions): string {
-  const { organization, subject, content, emailType, greeting, salutation, boardMembers, recipientFirstName, directusUrl } = options;
+export function buildEmailHtml(options: EmailTemplateOptions & { forPreview?: boolean }): string {
+  const { organization, subject, content, emailType, greeting, salutation, boardMembers, recipientFirstName, directusUrl, forPreview } = options;
   const orgName = organization.name || "Organization";
 
   const header = buildHeader(organization, emailType, directusUrl);
   const body = buildBody(content, emailType, greeting, recipientFirstName, orgName);
   const footer = buildFooter(organization, emailType, salutation, boardMembers);
+
+  // For preview, return just the email container without the full HTML document wrapper
+  // This allows proper rendering in v-html without DOCTYPE/html/body issues
+  if (forPreview) {
+    return `
+      <div style="background-color: #f3f4f6; padding: 24px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+          ${header}
+          ${body}
+          ${footer}
+        </div>
+      </div>
+    `.trim();
+  }
 
   return `
 <!DOCTYPE html>
