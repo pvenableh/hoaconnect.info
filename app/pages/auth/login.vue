@@ -60,8 +60,10 @@ const handleSubmit = async (values: { email: string; password: string }) => {
       return;
     }
 
+    // Show success toast - keep it visible during redirect
     toast.success("Login successful!", {
-      description: "Welcome back!",
+      description: "Redirecting to your dashboard...",
+      duration: 10000, // Long duration since page will navigate away
     });
 
     // Redirect to organization URL if available
@@ -150,9 +152,12 @@ const handleSubmit = async (values: { email: string; password: string }) => {
 
     // Set form-level error and field errors
     loginFormRef.value?.setFormError(formErrorMessage, Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined);
-  } finally {
+
+    // Only reset loading state on error - on success we keep it loading during redirect
     isLoading.value = false;
   }
+  // Note: No finally block - we intentionally keep isLoading=true on success
+  // so the button shows loading state while the page redirects
 };
 
 const handleForgotPassword = () => {
