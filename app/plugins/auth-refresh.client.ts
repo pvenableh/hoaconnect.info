@@ -67,9 +67,18 @@ export default defineNuxtPlugin(() => {
       const expiresAt = (data?.value as any)?.expiresAt;
 
       if (!expiresAt) {
-        console.warn('[auth-refresh] No expiration time found in session');
+        // Session exists but missing expiration time - this can happen with old sessions
+        // Trigger a refresh to establish the expiration time (only log once)
+        if (!sessionStorage.getItem('auth-refresh-missing-expiry-logged')) {
+          console.log('[auth-refresh] No expiration time found in session, triggering refresh to establish it');
+          sessionStorage.setItem('auth-refresh-missing-expiry-logged', 'true');
+        }
+        await refreshToken();
         return;
       }
+
+      // Clear the logged flag since we now have expiration
+      sessionStorage.removeItem('auth-refresh-missing-expiry-logged');
 
       const now = Date.now();
       const timeUntilExpiry = expiresAt - now;

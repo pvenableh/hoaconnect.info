@@ -57,8 +57,10 @@ export async function getUserDirectus(
 
   // Check if token is expired or about to expire (within 60 seconds)
   const now = Date.now();
-  const expiresAt = session.expiresAt || 0;
-  const needsRefresh = forceRefresh || expiresAt - now < 60000;
+  const expiresAt = session.expiresAt;
+  // If expiresAt is missing (old session), don't force refresh unless explicitly requested
+  // The token will still work and the client-side refresh will eventually set expiresAt
+  const needsRefresh = forceRefresh || (expiresAt !== undefined && expiresAt - now < 60000);
 
   // If token needs refresh but no refresh token is available, clear session
   if (needsRefresh && !refreshToken) {
