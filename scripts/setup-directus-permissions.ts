@@ -8,8 +8,12 @@
  * - File/folder access for organization assets
  * - Audit mode to check current permissions without making changes
  *
- * Run with: npx tsx scripts/setup-directus-permissions.ts
- * Audit mode: npx tsx scripts/setup-directus-permissions.ts --audit
+ * Run with: dotenv -- tsx scripts/setup-directus-permissions.ts
+ * Audit mode: dotenv -- tsx scripts/setup-directus-permissions.ts --audit
+ *
+ * Or use npm scripts:
+ *   npm run setup:permissions
+ *   npm run setup:permissions:audit
  */
 
 import {
@@ -519,9 +523,7 @@ async function removePermissions(
   if (existingPermissions.length === 0) return 0;
 
   if (auditMode) {
-    console.log(
-      `   📋 Would remove ${existingPermissions.length} permissions`
-    );
+    console.log(`   📋 Would remove ${existingPermissions.length} permissions`);
     return existingPermissions.length;
   }
 
@@ -727,7 +729,8 @@ async function setupCollectionPermissions(
   config: CollectionConfig,
   auditMode: boolean
 ): Promise<{ created: number; updated: number; removed: number }> {
-  const level = roleName === "HOA Admin" ? config.adminLevel : config.memberLevel;
+  const level =
+    roleName === "HOA Admin" ? config.adminLevel : config.memberLevel;
 
   console.log(`\n📦 ${config.collection} (${config.description})`);
   console.log(`   Level: ${level}`);
@@ -981,9 +984,15 @@ async function setupUserPermissions(
 async function main() {
   const auditMode = process.argv.includes("--audit");
 
-  console.log("╔══════════════════════════════════════════════════════════════╗");
-  console.log("║       Directus Roles & Policies Setup Script                 ║");
-  console.log("╚══════════════════════════════════════════════════════════════╝");
+  console.log(
+    "╔══════════════════════════════════════════════════════════════╗"
+  );
+  console.log(
+    "║       Directus Roles & Policies Setup Script                 ║"
+  );
+  console.log(
+    "╚══════════════════════════════════════════════════════════════╝"
+  );
   console.log();
 
   if (auditMode) {
@@ -1036,21 +1045,33 @@ async function main() {
 
       // Setup file permissions
       try {
-        const fileStats = await setupFilePermissions(role.id, role.name, auditMode);
+        const fileStats = await setupFilePermissions(
+          role.id,
+          role.name,
+          auditMode
+        );
         totalStats.created += fileStats.created;
         totalStats.updated += fileStats.updated;
       } catch (error: any) {
-        console.error(`   ❌ Error setting up file permissions: ${error.message}`);
+        console.error(
+          `   ❌ Error setting up file permissions: ${error.message}`
+        );
         totalStats.errors++;
       }
 
       // Setup user self-access
       try {
-        const userStats = await setupUserPermissions(role.id, role.name, auditMode);
+        const userStats = await setupUserPermissions(
+          role.id,
+          role.name,
+          auditMode
+        );
         totalStats.created += userStats.created;
         totalStats.updated += userStats.updated;
       } catch (error: any) {
-        console.error(`   ❌ Error setting up user permissions: ${error.message}`);
+        console.error(
+          `   ❌ Error setting up user permissions: ${error.message}`
+        );
         totalStats.errors++;
       }
     }
@@ -1086,7 +1107,6 @@ async function main() {
       console.log("   2. Test with an HOA Member account");
       console.log("   3. Verify organization isolation is working");
     }
-
   } catch (error: any) {
     console.error("\n❌ Fatal error:", error.message);
     console.error(error);
