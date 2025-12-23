@@ -126,22 +126,13 @@ export interface HoaAnnouncement {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
-	/** @required */
-	title: string;
-	/** @description Announcement content (HTML supported) */
+	title?: string | null;
 	content?: string | null;
-	/** @description Type of announcement for display styling */
 	announcement_type?: 'general' | 'urgent' | 'maintenance' | 'event' | 'reminder' | null;
-	/** @description When to start showing this announcement */
 	publish_date?: string | null;
-	/** @description When to stop showing this announcement (leave empty for no expiration) */
 	expiry_date?: string | null;
-	/** @description Whether to pin this announcement to the top */
-	is_pinned?: boolean | null;
-	/** @description Target audience for the announcement */
-	target_audience?: 'all' | 'owners' | 'tenants' | 'board_members' | null;
-	/** @required */
-	organization: HoaOrganization | string;
+	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
+	organization?: HoaOrganization | string | null;
 }
 
 export interface HoaBoardMember {
