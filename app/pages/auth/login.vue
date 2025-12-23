@@ -65,7 +65,17 @@ const handleSubmit = async (values: { email: string; password: string }) => {
     const org = response?.user?.organization;
 
     if (org?.custom_domain && org?.domain_verified) {
-      // Redirect to verified custom domain with auth token
+      // Check if we're already on the custom domain
+      const currentHostname = window.location.hostname.toLowerCase().replace(/^www\./, '');
+      const targetDomain = org.custom_domain.toLowerCase().replace(/^www\./, '');
+
+      if (currentHostname === targetDomain) {
+        // Already on the custom domain, session is set - just redirect to dashboard
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      // Different domain - use cross-domain token flow
       try {
         const tokenResponse = await $fetch('/api/auth/cross-domain-token', {
           method: 'POST',
