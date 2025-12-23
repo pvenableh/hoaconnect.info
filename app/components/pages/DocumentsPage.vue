@@ -51,6 +51,7 @@ const status = ref<"published" | "draft" | "archived">("published");
 const showCreateFolderDialog = ref(false);
 const showCategoryManager = ref(false);
 const showBatchUploadDialog = ref(false);
+const activeTab = ref("categories");
 const batchUploadTargetFolder = ref<string | null>(null);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
@@ -519,24 +520,7 @@ const handleBatchUploadComplete = async () => {
         <div class="flex justify-between items-center">
           <h1 class="text-3xl font-bold">Documents</h1>
           <div class="flex gap-2">
-            <!-- Edit Selected button (shown when documents are selected) -->
-            <Button
-              v-if="selectedDocuments.size > 0"
-              @click="openBatchEdit"
-              variant="default"
-            >
-              <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
-              Edit {{ selectedDocuments.size }} Selected
-            </Button>
-            <!-- Selection mode toggle -->
-            <Button
-              @click="toggleSelectionMode"
-              variant="outline"
-              :class="selectionMode ? 'bg-blue-100 border-blue-300' : ''"
-            >
-              <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
-              {{ selectionMode ? 'Cancel Select' : 'Select' }}
-            </Button>
+            <!-- Category Manager toggle (always visible) -->
             <Button
               @click="showCategoryManager = !showCategoryManager"
               variant="outline"
@@ -545,229 +529,273 @@ const handleBatchUploadComplete = async () => {
               <Icon name="heroicons:tag" class="h-4 w-4 mr-2" />
               Categories
             </Button>
-            <Button
-              @click="openCreateFolderDialog(orgFolder!)"
-              variant="outline"
-            >
-              <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
-              New Folder
-            </Button>
-            <Button
-              @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
-            >
-              <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
-              Upload Documents
-            </Button>
           </div>
         </div>
 
         <!-- Category Manager (collapsible) -->
         <DocumentsCategoryManager v-if="showCategoryManager" />
 
-        <!-- Filters -->
-        <TooltipProvider>
-          <div class="space-y-6 flex flex-row justify-between">
-            <!-- Category Filters -->
-            <div>
-              <label class="text-sm font-medium mb-3 block">Category</label>
-              <div class="flex gap-2 flex-wrap">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="category = 'all'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        category === 'all'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:bars-3" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> All Categories </TooltipContent>
-                </Tooltip>
+        <!-- Tabbed Interface -->
+        <Tabs v-model="activeTab" class="w-full">
+          <TabsList class="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="categories">
+              <Icon name="heroicons:squares-2x2" class="h-4 w-4 mr-2" />
+              Document Categories
+            </TabsTrigger>
+            <TabsTrigger value="files">
+              <Icon name="heroicons:folder" class="h-4 w-4 mr-2" />
+              File Library
+            </TabsTrigger>
+          </TabsList>
 
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="category = 'bylaws'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        category === 'bylaws'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:scale" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Bylaws </TooltipContent>
-                </Tooltip>
+          <!-- Document Categories Tab -->
+          <TabsContent value="categories" class="mt-6">
+            <DocumentsDocumentCategoryView />
+          </TabsContent>
 
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="category = 'financials'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        category === 'financials'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Financials </TooltipContent>
-                </Tooltip>
+          <!-- File Library Tab -->
+          <TabsContent value="files" class="mt-6">
+            <!-- File Library Header Actions -->
+            <div class="flex justify-end gap-2 mb-6">
+              <!-- Edit Selected button (shown when documents are selected) -->
+              <Button
+                v-if="selectedDocuments.size > 0"
+                @click="openBatchEdit"
+                variant="default"
+              >
+                <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
+                Edit {{ selectedDocuments.size }} Selected
+              </Button>
+              <!-- Selection mode toggle -->
+              <Button
+                @click="toggleSelectionMode"
+                variant="outline"
+                :class="selectionMode ? 'bg-blue-100 border-blue-300' : ''"
+              >
+                <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
+                {{ selectionMode ? 'Cancel Select' : 'Select' }}
+              </Button>
+              <Button
+                @click="openCreateFolderDialog(orgFolder!)"
+                variant="outline"
+              >
+                <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
+                New Folder
+              </Button>
+              <Button
+                @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
+              >
+                <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
+                Upload Documents
+              </Button>
+            </div>
 
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="category = 'meeting_minutes'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        category === 'meeting_minutes'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:user-group" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Meeting Minutes </TooltipContent>
-                </Tooltip>
+            <!-- Filters -->
+            <TooltipProvider>
+              <div class="space-y-6 flex flex-row justify-between">
+                <!-- Category Filters -->
+                <div>
+                  <label class="text-sm font-medium mb-3 block">Category</label>
+                  <div class="flex gap-2 flex-wrap">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="category = 'all'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            category === 'all'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:bars-3" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> All Categories </TooltipContent>
+                    </Tooltip>
 
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="category = 'notices'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        category === 'notices'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:bell" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Notices </TooltipContent>
-                </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="category = 'bylaws'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            category === 'bylaws'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:scale" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Bylaws </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="category = 'financials'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            category === 'financials'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Financials </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="category = 'meeting_minutes'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            category === 'meeting_minutes'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:user-group" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Meeting Minutes </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="category = 'notices'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            category === 'notices'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:bell" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Notices </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                <!-- Status Filters -->
+                <div>
+                  <label class="text-sm font-medium mb-3 block">Status</label>
+                  <div class="flex gap-2 flex-wrap">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="status = 'published'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            status === 'published'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:check" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Published </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="status = 'draft'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            status === 'draft'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:pencil-square" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Draft </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          @click="status = 'archived'"
+                          :class="[
+                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            status === 'archived'
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background border-border hover:border-primary/50',
+                          ]"
+                        >
+                          <Icon name="heroicons:archive-box" class="h-6 w-6" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent> Archived </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
               </div>
-            </div>
+            </TooltipProvider>
 
-            <!-- Status Filters -->
-            <div>
-              <label class="text-sm font-medium mb-3 block">Status</label>
-              <div class="flex gap-2 flex-wrap">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="status = 'published'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        status === 'published'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:check" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Published </TooltipContent>
-                </Tooltip>
+            <!-- Document Tree -->
+            <Card class="mt-6">
+              <CardHeader>
+                <CardTitle>Documents & Folders</CardTitle>
+                <CardDescription>
+                  Organize your documents into folders. Drag and drop to move items.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="p-4">
+                <div class="space-y-1">
+                  <!-- Recursive Tree Component -->
+                  <TreeNode
+                    v-for="node in documentTree"
+                    :key="node.id"
+                    :node="node"
+                    :level="0"
+                    :dragged-item="draggedItem"
+                    :dragged-item-type="draggedItemType"
+                    :drag-over-item="dragOverItem"
+                    :editing-id="editingId"
+                    :selected-ids="selectedDocumentIds"
+                    :selection-mode="selectionMode"
+                    @toggle="toggleFolder"
+                    @start-drag="startDrag"
+                    @end-drag="endDrag"
+                    @drag-over="onDragOver"
+                    @drag-leave="onDragLeave"
+                    @drop="onDrop"
+                    @delete-folder="deleteFolder"
+                    @delete-document="handleDelete"
+                    @create-subfolder="openCreateFolderDialog"
+                    @upload-to-folder="openBatchUploadForFolder"
+                    @view-document="downloadDocument"
+                    @rename-folder="renameFolder"
+                    @rename-document="renameDocument"
+                    @start-edit="startEdit"
+                    @cancel-edit="cancelEdit"
+                    @toggle-select="toggleDocumentSelection"
+                    @edit-document="openEditForDocument"
+                  />
+                </div>
 
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="status = 'draft'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        status === 'draft'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:pencil-square" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Draft </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button
-                      @click="status = 'archived'"
-                      :class="[
-                        'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
-                        status === 'archived'
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'bg-background border-border hover:border-primary/50',
-                      ]"
-                    >
-                      <Icon name="heroicons:archive-box" class="h-6 w-6" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent> Archived </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
-        </TooltipProvider>
-
-        <!-- Document Tree -->
-        <Card>
-          <CardHeader>
-            <CardTitle>Documents & Folders</CardTitle>
-            <CardDescription>
-              Organize your documents into folders. Drag and drop to move items.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="p-4">
-            <div class="space-y-1">
-              <!-- Recursive Tree Component -->
-              <TreeNode
-                v-for="node in documentTree"
-                :key="node.id"
-                :node="node"
-                :level="0"
-                :dragged-item="draggedItem"
-                :dragged-item-type="draggedItemType"
-                :drag-over-item="dragOverItem"
-                :editing-id="editingId"
-                :selected-ids="selectedDocumentIds"
-                :selection-mode="selectionMode"
-                @toggle="toggleFolder"
-                @start-drag="startDrag"
-                @end-drag="endDrag"
-                @drag-over="onDragOver"
-                @drag-leave="onDragLeave"
-                @drop="onDrop"
-                @delete-folder="deleteFolder"
-                @delete-document="handleDelete"
-                @create-subfolder="openCreateFolderDialog"
-                @upload-to-folder="openBatchUploadForFolder"
-                @view-document="downloadDocument"
-                @rename-folder="renameFolder"
-                @rename-document="renameDocument"
-                @start-edit="startEdit"
-                @cancel-edit="cancelEdit"
-                @toggle-select="toggleDocumentSelection"
-                @edit-document="openEditForDocument"
-              />
-            </div>
-
-            <!-- Empty state -->
-            <div
-              v-if="documentTree.length === 0"
-              class="text-center py-12 text-stone-500"
-            >
-              No folders or documents found
-            </div>
-          </CardContent>
-        </Card>
+                <!-- Empty state -->
+                <div
+                  v-if="documentTree.length === 0"
+                  class="text-center py-12 text-stone-500"
+                >
+                  No folders or documents found
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
 
