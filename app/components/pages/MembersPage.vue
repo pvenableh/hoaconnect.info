@@ -40,6 +40,28 @@ const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
 
 // Fetch members list
+// Role configuration
+const config = useRuntimeConfig();
+const roleOptions = [
+  { value: config.public.directusRoleHoaAdmin, label: "HOA Admin" },
+  { value: config.public.directusRoleMember, label: "Member" },
+];
+
+// Get role display name
+const getRoleDisplay = (roleId: string | null | undefined): string => {
+  if (!roleId) return "—";
+  const role = roleOptions.find(r => r.value === roleId);
+  return role?.label || "Member";
+};
+
+// Get role badge color
+const getRoleBadgeClass = (roleId: string | null | undefined): string => {
+  if (roleId === config.public.directusRoleHoaAdmin) {
+    return "bg-purple-100 text-purple-800";
+  }
+  return "bg-stone-100 text-stone-600";
+};
+
 const { data: members, refresh: refreshMembers } = await useAsyncData(
   `hoa-members-list-${orgId.value}`,
   async () => {
@@ -54,6 +76,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           "email",
           "phone",
           "member_type",
+          "role",
           "user.id",
           "user.first_name",
           "user.last_name",
@@ -211,6 +234,7 @@ const form = reactive({
   email: "",
   phone: "",
   member_type: "owner",
+  role: config.public.directusRoleMember as string,
   unit: null as string | null,
   status: "active",
 });
@@ -221,6 +245,7 @@ const resetForm = () => {
   form.email = "";
   form.phone = "";
   form.member_type = "owner";
+  form.role = config.public.directusRoleMember;
   form.unit = null;
   form.status = "active";
   editingId.value = null;
@@ -237,6 +262,7 @@ const handleEdit = (member: any) => {
   form.email = member.email;
   form.phone = member.phone;
   form.member_type = member.member_type;
+  form.role = member.role || config.public.directusRoleMember;
   form.status = member.status;
 
   const primaryUnit = member.units?.find((u: any) => u.is_primary_unit);
@@ -261,6 +287,7 @@ const handleSubmit = async () => {
         email: form.email,
         phone: form.phone,
         member_type: form.member_type,
+        role: form.role,
         status: form.status,
       });
 
@@ -272,6 +299,7 @@ const handleSubmit = async () => {
         email: form.email,
         phone: form.phone,
         member_type: form.member_type,
+        role: form.role,
         organization: organization.value.id,
         status: form.status,
       })) as any;
@@ -601,6 +629,7 @@ useSeoMeta({
                       <th class="text-left p-3">Email</th>
                       <th class="text-left p-3">Phone</th>
                       <th class="text-left p-3">Type</th>
+                      <th class="text-left p-3">Role</th>
                       <th class="text-left p-3">Unit(s)</th>
                       <th class="text-left p-3">Account</th>
                       <th class="text-right p-3">Actions</th>
@@ -618,6 +647,14 @@ useSeoMeta({
                       <td class="p-3">{{ member.email }}</td>
                       <td class="p-3">{{ member.phone || "—" }}</td>
                       <td class="p-3 capitalize">{{ member.member_type }}</td>
+                      <td class="p-3">
+                        <span
+                          class="text-xs px-2 py-1 rounded font-medium"
+                          :class="getRoleBadgeClass(member.role)"
+                        >
+                          {{ getRoleDisplay(member.role) }}
+                        </span>
+                      </td>
                       <td class="p-3">{{ formatUnits(member) }}</td>
                       <td class="p-3">
                         <span
@@ -947,24 +984,44 @@ useSeoMeta({
                   </select>
                 </div>
                 <div class="grid gap-2">
-                  <Label for="primary-unit">Primary Unit</Label>
-                  <select id="primary-unit" v-model="form.unit" class="w-full p-2 border rounded">
-                    <option :value="null">No Unit</option>
+                  <Label for="member-role">Role</Label>
+                  <select
+                    id="member-role"
+                    v-model="form.role"
+                    class="w-full p-2 border rounded"
+                  >
                     <option
-                      v-for="unit in units"
-                      :key="unit.id"
-                      :value="unit.id"
+                      v-for="role in roleOptions"
+                      :key="role.value"
+                      :value="role.value"
                     >
-                      {{ unit.unit_number }}
+                      {{ role.label }}
                     </option>
                   </select>
-                  <p v-if="!units?.length" class="text-xs text-stone-500">
-                    No units available.
-                    <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
-                      >Add units first</NuxtLink
-                    >
+                  <p class="text-xs text-stone-500">
+                    HOA Admins can manage members, documents, and settings
                   </p>
                 </div>
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="primary-unit">Primary Unit</Label>
+                <select id="primary-unit" v-model="form.unit" class="w-full p-2 border rounded">
+                  <option :value="null">No Unit</option>
+                  <option
+                    v-for="unit in units"
+                    :key="unit.id"
+                    :value="unit.id"
+                  >
+                    {{ unit.unit_number }}
+                  </option>
+                </select>
+                <p v-if="!units?.length" class="text-xs text-stone-500">
+                  No units available.
+                  <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
+                    >Add units first</NuxtLink
+                  >
+                </p>
               </div>
 
               <div class="grid gap-2">

@@ -117,6 +117,33 @@ export interface HoaAmenity {
 	organization?: HoaOrganization | string | null;
 }
 
+export interface HoaAnnouncement {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived';
+	sort?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	/** @required */
+	title: string;
+	/** @description Announcement content (HTML supported) */
+	content?: string | null;
+	/** @description Type of announcement for display styling */
+	announcement_type?: 'general' | 'urgent' | 'maintenance' | 'event' | 'reminder' | null;
+	/** @description When to start showing this announcement */
+	publish_date?: string | null;
+	/** @description When to stop showing this announcement (leave empty for no expiration) */
+	expiry_date?: string | null;
+	/** @description Whether to pin this announcement to the top */
+	is_pinned?: boolean | null;
+	/** @description Target audience for the announcement */
+	target_audience?: 'all' | 'owners' | 'tenants' | 'board_members' | null;
+	/** @required */
+	organization: HoaOrganization | string;
+}
+
 export interface HoaBoardMember {
 	/** @primaryKey */
 	id: string;
@@ -1079,6 +1106,7 @@ export interface Schema {
 	coupons_subscription_plans: CouponsSubscriptionPlan[];
 	coupon_usage: CouponUsage[];
 	hoa_amenities: HoaAmenity[];
+	hoa_announcements: HoaAnnouncement[];
 	hoa_board_members: HoaBoardMember[];
 	hoa_channel_members: HoaChannelMember[];
 	hoa_channel_mentions: HoaChannelMention[];
@@ -1138,6 +1166,7 @@ export enum CollectionNames {
 	coupons_subscription_plans = 'coupons_subscription_plans',
 	coupon_usage = 'coupon_usage',
 	hoa_amenities = 'hoa_amenities',
+	hoa_announcements = 'hoa_announcements',
 	hoa_board_members = 'hoa_board_members',
 	hoa_channel_members = 'hoa_channel_members',
 	hoa_channel_mentions = 'hoa_channel_mentions',
