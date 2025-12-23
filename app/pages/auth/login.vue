@@ -27,12 +27,15 @@ const allowedDomain = computed(() => {
 
 const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
+  console.log('[login] Starting login attempt for:', values.email);
 
   // Clear any previous form errors
   loginFormRef.value?.setFormError(null);
 
   try {
+    console.log('[login] Calling login API...');
     const response = await login(values.email, values.password);
+    console.log('[login] Login successful for:', response?.user?.email);
 
     // Check subscription status from response
     const subscriptionInfo = response?.subscriptionInfo;
@@ -105,8 +108,10 @@ const handleSubmit = async (values: { email: string; password: string }) => {
       window.location.href = "/dashboard";
     }
   } catch (error: any) {
+    console.error('[login] Login failed:', error);
     // Extract error message - handle both Error objects and Nuxt H3 errors
     const rawMessage = error?.data?.message || error?.statusMessage || error?.message || "";
+    console.log('[login] Error message:', rawMessage);
     const errorMessage = rawMessage.toLowerCase();
 
     let toastTitle = "Login failed";
