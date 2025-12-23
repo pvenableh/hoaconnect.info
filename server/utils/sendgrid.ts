@@ -277,6 +277,17 @@ export const sendBulkEmail = async ({
 };
 
 /**
+ * Email attachment type for SendGrid
+ */
+export interface EmailAttachment {
+  content: string; // Base64 encoded content
+  filename: string;
+  type: string; // MIME type
+  disposition?: "attachment" | "inline";
+  contentId?: string; // For inline images
+}
+
+/**
  * Send a single organization email with HTML template
  * Returns the SendGrid message ID for tracking
  */
@@ -287,6 +298,7 @@ export const sendOrganizationEmail = async ({
   html,
   text,
   fromName,
+  attachments,
 }: {
   to: string;
   toName?: string;
@@ -294,13 +306,22 @@ export const sendOrganizationEmail = async ({
   html: string;
   text: string;
   fromName?: string;
+  attachments?: EmailAttachment[];
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
   const fromEmail = config.public.fromEmail || "noreply@605lincolnroad.com";
 
-  const msg = {
+  const msg: {
+    to: { email: string; name?: string };
+    from: { email: string; name?: string };
+    subject: string;
+    html: string;
+    text: string;
+    categories: string[];
+    attachments?: EmailAttachment[];
+  } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
     subject,
@@ -309,11 +330,16 @@ export const sendOrganizationEmail = async ({
     categories: ["HOA Connect"],
   };
 
+  // Add attachments if provided
+  if (attachments && attachments.length > 0) {
+    msg.attachments = attachments;
+  }
+
   try {
     const [response] = await sg.send(msg);
     // SendGrid returns message ID in the x-message-id header
     const messageId = response.headers?.["x-message-id"] || null;
-    console.log(`✅ Organization email sent to ${to}: ${subject} (ID: ${messageId})`);
+    console.log(`✅ Organization email sent to ${to}: ${subject} (ID: ${messageId})${attachments?.length ? ` with ${attachments.length} attachment(s)` : ""}`);
     return { success: true, messageId };
   } catch (error: any) {
     console.error("❌ SendGrid Error:", error);

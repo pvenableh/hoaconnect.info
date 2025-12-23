@@ -6,8 +6,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import type { HoaMember } from "~~/types/directus";
+import type { HoaMember, DirectusFile, DirectusFolder } from "~~/types/directus";
 
 const props = defineProps<{
   emailId?: string;
@@ -16,6 +17,8 @@ const props = defineProps<{
 const { navigateToOrg } = useOrgNavigation();
 const emailSystem = useEmailSystem();
 const { list: listMembers } = useDirectusItems("hoa_members");
+const filesComposable = useDirectusFiles();
+const foldersComposable = useDirectusFolders();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
@@ -45,7 +48,26 @@ const form = reactive({
   salutation: "",
   includeBoardFooter: true,
   recipientIds: [] as string[],
+  attachmentIds: [] as string[],
 });
+
+// Attachment state
+interface AttachmentInfo {
+  id: string;
+  filename: string;
+  type: string;
+  size: number;
+}
+const selectedAttachments = ref<AttachmentInfo[]>([]);
+const showAttachmentBrowser = ref(false);
+const attachmentFiles = ref<DirectusFile[]>([]);
+const attachmentFolders = ref<DirectusFolder[]>([]);
+const currentAttachmentFolder = ref<string | null>(null);
+const attachmentFolderPath = ref<{ id: string | null; name: string }[]>([]);
+const isLoadingAttachments = ref(false);
+const attachmentSearchQuery = ref("");
+const attachmentFileInput = ref<HTMLInputElement | null>(null);
+const isUploadingAttachment = ref(false);
 
 // Selection mode and filter type
 const selectionMode = ref<"all" | "selected">("all");
@@ -189,6 +211,9 @@ const showPreview = ref(false);
 const previewHtml = ref("");
 const previewLoading = ref(false);
 
+// Preview state for attachments
+const previewAttachments = ref<{ id: string; filename: string; type: string; size: number }[]>([]);
+
 const handlePreview = async () => {
   if (!orgId.value) return;
 
@@ -202,8 +227,10 @@ const handlePreview = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
     previewHtml.value = result.html;
+    previewAttachments.value = result.attachments || [];
     showPreview.value = true;
   } catch (error: any) {
     toast.error(error.message || "Failed to generate preview");
@@ -266,6 +293,7 @@ const handleSend = async () => {
       includeBoardFooter: form.includeBoardFooter,
       recipientIds,
       emailId: props.emailId,
+      attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
 
     if (result.stats.failed > 0) {
@@ -285,6 +313,147 @@ const handleSend = async () => {
 // Cancel
 const handleCancel = () => {
   navigateToOrg("/admin/email");
+};
+
+// Attachment functions
+const openAttachmentBrowser = async () => {
+  showAttachmentBrowser.value = true;
+  currentAttachmentFolder.value = orgFolderId.value || null;
+  attachmentFolderPath.value = [{ id: orgFolderId.value || null, name: "Organization Files" }];
+  await loadAttachmentFilesAndFolders();
+};
+
+const loadAttachmentFilesAndFolders = async () => {
+  isLoadingAttachments.value = true;
+  try {
+    const filesResult = await filesComposable.listByFolder(
+      currentAttachmentFolder.value,
+      {
+        fields: ["id", "title", "filename_download", "type", "filesize"],
+        sort: ["-created_on"],
+        limit: 100,
+      }
+    );
+    attachmentFiles.value = (filesResult as DirectusFile[]) || [];
+
+    const foldersResult = await foldersComposable.getByParent(
+      currentAttachmentFolder.value
+    );
+    attachmentFolders.value = (foldersResult as DirectusFolder[]) || [];
+  } catch (error) {
+    console.error("Failed to load files:", error);
+  } finally {
+    isLoadingAttachments.value = false;
+  }
+};
+
+const navigateToAttachmentFolder = async (
+  folderId: string | null,
+  folderName: string
+) => {
+  currentAttachmentFolder.value = folderId;
+
+  const existingIndex = attachmentFolderPath.value.findIndex((f) => f.id === folderId);
+  if (existingIndex >= 0) {
+    attachmentFolderPath.value = attachmentFolderPath.value.slice(0, existingIndex + 1);
+  } else {
+    attachmentFolderPath.value.push({ id: folderId, name: folderName });
+  }
+
+  await loadAttachmentFilesAndFolders();
+};
+
+const selectAttachmentFile = (file: DirectusFile) => {
+  if (!file.id) return;
+
+  // Check if already attached
+  if (form.attachmentIds.includes(file.id)) {
+    toast.info("File already attached");
+    return;
+  }
+
+  form.attachmentIds.push(file.id);
+  selectedAttachments.value.push({
+    id: file.id,
+    filename: file.filename_download || file.title || "attachment",
+    type: file.type || "application/octet-stream",
+    size: file.filesize || 0,
+  });
+
+  showAttachmentBrowser.value = false;
+  toast.success("Attachment added");
+};
+
+const removeAttachment = (id: string) => {
+  const index = form.attachmentIds.indexOf(id);
+  if (index > -1) {
+    form.attachmentIds.splice(index, 1);
+    selectedAttachments.value = selectedAttachments.value.filter((a) => a.id !== id);
+  }
+};
+
+const triggerAttachmentUpload = () => {
+  attachmentFileInput.value?.click();
+};
+
+const handleAttachmentUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file) return;
+
+  isUploadingAttachment.value = true;
+
+  try {
+    const result = await filesComposable.upload(file, {
+      title: file.name,
+      folder: orgFolderId.value || undefined,
+    });
+
+    if (result && typeof result === "object" && "id" in result) {
+      const uploadedFile = result as DirectusFile;
+      form.attachmentIds.push(uploadedFile.id);
+      selectedAttachments.value.push({
+        id: uploadedFile.id,
+        filename: uploadedFile.filename_download || file.name,
+        type: uploadedFile.type || file.type,
+        size: uploadedFile.filesize || file.size,
+      });
+      toast.success("File uploaded and attached");
+    }
+  } catch (error) {
+    console.error("Failed to upload file:", error);
+    toast.error("Failed to upload file");
+  } finally {
+    isUploadingAttachment.value = false;
+    if (input) input.value = "";
+  }
+};
+
+const filteredAttachmentFiles = computed(() => {
+  if (!attachmentSearchQuery.value) return attachmentFiles.value;
+
+  const query = attachmentSearchQuery.value.toLowerCase();
+  return attachmentFiles.value.filter(
+    (file) =>
+      file.title?.toLowerCase().includes(query) ||
+      file.filename_download?.toLowerCase().includes(query)
+  );
+});
+
+const formatFileSize = (bytes: number | null | undefined): string => {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const getFileIcon = (type: string): string => {
+  if (type.startsWith("image/")) return "lucide:image";
+  if (type.includes("pdf")) return "lucide:file-text";
+  if (type.includes("word") || type.includes("document")) return "lucide:file-text";
+  if (type.includes("excel") || type.includes("spreadsheet")) return "lucide:file-spreadsheet";
+  return "lucide:file";
 };
 
 // Placeholder text for greeting field
@@ -448,6 +617,87 @@ useSeoMeta({
                     Include board members in footer
                   </Label>
                 </div>
+              </CardContent>
+            </Card>
+
+            <!-- Attachments -->
+            <Card>
+              <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                  <Icon name="lucide:paperclip" class="w-5 h-5" />
+                  Attachments
+                </CardTitle>
+                <CardDescription>
+                  Add files to include with your email
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <!-- Add attachment buttons -->
+                <div class="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    @click="openAttachmentBrowser"
+                  >
+                    <Icon name="lucide:folder-open" class="w-4 h-4 mr-2" />
+                    Browse Files
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="isUploadingAttachment"
+                    @click="triggerAttachmentUpload"
+                  >
+                    <Icon
+                      v-if="isUploadingAttachment"
+                      name="lucide:loader-2"
+                      class="w-4 h-4 mr-2 animate-spin"
+                    />
+                    <Icon v-else name="lucide:upload" class="w-4 h-4 mr-2" />
+                    Upload New
+                  </Button>
+                  <input
+                    ref="attachmentFileInput"
+                    type="file"
+                    class="hidden"
+                    @change="handleAttachmentUpload"
+                  />
+                </div>
+
+                <!-- Selected attachments list -->
+                <div v-if="selectedAttachments.length > 0" class="space-y-2">
+                  <div
+                    v-for="attachment in selectedAttachments"
+                    :key="attachment.id"
+                    class="flex items-center justify-between p-3 bg-stone-50 rounded-lg border"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <Icon
+                        :name="getFileIcon(attachment.type)"
+                        class="w-5 h-5 text-stone-500 flex-shrink-0"
+                      />
+                      <div class="min-w-0">
+                        <div class="font-medium text-sm truncate">
+                          {{ attachment.filename }}
+                        </div>
+                        <div class="text-xs text-stone-500">
+                          {{ formatFileSize(attachment.size) }}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      @click="removeAttachment(attachment.id)"
+                    >
+                      <Icon name="lucide:x" class="w-4 h-4 text-stone-500" />
+                    </Button>
+                  </div>
+                </div>
+
+                <p v-else class="text-sm text-stone-500 text-center py-4">
+                  No attachments added
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -656,6 +906,149 @@ useSeoMeta({
                 v-html="previewHtml"
               ></div>
             </div>
+            <!-- Attachments in preview -->
+            <div v-if="previewAttachments.length > 0" class="mt-4">
+              <div class="text-sm font-medium text-stone-700 mb-2 flex items-center gap-2">
+                <Icon name="lucide:paperclip" class="w-4 h-4" />
+                Attachments ({{ previewAttachments.length }})
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <div
+                  v-for="attachment in previewAttachments"
+                  :key="attachment.id"
+                  class="flex items-center gap-2 px-3 py-2 bg-stone-100 rounded-lg text-sm"
+                >
+                  <Icon :name="getFileIcon(attachment.type)" class="w-4 h-4 text-stone-500" />
+                  <span class="font-medium">{{ attachment.filename }}</span>
+                  <span class="text-stone-500">({{ formatFileSize(attachment.size) }})</span>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <!-- Attachment Browser Dialog -->
+        <Dialog v-model:open="showAttachmentBrowser">
+          <DialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Select Attachment</DialogTitle>
+              <DialogDescription>
+                Choose a file to attach to your email
+              </DialogDescription>
+            </DialogHeader>
+
+            <!-- Breadcrumb Navigation -->
+            <div class="flex items-center gap-1 text-sm border-b pb-2">
+              <template v-for="(folder, index) in attachmentFolderPath" :key="folder.id">
+                <button
+                  type="button"
+                  class="hover:text-primary hover:underline"
+                  :class="{ 'font-medium': index === attachmentFolderPath.length - 1 }"
+                  @click="navigateToAttachmentFolder(folder.id, folder.name)"
+                >
+                  {{ folder.name }}
+                </button>
+                <Icon
+                  v-if="index < attachmentFolderPath.length - 1"
+                  name="lucide:chevron-right"
+                  class="w-4 h-4 text-stone-400"
+                />
+              </template>
+            </div>
+
+            <!-- Search -->
+            <div class="relative">
+              <Icon
+                name="lucide:search"
+                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"
+              />
+              <Input
+                v-model="attachmentSearchQuery"
+                placeholder="Search files..."
+                class="pl-9"
+              />
+            </div>
+
+            <!-- File Grid -->
+            <div class="flex-1 overflow-y-auto min-h-[300px]">
+              <div
+                v-if="isLoadingAttachments"
+                class="flex items-center justify-center h-full"
+              >
+                <Icon
+                  name="lucide:loader-2"
+                  class="w-8 h-8 animate-spin text-stone-400"
+                />
+              </div>
+
+              <div
+                v-else-if="attachmentFolders.length === 0 && filteredAttachmentFiles.length === 0"
+                class="flex flex-col items-center justify-center h-full text-stone-500"
+              >
+                <Icon name="lucide:folder-x" class="w-12 h-12 mb-2" />
+                <p>No files found in this folder</p>
+              </div>
+
+              <div
+                v-else
+                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1"
+              >
+                <!-- Folders -->
+                <button
+                  v-for="folder in attachmentFolders"
+                  :key="folder.id"
+                  type="button"
+                  class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-stone-300 transition-colors"
+                  @click="navigateToAttachmentFolder(folder.id, folder.name || 'Folder')"
+                >
+                  <Icon
+                    name="lucide:folder"
+                    class="w-10 h-10 text-amber-500 mb-2"
+                  />
+                  <span class="text-sm text-center truncate w-full">
+                    {{ folder.name || "Folder" }}
+                  </span>
+                </button>
+
+                <!-- Files -->
+                <button
+                  v-for="file in filteredAttachmentFiles"
+                  :key="file.id"
+                  type="button"
+                  class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-primary transition-colors group"
+                  :class="{ 'border-primary bg-primary/5': form.attachmentIds.includes(file.id) }"
+                  @click="selectAttachmentFile(file)"
+                >
+                  <div
+                    class="w-12 h-12 mb-2 flex items-center justify-center rounded bg-stone-100"
+                  >
+                    <Icon
+                      :name="getFileIcon(file.type || '')"
+                      class="w-6 h-6 text-stone-400"
+                    />
+                  </div>
+                  <span
+                    class="text-sm text-center truncate w-full group-hover:text-primary"
+                  >
+                    {{ file.title || file.filename_download || "File" }}
+                  </span>
+                  <span class="text-xs text-stone-400">
+                    {{ formatFileSize(file.filesize) }}
+                  </span>
+                  <Icon
+                    v-if="form.attachmentIds.includes(file.id)"
+                    name="lucide:check-circle"
+                    class="w-4 h-4 text-primary mt-1"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" @click="showAttachmentBrowser = false">
+                Cancel
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
