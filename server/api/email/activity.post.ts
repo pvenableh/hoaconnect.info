@@ -37,11 +37,18 @@ export default defineEventHandler(async (event) => {
     return { success: true, message: "No events to process" };
   }
 
+  // Filter events where category includes "HOA Connect"
+  const filteredEvents = events.filter((entry) => entry.category?.includes("HOA Connect"));
+
+  if (filteredEvents.length === 0) {
+    return { success: true, message: "No matching HOA Connect events found" };
+  }
+
   try {
     const directus = getTypedDirectus();
     const processedCount = { success: 0, skipped: 0, failed: 0 };
 
-    for (const sgEvent of events) {
+    for (const sgEvent of filteredEvents) {
       try {
         // Skip if no email or message ID
         if (!sgEvent.email || !sgEvent.sg_message_id) {
@@ -65,10 +72,30 @@ export default defineEventHandler(async (event) => {
 
         const recipient = recipients[0];
 
+        // If no recipient found by sg_message_id, try to find member by email
+        let memberId: string | null = recipient?.member as string || null;
+        if (!memberId && sgEvent.email) {
+          try {
+            const members = await directus.request(
+              readItems("hoa_members", {
+                filter: { email: { _eq: sgEvent.email } },
+                fields: ["id"],
+                limit: 1,
+              })
+            ) as HoaMember[];
+
+            if (members && members.length > 0) {
+              memberId = members[0].id;
+            }
+          } catch (memberError) {
+            console.error(`Error looking up member by email ${sgEvent.email}:`, memberError);
+          }
+        }
+
         // Create activity record
         const activityData: Partial<HoaEmailActivity> = {
           email_recipient: recipient?.id || null,
-          member: recipient?.member as string || null,
+          member: memberId,
           event: sgEvent.event as HoaEmailActivity["event"],
           email: sgEvent.email,
           sg_message_id: cleanMessageId,

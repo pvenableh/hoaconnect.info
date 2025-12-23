@@ -306,6 +306,7 @@ export const sendOrganizationEmail = async ({
     subject,
     html,
     text,
+    categories: ["HOA Connect"],
   };
 
   try {
