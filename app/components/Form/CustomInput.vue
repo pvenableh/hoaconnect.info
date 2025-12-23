@@ -43,9 +43,10 @@ const variantClasses = computed(() => {
 
 const errorClasses = computed(() => {
   if (props.errorMessage) {
-    return props.variant === "underline"
-      ? "border-destructive"
-      : "border-destructive";
+    if (props.variant === "underline") {
+      return "border-destructive border-b-2 bg-destructive/5";
+    }
+    return "border-destructive border-2 bg-destructive/5";
   }
   return "";
 });
