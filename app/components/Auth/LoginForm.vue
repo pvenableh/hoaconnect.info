@@ -95,18 +95,15 @@ const validateEmailDomain = (email: string): boolean => {
 };
 
 const onSubmit = handleSubmit(async (values) => {
-  // Validate email domain if on a custom domain
-  if (props.allowedDomain && !validateEmailDomain(values.email!)) {
-    toast.error("Invalid email domain", {
-      description: `Please use an email address from ${props.allowedDomain} to login to this organization.`,
-      duration: 5000,
-    });
-    return;
-  }
+  console.log('[LoginForm] Form submitted, emitting to parent...');
+
+  // Note: Removed email domain validation that was comparing user email domain
+  // against the website's custom domain. Users can have any email address.
 
   try {
     emit("submit", { email: values.email!, password: values.password! });
   } catch (error) {
+    console.error('[LoginForm] Error emitting submit:', error);
     toast.error("Login failed", {
       description: "Please check your credentials and try again.",
     });
