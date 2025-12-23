@@ -128,6 +128,10 @@ const statusCounts = computed(() => {
 // Modal state
 const showModal = ref(false);
 const editingId = ref<string | null>(null);
+
+// Default time is 5PM EST (17:00)
+const DEFAULT_TIME = "17:00";
+
 const form = reactive({
   title: "",
   content: "",
@@ -135,9 +139,28 @@ const form = reactive({
   announcement_type: "general" as "general" | "urgent" | "maintenance" | "event" | "reminder",
   target_audience: "all" as "all" | "owners" | "tenants" | "board members",
   publish_date: "",
+  publish_time: DEFAULT_TIME,
   expiry_date: "",
+  expiry_time: DEFAULT_TIME,
   is_pinned: false,
 });
+
+// Helper to parse datetime into date and time parts
+const parseDatetime = (datetime: string | null | undefined) => {
+  if (!datetime) return { date: "", time: DEFAULT_TIME };
+  const d = new Date(datetime);
+  const date = d.toISOString().split("T")[0];
+  const hours = d.getHours().toString().padStart(2, "0");
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  return { date, time: `${hours}:${minutes}` };
+};
+
+// Helper to combine date and time into ISO datetime string (EST timezone)
+const combineDatetime = (date: string, time: string) => {
+  if (!date) return null;
+  // Create datetime string and append EST offset (-05:00)
+  return `${date}T${time || DEFAULT_TIME}:00.000-05:00`;
+};
 
 const resetForm = () => {
   form.title = "";
@@ -146,7 +169,9 @@ const resetForm = () => {
   form.announcement_type = "general";
   form.target_audience = "all";
   form.publish_date = "";
+  form.publish_time = DEFAULT_TIME;
   form.expiry_date = "";
+  form.expiry_time = DEFAULT_TIME;
   form.is_pinned = false;
   editingId.value = null;
 };
@@ -162,8 +187,15 @@ const handleEdit = (announcement: any) => {
   form.status = announcement.status || "draft";
   form.announcement_type = announcement.announcement_type || "general";
   form.target_audience = announcement.target_audience || "all";
-  form.publish_date = announcement.publish_date ? announcement.publish_date.split("T")[0] : "";
-  form.expiry_date = announcement.expiry_date ? announcement.expiry_date.split("T")[0] : "";
+
+  const publishParsed = parseDatetime(announcement.publish_date);
+  form.publish_date = publishParsed.date;
+  form.publish_time = publishParsed.time;
+
+  const expiryParsed = parseDatetime(announcement.expiry_date);
+  form.expiry_date = expiryParsed.date;
+  form.expiry_time = expiryParsed.time;
+
   form.is_pinned = announcement.is_pinned || false;
   editingId.value = announcement.id;
   showModal.value = true;
@@ -187,8 +219,8 @@ const handleSubmit = async () => {
       status: form.status,
       announcement_type: form.announcement_type,
       target_audience: form.target_audience,
-      publish_date: form.publish_date || null,
-      expiry_date: form.expiry_date || null,
+      publish_date: combineDatetime(form.publish_date, form.publish_time),
+      expiry_date: combineDatetime(form.expiry_date, form.expiry_time),
       is_pinned: form.is_pinned,
     };
 
@@ -255,6 +287,22 @@ const formatDate = (date: string | null | undefined) => {
     month: "short",
     day: "numeric",
   });
+};
+
+const formatDateTime = (datetime: string | null | undefined) => {
+  if (!datetime) return "—";
+  const d = new Date(datetime);
+  const date = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${date} at ${time}`;
 };
 
 const isExpired = (expiryDate: string | null | undefined) => {
@@ -448,16 +496,16 @@ useSeoMeta({
                           {{ announcement.status }}
                         </span>
                       </td>
-                      <td class="p-3 text-sm">
-                        {{ formatDate(announcement.publish_date) }}
+                      <td class="p-3 text-sm whitespace-nowrap">
+                        {{ formatDateTime(announcement.publish_date) }}
                       </td>
-                      <td class="p-3 text-sm">
+                      <td class="p-3 text-sm whitespace-nowrap">
                         <span
                           :class="{
                             'text-red-600 font-medium': isExpired(announcement.expiry_date),
                           }"
                         >
-                          {{ formatDate(announcement.expiry_date) }}
+                          {{ formatDateTime(announcement.expiry_date) }}
                         </span>
                         <span
                           v-if="isExpired(announcement.expiry_date)"
@@ -599,25 +647,45 @@ useSeoMeta({
 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="grid gap-2">
-                    <Label for="publish-date">Publish Date</Label>
-                    <Input
-                      id="publish-date"
-                      v-model="form.publish_date"
-                      type="date"
-                    />
+                    <Label for="publish-date">Publish Date & Time</Label>
+                    <div class="flex gap-2">
+                      <Input
+                        id="publish-date"
+                        v-model="form.publish_date"
+                        type="date"
+                        class="flex-1"
+                      />
+                      <Input
+                        id="publish-time"
+                        v-model="form.publish_time"
+                        type="time"
+                        class="w-28"
+                        :disabled="!form.publish_date"
+                      />
+                    </div>
                     <p class="text-xs text-stone-500">
-                      Leave empty to publish immediately
+                      Leave empty to publish immediately. Default: 5:00 PM EST
                     </p>
                   </div>
                   <div class="grid gap-2">
-                    <Label for="expiry-date">Expiry Date</Label>
-                    <Input
-                      id="expiry-date"
-                      v-model="form.expiry_date"
-                      type="date"
-                    />
+                    <Label for="expiry-date">Expiry Date & Time</Label>
+                    <div class="flex gap-2">
+                      <Input
+                        id="expiry-date"
+                        v-model="form.expiry_date"
+                        type="date"
+                        class="flex-1"
+                      />
+                      <Input
+                        id="expiry-time"
+                        v-model="form.expiry_time"
+                        type="time"
+                        class="w-28"
+                        :disabled="!form.expiry_date"
+                      />
+                    </div>
                     <p class="text-xs text-stone-500">
-                      Leave empty for no expiry
+                      Leave empty for no expiry. Default: 5:00 PM EST
                     </p>
                   </div>
                 </div>
