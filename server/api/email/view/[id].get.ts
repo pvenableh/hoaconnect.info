@@ -1,5 +1,5 @@
 import { readItem, readItems } from "@directus/sdk";
-import { buildEmailHtml, type EmailType } from "../../../utils/email-templates";
+import { buildEmailHtml, type EmailType } from "../../../utils/email-templates-mjml";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, HoaEmail } from "~~/types/directus";
 
 /**

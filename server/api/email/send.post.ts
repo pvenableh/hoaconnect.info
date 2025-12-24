@@ -1,19 +1,30 @@
 import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates";
+import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates-mjml";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
+interface CidImage {
+  cid: string;
+  content: string; // base64
+  type: string;
+  filename: string;
+}
+
 /**
- * Process HTML content to embed Directus images as inline base64
- * This ensures images display correctly in email clients
+ * Extract images from content and prepare them as CID attachments
+ * CID (Content-ID) embedding works better in Outlook than base64 data URIs
  */
-async function embedImagesAsBase64(content: string, directusUrl: string, staticToken: string): Promise<string> {
-  // Find all img tags with src attributes - handle both regular and self-closing tags
+async function extractImagesAsCid(
+  content: string,
+  directusUrl: string,
+  staticToken: string
+): Promise<{ processedContent: string; cidImages: CidImage[] }> {
   const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
   let processedContent = content;
+  const cidImages: CidImage[] = [];
   const matches = [...content.matchAll(imgRegex)];
 
-  console.log(`[embedImagesAsBase64] Processing ${matches.length} image(s) in content`);
+  console.log(`[extractImagesAsCid] Processing ${matches.length} image(s) in content`);
 
   for (const match of matches) {
     const [fullMatch, beforeSrc, src, afterSrc] = match;
@@ -25,14 +36,14 @@ async function embedImagesAsBase64(content: string, directusUrl: string, staticT
         // Extract asset ID from URL
         const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
         if (!assetMatch) {
-          console.log(`[embedImagesAsBase64] Could not extract asset ID from: ${src}`);
+          console.log(`[extractImagesAsCid] Could not extract asset ID from: ${src}`);
           continue;
         }
 
         const assetId = assetMatch[1];
         const assetUrl = `${directusUrl}/assets/${assetId}`;
 
-        console.log(`[embedImagesAsBase64] Downloading image: ${assetId}`);
+        console.log(`[extractImagesAsCid] Downloading image: ${assetId}`);
 
         // Download the image
         const response = await fetch(assetUrl, {
@@ -42,35 +53,44 @@ async function embedImagesAsBase64(content: string, directusUrl: string, staticT
         });
 
         if (!response.ok) {
-          console.error(`[embedImagesAsBase64] Failed to download image ${assetId}: ${response.status}`);
+          console.error(`[extractImagesAsCid] Failed to download image ${assetId}: ${response.status}`);
           continue;
         }
 
-        // Get content type
+        // Get content type and determine extension
         const contentType = response.headers.get('content-type') || 'image/png';
+        const ext = contentType.split('/')[1] || 'png';
 
         // Convert to base64
         const arrayBuffer = await response.arrayBuffer();
         const base64 = Buffer.from(arrayBuffer).toString('base64');
-        const dataUri = `data:${contentType};base64,${base64}`;
 
-        console.log(`[embedImagesAsBase64] Embedded image ${assetId} (${contentType}, ${base64.length} chars)`);
+        // Generate unique CID
+        const cid = `image-${assetId}@hoamail`;
+        const filename = `image-${assetId}.${ext}`;
 
-        // Replace the src in the content, preserving tag format
-        // Clean up afterSrc to remove any trailing / that might have been captured
+        cidImages.push({
+          cid,
+          content: base64,
+          type: contentType,
+          filename,
+        });
+
+        console.log(`[extractImagesAsCid] Prepared CID image: ${cid} (${contentType})`);
+
+        // Replace the src with cid: reference
         const cleanAfterSrc = afterSrc.replace(/\s*\/\s*$/, '');
         const newImgTag = isSelfClosing
-          ? `<img${beforeSrc}src="${dataUri}"${cleanAfterSrc} />`
-          : `<img${beforeSrc}src="${dataUri}"${cleanAfterSrc}>`;
+          ? `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc} />`
+          : `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc}>`;
         processedContent = processedContent.replace(fullMatch, newImgTag);
       } catch (error) {
-        console.error(`[embedImagesAsBase64] Error embedding image:`, error);
-        // Continue with other images if one fails
+        console.error(`[extractImagesAsCid] Error processing image:`, error);
       }
     }
   }
 
-  return processedContent;
+  return { processedContent, cidImages };
 }
 
 interface SendEmailBody {
@@ -247,11 +267,25 @@ export default defineEventHandler(async (event) => {
       );
     }
 
-    // Process content to embed images as base64 for email delivery
-    const processedContent = await embedImagesAsBase64(content, config.directus.url, config.directus.staticToken);
+    // Process content to extract images as CID attachments (works better in Outlook)
+    const { processedContent, cidImages } = await extractImagesAsCid(
+      content,
+      config.directus.url,
+      config.directus.staticToken
+    );
+
+    // Convert CID images to email attachments with inline disposition
+    const inlineAttachments: EmailAttachment[] = cidImages.map((img) => ({
+      content: img.content,
+      filename: img.filename,
+      type: img.type,
+      disposition: "inline" as const,
+      contentId: img.cid,
+    }));
 
     // Log content for debugging
     console.log(`[send.post] Original content length: ${content.length}, Processed content length: ${processedContent.length}`);
+    console.log(`[send.post] CID images extracted: ${cidImages.length}`);
     console.log(`[send.post] Content preview: ${content.substring(0, 200)}...`);
 
     // Send emails to each recipient
@@ -314,6 +348,9 @@ export default defineEventHandler(async (event) => {
       });
 
       try {
+        // Combine regular attachments with inline CID images
+        const allAttachments = [...emailAttachments, ...inlineAttachments];
+
         const sendResult = await sendOrganizationEmail({
           to: member.email,
           toName: recipientName || undefined,
@@ -321,7 +358,7 @@ export default defineEventHandler(async (event) => {
           html,
           text,
           fromName: organization.name || undefined,
-          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
+          attachments: allAttachments.length > 0 ? allAttachments : undefined,
         });
 
         deliveredCount++;
