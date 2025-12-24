@@ -131,7 +131,7 @@ function getLogoUrl(
       : (settings.logo as DirectusFile)?.id;
   if (!logoId) return null;
 
-  return `${directusUrl}/assets/${logoId}`;
+  return `${directusUrl}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
 }
 
 /**
@@ -169,7 +169,7 @@ function buildHeader(
         <td style="background-color: ${style.headerBg}; padding: 24px 32px; text-align: center;">
           ${
             logoUrl
-              ? `<img src="${logoUrl}" alt="${orgName}" style="max-width: 200px; max-height: 80px; height: auto;" />`
+              ? `<img src="${logoUrl}" alt="${orgName}" style="max-width: 200px; max-height: 80px; height: auto; margin: 0 auto" />`
               : `<h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">${orgName}</h1>`
           }
           ${
