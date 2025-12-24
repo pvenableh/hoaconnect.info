@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HoaChannel, HoaChannelMessage } from "~~/types/directus";
+import { toast } from "vue-sonner";
 
 definePageMeta({
   middleware: ["auth", "admin"],
