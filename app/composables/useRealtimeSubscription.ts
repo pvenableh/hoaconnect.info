@@ -58,9 +58,11 @@ export const useRealtimeSubscription = <T = any>(
     error.value = null;
 
     try {
+      // Unwrap filter if it's reactive
+      const rawFilter = filter ? toRaw(unref(filter)) : undefined;
       const result = await list({
         fields,
-        filter,
+        filter: rawFilter,
         sort: sortArray,
         limit: -1,
       });
@@ -81,6 +83,9 @@ export const useRealtimeSubscription = <T = any>(
       if (!isConnected.value) {
         await connect();
       }
+
+      // Unwrap filter if it's reactive for subscription
+      const rawFilter = filter ? toRaw(unref(filter)) : undefined;
 
       // Subscribe to collection changes
       const unsubscribe = await subscribe(
@@ -118,12 +123,13 @@ export const useRealtimeSubscription = <T = any>(
           }
         },
         {
-          filter,
+          filter: rawFilter,
           fields,
         }
       );
 
-      subscriptionKey.value = `${collection}-${JSON.stringify({ filter, fields })}`;
+      // Set subscription key (rawFilter already defined above)
+      subscriptionKey.value = `${collection}-${JSON.stringify({ filter: rawFilter, fields })}`;
     } catch (err: any) {
       console.error(
         `[useRealtimeSubscription] Error subscribing to ${collection}:`,
@@ -167,9 +173,12 @@ export const useRealtimeSubscription = <T = any>(
     { immediate: true }
   );
 
-  // Watch for filter changes
+  // Watch for filter changes - use toRaw to unwrap reactive objects
   watch(
-    () => JSON.stringify(filter),
+    () => {
+      const rawFilter = filter ? toRaw(unref(filter)) : {};
+      return JSON.stringify(rawFilter);
+    },
     async () => {
       if (isEnabled.value) {
         await fetchData();
