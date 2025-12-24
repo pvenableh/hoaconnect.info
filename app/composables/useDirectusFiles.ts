@@ -20,22 +20,60 @@ export const useDirectusFiles = () => {
     height?: number
     fit?: 'cover' | 'contain' | 'inside' | 'outside'
     quality?: number
-    format?: 'jpg' | 'png' | 'webp' | 'tiff'
+    format?: 'jpg' | 'png' | 'webp' | 'tiff' | 'avif'
+    key?: string
   }) => {
     if (!fileId) return null
-    
+
     const baseUrl = `${config.public.directus.url}/assets/${fileId}`
-    
+
     if (!options) return baseUrl
-    
+
     const params = new URLSearchParams()
+
+    // If using a preset key, just use that
+    if (options.key) {
+      params.append('key', options.key)
+      return `${baseUrl}?${params.toString()}`
+    }
+
     if (options.width) params.append('width', options.width.toString())
     if (options.height) params.append('height', options.height.toString())
     if (options.fit) params.append('fit', options.fit)
     if (options.quality) params.append('quality', options.quality.toString())
     if (options.format) params.append('format', options.format)
-    
+
     return `${baseUrl}?${params.toString()}`
+  }
+
+  /**
+   * Get optimized image URL that preserves transparency
+   * Uses webp format with 'inside' fit to avoid black backgrounds
+   *
+   * @param fileId - The Directus file ID
+   * @param size - Target size (width). Common sizes: 'xs'=32, 'sm'=64, 'md'=128, 'lg'=256, 'xl'=512
+   * @param options - Additional options to override defaults
+   */
+  const getOptimizedUrl = (
+    fileId: string,
+    size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number = 'md',
+    options?: {
+      format?: 'webp' | 'png' | 'avif'
+      quality?: number
+      fit?: 'inside' | 'cover'
+    }
+  ) => {
+    if (!fileId) return null
+
+    const sizeMap = { xs: 32, sm: 64, md: 128, lg: 256, xl: 512 }
+    const width = typeof size === 'number' ? size : sizeMap[size]
+
+    return getUrl(fileId, {
+      width,
+      fit: options?.fit ?? 'inside',
+      format: options?.format ?? 'webp',
+      quality: options?.quality ?? 80
+    })
   }
   
   /**
@@ -291,6 +329,7 @@ export const useDirectusFiles = () => {
     delete: remove, // Alias
     importFromUrl,
     getUrl,
+    getOptimizedUrl,
 
     // Folder operations
     listByFolder,
