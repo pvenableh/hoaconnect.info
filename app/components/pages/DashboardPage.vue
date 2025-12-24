@@ -184,8 +184,48 @@ const emailStats = computed(() => {
   return { sent, totalDelivered, totalFailed };
 });
 
-// Generate mock activity data for the week (in a real app, this would come from actual data)
-const activityData = computed(() => {
+// Fetch real email activity data from Directus
+const { data: emailActivityResponse } = await useAsyncData(
+  `dashboard-email-activity-${orgId.value}`,
+  async () => {
+    if (!orgId.value) return null;
+    try {
+      const headers = useRequestHeaders(["cookie"]);
+      const result = await $fetch(`/api/email/dashboard-activity`, {
+        headers,
+        query: { organizationId: orgId.value },
+      });
+      return result as {
+        chartData: Array<{ date: string; sent: number; delivered: number; opened: number }>;
+        stats: {
+          totalSent: number;
+          totalDelivered: number;
+          totalOpens: number;
+          uniqueOpens: number;
+          totalClicks: number;
+          uniqueClicks: number;
+          totalBounces: number;
+          openRate: number;
+          clickRate: number;
+        };
+      };
+    } catch (e) {
+      console.error("Failed to fetch email activity:", e);
+      return null;
+    }
+  },
+  {
+    watch: [orgId],
+    server: false,
+  }
+);
+
+// Email activity chart data (real data from API)
+const emailActivityData = computed(() => {
+  if (emailActivityResponse.value?.chartData) {
+    return emailActivityResponse.value.chartData;
+  }
+  // Fallback to empty data if not available
   const days = [];
   const now = new Date();
   for (let i = 6; i >= 0; i--) {
@@ -193,41 +233,47 @@ const activityData = computed(() => {
     date.setDate(date.getDate() - i);
     days.push({
       date: date.toISOString().split("T")[0],
-      documents: Math.floor(Math.random() * 3),
-      emails: Math.floor(Math.random() * 5),
-      members: Math.floor(Math.random() * 2),
+      sent: 0,
+      delivered: 0,
+      opened: 0,
     });
   }
   return days;
+});
+
+// Email engagement stats (real data from API)
+const emailEngagementStats = computed(() => {
+  return emailActivityResponse.value?.stats || {
+    totalSent: 0,
+    totalDelivered: 0,
+    totalOpens: 0,
+    uniqueOpens: 0,
+    totalClicks: 0,
+    uniqueClicks: 0,
+    totalBounces: 0,
+    openRate: 0,
+    clickRate: 0,
+  };
+});
+
+// Activity timeline data (combining real email data with document/member counts)
+const activityData = computed(() => {
+  // Use email activity data as the base
+  return emailActivityData.value.map(day => ({
+    date: day.date,
+    documents: 0, // Could be enhanced with real document activity
+    emails: day.sent,
+    members: 0, // Could be enhanced with real member activity
+  }));
 });
 
 // Channel activity data
 const channelData = computed(() => {
   return (channels.value || []).slice(0, 5).map((channel: HoaChannel) => ({
     name: channel.name,
-    messages: Math.floor(Math.random() * 50) + 5, // Mock data
-    members: Math.floor(Math.random() * 20) + 3,  // Mock data
+    messages: Math.floor(Math.random() * 50) + 5, // TODO: Replace with real message counts
+    members: Math.floor(Math.random() * 20) + 3,  // TODO: Replace with real member counts
   }));
-});
-
-// Email activity over time (mock data)
-const emailActivityData = computed(() => {
-  const days = [];
-  const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const sent = Math.floor(Math.random() * 10) + 1;
-    const delivered = Math.floor(sent * 0.95);
-    const opened = Math.floor(delivered * 0.4);
-    days.push({
-      date: date.toISOString().split("T")[0],
-      sent,
-      delivered,
-      opened,
-    });
-  }
-  return days;
 });
 </script>
 
@@ -282,6 +328,46 @@ const emailActivityData = computed(() => {
 
           <!-- Email Activity -->
           <DashboardEmailActivityChart :data="emailActivityData" />
+        </div>
+
+        <!-- Email Engagement Stats (from real-time Directus data) -->
+        <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-blue-600">{{ emailEngagementStats.totalSent }}</p>
+              <p class="text-xs text-stone-500">Total Sent</p>
+            </div>
+          </Card>
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-green-600">{{ emailEngagementStats.totalDelivered }}</p>
+              <p class="text-xs text-stone-500">Delivered</p>
+            </div>
+          </Card>
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-purple-600">{{ emailEngagementStats.uniqueOpens }}</p>
+              <p class="text-xs text-stone-500">Unique Opens</p>
+            </div>
+          </Card>
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-indigo-600">{{ emailEngagementStats.uniqueClicks }}</p>
+              <p class="text-xs text-stone-500">Unique Clicks</p>
+            </div>
+          </Card>
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-cyan-600">{{ emailEngagementStats.openRate }}%</p>
+              <p class="text-xs text-stone-500">Open Rate</p>
+            </div>
+          </Card>
+          <Card class="p-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-orange-600">{{ emailEngagementStats.clickRate }}%</p>
+              <p class="text-xs text-stone-500">Click Rate</p>
+            </div>
+          </Card>
         </div>
 
         <!-- Content Row -->
