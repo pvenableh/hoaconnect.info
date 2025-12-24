@@ -12,8 +12,7 @@
  */
 
 export default defineNuxtPlugin(() => {
-  const session = useUserSession();
-  const { loggedIn, fetch: fetchSession, clear, data } = session;
+  const { loggedIn, fetch: fetchSession, clear, session } = useUserSession();
   const router = useRouter();
 
   let checkInterval: ReturnType<typeof setInterval> | null = null;
@@ -63,8 +62,8 @@ export default defineNuxtPlugin(() => {
       // Fetch current session to get expiration time
       await fetchSession();
 
-      // Get expiration time from session data (data may be undefined during hydration)
-      const expiresAt = (data?.value as any)?.expiresAt;
+      // Get expiration time from session data
+      const expiresAt = session.value?.expiresAt;
 
       if (!expiresAt) {
         // Session exists but missing expiration time - this can happen with old sessions
