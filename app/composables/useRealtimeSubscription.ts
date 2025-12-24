@@ -54,12 +54,21 @@ export const useRealtimeSubscription = <T = any>(
 
   // Fetch initial data
   const fetchData = async () => {
+    const rawFilter = filter ? toRaw(unref(filter)) : undefined;
+
+    // Debug logging
+    if (import.meta.dev) {
+      console.log(`[useRealtimeSubscription] Fetching ${collection}`, {
+        filter: rawFilter,
+        fields,
+        isClient: import.meta.client,
+      });
+    }
+
     isLoading.value = true;
     error.value = null;
 
     try {
-      // Unwrap filter if it's reactive
-      const rawFilter = filter ? toRaw(unref(filter)) : undefined;
       const result = await list({
         fields,
         filter: rawFilter,
@@ -68,6 +77,13 @@ export const useRealtimeSubscription = <T = any>(
       });
 
       data.value = (result as T[]) || [];
+
+      if (import.meta.dev) {
+        console.log(`[useRealtimeSubscription] Fetched ${collection}:`, {
+          count: data.value.length,
+          isClient: import.meta.client,
+        });
+      }
     } catch (err: any) {
       console.error(`[useRealtimeSubscription] Error fetching ${collection}:`, err);
       error.value = err.message || "Failed to fetch data";
@@ -162,10 +178,17 @@ export const useRealtimeSubscription = <T = any>(
     await fetchData();
   };
 
-  // Watch for enabled changes
+  // Watch for enabled changes and filter changes together
+  // Using watchEffect for immediate execution and automatic dependency tracking
   watch(
-    isEnabled,
-    async (enabled) => {
+    [
+      isEnabled,
+      () => {
+        const rawFilter = filter ? toRaw(unref(filter)) : {};
+        return JSON.stringify(rawFilter);
+      },
+    ],
+    async ([enabled]) => {
       if (enabled) {
         await initialize();
       }
@@ -173,18 +196,16 @@ export const useRealtimeSubscription = <T = any>(
     { immediate: true }
   );
 
-  // Watch for filter changes - use toRaw to unwrap reactive objects
-  watch(
-    () => {
-      const rawFilter = filter ? toRaw(unref(filter)) : {};
-      return JSON.stringify(rawFilter);
-    },
-    async () => {
-      if (isEnabled.value) {
-        await fetchData();
+  // Ensure client-side fetch after hydration if data is missing
+  // This handles cases where SSR fetch failed or didn't complete
+  if (import.meta.client) {
+    onMounted(() => {
+      // If still loading or error occurred during SSR, retry fetch
+      if (isEnabled.value && (isLoading.value || error.value)) {
+        fetchData();
       }
-    }
-  );
+    });
+  }
 
   return {
     data: readonly(data),
