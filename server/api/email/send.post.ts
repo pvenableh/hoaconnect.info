@@ -8,23 +8,31 @@ import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, Directus
  * This ensures images display correctly in email clients
  */
 async function embedImagesAsBase64(content: string, directusUrl: string, staticToken: string): Promise<string> {
-  // Find all img tags with src attributes
-  const imgRegex = /<img([^>]*)src="([^"]+)"([^>]*)>/gi;
+  // Find all img tags with src attributes - handle both regular and self-closing tags
+  const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
   let processedContent = content;
   const matches = [...content.matchAll(imgRegex)];
 
+  console.log(`[embedImagesAsBase64] Processing ${matches.length} image(s) in content`);
+
   for (const match of matches) {
     const [fullMatch, beforeSrc, src, afterSrc] = match;
+    const isSelfClosing = fullMatch.endsWith('/>');
 
     // Check if this is a Directus asset URL
     if (src.includes(directusUrl) || src.includes('/assets/')) {
       try {
         // Extract asset ID from URL
         const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
-        if (!assetMatch) continue;
+        if (!assetMatch) {
+          console.log(`[embedImagesAsBase64] Could not extract asset ID from: ${src}`);
+          continue;
+        }
 
         const assetId = assetMatch[1];
         const assetUrl = `${directusUrl}/assets/${assetId}`;
+
+        console.log(`[embedImagesAsBase64] Downloading image: ${assetId}`);
 
         // Download the image
         const response = await fetch(assetUrl, {
@@ -34,7 +42,7 @@ async function embedImagesAsBase64(content: string, directusUrl: string, staticT
         });
 
         if (!response.ok) {
-          console.error(`Failed to download image ${assetId}: ${response.status}`);
+          console.error(`[embedImagesAsBase64] Failed to download image ${assetId}: ${response.status}`);
           continue;
         }
 
@@ -46,11 +54,17 @@ async function embedImagesAsBase64(content: string, directusUrl: string, staticT
         const base64 = Buffer.from(arrayBuffer).toString('base64');
         const dataUri = `data:${contentType};base64,${base64}`;
 
-        // Replace the src in the content
-        const newImgTag = `<img${beforeSrc}src="${dataUri}"${afterSrc}>`;
+        console.log(`[embedImagesAsBase64] Embedded image ${assetId} (${contentType}, ${base64.length} chars)`);
+
+        // Replace the src in the content, preserving tag format
+        // Clean up afterSrc to remove any trailing / that might have been captured
+        const cleanAfterSrc = afterSrc.replace(/\s*\/\s*$/, '');
+        const newImgTag = isSelfClosing
+          ? `<img${beforeSrc}src="${dataUri}"${cleanAfterSrc} />`
+          : `<img${beforeSrc}src="${dataUri}"${cleanAfterSrc}>`;
         processedContent = processedContent.replace(fullMatch, newImgTag);
       } catch (error) {
-        console.error(`Error embedding image:`, error);
+        console.error(`[embedImagesAsBase64] Error embedding image:`, error);
         // Continue with other images if one fails
       }
     }
@@ -236,6 +250,10 @@ export default defineEventHandler(async (event) => {
     // Process content to embed images as base64 for email delivery
     const processedContent = await embedImagesAsBase64(content, config.directus.url, config.directus.staticToken);
 
+    // Log content for debugging
+    console.log(`[send.post] Original content length: ${content.length}, Processed content length: ${processedContent.length}`);
+    console.log(`[send.post] Content preview: ${content.substring(0, 200)}...`);
+
     // Send emails to each recipient
     let deliveredCount = 0;
     let failedCount = 0;
@@ -272,7 +290,16 @@ export default defineEventHandler(async (event) => {
         boardMembers: includeBoardFooter ? boardMembers : undefined,
         recipientFirstName,
         directusUrl: config.directus.url,
+        emailId: (email as any).id,
+        appUrl: config.public.appUrl as string,
       });
+
+      // Log HTML for first recipient only (for debugging)
+      if (deliveredCount === 0 && failedCount === 0) {
+        console.log(`[send.post] Built HTML length: ${html.length}`);
+        console.log(`[send.post] HTML contains DOCTYPE: ${html.includes('<!DOCTYPE')}`);
+        console.log(`[send.post] HTML body preview: ${html.substring(0, 500)}...`);
+      }
 
       const text = buildEmailText({
         organization,

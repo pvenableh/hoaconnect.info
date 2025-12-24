@@ -12,6 +12,12 @@ const emit = defineEmits<{
   (e: "create"): void;
 }>();
 
+// Create reactive filter that updates when organizationId changes
+const channelFilter = computed(() => ({
+  organization: { _eq: props.organizationId },
+  status: { _eq: "published" },
+}));
+
 // Fetch channels for the organization
 const { data: channels, isLoading, error, refresh } = useRealtimeSubscription<HoaChannel>(
   "hoa_channels",
@@ -24,10 +30,7 @@ const { data: channels, isLoading, error, refresh } = useRealtimeSubscription<Ho
     "is_default",
     "status",
   ],
-  {
-    organization: { _eq: props.organizationId },
-    status: { _eq: "published" },
-  },
+  channelFilter,
   "name"
 );
 
