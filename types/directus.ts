@@ -133,6 +133,7 @@ export interface HoaAnnouncement {
 	expiry_date?: string | null;
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
+	is_pinned?: boolean | null;
 }
 
 export interface HoaBoardMember {
