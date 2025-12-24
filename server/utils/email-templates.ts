@@ -39,7 +39,7 @@ const emailTypeStyles: Record<
   { headerBg: string; accentColor: string; icon: string; label: string }
 > = {
   basic: {
-    headerBg: "#1f2937",
+    headerBg: "#ffffff",
     accentColor: "#3b82f6",
     icon: "✉️",
     label: "",
