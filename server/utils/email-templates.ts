@@ -1,6 +1,17 @@
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
+import type {
+  HoaBoardMember,
+  HoaMember,
+  HoaOrganization,
+  BlockSetting,
+  DirectusFile,
+} from "~~/types/directus";
 
-export type EmailType = "basic" | "newsletter" | "announcement" | "reminder" | "notice";
+export type EmailType =
+  | "basic"
+  | "newsletter"
+  | "announcement"
+  | "reminder"
+  | "notice";
 
 interface BoardMemberInfo {
   name: string;
@@ -23,7 +34,10 @@ interface EmailTemplateOptions {
 }
 
 // Email type configurations with colors and styling
-const emailTypeStyles: Record<EmailType, { headerBg: string; accentColor: string; icon: string; label: string }> = {
+const emailTypeStyles: Record<
+  EmailType,
+  { headerBg: string; accentColor: string; icon: string; label: string }
+> = {
   basic: {
     headerBg: "#1f2937",
     accentColor: "#3b82f6",
@@ -92,7 +106,10 @@ function processGreeting(
     processed = processed.replace(/\{\{first_name\}\}/gi, recipientFirstName);
   } else if (orgName) {
     // For web preview - use organization name fallback
-    processed = processed.replace(/\{\{first_name\}\}/gi, `${orgName} resident`);
+    processed = processed.replace(
+      /\{\{first_name\}\}/gi,
+      `${orgName} resident`
+    );
   }
 
   return processed;
@@ -101,14 +118,20 @@ function processGreeting(
 /**
  * Get the logo URL from organization settings
  */
-function getLogoUrl(organization: EmailTemplateOptions["organization"], directusUrl: string): string | null {
+function getLogoUrl(
+  organization: EmailTemplateOptions["organization"],
+  directusUrl: string
+): string | null {
   const settings = organization.settings as BlockSetting | undefined;
   if (!settings?.logo) return null;
 
-  const logoId = typeof settings.logo === "string" ? settings.logo : (settings.logo as DirectusFile)?.id;
+  const logoId =
+    typeof settings.logo === "string"
+      ? settings.logo
+      : (settings.logo as DirectusFile)?.id;
   if (!logoId) return null;
 
-  return `${directusUrl}/assets/${logoId}?width=200&height=80&fit=contain`;
+  return `${directusUrl}/assets/${logoId}?key=small-png`;
 }
 
 /**
@@ -169,7 +192,9 @@ function buildHeader(
  */
 function isHtmlContent(content: string): boolean {
   // Check for common HTML tags that indicate rich text content
-  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img|table|tr|td|th)[^>]*>/i.test(content);
+  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img|table|tr|td|th)[^>]*>/i.test(
+    content
+  );
 }
 
 /**
@@ -179,29 +204,73 @@ function isHtmlContent(content: string): boolean {
 function processContent(content: string): string {
   if (isHtmlContent(content)) {
     // Content is already HTML from Tiptap editor - add inline styles for email compatibility
-    return content
-      // Style headings
-      .replace(/<h1([^>]*)>/gi, '<h1$1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1f2937;">')
-      .replace(/<h2([^>]*)>/gi, '<h2$1 style="margin: 0 0 14px 0; font-size: 20px; font-weight: 700; color: #1f2937;">')
-      .replace(/<h3([^>]*)>/gi, '<h3$1 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #1f2937;">')
-      // Style paragraphs
-      .replace(/<p([^>]*)>/gi, '<p$1 style="margin: 0 0 16px 0; line-height: 1.6;">')
-      // Style lists
-      .replace(/<ul([^>]*)>/gi, '<ul$1 style="margin: 0 0 16px 0; padding-left: 24px;">')
-      .replace(/<ol([^>]*)>/gi, '<ol$1 style="margin: 0 0 16px 0; padding-left: 24px;">')
-      .replace(/<li([^>]*)>/gi, '<li$1 style="margin: 0 0 8px 0; line-height: 1.6;">')
-      // Style blockquotes
-      .replace(/<blockquote([^>]*)>/gi, '<blockquote$1 style="margin: 16px 0; padding: 12px 16px; border-left: 4px solid #d1d5db; background-color: #f9fafb; font-style: italic; color: #4b5563;">')
-      // Style links
-      .replace(/<a([^>]*href[^>]*)>/gi, '<a$1 style="color: #3b82f6; text-decoration: underline;">')
-      // Style horizontal rules
-      .replace(/<hr([^>]*)>/gi, '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">')
-      // Style images - make them responsive and centered for email
-      .replace(/<img([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto;">')
-      // Style tables for email
-      .replace(/<table([^>]*)>/gi, '<table$1 style="border-collapse: collapse; width: 100%; margin: 16px 0;">')
-      .replace(/<th([^>]*)>/gi, '<th$1 style="border: 1px solid #d1d5db; padding: 8px 12px; background-color: #f3f4f6; font-weight: 600; text-align: left;">')
-      .replace(/<td([^>]*)>/gi, '<td$1 style="border: 1px solid #d1d5db; padding: 8px 12px;">');
+    return (
+      content
+        // Style headings
+        .replace(
+          /<h1([^>]*)>/gi,
+          '<h1$1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1f2937;">'
+        )
+        .replace(
+          /<h2([^>]*)>/gi,
+          '<h2$1 style="margin: 0 0 14px 0; font-size: 20px; font-weight: 700; color: #1f2937;">'
+        )
+        .replace(
+          /<h3([^>]*)>/gi,
+          '<h3$1 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #1f2937;">'
+        )
+        // Style paragraphs
+        .replace(
+          /<p([^>]*)>/gi,
+          '<p$1 style="margin: 0 0 16px 0; line-height: 1.6;">'
+        )
+        // Style lists
+        .replace(
+          /<ul([^>]*)>/gi,
+          '<ul$1 style="margin: 0 0 16px 0; padding-left: 24px;">'
+        )
+        .replace(
+          /<ol([^>]*)>/gi,
+          '<ol$1 style="margin: 0 0 16px 0; padding-left: 24px;">'
+        )
+        .replace(
+          /<li([^>]*)>/gi,
+          '<li$1 style="margin: 0 0 8px 0; line-height: 1.6;">'
+        )
+        // Style blockquotes
+        .replace(
+          /<blockquote([^>]*)>/gi,
+          '<blockquote$1 style="margin: 16px 0; padding: 12px 16px; border-left: 4px solid #d1d5db; background-color: #f9fafb; font-style: italic; color: #4b5563;">'
+        )
+        // Style links
+        .replace(
+          /<a([^>]*href[^>]*)>/gi,
+          '<a$1 style="color: #3b82f6; text-decoration: underline;">'
+        )
+        // Style horizontal rules
+        .replace(
+          /<hr([^>]*)>/gi,
+          '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">'
+        )
+        // Style images - make them responsive and centered for email
+        .replace(
+          /<img([^>]*)>/gi,
+          '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto;">'
+        )
+        // Style tables for email
+        .replace(
+          /<table([^>]*)>/gi,
+          '<table$1 style="border-collapse: collapse; width: 100%; margin: 16px 0;">'
+        )
+        .replace(
+          /<th([^>]*)>/gi,
+          '<th$1 style="border: 1px solid #d1d5db; padding: 8px 12px; background-color: #f3f4f6; font-weight: 600; text-align: left;">'
+        )
+        .replace(
+          /<td([^>]*)>/gi,
+          '<td$1 style="border: 1px solid #d1d5db; padding: 8px 12px;">'
+        )
+    );
   }
 
   // Legacy markdown-style content processing
@@ -229,7 +298,11 @@ function buildBody(
 
   // Process greeting with template variable replacement
   const greetingTemplate = greeting || getDefaultGreeting(orgName || "");
-  const processedGreeting = processGreeting(greetingTemplate, recipientFirstName, orgName);
+  const processedGreeting = processGreeting(
+    greetingTemplate,
+    recipientFirstName,
+    orgName
+  );
   const greetingHtml = processedGreeting
     ? `<p style="margin: 0 0 16px 0; line-height: 1.6;">${processedGreeting}</p>`
     : "";
@@ -323,12 +396,31 @@ function buildFooter(
  * Build a complete HTML email from the provided options
  * @param forPreview - If true, returns just the email body content without the full document wrapper
  */
-export function buildEmailHtml(options: EmailTemplateOptions & { forPreview?: boolean }): string {
-  const { organization, subject, content, emailType, greeting, salutation, boardMembers, recipientFirstName, directusUrl, forPreview } = options;
+export function buildEmailHtml(
+  options: EmailTemplateOptions & { forPreview?: boolean }
+): string {
+  const {
+    organization,
+    subject,
+    content,
+    emailType,
+    greeting,
+    salutation,
+    boardMembers,
+    recipientFirstName,
+    directusUrl,
+    forPreview,
+  } = options;
   const orgName = organization.name || "Organization";
 
   const header = buildHeader(organization, emailType, directusUrl);
-  const body = buildBody(content, emailType, greeting, recipientFirstName, orgName);
+  const body = buildBody(
+    content,
+    emailType,
+    greeting,
+    recipientFirstName,
+    orgName
+  );
   const footer = buildFooter(organization, emailType, salutation, boardMembers);
 
   // For preview, return just the email container without the full HTML document wrapper
@@ -336,7 +428,7 @@ export function buildEmailHtml(options: EmailTemplateOptions & { forPreview?: bo
   if (forPreview) {
     return `
       <div style="background-color: #f3f4f6; padding: 24px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 0px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
           ${header}
           ${body}
           ${footer}
@@ -393,7 +485,7 @@ export function buildEmailHtml(options: EmailTemplateOptions & { forPreview?: bo
     <tr>
       <td style="padding: 24px 16px;">
         <!-- Email container -->
-        <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+        <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 0px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
           <tr>
             <td>
               ${header}
@@ -414,38 +506,53 @@ export function buildEmailHtml(options: EmailTemplateOptions & { forPreview?: bo
  * Convert HTML content to plain text
  */
 function htmlToPlainText(html: string): string {
-  return html
-    // Convert line breaks and block elements to newlines
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/h[1-6]>/gi, "\n\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/blockquote>/gi, "\n\n")
-    .replace(/<hr\s*\/?>/gi, "\n---\n")
-    // Add bullet points for list items
-    .replace(/<li[^>]*>/gi, "• ")
-    // Convert images to text description with link
-    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, "[Image: $2] ($1)")
-    .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, "[Image: $1] ($2)")
-    .replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, "[Image] ($1)")
-    // Handle tables - convert to simple text format
-    .replace(/<\/tr>/gi, "\n")
-    .replace(/<\/td>/gi, " | ")
-    .replace(/<\/th>/gi, " | ")
-    .replace(/<table[^>]*>/gi, "\n")
-    .replace(/<\/table>/gi, "\n")
-    // Strip remaining HTML tags
-    .replace(/<[^>]*>/g, "")
-    // Clean up whitespace
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    html
+      // Convert line breaks and block elements to newlines
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<\/blockquote>/gi, "\n\n")
+      .replace(/<hr\s*\/?>/gi, "\n---\n")
+      // Add bullet points for list items
+      .replace(/<li[^>]*>/gi, "• ")
+      // Convert images to text description with link
+      .replace(
+        /<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi,
+        "[Image: $2] ($1)"
+      )
+      .replace(
+        /<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi,
+        "[Image: $1] ($2)"
+      )
+      .replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, "[Image] ($1)")
+      // Handle tables - convert to simple text format
+      .replace(/<\/tr>/gi, "\n")
+      .replace(/<\/td>/gi, " | ")
+      .replace(/<\/th>/gi, " | ")
+      .replace(/<table[^>]*>/gi, "\n")
+      .replace(/<\/table>/gi, "\n")
+      // Strip remaining HTML tags
+      .replace(/<[^>]*>/g, "")
+      // Clean up whitespace
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 /**
  * Build a plain text version of the email for fallback
  */
 export function buildEmailText(options: EmailTemplateOptions): string {
-  const { organization, content, greeting, salutation, boardMembers, recipientFirstName } = options;
+  const {
+    organization,
+    content,
+    greeting,
+    salutation,
+    boardMembers,
+    recipientFirstName,
+  } = options;
   const orgName = organization.name || "Organization";
   const finalSalutation = salutation || defaultSalutations[options.emailType];
 
@@ -453,7 +560,11 @@ export function buildEmailText(options: EmailTemplateOptions): string {
 
   // Greeting with template variable replacement
   const greetingTemplate = greeting || getDefaultGreeting(orgName);
-  const processedGreeting = processGreeting(greetingTemplate, recipientFirstName, orgName);
+  const processedGreeting = processGreeting(
+    greetingTemplate,
+    recipientFirstName,
+    orgName
+  );
   if (processedGreeting) {
     text += `${processedGreeting}\n\n`;
   }
@@ -482,9 +593,12 @@ export function buildEmailText(options: EmailTemplateOptions): string {
   }
 
   // Footer
-  const addressParts = [organization.street_address, organization.city, organization.state, organization.zip].filter(
-    Boolean
-  );
+  const addressParts = [
+    organization.street_address,
+    organization.city,
+    organization.state,
+    organization.zip,
+  ].filter(Boolean);
   if (addressParts.length > 0) {
     text += `${addressParts.join(", ")}\n`;
   }
