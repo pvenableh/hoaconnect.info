@@ -185,6 +185,7 @@ watch(channelSlug, () => {
         v-if="selectedOrgId"
         :organization-id="selectedOrgId"
         :selected-channel-slug="channelSlug"
+        :is-admin="isAdmin"
         @select="handleChannelSelect"
         @create="showCreateModal = true"
       />
