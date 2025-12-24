@@ -139,6 +139,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Format attachments for M2M relationship
+    const attachmentsData = attachmentIds && attachmentIds.length > 0
+      ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
+      : [];
+
     // Create or update email record
     let email;
     if (emailId) {
@@ -152,7 +157,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
-          attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
+          attachments: attachmentsData,
         })
       );
     } else {
@@ -167,7 +172,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
-          attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
+          attachments: attachmentsData,
         })
       );
     }

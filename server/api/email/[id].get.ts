@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   try {
     const directus = getTypedDirectus();
 
-    // Get email with organization info
+    // Get email with organization info and attachment details
     const email = await directus.request(
       readItem("hoa_emails", id, {
         fields: [
@@ -26,7 +26,12 @@ export default defineEventHandler(async (event) => {
           "greeting",
           "salutation",
           "include_board_footer",
-          "attachments",
+          {
+            attachments: [
+              "id",
+              { directus_files_id: ["id", "title", "filename_download", "type", "filesize"] },
+            ],
+          },
           "date_created",
           "sent_at",
           "scheduled_at",

@@ -44,6 +44,11 @@ export default defineEventHandler(async (event) => {
   try {
     const directus = getTypedDirectus();
 
+    // Format attachments for M2M relationship
+    const attachmentsData = attachmentIds && attachmentIds.length > 0
+      ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
+      : [];
+
     const emailData = {
       organization: organizationId,
       subject,
@@ -54,7 +59,7 @@ export default defineEventHandler(async (event) => {
       include_board_footer: includeBoardFooter,
       status,
       scheduled_at: scheduledAt || null,
-      attachments: attachmentIds && attachmentIds.length > 0 ? attachmentIds : null,
+      attachments: attachmentsData,
     };
 
     let email;

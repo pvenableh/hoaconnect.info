@@ -164,7 +164,7 @@ const { data: existingEmail } = await useAsyncData(
 // Populate form if editing
 watch(
   existingEmail,
-  async (email) => {
+  (email) => {
     if (email) {
       form.subject = email.subject || "";
       form.content = email.content || "";
@@ -173,24 +173,31 @@ watch(
       form.salutation = email.salutation || "";
       form.includeBoardFooter = email.include_board_footer ?? true;
 
-      // Load attachments if they exist
+      // Load attachments if they exist (M2M structure from Directus)
       if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
-        form.attachmentIds = email.attachments;
-        // Fetch attachment details from Directus
-        try {
-          const attachmentDetails = await filesComposable.getMany(email.attachments as string[], {
-            fields: ["id", "title", "filename_download", "type", "filesize"],
-          });
-          if (attachmentDetails && Array.isArray(attachmentDetails)) {
-            selectedAttachments.value = (attachmentDetails as DirectusFile[]).map((file) => ({
+        // Extract file IDs and details from M2M junction records
+        const attachments = email.attachments as Array<{
+          id: number;
+          directus_files_id: DirectusFile | string;
+        }>;
+
+        form.attachmentIds = [];
+        selectedAttachments.value = [];
+
+        for (const attachment of attachments) {
+          const file = attachment.directus_files_id;
+          if (typeof file === "object" && file?.id) {
+            form.attachmentIds.push(file.id);
+            selectedAttachments.value.push({
               id: file.id,
               filename: file.filename_download || file.title || "attachment",
               type: file.type || "application/octet-stream",
               size: file.filesize || 0,
-            }));
+            });
+          } else if (typeof file === "string") {
+            // Fallback if only ID was returned
+            form.attachmentIds.push(file);
           }
-        } catch (err) {
-          console.error("Failed to load attachment details:", err);
         }
       }
       // Note: Recipients would need to be loaded separately for editing
