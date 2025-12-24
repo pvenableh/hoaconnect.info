@@ -133,8 +133,6 @@ export interface HoaAnnouncement {
 	expiry_date?: string | null;
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
-	/** @description Pin announcement to top of list */
-	is_pinned?: boolean | null;
 }
 
 export interface HoaBoardMember {
@@ -308,13 +306,6 @@ export interface HoaEmailRecipient {
 	email?: HoaEmail | string | null;
 }
 
-export interface HoaEmailsFiles {
-	/** @primaryKey */
-	id: number;
-	hoa_emails_id?: HoaEmail | string | null;
-	directus_files_id?: DirectusFile | string | null;
-}
-
 export interface HoaEmail {
 	/** @primaryKey */
 	id: string;
@@ -346,12 +337,18 @@ export interface HoaEmail {
 	delivered_count?: number | null;
 	/** @description Failed delivery count */
 	failed_count?: number | null;
-	/** @description M2M relationship to attached files */
-	attachments?: HoaEmailsFiles[] | null;
 	/** @required */
 	organization: HoaOrganization | string;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
+	attachments?: HoaEmailsFile[] | string[];
+}
+
+export interface HoaEmailsFile {
+	/** @primaryKey */
+	id: number;
+	hoa_emails_id?: HoaEmail | string | null;
+	directus_files_id?: DirectusFile | string | null;
 }
 
 export interface HoaInvitation {
@@ -1119,7 +1116,7 @@ export interface Schema {
 	hoa_email_activity: HoaEmailActivity[];
 	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_emails: HoaEmail[];
-	hoa_emails_files: HoaEmailsFiles[];
+	hoa_emails_files: HoaEmailsFile[];
 	hoa_invitations: HoaInvitation[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
