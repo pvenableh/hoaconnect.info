@@ -17,8 +17,7 @@
             </p>
           </div>
           <Switch
-            :checked="form.maintenance_mode"
-            @update:checked="onMaintenanceModeChange"
+            v-model:checked="form.maintenance_mode"
             :disabled="isSaving"
           />
         </div>
@@ -216,11 +215,6 @@ watch(
   },
   { deep: true }
 );
-
-// Handle maintenance mode toggle
-const onMaintenanceModeChange = (value: boolean) => {
-  form.maintenance_mode = value;
-};
 
 // Save changes
 const saveChanges = async () => {
