@@ -253,10 +253,21 @@ function processContent(content: string): string {
           '<hr$1 style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">'
         )
         // Style images - make them responsive and centered for email
-        .replace(
-          /<img([^>]*)>/gi,
-          '<img$1 style="max-width: 100%; height: auto; display: block; margin: 16px auto;">'
-        )
+        // Handle both <img ...> and <img ... /> (self-closing) formats
+        .replace(/<img([^>]*?)\s*\/?>/gi, (match, attrs) => {
+          const imageStyle = 'max-width: 100%; height: auto; display: block; margin: 16px auto;';
+          // Check if style already exists
+          if (/style\s*=/i.test(attrs)) {
+            // Merge styles - append our styles to existing
+            return match.replace(/style\s*=\s*["']([^"']*)["']/i, `style="$1 ${imageStyle}"`);
+          }
+          // Add style attribute, handling self-closing properly
+          const isSelfClosing = match.endsWith('/>');
+          const cleanAttrs = attrs.replace(/\s*\/\s*$/, ''); // Remove trailing /
+          return isSelfClosing
+            ? `<img${cleanAttrs} style="${imageStyle}" />`
+            : `<img${cleanAttrs} style="${imageStyle}">`;
+        })
         // Style tables for email
         .replace(
           /<table([^>]*)>/gi,

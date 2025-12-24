@@ -38,35 +38,53 @@ const {
 
 const email = computed(() => emailData.value?.email || null);
 
-// Fetch activity stats for sent emails
-const { data: activityData, status: activityStatus } = await useAsyncData(
-  `email-activity-${props.emailId}`,
-  async () => {
-    // Only fetch activity for sent emails
-    if (!email.value || email.value.status !== "sent") {
-      return null;
-    }
-    try {
-      // Forward cookies for SSR authentication
-      const headers = useRequestHeaders(["cookie"]);
-      return await $fetch(`/api/email/${props.emailId}/activity`, { headers });
-    } catch (error) {
-      console.error("Error fetching activity:", error);
-      return null;
-    }
-  },
-  {
-    watch: [email],
-    immediate: false,
-  }
-);
+// Activity data state - using manual fetch instead of useAsyncData for better control
+const activityData = ref<{
+  success: boolean;
+  stats: {
+    opens: number;
+    uniqueOpens: number;
+    clicks: number;
+    uniqueClicks: number;
+    bounces: number;
+    delivered: number;
+    dropped: number;
+    spamReports: number;
+    unsubscribes: number;
+  };
+  clickedUrls: Array<{ url: string; count: number }>;
+  recentActivity: Array<{
+    id: string;
+    event: string;
+    email: string;
+    clickedUrl?: string;
+    timestamp: string;
+    recipientName?: string;
+  }>;
+} | null>(null);
+const activityFetched = ref(false);
 
-// Trigger activity fetch when email is loaded
+// Fetch activity when email is loaded and has 'sent' status
+const fetchActivity = async () => {
+  if (activityFetched.value) return;
+  if (!email.value || email.value.status !== "sent") return;
+
+  try {
+    const headers = useRequestHeaders(["cookie"]);
+    const result = await $fetch(`/api/email/${props.emailId}/activity`, { headers });
+    activityData.value = result as typeof activityData.value;
+    activityFetched.value = true;
+  } catch (error) {
+    console.error("Error fetching activity:", error);
+  }
+};
+
+// Trigger activity fetch when email status becomes 'sent'
 watch(
   () => email.value?.status,
-  (status) => {
-    if (status === "sent") {
-      activityData.value; // Trigger the fetch
+  async (status) => {
+    if (status === "sent" && !activityFetched.value) {
+      await fetchActivity();
     }
   },
   { immediate: true }
