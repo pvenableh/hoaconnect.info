@@ -31,6 +31,8 @@ interface EmailTemplateOptions {
   recipientName?: string;
   recipientFirstName?: string;
   directusUrl: string;
+  emailId?: string; // For web view link
+  appUrl?: string; // Base URL for the app (e.g., https://example.com)
 }
 
 // Email type configurations with colors and styling
@@ -404,6 +406,26 @@ function buildFooter(
 }
 
 /**
+ * Build the "view in browser" banner for the top of emails
+ */
+function buildWebViewBanner(emailId: string, appUrl: string): string {
+  const webViewUrl = `${appUrl}/api/email/view/${emailId}`;
+
+  return `
+    <!-- View in Browser Banner -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #e5e7eb;">
+      <tr>
+        <td style="padding: 8px 16px; text-align: center;">
+          <a href="${webViewUrl}" style="color: #6b7280; font-size: 8px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            OPEN THIS EMAIL IN A WEB BROWSER
+          </a>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+/**
  * Build a complete HTML email from the provided options
  * @param forPreview - If true, returns just the email body content without the full document wrapper
  */
@@ -421,6 +443,8 @@ export function buildEmailHtml(
     recipientFirstName,
     directusUrl,
     forPreview,
+    emailId,
+    appUrl,
   } = options;
   const orgName = organization.name || "Organization";
 
@@ -433,6 +457,9 @@ export function buildEmailHtml(
     orgName
   );
   const footer = buildFooter(organization, emailType, salutation, boardMembers);
+
+  // Build web view banner if emailId and appUrl are provided
+  const webViewBanner = emailId && appUrl ? buildWebViewBanner(emailId, appUrl) : "";
 
   // For preview, return just the email container without the full HTML document wrapper
   // This allows proper rendering in v-html without DOCTYPE/html/body issues
@@ -493,8 +520,18 @@ export function buildEmailHtml(
 
   <!-- Email wrapper -->
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6;">
+    ${webViewBanner ? `
+    <!-- View in browser banner row -->
     <tr>
-      <td style="padding: 24px 16px;">
+      <td style="padding: 16px 16px 0 16px;">
+        <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          ${webViewBanner}
+        </table>
+      </td>
+    </tr>
+    ` : ""}
+    <tr>
+      <td style="padding: ${webViewBanner ? "8px" : "24px"} 16px 24px 16px;">
         <!-- Email container -->
         <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 0px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
           <tr>

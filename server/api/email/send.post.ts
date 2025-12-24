@@ -290,6 +290,8 @@ export default defineEventHandler(async (event) => {
         boardMembers: includeBoardFooter ? boardMembers : undefined,
         recipientFirstName,
         directusUrl: config.directus.url,
+        emailId: (email as any).id,
+        appUrl: config.public.appUrl as string,
       });
 
       // Log HTML for first recipient only (for debugging)
