@@ -308,6 +308,13 @@ export interface HoaEmailRecipient {
 	email?: HoaEmail | string | null;
 }
 
+export interface HoaEmailsFiles {
+	/** @primaryKey */
+	id: number;
+	hoa_emails_id?: HoaEmail | string | null;
+	directus_files_id?: DirectusFile | string | null;
+}
+
 export interface HoaEmail {
 	/** @primaryKey */
 	id: string;
@@ -339,6 +346,8 @@ export interface HoaEmail {
 	delivered_count?: number | null;
 	/** @description Failed delivery count */
 	failed_count?: number | null;
+	/** @description M2M relationship to attached files */
+	attachments?: HoaEmailsFiles[] | null;
 	/** @required */
 	organization: HoaOrganization | string;
 	/** @description Email recipients and their delivery status */
@@ -1110,6 +1119,7 @@ export interface Schema {
 	hoa_email_activity: HoaEmailActivity[];
 	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_emails: HoaEmail[];
+	hoa_emails_files: HoaEmailsFiles[];
 	hoa_invitations: HoaInvitation[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
@@ -1170,6 +1180,7 @@ export enum CollectionNames {
 	hoa_email_activity = 'hoa_email_activity',
 	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_emails = 'hoa_emails',
+	hoa_emails_files = 'hoa_emails_files',
 	hoa_invitations = 'hoa_invitations',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
