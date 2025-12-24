@@ -42,6 +42,7 @@ const handleChannelCreated = (channel: any) => {
       <ChannelsChannelsList
         v-if="selectedOrgId"
         :organization-id="selectedOrgId"
+        :is-admin="isAdmin"
         @select="handleChannelSelect"
         @create="showCreateModal = true"
       />

@@ -4,14 +4,13 @@ import type { HoaChannel } from "~~/types/directus";
 const props = defineProps<{
   organizationId: string;
   selectedChannelSlug?: string;
+  isAdmin?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "select", channel: HoaChannel): void;
   (e: "create"): void;
 }>();
-
-const { isAdmin } = await useSelectedOrg();
 
 // Fetch channels for the organization
 const { data: channels, isLoading, error, refresh } = useRealtimeSubscription<HoaChannel>(
@@ -54,7 +53,7 @@ const selectChannel = (channel: HoaChannel) => {
         Channels
       </h2>
       <Button
-        v-if="isAdmin"
+        v-if="props.isAdmin"
         variant="ghost"
         size="sm"
         class="h-6 w-6 p-0"
@@ -144,7 +143,7 @@ const selectChannel = (channel: HoaChannel) => {
         />
         <p class="text-sm text-stone-500 mb-3">No channels yet</p>
         <Button
-          v-if="isAdmin"
+          v-if="props.isAdmin"
           variant="outline"
           size="sm"
           @click="emit('create')"

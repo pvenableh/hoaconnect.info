@@ -3,6 +3,62 @@ import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgri
 import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
+/**
+ * Process HTML content to embed Directus images as inline base64
+ * This ensures images display correctly in email clients
+ */
+async function embedImagesAsBase64(content: string, directusUrl: string, staticToken: string): Promise<string> {
+  // Find all img tags with src attributes
+  const imgRegex = /<img([^>]*)src="([^"]+)"([^>]*)>/gi;
+  let processedContent = content;
+  const matches = [...content.matchAll(imgRegex)];
+
+  for (const match of matches) {
+    const [fullMatch, beforeSrc, src, afterSrc] = match;
+
+    // Check if this is a Directus asset URL
+    if (src.includes(directusUrl) || src.includes('/assets/')) {
+      try {
+        // Extract asset ID from URL
+        const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
+        if (!assetMatch) continue;
+
+        const assetId = assetMatch[1];
+        const assetUrl = `${directusUrl}/assets/${assetId}`;
+
+        // Download the image
+        const response = await fetch(assetUrl, {
+          headers: {
+            Authorization: `Bearer ${staticToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to download image ${assetId}: ${response.status}`);
+          continue;
+        }
+
+        // Get content type
+        const contentType = response.headers.get('content-type') || 'image/png';
+
+        // Convert to base64
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const dataUri = `data:${contentType};base64,${base64}`;
+
+        // Replace the src in the content
+        const newImgTag = `<img${beforeSrc}src="${dataUri}"${afterSrc}>`;
+        processedContent = processedContent.replace(fullMatch, newImgTag);
+      } catch (error) {
+        console.error(`Error embedding image:`, error);
+        // Continue with other images if one fails
+      }
+    }
+  }
+
+  return processedContent;
+}
+
 interface SendEmailBody {
   organizationId: string;
   subject: string;
@@ -115,7 +171,7 @@ export default defineEventHandler(async (event) => {
           const fileUrl = `${config.directus.url}/assets/${file.id}`;
           const response = await fetch(fileUrl, {
             headers: {
-              Authorization: `Bearer ${config.directus.token}`,
+              Authorization: `Bearer ${config.directus.staticToken}`,
             },
           });
 
@@ -177,6 +233,9 @@ export default defineEventHandler(async (event) => {
       );
     }
 
+    // Process content to embed images as base64 for email delivery
+    const processedContent = await embedImagesAsBase64(content, config.directus.url, config.directus.staticToken);
+
     // Send emails to each recipient
     let deliveredCount = 0;
     let failedCount = 0;
@@ -202,11 +261,11 @@ export default defineEventHandler(async (event) => {
       const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
       const recipientFirstName = member.first_name || undefined;
 
-      // Build personalized email
+      // Build personalized email using processed content with embedded images
       const html = buildEmailHtml({
         organization,
         subject,
-        content,
+        content: processedContent,
         emailType,
         greeting,
         salutation,
@@ -218,7 +277,7 @@ export default defineEventHandler(async (event) => {
       const text = buildEmailText({
         organization,
         subject,
-        content,
+        content: processedContent,
         emailType,
         greeting,
         salutation,
