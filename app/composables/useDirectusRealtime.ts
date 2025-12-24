@@ -78,8 +78,10 @@ export const useDirectusRealtime = () => {
 
     try {
       // Unsubscribe from all active subscriptions
-      for (const [key, subscription] of subscriptions.value) {
-        await subscription.unsubscribe();
+      for (const [key, sub] of subscriptions.value) {
+        if (sub?.unsubscribe) {
+          sub.unsubscribe();
+        }
       }
 
       subscriptions.value.clear();
@@ -121,27 +123,42 @@ export const useDirectusRealtime = () => {
         return;
       }
 
-      // Create subscription
-      const subscription = await client.value.subscribe(collection, {
-        event: "init",
-        query: options || {},
-      });
+      // Create subscription - Directus SDK v20+ returns { subscription, unsubscribe }
+      const { subscription, unsubscribe: unsub } = await client.value.subscribe(
+        collection,
+        {
+          query: {
+            ...rawOptions,
+          },
+        }
+      );
 
-      // Handle events
-      subscription.on("create", (data: any) => {
-        callback("create", data);
-      });
+      // Store the unsubscribe function
+      subscriptions.value.set(key, { unsubscribe: unsub });
 
-      subscription.on("update", (data: any) => {
-        callback("update", data);
-      });
+      // Start processing subscription events in background
+      // Using an async IIFE to not block the main flow
+      (async () => {
+        try {
+          for await (const message of subscription) {
+            // Directus SDK v20+ sends messages with event and data properties
+            if (message.event === "init") {
+              // Initial data load - skip for now as we fetch data separately
+              continue;
+            }
 
-      subscription.on("delete", (data: any) => {
-        callback("delete", data);
-      });
+            const eventType = message.event as "create" | "update" | "delete";
+            const data = message.data?.[0] || message.data;
 
-      // Store subscription
-      subscriptions.value.set(key, subscription);
+            if (eventType && data) {
+              callback(eventType, data);
+            }
+          }
+        } catch (err) {
+          // Subscription ended or error occurred
+          console.log(`Subscription to ${collection} ended`);
+        }
+      })();
 
       console.log(`✅ Subscribed to ${collection}`);
 
@@ -156,15 +173,17 @@ export const useDirectusRealtime = () => {
    * Unsubscribe from a specific subscription
    */
   const unsubscribe = async (key: string) => {
-    const subscription = subscriptions.value.get(key);
+    const sub = subscriptions.value.get(key);
 
-    if (!subscription) {
+    if (!sub) {
       console.warn(`No subscription found for ${key}`);
       return;
     }
 
     try {
-      await subscription.unsubscribe();
+      if (sub?.unsubscribe) {
+        sub.unsubscribe();
+      }
       subscriptions.value.delete(key);
 
       console.log(`✅ Unsubscribed from ${key}`);
