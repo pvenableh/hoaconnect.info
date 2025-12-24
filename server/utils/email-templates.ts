@@ -131,7 +131,7 @@ function getLogoUrl(
       : (settings.logo as DirectusFile)?.id;
   if (!logoId) return null;
 
-  return `${directusUrl}/assets/${logoId}?key=small-png`;
+  return `${directusUrl}/assets/${logoId}`;
 }
 
 /**
