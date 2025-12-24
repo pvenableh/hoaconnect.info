@@ -40,7 +40,8 @@ export const useDirectusRealtime = () => {
       // Get the access token from session
       const { data: session } = await useFetch("/api/auth/session");
 
-      if (!session.value?.directusAccessToken) {
+      const accessToken = session.value?.secure?.directusAccessToken;
+      if (!accessToken) {
         throw new Error("No access token available");
       }
 
@@ -55,7 +56,7 @@ export const useDirectusRealtime = () => {
         .with(authentication("json"));
 
       // Set the token
-      await client.value.setToken(session.value.directusAccessToken);
+      await client.value.setToken(accessToken);
 
       // Connect to WebSocket
       await client.value.connect();
@@ -110,7 +111,9 @@ export const useDirectusRealtime = () => {
     }
 
     try {
-      const key = `${collection}-${JSON.stringify(options)}`;
+      // Use toRaw to unwrap reactive objects before stringifying
+      const rawOptions = options ? toRaw(unref(options)) : {};
+      const key = `${collection}-${JSON.stringify(rawOptions)}`;
 
       // Check if already subscribed
       if (subscriptions.value.has(key)) {
