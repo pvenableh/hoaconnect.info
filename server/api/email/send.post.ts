@@ -1,4 +1,4 @@
-import { readItem, readItems, createItem, updateItem } from "@directus/sdk";
+import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgrid";
 import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
@@ -99,9 +99,9 @@ export default defineEventHandler(async (event) => {
     // Process attachments if provided
     let emailAttachments: EmailAttachment[] = [];
     if (attachmentIds && attachmentIds.length > 0) {
-      // Fetch file metadata from Directus
+      // Fetch file metadata from Directus (use readFiles for core collection)
       const files = await directus.request(
-        readItems("directus_files", {
+        readFiles({
           filter: {
             id: { _in: attachmentIds },
           },

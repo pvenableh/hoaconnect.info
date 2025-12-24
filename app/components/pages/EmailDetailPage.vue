@@ -135,6 +135,13 @@ const getRecipientStatusBadgeClass = (status: string) => {
   return classes[status] || classes.pending;
 };
 
+const formatFileSize = (bytes: number) => {
+  if (!bytes || bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+};
+
 const getActivityEventInfo = (event: string) => {
   const events: Record<string, { icon: string; color: string; label: string }> = {
     open: { icon: "lucide:eye", color: "text-blue-600 bg-blue-100", label: "Opened" },
@@ -485,6 +492,45 @@ useSeoMeta({
                   </dd>
                 </div>
               </dl>
+            </CardContent>
+          </Card>
+
+          <!-- Attachments -->
+          <Card v-if="email.attachments && email.attachments.length > 0">
+            <CardHeader>
+              <CardTitle class="flex items-center gap-2">
+                <Icon name="lucide:paperclip" class="w-5 h-5" />
+                Attachments
+              </CardTitle>
+              <CardDescription>
+                {{ email.attachments.length }} file{{ email.attachments.length !== 1 ? 's' : '' }} attached
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-2">
+                <div
+                  v-for="attachment in email.attachments"
+                  :key="attachment.id"
+                  class="flex items-center justify-between p-3 bg-stone-50 rounded-lg"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="p-2 bg-stone-200 rounded-lg">
+                      <Icon name="lucide:file" class="w-5 h-5 text-stone-600" />
+                    </div>
+                    <div>
+                      <p class="font-medium text-sm">
+                        {{ attachment.directus_files_id?.filename_download || attachment.directus_files_id?.title || 'Attachment' }}
+                      </p>
+                      <p class="text-xs text-stone-500">
+                        {{ attachment.directus_files_id?.type || 'Unknown type' }}
+                        <span v-if="attachment.directus_files_id?.filesize">
+                          • {{ formatFileSize(attachment.directus_files_id.filesize) }}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
