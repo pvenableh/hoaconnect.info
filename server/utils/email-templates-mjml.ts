@@ -475,7 +475,7 @@ export function buildEmailHtml(
 <mjml>
   <mj-head>
     <mj-title>${subject}</mj-title>
-    <mj-preview>${content.substring(0, 100).replace(/<[^>]*>/g, "")}...</mj-preview>
+    <mj-preview>${content.replace(/<[^>]*>/g, "").substring(0, 100).trim()}...</mj-preview>
     <mj-attributes>
       <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" />
       <mj-text font-size="16px" color="#374151" line-height="1.6" />
