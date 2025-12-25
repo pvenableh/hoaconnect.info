@@ -95,7 +95,7 @@ async function extractImagesAsCid(
 
 interface TestEmailBody {
   organizationId: string;
-  testEmail: string; // Email address to send test to
+  testEmails: string[]; // Array of email addresses to send test to
   subject: string;
   content: string;
   emailType: EmailType;
@@ -104,26 +104,42 @@ interface TestEmailBody {
   includeBoardFooter?: boolean;
 }
 
+interface TestEmailResult {
+  email: string;
+  success: boolean;
+  messageId?: string | null;
+  error?: string;
+}
+
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, testEmail, subject, content, emailType, greeting, salutation, includeBoardFooter = true } = body;
+  const { organizationId, testEmails, subject, content, emailType, greeting, salutation, includeBoardFooter = true } = body;
 
   // Validation
-  if (!organizationId || !testEmail || !subject || !content || !emailType) {
+  if (!organizationId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
     throw createError({
       statusCode: 400,
-      message: "Missing required fields: organizationId, testEmail, subject, content, emailType",
+      message: "Missing required fields: organizationId, testEmails, subject, content, emailType",
     });
   }
 
-  // Basic email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(testEmail)) {
+  // Limit to 5 test emails to prevent abuse
+  if (testEmails.length > 5) {
     throw createError({
       statusCode: 400,
-      message: "Invalid email address format",
+      message: "Maximum 5 test email addresses allowed",
+    });
+  }
+
+  // Basic email validation for all addresses
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const invalidEmails = testEmails.filter(email => !emailRegex.test(email));
+  if (invalidEmails.length > 0) {
+    throw createError({
+      statusCode: 400,
+      message: `Invalid email address format: ${invalidEmails.join(", ")}`,
     });
   }
 
@@ -216,32 +232,57 @@ export default defineEventHandler(async (event) => {
       directusUrl: config.directus.url,
     });
 
-    console.log(`[test.post] Sending test email to: ${testEmail}`);
+    console.log(`[test.post] Sending test email to: ${testEmails.join(", ")}`);
     console.log(`[test.post] HTML length: ${html.length}, Text length: ${text.length}`);
     console.log(`[test.post] Inline attachments: ${inlineAttachments.length}`);
 
-    // Send test email
-    const sendResult = await sendOrganizationEmail({
-      to: testEmail,
-      toName: "Test Recipient",
-      subject: `[TEST] ${subject}`,
-      html,
-      text,
-      fromName: organization.name || undefined,
-      attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
-    });
+    // Send test email to each address
+    const results: TestEmailResult[] = [];
 
-    console.log(`[test.post] Test email sent successfully to ${testEmail}`);
+    for (const testEmail of testEmails) {
+      try {
+        const sendResult = await sendOrganizationEmail({
+          to: testEmail,
+          toName: "Test Recipient",
+          subject: `[TEST] ${subject}`,
+          html,
+          text,
+          fromName: organization.name || undefined,
+          attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+        });
+
+        console.log(`[test.post] Test email sent successfully to ${testEmail}`);
+        results.push({
+          email: testEmail,
+          success: true,
+          messageId: sendResult.messageId,
+        });
+      } catch (sendError: any) {
+        console.error(`[test.post] Failed to send test email to ${testEmail}:`, sendError);
+        results.push({
+          email: testEmail,
+          success: false,
+          error: sendError.message || "Failed to send",
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
 
     return {
-      success: true,
-      message: `Test email sent to ${testEmail}`,
-      messageId: sendResult.messageId,
+      success: successCount > 0,
+      message: failedCount === 0
+        ? `Test email sent to ${successCount} address${successCount > 1 ? "es" : ""}`
+        : `Sent to ${successCount}, failed for ${failedCount} address${failedCount > 1 ? "es" : ""}`,
+      results,
       details: {
         htmlLength: html.length,
         textLength: text.length,
         imagesProcessed: cidImages.length,
         boardMembersIncluded: boardMembers.length,
+        totalSent: successCount,
+        totalFailed: failedCount,
       },
     };
   } catch (error: any) {

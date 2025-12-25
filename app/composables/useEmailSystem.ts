@@ -107,7 +107,7 @@ export interface EmailPreviewResponse {
 
 export interface EmailTestData {
   organizationId: string;
-  testEmail: string;
+  testEmails: string[]; // Array of email addresses to send test to
   subject: string;
   content: string;
   emailType: EmailType;
@@ -116,15 +116,24 @@ export interface EmailTestData {
   includeBoardFooter?: boolean;
 }
 
+export interface EmailTestResult {
+  email: string;
+  success: boolean;
+  messageId?: string | null;
+  error?: string;
+}
+
 export interface EmailTestResponse {
   success: boolean;
   message: string;
-  messageId: string | null;
+  results: EmailTestResult[];
   details: {
     htmlLength: number;
     textLength: number;
     imagesProcessed: number;
     boardMembersIncluded: number;
+    totalSent: number;
+    totalFailed: number;
   };
 }
 
