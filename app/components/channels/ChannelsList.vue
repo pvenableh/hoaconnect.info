@@ -78,6 +78,7 @@ const selectChannel = (channel: HoaChannel) => {
     <!-- Error State -->
     <div v-else-if="error" class="px-3 py-4 text-center">
       <p class="text-sm text-red-500 mb-2">Failed to load channels</p>
+      <p class="text-xs text-stone-500 mb-3">{{ error }}</p>
       <Button variant="outline" size="sm" @click="refresh">
         <Icon name="lucide:refresh-cw" class="w-4 h-4 mr-1" />
         Retry
