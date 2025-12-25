@@ -43,6 +43,8 @@ export default defineNuxtConfig({
     sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID,
     sendgridInvitationAcceptedTemplateId:
       process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID,
+    // HOA email template for organization emails (newsletters, announcements, etc.)
+    sendgridEmailTemplateId: process.env.SENDGRID_EMAIL_TEMPLATE_ID,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,

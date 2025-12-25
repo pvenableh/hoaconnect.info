@@ -161,7 +161,7 @@ function isHtmlContent(content: string): boolean {
  * Process HTML content for email compatibility
  * Handles tables, blockquotes, links, and images for proper MJML rendering
  */
-function processHtmlForEmail(content: string): string {
+export function processHtmlForEmail(content: string): string {
   let processed = content;
 
   // Add email-safe inline styles to links
