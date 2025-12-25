@@ -1,6 +1,6 @@
 import { readItem, readItems } from "@directus/sdk";
-import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates-mjml";
+import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
+import { buildEmailHtml, buildEmailText, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "~~/types/directus";
 
 interface CidImage {
@@ -206,32 +206,39 @@ export default defineEventHandler(async (event) => {
       contentId: img.cid,
     }));
 
+    // Check if we should use dynamic templates
+    const templateId = config.sendgridEmailTemplateId;
+    const useDynamicTemplate = !!templateId;
+    console.log(`[test.post] Using dynamic template: ${useDynamicTemplate} (templateId: ${templateId || 'none'})`);
+
+    // Build org logo URL if available
+    let orgLogoUrl: string | undefined;
+    if (organization.settings?.logo) {
+      orgLogoUrl = `${config.directus.url}/assets/${organization.settings.logo}`;
+    }
+
+    // Build org address string
+    const orgAddress = [
+      organization.street_address,
+      organization.city,
+      organization.state,
+      organization.zip,
+    ].filter(Boolean).join(', ');
+
+    // Process the HTML content for email (inline styles, etc.)
+    const processedHtmlContent = processHtmlForEmail(processedContent);
+
+    // Build personalized greeting for test
+    let personalizedContent = processedHtmlContent;
+    if (greeting) {
+      personalizedContent = `<p>${greeting} Test Recipient,</p>${processedHtmlContent}`;
+    }
+    if (salutation) {
+      personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
+    }
+
     // Build the email with test recipient name
     console.log(`[test.post] Building email HTML with content (${processedContent.length} chars): "${processedContent.substring(0, 200)}..."`);
-
-    const html = buildEmailHtml({
-      organization,
-      subject: `[TEST] ${subject}`,
-      content: processedContent,
-      emailType,
-      greeting,
-      salutation,
-      boardMembers: includeBoardFooter ? boardMembers : undefined,
-      recipientFirstName: "Test Recipient",
-      directusUrl: config.directus.url,
-      appUrl: config.public.appUrl as string,
-    });
-
-    console.log(`[test.post] HTML built successfully (${html.length} chars)`);
-    // Log a larger sample of the HTML to verify content is properly included
-    console.log(`[test.post] HTML sample (first 1000 chars): "${html.substring(0, 1000)}"`);
-    // Log the body content specifically
-    const bodyStart = html.indexOf('<body');
-    const bodyEnd = html.indexOf('</body>');
-    if (bodyStart !== -1 && bodyEnd !== -1) {
-      const bodyContent = html.substring(bodyStart, Math.min(bodyStart + 2000, bodyEnd));
-      console.log(`[test.post] Body content sample: "${bodyContent}"`);
-    }
 
     const text = buildEmailText({
       organization,
@@ -246,7 +253,7 @@ export default defineEventHandler(async (event) => {
     });
 
     console.log(`[test.post] Sending test email to: ${testEmails.join(", ")}`);
-    console.log(`[test.post] HTML length: ${html.length}, Text length: ${text.length}`);
+    console.log(`[test.post] Text length: ${text.length}`);
     console.log(`[test.post] Text version preview: "${text.substring(0, 300)}..."`);
     console.log(`[test.post] Inline attachments: ${inlineAttachments.length}`);
 
@@ -255,15 +262,65 @@ export default defineEventHandler(async (event) => {
 
     for (const testEmail of testEmails) {
       try {
-        const sendResult = await sendOrganizationEmail({
-          to: testEmail,
-          toName: "Test Recipient",
-          subject: `[TEST] ${subject}`,
-          html,
-          text,
-          fromName: organization.name || undefined,
-          attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
-        });
+        let sendResult;
+
+        if (useDynamicTemplate) {
+          // Use SendGrid dynamic template
+          const templateData: EmailTemplateData = {
+            first_name: 'Test Recipient',
+            subject: `[TEST] ${subject}`,
+            content: personalizedContent,
+            closing: salutation || undefined,
+            org_name: organization.name || 'Your HOA',
+            org_logo_url: orgLogoUrl,
+            org_address: orgAddress || undefined,
+            org_email: organization.email || undefined,
+            board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : undefined,
+            email_type: emailType,
+            year: new Date().getFullYear().toString(),
+          };
+
+          console.log(`[test.post] Using dynamic template with data:`, JSON.stringify(templateData, null, 2));
+
+          sendResult = await sendOrganizationEmail({
+            to: testEmail,
+            toName: "Test Recipient",
+            subject: `[TEST] ${subject}`,
+            html: personalizedContent, // Fallback if template fails
+            text,
+            fromName: organization.name || undefined,
+            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+            templateId,
+            templateData,
+          });
+        } else {
+          // Fall back to MJML-generated HTML
+          const html = buildEmailHtml({
+            organization,
+            subject: `[TEST] ${subject}`,
+            content: processedContent,
+            emailType,
+            greeting,
+            salutation,
+            boardMembers: includeBoardFooter ? boardMembers : undefined,
+            recipientFirstName: "Test Recipient",
+            directusUrl: config.directus.url,
+            appUrl: config.public.appUrl as string,
+          });
+
+          console.log(`[test.post] HTML built successfully (${html.length} chars)`);
+          console.log(`[test.post] HTML sample (first 500 chars): "${html.substring(0, 500)}"`);
+
+          sendResult = await sendOrganizationEmail({
+            to: testEmail,
+            toName: "Test Recipient",
+            subject: `[TEST] ${subject}`,
+            html,
+            text,
+            fromName: organization.name || undefined,
+            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+          });
+        }
 
         console.log(`[test.post] Test email sent successfully to ${testEmail}`);
         results.push({

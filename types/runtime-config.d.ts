@@ -24,6 +24,7 @@ declare module "nuxt/schema" {
     sendgridInvitationTemplateId: string;
     sendgridWelcomeTemplateId: string;
     sendgridInvitationAcceptedTemplateId: string;
+    sendgridEmailTemplateId: string;
   }
 
   interface PublicRuntimeConfig {

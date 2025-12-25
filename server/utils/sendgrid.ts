@@ -288,6 +288,26 @@ export interface EmailAttachment {
 }
 
 /**
+ * Dynamic template data for SendGrid
+ */
+export interface EmailTemplateData {
+  first_name: string;
+  subject: string;
+  content: string; // HTML content
+  closing?: string;
+  org_name: string;
+  org_logo_url?: string;
+  org_address?: string;
+  org_email?: string;
+  org_phone?: string;
+  org_website?: string;
+  board_members?: Array<{ name: string; title: string }>;
+  web_view_url?: string;
+  email_type?: string;
+  year?: string;
+}
+
+/**
  * Send a single organization email with HTML template
  * Returns the SendGrid message ID for tracking
  */
@@ -299,6 +319,8 @@ export const sendOrganizationEmail = async ({
   text,
   fromName,
   attachments,
+  templateId,
+  templateData,
 }: {
   to: string;
   toName?: string;
@@ -307,12 +329,55 @@ export const sendOrganizationEmail = async ({
   text: string;
   fromName?: string;
   attachments?: EmailAttachment[];
+  templateId?: string;
+  templateData?: EmailTemplateData;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
-  const fromEmail = config.public.fromEmail || "noreply@605lincolnroad.com";
+  const fromEmail = config.public.fromEmail || "noreply@hoaconnect.info";
 
+  // Use dynamic template if templateId is provided
+  if (templateId && templateData) {
+    const dynamicMsg: {
+      to: { email: string; name?: string };
+      from: { email: string; name?: string };
+      subject: string;
+      templateId: string;
+      dynamicTemplateData: EmailTemplateData;
+      categories: string[];
+      attachments?: EmailAttachment[];
+    } = {
+      to: { email: to, name: toName },
+      from: { email: fromEmail, name: fromName },
+      subject,
+      templateId,
+      dynamicTemplateData: templateData,
+      categories: ["HOA Connect"],
+    };
+
+    if (attachments && attachments.length > 0) {
+      dynamicMsg.attachments = attachments;
+    }
+
+    console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
+    console.log(`[SendGrid] Template data:`, JSON.stringify(templateData, null, 2));
+
+    try {
+      const [response] = await sg.send(dynamicMsg);
+      const messageId = response.headers?.["x-message-id"] || null;
+      console.log(`✅ Organization email sent via template to ${to}: ${subject} (ID: ${messageId})`);
+      return { success: true, messageId };
+    } catch (error: any) {
+      console.error("❌ SendGrid Template Error:", error);
+      if (error.response) {
+        console.error("[SendGrid] Response body:", JSON.stringify(error.response?.body, null, 2));
+      }
+      throw error;
+    }
+  }
+
+  // Fall back to raw HTML if no template
   const msg: {
     to: { email: string; name?: string };
     from: { email: string; name?: string };
