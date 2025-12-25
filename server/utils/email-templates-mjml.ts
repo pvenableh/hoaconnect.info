@@ -156,6 +156,101 @@ function isHtmlContent(content: string): boolean {
 }
 
 /**
+ * Process HTML content for email compatibility
+ * Handles tables, blockquotes, links, and images for proper MJML rendering
+ */
+function processHtmlForEmail(content: string): string {
+  let processed = content;
+
+  // Add email-safe inline styles to links
+  processed = processed.replace(
+    /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi,
+    (match, before, href, after) => {
+      // Check if style already exists
+      const hasStyle = /style=/i.test(before + after);
+      const linkStyle = 'color: #3b82f6; text-decoration: underline;';
+      if (hasStyle) {
+        // Append to existing style
+        return match.replace(/style=["']([^"']*)["']/i, `style="$1 ${linkStyle}"`);
+      }
+      return `<a ${before}href="${href}" style="${linkStyle}"${after}>`;
+    }
+  );
+
+  // Style blockquotes for email
+  processed = processed.replace(
+    /<blockquote([^>]*)>/gi,
+    '<blockquote$1 style="margin: 16px 0; padding: 12px 20px; border-left: 4px solid #3b82f6; background-color: #f3f4f6; color: #4b5563; font-style: italic;">'
+  );
+
+  // Style tables for email compatibility
+  processed = processed.replace(
+    /<table([^>]*)>/gi,
+    '<table$1 style="width: 100%; border-collapse: collapse; margin: 16px 0;">'
+  );
+  processed = processed.replace(
+    /<th([^>]*)>/gi,
+    '<th$1 style="border: 1px solid #d1d5db; padding: 12px; background-color: #f9fafb; font-weight: 600; text-align: left;">'
+  );
+  processed = processed.replace(
+    /<td([^>]*)>/gi,
+    '<td$1 style="border: 1px solid #d1d5db; padding: 12px;">'
+  );
+  processed = processed.replace(
+    /<tr([^>]*)>/gi,
+    '<tr$1 style="border-bottom: 1px solid #e5e7eb;">'
+  );
+
+  // Style lists for email
+  processed = processed.replace(
+    /<ul([^>]*)>/gi,
+    '<ul$1 style="margin: 16px 0; padding-left: 24px;">'
+  );
+  processed = processed.replace(
+    /<ol([^>]*)>/gi,
+    '<ol$1 style="margin: 16px 0; padding-left: 24px;">'
+  );
+  processed = processed.replace(
+    /<li([^>]*)>/gi,
+    '<li$1 style="margin: 8px 0;">'
+  );
+
+  // Style headings for email
+  processed = processed.replace(
+    /<h1([^>]*)>/gi,
+    '<h1$1 style="margin: 24px 0 16px 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.3;">'
+  );
+  processed = processed.replace(
+    /<h2([^>]*)>/gi,
+    '<h2$1 style="margin: 20px 0 12px 0; font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.3;">'
+  );
+  processed = processed.replace(
+    /<h3([^>]*)>/gi,
+    '<h3$1 style="margin: 16px 0 8px 0; font-size: 20px; font-weight: 600; color: #374151; line-height: 1.4;">'
+  );
+  processed = processed.replace(
+    /<h4([^>]*)>/gi,
+    '<h4$1 style="margin: 12px 0 8px 0; font-size: 18px; font-weight: 600; color: #374151; line-height: 1.4;">'
+  );
+  processed = processed.replace(
+    /<h5([^>]*)>/gi,
+    '<h5$1 style="margin: 12px 0 8px 0; font-size: 16px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+  );
+  processed = processed.replace(
+    /<h6([^>]*)>/gi,
+    '<h6$1 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+  );
+
+  // Style paragraphs for email
+  processed = processed.replace(
+    /<p([^>]*)>/gi,
+    '<p$1 style="margin: 0 0 16px 0; line-height: 1.6;">'
+  );
+
+  return processed;
+}
+
+/**
  * Convert HTML content from Tiptap editor to MJML-safe content
  * This processes the content and wraps it properly for MJML
  */
@@ -169,9 +264,8 @@ function processContentForMjml(content: string): string {
       .replace(/\n/g, "<br>");
   }
 
-  // Process HTML content for email compatibility
-  // Note: MJML will handle most styling, but we need to ensure proper structure
-  let processed = content;
+  // First, apply email-safe styling to HTML elements
+  let processed = processHtmlForEmail(content);
 
   // Convert <img> tags to use mj-image compatible styling
   // We'll wrap images in mj-image components later in the MJML template
@@ -192,39 +286,54 @@ function processContentForMjml(content: string): string {
 /**
  * Convert processed content back to MJML components
  * Images are converted to mj-image tags for proper email rendering
+ * All other HTML content is preserved within mj-text blocks
  */
 function contentToMjml(content: string): string {
   // Split content by image markers and convert to MJML
   const parts = content.split(/<!--MJML_IMAGE:([^:]*):([^>]*)-->/g);
   let mjmlContent = "";
+  let textBuffer = "";
 
-  for (let i = 0; i < parts.length; i++) {
-    if (i % 3 === 0) {
-      // Text content
-      const text = parts[i].trim();
-      if (text) {
-        mjmlContent += `
-          <mj-section padding="0">
+  // Helper to flush text buffer as mj-text section
+  const flushTextBuffer = () => {
+    if (textBuffer.trim()) {
+      mjmlContent += `
+          <mj-section padding="0" background-color="#ffffff">
             <mj-column>
-              <mj-text padding="0 32px" color="#374151" font-size="16px" line-height="1.6">
-                ${text}
+              <mj-text padding="16px 32px" color="#374151" font-size="16px" line-height="1.6">
+                ${textBuffer.trim()}
               </mj-text>
             </mj-column>
           </mj-section>`;
+      textBuffer = "";
+    }
+  };
+
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 3 === 0) {
+      // Text content - accumulate in buffer
+      const text = parts[i];
+      if (text) {
+        textBuffer += text;
       }
     } else if (i % 3 === 1) {
-      // Image src
+      // Image src - flush text buffer first, then add image
+      flushTextBuffer();
+
       const src = parts[i];
       const alt = parts[i + 1] || "";
       mjmlContent += `
-          <mj-section padding="16px 0">
+          <mj-section padding="16px 0" background-color="#ffffff">
             <mj-column>
-              <mj-image src="${src}" alt="${alt}" padding="0 32px" fluid-on-mobile="true" />
+              <mj-image src="${src}" alt="${alt}" padding="0 32px" fluid-on-mobile="true" align="center" />
             </mj-column>
           </mj-section>`;
       i++; // Skip the alt part
     }
   }
+
+  // Flush any remaining text
+  flushTextBuffer();
 
   return mjmlContent;
 }

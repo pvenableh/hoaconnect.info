@@ -105,6 +105,29 @@ export interface EmailPreviewResponse {
   attachments?: EmailAttachmentInfo[];
 }
 
+export interface EmailTestData {
+  organizationId: string;
+  testEmail: string;
+  subject: string;
+  content: string;
+  emailType: EmailType;
+  greeting?: string;
+  salutation?: string;
+  includeBoardFooter?: boolean;
+}
+
+export interface EmailTestResponse {
+  success: boolean;
+  message: string;
+  messageId: string | null;
+  details: {
+    htmlLength: number;
+    textLength: number;
+    imagesProcessed: number;
+    boardMembersIncluded: number;
+  };
+}
+
 // Email type display information
 export const emailTypeOptions: Array<{
   value: EmailType;
@@ -255,6 +278,33 @@ export const useEmailSystem = () => {
   };
 
   /**
+   * Send a test email to verify rendering before sending to all recipients
+   */
+  const sendTestEmail = async (data: EmailTestData): Promise<EmailTestResponse> => {
+    if (!loggedIn.value) {
+      throw new Error("Authentication required");
+    }
+
+    isSending.value = true;
+    error.value = null;
+
+    try {
+      const response = await $fetch<EmailTestResponse>("/api/email/test", {
+        method: "POST",
+        body: data,
+        ...getFetchOptions(),
+      });
+
+      return response;
+    } catch (err: any) {
+      error.value = err.data?.message || err.message || "Failed to send test email";
+      throw err;
+    } finally {
+      isSending.value = false;
+    }
+  };
+
+  /**
    * List emails for an organization
    */
   const listEmails = async (
@@ -387,6 +437,7 @@ export const useEmailSystem = () => {
 
     // Actions
     sendEmail,
+    sendTestEmail,
     saveDraft,
     previewEmail,
     listEmails,

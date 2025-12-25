@@ -1,5 +1,5 @@
 import { createItem, updateItem, readItem } from "@directus/sdk";
-import type { EmailType } from "../../utils/email-templates";
+import type { EmailType } from "../../utils/email-templates-mjml";
 
 interface SaveEmailBody {
   emailId?: string;
