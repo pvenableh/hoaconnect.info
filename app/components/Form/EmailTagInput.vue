@@ -26,17 +26,20 @@ const inputValue = ref('');
 const inputError = ref('');
 const inputRef = ref<HTMLInputElement | null>(null);
 
-const emails = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value),
-});
+// Use props directly instead of computed setter for more reliable reactivity
+const emails = computed(() => props.modelValue);
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Helper to update emails with explicit emit
+function updateEmails(newEmails: string[]) {
+  emit('update:modelValue', newEmails);
+}
 
 // Add default email on mount if provided and not already in list
 onMounted(() => {
   if (props.defaultEmail && emailRegex.test(props.defaultEmail) && !emails.value.includes(props.defaultEmail)) {
-    emails.value = [props.defaultEmail, ...emails.value];
+    updateEmails([props.defaultEmail, ...emails.value]);
   }
 });
 
@@ -65,12 +68,12 @@ function addEmail() {
     return;
   }
 
-  emails.value = [...emails.value, email];
+  updateEmails([...emails.value, email]);
   inputValue.value = '';
 }
 
 function removeEmail(emailToRemove: string) {
-  emails.value = emails.value.filter(e => e !== emailToRemove);
+  updateEmails(emails.value.filter(e => e !== emailToRemove));
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -79,7 +82,7 @@ function handleKeydown(event: KeyboardEvent) {
     addEmail();
   } else if (event.key === 'Backspace' && !inputValue.value && emails.value.length > 0) {
     // Remove last email when backspace is pressed on empty input
-    emails.value = emails.value.slice(0, -1);
+    updateEmails(emails.value.slice(0, -1));
   }
 }
 
@@ -98,7 +101,7 @@ function handlePaste(event: ClipboardEvent) {
       .slice(0, maxLimit - emails.value.length);
 
     if (validEmails.length > 0) {
-      emails.value = [...emails.value, ...validEmails];
+      updateEmails([...emails.value, ...validEmails]);
     }
   }
 }
