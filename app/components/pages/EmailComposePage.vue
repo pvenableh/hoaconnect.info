@@ -514,6 +514,65 @@ const defaultSalutation = computed(
   () => emailSystem.defaultSalutations[form.emailType]
 );
 
+// Test email state
+const { user } = useUserSession();
+const testEmails = ref<string[]>([]);
+const showTestEmailSection = ref(false);
+const testEmailSending = ref(false);
+const testEmailResults = ref<{ email: string; success: boolean; error?: string }[]>([]);
+
+// Initialize test emails with logged-in user's email
+watch(
+  () => user.value?.email,
+  (email) => {
+    if (email && testEmails.value.length === 0) {
+      testEmails.value = [email];
+    }
+  },
+  { immediate: true }
+);
+
+// Send test email
+const handleTestEmail = async () => {
+  if (!orgId.value || !form.subject || !form.content) {
+    toast.error("Please fill in subject and content first");
+    return;
+  }
+
+  if (testEmails.value.length === 0) {
+    toast.error("Please add at least one test email address");
+    return;
+  }
+
+  testEmailSending.value = true;
+  testEmailResults.value = [];
+
+  try {
+    const result = await emailSystem.sendTestEmail({
+      organizationId: orgId.value,
+      testEmails: testEmails.value,
+      subject: form.subject,
+      content: form.content,
+      emailType: form.emailType,
+      greeting: form.greeting || undefined,
+      salutation: form.salutation || undefined,
+      includeBoardFooter: form.includeBoardFooter,
+    });
+
+    testEmailResults.value = result.results;
+
+    if (result.details.totalFailed === 0) {
+      toast.success(result.message);
+    } else {
+      toast.warning(result.message);
+    }
+  } catch (error: any) {
+    toast.error(error.message || "Failed to send test email");
+  } finally {
+    testEmailSending.value = false;
+  }
+};
+
 useSeoMeta({
   title: props.emailId ? "Edit Email" : "Compose Email",
   description: "Create and send emails to your HOA members",
@@ -561,7 +620,7 @@ useSeoMeta({
         <!-- Main Form -->
         <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Email Content (Left) -->
-          <div class="lg:col-span-2 space-y-6">
+          <div class="lg:col-span-2 space-y-6 order-2 lg:order-1">
             <!-- Email Type -->
             <Card>
               <CardHeader>
@@ -752,8 +811,8 @@ useSeoMeta({
             </Card>
           </div>
 
-          <!-- Recipients (Right) -->
-          <div class="space-y-6">
+          <!-- Recipients & Actions (Right) - Sticky on md+ -->
+          <div class="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start space-y-6">
             <!-- Recipients Card -->
             <Card>
               <CardHeader>
@@ -933,6 +992,77 @@ useSeoMeta({
 
                 <Button variant="ghost" class="w-full" @click="handleCancel">
                   Cancel
+                </Button>
+              </CardContent>
+            </Card>
+
+            <!-- Test Email -->
+            <Card>
+              <CardHeader class="pb-3">
+                <button
+                  type="button"
+                  class="flex items-center justify-between w-full text-left"
+                  @click="showTestEmailSection = !showTestEmailSection"
+                >
+                  <div class="flex items-center gap-2">
+                    <Icon name="lucide:flask-conical" class="w-5 h-5 text-amber-600" />
+                    <CardTitle class="text-base">Test Delivery</CardTitle>
+                  </div>
+                  <Icon
+                    :name="showTestEmailSection ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+                    class="w-4 h-4 text-stone-400"
+                  />
+                </button>
+                <CardDescription v-if="!showTestEmailSection">
+                  Send a test email before sending to all recipients
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent v-if="showTestEmailSection" class="pt-0 space-y-4">
+                <p class="text-sm text-stone-600">
+                  Test your email in multiple clients (Gmail, Outlook, etc.) before sending to all recipients.
+                </p>
+
+                <FormEmailTagInput
+                  v-model="testEmails"
+                  :default-email="user?.email"
+                  placeholder="Enter email and press Enter"
+                  :max-emails="5"
+                />
+
+                <!-- Test Results -->
+                <div v-if="testEmailResults.length > 0" class="space-y-2">
+                  <div class="text-sm font-medium text-stone-700">Results:</div>
+                  <div
+                    v-for="result in testEmailResults"
+                    :key="result.email"
+                    class="flex items-center gap-2 text-sm"
+                  >
+                    <Icon
+                      :name="result.success ? 'lucide:check-circle' : 'lucide:x-circle'"
+                      :class="result.success ? 'text-green-600' : 'text-red-600'"
+                      class="w-4 h-4 flex-shrink-0"
+                    />
+                    <span class="truncate">{{ result.email }}</span>
+                    <span v-if="result.error" class="text-red-600 text-xs">
+                      ({{ result.error }})
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  class="w-full"
+                  @click="handleTestEmail"
+                  :disabled="testEmailSending || testEmails.length === 0 || !form.subject || !form.content"
+                >
+                  <Icon
+                    v-if="testEmailSending"
+                    name="lucide:loader-2"
+                    class="w-4 h-4 mr-2 animate-spin"
+                  />
+                  <Icon v-else name="lucide:send" class="w-4 h-4 mr-2" />
+                  Send Test Email{{ testEmails.length > 1 ? 's' : '' }}
                 </Button>
               </CardContent>
             </Card>
