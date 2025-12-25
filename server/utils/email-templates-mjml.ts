@@ -267,8 +267,8 @@ function processContentForMjml(content: string): string {
   // First, apply email-safe styling to HTML elements
   let processed = processHtmlForEmail(content);
 
-  // Convert <img> tags to use mj-image compatible styling
-  // We'll wrap images in mj-image components later in the MJML template
+  // Convert <img> tags to MJML image markers
+  // Use ||| as separator since : appears in cid: URLs
   processed = processed.replace(
     /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi,
     (match, before, src, after) => {
@@ -276,7 +276,8 @@ function processContentForMjml(content: string): string {
       const altMatch = (before + after).match(/alt=["']([^"']*)["']/i);
       const alt = altMatch ? altMatch[1] : "";
       // Mark images with a special wrapper for MJML processing
-      return `<!--MJML_IMAGE:${src}:${alt}-->`;
+      // Use ||| as separator to avoid conflict with : in URLs
+      return `<!--MJML_IMAGE|||${src}|||${alt}-->`;
     }
   );
 
@@ -289,8 +290,8 @@ function processContentForMjml(content: string): string {
  * All other HTML content is preserved within mj-text blocks
  */
 function contentToMjml(content: string): string {
-  // Split content by image markers and convert to MJML
-  const parts = content.split(/<!--MJML_IMAGE:([^:]*):([^>]*)-->/g);
+  // Split content by image markers (using ||| as separator)
+  const parts = content.split(/<!--MJML_IMAGE\|\|\|([^|]*(?:\|(?!\|)[^|]*)*)\|\|\|([^>]*)-->/g);
   let mjmlContent = "";
   let textBuffer = "";
 
