@@ -321,6 +321,8 @@ export const sendOrganizationEmail = async ({
   attachments,
   templateId,
   templateData,
+  replyTo,
+  customArgs,
 }: {
   to: string;
   toName?: string;
@@ -331,6 +333,8 @@ export const sendOrganizationEmail = async ({
   attachments?: EmailAttachment[];
   templateId?: string;
   templateData?: EmailTemplateData;
+  replyTo?: { email: string; name?: string };
+  customArgs?: Record<string, string>;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
@@ -347,6 +351,8 @@ export const sendOrganizationEmail = async ({
       dynamicTemplateData: EmailTemplateData;
       categories: string[];
       attachments?: EmailAttachment[];
+      replyTo?: { email: string; name?: string };
+      customArgs?: Record<string, string>;
     } = {
       to: { email: to, name: toName },
       from: { email: fromEmail, name: fromName },
@@ -358,6 +364,14 @@ export const sendOrganizationEmail = async ({
 
     if (attachments && attachments.length > 0) {
       dynamicMsg.attachments = attachments;
+    }
+
+    if (replyTo) {
+      dynamicMsg.replyTo = replyTo;
+    }
+
+    if (customArgs) {
+      dynamicMsg.customArgs = customArgs;
     }
 
     console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
@@ -386,6 +400,8 @@ export const sendOrganizationEmail = async ({
     text: string;
     categories: string[];
     attachments?: EmailAttachment[];
+    replyTo?: { email: string; name?: string };
+    customArgs?: Record<string, string>;
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
@@ -405,6 +421,16 @@ export const sendOrganizationEmail = async ({
       contentId: a.contentId,
       contentLength: a.content?.length || 0
     })));
+  }
+
+  // Add replyTo if provided
+  if (replyTo) {
+    msg.replyTo = replyTo;
+  }
+
+  // Add custom args for tracking
+  if (customArgs) {
+    msg.customArgs = customArgs;
   }
 
   // Log detailed info about the email being sent

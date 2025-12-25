@@ -398,6 +398,12 @@ export default defineEventHandler(async (event) => {
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
             templateId,
             templateData,
+            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
+            customArgs: {
+              email_id: String((email as any).id),
+              recipient_email: member.email,
+              organization_id: organizationId,
+            },
           });
         } else {
           // Fall back to MJML-generated HTML
@@ -430,6 +436,12 @@ export default defineEventHandler(async (event) => {
             text,
             fromName: organization.name || undefined,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
+            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
+            customArgs: {
+              email_id: String((email as any).id),
+              recipient_email: member.email,
+              organization_id: organizationId,
+            },
           });
         }
 
