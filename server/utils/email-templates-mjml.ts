@@ -494,9 +494,9 @@ export function buildEmailHtml(
         <mj-column>
           ${
             logoUrl
-              ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="${isBasic ? "left" : "center"}" />`
+              ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="center" />`
               : isBasic
-                ? `<mj-text font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
+                ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
                 : `<mj-text align="center" font-size="24px" font-weight="600" color="#ffffff">${orgName}</mj-text>`
           }
           ${
