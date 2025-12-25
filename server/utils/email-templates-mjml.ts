@@ -150,9 +150,11 @@ function formatTitle(title: string): string {
  * Check if content appears to be HTML
  */
 function isHtmlContent(content: string): boolean {
-  return /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img|table|tr|td|th)[^>]*>/i.test(
+  const hasHtml = /<(p|div|span|strong|em|h[1-6]|ul|ol|li|br|a|blockquote|img|table|tr|td|th)[^>]*>/i.test(
     content
   );
+  console.log(`[MJML] isHtmlContent check: ${hasHtml}, content preview: "${content.substring(0, 200)}..."`);
+  return hasHtml;
 }
 
 /**
@@ -255,17 +257,25 @@ function processHtmlForEmail(content: string): string {
  * This processes the content and wraps it properly for MJML
  */
 function processContentForMjml(content: string): string {
+  console.log(`[MJML] processContentForMjml input (${content.length} chars): "${content.substring(0, 300)}..."`);
+
   if (!isHtmlContent(content)) {
     // Legacy markdown-style content processing
-    return content
+    console.log(`[MJML] Content is NOT HTML, processing as markdown`);
+    const result = content
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/\n\n/g, "</p><p>")
       .replace(/\n/g, "<br>");
+    console.log(`[MJML] Markdown processed result: "${result.substring(0, 300)}..."`);
+    return result;
   }
+
+  console.log(`[MJML] Content IS HTML, applying email styles`);
 
   // First, apply email-safe styling to HTML elements
   let processed = processHtmlForEmail(content);
+  console.log(`[MJML] After processHtmlForEmail: "${processed.substring(0, 300)}..."`);
 
   // Convert <img> tags to MJML image markers
   // Use ||| as separator since : appears in cid: URLs
@@ -277,10 +287,12 @@ function processContentForMjml(content: string): string {
       const alt = altMatch ? altMatch[1] : "";
       // Mark images with a special wrapper for MJML processing
       // Use ||| as separator to avoid conflict with : in URLs
+      console.log(`[MJML] Converting image to marker: src="${src}", alt="${alt}"`);
       return `<!--MJML_IMAGE|||${src}|||${alt}-->`;
     }
   );
 
+  console.log(`[MJML] Final processed content: "${processed.substring(0, 300)}..."`);
   return processed;
 }
 
@@ -289,19 +301,30 @@ function processContentForMjml(content: string): string {
  * Images are converted to mj-image tags for proper email rendering
  * All other HTML content is preserved within mj-text blocks
  */
-function contentToMjml(content: string): string {
+function contentToMjml(content: string, emailType: EmailType = "basic"): string {
+  console.log(`[MJML] contentToMjml input (${content.length} chars), emailType: ${emailType}`);
+
   // Split content by image markers (using ||| as separator)
   const parts = content.split(/<!--MJML_IMAGE\|\|\|([^|]*(?:\|(?!\|)[^|]*)*)\|\|\|([^>]*)-->/g);
+  console.log(`[MJML] Split into ${parts.length} parts`);
+
   let mjmlContent = "";
   let textBuffer = "";
+
+  // For basic emails, use minimal styling
+  const isBasic = emailType === "basic";
+  const sectionPadding = isBasic ? "0" : "0";
+  const textPadding = isBasic ? "8px 16px" : "16px 32px";
+  const imagePadding = isBasic ? "8px 16px" : "0 32px";
 
   // Helper to flush text buffer as mj-text section
   const flushTextBuffer = () => {
     if (textBuffer.trim()) {
+      console.log(`[MJML] Flushing text buffer (${textBuffer.length} chars): "${textBuffer.substring(0, 100)}..."`);
       mjmlContent += `
-          <mj-section padding="0" background-color="#ffffff">
+          <mj-section padding="${sectionPadding}">
             <mj-column>
-              <mj-text padding="16px 32px" color="#374151" font-size="16px" line-height="1.6">
+              <mj-text padding="${textPadding}" color="#374151" font-size="16px" line-height="1.6">
                 ${textBuffer.trim()}
               </mj-text>
             </mj-column>
@@ -323,10 +346,11 @@ function contentToMjml(content: string): string {
 
       const src = parts[i];
       const alt = parts[i + 1] || "";
+      console.log(`[MJML] Adding image section: src="${src.substring(0, 50)}...", alt="${alt}"`);
       mjmlContent += `
-          <mj-section padding="16px 0" background-color="#ffffff">
+          <mj-section padding="16px 0">
             <mj-column>
-              <mj-image src="${src}" alt="${alt}" padding="0 32px" fluid-on-mobile="true" align="center" />
+              <mj-image src="${src}" alt="${alt}" padding="${imagePadding}" fluid-on-mobile="true" align="center" />
             </mj-column>
           </mj-section>`;
       i++; // Skip the alt part
@@ -336,6 +360,7 @@ function contentToMjml(content: string): string {
   // Flush any remaining text
   flushTextBuffer();
 
+  console.log(`[MJML] contentToMjml output (${mjmlContent.length} chars): "${mjmlContent.substring(0, 200)}..."`);
   return mjmlContent;
 }
 
@@ -374,8 +399,16 @@ export function buildEmailHtml(
   );
 
   // Process content for MJML
+  console.log(`[MJML] buildEmailHtml called with emailType: ${emailType}`);
+  console.log(`[MJML] Content input (${content.length} chars): "${content.substring(0, 200)}..."`);
+
   const processedContent = processContentForMjml(content);
-  const contentMjml = contentToMjml(processedContent);
+  const contentMjml = contentToMjml(processedContent, emailType);
+
+  console.log(`[MJML] Generated contentMjml (${contentMjml.length} chars)`);
+
+  // For basic emails, use minimal styling
+  const isBasic = emailType === "basic";
 
   // Build board members section
   let boardMembersMjml = "";
@@ -429,6 +462,15 @@ export function buildEmailHtml(
       : "";
 
   // Build the MJML template
+  // For basic emails: white background, minimal padding, no grey wrapper
+  // For other types: styled headers with colors
+  const bodyBg = isBasic ? "#ffffff" : "#f3f4f6";
+  const wrapperPadding = isBasic ? "8px" : "24px 16px";
+  const headerPadding = isBasic ? "16px" : "24px 32px";
+  const greetingPadding = isBasic ? "8px 16px" : "0 32px 16px 32px";
+  const footerPadding = isBasic ? "16px" : "24px 32px";
+  const bottomPadding = isBasic ? "12px 16px" : "16px 32px";
+
   const mjmlTemplate = `
 <mjml>
   <mj-head>
@@ -442,18 +484,20 @@ export function buildEmailHtml(
       .outlook-group-fix { width:100% !important; }
     </mj-style>
   </mj-head>
-  <mj-body background-color="#f3f4f6">
+  <mj-body background-color="${bodyBg}">
     ${webViewBanner}
 
     <!-- Main Container -->
-    <mj-wrapper padding="24px 16px" background-color="#f3f4f6">
+    <mj-wrapper padding="${wrapperPadding}" background-color="${bodyBg}">
       <!-- Header -->
-      <mj-section background-color="${style.headerBg}" padding="24px 32px">
+      <mj-section background-color="${isBasic ? "#ffffff" : style.headerBg}" padding="${headerPadding}">
         <mj-column>
           ${
             logoUrl
-              ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="center" />`
-              : `<mj-text align="center" font-size="24px" font-weight="600" color="#ffffff">${orgName}</mj-text>`
+              ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="${isBasic ? "left" : "center"}" />`
+              : isBasic
+                ? `<mj-text font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
+                : `<mj-text align="center" font-size="24px" font-weight="600" color="#ffffff">${orgName}</mj-text>`
           }
           ${
             style.label
@@ -468,11 +512,11 @@ export function buildEmailHtml(
       </mj-section>
 
       <!-- Body -->
-      <mj-section background-color="#ffffff" padding="32px 0 0 0">
+      <mj-section background-color="#ffffff" padding="${isBasic ? "8px 0 0 0" : "32px 0 0 0"}">
         <mj-column>
           ${
             processedGreeting
-              ? `<mj-text padding="0 32px 16px 32px" color="#374151" font-size="16px" line-height="1.6">${processedGreeting}</mj-text>`
+              ? `<mj-text padding="${greetingPadding}" color="#374151" font-size="16px" line-height="1.6">${processedGreeting}</mj-text>`
               : ""
           }
         </mj-column>
@@ -481,7 +525,7 @@ export function buildEmailHtml(
       ${contentMjml}
 
       <!-- Footer -->
-      <mj-section background-color="#f9fafb" padding="24px 32px" border-top="1px solid #e5e7eb">
+      <mj-section background-color="${isBasic ? "#ffffff" : "#f9fafb"}" padding="${footerPadding}"${isBasic ? "" : ' border-top="1px solid #e5e7eb"'}>
         <mj-column>
           <mj-text color="#374151" font-size="16px" padding-bottom="4px">${finalSalutation},</mj-text>
           <mj-text color="#1f2937" font-size="16px" font-weight="600">${orgName}</mj-text>
@@ -491,11 +535,11 @@ export function buildEmailHtml(
       ${boardMembersMjml}
 
       <!-- Bottom Footer -->
-      <mj-section background-color="${style.headerBg}" padding="16px 32px">
+      <mj-section background-color="${isBasic ? "#f9fafb" : style.headerBg}" padding="${bottomPadding}">
         <mj-column>
-          ${addressLine ? `<mj-text align="center" color="#9ca3af" font-size="12px">${addressLine}</mj-text>` : ""}
-          ${organization.email ? `<mj-text align="center" color="#9ca3af" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
-          <mj-text align="center" color="#6b7280" font-size="11px" padding-top="12px">
+          ${addressLine ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px">${addressLine}</mj-text>` : ""}
+          ${organization.email ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
+          <mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">
             © ${new Date().getFullYear()} ${orgName}. All rights reserved.
           </mj-text>
         </mj-column>
@@ -504,22 +548,33 @@ export function buildEmailHtml(
   </mj-body>
 </mjml>`;
 
+  console.log(`[MJML] MJML template generated (${mjmlTemplate.length} chars)`);
+  console.log(`[MJML] Template preview: "${mjmlTemplate.substring(0, 500)}..."`);
+
   // Compile MJML to HTML
   const { html, errors } = mjml2html(mjmlTemplate, {
     validationLevel: "soft",
     minify: false,
   });
 
+  console.log(`[MJML] Compilation complete. HTML length: ${html.length}`);
+
   if (errors && errors.length > 0) {
-    console.warn("[MJML] Compilation warnings:", errors);
+    console.warn("[MJML] Compilation warnings:", JSON.stringify(errors, null, 2));
   }
+
+  // Log a sample of the compiled HTML to verify content
+  console.log(`[MJML] Compiled HTML preview: "${html.substring(0, 500)}..."`);
 
   // For preview, extract just the body content
   if (forPreview) {
     // Extract content between <body> tags and wrap in a styled div
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
     if (bodyMatch) {
+      console.log(`[MJML] Preview mode: extracted body content (${bodyMatch[1].length} chars)`);
       return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">${bodyMatch[1]}</div>`;
+    } else {
+      console.warn(`[MJML] Preview mode: could not extract body content, returning full HTML`);
     }
   }
 

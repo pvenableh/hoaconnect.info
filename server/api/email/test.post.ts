@@ -207,6 +207,8 @@ export default defineEventHandler(async (event) => {
     }));
 
     // Build the email with test recipient name
+    console.log(`[test.post] Building email HTML with content (${processedContent.length} chars): "${processedContent.substring(0, 200)}..."`);
+
     const html = buildEmailHtml({
       organization,
       subject: `[TEST] ${subject}`,
@@ -219,6 +221,17 @@ export default defineEventHandler(async (event) => {
       directusUrl: config.directus.url,
       appUrl: config.public.appUrl as string,
     });
+
+    console.log(`[test.post] HTML built successfully (${html.length} chars)`);
+    // Log a larger sample of the HTML to verify content is properly included
+    console.log(`[test.post] HTML sample (first 1000 chars): "${html.substring(0, 1000)}"`);
+    // Log the body content specifically
+    const bodyStart = html.indexOf('<body');
+    const bodyEnd = html.indexOf('</body>');
+    if (bodyStart !== -1 && bodyEnd !== -1) {
+      const bodyContent = html.substring(bodyStart, Math.min(bodyStart + 2000, bodyEnd));
+      console.log(`[test.post] Body content sample: "${bodyContent}"`);
+    }
 
     const text = buildEmailText({
       organization,
@@ -234,6 +247,7 @@ export default defineEventHandler(async (event) => {
 
     console.log(`[test.post] Sending test email to: ${testEmails.join(", ")}`);
     console.log(`[test.post] HTML length: ${html.length}, Text length: ${text.length}`);
+    console.log(`[test.post] Text version preview: "${text.substring(0, 300)}..."`);
     console.log(`[test.post] Inline attachments: ${inlineAttachments.length}`);
 
     // Send test email to each address

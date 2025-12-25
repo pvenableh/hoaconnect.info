@@ -85,6 +85,9 @@ export default defineEventHandler(async (event) => {
 
     // Build preview HTML - no recipientFirstName means it will use org name fallback in greeting
     // Use forPreview: true to get renderable HTML without full document wrapper
+    console.log(`[preview.post] Building preview with content (${content.length} chars): "${content.substring(0, 200)}..."`);
+    console.log(`[preview.post] Email type: ${emailType}`);
+
     const html = buildEmailHtml({
       organization,
       subject,
@@ -96,6 +99,14 @@ export default defineEventHandler(async (event) => {
       directusUrl: config.directus.url,
       forPreview: true,
     });
+
+    console.log(`[preview.post] Preview HTML generated (${html.length} chars)`);
+    console.log(`[preview.post] HTML preview: "${html.substring(0, 500)}..."`);
+
+    // Check if HTML looks valid
+    if (html.length < 100) {
+      console.warn(`[preview.post] WARNING: Generated HTML seems too short (${html.length} chars)`);
+    }
 
     // Fetch attachment info if provided (use readFiles for core collection)
     let attachments: Array<{ id: string; filename: string; type: string; size: number }> = [];
