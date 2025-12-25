@@ -317,18 +317,16 @@ export const sendOrganizationEmail = async ({
     to: { email: string; name?: string };
     from: { email: string; name?: string };
     subject: string;
-    content: Array<{ type: string; value: string }>;
+    html: string;
+    text: string;
     categories: string[];
     attachments?: EmailAttachment[];
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
     subject,
-    // Explicitly set content types with UTF-8 charset
-    content: [
-      { type: "text/plain; charset=UTF-8", value: text },
-      { type: "text/html; charset=UTF-8", value: html },
-    ],
+    html,
+    text,
     categories: ["HOA Connect"],
   };
 
