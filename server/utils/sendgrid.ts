@@ -333,18 +333,36 @@ export const sendOrganizationEmail = async ({
   // Add attachments if provided
   if (attachments && attachments.length > 0) {
     msg.attachments = attachments;
+    console.log(`[SendGrid] Adding ${attachments.length} attachment(s):`, attachments.map(a => ({
+      filename: a.filename,
+      type: a.type,
+      disposition: a.disposition,
+      contentId: a.contentId,
+      contentLength: a.content?.length || 0
+    })));
   }
+
+  // Log detailed info about the email being sent
+  console.log(`[SendGrid] Preparing to send email:`);
+  console.log(`[SendGrid] - To: ${to} (${toName || 'no name'})`);
+  console.log(`[SendGrid] - From: ${fromEmail} (${fromName || 'no name'})`);
+  console.log(`[SendGrid] - Subject: ${subject}`);
+  console.log(`[SendGrid] - HTML length: ${html.length} chars`);
+  console.log(`[SendGrid] - Text length: ${text.length} chars`);
+  console.log(`[SendGrid] - HTML preview (first 500 chars): "${html.substring(0, 500)}..."`);
 
   try {
     const [response] = await sg.send(msg);
     // SendGrid returns message ID in the x-message-id header
     const messageId = response.headers?.["x-message-id"] || null;
     console.log(`✅ Organization email sent to ${to}: ${subject} (ID: ${messageId})${attachments?.length ? ` with ${attachments.length} attachment(s)` : ""}`);
+    console.log(`[SendGrid] Response status: ${response.statusCode}`);
     return { success: true, messageId };
   } catch (error: any) {
     console.error("❌ SendGrid Error:", error);
     if (error.response) {
-      console.error("Response body:", error.response.body);
+      console.error("[SendGrid] Response status:", error.response?.statusCode);
+      console.error("[SendGrid] Response body:", JSON.stringify(error.response?.body, null, 2));
     }
     throw error;
   }
