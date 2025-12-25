@@ -8,6 +8,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import type { HoaAnnouncement } from "~~/types/directus";
+
+// Props
+const props = withDefaults(
+  defineProps<{
+    announcements?: HoaAnnouncement[];
+  }>(),
+  {
+    announcements: () => [],
+  }
+);
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
@@ -328,6 +339,12 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
+          <!-- Announcement Bell - show on org pages/custom domains -->
+          <AnnouncementBell
+            v-if="!isMainMarketingDomain && props.announcements.length > 0"
+            :announcements="props.announcements"
+            class="hidden sm:block"
+          />
           <OrgSelector class="hidden sm:flex" />
           <!-- User status badge - uses context-aware admin check -->
           <span
@@ -388,6 +405,14 @@ watch(
               <SheetHeader class="text-left">
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
+
+              <!-- Announcements Quick Access in Mobile Menu -->
+              <div
+                v-if="!isMainMarketingDomain && props.announcements.length > 0"
+                class="py-3 border-b border-stone-200"
+              >
+                <AnnouncementBell :announcements="props.announcements" />
+              </div>
 
               <!-- User Info in Mobile Menu -->
               <div

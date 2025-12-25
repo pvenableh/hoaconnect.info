@@ -134,6 +134,14 @@ export interface HoaAnnouncement {
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
 	is_pinned?: boolean | null;
+	/** CTA button text (e.g., "Learn More") */
+	button_text?: string | null;
+	/** URL for the CTA button */
+	button_link?: string | null;
+	/** Force external link behavior */
+	external_link?: boolean | null;
+	/** Whether to show toast notification (default: true) */
+	show_toast?: boolean | null;
 }
 
 export interface HoaBoardMember {
