@@ -288,6 +288,43 @@ export interface EmailAttachment {
 }
 
 /**
+ * Dynamic template data for SendGrid
+ * Variable names match the Handlebars placeholders in the MJML template
+ */
+export interface EmailTemplateData {
+  // Recipient info
+  first_name: string;
+  unit?: string; // Unit/suite number
+
+  // Email content
+  subject: string;
+  subtitle?: string;
+  content: string; // HTML content (use triple braces {{{content}}} in template)
+  salutation?: string; // Closing text (use triple braces {{{salutation}}} for HTML)
+  urgent?: boolean;
+  category?: string; // Email type for preview text (newsletter, announcement, etc.)
+
+  // Organization info
+  org_name: string;
+  org_legal_name?: string; // For copyright
+  org_type?: 'residential' | 'commercial'; // For "unit" vs "suite" label
+  org_logo_url?: string;
+  org_url?: string; // Organization website
+  org_address?: string;
+  org_email?: string;
+  org_phone_number?: string;
+
+  // Board members (each with name, title, icon)
+  board_members?: Array<{ name: string; title: string; icon?: string }>;
+
+  // Links
+  Weblink?: string; // View in browser URL
+
+  // Meta
+  year?: string;
+}
+
+/**
  * Send a single organization email with HTML template
  * Returns the SendGrid message ID for tracking
  */
@@ -299,6 +336,10 @@ export const sendOrganizationEmail = async ({
   text,
   fromName,
   attachments,
+  templateId,
+  templateData,
+  replyTo,
+  customArgs,
 }: {
   to: string;
   toName?: string;
@@ -307,28 +348,83 @@ export const sendOrganizationEmail = async ({
   text: string;
   fromName?: string;
   attachments?: EmailAttachment[];
+  templateId?: string;
+  templateData?: EmailTemplateData;
+  replyTo?: { email: string; name?: string };
+  customArgs?: Record<string, string>;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
-  const fromEmail = config.public.fromEmail || "noreply@605lincolnroad.com";
+  const fromEmail = config.public.fromEmail || "noreply@hoaconnect.info";
 
+  // Use dynamic template if templateId is provided
+  if (templateId && templateData) {
+    const dynamicMsg: {
+      to: { email: string; name?: string };
+      from: { email: string; name?: string };
+      subject: string;
+      templateId: string;
+      dynamicTemplateData: EmailTemplateData;
+      categories: string[];
+      attachments?: EmailAttachment[];
+      replyTo?: { email: string; name?: string };
+      customArgs?: Record<string, string>;
+    } = {
+      to: { email: to, name: toName },
+      from: { email: fromEmail, name: fromName },
+      subject,
+      templateId,
+      dynamicTemplateData: templateData,
+      categories: ["HOA Connect"],
+    };
+
+    if (attachments && attachments.length > 0) {
+      dynamicMsg.attachments = attachments;
+    }
+
+    if (replyTo) {
+      dynamicMsg.replyTo = replyTo;
+    }
+
+    if (customArgs) {
+      dynamicMsg.customArgs = customArgs;
+    }
+
+    console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
+    console.log(`[SendGrid] Template data:`, JSON.stringify(templateData, null, 2));
+
+    try {
+      const [response] = await sg.send(dynamicMsg);
+      const messageId = response.headers?.["x-message-id"] || null;
+      console.log(`✅ Organization email sent via template to ${to}: ${subject} (ID: ${messageId})`);
+      return { success: true, messageId };
+    } catch (error: any) {
+      console.error("❌ SendGrid Template Error:", error);
+      if (error.response) {
+        console.error("[SendGrid] Response body:", JSON.stringify(error.response?.body, null, 2));
+      }
+      throw error;
+    }
+  }
+
+  // Fall back to raw HTML if no template
   const msg: {
     to: { email: string; name?: string };
     from: { email: string; name?: string };
     subject: string;
-    content: Array<{ type: string; value: string }>;
+    html: string;
+    text: string;
     categories: string[];
     attachments?: EmailAttachment[];
+    replyTo?: { email: string; name?: string };
+    customArgs?: Record<string, string>;
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
     subject,
-    // Explicitly set content types with UTF-8 charset
-    content: [
-      { type: "text/plain; charset=UTF-8", value: text },
-      { type: "text/html; charset=UTF-8", value: html },
-    ],
+    html,
+    text,
     categories: ["HOA Connect"],
   };
 
@@ -342,6 +438,16 @@ export const sendOrganizationEmail = async ({
       contentId: a.contentId,
       contentLength: a.content?.length || 0
     })));
+  }
+
+  // Add replyTo if provided
+  if (replyTo) {
+    msg.replyTo = replyTo;
+  }
+
+  // Add custom args for tracking
+  if (customArgs) {
+    msg.customArgs = customArgs;
   }
 
   // Log detailed info about the email being sent

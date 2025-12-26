@@ -1,6 +1,6 @@
 import { readItem, readItems } from "@directus/sdk";
-import { sendOrganizationEmail, type EmailAttachment } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, type EmailType } from "../../utils/email-templates-mjml";
+import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
+import { buildEmailHtml, buildEmailText, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "~~/types/directus";
 
 interface CidImage {
@@ -97,11 +97,13 @@ interface TestEmailBody {
   organizationId: string;
   testEmails: string[]; // Array of email addresses to send test to
   subject: string;
+  subtitle?: string;
   content: string;
   emailType: EmailType;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
+  urgent?: boolean;
 }
 
 interface TestEmailResult {
@@ -115,7 +117,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, testEmails, subject, content, emailType, greeting, salutation, includeBoardFooter = true } = body;
+  const { organizationId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent } = body;
 
   // Validation
   if (!organizationId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
@@ -150,7 +152,7 @@ export default defineEventHandler(async (event) => {
     // Get organization with settings
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "email", "street_address", "city", "state", "zip", {
+        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "custom_domain", {
           settings: ["id", "logo", "title", "description"],
         }],
       })
@@ -164,7 +166,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get board members if needed
-    let boardMembers: Array<{ name: string; title: string }> = [];
+    let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
     if (includeBoardFooter) {
       const boardMemberRecords = await directus.request(
         readItems("hoa_board_members", {
@@ -175,7 +177,7 @@ export default defineEventHandler(async (event) => {
             },
             status: { _eq: "published" },
           },
-          fields: ["id", "title", {
+          fields: ["id", "title", "icon", {
             hoa_member: ["id", "first_name", "last_name"],
           }],
           sort: ["sort"],
@@ -187,6 +189,7 @@ export default defineEventHandler(async (event) => {
         .map((bm) => ({
           name: `${bm.hoa_member.first_name || ""} ${bm.hoa_member.last_name || ""}`.trim() || "Board Member",
           title: bm.title || "Board Member",
+          icon: bm.icon || undefined,
         }));
     }
 
@@ -206,32 +209,44 @@ export default defineEventHandler(async (event) => {
       contentId: img.cid,
     }));
 
+    // Check if we should use dynamic templates
+    const templateId = config.sendgridEmailTemplateId;
+    const useDynamicTemplate = !!templateId;
+    console.log(`[test.post] Using dynamic template: ${useDynamicTemplate} (templateId: ${templateId || 'none'})`);
+
+    // Build org logo URL if available
+    let orgLogoUrl: string | undefined;
+    if (organization.settings?.logo) {
+      orgLogoUrl = `${config.directus.url}/assets/${organization.settings.logo}`;
+    }
+
+    // Build org address string
+    const orgAddress = [
+      organization.street_address,
+      organization.city,
+      organization.state,
+      organization.zip,
+    ].filter(Boolean).join(', ');
+
+    // Build org website URL
+    const orgUrl = organization.custom_domain
+      ? `https://${organization.custom_domain}`
+      : `${config.public.appUrl}`;
+
+    // Process the HTML content for email (inline styles, etc.)
+    const processedHtmlContent = processHtmlForEmail(processedContent);
+
+    // Build personalized greeting for test
+    let personalizedContent = processedHtmlContent;
+    if (greeting) {
+      personalizedContent = `<p>${greeting} Test Recipient,</p>${processedHtmlContent}`;
+    }
+    if (salutation) {
+      personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
+    }
+
     // Build the email with test recipient name
     console.log(`[test.post] Building email HTML with content (${processedContent.length} chars): "${processedContent.substring(0, 200)}..."`);
-
-    const html = buildEmailHtml({
-      organization,
-      subject: `[TEST] ${subject}`,
-      content: processedContent,
-      emailType,
-      greeting,
-      salutation,
-      boardMembers: includeBoardFooter ? boardMembers : undefined,
-      recipientFirstName: "Test Recipient",
-      directusUrl: config.directus.url,
-      appUrl: config.public.appUrl as string,
-    });
-
-    console.log(`[test.post] HTML built successfully (${html.length} chars)`);
-    // Log a larger sample of the HTML to verify content is properly included
-    console.log(`[test.post] HTML sample (first 1000 chars): "${html.substring(0, 1000)}"`);
-    // Log the body content specifically
-    const bodyStart = html.indexOf('<body');
-    const bodyEnd = html.indexOf('</body>');
-    if (bodyStart !== -1 && bodyEnd !== -1) {
-      const bodyContent = html.substring(bodyStart, Math.min(bodyStart + 2000, bodyEnd));
-      console.log(`[test.post] Body content sample: "${bodyContent}"`);
-    }
 
     const text = buildEmailText({
       organization,
@@ -246,7 +261,7 @@ export default defineEventHandler(async (event) => {
     });
 
     console.log(`[test.post] Sending test email to: ${testEmails.join(", ")}`);
-    console.log(`[test.post] HTML length: ${html.length}, Text length: ${text.length}`);
+    console.log(`[test.post] Text length: ${text.length}`);
     console.log(`[test.post] Text version preview: "${text.substring(0, 300)}..."`);
     console.log(`[test.post] Inline attachments: ${inlineAttachments.length}`);
 
@@ -255,15 +270,84 @@ export default defineEventHandler(async (event) => {
 
     for (const testEmail of testEmails) {
       try {
-        const sendResult = await sendOrganizationEmail({
-          to: testEmail,
-          toName: "Test Recipient",
-          subject: `[TEST] ${subject}`,
-          html,
-          text,
-          fromName: organization.name || undefined,
-          attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
-        });
+        let sendResult;
+
+        if (useDynamicTemplate) {
+          // Use SendGrid dynamic template
+          const templateData: EmailTemplateData = {
+            // Recipient info
+            first_name: 'Test Recipient',
+            unit: '101', // Test unit number
+
+            // Email content
+            subject: `[TEST] ${subject}`,
+            subtitle: subtitle || undefined,
+            content: personalizedContent,
+            salutation: salutation || undefined,
+            urgent: urgent || false,
+            category: emailType, // For preview text
+
+            // Organization info
+            org_name: organization.name || 'Your HOA',
+            org_legal_name: organization.legal_name || undefined,
+            org_type: organization.type || undefined,
+            org_logo_url: orgLogoUrl,
+            org_url: orgUrl,
+            org_address: orgAddress || undefined,
+            org_email: organization.email || undefined,
+            org_phone_number: organization.phone || undefined,
+
+            // Board members
+            board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : undefined,
+
+            // Links
+            Weblink: `${config.public.appUrl}/email/test-view`,
+
+            // Meta
+            year: new Date().getFullYear().toString(),
+          };
+
+          console.log(`[test.post] Using dynamic template with data:`, JSON.stringify(templateData, null, 2));
+
+          sendResult = await sendOrganizationEmail({
+            to: testEmail,
+            toName: "Test Recipient",
+            subject: `[TEST] ${subject}`,
+            html: personalizedContent, // Fallback if template fails
+            text,
+            fromName: organization.name || undefined,
+            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+            templateId,
+            templateData,
+          });
+        } else {
+          // Fall back to MJML-generated HTML
+          const html = buildEmailHtml({
+            organization,
+            subject: `[TEST] ${subject}`,
+            content: processedContent,
+            emailType,
+            greeting,
+            salutation,
+            boardMembers: includeBoardFooter ? boardMembers : undefined,
+            recipientFirstName: "Test Recipient",
+            directusUrl: config.directus.url,
+            appUrl: config.public.appUrl as string,
+          });
+
+          console.log(`[test.post] HTML built successfully (${html.length} chars)`);
+          console.log(`[test.post] HTML sample (first 500 chars): "${html.substring(0, 500)}"`);
+
+          sendResult = await sendOrganizationEmail({
+            to: testEmail,
+            toName: "Test Recipient",
+            subject: `[TEST] ${subject}`,
+            html,
+            text,
+            fromName: organization.name || undefined,
+            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+          });
+        }
 
         console.log(`[test.post] Test email sent successfully to ${testEmail}`);
         results.push({
