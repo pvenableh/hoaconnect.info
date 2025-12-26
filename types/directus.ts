@@ -340,6 +340,8 @@ export interface HoaEmail {
 	failed_count?: number | null;
 	/** @required */
 	organization: HoaOrganization | string;
+	urgent?: boolean | null;
+	subtitle?: string | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -487,6 +489,8 @@ export interface HoaOrganization {
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
 	is_free_account?: boolean | null;
+	legal_name?: string | null;
+	type?: 'residential' | 'commercial' | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
