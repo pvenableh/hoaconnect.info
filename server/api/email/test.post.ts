@@ -97,11 +97,13 @@ interface TestEmailBody {
   organizationId: string;
   testEmails: string[]; // Array of email addresses to send test to
   subject: string;
+  subtitle?: string;
   content: string;
   emailType: EmailType;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
+  urgent?: boolean;
 }
 
 interface TestEmailResult {
@@ -115,7 +117,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, testEmails, subject, content, emailType, greeting, salutation, includeBoardFooter = true } = body;
+  const { organizationId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent } = body;
 
   // Validation
   if (!organizationId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
@@ -150,7 +152,7 @@ export default defineEventHandler(async (event) => {
     // Get organization with settings
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "email", "street_address", "city", "state", "zip", {
+        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "custom_domain", {
           settings: ["id", "logo", "title", "description"],
         }],
       })
@@ -164,7 +166,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get board members if needed
-    let boardMembers: Array<{ name: string; title: string }> = [];
+    let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
     if (includeBoardFooter) {
       const boardMemberRecords = await directus.request(
         readItems("hoa_board_members", {
@@ -175,7 +177,7 @@ export default defineEventHandler(async (event) => {
             },
             status: { _eq: "published" },
           },
-          fields: ["id", "title", {
+          fields: ["id", "title", "icon", {
             hoa_member: ["id", "first_name", "last_name"],
           }],
           sort: ["sort"],
@@ -187,6 +189,7 @@ export default defineEventHandler(async (event) => {
         .map((bm) => ({
           name: `${bm.hoa_member.first_name || ""} ${bm.hoa_member.last_name || ""}`.trim() || "Board Member",
           title: bm.title || "Board Member",
+          icon: bm.icon || undefined,
         }));
     }
 
@@ -224,6 +227,11 @@ export default defineEventHandler(async (event) => {
       organization.state,
       organization.zip,
     ].filter(Boolean).join(', ');
+
+    // Build org website URL
+    const orgUrl = organization.custom_domain
+      ? `https://${organization.custom_domain}`
+      : `${config.public.appUrl}`;
 
     // Process the HTML content for email (inline styles, etc.)
     const processedHtmlContent = processHtmlForEmail(processedContent);
@@ -267,16 +275,35 @@ export default defineEventHandler(async (event) => {
         if (useDynamicTemplate) {
           // Use SendGrid dynamic template
           const templateData: EmailTemplateData = {
+            // Recipient info
             first_name: 'Test Recipient',
+            unit: '101', // Test unit number
+
+            // Email content
             subject: `[TEST] ${subject}`,
+            subtitle: subtitle || undefined,
             content: personalizedContent,
-            closing: salutation || undefined,
+            salutation: salutation || undefined,
+            urgent: urgent || false,
+            category: emailType, // For preview text
+
+            // Organization info
             org_name: organization.name || 'Your HOA',
+            org_legal_name: organization.legal_name || undefined,
+            org_type: organization.type || undefined,
             org_logo_url: orgLogoUrl,
+            org_url: orgUrl,
             org_address: orgAddress || undefined,
             org_email: organization.email || undefined,
+            org_phone_number: organization.phone || undefined,
+
+            // Board members
             board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : undefined,
-            email_type: emailType,
+
+            // Links
+            Weblink: `${config.public.appUrl}/email/test-view`,
+
+            // Meta
             year: new Date().getFullYear().toString(),
           };
 

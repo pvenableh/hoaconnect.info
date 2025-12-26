@@ -318,10 +318,14 @@ export interface HoaEmail {
 	date_updated?: string | null;
 	/** @description Email subject line @required */
 	subject: string;
+	/** @description Email subtitle for additional context */
+	subtitle?: string | null;
 	/** @description Email body content (HTML supported) @required */
 	content: string;
 	/** @description Type of email for categorization @required */
 	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
+	/** @description Whether this is an urgent email (displays with alert styling) */
+	urgent?: boolean | null;
 	/** @description When to send the email (leave empty for immediate send) */
 	scheduled_at?: string | null;
 	/** @description When the email was actually sent */
@@ -459,6 +463,10 @@ export interface HoaOrganization {
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
 	name?: string | null;
+	/** @description Legal name for copyright/official use */
+	legal_name?: string | null;
+	/** @description Organization type - residential or commercial */
+	type?: 'residential' | 'commercial' | null;
 	billing_cycle?: 'monthly' | 'yearly' | null;
 	city?: string | null;
 	state?: string | null;

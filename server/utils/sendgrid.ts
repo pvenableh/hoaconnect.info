@@ -289,21 +289,38 @@ export interface EmailAttachment {
 
 /**
  * Dynamic template data for SendGrid
+ * Variable names match the Handlebars placeholders in the MJML template
  */
 export interface EmailTemplateData {
+  // Recipient info
   first_name: string;
+  unit?: string; // Unit/suite number
+
+  // Email content
   subject: string;
-  content: string; // HTML content
-  closing?: string;
+  subtitle?: string;
+  content: string; // HTML content (use triple braces {{{content}}} in template)
+  salutation?: string; // Closing text (use triple braces {{{salutation}}} for HTML)
+  urgent?: boolean;
+  category?: string; // Email type for preview text (newsletter, announcement, etc.)
+
+  // Organization info
   org_name: string;
+  org_legal_name?: string; // For copyright
+  org_type?: 'residential' | 'commercial'; // For "unit" vs "suite" label
   org_logo_url?: string;
+  org_url?: string; // Organization website
   org_address?: string;
   org_email?: string;
-  org_phone?: string;
-  org_website?: string;
-  board_members?: Array<{ name: string; title: string }>;
-  web_view_url?: string;
-  email_type?: string;
+  org_phone_number?: string;
+
+  // Board members (each with name, title, icon)
+  board_members?: Array<{ name: string; title: string; icon?: string }>;
+
+  // Links
+  Weblink?: string; // View in browser URL
+
+  // Meta
   year?: string;
 }
 
