@@ -381,6 +381,13 @@ export const sendOrganizationEmail = async ({
 
     if (attachments && attachments.length > 0) {
       dynamicMsg.attachments = attachments;
+      console.log(`[SendGrid] Adding ${attachments.length} attachment(s) to dynamic template email:`, attachments.map(a => ({
+        filename: a.filename,
+        type: a.type,
+        disposition: a.disposition,
+        contentId: a.contentId,
+        contentLength: a.content?.length || 0
+      })));
     }
 
     if (replyTo) {
@@ -392,12 +399,13 @@ export const sendOrganizationEmail = async ({
     }
 
     console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
+    console.log(`[SendGrid] Has attachments: ${attachments?.length || 0}`);
     console.log(`[SendGrid] Template data:`, JSON.stringify(templateData, null, 2));
 
     try {
       const [response] = await sg.send(dynamicMsg);
       const messageId = response.headers?.["x-message-id"] || null;
-      console.log(`✅ Organization email sent via template to ${to}: ${subject} (ID: ${messageId})`);
+      console.log(`✅ Organization email sent via template to ${to}: ${subject} (ID: ${messageId})${attachments?.length ? ` with ${attachments.length} attachment(s)` : ""}`);
       return { success: true, messageId };
     } catch (error: any) {
       console.error("❌ SendGrid Template Error:", error);

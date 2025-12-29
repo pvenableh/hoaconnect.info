@@ -217,36 +217,36 @@ export function processHtmlForEmail(content: string): string {
     '<li$1 style="margin: 8px 0;">'
   );
 
-  // Style headings for email
+  // Style headings for email - with bottom padding as requested
   processed = processed.replace(
     /<h1([^>]*)>/gi,
-    '<h1$1 style="margin: 24px 0 16px 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.3;">'
+    '<h1$1 style="margin: 0; padding: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.3;">'
   );
   processed = processed.replace(
     /<h2([^>]*)>/gi,
-    '<h2$1 style="margin: 20px 0 12px 0; font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.3;">'
+    '<h2$1 style="margin: 0; padding: 0 0 18px 0; font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.3;">'
   );
   processed = processed.replace(
     /<h3([^>]*)>/gi,
-    '<h3$1 style="margin: 16px 0 8px 0; font-size: 20px; font-weight: 600; color: #374151; line-height: 1.4;">'
+    '<h3$1 style="margin: 0; padding: 0 0 16px 0; font-size: 20px; font-weight: 600; color: #374151; line-height: 1.4;">'
   );
   processed = processed.replace(
     /<h4([^>]*)>/gi,
-    '<h4$1 style="margin: 12px 0 8px 0; font-size: 18px; font-weight: 600; color: #374151; line-height: 1.4;">'
+    '<h4$1 style="margin: 0; padding: 0 0 14px 0; font-size: 18px; font-weight: 600; color: #374151; line-height: 1.4;">'
   );
   processed = processed.replace(
     /<h5([^>]*)>/gi,
-    '<h5$1 style="margin: 12px 0 8px 0; font-size: 16px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+    '<h5$1 style="margin: 0; padding: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
   );
   processed = processed.replace(
     /<h6([^>]*)>/gi,
-    '<h6$1 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+    '<h6$1 style="margin: 0; padding: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
   );
 
-  // Style paragraphs for email
+  // Style paragraphs for email - with bottom padding as requested
   processed = processed.replace(
     /<p([^>]*)>/gi,
-    '<p$1 style="margin: 0 0 16px 0; line-height: 1.6;">'
+    '<p$1 style="margin: 0; padding: 0 0 16px 0; line-height: 1.6;">'
   );
 
   return processed;
@@ -679,6 +679,371 @@ export function buildEmailText(options: EmailTemplateOptions): string {
   text += `\n© ${new Date().getFullYear()} ${orgName}. All rights reserved.`;
 
   return text;
+}
+
+/**
+ * Web view template options
+ */
+interface WebViewTemplateOptions {
+  organization: HoaOrganization & {
+    settings?: BlockSetting | null;
+  };
+  subject: string;
+  subtitle?: string;
+  content: string;
+  emailType: EmailType;
+  greeting?: string;
+  salutation?: string;
+  boardMembers?: BoardMemberInfo[];
+  directusUrl: string;
+  urgent?: boolean;
+}
+
+/**
+ * Build HTML for web view page matching SendGrid template style
+ * Uses Avenir font family and matching layout
+ */
+export function buildWebViewHtml(options: WebViewTemplateOptions): string {
+  const {
+    organization,
+    subject,
+    subtitle,
+    content,
+    emailType,
+    greeting,
+    salutation,
+    boardMembers,
+    directusUrl,
+    urgent,
+  } = options;
+
+  const orgName = organization.name || "Organization";
+  const logoUrl = getLogoUrl(organization, directusUrl);
+  const finalSalutation = salutation || defaultSalutations[emailType];
+  const year = new Date().getFullYear();
+
+  // Process content with styling for headings and paragraphs
+  const processedContent = processHtmlForEmail(content);
+
+  // Build board members HTML
+  let boardMembersHtml = "";
+  if (boardMembers && boardMembers.length > 0) {
+    boardMembersHtml = boardMembers
+      .map(
+        (member) => `
+        <div class="mj-column-per-50 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+            <tbody>
+              <tr>
+                <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
+                  <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:left;color:#666666;">
+                    <p style="letter-spacing: 0.25em; font-weight: 700; text-transform: uppercase; margin: 0; padding: 8px 0;">
+                      ${member.name}
+                      <span style="display:block;font-size: 7px; line-height: 12px;">${formatTitle(member.title)}</span>
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>`
+      )
+      .join("");
+  }
+
+  // Build the HTML matching SendGrid template style
+  return `<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>${subject}</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style type="text/css">
+    body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    table, td { border-collapse:collapse; }
+    p { display:block;margin:13px 0; }
+    .avenir { font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    @media only screen and (min-width:480px) {
+      .mj-column-per-100 { width:100% !important; max-width: 100%; }
+      .mj-column-per-50 { width:50% !important; max-width: 50%; }
+      .mj-column-per-40 { width:40% !important; max-width: 40%; }
+    }
+    @media only screen and (max-width:480px) {
+      table.mj-full-width-mobile { width: 100% !important; }
+      td.mj-full-width-mobile { width: auto !important; }
+    }
+  </style>
+</head>
+<body style="word-spacing:normal;background-color:#ffffff;">
+  <div style="background-color:#ffffff;">
+    <!-- Logo Section -->
+    <div style="margin:0px auto;max-width:600px;">
+      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+        <tbody>
+          <tr>
+            <td style="direction:ltr;font-size:0px;padding:0px;text-align:center;">
+              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                  <tbody>
+                    <tr>
+                      <td style="vertical-align:top;padding:0px;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:20px 30px 0px;word-break:break-word;">
+                                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
+                                  <tbody>
+                                    <tr>
+                                      <td>
+                                        ${logoUrl
+                                          ? `<img height="auto" src="${logoUrl}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;max-width:150px;margin-bottom:10px;" width="150">`
+                                          : `<span style="display: inline-block; font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-decoration: none; color: #666666; letter-spacing: 0.15em; font-weight: 700; font-size: 16px; line-height:20px; text-transform: uppercase;">${orgName}</span>`
+                                        }
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Subject Section -->
+    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
+      <tbody>
+        <tr>
+          <td>
+            <div style="margin:0px auto;max-width:600px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <tbody>
+                  <tr>
+                    <td style="direction:ltr;font-size:0px;padding:20px 0px 20px;text-align:center;">
+                      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
+                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1;text-align:center;color:#666666;">
+                                  ${urgent
+                                    ? `<h3 style="font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase; color: red; margin: 0; padding: 0 0 10px 0;" class="avenir">🚨 ${subject}</h3>`
+                                    : `<h3 style="font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase; margin: 0; padding: 0 0 10px 0;" class="avenir">${subject}</h3>`
+                                  }
+                                  ${subtitle ? `<h5 style="font-weight: 700; line-height: 16px; font-size: 14px; text-transform: uppercase; margin: 0; padding: 0;" class="avenir">${subtitle}</h5>` : ""}
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Divider -->
+    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+      <tbody>
+        <tr>
+          <td>
+            <div style="margin:0px auto;max-width:600px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <tbody>
+                  <tr>
+                    <td style="direction:ltr;font-size:0px;padding:20px 0;text-align:center;">
+                      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:0px 10px;word-break:break-word;">
+                                <p style="border-top:solid 1px lightgrey;font-size:1px;margin:0px auto;width:100%;"></p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Content Section -->
+    <div style="margin:0px auto;max-width:600px;">
+      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+        <tbody>
+          <tr>
+            <td style="direction:ltr;font-size:0px;padding:20px 0 0px;text-align:center;">
+              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                  <tbody>
+                    <tr>
+                      <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
+                        <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1.6;text-align:left;color:#666666;">
+                          ${processedContent}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Salutation Section -->
+    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+      <tbody>
+        <tr>
+          <td>
+            <div style="margin:0px auto;max-width:600px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <tbody>
+                  <tr>
+                    <td style="direction:ltr;font-size:0px;padding:0px 0px 20px 0;text-align:left;">
+                      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
+                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1;text-align:left;color:#666666;">
+                                  <p style="font-weight: 400; line-height: 1.6em; margin: 0; padding: 0 0 10px 0;" class="avenir">${finalSalutation},</p>
+                                  <p style="font-weight: 500; line-height: 1.6em; margin: 0; padding: 0;" class="avenir">${orgName} Team ☀️</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <!-- Board Members -->
+                      ${boardMembersHtml}
+
+                      <!-- Divider after board members -->
+                      ${boardMembers && boardMembers.length > 0 ? `
+                      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:40px 10px 0px;word-break:break-word;">
+                                <p style="border-top:solid 1px lightgrey;font-size:1px;margin:0px auto;width:100%;"></p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>` : ""}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Footer Section -->
+    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+      <tbody>
+        <tr>
+          <td>
+            <div style="margin:0px auto;max-width:600px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <tbody>
+                  <tr>
+                    <td style="direction:ltr;font-size:0px;padding:20px 0px 20px 0px;text-align:center;">
+                      <div class="mj-column-per-40 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:10px 25px;padding-top:0px;padding-bottom:10px;word-break:break-word;">
+                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
+                                  <span style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">${orgName}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      ${organization.phone ? `
+                      <div class="mj-column-per-40 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:10px 25px;padding-top:0px;padding-bottom:10px;word-break:break-word;">
+                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
+                                  <a href="tel:${organization.phone}" style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">${organization.phone}</a>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>` : ""}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Copyright Section -->
+    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+      <tbody>
+        <tr>
+          <td>
+            <div style="margin:0px auto;max-width:600px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <tbody>
+                  <tr>
+                    <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:60px;padding-top:0px;text-align:center;">
+                      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center" style="font-size:0px;padding:10px 25px;padding-top:15px;padding-bottom:0px;word-break:break-word;">
+                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:8px;font-weight:700;letter-spacing:0.3em;line-height:1;text-align:center;text-decoration:none;text-transform:uppercase;color:#666666;">
+                                  © ${year} ${organization.legal_name || orgName}
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`;
 }
 
 /**
