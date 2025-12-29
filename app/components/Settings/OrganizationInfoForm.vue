@@ -17,7 +17,7 @@
             </p>
           </div>
           <Switch
-            v-model:checked="form.maintenance_mode"
+            v-model="form.maintenance_mode"
             :disabled="isSaving"
           />
         </div>
@@ -31,6 +31,20 @@
             placeholder="Sunset Heights HOA"
             :disabled="isSaving"
           />
+        </div>
+
+        <!-- Legal Name -->
+        <div class="space-y-2">
+          <Label for="legal_name">Legal Name</Label>
+          <Input
+            id="legal_name"
+            v-model="form.legal_name"
+            placeholder="Sunset Heights Homeowners Association, Inc."
+            :disabled="isSaving"
+          />
+          <p class="text-xs text-muted-foreground">
+            Official legal name used for copyright notices and legal documents
+          </p>
         </div>
 
         <!-- Slug (Read-only) -->
@@ -132,6 +146,27 @@
           </div>
         </div>
 
+        <!-- Display Options Section -->
+        <div class="pt-4 border-t">
+          <h4 class="font-medium mb-4">Display Options</h4>
+
+          <div class="space-y-4">
+            <!-- Show Board Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-lg border">
+              <div class="space-y-0.5">
+                <Label class="text-base font-medium">Show Board Members</Label>
+                <p class="text-sm text-muted-foreground">
+                  Display the board of directors section on your public site and navigation
+                </p>
+              </div>
+              <Switch
+                v-model="form.show_board"
+                :disabled="isSaving"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="flex justify-end pt-4">
           <Button type="submit" :disabled="isSaving || !hasChanges">
@@ -168,6 +203,7 @@ const isSaving = ref(false);
 // Form data - use reactive for better nested reactivity
 const form = reactive({
   name: props.organization.name || "",
+  legal_name: props.organization.legal_name || "",
   email: props.organization.email || "",
   phone: props.organization.phone || "",
   street_address: props.organization.street_address || "",
@@ -175,6 +211,7 @@ const form = reactive({
   state: props.organization.state || "",
   zip: props.organization.zip || "",
   maintenance_mode: props.organization.maintenance_mode ?? false,
+  show_board: props.organization.show_board ?? true,
 });
 
 // Site URL
@@ -190,13 +227,15 @@ const siteUrl = computed(() => {
 const hasChanges = computed(() => {
   return (
     form.name !== (props.organization.name || "") ||
+    form.legal_name !== (props.organization.legal_name || "") ||
     form.email !== (props.organization.email || "") ||
     form.phone !== (props.organization.phone || "") ||
     form.street_address !== (props.organization.street_address || "") ||
     form.city !== (props.organization.city || "") ||
     form.state !== (props.organization.state || "") ||
     form.zip !== (props.organization.zip || "") ||
-    form.maintenance_mode !== (props.organization.maintenance_mode ?? false)
+    form.maintenance_mode !== (props.organization.maintenance_mode ?? false) ||
+    form.show_board !== (props.organization.show_board ?? true)
   );
 });
 
@@ -205,6 +244,7 @@ watch(
   () => props.organization,
   (newOrg) => {
     form.name = newOrg.name || "";
+    form.legal_name = newOrg.legal_name || "";
     form.email = newOrg.email || "";
     form.phone = newOrg.phone || "";
     form.street_address = newOrg.street_address || "";
@@ -212,6 +252,7 @@ watch(
     form.state = newOrg.state || "";
     form.zip = newOrg.zip || "";
     form.maintenance_mode = newOrg.maintenance_mode ?? false;
+    form.show_board = newOrg.show_board ?? true;
   },
   { deep: true }
 );
@@ -225,6 +266,7 @@ const saveChanges = async () => {
   try {
     const updated = await updateOrganization(props.organization.id, {
       name: form.name,
+      legal_name: form.legal_name,
       email: form.email,
       phone: form.phone,
       street_address: form.street_address,
@@ -232,6 +274,7 @@ const saveChanges = async () => {
       state: form.state,
       zip: form.zip,
       maintenance_mode: form.maintenance_mode,
+      show_board: form.show_board,
     });
 
     emit("updated", { ...props.organization, ...updated });

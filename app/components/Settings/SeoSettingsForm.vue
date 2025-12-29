@@ -159,7 +159,7 @@
                 Prevent search engines from indexing this site
               </p>
             </div>
-            <Switch v-model:checked="form.noIndex" :disabled="isSaving" />
+            <Switch v-model="form.noIndex" :disabled="isSaving" />
           </div>
 
           <!-- No Follow -->
@@ -170,7 +170,7 @@
                 Prevent search engines from following links on this site
               </p>
             </div>
-            <Switch v-model:checked="form.noFollow" :disabled="isSaving" />
+            <Switch v-model="form.noFollow" :disabled="isSaving" />
           </div>
 
           <!-- Sitemap Settings -->

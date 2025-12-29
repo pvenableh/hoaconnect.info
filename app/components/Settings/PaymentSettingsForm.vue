@@ -70,7 +70,7 @@
                 Automatically apply late fees to overdue payments
               </p>
             </div>
-            <Switch v-model:checked="form.lateFeeEnabled" :disabled="isSaving" />
+            <Switch v-model="form.lateFeeEnabled" :disabled="isSaving" />
           </div>
 
           <!-- Late Fee Amount -->
