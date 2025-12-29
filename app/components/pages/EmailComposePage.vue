@@ -582,6 +582,7 @@ const handleTestEmail = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
 
     testEmailResults.value = result.results;

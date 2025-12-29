@@ -1,7 +1,7 @@
-import { readItem, readItems } from "@directus/sdk";
+import { readItem, readItems, readFiles } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
 import { buildEmailHtml, buildEmailText, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "~~/types/directus";
+import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
 interface CidImage {
   cid: string;
@@ -105,6 +105,7 @@ interface TestEmailBody {
   salutation?: string;
   includeBoardFooter?: boolean;
   urgent?: boolean;
+  attachmentIds?: string[]; // File IDs from Directus to attach
 }
 
 interface TestEmailResult {
@@ -118,7 +119,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, emailId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent } = body;
+  const { organizationId, emailId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent, attachmentIds } = body;
 
   // Validation
   if (!organizationId || !emailId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
@@ -209,6 +210,57 @@ export default defineEventHandler(async (event) => {
       disposition: "inline" as const,
       contentId: img.cid,
     }));
+
+    // Process file attachments if provided
+    let emailAttachments: EmailAttachment[] = [];
+    if (attachmentIds && attachmentIds.length > 0) {
+      console.log(`[test.post] Processing ${attachmentIds.length} file attachment(s)`);
+
+      // Fetch file metadata from Directus
+      const files = await directus.request(
+        readFiles({
+          filter: {
+            id: { _in: attachmentIds },
+          },
+          fields: ["id", "filename_download", "type", "title"],
+        })
+      ) as DirectusFile[];
+
+      // Download each file and convert to base64
+      for (const file of files) {
+        try {
+          const fileUrl = `${config.directus.url}/assets/${file.id}`;
+          const response = await fetch(fileUrl, {
+            headers: {
+              Authorization: `Bearer ${config.directus.staticToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            console.error(`[test.post] Failed to download attachment ${file.id}: ${response.status}`);
+            continue;
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const base64Content = Buffer.from(arrayBuffer).toString("base64");
+
+          emailAttachments.push({
+            content: base64Content,
+            filename: file.filename_download || file.title || "attachment",
+            type: file.type || "application/octet-stream",
+            disposition: "attachment",
+          });
+
+          console.log(`[test.post] Prepared attachment: ${file.filename_download || file.title}`);
+        } catch (attachError) {
+          console.error(`[test.post] Error processing attachment ${file.id}:`, attachError);
+        }
+      }
+    }
+
+    // Combine regular attachments with inline CID images
+    const allAttachments = [...emailAttachments, ...inlineAttachments];
+    console.log(`[test.post] Total attachments: ${allAttachments.length} (${emailAttachments.length} files + ${inlineAttachments.length} inline images)`);
 
     // Check if we should use dynamic templates
     const templateId = config.sendgridEmailTemplateId;
@@ -317,7 +369,7 @@ export default defineEventHandler(async (event) => {
             html: personalizedContent, // Fallback if template fails
             text,
             fromName: organization.name || undefined,
-            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+            attachments: allAttachments.length > 0 ? allAttachments : undefined,
             templateId,
             templateData,
           });
@@ -346,7 +398,7 @@ export default defineEventHandler(async (event) => {
             html,
             text,
             fromName: organization.name || undefined,
-            attachments: inlineAttachments.length > 0 ? inlineAttachments : undefined,
+            attachments: allAttachments.length > 0 ? allAttachments : undefined,
           });
         }
 
@@ -379,6 +431,7 @@ export default defineEventHandler(async (event) => {
         htmlLength: personalizedContent.length,
         textLength: text.length,
         imagesProcessed: cidImages.length,
+        attachmentsIncluded: emailAttachments.length,
         boardMembersIncluded: boardMembers.length,
         totalSent: successCount,
         totalFailed: failedCount,
