@@ -115,6 +115,7 @@ export interface EmailTestData {
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
+  attachmentIds?: string[]; // File IDs from Directus to attach
 }
 
 export interface EmailTestResult {
