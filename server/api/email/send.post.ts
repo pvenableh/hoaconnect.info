@@ -166,7 +166,7 @@ export default defineEventHandler(async (event) => {
         .map((bm) => ({
           name: `${bm.hoa_member.first_name || ""} ${bm.hoa_member.last_name || ""}`.trim() || "Board Member",
           title: bm.title || "Board Member",
-          icon: bm.icon || undefined,
+          icon: bm.icon || '',
         }));
     }
 
@@ -391,11 +391,11 @@ export default defineEventHandler(async (event) => {
           const templateData: EmailTemplateData = {
             // Recipient info
             first_name: recipientFirstName || 'Resident',
-            unit: unitNumber,
+            unit: unitNumber || '',
 
             // Email content
             subject,
-            subtitle: subtitle || undefined,
+            subtitle: subtitle || '',
             content: personalizedContent,
             salutation: salutation || undefined,
             urgent: urgent || false,
@@ -403,16 +403,16 @@ export default defineEventHandler(async (event) => {
 
             // Organization info
             org_name: organization.name || 'Your HOA',
-            org_legal_name: organization.legal_name || undefined,
-            org_type: organization.type || undefined,
+            org_legal_name: organization.legal_name || '',
+            org_type: organization.type || '',
             org_logo_url: orgLogoUrl || '',
             org_url: orgUrl,
             org_address: orgAddress || undefined,
             org_email: organization.email || undefined,
-            org_phone_number: organization.phone || undefined,
+            org_phone_number: organization.phone || '',
 
             // Board members
-            board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : undefined,
+            board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
 
             // Links
             Weblink: `${config.public.appUrl}/email/view/${(email as any).id}`,
