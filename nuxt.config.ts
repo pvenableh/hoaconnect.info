@@ -39,10 +39,8 @@ export default defineNuxtConfig({
     },
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY,
-    sendgridInvitationTemplateId: process.env.SENDGRID_INVITATION_TEMPLATE_ID,
-    sendgridWelcomeTemplateId: process.env.SENDGRID_WELCOME_TEMPLATE_ID,
-    sendgridInvitationAcceptedTemplateId:
-      process.env.SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID,
+    // Universal invite email template (handles invitation, welcome, and accepted notification emails)
+    sendgridInviteEmailTemplateId: process.env.SENDGRID_INVITE_EMAIL_TEMPLATE_ID,
     // HOA email template for organization emails (newsletters, announcements, etc.)
     sendgridEmailTemplateId: process.env.SENDGRID_EMAIL_TEMPLATE_ID,
     // Stripe configuration

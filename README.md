@@ -86,9 +86,8 @@ NUXT_PUBLIC_MAIN_DOMAIN=your-domain.com
 # SENDGRID EMAIL SERVICE (Optional)
 # ===========================================
 SENDGRID_API_KEY=SG.xxxxx
-SENDGRID_INVITATION_TEMPLATE_ID=d-xxxxx
-SENDGRID_WELCOME_TEMPLATE_ID=d-xxxxx
-SENDGRID_INVITATION_ACCEPTED_TEMPLATE_ID=d-xxxxx
+# Universal invite email template (handles invitation, welcome, and accepted notification emails)
+SENDGRID_INVITE_EMAIL_TEMPLATE_ID=d-c4e7e8c3c0684cc281b313583453f530
 
 # ===========================================
 # STRIPE PAYMENT CONFIGURATION (Optional)
