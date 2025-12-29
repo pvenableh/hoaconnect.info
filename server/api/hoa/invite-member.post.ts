@@ -98,12 +98,47 @@ export default defineEventHandler(async (event) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Get organization details for email
+    // Get organization details for email (including branding info)
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["name"],
+        fields: [
+          "name",
+          "legal_name",
+          "domain",
+          "email",
+          "phone",
+          "street_address",
+          "city",
+          "state",
+          "zip",
+          "settings.logo",
+        ],
       })
     );
+
+    // Build organization logo URL if available
+    let orgLogoUrl: string | undefined;
+    const settings = organization.settings as { logo?: string | { id: string } } | null;
+    if (settings?.logo) {
+      const logoId = typeof settings.logo === "string" ? settings.logo : settings.logo?.id;
+      if (logoId) {
+        orgLogoUrl = `${config.directus.url}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
+      }
+    }
+
+    // Build organization address
+    const addressParts = [
+      organization.street_address,
+      organization.city,
+      organization.state,
+      organization.zip,
+    ].filter(Boolean);
+    const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
+
+    // Build organization URL
+    const orgUrl = organization.domain
+      ? `https://${organization.domain}`
+      : config.public.appUrl;
 
     // Get role details for email via REST API (core collections can't use readItem)
     let roleName = "Member";
@@ -151,6 +186,13 @@ export default defineEventHandler(async (event) => {
           "Admin",
         roleName: roleName,
         expiresAt: expiresAt.toISOString(),
+        // Organization branding data
+        orgLogoUrl,
+        orgUrl,
+        orgPhoneNumber: organization.phone || undefined,
+        orgEmail: organization.email || undefined,
+        orgAddress,
+        orgLegalName: organization.legal_name || undefined,
       });
 
       console.log("✅ Invitation email sent successfully to:", email);
