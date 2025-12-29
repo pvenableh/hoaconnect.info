@@ -1,10 +1,7 @@
 <script setup lang="ts">
-const { user } = useDirectusAuth();
-
-// Only fetch org data if user is logged in
-const { currentOrg } = user.value
-  ? await useSelectedOrg()
-  : { currentOrg: ref(null) };
+// Always initialize useSelectedOrg - it handles the case when user is not logged in
+// This ensures the org data is ready when the user logs in
+const { currentOrg } = await useSelectedOrg();
 </script>
 
 <template>

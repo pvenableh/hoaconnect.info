@@ -123,14 +123,23 @@ const { get: getOrganization } =
 const { get: getSettings } =
   useDirectusItems<BlockSetting>("block_settings");
 
-// Tab management
-const tabs = [
+// Tab management - hide subscription tab for free accounts
+const allTabs = [
   { id: "general", label: "General", icon: "lucide:building-2" },
   { id: "branding", label: "Branding", icon: "lucide:palette" },
   { id: "seo", label: "SEO", icon: "lucide:search" },
   { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" },
   { id: "subscription", label: "Subscription", icon: "lucide:sparkles" },
 ];
+
+// Filter out subscription tab for free accounts
+const tabs = computed(() => {
+  if (organization.value?.is_free_account) {
+    return allTabs.filter((tab) => tab.id !== "subscription");
+  }
+  return allTabs;
+});
+
 const activeTab = ref("general");
 
 // Organization data

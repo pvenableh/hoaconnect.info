@@ -7,6 +7,7 @@
  * Behavior:
  * - Proactively refreshes token every 10 minutes
  * - Also checks token expiration and refreshes if less than 5 minutes remain
+ * - Refreshes token when user returns to tab (visibility change)
  * - Handles errors gracefully and redirects to login if refresh fails
  * - Keeps users logged in even when idle
  */
@@ -18,6 +19,7 @@ export default defineNuxtPlugin(() => {
   let checkInterval: ReturnType<typeof setInterval> | null = null;
   let proactiveRefreshInterval: ReturnType<typeof setInterval> | null = null;
   let isRefreshing = false;
+  let visibilityHandler: (() => void) | null = null;
 
   const refreshToken = async () => {
     if (isRefreshing) {
@@ -115,6 +117,18 @@ export default defineNuxtPlugin(() => {
           refreshToken();
         }, 10 * 60 * 1000); // Refresh every 10 minutes
       }
+
+      // Check and refresh token when user returns to tab
+      // This handles cases where browser throttles timers in background tabs
+      if (!visibilityHandler) {
+        visibilityHandler = () => {
+          if (document.visibilityState === 'visible' && loggedIn.value) {
+            console.log('[auth-refresh] Tab became visible, checking token...');
+            checkAndRefreshToken();
+          }
+        };
+        document.addEventListener('visibilitychange', visibilityHandler);
+      }
     } else {
       // Stop monitoring when logged out
       console.log('[auth-refresh] Stopping token refresh monitoring');
@@ -128,6 +142,11 @@ export default defineNuxtPlugin(() => {
         clearInterval(proactiveRefreshInterval);
         proactiveRefreshInterval = null;
       }
+
+      if (visibilityHandler) {
+        document.removeEventListener('visibilitychange', visibilityHandler);
+        visibilityHandler = null;
+      }
     }
   }, { immediate: true });
 
@@ -139,6 +158,9 @@ export default defineNuxtPlugin(() => {
       }
       if (proactiveRefreshInterval) {
         clearInterval(proactiveRefreshInterval);
+      }
+      if (visibilityHandler) {
+        document.removeEventListener('visibilitychange', visibilityHandler);
       }
     });
   }
