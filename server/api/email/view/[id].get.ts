@@ -1,5 +1,5 @@
 import { readItem, readItems } from "@directus/sdk";
-import { buildEmailHtml, type EmailType } from "../../../utils/email-templates-mjml";
+import { buildWebViewHtml, type EmailType } from "../../../utils/email-templates-mjml";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, HoaEmail } from "~~/types/directus";
 
 /**
@@ -28,18 +28,22 @@ export default defineEventHandler(async (event) => {
         fields: [
           "id",
           "subject",
+          "subtitle",
           "content",
           "email_type",
           "greeting",
           "salutation",
           "include_board_footer",
+          "urgent",
           "status",
           "sent_at",
           {
             organization: [
               "id",
               "name",
+              "legal_name",
               "email",
+              "phone",
               "street_address",
               "city",
               "state",
@@ -104,21 +108,18 @@ export default defineEventHandler(async (event) => {
         }));
     }
 
-    // Build the HTML with generic placeholders (no personalization)
-    // The greeting will use the organization name instead of a recipient name
-    const html = buildEmailHtml({
+    // Build the HTML with SendGrid-matching style for web view
+    const html = buildWebViewHtml({
       organization,
       subject: email.subject,
+      subtitle: email.subtitle || undefined,
       content: email.content,
       emailType: email.email_type as EmailType,
       greeting: email.greeting || undefined,
       salutation: email.salutation || undefined,
       boardMembers: email.include_board_footer ? boardMembers : undefined,
-      recipientFirstName: undefined, // Use generic placeholder
       directusUrl: config.directus.url,
-      // Don't include web view link on the web view page itself
-      emailId: undefined,
-      appUrl: undefined,
+      urgent: email.urgent || false,
     });
 
     // Return the full HTML page
