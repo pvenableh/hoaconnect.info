@@ -172,7 +172,8 @@ export default defineEventHandler(async (event) => {
     );
 
     // Send invitation email via SendGrid
-    const invitationUrl = `${config.public.appUrl}/hoa/accept-invite?token=${token}`;
+    // Use custom domain if available, otherwise fall back to main app URL
+    const invitationUrl = `${orgUrl}/accept-invite?token=${token}`;
 
     try {
       await sendHoaInvitationEmail({
