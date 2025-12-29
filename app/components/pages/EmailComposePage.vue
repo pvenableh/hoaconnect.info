@@ -532,7 +532,10 @@ watch(
   { immediate: true }
 );
 
-// Send test email
+// Track current email ID (from props or after auto-save)
+const currentEmailId = ref<string | undefined>(props.emailId);
+
+// Send test email - auto-saves as draft first to get an email ID for "View in Browser" link
 const handleTestEmail = async () => {
   if (!orgId.value || !form.subject || !form.content) {
     toast.error("Please fill in subject and content first");
@@ -548,8 +551,30 @@ const handleTestEmail = async () => {
   testEmailResults.value = [];
 
   try {
+    // Auto-save as draft first if no email ID exists
+    // This ensures the "View in Browser" link works in test emails
+    let emailId = currentEmailId.value;
+
+    if (!emailId) {
+      const saveResult = await emailSystem.saveDraft({
+        organizationId: orgId.value,
+        subject: form.subject,
+        content: form.content,
+        emailType: form.emailType,
+        greeting: form.greeting || undefined,
+        salutation: form.salutation || undefined,
+        includeBoardFooter: form.includeBoardFooter,
+        status: "draft",
+        attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+      });
+      emailId = saveResult.email.id;
+      currentEmailId.value = emailId;
+      toast.info("Email auto-saved as draft");
+    }
+
     const result = await emailSystem.sendTestEmail({
       organizationId: orgId.value,
+      emailId,
       testEmails: testEmails.value,
       subject: form.subject,
       content: form.content,

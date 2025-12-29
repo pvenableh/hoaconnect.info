@@ -95,6 +95,7 @@ async function extractImagesAsCid(
 
 interface TestEmailBody {
   organizationId: string;
+  emailId: string; // Required - email must be saved as draft first for "View in Browser" link
   testEmails: string[]; // Array of email addresses to send test to
   subject: string;
   subtitle?: string;
@@ -117,13 +118,13 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent } = body;
+  const { organizationId, emailId, testEmails, subject, subtitle, content, emailType, greeting, salutation, includeBoardFooter = true, urgent } = body;
 
   // Validation
-  if (!organizationId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
+  if (!organizationId || !emailId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
     throw createError({
       statusCode: 400,
-      message: "Missing required fields: organizationId, testEmails, subject, content, emailType",
+      message: "Missing required fields: organizationId, emailId, testEmails, subject, content, emailType",
     });
   }
 
@@ -300,8 +301,8 @@ export default defineEventHandler(async (event) => {
             // Board members
             board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
 
-            // Links
-            Weblink: `${config.public.appUrl}/email/test-view`,
+            // Links - use the email ID for the "View in Browser" link
+            Weblink: `${config.public.appUrl}/api/email/view/${emailId}`,
 
             // Meta
             year: new Date().getFullYear().toString(),

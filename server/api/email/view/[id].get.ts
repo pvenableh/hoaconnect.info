@@ -60,8 +60,8 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Only allow viewing sent emails (not drafts)
-    if (email.status !== "sent") {
+    // Allow viewing sent emails and drafts (for test email "View in Browser" links)
+    if (email.status !== "sent" && email.status !== "draft") {
       throw createError({
         statusCode: 403,
         message: "This email is not available for viewing",
