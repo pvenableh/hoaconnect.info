@@ -26,6 +26,12 @@ export const useSelectedOrg = async () => {
     () => false
   );
 
+  // Track the last user ID we fetched for to prevent redundant fetches
+  const lastFetchedUserId = useState<string | null>(
+    "lastFetchedUserId",
+    () => null
+  );
+
   // Sync selected org to session (client-side only)
   const syncToSession = (orgId: string) => {
     // Only sync on client side - SSR doesn't have session cookies properly hydrated
@@ -72,10 +78,26 @@ export const useSelectedOrg = async () => {
         return [];
       }
 
+      // Skip redundant fetch if we already fetched for this user and have data
+      const cachedData = nuxtApp.payload.data?.["user-members"];
+      if (
+        lastFetchedUserId.value === user.value.id &&
+        cachedData &&
+        Array.isArray(cachedData) &&
+        cachedData.length > 0
+      ) {
+        console.log(
+          "[useSelectedOrg] Skipping fetch, already have data for user:",
+          user.value.id
+        );
+        return cachedData;
+      }
+
       console.log(
         "[useSelectedOrg] Fetching memberships for user:",
         user.value.id
       );
+      lastFetchedUserId.value = user.value.id;
 
       try {
         // STEP 1: Initialize selected org from session (SSR) or localStorage (client)
@@ -346,13 +368,20 @@ export const useSelectedOrg = async () => {
     console.log("[useSelectedOrg] Organization set to:", orgId);
   };
 
+  // Wrapper for refreshMemberships that clears the cache check first
+  const forceRefreshMemberships = async () => {
+    // Reset the cache check to force a fresh fetch
+    lastFetchedUserId.value = null;
+    return await refreshMemberships();
+  };
+
   return {
     selectedOrgId: computed(() => selectedOrgId.value),
     currentOrg,
     currentRole,
     memberships: computed(() => memberships.value || []),
     setOrganization,
-    refreshMemberships,
+    refreshMemberships: forceRefreshMemberships,
     hasMultipleOrgs: computed(
       () =>
         (Array.isArray(memberships.value) ? memberships.value.length : 0) > 1
