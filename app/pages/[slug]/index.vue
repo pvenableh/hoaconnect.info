@@ -352,12 +352,12 @@
 
             <!-- Additional CTA Button -->
             <div v-if="!user" class="mt-8">
-              <a
-                href="/signup"
+              <NuxtLink
+                :to="`/${slug}/signup`"
                 class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
               >
                 Become a Resident
-              </a>
+              </NuxtLink>
             </div>
           </div>
         </div>
