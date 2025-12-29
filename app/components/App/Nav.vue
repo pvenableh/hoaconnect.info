@@ -328,6 +328,11 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
+          <!-- Notification Bell - show on org pages/custom domains -->
+          <NotificationBell
+            v-if="!isMainMarketingDomain"
+            class="hidden sm:block"
+          />
           <OrgSelector class="hidden sm:flex" />
           <!-- User status badge - uses context-aware admin check -->
           <span
@@ -388,6 +393,14 @@ watch(
               <SheetHeader class="text-left">
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
+
+              <!-- Notifications Quick Access in Mobile Menu -->
+              <div
+                v-if="!isMainMarketingDomain"
+                class="py-3 border-b border-stone-200"
+              >
+                <NotificationBell />
+              </div>
 
               <!-- User Info in Mobile Menu -->
               <div
