@@ -29,7 +29,7 @@ const form = ref({
   phone: "",
   roleId: "",
   unitId: null as string | null,
-  personType: "owner" as "owner" | "tenant",
+  personType: "owner" as "owner" | "tenant" | "property_manager",
 });
 
 // Load roles and units on mount
@@ -242,6 +242,7 @@ const resetForm = () => {
                 >
                   <option value="owner">Owner</option>
                   <option value="tenant">Tenant</option>
+                  <option value="property_manager">Property Manager</option>
                 </select>
               </FormControl>
             </FormItem>

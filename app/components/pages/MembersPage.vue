@@ -16,7 +16,7 @@ const {
   update: updateMember,
   remove: removeMember,
 } = useDirectusItems("hoa_members");
-const { list: listInvitations } = useDirectusItems("hoa_invitations");
+const { list: listInvitations, update: updateInvitation } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
 const {
@@ -346,6 +346,44 @@ const handleInviteSuccess = () => {
   toast.success("Invitation sent successfully!");
   refreshInvitations();
   activeTab.value = "pending";
+};
+
+// Cancel invitation
+const cancellingInvitation = ref<string | null>(null);
+const handleCancelInvitation = async (invitationId: string) => {
+  if (!confirm("Are you sure you want to cancel this invitation?")) return;
+
+  cancellingInvitation.value = invitationId;
+  try {
+    await $fetch("/api/hoa/cancel-invitation", {
+      method: "POST",
+      body: { invitationId },
+    });
+    toast.success("Invitation canceled");
+    await refreshInvitations();
+  } catch (error: any) {
+    toast.error(error.data?.message || "Failed to cancel invitation");
+  } finally {
+    cancellingInvitation.value = null;
+  }
+};
+
+// Resend invitation
+const resendingInvitation = ref<string | null>(null);
+const handleResendInvitation = async (invitationId: string) => {
+  resendingInvitation.value = invitationId;
+  try {
+    await $fetch("/api/hoa/resend-invitation", {
+      method: "POST",
+      body: { invitationId },
+    });
+    toast.success("Invitation resent successfully");
+    await refreshInvitations();
+  } catch (error: any) {
+    toast.error(error.data?.message || "Failed to resend invitation");
+  } finally {
+    resendingInvitation.value = null;
+  }
 };
 
 // Board term modal
@@ -743,7 +781,7 @@ useSeoMeta({
                       <div>
                         <p class="font-medium">{{ invitation.email }}</p>
                         <p class="text-sm text-stone-600">
-                          Role ID: {{ invitation.role || "N/A" }}
+                          Role: {{ getRoleDisplay(invitation.role) }}
                         </p>
                         <p class="text-xs text-stone-500 mt-1">
                           Invited by
@@ -754,22 +792,54 @@ useSeoMeta({
                       </div>
                     </div>
                   </div>
-                  <div class="text-right">
-                    <div
-                      v-if="isExpired(invitation.expires_at)"
-                      class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded"
-                    >
-                      Expired
+                  <div class="flex items-center gap-4">
+                    <div class="text-right">
+                      <div
+                        v-if="isExpired(invitation.expires_at)"
+                        class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded"
+                      >
+                        Expired
+                      </div>
+                      <div
+                        v-else
+                        class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded"
+                      >
+                        Pending
+                      </div>
+                      <p class="text-xs text-stone-500 mt-1">
+                        Expires {{ formatDate(invitation.expires_at) }}
+                      </p>
                     </div>
-                    <div
-                      v-else
-                      class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded"
-                    >
-                      Pending
+                    <div class="flex gap-2">
+                      <Button
+                        @click="handleResendInvitation(invitation.id)"
+                        variant="outline"
+                        size="sm"
+                        :disabled="resendingInvitation === invitation.id"
+                      >
+                        <Icon
+                          v-if="resendingInvitation === invitation.id"
+                          name="lucide:loader-2"
+                          class="w-4 h-4 animate-spin"
+                        />
+                        <Icon v-else name="lucide:send" class="w-4 h-4" />
+                        <span class="ml-1 hidden sm:inline">Resend</span>
+                      </Button>
+                      <Button
+                        @click="handleCancelInvitation(invitation.id)"
+                        variant="destructive"
+                        size="sm"
+                        :disabled="cancellingInvitation === invitation.id"
+                      >
+                        <Icon
+                          v-if="cancellingInvitation === invitation.id"
+                          name="lucide:loader-2"
+                          class="w-4 h-4 animate-spin"
+                        />
+                        <Icon v-else name="lucide:x" class="w-4 h-4" />
+                        <span class="ml-1 hidden sm:inline">Cancel</span>
+                      </Button>
                     </div>
-                    <p class="text-xs text-stone-500 mt-1">
-                      Expires {{ formatDate(invitation.expires_at) }}
-                    </p>
                   </div>
                 </div>
 
@@ -981,6 +1051,7 @@ useSeoMeta({
                   >
                     <option value="owner">Owner</option>
                     <option value="tenant">Tenant</option>
+                    <option value="property_manager">Property Manager</option>
                   </select>
                 </div>
                 <div class="grid gap-2">
