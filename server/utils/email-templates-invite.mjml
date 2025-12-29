@@ -5,7 +5,7 @@
       <mj-font name="Avenir" href="https://camila.life/fonts/1e9892c0-6927-4412-9874-1b82801ba47a.woff" />
       <mj-all font-family="Avenir" />
       <mj-breakpoint width="400px" />
-      <mj-style> html,body,.avenir { font-family: "Avenir", Roboto, Helvetica, Arial, sans-serif; font-weight: 300; line-height: 1.4em; font-size:12px; } p { line-height: 1.4em; padding-bottom: 10px; } img {max-width:100%!important; height: auto !important;} .button-link { display: inline-block; background: #3b82f6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px; } .button-link:hover { background: #2563eb; } </mj-style>
+      <mj-style> html,body,.avenir { font-family: "Avenir", Roboto, Helvetica, Arial, sans-serif; font-weight: 300; line-height: 1.4em; font-size:12px; } p { line-height: 1.4em; padding-bottom: 10px; } img {max-width:100%!important; height: auto !important;} </mj-style>
     </mj-attributes>
     <mj-preview>
       {{#equals email_type "invitation"}}You've been invited to join {{org_name}}{{/equals}}
@@ -14,19 +14,37 @@
     </mj-preview>
   </mj-head>
   <mj-body background-color="#ffffff">
+    <!-- Open in Browser Banner -->
+    <mj-section padding="0px" full-width>
+      <mj-column width="100%" padding="0px">
+        <mj-button href="{{Weblink}}" padding="10px 25px" text-decoration="none" width="100%" text-transform="uppercase" font-size="6px" border-radius="0px" letter-spacing="0.4em" css-class="avenir" background-color="#414141" color="#ffffff">Open this email in a Web browser</mj-button>
+      </mj-column>
+    </mj-section>
+
     <!-- Logo Header -->
     <mj-section padding="0px" full-width>
       <mj-column width="100%" padding="0px">
-        <mj-image href="{{org_url}}" src="{{org_logo_url}}" padding="20px 30px" fluid-on-mobile="false" width="150px"></mj-image>
+        <mj-image href="{{org_url}}" src="{{org_logo_url}}" padding="20px 30px 0px" fluid-on-mobile="false" width="150px"></mj-image>
       </mj-column>
     </mj-section>
+
+    <!-- Fallback if no logo - org name text -->
+    <mj-raw>{{#unless org_logo_url}}</mj-raw>
+    <mj-section padding="20px 30px 0px" full-width>
+      <mj-column width="100%">
+        <mj-text align="center" css-class="avenir" padding="0">
+          <a href="{{org_url}}" style="display: inline-block; font-family:Avenir; text-decoration: none; color: #666666; letter-spacing: 0.15em; font-weight: 700; font-size: 16px; line-height:20px; text-transform: uppercase;">{{org_name}}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-raw>{{/unless}}</mj-raw>
 
     <!-- Title Section -->
     <mj-section background-color="#fff" padding="20px 0px 20px" full-width="full-width">
       <mj-column width="100%">
         <mj-text align="center" css-class="avenir" padding="0 10px">
           <p style="font-weight: 400; line-height: 12px; font-size: 9px; text-transform: uppercase;" class="avenir">To the attention of <span style="font-weight: 700">{{first_name}}</span>:</p>
-          <h3 style="font-weight: 700; line-height: 24px; font-size: 20px; text-transform: uppercase;" class="avenir">{{subject}}</h3>
+          <h3 style="font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase;" class="avenir">{{subject}}</h3>
         </mj-text>
       </mj-column>
     </mj-section>
@@ -39,10 +57,10 @@
     </mj-section>
 
     <!-- INVITATION EMAIL CONTENT -->
-    {{#equals email_type "invitation"}}
-    <mj-section full-width>
+    <mj-raw>{{#equals email_type "invitation"}}</mj-raw>
+    <mj-section full-width padding="20px 0 0">
       <mj-column width="100%">
-        <mj-text css-class="avenir" align="left" padding="0 10px">
+        <mj-text css-class="avenir" align="left" padding="0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em;" class="avenir">
             Hello {{first_name}},
           </p>
@@ -53,10 +71,18 @@
             Click the button below to create your account and get started:
           </p>
         </mj-text>
-        <mj-button href="{{invitation_url}}" background-color="#3b82f6" color="#ffffff" font-size="12px" font-weight="600" text-transform="uppercase" letter-spacing="0.1em" padding="20px 10px" border-radius="6px">
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="10px 0 20px">
+      <mj-column width="100%">
+        <mj-button href="{{invitation_url}}" background-color="#3b82f6" color="#ffffff" font-size="12px" font-weight="600" text-transform="uppercase" letter-spacing="0.1em" padding="10px" border-radius="6px" css-class="avenir">
           Accept Invitation
         </mj-button>
-        <mj-text css-class="avenir" align="left" padding="20px 10px 0 10px">
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="0">
+      <mj-column width="100%">
+        <mj-text css-class="avenir" align="left" padding="0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em; font-size: 11px; color: #9ca3af;" class="avenir">
             This invitation expires on <strong>{{expiration_date}}</strong>.
           </p>
@@ -66,13 +92,13 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    {{/equals}}
+    <mj-raw>{{/equals}}</mj-raw>
 
     <!-- WELCOME EMAIL CONTENT -->
-    {{#equals email_type "welcome"}}
-    <mj-section full-width>
+    <mj-raw>{{#equals email_type "welcome"}}</mj-raw>
+    <mj-section full-width padding="20px 0 0">
       <mj-column width="100%">
-        <mj-text css-class="avenir" align="left" padding="0 10px">
+        <mj-text css-class="avenir" align="left" padding="0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em;" class="avenir">
             Hello {{first_name}},
           </p>
@@ -82,30 +108,38 @@
           <p style="font-weight: 400; line-height: 1.6em;" class="avenir">
             Here's what you can do:
           </p>
-          <ul style="font-weight: 400; line-height: 1.8em; padding-left: 20px;" class="avenir">
+          <ul style="font-weight: 400; line-height: 1.8em; padding-left: 20px; margin: 0 0 16px 0;" class="avenir">
             <li>Manage members and units</li>
             <li>Send announcements and newsletters</li>
             <li>Track payments and dues</li>
             <li>Access community documents</li>
           </ul>
         </mj-text>
-        <mj-button href="{{login_url}}" background-color="#3b82f6" color="#ffffff" font-size="12px" font-weight="600" text-transform="uppercase" letter-spacing="0.1em" padding="20px 10px" border-radius="6px">
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="10px 0 20px">
+      <mj-column width="100%">
+        <mj-button href="{{login_url}}" background-color="#3b82f6" color="#ffffff" font-size="12px" font-weight="600" text-transform="uppercase" letter-spacing="0.1em" padding="10px" border-radius="6px" css-class="avenir">
           Log In Now
         </mj-button>
-        <mj-text css-class="avenir" align="left" padding="20px 10px 0 10px">
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="0">
+      <mj-column width="100%">
+        <mj-text css-class="avenir" align="left" padding="0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em; font-size: 11px; color: #9ca3af;" class="avenir">
             If you have any questions, please reach out to our support team.
           </p>
         </mj-text>
       </mj-column>
     </mj-section>
-    {{/equals}}
+    <mj-raw>{{/equals}}</mj-raw>
 
     <!-- ACCEPTED NOTIFICATION EMAIL CONTENT -->
-    {{#equals email_type "accepted"}}
-    <mj-section full-width>
+    <mj-raw>{{#equals email_type "accepted"}}</mj-raw>
+    <mj-section full-width padding="20px 0 0">
       <mj-column width="100%">
-        <mj-text css-class="avenir" align="left" padding="0 10px">
+        <mj-text css-class="avenir" align="left" padding="0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em;" class="avenir">
             Hello {{first_name}},
           </p>
@@ -113,34 +147,38 @@
             Great news! <strong>{{member_name}}</strong> has accepted your invitation and joined <strong>{{org_name}}</strong>.
           </p>
         </mj-text>
-        <mj-section padding="10px">
-          <mj-column width="100%" background-color="#f9fafb" border-radius="8px">
-            <mj-text css-class="avenir" align="left" padding="15px">
-              <p style="font-weight: 700; line-height: 1.4em; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 10px;" class="avenir">Member Details</p>
-              <p style="font-weight: 400; line-height: 1.6em; margin: 5px 0;" class="avenir"><strong>Name:</strong> {{member_name}}</p>
-              <p style="font-weight: 400; line-height: 1.6em; margin: 5px 0;" class="avenir"><strong>Email:</strong> {{member_email}}</p>
-            </mj-text>
-          </mj-column>
-        </mj-section>
-        <mj-text css-class="avenir" align="left" padding="10px 10px 0 10px">
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="10px">
+      <mj-column width="100%" background-color="#f9fafb" border-radius="8px">
+        <mj-text css-class="avenir" align="left" padding="15px" line-height="1.6em">
+          <p style="font-weight: 700; line-height: 1.4em; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin: 0 0 10px 0;" class="avenir">Member Details</p>
+          <p style="font-weight: 400; line-height: 1.6em; margin: 5px 0;" class="avenir"><strong>Name:</strong> {{member_name}}</p>
+          <p style="font-weight: 400; line-height: 1.6em; margin: 5px 0;" class="avenir"><strong>Email:</strong> {{member_email}}</p>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section full-width padding="0 0 20px">
+      <mj-column width="100%">
+        <mj-text css-class="avenir" align="left" padding="10px 10px 0 10px" line-height="1.6em">
           <p style="font-weight: 400; line-height: 1.6em; font-size: 11px; color: #9ca3af;" class="avenir">
             You can view and manage all members from your organization dashboard.
           </p>
         </mj-text>
       </mj-column>
     </mj-section>
-    {{/equals}}
+    <mj-raw>{{/equals}}</mj-raw>
 
     <!-- Salutation -->
-    <mj-section full-width="full-width" text-align="left">
+    <mj-section full-width="full-width" text-align="left" padding="0px 0px 20px 0">
       <mj-column width="100%">
-        <mj-text css-class="avenir" align="left" padding="20px 10px 0 10px">
+        <mj-text css-class="avenir" align="left" padding="0 10px">
           <p style="font-weight: 400; line-height: 1.6em;" class="avenir">Best regards,</p>
           <p style="font-weight: 500; line-height: 1.6em;" class="avenir">{{org_name}} Team <span style="font-size: 16px;">☀️</span></p>
         </mj-text>
       </mj-column>
       <mj-column width="100%">
-        <mj-divider border-width="1px" border-style="solid" border-color="lightgrey" padding="20px 10px 0px" />
+        <mj-divider border-width="1px" border-style="solid" border-color="lightgrey" padding="40px 10px 0px" />
       </mj-column>
     </mj-section>
 
@@ -149,11 +187,11 @@
       <mj-column width="40%">
         <mj-text align="center" color="#666666" font-size="10px" padding-bottom="10px" padding-top="0px" text-transform="uppercase"><a href="{{org_url}}" style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">{{org_name}}</a></mj-text>
       </mj-column>
-      {{#if org_phone_number}}
+      <mj-raw>{{#if org_phone_number}}</mj-raw>
       <mj-column width="40%">
         <mj-text align="center" color="#666666" font-size="10px" padding-bottom="10px" padding-top="0px" text-transform="uppercase"><a href="tel:{{org_phone_number}}" style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">{{org_phone_number}}</a></mj-text>
       </mj-column>
-      {{/if}}
+      <mj-raw>{{/if}}</mj-raw>
     </mj-section>
 
     <!-- Copyright -->
