@@ -376,7 +376,7 @@ export default defineEventHandler(async (event) => {
         : `Sent to ${successCount}, failed for ${failedCount} address${failedCount > 1 ? "es" : ""}`,
       results,
       details: {
-        htmlLength: html.length,
+        htmlLength: personalizedContent.length,
         textLength: text.length,
         imagesProcessed: cidImages.length,
         boardMembersIncluded: boardMembers.length,
