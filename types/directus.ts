@@ -424,7 +424,7 @@ export interface HoaMember {
 	last_name?: string | null;
 	email?: string | null;
 	phone?: string | null;
-	member_type?: 'owner' | 'tenant' | null;
+	member_type?: 'owner' | 'tenant' | 'property_manager' | null;
 	total_payments?: number | null;
 	last_payment_date?: string | null;
 	last_payment_amount?: number | null;

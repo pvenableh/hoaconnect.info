@@ -47,6 +47,24 @@
           </p>
         </div>
 
+        <!-- Property Type -->
+        <div class="space-y-2">
+          <Label for="type">Property Type</Label>
+          <select
+            id="type"
+            v-model="form.type"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+            :disabled="isSaving"
+          >
+            <option value="">Select property type...</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+          </select>
+          <p class="text-xs text-muted-foreground">
+            The type of property this organization manages
+          </p>
+        </div>
+
         <!-- Slug (Read-only) -->
         <div class="space-y-2">
           <Label for="slug">URL Slug</Label>
@@ -204,6 +222,7 @@ const isSaving = ref(false);
 const form = reactive({
   name: props.organization.name || "",
   legal_name: props.organization.legal_name || "",
+  type: props.organization.type || "",
   email: props.organization.email || "",
   phone: props.organization.phone || "",
   street_address: props.organization.street_address || "",
@@ -228,6 +247,7 @@ const hasChanges = computed(() => {
   return (
     form.name !== (props.organization.name || "") ||
     form.legal_name !== (props.organization.legal_name || "") ||
+    form.type !== (props.organization.type || "") ||
     form.email !== (props.organization.email || "") ||
     form.phone !== (props.organization.phone || "") ||
     form.street_address !== (props.organization.street_address || "") ||
@@ -245,6 +265,7 @@ watch(
   (newOrg) => {
     form.name = newOrg.name || "";
     form.legal_name = newOrg.legal_name || "";
+    form.type = newOrg.type || "";
     form.email = newOrg.email || "";
     form.phone = newOrg.phone || "";
     form.street_address = newOrg.street_address || "";
@@ -267,6 +288,7 @@ const saveChanges = async () => {
     const updated = await updateOrganization(props.organization.id, {
       name: form.name,
       legal_name: form.legal_name,
+      type: form.type || null,
       email: form.email,
       phone: form.phone,
       street_address: form.street_address,
