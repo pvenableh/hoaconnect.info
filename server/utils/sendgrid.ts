@@ -16,6 +16,45 @@ const initSendGrid = () => {
 };
 
 /**
+ * Unified invite email template data
+ * Used for invitation, welcome, and accepted notification emails
+ */
+export interface InviteEmailTemplateData {
+  // Email type (determines content displayed)
+  email_type: 'invitation' | 'welcome' | 'accepted';
+
+  // Recipient info
+  first_name: string;
+  last_name?: string;
+
+  // For invitation emails
+  inviter_name?: string;
+  role_name?: string;
+  expiration_date?: string;
+  invitation_url?: string;
+
+  // For accepted notification emails
+  member_name?: string;
+  member_email?: string;
+
+  // For welcome emails
+  login_url?: string;
+
+  // Organization info (shared across all types)
+  org_name: string;
+  org_legal_name?: string;
+  org_logo_url?: string;
+  org_url?: string;
+  org_phone_number?: string;
+  org_email?: string;
+  org_address?: string;
+
+  // Email metadata
+  subject: string;
+  year?: string;
+}
+
+/**
  * Send HOA invitation email
  */
 export const sendHoaInvitationEmail = async ({
@@ -27,6 +66,13 @@ export const sendHoaInvitationEmail = async ({
   inviterName,
   roleName,
   expiresAt,
+  // New organization fields
+  orgLogoUrl,
+  orgUrl,
+  orgPhoneNumber,
+  orgEmail,
+  orgAddress,
+  orgLegalName,
 }: {
   to: string;
   firstName: string;
@@ -36,6 +82,13 @@ export const sendHoaInvitationEmail = async ({
   inviterName: string;
   roleName: string;
   expiresAt: string;
+  // New optional organization fields
+  orgLogoUrl?: string;
+  orgUrl?: string;
+  orgPhoneNumber?: string;
+  orgEmail?: string;
+  orgAddress?: string;
+  orgLegalName?: string;
 }) => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
@@ -48,21 +101,30 @@ export const sendHoaInvitationEmail = async ({
     day: "numeric",
   });
 
+  const templateData: InviteEmailTemplateData = {
+    email_type: 'invitation',
+    first_name: firstName,
+    last_name: lastName,
+    inviter_name: inviterName,
+    role_name: roleName,
+    expiration_date: expirationDate,
+    invitation_url: invitationUrl,
+    org_name: organizationName,
+    org_legal_name: orgLegalName,
+    org_logo_url: orgLogoUrl,
+    org_url: orgUrl,
+    org_phone_number: orgPhoneNumber,
+    org_email: orgEmail,
+    org_address: orgAddress,
+    subject: `You've been invited to join ${organizationName}`,
+    year: new Date().getFullYear().toString(),
+  };
+
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridInvitationTemplateId, // You'll need to create this in SendGrid
-    dynamicTemplateData: {
-      firstName,
-      lastName,
-      organizationName,
-      invitationUrl,
-      inviterName,
-      roleName,
-      expirationDate,
-      // Additional template variables
-      subject: `You've been invited to join ${organizationName}`,
-    },
+    templateId: config.sendgridInvitationTemplateId,
+    dynamicTemplateData: templateData,
   };
 
   try {
@@ -86,28 +148,51 @@ export const sendWelcomeEmail = async ({
   lastName,
   organizationName,
   loginUrl,
+  // New organization fields
+  orgLogoUrl,
+  orgUrl,
+  orgPhoneNumber,
+  orgEmail,
+  orgAddress,
+  orgLegalName,
 }: {
   to: string;
   firstName: string;
   lastName: string;
   organizationName: string;
   loginUrl: string;
+  // New optional organization fields
+  orgLogoUrl?: string;
+  orgUrl?: string;
+  orgPhoneNumber?: string;
+  orgEmail?: string;
+  orgAddress?: string;
+  orgLegalName?: string;
 }) => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
+  const templateData: InviteEmailTemplateData = {
+    email_type: 'welcome',
+    first_name: firstName,
+    last_name: lastName,
+    login_url: loginUrl,
+    org_name: organizationName,
+    org_legal_name: orgLegalName,
+    org_logo_url: orgLogoUrl,
+    org_url: orgUrl,
+    org_phone_number: orgPhoneNumber,
+    org_email: orgEmail,
+    org_address: orgAddress,
+    subject: `Welcome to ${organizationName}!`,
+    year: new Date().getFullYear().toString(),
+  };
+
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridWelcomeTemplateId, // You'll need to create this in SendGrid
-    dynamicTemplateData: {
-      firstName,
-      lastName,
-      organizationName,
-      loginUrl,
-      // Additional template variables
-      subject: `Welcome to ${organizationName}!`,
-    },
+    templateId: config.sendgridWelcomeTemplateId,
+    dynamicTemplateData: templateData,
   };
 
   try {
@@ -131,28 +216,51 @@ export const sendInvitationAcceptedEmail = async ({
   memberName,
   memberEmail,
   organizationName,
+  // New organization fields
+  orgLogoUrl,
+  orgUrl,
+  orgPhoneNumber,
+  orgEmail,
+  orgAddress,
+  orgLegalName,
 }: {
   to: string;
   adminName: string;
   memberName: string;
   memberEmail: string;
   organizationName: string;
+  // New optional organization fields
+  orgLogoUrl?: string;
+  orgUrl?: string;
+  orgPhoneNumber?: string;
+  orgEmail?: string;
+  orgAddress?: string;
+  orgLegalName?: string;
 }) => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
+  const templateData: InviteEmailTemplateData = {
+    email_type: 'accepted',
+    first_name: adminName,
+    member_name: memberName,
+    member_email: memberEmail,
+    org_name: organizationName,
+    org_legal_name: orgLegalName,
+    org_logo_url: orgLogoUrl,
+    org_url: orgUrl,
+    org_phone_number: orgPhoneNumber,
+    org_email: orgEmail,
+    org_address: orgAddress,
+    subject: `${memberName} has joined ${organizationName}`,
+    year: new Date().getFullYear().toString(),
+  };
+
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridInvitationAcceptedTemplateId, // You'll need to create this in SendGrid
-    dynamicTemplateData: {
-      adminName,
-      memberName,
-      memberEmail,
-      organizationName,
-      // Additional template variables
-      subject: `${memberName} has joined ${organizationName}`,
-    },
+    templateId: config.sendgridInvitationAcceptedTemplateId,
+    dynamicTemplateData: templateData,
   };
 
   try {
