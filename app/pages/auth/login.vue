@@ -76,7 +76,8 @@ const handleSubmit = async (values: { email: string; password: string }) => {
 
       if (currentHostname === targetDomain) {
         // Already on the custom domain, session is set - just redirect to dashboard
-        window.location.href = '/dashboard';
+        // Use navigateTo instead of window.location.href to prevent full page reload
+        await navigateTo('/dashboard', { replace: true });
         return;
       }
 
@@ -93,21 +94,21 @@ const handleSubmit = async (values: { email: string; password: string }) => {
           customDomainUrl.searchParams.set('_auth_token', tokenResponse.token);
         }
 
-        window.location.href = customDomainUrl.toString();
+        // Cross-domain navigation requires external: true
+        await navigateTo(customDomainUrl.toString(), { external: true });
         return;
       } catch (tokenError) {
         // If token generation fails, redirect anyway (user will need to re-login on custom domain)
         console.warn('Failed to generate cross-domain token:', tokenError);
-        window.location.href = `${window.location.protocol}//${org.custom_domain}`;
+        await navigateTo(`${window.location.protocol}//${org.custom_domain}`, { external: true });
         return;
       }
     } else if (org?.slug) {
-      // Redirect to organization slug path - use window.location for full page refresh
-      // This ensures the navigation re-renders all components with updated auth state
-      window.location.href = `/${org.slug}`;
+      // Redirect to organization slug path using navigateTo for smooth client-side navigation
+      await navigateTo(`/${org.slug}`, { replace: true });
     } else {
-      // No organization, redirect to dashboard with full page refresh
-      window.location.href = "/dashboard";
+      // No organization, redirect to dashboard
+      await navigateTo("/dashboard", { replace: true });
     }
   } catch (error: any) {
     console.error('[login] Login failed:', error);

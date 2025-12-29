@@ -20,6 +20,10 @@ export default defineNuxtPlugin(() => {
   let proactiveRefreshInterval: ReturnType<typeof setInterval> | null = null;
   let isRefreshing = false;
   let visibilityHandler: (() => void) | null = null;
+  let initialCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Track if we're in the initial login transition to avoid redundant fetches
+  const isInitialLoginTransition = ref(false);
 
   const refreshToken = async () => {
     if (isRefreshing) {
@@ -98,12 +102,31 @@ export default defineNuxtPlugin(() => {
   };
 
   // Start monitoring when logged in
-  watch(loggedIn, (isLoggedIn) => {
+  watch(loggedIn, (isLoggedIn, wasLoggedIn) => {
     if (isLoggedIn) {
       console.log('[auth-refresh] Starting token refresh monitoring');
 
-      // Check immediately on login
-      checkAndRefreshToken();
+      // Clear any pending initial check timeout
+      if (initialCheckTimeout) {
+        clearTimeout(initialCheckTimeout);
+        initialCheckTimeout = null;
+      }
+
+      // Delay initial check to avoid redundant fetches during login transition
+      // This gives the app time to complete navigation and initial data loading
+      const isNewLogin = !wasLoggedIn;
+      if (isNewLogin) {
+        isInitialLoginTransition.value = true;
+        console.log('[auth-refresh] New login detected, delaying initial token check...');
+        initialCheckTimeout = setTimeout(() => {
+          isInitialLoginTransition.value = false;
+          console.log('[auth-refresh] Initial login transition complete, starting token checks');
+          checkAndRefreshToken();
+        }, 3000); // 3 second delay to let initial navigation complete
+      } else {
+        // Already logged in (e.g., page refresh), check immediately
+        checkAndRefreshToken();
+      }
 
       // Check every minute for expiration
       if (!checkInterval) {
@@ -122,7 +145,7 @@ export default defineNuxtPlugin(() => {
       // This handles cases where browser throttles timers in background tabs
       if (!visibilityHandler) {
         visibilityHandler = () => {
-          if (document.visibilityState === 'visible' && loggedIn.value) {
+          if (document.visibilityState === 'visible' && loggedIn.value && !isInitialLoginTransition.value) {
             console.log('[auth-refresh] Tab became visible, checking token...');
             checkAndRefreshToken();
           }
@@ -132,6 +155,11 @@ export default defineNuxtPlugin(() => {
     } else {
       // Stop monitoring when logged out
       console.log('[auth-refresh] Stopping token refresh monitoring');
+
+      if (initialCheckTimeout) {
+        clearTimeout(initialCheckTimeout);
+        initialCheckTimeout = null;
+      }
 
       if (checkInterval) {
         clearInterval(checkInterval);
@@ -147,12 +175,17 @@ export default defineNuxtPlugin(() => {
         document.removeEventListener('visibilitychange', visibilityHandler);
         visibilityHandler = null;
       }
+
+      isInitialLoginTransition.value = false;
     }
   }, { immediate: true });
 
   // Cleanup on app unmount
   if (import.meta.client) {
     window.addEventListener('beforeunload', () => {
+      if (initialCheckTimeout) {
+        clearTimeout(initialCheckTimeout);
+      }
       if (checkInterval) {
         clearInterval(checkInterval);
       }
