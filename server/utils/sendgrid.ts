@@ -123,7 +123,7 @@ export const sendHoaInvitationEmail = async ({
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridInvitationTemplateId,
+    templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
 
@@ -191,7 +191,7 @@ export const sendWelcomeEmail = async ({
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridWelcomeTemplateId,
+    templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
 
@@ -259,7 +259,7 @@ export const sendInvitationAcceptedEmail = async ({
   const msg = {
     to,
     from: config.public.fromEmail || "noreply@605lincolnroad.com",
-    templateId: config.sendgridInvitationAcceptedTemplateId,
+    templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
 
