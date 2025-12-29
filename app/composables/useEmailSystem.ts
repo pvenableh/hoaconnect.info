@@ -107,6 +107,7 @@ export interface EmailPreviewResponse {
 
 export interface EmailTestData {
   organizationId: string;
+  emailId: string; // Required - email must be saved as draft first
   testEmails: string[]; // Array of email addresses to send test to
   subject: string;
   content: string;
