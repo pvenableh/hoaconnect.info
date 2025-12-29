@@ -17,7 +17,7 @@
             </p>
           </div>
           <Switch
-            v-model:checked="form.maintenance_mode"
+            v-model="form.maintenance_mode"
             :disabled="isSaving"
           />
         </div>

@@ -746,7 +746,7 @@ useSeoMeta({
                 <div class="flex items-center gap-3">
                   <Switch
                     id="include-board"
-                    v-model:checked="form.includeBoardFooter"
+                    v-model="form.includeBoardFooter"
                   />
                   <Label for="include-board" class="cursor-pointer">
                     Include board members in footer
