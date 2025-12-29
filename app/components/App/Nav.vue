@@ -144,7 +144,7 @@ const handleLogout = async () => {
 const buildPath = (path: string) => {
   // On custom domains, never add slug prefix - the domain IS the org context
   if (isCustomDomain.value) {
-    return path.startsWith('/') ? path : `/${path}`;
+    return path.startsWith("/") ? path : `/${path}`;
   }
   if (!currentSlug.value) return path;
   // Home path just goes to org root
@@ -171,17 +171,23 @@ const hideNavForMaintenance = computed(() => {
 
 // Public navigation items (visible to all authenticated users)
 const publicNavItems = computed(() => {
-  const items = [
-    { label: "Home", path: buildPath("/"), icon: "home" },
-  ];
+  const items = [{ label: "Home", path: buildPath("/"), icon: "home" }];
 
   // Only show Board link if show_board is not false
   if (showBoard.value) {
     items.push({ label: "Board", path: buildPath("/board"), icon: "award" });
   }
 
-  items.push({ label: "Announcements", path: buildPath("/announcements"), icon: "megaphone" });
-  items.push({ label: "Documents", path: buildPath("/documents"), icon: "file" });
+  items.push({
+    label: "Announcements",
+    path: buildPath("/announcements"),
+    icon: "megaphone",
+  });
+  items.push({
+    label: "Documents",
+    path: buildPath("/documents"),
+    icon: "file",
+  });
 
   return items;
 });
@@ -294,7 +300,10 @@ watch(
         </div>
 
         <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in (hidden in maintenance mode for non-admins) -->
-        <div v-else-if="user && !hideNavForMaintenance" class="hidden md:flex gap-6">
+        <div
+          v-else-if="user && !hideNavForMaintenance"
+          class="hidden md:flex gap-6"
+        >
           <!-- Public Navigation Items -->
           <NuxtLink
             v-for="item in publicNavItems"
@@ -303,13 +312,16 @@ watch(
             class="flex items-center gap-2 hover:text-stone-600 transition-colors uppercase text-xs tracking-wider"
             active-class="text-stone-900 font-medium"
           >
-            <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4" />
+            <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4 hidden" />
             {{ item.label }}
           </NuxtLink>
         </div>
 
         <!-- Empty spacer when logged in but in maintenance mode (non-admin) -->
-        <div v-else-if="user && hideNavForMaintenance" class="hidden md:flex"></div>
+        <div
+          v-else-if="user && hideNavForMaintenance"
+          class="hidden md:flex"
+        ></div>
 
         <!-- Empty spacer when on org page or custom domain but not logged in -->
         <div v-else class="hidden md:flex"></div>
@@ -323,8 +335,10 @@ watch(
             class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
             :class="{
               'bg-amber-100 text-amber-800': showAdminUI,
-              'bg-blue-100 text-blue-800': !showAdminUI && userStatusBadge === 'Board Member',
-              'bg-stone-100 text-stone-700': !showAdminUI && userStatusBadge !== 'Board Member',
+              'bg-blue-100 text-blue-800':
+                !showAdminUI && userStatusBadge === 'Board Member',
+              'bg-stone-100 text-stone-700':
+                !showAdminUI && userStatusBadge !== 'Board Member',
             }"
           >
             {{ userStatusBadge }}
@@ -408,8 +422,10 @@ watch(
                     class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
                     :class="{
                       'bg-amber-100 text-amber-800': showAdminUI,
-                      'bg-blue-100 text-blue-800': !showAdminUI && userStatusBadge === 'Board Member',
-                      'bg-stone-100 text-stone-700': !showAdminUI && userStatusBadge !== 'Board Member',
+                      'bg-blue-100 text-blue-800':
+                        !showAdminUI && userStatusBadge === 'Board Member',
+                      'bg-stone-100 text-stone-700':
+                        !showAdminUI && userStatusBadge !== 'Board Member',
                     }"
                   >
                     {{ userStatusBadge }}
@@ -440,7 +456,7 @@ watch(
                   >
                     <Icon
                       :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 text-stone-600"
+                      class="w-5 h-5 text-stone-600 hidden"
                     />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
@@ -462,7 +478,7 @@ watch(
                   >
                     <Icon
                       :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 text-stone-600"
+                      class="w-5 h-5 text-stone-600 hidden"
                     />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
@@ -537,7 +553,7 @@ watch(
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-stone-100 transition-colors text-xs uppercase tracking-wider text-stone-600"
           active-class="bg-stone-100 text-stone-900 font-medium"
         >
-          <Icon :name="'i-lucide-' + item.icon" class="w-3.5 h-3.5" />
+          <Icon :name="'i-lucide-' + item.icon" class="w-3.5 h-3.5 hidden" />
           {{ item.label }}
         </NuxtLink>
       </div>
