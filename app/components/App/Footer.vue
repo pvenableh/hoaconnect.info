@@ -38,7 +38,9 @@ const getStartedUrl = computed(() => {
 });
 
 // Check if Get Started link should be external (on org pages)
-const isGetStartedExternal = computed(() => isOnOrgPage.value && !!config.public.mainDomain);
+const isGetStartedExternal = computed(
+  () => isOnOrgPage.value && !!config.public.mainDomain
+);
 
 // Footer links for public users
 const publicLinks = computed(() => [
@@ -48,7 +50,11 @@ const publicLinks = computed(() => [
       { label: "Features", path: "/#features" },
       { label: "Pricing", path: "/#plans" },
       // Always show Get Started - links to main domain on org pages
-      { label: "Get Started", path: getStartedUrl.value, external: isGetStartedExternal.value },
+      {
+        label: "Get Started",
+        path: getStartedUrl.value,
+        external: isGetStartedExternal.value,
+      },
     ],
   },
   {
@@ -67,11 +73,13 @@ const publicLinks = computed(() => [
   },
 ]);
 
-const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLinks.value));
+const footerLinks = computed(() =>
+  user.value ? authenticatedLinks : publicLinks.value
+);
 </script>
 
 <template>
-  <footer class="bg-gray-900 text-gray-300">
+  <footer class="text-gray-300">
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
         <!-- Brand Section -->
@@ -88,7 +96,9 @@ const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLink
           :key="section.title"
           class="md:col-span-1"
         >
-          <h4 class="text-white font-semibold mb-4 uppercase text-xs tracking-wider">
+          <h4
+            class="text-white font-semibold mb-4 uppercase text-xs tracking-wider"
+          >
             {{ section.title }}
           </h4>
           <ul class="space-y-2">
@@ -125,7 +135,7 @@ const footerLinks = computed(() => (user.value ? authenticatedLinks : publicLink
         </p>
 
         <!-- Social Links (Optional) -->
-        <div class="flex gap-4 mt-4 md:mt-0">
+        <div class="flex gap-4 mt-4 md:mt-0 hidden">
           <a
             href="#"
             class="text-gray-400 hover:text-white transition"
