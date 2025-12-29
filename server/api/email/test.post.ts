@@ -291,7 +291,7 @@ export default defineEventHandler(async (event) => {
             org_name: organization.name || 'Your HOA',
             org_legal_name: organization.legal_name || undefined,
             org_type: organization.type || undefined,
-            org_logo_url: orgLogoUrl,
+            org_logo_url: orgLogoUrl || '',
             org_url: orgUrl,
             org_address: orgAddress || undefined,
             org_email: organization.email || undefined,
