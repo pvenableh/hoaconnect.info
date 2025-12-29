@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { HoaAnnouncement } from "~~/types/directus";
-
 const { user } = useDirectusAuth();
 
 // Always initialize useSelectedOrg - it handles the case when user is not logged in
@@ -8,9 +6,8 @@ const { user } = useDirectusAuth();
 const { currentOrg, isAdmin, isBoardMember, memberType, selectedOrgId } =
   await useSelectedOrg();
 
-// Announcement system
-const { fetchAnnouncements } = useAnnouncements();
-const announcements = ref<HoaAnnouncement[]>([]);
+// Unified notification system
+const { fetchNotifications, notifications } = useNotifications();
 
 // Build audience filter based on member type and role
 const audienceFilter = computed(() => {
@@ -29,15 +26,14 @@ const audienceFilter = computed(() => {
   return audiences;
 });
 
-// Fetch announcements on mount and when org changes
-const loadAnnouncements = async () => {
+// Fetch notifications on mount and when org changes
+const loadNotifications = async () => {
   if (!user.value || !selectedOrgId.value) return;
 
   try {
-    const fetched = await fetchAnnouncements(audienceFilter.value);
-    announcements.value = fetched;
+    await fetchNotifications(audienceFilter.value);
   } catch (error) {
-    console.error("Failed to fetch announcements:", error);
+    console.error("Failed to fetch notifications:", error);
   }
 };
 
@@ -45,18 +41,18 @@ const loadAnnouncements = async () => {
 watch(
   () => selectedOrgId.value,
   () => {
-    loadAnnouncements();
+    loadNotifications();
   }
 );
 
 onMounted(() => {
-  loadAnnouncements();
+  loadNotifications();
 });
 </script>
 
 <template>
   <div class="min-h-screen bg-background flex flex-col">
-    <AppNav :announcements="announcements" />
+    <AppNav />
     <!-- Subscription warning banner -->
     <SubscriptionBanner
       v-if="currentOrg?.organization"
@@ -70,12 +66,11 @@ onMounted(() => {
     </main>
     <AppFooter />
 
-    <!-- Global Announcement Components -->
+    <!-- Global Notification Components -->
     <ClientOnly>
-      <AnnouncementSheet />
-      <AnnouncementToast
-        v-if="announcements.length > 0"
-        :announcements="announcements"
+      <NotificationSheet />
+      <NotificationToast
+        v-if="notifications.length > 0"
         :initial-delay="1500"
         :max-title-length="50"
       />

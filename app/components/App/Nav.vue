@@ -8,17 +8,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { HoaAnnouncement } from "~~/types/directus";
-
-// Props
-const props = withDefaults(
-  defineProps<{
-    announcements?: HoaAnnouncement[];
-  }>(),
-  {
-    announcements: () => [],
-  }
-);
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
@@ -339,10 +328,9 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="flex items-center gap-4">
-          <!-- Announcement Bell - show on org pages/custom domains -->
-          <AnnouncementBell
-            v-if="!isMainMarketingDomain && props.announcements.length > 0"
-            :announcements="props.announcements"
+          <!-- Notification Bell - show on org pages/custom domains -->
+          <NotificationBell
+            v-if="!isMainMarketingDomain"
             class="hidden sm:block"
           />
           <OrgSelector class="hidden sm:flex" />
@@ -406,12 +394,12 @@ watch(
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
 
-              <!-- Announcements Quick Access in Mobile Menu -->
+              <!-- Notifications Quick Access in Mobile Menu -->
               <div
-                v-if="!isMainMarketingDomain && props.announcements.length > 0"
+                v-if="!isMainMarketingDomain"
                 class="py-3 border-b border-stone-200"
               >
-                <AnnouncementBell :announcements="props.announcements" />
+                <NotificationBell />
               </div>
 
               <!-- User Info in Mobile Menu -->
