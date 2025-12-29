@@ -104,7 +104,7 @@ export default defineEventHandler(async (event) => {
         fields: [
           "name",
           "legal_name",
-          "domain",
+          "custom_domain",
           "email",
           "phone",
           "street_address",
@@ -136,8 +136,8 @@ export default defineEventHandler(async (event) => {
     const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
 
     // Build organization URL
-    const orgUrl = organization.domain
-      ? `https://${organization.domain}`
+    const orgUrl = organization.custom_domain
+      ? `https://${organization.custom_domain}`
       : config.public.appUrl;
 
     // Get role details for email via REST API (core collections can't use readItem)
