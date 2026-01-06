@@ -7,9 +7,83 @@ import {
   authentication,
   staticToken,
   refresh,
+  readMe,
+  readItems,
+  readItem,
+  createItem,
+  createItems,
+  updateItem,
+  updateItems,
+  deleteItem,
+  deleteItems,
+  readUsers,
+  readUser,
+  createUser,
+  updateUser,
+  updateUsers,
+  deleteUser,
+  deleteUsers,
+  uploadFiles,
+  importFile,
+  readFiles,
+  readFile,
+  updateFile,
+  deleteFile,
+  readFolders,
+  readFolder,
+  createFolder,
+  createFolders,
+  updateFolder,
+  updateFolders,
+  deleteFolder,
+  deleteFolders,
+  readActivities,
+  readActivity,
+  readNotifications,
+  readNotification,
+  createNotification,
+  createNotifications,
+  updateNotification,
+  updateNotifications,
+  deleteNotification,
+  deleteNotifications,
+  readRevisions,
+  readRevision,
+  readPresets,
+  readPreset,
+  createPreset,
+  updatePreset,
+  deletePreset,
+  readRoles,
+  readRole,
+  createRole,
+  updateRole,
+  deleteRole,
+  aggregate,
+  passwordRequest,
+  passwordReset,
+  inviteUser,
+  acceptUserInvite,
 } from "@directus/sdk";
 import type { H3Event } from "h3";
 import type { Schema } from "~~/types/directus";
+
+// Re-export SDK functions for use in API routes
+export {
+  readMe,
+  readItems, readItem, createItem, createItems, updateItem, updateItems, deleteItem, deleteItems,
+  readUsers, readUser, createUser, updateUser, updateUsers, deleteUser, deleteUsers,
+  uploadFiles, importFile, readFiles, readFile, updateFile, deleteFile,
+  readFolders, readFolder, createFolder, createFolders, updateFolder, updateFolders, deleteFolder, deleteFolders,
+  readActivities, readActivity,
+  readNotifications, readNotification, createNotification, createNotifications, updateNotification, updateNotifications, deleteNotification, deleteNotifications,
+  readRevisions, readRevision,
+  readPresets, readPreset, createPreset, updatePreset, deletePreset,
+  readRoles, readRole, createRole, updateRole, deleteRole,
+  aggregate,
+  passwordRequest, passwordReset,
+  inviteUser, acceptUserInvite,
+};
 
 /**
  * Get a typed Directus client with admin access
@@ -119,4 +193,75 @@ export function getPublicDirectus() {
   const config = useRuntimeConfig();
 
   return createDirectus<Schema>(config.directus.url).with(rest());
+}
+
+// ============================================
+// Authentication Helper Functions
+// ============================================
+
+interface DirectusTokens {
+  access_token: string;
+  refresh_token: string;
+  expires: number;
+}
+
+/**
+ * Login user with email and password
+ * Returns access and refresh tokens
+ */
+export async function directusLogin(
+  email: string,
+  password: string
+): Promise<DirectusTokens> {
+  const config = useRuntimeConfig();
+  const client = createDirectus(config.directus.url)
+    .with(authentication("json"))
+    .with(rest());
+
+  const result = await client.login(email, password);
+  return result as DirectusTokens;
+}
+
+/**
+ * Refresh tokens using refresh token
+ */
+export async function directusRefresh(
+  refreshToken: string
+): Promise<DirectusTokens> {
+  const config = useRuntimeConfig();
+  const client = createDirectus(config.directus.url)
+    .with(rest())
+    .with(authentication("json"));
+
+  const result = await client.request(
+    refresh({ mode: "json", refresh_token: refreshToken })
+  );
+  return result as DirectusTokens;
+}
+
+/**
+ * Logout user using refresh token
+ */
+export async function directusLogout(refreshToken: string): Promise<void> {
+  const config = useRuntimeConfig();
+  const client = createDirectus(config.directus.url)
+    .with(authentication("json"))
+    .with(rest());
+
+  await client.logout(refreshToken);
+}
+
+/**
+ * Get current user data using access token
+ */
+export async function directusGetMe(
+  accessToken: string,
+  fields?: string[]
+) {
+  const config = useRuntimeConfig();
+  const client = createDirectus<Schema>(config.directus.url)
+    .with(staticToken(accessToken))
+    .with(rest());
+
+  return await client.request(readMe({ fields: fields || ["*"] }));
 }
