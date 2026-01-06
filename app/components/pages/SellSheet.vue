@@ -318,6 +318,12 @@
 <script setup>
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
+const { forceThemeStyle } = useTheme();
+
+// Force Classic theme for the sell-sheet/marketing page
+onMounted(() => {
+  forceThemeStyle('classic');
+});
 
 const props = defineProps({
   plans: {

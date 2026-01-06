@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-white flex flex-col">
+  <div class="min-h-screen flex flex-col t-bg t-text t-transition">
     <AppNav />
     <main class="flex-1">
       <slot />
@@ -8,4 +8,11 @@
   </div>
 </template>
 
-<script setup></script>
+<script setup>
+const { initTheme } = useTheme();
+
+// Initialize theme on client side
+onMounted(() => {
+  initTheme();
+});
+</script>
