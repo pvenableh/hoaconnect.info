@@ -31,7 +31,7 @@ function getStoredTheme(): ThemeState {
 const themeState = reactive<ThemeState>(getStoredTheme());
 
 export function useTheme() {
-	const { user, refreshUser } = useDirectusAuth();
+	const { user } = useDirectusAuth();
 	const { updateProfile } = useDirectusUser();
 
 	// Computed theme class for the root element
@@ -45,6 +45,21 @@ export function useTheme() {
 	const isDark = computed(() => themeState.mode === 'dark');
 	const isClassic = computed(() => themeState.style === 'classic');
 	const isModern = computed(() => themeState.style === 'modern');
+
+	// Set theme class on html element (works with SSR via useHead)
+	function setHtmlThemeClass(style: ThemeStyle, mode: ThemeMode = 'light') {
+		const className = `theme-${style}-${mode}`;
+
+		useHead({
+			htmlAttrs: {
+				class: className,
+			},
+		});
+
+		// Also update state for client-side reactivity
+		themeState.style = style;
+		themeState.mode = mode;
+	}
 
 	// Set theme style (classic or modern)
 	async function setThemeStyle(style: ThemeStyle, persist = true) {
@@ -109,9 +124,22 @@ export function useTheme() {
 	}
 
 	// Force a specific theme style without persisting (useful for public pages like sell-sheet)
-	function forceThemeStyle(style: ThemeStyle) {
+	// This uses useHead so it works with SSR
+	function forceThemeStyle(style: ThemeStyle, mode: ThemeMode = 'light') {
 		themeState.style = style;
-		applyTheme();
+		themeState.mode = mode;
+
+		// Use useHead to set the class - this works on both SSR and client
+		useHead({
+			htmlAttrs: {
+				class: `theme-${style}-${mode}`,
+			},
+		});
+
+		// Also apply directly on client for immediate effect
+		if (import.meta.client) {
+			applyTheme();
+		}
 	}
 
 	// Save theme to localStorage
@@ -121,7 +149,7 @@ export function useTheme() {
 		}
 	}
 
-	// Apply theme classes to document
+	// Apply theme classes to document (client-side only)
 	function applyTheme() {
 		if (import.meta.client) {
 			const html = document.documentElement;
@@ -211,6 +239,7 @@ export function useTheme() {
 		toggleStyle,
 		setTheme,
 		forceThemeStyle,
+		setHtmlThemeClass,
 		initTheme,
 		applyTheme,
 		loadUserTheme,

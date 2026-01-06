@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+  <div class="min-h-screen t-bg t-text">
     <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
     <!-- Only show on main domain AND not on custom domain -->
     <PagesSellSheet
@@ -324,7 +324,11 @@ const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } =
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { forceThemeStyle } = useTheme();
 const config = useRuntimeConfig();
+
+// Force Classic theme for the main landing page (SSR-compatible)
+forceThemeStyle('classic');
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
