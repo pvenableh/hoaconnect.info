@@ -316,22 +316,14 @@
         <Card>
           <CardHeader>
             <CardTitle>Appearance</CardTitle>
-            <CardDescription> Customize your interface </CardDescription>
+            <CardDescription> Customize your interface theme and style </CardDescription>
           </CardHeader>
           <CardContent>
-            <div class="space-y-4">
-              <div class="space-y-2">
-                <Label>Theme</Label>
-                <select
-                  v-model="preferencesForm.theme"
-                  @change="updateTheme"
-                  class="w-full px-3 py-2 border rounded-md bg-background"
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="auto">System</option>
-                </select>
-              </div>
+            <div class="space-y-6">
+              <!-- Theme Selector Component -->
+              <ThemeSelector />
+
+              <Separator />
 
               <div class="space-y-2">
                 <Label>Language</Label>
@@ -364,7 +356,7 @@
 
               <div class="flex justify-end">
                 <Button @click="updatePreferences" :disabled="isUpdating">
-                  Save Appearance
+                  Save Preferences
                 </Button>
               </div>
             </div>
@@ -378,6 +370,7 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 // Auth & user data
 const { user, refreshUser } = useDirectusAuth();
@@ -424,7 +417,6 @@ const profileForm = ref({
 const preferencesForm = ref({
   email_notifications: true,
   newsletter_subscribed: false,
-  theme: "auto",
   locale: "en",
   timezone: "America/New_York",
 });
@@ -566,22 +558,6 @@ const updatePreferences = async () => {
     toast.error("Failed to update preferences");
   } finally {
     isUpdating.value = false;
-  }
-};
-
-// Update theme immediately
-const updateTheme = () => {
-  if (preferencesForm.value.theme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else if (preferencesForm.value.theme === "light") {
-    document.documentElement.classList.remove("dark");
-  } else {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
   }
 };
 

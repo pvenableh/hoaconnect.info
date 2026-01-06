@@ -1,0 +1,686 @@
+/* =============================================================================
+   THEME SYSTEM
+   Two design themes with light/dark variants:
+   - Classic: Cream background, gold accents, serif headings
+   - Modern: White/grey with cyan highlights, sans-serif headings
+
+   MIGRATION GUIDE - Replace these Tailwind classes with theme-aware versions:
+   ────────────────────────────────────────────────────────────────────────────
+   BACKGROUNDS:
+   bg-cream          → t-bg           (primary background)
+   bg-cream-alt      → t-bg-alt       (secondary/alternate background)
+   bg-white          → t-bg-elevated  (elevated surfaces like cards)
+   bg-gray-200       → t-bg-subtle    (subtle backgrounds)
+
+   TEXT COLORS:
+   text-gray-800     → t-text         (primary text)
+   text-gray-600     → t-text-secondary (body text)
+   text-gray-500     → t-text-tertiary (labels, captions)
+   text-gray-400     → t-text-muted   (muted/placeholder text)
+   text-gold         → t-text-accent  (accent color)
+   text-gold-dark    → t-text-accent-tertiary (darker accent)
+
+   BORDERS:
+   border-divider    → t-border-divider (divider lines)
+   border-gray-*     → t-border        (general borders)
+
+   COMPONENTS:
+   font-serif        → t-heading       (heading typography)
+
+   SECTIONS (combined bg + text):
+   bg-cream          → t-section       (primary sections)
+   bg-cream-alt      → t-section-alt   (alternate sections)
+============================================================================= */
+
+/* =============================================================================
+   CLASSIC THEME - LIGHT MODE
+   Warm cream background, gold accents, serif typography
+============================================================================= */
+:root,
+.theme-classic-light {
+	/* Background colors */
+	--theme-bg-primary: #FDFCFA;
+	--theme-bg-secondary: #F5F3EF;
+	--theme-bg-tertiary: #EDE9E3;
+	--theme-bg-elevated: #FFFFFF;
+	--theme-bg-overlay: rgba(253, 252, 250, 0.95);
+
+	/* Text colors */
+	--theme-text-primary: #454545;
+	--theme-text-secondary: #6c6c6c;
+	--theme-text-tertiary: #8B7355;
+	--theme-text-muted: #9a9a9a;
+	--theme-text-inverse: #FFFFFF;
+
+	/* Accent colors */
+	--theme-accent-primary: #C9A96E;
+	--theme-accent-secondary: #D4BA8A;
+	--theme-accent-tertiary: #8B7355;
+	--theme-accent-hover: #B89A5F;
+	--theme-accent-active: var(--cyan2, #00d4aa);
+
+	/* Border colors */
+	--theme-border-primary: #E5E0D8;
+	--theme-border-secondary: #D4CFC7;
+	--theme-border-light: #F0EBE3;
+
+	/* Component-specific */
+	--theme-header-bg: #F5F3EF;
+	--theme-footer-bg: #FDFCFA;
+	--theme-card-bg: #FFFFFF;
+	--theme-nav-bg: rgba(255, 255, 255, 0.85);
+	--theme-drawer-bg: rgba(255, 255, 255, 0.92);
+
+	/* Typography */
+	--theme-heading-font: 'Bauer Bodoni Pro_1 W05 Roman', 'Times New Roman', Times, serif;
+	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+
+	/* Shadows */
+	--theme-shadow-sm: 0 1px 2px rgba(139, 115, 85, 0.05);
+	--theme-shadow-md: 0 4px 6px rgba(139, 115, 85, 0.07);
+	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
+
+	/* Interactive */
+	--theme-link-color: #8B7355;
+	--theme-link-hover: #C9A96E;
+	--theme-button-bg: #C9A96E;
+	--theme-button-text: #FFFFFF;
+	--theme-button-hover-bg: #B89A5F;
+
+	/* Dividers */
+	--theme-divider: #E5E0D8;
+	--theme-divider-light: #F0EBE3;
+}
+
+/* =============================================================================
+   CLASSIC THEME - DARK MODE
+   Warm dark tones with gold accents, serif typography
+============================================================================= */
+.theme-classic-dark {
+	/* Background colors - warm dark palette */
+	--theme-bg-primary: #1C1915;
+	--theme-bg-secondary: #252219;
+	--theme-bg-tertiary: #302B22;
+	--theme-bg-elevated: #2A2620;
+	--theme-bg-overlay: rgba(28, 25, 21, 0.95);
+
+	/* Text colors */
+	--theme-text-primary: #F5F3EF;
+	--theme-text-secondary: #C9C4BA;
+	--theme-text-tertiary: #D4BA8A;
+	--theme-text-muted: #8A857A;
+	--theme-text-inverse: #1C1915;
+
+	/* Accent colors - gold tones */
+	--theme-accent-primary: #D4BA8A;
+	--theme-accent-secondary: #C9A96E;
+	--theme-accent-tertiary: #E5D4B3;
+	--theme-accent-hover: #E5D4B3;
+	--theme-accent-active: #00efd1;
+
+	/* Border colors */
+	--theme-border-primary: #3D372E;
+	--theme-border-secondary: #4A433A;
+	--theme-border-light: #2F2A23;
+
+	/* Component-specific */
+	--theme-header-bg: #252219;
+	--theme-footer-bg: #1C1915;
+	--theme-card-bg: #2A2620;
+	--theme-nav-bg: rgba(37, 34, 25, 0.92);
+	--theme-drawer-bg: rgba(42, 38, 32, 0.95);
+
+	/* Typography */
+	--theme-heading-font: 'Bauer Bodoni Pro_1 W05 Roman', 'Times New Roman', Times, serif;
+	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+
+	/* Shadows */
+	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+
+	/* Interactive */
+	--theme-link-color: #D4BA8A;
+	--theme-link-hover: #E5D4B3;
+	--theme-button-bg: #C9A96E;
+	--theme-button-text: #1C1915;
+	--theme-button-hover-bg: #D4BA8A;
+
+	/* Dividers */
+	--theme-divider: #3D372E;
+	--theme-divider-light: #2F2A23;
+}
+
+/* =============================================================================
+   MODERN THEME - LIGHT MODE
+   Clean white with grey text, cyan highlights, sans-serif typography
+============================================================================= */
+.theme-modern-light {
+	/* Background colors */
+	--theme-bg-primary: #FFFFFF;
+	--theme-bg-secondary: #F8F9FA;
+	--theme-bg-tertiary: #F1F3F5;
+	--theme-bg-elevated: #FFFFFF;
+	--theme-bg-overlay: rgba(255, 255, 255, 0.95);
+
+	/* Text colors - grey palette */
+	--theme-text-primary: #495057;
+	--theme-text-secondary: #6C757D;
+	--theme-text-tertiary: #868E96;
+	--theme-text-muted: #ADB5BD;
+	--theme-text-inverse: #FFFFFF;
+
+	/* Accent colors - cyan/turquoise */
+	--theme-accent-primary: #00BFD8;
+	--theme-accent-secondary: #00D4E8;
+	--theme-accent-tertiary: #0097A7;
+	--theme-accent-hover: #00A8C0;
+	--theme-accent-active: #00efd1;
+
+	/* Border colors */
+	--theme-border-primary: #DEE2E6;
+	--theme-border-secondary: #CED4DA;
+	--theme-border-light: #E9ECEF;
+
+	/* Component-specific */
+	--theme-header-bg: #FFFFFF;
+	--theme-footer-bg: #F8F9FA;
+	--theme-card-bg: #FFFFFF;
+	--theme-nav-bg: rgba(255, 255, 255, 0.92);
+	--theme-drawer-bg: rgba(255, 255, 255, 0.95);
+
+	/* Typography - sans-serif for headings */
+	--theme-heading-font: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+
+	/* Shadows */
+	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
+	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+
+	/* Interactive */
+	--theme-link-color: #00BFD8;
+	--theme-link-hover: #0097A7;
+	--theme-button-bg: #00BFD8;
+	--theme-button-text: #FFFFFF;
+	--theme-button-hover-bg: #00A8C0;
+
+	/* Dividers */
+	--theme-divider: #DEE2E6;
+	--theme-divider-light: #E9ECEF;
+}
+
+/* =============================================================================
+   MODERN THEME - DARK MODE
+   Dark grey with light text, cyan highlights, sans-serif typography
+============================================================================= */
+.theme-modern-dark {
+	/* Background colors */
+	--theme-bg-primary: #121417;
+	--theme-bg-secondary: #1A1D21;
+	--theme-bg-tertiary: #22262B;
+	--theme-bg-elevated: #1E2227;
+	--theme-bg-overlay: rgba(18, 20, 23, 0.95);
+
+	/* Text colors - light grey palette */
+	--theme-text-primary: #E9ECEF;
+	--theme-text-secondary: #ADB5BD;
+	--theme-text-tertiary: #868E96;
+	--theme-text-muted: #6C757D;
+	--theme-text-inverse: #121417;
+
+	/* Accent colors - cyan/turquoise */
+	--theme-accent-primary: #00D4E8;
+	--theme-accent-secondary: #00E5FA;
+	--theme-accent-tertiary: #00BFD8;
+	--theme-accent-hover: #00E5FA;
+	--theme-accent-active: #00efd1;
+
+	/* Border colors */
+	--theme-border-primary: #2D3239;
+	--theme-border-secondary: #383E47;
+	--theme-border-light: #22262B;
+
+	/* Component-specific */
+	--theme-header-bg: #1A1D21;
+	--theme-footer-bg: #121417;
+	--theme-card-bg: #1E2227;
+	--theme-nav-bg: rgba(26, 29, 33, 0.95);
+	--theme-drawer-bg: rgba(30, 34, 39, 0.98);
+
+	/* Typography - sans-serif for headings */
+	--theme-heading-font: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+
+	/* Shadows */
+	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+	/* Interactive */
+	--theme-link-color: #00D4E8;
+	--theme-link-hover: #00E5FA;
+	--theme-button-bg: #00D4E8;
+	--theme-button-text: #121417;
+	--theme-button-hover-bg: #00E5FA;
+
+	/* Dividers */
+	--theme-divider: #2D3239;
+	--theme-divider-light: #22262B;
+}
+
+/* =============================================================================
+   GLOBAL THEME STYLES
+   Applied based on current theme
+============================================================================= */
+
+/* Base styles that use theme variables */
+html.theme-classic-light,
+html.theme-classic-dark,
+html.theme-modern-light,
+html.theme-modern-dark {
+	background-color: var(--theme-bg-primary);
+	color: var(--theme-text-primary);
+	transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+	font-family: var(--theme-body-font);
+}
+
+/* Heading styles */
+.theme-heading,
+h1.theme-heading,
+h2.theme-heading,
+h3.theme-heading,
+h4.theme-heading {
+	font-family: var(--theme-heading-font);
+}
+
+/* Theme-aware utility classes */
+.theme-bg-primary {
+	background-color: var(--theme-bg-primary);
+}
+
+.theme-bg-secondary {
+	background-color: var(--theme-bg-secondary);
+}
+
+.theme-bg-tertiary {
+	background-color: var(--theme-bg-tertiary);
+}
+
+.theme-bg-elevated {
+	background-color: var(--theme-bg-elevated);
+}
+
+.theme-text-primary {
+	color: var(--theme-text-primary);
+}
+
+.theme-text-secondary {
+	color: var(--theme-text-secondary);
+}
+
+.theme-text-tertiary {
+	color: var(--theme-text-tertiary);
+}
+
+.theme-text-muted {
+	color: var(--theme-text-muted);
+}
+
+.theme-accent {
+	color: var(--theme-accent-primary);
+}
+
+.theme-border {
+	border-color: var(--theme-border-primary);
+}
+
+.theme-divider {
+	border-color: var(--theme-divider);
+	background-color: var(--theme-divider);
+}
+
+/* Card styling */
+.theme-card {
+	background-color: var(--theme-card-bg);
+	border-color: var(--theme-border-primary);
+	box-shadow: var(--theme-shadow-md);
+}
+
+/* Link styling */
+a.theme-link {
+	color: var(--theme-link-color);
+}
+
+a.theme-link:hover {
+	color: var(--theme-link-hover);
+}
+
+/* Button styling */
+.theme-button {
+	background-color: var(--theme-button-bg);
+	color: var(--theme-button-text);
+}
+
+.theme-button:hover {
+	background-color: var(--theme-button-hover-bg);
+}
+
+/* Shadow utilities */
+.theme-shadow-sm {
+	box-shadow: var(--theme-shadow-sm);
+}
+
+.theme-shadow-md {
+	box-shadow: var(--theme-shadow-md);
+}
+
+.theme-shadow-lg {
+	box-shadow: var(--theme-shadow-lg);
+}
+
+/* =============================================================================
+   COMPREHENSIVE UTILITY CLASSES
+   Drop-in replacements for common Tailwind classes
+============================================================================= */
+
+/* Background utilities - replaces bg-cream, bg-cream-alt, bg-white, bg-gray-* */
+.t-bg {
+	background-color: var(--theme-bg-primary);
+}
+
+.t-bg-alt {
+	background-color: var(--theme-bg-secondary);
+}
+
+.t-bg-subtle {
+	background-color: var(--theme-bg-tertiary);
+}
+
+.t-bg-elevated {
+	background-color: var(--theme-bg-elevated);
+}
+
+.t-bg-card {
+	background-color: var(--theme-card-bg);
+}
+
+/* Text color utilities - replaces text-gray-*, text-gold-*, etc. */
+.t-text {
+	color: var(--theme-text-primary);
+}
+
+.t-text-secondary {
+	color: var(--theme-text-secondary);
+}
+
+.t-text-tertiary {
+	color: var(--theme-text-tertiary);
+}
+
+.t-text-muted {
+	color: var(--theme-text-muted);
+}
+
+.t-text-accent {
+	color: var(--theme-accent-primary);
+}
+
+.t-text-accent-secondary {
+	color: var(--theme-accent-secondary);
+}
+
+.t-text-accent-tertiary {
+	color: var(--theme-accent-tertiary);
+}
+
+.t-text-inverse {
+	color: var(--theme-text-inverse);
+}
+
+/* Accent background utilities */
+.t-bg-accent {
+	background-color: var(--theme-accent-primary);
+}
+
+.t-bg-accent-secondary {
+	background-color: var(--theme-accent-secondary);
+}
+
+/* Border utilities - replaces border-divider, border-gray-*, etc. */
+.t-border {
+	border-color: var(--theme-border-primary);
+}
+
+.t-border-secondary {
+	border-color: var(--theme-border-secondary);
+}
+
+.t-border-light {
+	border-color: var(--theme-border-light);
+}
+
+.t-border-divider {
+	border-color: var(--theme-divider);
+}
+
+.t-border-accent {
+	border-color: var(--theme-accent-primary);
+}
+
+/* Divider/separator utilities */
+.t-divider {
+	border-color: var(--theme-divider);
+}
+
+.t-divider-bg {
+	background-color: var(--theme-divider);
+}
+
+.t-divider-light {
+	border-color: var(--theme-divider-light);
+}
+
+/* Typography utilities */
+.t-heading {
+	font-family: var(--theme-heading-font);
+}
+
+.t-body {
+	font-family: var(--theme-body-font);
+}
+
+/* Section backgrounds - for alternating sections */
+.t-section {
+	background-color: var(--theme-bg-primary);
+	color: var(--theme-text-primary);
+}
+
+.t-section-alt {
+	background-color: var(--theme-bg-secondary);
+	color: var(--theme-text-primary);
+}
+
+.t-section-subtle {
+	background-color: var(--theme-bg-tertiary);
+	color: var(--theme-text-primary);
+}
+
+/* Card component */
+.t-card {
+	background-color: var(--theme-card-bg);
+	border: 1px solid var(--theme-border-primary);
+	box-shadow: var(--theme-shadow-md);
+}
+
+.t-card-flat {
+	background-color: var(--theme-card-bg);
+	border: 1px solid var(--theme-border-primary);
+}
+
+/* Link styling */
+.t-link {
+	color: var(--theme-link-color);
+	transition: color 0.2s ease;
+}
+
+.t-link:hover {
+	color: var(--theme-link-hover);
+}
+
+/* Button variants */
+.t-btn {
+	background-color: var(--theme-button-bg);
+	color: var(--theme-button-text);
+	transition: background-color 0.2s ease;
+}
+
+.t-btn:hover {
+	background-color: var(--theme-button-hover-bg);
+}
+
+.t-btn-outline {
+	background-color: transparent;
+	border: 1px solid var(--theme-accent-primary);
+	color: var(--theme-accent-primary);
+}
+
+.t-btn-outline:hover {
+	background-color: var(--theme-accent-primary);
+	color: var(--theme-text-inverse);
+}
+
+/* Input styling */
+.t-input {
+	background-color: var(--theme-bg-elevated);
+	border: 1px solid var(--theme-border-primary);
+	color: var(--theme-text-primary);
+}
+
+.t-input:focus {
+	border-color: var(--theme-accent-primary);
+	outline: none;
+}
+
+.t-input::placeholder {
+	color: var(--theme-text-muted);
+}
+
+/* Overlay/modal backgrounds */
+.t-overlay {
+	background-color: var(--theme-bg-overlay);
+}
+
+/* Gradient overlays for images */
+.t-gradient-dark {
+	background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.4));
+}
+
+/* Interactive states */
+.t-hover-bg:hover {
+	background-color: var(--theme-bg-secondary);
+}
+
+.t-hover-accent:hover {
+	color: var(--theme-accent-primary);
+}
+
+/* Active/selected states */
+.t-active {
+	color: var(--theme-accent-active);
+}
+
+/* Icon colors that adapt to theme */
+.t-icon {
+	color: var(--theme-text-secondary);
+}
+
+.t-icon-accent {
+	color: var(--theme-accent-primary);
+}
+
+/* Panel/box styling */
+.t-panel {
+	background-color: var(--theme-bg-elevated);
+	border: 1px solid var(--theme-border-light);
+	border-radius: 8px;
+}
+
+/* List item styling */
+.t-list-item {
+	border-bottom: 1px solid var(--theme-divider);
+}
+
+.t-list-item:last-child {
+	border-bottom: none;
+}
+
+/* Feature/stat highlight */
+.t-highlight {
+	color: var(--theme-text-primary);
+}
+
+.t-highlight-accent {
+	color: var(--theme-accent-primary);
+}
+
+/* Label/caption text */
+.t-label {
+	color: var(--theme-text-muted);
+	font-size: 0.75rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.t-label-accent {
+	color: var(--theme-accent-tertiary);
+	font-size: 0.75rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+/* Quote/italic text styling */
+.t-quote {
+	font-family: var(--theme-heading-font);
+	font-style: italic;
+	color: var(--theme-accent-tertiary);
+}
+
+/* Tag/badge styling */
+.t-tag {
+	background-color: var(--theme-bg-tertiary);
+	color: var(--theme-text-secondary);
+	padding: 0.25rem 0.75rem;
+	border-radius: 9999px;
+	font-size: 0.75rem;
+}
+
+.t-tag-accent {
+	background-color: var(--theme-accent-primary);
+	color: var(--theme-text-inverse);
+}
+
+/* Dot/bullet indicator */
+.t-dot {
+	background-color: var(--theme-accent-primary);
+}
+
+/* Number/stat display */
+.t-stat {
+	font-family: var(--theme-heading-font);
+	color: var(--theme-text-primary);
+}
+
+.t-stat-label {
+	color: var(--theme-accent-tertiary);
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+}
+
+/* Transition helpers */
+.t-transition {
+	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
