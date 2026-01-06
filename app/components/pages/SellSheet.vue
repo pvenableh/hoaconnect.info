@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto px-4 py-12">
+  <div class="container mx-auto px-4 py-12 t-bg t-text">
     <!-- Logged-in user with org banner -->
     <div
       v-if="user && currentOrg?.organization?.slug"
@@ -321,9 +321,8 @@ const { currentOrg } = await useSelectedOrg();
 const { forceThemeStyle } = useTheme();
 
 // Force Classic theme for the sell-sheet/marketing page
-onMounted(() => {
-  forceThemeStyle('classic');
-});
+// Called at setup time (not in onMounted) so it works with SSR
+forceThemeStyle('classic');
 
 const props = defineProps({
   plans: {
