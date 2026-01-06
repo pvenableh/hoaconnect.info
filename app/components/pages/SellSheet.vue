@@ -3,7 +3,7 @@
     <!-- Logged-in user with org banner -->
     <div
       v-if="user && currentOrg?.organization?.slug"
-      class="bg-blue-600 text-white rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4"
+      class="t-bg-accent t-text-inverse rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4"
     >
       <div class="flex items-center gap-3">
         <svg
@@ -26,7 +26,7 @@
       </div>
       <a
         :href="getOrgUrl(currentOrg.organization)"
-        class="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50 transition whitespace-nowrap"
+        class="t-bg-elevated t-text-accent px-6 py-2 rounded-lg font-semibold hover:opacity-90 transition whitespace-nowrap"
       >
         Go to {{ currentOrg.organization.name }}
       </a>
@@ -34,16 +34,16 @@
     <!-- Hero Section -->
     <section class="pt-20 pb-16 px-4">
       <div class="max-w-7xl mx-auto text-center">
-        <h2 class="text-5xl font-bold text-gray-900 mb-6">
+        <h2 class="t-heading text-5xl font-bold t-text mb-6">
           Simplify Your HOA Management
         </h2>
-        <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+        <p class="text-xl t-text-secondary mb-8 max-w-3xl mx-auto">
           Streamline document management, communications, and member access with
           our comprehensive HOA platform. Built for communities of all sizes.
         </p>
         <button
           @click="scrollToPlans"
-          class="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition shadow-lg"
+          class="t-btn px-8 py-4 rounded-lg text-lg font-semibold transition shadow-lg"
         >
           View Plans & Pricing
         </button>
@@ -51,18 +51,18 @@
     </section>
 
     <!-- Features Overview -->
-    <section id="features" class="py-16 bg-white">
+    <section id="features" class="py-16 t-bg-elevated">
       <div class="max-w-7xl mx-auto px-4">
-        <h3 class="text-3xl font-bold text-center text-gray-900 mb-12">
+        <h3 class="t-heading text-3xl font-bold text-center t-text mb-12">
           Everything Your HOA Needs
         </h3>
         <div class="grid md:grid-cols-3 gap-8">
           <div class="text-center p-6">
             <div
-              class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+              class="w-16 h-16 t-bg-alt rounded-full flex items-center justify-center mx-auto mb-4"
             >
               <svg
-                class="w-8 h-8 text-blue-600"
+                class="w-8 h-8 t-text-accent"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -75,10 +75,10 @@
                 />
               </svg>
             </div>
-            <h4 class="text-xl font-semibold text-gray-900 mb-2">
+            <h4 class="t-heading text-xl font-semibold t-text mb-2">
               Document Management
             </h4>
-            <p class="text-gray-600">
+            <p class="t-text-secondary">
               Organize, store, and share HOA documents securely with version
               control and access logging.
             </p>
@@ -86,10 +86,10 @@
 
           <div class="text-center p-6">
             <div
-              class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+              class="w-16 h-16 t-bg-alt rounded-full flex items-center justify-center mx-auto mb-4"
             >
               <svg
-                class="w-8 h-8 text-blue-600"
+                class="w-8 h-8 t-text-accent"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -102,10 +102,10 @@
                 />
               </svg>
             </div>
-            <h4 class="text-xl font-semibold text-gray-900 mb-2">
+            <h4 class="t-heading text-xl font-semibold t-text mb-2">
               Role-Based Access
             </h4>
-            <p class="text-gray-600">
+            <p class="t-text-secondary">
               Control who sees what with granular permissions for board members,
               owners, and guests.
             </p>
@@ -113,10 +113,10 @@
 
           <div class="text-center p-6">
             <div
-              class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
+              class="w-16 h-16 t-bg-alt rounded-full flex items-center justify-center mx-auto mb-4"
             >
               <svg
-                class="w-8 h-8 text-blue-600"
+                class="w-8 h-8 t-text-accent"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -129,10 +129,10 @@
                 />
               </svg>
             </div>
-            <h4 class="text-xl font-semibold text-gray-900 mb-2">
+            <h4 class="t-heading text-xl font-semibold t-text mb-2">
               Announcements
             </h4>
-            <p class="text-gray-600">
+            <p class="t-text-secondary">
               Keep residents informed with community announcements and important
               updates.
             </p>
@@ -142,13 +142,13 @@
     </section>
 
     <!-- Pricing Plans -->
-    <section id="plans" class="py-20 bg-gray-50">
+    <section id="plans" class="py-20 t-bg-alt">
       <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-16">
-          <h3 class="text-4xl font-bold text-gray-900 mb-4">
+          <h3 class="t-heading text-4xl font-bold t-text mb-4">
             Choose Your Plan
           </h3>
-          <p class="text-xl text-gray-600">
+          <p class="text-xl t-text-secondary">
             Select the perfect solution for your HOA community
           </p>
         </div>
@@ -156,9 +156,9 @@
         <!-- Loading State -->
         <div v-if="pending" class="text-center py-12">
           <div
-            class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"
+            class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 t-border-accent"
           ></div>
-          <p class="mt-4 text-gray-600">Loading plans...</p>
+          <p class="mt-4 t-text-secondary">Loading plans...</p>
         </div>
 
         <!-- Error State -->
@@ -185,11 +185,11 @@
           <div
             v-for="plan in plans"
             :key="plan.id"
-            class="bg-white rounded-2xl shadow-lg p-8 border-2 transition relative"
+            class="t-bg-elevated rounded-2xl theme-shadow-lg p-8 border-2 transition relative"
             :class="[
               plan.is_featured
-                ? 'border-blue-500 transform md:scale-105'
-                : 'border-gray-200 hover:border-blue-400',
+                ? 't-border-accent transform md:scale-105'
+                : 't-border hover:t-border-accent',
             ]"
           >
             <!-- Featured Badge -->
@@ -198,21 +198,21 @@
               class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
             >
               <span
-                class="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold"
+                class="t-bg-accent t-text-inverse px-4 py-1 rounded-full text-sm font-semibold"
                 >POPULAR</span
               >
             </div>
 
             <!-- Plan Header -->
             <div class="text-center mb-6">
-              <h4 class="text-2xl font-bold text-gray-900 mb-2">
+              <h4 class="t-heading text-2xl font-bold t-text mb-2">
                 {{ plan.name }}
               </h4>
-              <div class="text-4xl font-bold text-blue-600 mb-2">
+              <div class="text-4xl font-bold t-text-accent mb-2">
                 ${{ formatPrice(plan.price_monthly) }}
-                <span class="text-lg text-gray-600">/mo</span>
+                <span class="text-lg t-text-secondary">/mo</span>
               </div>
-              <p class="text-gray-600">{{ plan.description }}</p>
+              <p class="t-text-secondary">{{ plan.description }}</p>
               <p
                 v-if="plan.trial_days > 0"
                 class="text-sm text-green-600 mt-2 font-semibold"
@@ -232,7 +232,7 @@
                   name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
                 />
-                <span>{{ feature }}</span>
+                <span class="t-text-secondary">{{ feature }}</span>
               </li>
 
               <!-- Additional info -->
@@ -241,7 +241,7 @@
                   name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
                 />
-                <span>Up to {{ plan.max_members }} members</span>
+                <span class="t-text-secondary">Up to {{ plan.max_members }} members</span>
               </li>
               <li
                 v-if="!plan.max_members && plan.slug !== 'starter'"
@@ -251,7 +251,7 @@
                   name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
                 />
-                <span>Unlimited members</span>
+                <span class="t-text-secondary">Unlimited members</span>
               </li>
 
               <li v-if="plan.max_storage_gb" class="flex items-start">
@@ -259,7 +259,7 @@
                   name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
                 />
-                <span>{{ plan.max_storage_gb }}GB storage</span>
+                <span class="t-text-secondary">{{ plan.max_storage_gb }}GB storage</span>
               </li>
               <li
                 v-if="!plan.max_storage_gb && plan.slug !== 'starter'"
@@ -269,7 +269,7 @@
                   name="i-lucide-check"
                   class="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
                 />
-                <span>Unlimited storage</span>
+                <span class="t-text-secondary">Unlimited storage</span>
               </li>
             </ul>
 
@@ -279,8 +279,8 @@
               class="w-full py-3 rounded-lg font-semibold transition"
               :class="[
                 plan.is_featured
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-900 text-white hover:bg-gray-800',
+                  ? 't-btn'
+                  : 't-bg-subtle t-text hover:opacity-80',
               ]"
             >
               {{ plan.price_monthly === "0.00" ? "Start Free" : "Get Started" }}
@@ -290,24 +290,24 @@
 
         <!-- No Plans State -->
         <div v-else class="text-center py-12">
-          <p class="text-gray-600">No plans available at this time.</p>
+          <p class="t-text-secondary">No plans available at this time.</p>
         </div>
       </div>
     </section>
 
     <!-- CTA Section -->
-    <section class="py-20 bg-blue-600">
+    <section class="py-20 t-bg-accent">
       <div class="max-w-4xl mx-auto text-center px-4">
-        <h3 class="text-4xl font-bold text-white mb-6">
+        <h3 class="t-heading text-4xl font-bold t-text-inverse mb-6">
           Ready to Transform Your HOA?
         </h3>
-        <p class="text-xl text-blue-100 mb-8">
+        <p class="text-xl t-text-inverse opacity-80 mb-8">
           Join communities already streamlining their operations with HOA
           Connect
         </p>
         <button
           @click="scrollToPlans"
-          class="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition shadow-lg"
+          class="t-bg-elevated t-text-accent px-8 py-4 rounded-lg text-lg font-semibold hover:opacity-90 transition shadow-lg"
         >
           Start Your Free Trial
         </button>
