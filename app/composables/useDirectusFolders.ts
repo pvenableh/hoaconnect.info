@@ -274,6 +274,94 @@ export const useDirectusFolders = () => {
     return foldersWithChildren
   }
 
+  /**
+   * Find folder by name within a parent folder
+   */
+  const findByName = async (name: string, parentId?: string | null): Promise<any | null> => {
+    const filter: Record<string, any> = { name: { _eq: name } }
+
+    if (parentId) {
+      filter.parent = { _eq: parentId }
+    } else if (parentId === null) {
+      filter.parent = { _null: true }
+    }
+
+    const folders = await list({ filter, limit: 1 })
+    return (folders as any[])?.[0] || null
+  }
+
+  /**
+   * Create folder path (like mkdir -p)
+   * Creates all folders in the path if they don't exist
+   */
+  const createPath = async (path: string): Promise<any> => {
+    const parts = path.split('/').filter(Boolean)
+    let parentId: string | null = null
+    let folder: any = null
+
+    for (const part of parts) {
+      const existing = await findByName(part, parentId)
+      if (existing) {
+        folder = existing
+        parentId = existing.id
+      } else {
+        folder = await create({ name: part, parent: parentId })
+        parentId = folder.id
+      }
+    }
+
+    return folder
+  }
+
+  /**
+   * Get full folder path (array of folders from root to target)
+   */
+  const getPath = async (folderId: string): Promise<any[]> => {
+    const path: any[] = []
+    let currentId: string | null = folderId
+
+    while (currentId) {
+      const folder = await get(currentId)
+      if (folder) {
+        path.unshift(folder)
+        currentId = (folder as any).parent
+      } else {
+        break
+      }
+    }
+
+    return path
+  }
+
+  /**
+   * Get folder path as string
+   */
+  const getPathString = async (folderId: string): Promise<string> => {
+    const path = await getPath(folderId)
+    return path.map((f: any) => f.name).join('/')
+  }
+
+  /**
+   * Rename a folder
+   */
+  const rename = async (folderId: string, newName: string) => {
+    return await update(folderId, { name: newName })
+  }
+
+  /**
+   * Move folder to a new parent
+   */
+  const move = async (folderId: string, newParentId: string | null) => {
+    return await update(folderId, { parent: newParentId })
+  }
+
+  /**
+   * Get children folders (alias for getByParent)
+   */
+  const getChildren = async (parentId: string) => {
+    return await getByParent(parentId, { sort: ['name'] })
+  }
+
   return {
     // Single operations
     list,
@@ -291,6 +379,13 @@ export const useDirectusFolders = () => {
     // Helper methods
     getByParent,
     getRootFolders,
-    getTree
+    getTree,
+    findByName,
+    createPath,
+    getPath,
+    getPathString,
+    rename,
+    move,
+    getChildren
   }
 }

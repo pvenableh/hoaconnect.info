@@ -145,13 +145,100 @@ export const useDirectusActivity = () => {
       sort: ['-timestamp']
     })
   }
-  
+
+  /**
+   * Get activity for a specific item (alias matching guide naming)
+   */
+  const getActivityForItem = async (collection: string, itemId: string, query?: {
+    filter?: Record<string, any>
+    fields?: string[]
+    sort?: string[]
+    limit?: number
+  }) => {
+    return await list({
+      filter: {
+        collection: { _eq: collection },
+        item: { _eq: itemId },
+        ...query?.filter
+      },
+      sort: query?.sort || ['-timestamp'],
+      limit: query?.limit,
+      fields: query?.fields
+    })
+  }
+
+  /**
+   * Get activity for a specific user (alias matching guide naming)
+   */
+  const getActivityForUser = async (userId: string, query?: {
+    filter?: Record<string, any>
+    fields?: string[]
+    sort?: string[]
+    limit?: number
+  }) => {
+    return await list({
+      filter: {
+        user: { _eq: userId },
+        ...query?.filter
+      },
+      sort: query?.sort || ['-timestamp'],
+      limit: query?.limit,
+      fields: query?.fields
+    })
+  }
+
+  /**
+   * Get activity by action type
+   */
+  const getActivityByAction = async (
+    action: 'create' | 'update' | 'delete' | 'login' | 'comment',
+    query?: {
+      filter?: Record<string, any>
+      fields?: string[]
+      sort?: string[]
+      limit?: number
+    }
+  ) => {
+    return await list({
+      filter: {
+        action: { _eq: action },
+        ...query?.filter
+      },
+      sort: query?.sort || ['-timestamp'],
+      limit: query?.limit,
+      fields: query?.fields
+    })
+  }
+
+  /**
+   * Get recent activity (alias matching guide naming)
+   */
+  const getRecentActivity = async (limit: number = 50) => {
+    return await list({
+      sort: ['-timestamp'],
+      limit,
+      fields: ['*', 'user.first_name', 'user.last_name', 'user.avatar']
+    })
+  }
+
   return {
+    // Core methods
     list,
     get,
+
+    // Query methods
     getByCollection,
     getByUser,
     getRecent,
-    getItemHistory
+    getItemHistory,
+
+    // Guide-compatible aliases
+    getActivityForItem,
+    getActivityForUser,
+    getActivityByAction,
+    getRecentActivity,
+
+    // Additional alias for convenience
+    getActivity: list
   }
 }
