@@ -1,36 +1,37 @@
+@import url("https://fast.fonts.net/t/1.css?apiType=css&projectid=21a0c137-b931-4f95-8773-dabd5b0c50f7");
+
 @font-face {
-    font-family: "Bauer Bodoni Pro_1 W05 Roman";
-    src: local('Bauer Bodoni Pro 1 W01 Roman'), local('BauerBodoniPro1W01-Roman'),
-        url('fonts/BauerBodoniPro1W01-Roman.woff2') format('woff2'),
-        url('fonts/BauerBodoniPro1W01-Roman.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Bauer Bodoni Pro_1 W05 Roman";
+  src:
+    url("fonts/6f3fed9b-35a6-421e-804d-af9573e695dd.woff2") format("woff2"),
+    url("fonts/53e1fe4c-fb2e-4939-baf2-03539bd1ea27.woff") format("woff");
+  -webkit-font-smoothing: antialiased;
 }
 
 @font-face {
-    font-family: 'AvenirNextLTW01';
-    src: url('fonts/AvenirNextLTW01-Regular.woff2') format('woff2'),
-        url('fonts/AvenirNextLTW01-Regular.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Proxima Nova W01 Light";
+  src:
+    url("fonts/122f8a1b-fa6b-4246-8d37-911edb4ac556.woff2") format("woff2"),
+    url("fonts/0f51d8b8-bda2-4557-9b56-0a4e94ab63d9.woff") format("woff");
+  -webkit-font-smoothing: antialiased;
 }
 
 @font-face {
-    font-family: 'AvenirNextLTW01';
-    src: url('fonts/AvenirNextLTW01-UltraLight.woff2') format('woff2'),
-        url('fonts/AvenirNextLTW01-UltraLight.woff') format('woff');
-    font-weight: 200;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Proxima Nova W01 Thin";
+  src:
+    url("fonts/ad4a2691-471a-4c43-b88f-0d144d680661.woff2") format("woff2"),
+    url("fonts/1da53474-ed78-41a6-872b-7397556eceee.woff") format("woff");
+  -webkit-font-smoothing: antialiased;
 }
 
 @font-face {
-    font-family: 'AvenirNextLTW01';
-    src: url('fonts/AvenirNextLTW01-Medium.woff2') format('woff2'),
-        url('fonts/AvenirNextLTW01-Medium.woff') format('woff');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Proxima Nova W01 Regular";
+  src:
+    url("fonts/b38b8bd9-d96f-4bf9-add1-adbd2b08b802.woff2") format("woff2"),
+    url("fonts/52ed7b2d-8a31-4b18-a1d5-8685608b0889.woff") format("woff");
+  -webkit-font-smoothing: antialiased;
+}
+@font-face {
+  font-family: "Gaegu";
+  src: url("fonts/Gaegu-Regular.ttf") format("truetype");
 }

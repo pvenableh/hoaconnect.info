@@ -20,3 +20,4 @@ dist
 
 
 node-compile-cache/
+.mcp.json
