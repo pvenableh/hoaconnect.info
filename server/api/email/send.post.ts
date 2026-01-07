@@ -442,6 +442,7 @@ export default defineEventHandler(async (event) => {
               recipient_email: member.email,
               organization_id: organizationId,
             },
+            organizationId,
           });
         } else {
           // Fall back to MJML-generated HTML
@@ -480,6 +481,7 @@ export default defineEventHandler(async (event) => {
               recipient_email: member.email,
               organization_id: organizationId,
             },
+            organizationId,
           });
         }
 

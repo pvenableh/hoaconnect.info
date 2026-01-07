@@ -448,6 +448,7 @@ export const sendOrganizationEmail = async ({
   templateData,
   replyTo,
   customArgs,
+  organizationId,
 }: {
   to: string;
   toName?: string;
@@ -460,11 +461,18 @@ export const sendOrganizationEmail = async ({
   templateData?: EmailTemplateData;
   replyTo?: { email: string; name?: string };
   customArgs?: Record<string, string>;
+  organizationId?: string;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
   const fromEmail = config.public.fromEmail || "noreply@hoaconnect.info";
+
+  // Build categories array - include organization ID if provided
+  const categories = ["HOA Connect"];
+  if (organizationId) {
+    categories.push(`org:${organizationId}`);
+  }
 
   // Use dynamic template if templateId is provided
   if (templateId && templateData) {
@@ -484,7 +492,7 @@ export const sendOrganizationEmail = async ({
       subject,
       templateId,
       dynamicTemplateData: templateData,
-      categories: ["HOA Connect"],
+      categories,
     };
 
     if (attachments && attachments.length > 0) {
@@ -541,7 +549,7 @@ export const sendOrganizationEmail = async ({
     subject,
     html,
     text,
-    categories: ["HOA Connect"],
+    categories,
   };
 
   // Add attachments if provided
