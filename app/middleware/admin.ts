@@ -1,6 +1,8 @@
 /**
  * Admin middleware - protects admin-only routes
- * Only allows access to users with admin roles (App Administrator or HOA Admin)
+ * Allows access to users with admin roles:
+ * - App Administrator: Full system-wide admin access
+ * - HOA Admin: Organization-level admin access (can manage all admin content and features)
  * Regular members will be redirected to the documents page
  *
  * SECURITY: This middleware checks admin access for the CURRENT domain/organization

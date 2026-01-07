@@ -54,21 +54,50 @@ export const useCurrentDomainAccess = () => {
     return typeof roleId === "string" ? roleId : roleId?.id;
   });
 
-  // Check if user is an admin of the CURRENT domain's organization
+  /**
+   * Get the user's global role ID (handles both string and object role references)
+   */
+  const userGlobalRoleId = computed(() => {
+    const role = user.value?.role;
+    if (!role) return null;
+    // Handle role as object or string (Directus can return either)
+    if (typeof role === "object" && role !== null) {
+      return (role as any).id;
+    }
+    return role;
+  });
+
+  /**
+   * Check if user is an admin of the CURRENT domain's organization
+   * Both App Administrator and HOA Admin roles grant full admin access
+   * to view and manage all admin content and features (including during maintenance mode)
+   */
   const isAdminOfCurrentDomain = computed(() => {
-    // First check if user is an App Administrator (global admin)
-    const userRoleId = user.value?.role;
-    if (userRoleId === config.public.directusRoleAppAdmin) {
+    const roleId = userGlobalRoleId.value;
+
+    // First check if user has a global admin role (App Admin or HOA Admin)
+    // This provides immediate admin access before membership data loads
+    if (roleId === config.public.directusRoleAppAdmin) {
       return true;
     }
 
-    // Then check if they have admin role in this specific organization
+    // HOA Admin users also get admin access - they can manage admin content
+    // This ensures HOA Admin users can see navigation in maintenance mode
+    if (roleId === config.public.directusRoleHoaAdmin) {
+      // For HOA Admin, we need to verify they have membership in this org
+      // If memberships aren't loaded yet, we'll check on the next render
+      if (currentDomainMembership.value) {
+        return true;
+      }
+    }
+
+    // Then check if they have admin role in this specific organization's membership
     if (!currentDomainRoleId.value) return false;
 
     const adminRoles = [
-      config.public.directusRoleAppAdmin,
-      config.public.directusRoleHoaAdmin,
-      config.public.directusRoleAdmin, // Legacy fallback
+      config.public.directusRoleAppAdmin,   // App Administrator - full system access
+      config.public.directusRoleHoaAdmin,   // HOA Admin - organization-level admin access
+      config.public.directusRoleAdmin,      // Legacy fallback
     ].filter(Boolean);
 
     return adminRoles.includes(currentDomainRoleId.value);
