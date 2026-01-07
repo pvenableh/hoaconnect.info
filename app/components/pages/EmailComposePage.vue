@@ -606,7 +606,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen bg-stone-50 dark:bg-stone-950">
     <div class="p-6">
       <div class="max-w-5xl mx-auto">
         <!-- Header -->
@@ -618,7 +618,7 @@ useSeoMeta({
           <h1 class="text-3xl font-bold mb-2">
             {{ props.emailId ? "Edit Email" : "Compose Email" }}
           </h1>
-          <p class="text-stone-600">
+          <p class="text-stone-600 dark:text-stone-400">
             Create and send emails to your HOA members
           </p>
         </div>
@@ -629,7 +629,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading...</p>
+          <p class="text-sm text-stone-600 dark:text-stone-400">Loading...</p>
         </div>
 
         <!-- No Organization State -->
@@ -665,7 +665,7 @@ useSeoMeta({
                       'p-3 rounded-lg border-2 text-center transition-all',
                       form.emailType === option.value
                         ? 'border-primary bg-primary/5'
-                        : 'border-stone-200 hover:border-stone-300',
+                        : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600',
                     ]"
                   >
                     <Icon :name="option.icon" class="w-5 h-5 mx-auto mb-1" />
@@ -698,9 +698,9 @@ useSeoMeta({
                     v-model="form.greeting"
                     :placeholder="greetingPlaceholder"
                   />
-                  <p class="text-xs text-stone-500">
+                  <p class="text-xs text-stone-500 dark:text-stone-400">
                     Use
-                    <code class="bg-stone-100 px-1 rounded"
+                    <code class="bg-stone-100 dark:bg-stone-800 px-1 rounded"
                       >&#123;&#123;first_name&#125;&#125;</code
                     >
                     for personalization. In the preview it shows the
@@ -716,7 +716,7 @@ useSeoMeta({
                     placeholder="Write your email message here..."
                     :folder-id="orgFolderId"
                   />
-                  <p class="text-xs text-stone-500">
+                  <p class="text-xs text-stone-500 dark:text-stone-400">
                     Use the toolbar to format text, add images, or browse your
                     organization's files.
                   </p>
@@ -737,7 +737,7 @@ useSeoMeta({
                     v-model="form.salutation"
                     :placeholder="defaultSalutation"
                   />
-                  <p class="text-xs text-stone-500">
+                  <p class="text-xs text-stone-500 dark:text-stone-400">
                     Leave empty to use the default salutation for this email
                     type.
                   </p>
@@ -804,18 +804,18 @@ useSeoMeta({
                   <div
                     v-for="attachment in selectedAttachments"
                     :key="attachment.id"
-                    class="flex items-center justify-between p-3 bg-stone-50 rounded-lg border"
+                    class="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-900 rounded-lg border dark:border-stone-700"
                   >
                     <div class="flex items-center gap-3 min-w-0">
                       <Icon
                         :name="getFileIcon(attachment.type)"
-                        class="w-5 h-5 text-stone-500 flex-shrink-0"
+                        class="w-5 h-5 text-stone-500 dark:text-stone-400 flex-shrink-0"
                       />
                       <div class="min-w-0">
                         <div class="font-medium text-sm truncate">
                           {{ attachment.filename }}
                         </div>
-                        <div class="text-xs text-stone-500">
+                        <div class="text-xs text-stone-500 dark:text-stone-400">
                           {{ formatFileSize(attachment.size) }}
                         </div>
                       </div>
@@ -825,12 +825,12 @@ useSeoMeta({
                       size="sm"
                       @click="removeAttachment(attachment.id)"
                     >
-                      <Icon name="lucide:x" class="w-4 h-4 text-stone-500" />
+                      <Icon name="lucide:x" class="w-4 h-4 text-stone-500 dark:text-stone-400" />
                     </Button>
                   </div>
                 </div>
 
-                <p v-else class="text-sm text-stone-500 text-center py-4">
+                <p v-else class="text-sm text-stone-500 dark:text-stone-400 text-center py-4">
                   No attachments added
                 </p>
               </CardContent>
@@ -863,12 +863,12 @@ useSeoMeta({
                         'p-2 rounded-lg border text-center transition-all text-xs',
                         recipientFilter === option.value
                           ? 'border-primary bg-primary/5 text-primary'
-                          : 'border-stone-200 hover:border-stone-300',
+                          : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600',
                       ]"
                     >
                       <Icon :name="option.icon" class="w-4 h-4 mx-auto mb-1" />
                       <div class="font-medium">{{ option.label }}</div>
-                      <div class="text-stone-500">
+                      <div class="text-stone-500 dark:text-stone-400">
                         ({{ memberCounts[option.value] }})
                       </div>
                     </button>
@@ -908,12 +908,12 @@ useSeoMeta({
                 <!-- Member Selection List -->
                 <div
                   v-if="selectionMode === 'selected'"
-                  class="border rounded-lg max-h-80 overflow-y-auto"
+                  class="border dark:border-stone-700 rounded-lg max-h-80 overflow-y-auto"
                 >
                   <div
-                    class="p-2 border-b bg-stone-50 flex justify-between items-center sticky top-0"
+                    class="p-2 border-b dark:border-stone-700 bg-stone-50 dark:bg-stone-900 flex justify-between items-center sticky top-0"
                   >
-                    <span class="text-sm text-stone-600">
+                    <span class="text-sm text-stone-600 dark:text-stone-400">
                       {{ form.recipientIds.length }} selected
                     </span>
                     <div class="flex gap-2">
@@ -930,7 +930,7 @@ useSeoMeta({
                     :key="member.id"
                     @click="toggleMember(member.id)"
                     :class="[
-                      'p-3 border-b last:border-b-0 cursor-pointer hover:bg-stone-50 flex items-center gap-3',
+                      'p-3 border-b dark:border-stone-700 last:border-b-0 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900 flex items-center gap-3',
                       form.recipientIds.includes(member.id)
                         ? 'bg-primary/5'
                         : '',
@@ -948,21 +948,21 @@ useSeoMeta({
                           :class="[
                             'text-[10px] px-1.5 py-0.5 rounded-full uppercase font-semibold',
                             member.member_type === 'owner'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-amber-100 text-amber-700',
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
                           ]"
                         >
                           {{ member.member_type }}
                         </span>
                       </div>
-                      <div class="text-xs text-stone-500 truncate">
+                      <div class="text-xs text-stone-500 dark:text-stone-400 truncate">
                         {{ member.email }}
                       </div>
                     </div>
                   </div>
                   <div
                     v-if="!members.length"
-                    class="p-4 text-center text-stone-500 text-sm"
+                    class="p-4 text-center text-stone-500 dark:text-stone-400 text-sm"
                   >
                     No {{ recipientTypeLabel }} with email addresses found
                   </div>
@@ -1045,7 +1045,7 @@ useSeoMeta({
               </CardHeader>
 
               <CardContent v-if="showTestEmailSection" class="pt-0 space-y-4">
-                <p class="text-sm text-stone-600">
+                <p class="text-sm text-stone-600 dark:text-stone-400">
                   Test your email in multiple clients (Gmail, Outlook, etc.) before sending to all recipients.
                 </p>
 
@@ -1058,7 +1058,7 @@ useSeoMeta({
 
                 <!-- Test Results -->
                 <div v-if="testEmailResults.length > 0" class="space-y-2">
-                  <div class="text-sm font-medium text-stone-700">Results:</div>
+                  <div class="text-sm font-medium text-stone-700 dark:text-stone-300">Results:</div>
                   <div
                     v-for="result in testEmailResults"
                     :key="result.email"
@@ -1105,16 +1105,16 @@ useSeoMeta({
               </DialogDescription>
             </DialogHeader>
             <div
-              class="overflow-auto max-h-[70vh] border rounded-lg bg-stone-100 p-4"
+              class="overflow-auto max-h-[70vh] border dark:border-stone-700 rounded-lg bg-stone-100 dark:bg-stone-900 p-4"
             >
               <div
-                class="bg-white rounded shadow-sm"
+                class="bg-white dark:bg-stone-800 rounded shadow-sm"
                 v-html="previewHtml"
               ></div>
             </div>
             <!-- Attachments in preview -->
             <div v-if="previewAttachments.length > 0" class="mt-4">
-              <div class="text-sm font-medium text-stone-700 mb-2 flex items-center gap-2">
+              <div class="text-sm font-medium text-stone-700 dark:text-stone-300 mb-2 flex items-center gap-2">
                 <Icon name="lucide:paperclip" class="w-4 h-4" />
                 Attachments ({{ previewAttachments.length }})
               </div>
@@ -1122,11 +1122,11 @@ useSeoMeta({
                 <div
                   v-for="attachment in previewAttachments"
                   :key="attachment.id"
-                  class="flex items-center gap-2 px-3 py-2 bg-stone-100 rounded-lg text-sm"
+                  class="flex items-center gap-2 px-3 py-2 bg-stone-100 dark:bg-stone-800 rounded-lg text-sm"
                 >
-                  <Icon :name="getFileIcon(attachment.type)" class="w-4 h-4 text-stone-500" />
+                  <Icon :name="getFileIcon(attachment.type)" class="w-4 h-4 text-stone-500 dark:text-stone-400" />
                   <span class="font-medium">{{ attachment.filename }}</span>
-                  <span class="text-stone-500">({{ formatFileSize(attachment.size) }})</span>
+                  <span class="text-stone-500 dark:text-stone-400">({{ formatFileSize(attachment.size) }})</span>
                 </div>
               </div>
             </div>
@@ -1144,7 +1144,7 @@ useSeoMeta({
             </DialogHeader>
 
             <!-- Breadcrumb Navigation -->
-            <div class="flex items-center gap-1 text-sm border-b pb-2">
+            <div class="flex items-center gap-1 text-sm border-b dark:border-stone-700 pb-2">
               <template v-for="(folder, index) in attachmentFolderPath" :key="folder.id">
                 <button
                   type="button"
@@ -1189,7 +1189,7 @@ useSeoMeta({
 
               <div
                 v-else-if="attachmentFolders.length === 0 && filteredAttachmentFiles.length === 0"
-                class="flex flex-col items-center justify-center h-full text-stone-500"
+                class="flex flex-col items-center justify-center h-full text-stone-500 dark:text-stone-400"
               >
                 <Icon name="lucide:folder-x" class="w-12 h-12 mb-2" />
                 <p>No files found in this folder</p>
@@ -1204,7 +1204,7 @@ useSeoMeta({
                   v-for="folder in attachmentFolders"
                   :key="folder.id"
                   type="button"
-                  class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-stone-300 transition-colors"
+                  class="flex flex-col items-center p-3 rounded-lg border dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-900 hover:border-stone-300 dark:hover:border-stone-600 transition-colors"
                   @click="navigateToAttachmentFolder(folder.id, folder.name || 'Folder')"
                 >
                   <Icon
@@ -1221,12 +1221,12 @@ useSeoMeta({
                   v-for="file in filteredAttachmentFiles"
                   :key="file.id"
                   type="button"
-                  class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-primary transition-colors group"
+                  class="flex flex-col items-center p-3 rounded-lg border dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-900 hover:border-primary transition-colors group"
                   :class="{ 'border-primary bg-primary/5': form.attachmentIds.includes(file.id) }"
                   @click="selectAttachmentFile(file)"
                 >
                   <div
-                    class="w-12 h-12 mb-2 flex items-center justify-center rounded bg-stone-100"
+                    class="w-12 h-12 mb-2 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800"
                   >
                     <Icon
                       :name="getFileIcon(file.type || '')"
