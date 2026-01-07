@@ -16,7 +16,7 @@ const { create: createMention } = useDirectusItems("hoa_channel_mentions");
 
 // Redirect if no organization selected
 if (!selectedOrgId.value) {
-  return navigateTo("/organizations");
+  await navigateTo("/organizations");
 }
 
 const channelSlug = computed(() => route.params.channel as string);

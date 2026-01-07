@@ -11,7 +11,7 @@ const { selectedOrgId, isAdmin, currentOrg } = await useSelectedOrg();
 
 // Redirect if no organization selected
 if (!selectedOrgId.value) {
-  return navigateTo("/organizations");
+  await navigateTo("/organizations");
 }
 
 const showCreateModal = ref(false);
