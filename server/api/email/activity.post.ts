@@ -96,6 +96,15 @@ export default defineEventHandler(async (event) => {
           }
         }
 
+        // Extract organization ID from categories (format: "org:uuid")
+        let organizationId: string | null = sgEvent.organization_id || null;
+        if (!organizationId && sgEvent.category && Array.isArray(sgEvent.category)) {
+          const orgCategory = sgEvent.category.find((cat) => cat.startsWith("org:"));
+          if (orgCategory) {
+            organizationId = orgCategory.substring(4); // Remove "org:" prefix
+          }
+        }
+
         // Create activity record
         const activityData: Partial<HoaEmailActivity> = {
           email_recipient: recipient?.id || null,
@@ -108,8 +117,8 @@ export default defineEventHandler(async (event) => {
           ip: sgEvent.ip || null,
           reason: sgEvent.reason || sgEvent.response || null,
           event_timestamp: sgEvent.timestamp || null,
-          // Organization ID from custom args
-          organization: sgEvent.organization_id || null,
+          // Organization ID from custom args or categories
+          organization: organizationId,
         };
 
         await directus.request(createItem("hoa_email_activity", activityData));
