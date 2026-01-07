@@ -462,6 +462,8 @@ export interface HoaMember {
 	last_name?: string | null;
 	email?: string | null;
 	phone?: string | null;
+	/** @description Company or business name (for property managers) */
+	company?: string | null;
 	member_type?: 'owner' | 'tenant' | 'property_manager' | null;
 	total_payments?: number | null;
 	last_payment_date?: string | null;
