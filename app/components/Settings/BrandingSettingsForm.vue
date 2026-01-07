@@ -103,146 +103,61 @@
       </CardContent>
     </Card>
 
-    <!-- Colors -->
+    <!-- Theme -->
     <Card>
       <CardHeader>
-        <CardTitle>Colors</CardTitle>
+        <CardTitle>Theme</CardTitle>
         <CardDescription>
-          Customize your organization's color scheme
+          Choose a color theme for your organization's site
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Primary Color -->
+        <div class="space-y-4">
           <div class="space-y-2">
-            <Label for="primaryColor">Primary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="primaryColor"
-                type="color"
-                v-model="form.primaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.primaryColor"
-                placeholder="#2563eb"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-
-          <!-- Secondary Color -->
-          <div class="space-y-2">
-            <Label for="secondaryColor">Secondary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="secondaryColor"
-                type="color"
-                v-model="form.secondaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.secondaryColor"
-                placeholder="#64748b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-
-          <!-- Accent Color -->
-          <div class="space-y-2">
-            <Label for="accentColor">Accent Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="accentColor"
-                type="color"
-                v-model="form.accentColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.accentColor"
-                placeholder="#f59e0b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Color Preview -->
-        <div class="mt-6 p-4 rounded-lg border">
-          <p class="text-sm font-medium mb-3">Preview</p>
-          <div class="flex items-center gap-4">
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.primaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.secondaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.accentColor }"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Typography -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Typography</CardTitle>
-        <CardDescription>
-          Choose fonts for your organization's site
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Heading Font -->
-          <div class="space-y-2">
-            <Label for="headingFont">Heading Font</Label>
+            <Label for="theme">Color Theme</Label>
             <select
-              id="headingFont"
-              v-model="form.headingFont"
+              id="theme"
+              v-model="form.theme"
               class="w-full px-3 py-2 border rounded-md bg-background"
               :disabled="isSaving"
             >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
+              <option value="light">Light - Clean and bright</option>
+              <option value="dark">Dark - Modern and sleek</option>
+              <option value="ocean">Ocean - Cool blues and teals</option>
+              <option value="forest">Forest - Natural greens</option>
+              <option value="sunset">Sunset - Warm oranges and reds</option>
+              <option value="midnight">Midnight - Deep purple and blue</option>
             </select>
-            <p
-              class="text-lg font-bold mt-2"
-              :style="{ fontFamily: form.headingFont }"
-            >
-              Sample Heading Text
-            </p>
           </div>
 
-          <!-- Body Font -->
-          <div class="space-y-2">
-            <Label for="bodyFont">Body Font</Label>
-            <select
-              id="bodyFont"
-              v-model="form.bodyFont"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
-            >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
-            </select>
-            <p
-              class="mt-2"
-              :style="{ fontFamily: form.bodyFont }"
-            >
-              This is sample body text to preview how your content will look.
-            </p>
+          <!-- Theme Preview -->
+          <div class="mt-4 p-4 rounded-lg border">
+            <p class="text-sm font-medium mb-3">Preview</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div
+                v-for="theme in themeOptions"
+                :key="theme.value"
+                class="flex flex-col items-center gap-1 cursor-pointer p-2 rounded-lg border-2 transition-all"
+                :class="form.theme === theme.value ? 'border-primary bg-primary/5' : 'border-transparent hover:border-muted'"
+                @click="form.theme = theme.value"
+              >
+                <div class="flex gap-0.5">
+                  <div
+                    class="h-8 w-4 rounded-l"
+                    :style="{ backgroundColor: theme.colors.primary }"
+                  />
+                  <div
+                    class="h-8 w-4"
+                    :style="{ backgroundColor: theme.colors.secondary }"
+                  />
+                  <div
+                    class="h-8 w-4 rounded-r"
+                    :style="{ backgroundColor: theme.colors.accent }"
+                  />
+                </div>
+                <span class="text-xs text-muted-foreground">{{ theme.label }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -327,6 +242,16 @@ const iconPreview = ref<string | null>(null);
 const removedLogo = ref(false);
 const removedIcon = ref(false);
 
+// Theme options with preview colors
+const themeOptions = [
+  { value: 'light', label: 'Light', colors: { primary: '#2563eb', secondary: '#64748b', accent: '#f59e0b' } },
+  { value: 'dark', label: 'Dark', colors: { primary: '#3b82f6', secondary: '#94a3b8', accent: '#fbbf24' } },
+  { value: 'ocean', label: 'Ocean', colors: { primary: '#0891b2', secondary: '#0e7490', accent: '#06b6d4' } },
+  { value: 'forest', label: 'Forest', colors: { primary: '#16a34a', secondary: '#15803d', accent: '#84cc16' } },
+  { value: 'sunset', label: 'Sunset', colors: { primary: '#ea580c', secondary: '#dc2626', accent: '#fbbf24' } },
+  { value: 'midnight', label: 'Midnight', colors: { primary: '#7c3aed', secondary: '#6366f1', accent: '#a78bfa' } },
+];
+
 // Helper to get file ID
 const getFileId = (file: DirectusFile | string | null | undefined): string | null => {
   if (!file) return null;
@@ -349,23 +274,9 @@ const currentIconUrl = computed(() => {
   return `${config.public.directus.url}/assets/${iconId}`;
 });
 
-// Extract colors from settings
-const getColors = () => {
-  const colors = props.settings?.colors?.[0];
-  return {
-    primary: colors?.primary || "#2563eb",
-    secondary: colors?.secondary || "#64748b",
-    accent: colors?.accent || "#f59e0b",
-  };
-};
-
 // Form data
 const form = ref({
-  primaryColor: getColors().primary,
-  secondaryColor: getColors().secondary,
-  accentColor: getColors().accent,
-  headingFont: props.settings?.heading_font || "sans-serif",
-  bodyFont: props.settings?.body_font || "sans-serif",
+  theme: props.settings?.theme || "light",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
 });
@@ -375,13 +286,8 @@ watch(
   () => props.settings,
   (newSettings) => {
     if (newSettings) {
-      const colors = newSettings.colors?.[0];
       form.value = {
-        primaryColor: colors?.primary || "#2563eb",
-        secondaryColor: colors?.secondary || "#64748b",
-        accentColor: colors?.accent || "#f59e0b",
-        headingFont: newSettings.heading_font || "sans-serif",
-        bodyFont: newSettings.body_font || "sans-serif",
+        theme: newSettings.theme || "light",
         title: newSettings.title || "",
         description: newSettings.description || "",
       };
@@ -485,15 +391,7 @@ const saveChanges = async () => {
     const settingsData: Partial<BlockSetting> = {
       title: form.value.title,
       description: form.value.description,
-      heading_font: form.value.headingFont as "serif" | "sans-serif",
-      body_font: form.value.bodyFont as "serif" | "sans-serif",
-      colors: [
-        {
-          primary: form.value.primaryColor,
-          secondary: form.value.secondaryColor,
-          accent: form.value.accentColor,
-        },
-      ],
+      theme: form.value.theme as BlockSetting['theme'],
       logo: logoId,
       icon: iconId,
       status: "published",
