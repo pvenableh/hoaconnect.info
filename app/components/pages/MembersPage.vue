@@ -18,13 +18,20 @@ const {
 } = useDirectusItems("hoa_members");
 const { list: listInvitations, update: updateInvitation } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
-const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
 const {
   list: listBoardTerms,
   create: createBoardTerm,
   update: updateBoardTerm,
   remove: removeBoardTerm,
 } = useDirectusItems("hoa_board_members");
+
+// Secured API function for member-unit assignment (admin-only)
+const assignMemberUnit = async (memberId: string, unitId: string, isPrimaryUnit = true) => {
+  return await $fetch("/api/hoa/member-units/assign", {
+    method: "POST",
+    body: { memberId, unitId, isPrimaryUnit },
+  });
+};
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
@@ -75,6 +82,7 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           "last_name",
           "email",
           "phone",
+          "company",
           "member_type",
           "role",
           "user.id",
@@ -233,6 +241,7 @@ const form = reactive({
   last_name: "",
   email: "",
   phone: "",
+  company: "",
   member_type: "owner",
   role: config.public.directusRoleMember as string,
   unit: null as string | null,
@@ -244,6 +253,7 @@ const resetForm = () => {
   form.last_name = "";
   form.email = "";
   form.phone = "";
+  form.company = "";
   form.member_type = "owner";
   form.role = config.public.directusRoleMember;
   form.unit = null;
@@ -261,6 +271,7 @@ const handleEdit = (member: any) => {
   form.last_name = member.last_name;
   form.email = member.email;
   form.phone = member.phone;
+  form.company = member.company || "";
   form.member_type = member.member_type;
   form.role = member.role || config.public.directusRoleMember;
   form.status = member.status;
@@ -286,6 +297,7 @@ const handleSubmit = async () => {
         last_name: form.last_name,
         email: form.email,
         phone: form.phone,
+        company: form.company || null,
         member_type: form.member_type,
         role: form.role,
         status: form.status,
@@ -298,6 +310,7 @@ const handleSubmit = async () => {
         last_name: form.last_name,
         email: form.email,
         phone: form.phone,
+        company: form.company || null,
         member_type: form.member_type,
         role: form.role,
         organization: organization.value.id,
@@ -305,12 +318,7 @@ const handleSubmit = async () => {
       })) as any;
 
       if (form.unit && newMember?.id) {
-        await createMemberUnit({
-          member_id: newMember.id,
-          unit_id: form.unit,
-          is_primary_unit: true,
-          status: "published",
-        });
+        await assignMemberUnit(newMember.id, form.unit, true);
       }
 
       toast.success("Member added");
@@ -666,6 +674,7 @@ useSeoMeta({
                       <th class="text-left p-3">Name</th>
                       <th class="text-left p-3">Email</th>
                       <th class="text-left p-3">Phone</th>
+                      <th class="text-left p-3">Company</th>
                       <th class="text-left p-3">Type</th>
                       <th class="text-left p-3">Role</th>
                       <th class="text-left p-3">Unit(s)</th>
@@ -684,6 +693,7 @@ useSeoMeta({
                       </td>
                       <td class="p-3">{{ member.email }}</td>
                       <td class="p-3">{{ member.phone || "—" }}</td>
+                      <td class="p-3">{{ member.company || "—" }}</td>
                       <td class="p-3 capitalize">{{ member.member_type }}</td>
                       <td class="p-3">
                         <span
@@ -1039,6 +1049,11 @@ useSeoMeta({
               <div class="grid gap-2">
                 <Label for="phone">Phone</Label>
                 <Input id="phone" v-model="form.phone" type="tel" />
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="company">Company</Label>
+                <Input id="company" v-model="form.company" placeholder="Optional - for property managers" />
               </div>
 
               <div class="grid grid-cols-2 gap-4">

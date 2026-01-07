@@ -9,12 +9,37 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const {
-  list: listUnits,
-  create: createUnit,
-  update: updateUnit,
-  remove: removeUnit,
-} = useDirectusItems("hoa_units");
+// Use useDirectusItems for list (read) operations only
+const { list: listUnits } = useDirectusItems("hoa_units");
+
+// Secured API functions for write operations (admin-only)
+const createUnit = async (data: { unit_number: string; status: string; organization: string }) => {
+  return await $fetch("/api/hoa/units/create", {
+    method: "POST",
+    body: {
+      organizationId: data.organization,
+      unit_number: data.unit_number,
+      status: data.status,
+    },
+  });
+};
+
+const updateUnit = async (unitId: string, data: { unit_number?: string; status?: string }) => {
+  return await $fetch("/api/hoa/units/update", {
+    method: "POST",
+    body: {
+      unitId,
+      ...data,
+    },
+  });
+};
+
+const removeUnit = async (unitId: string) => {
+  return await $fetch("/api/hoa/units/delete", {
+    method: "POST",
+    body: { unitId },
+  });
+};
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId, currentOrg, isLoading } = await useSelectedOrg();
@@ -97,13 +122,16 @@ const handleSubmit = async () => {
 
   try {
     if (editingId.value) {
-      await updateUnit(editingId.value, form);
+      await updateUnit(editingId.value, {
+        unit_number: form.unit_number,
+        status: form.status,
+      });
       toast.success("Unit updated");
     } else {
       await createUnit({
-        ...form,
+        unit_number: form.unit_number,
+        status: form.status,
         organization: orgId.value,
-        sort: 0,
       });
       toast.success("Unit added");
     }
@@ -111,8 +139,8 @@ const handleSubmit = async () => {
     await refresh();
     showModal.value = false;
     resetForm();
-  } catch (error) {
-    toast.error("Failed to save unit");
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Failed to save unit");
   }
 };
 
@@ -124,8 +152,8 @@ const handleDelete = async (id: string) => {
     await removeUnit(id);
     await refresh();
     toast.success("Unit deleted");
-  } catch (error) {
-    toast.error("Failed to delete unit");
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Failed to delete unit");
   }
 };
 </script>
