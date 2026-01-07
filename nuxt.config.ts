@@ -276,12 +276,27 @@ export default defineNuxtConfig({
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          // Manual chunking for better caching
-          manualChunks: {
-            "vue-vendor": ["vue", "vue-router"],
-            "ui-vendor": ["reka-ui", "class-variance-authority", "clsx", "tailwind-merge"],
-            "directus": ["@directus/sdk"],
-            "editor": ["@tiptap/vue-3", "@tiptap/starter-kit", "@tiptap/pm"],
+          // Function-based chunking for better control and error handling
+          manualChunks(id: string) {
+            // Vue core libraries
+            if (id.includes("node_modules/vue/") || id.includes("node_modules/vue-router/")) {
+              return "vue-vendor";
+            }
+            // UI component libraries
+            if (id.includes("node_modules/reka-ui/") ||
+                id.includes("node_modules/class-variance-authority/") ||
+                id.includes("node_modules/clsx/") ||
+                id.includes("node_modules/tailwind-merge/")) {
+              return "ui-vendor";
+            }
+            // Directus SDK
+            if (id.includes("node_modules/@directus/sdk/")) {
+              return "directus";
+            }
+            // TipTap editor (all tiptap packages)
+            if (id.includes("node_modules/@tiptap/")) {
+              return "editor";
+            }
           },
         },
       },
