@@ -513,105 +513,130 @@ const handleBatchUploadComplete = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="flex justify-between items-center">
-          <h1 class="text-3xl font-bold">Documents</h1>
-          <div class="flex gap-2">
-            <!-- Category Manager toggle (always visible) -->
+  <div class="min-h-screen t-bg t-text">
+    <!-- Page Header Section -->
+    <div class="t-bg-alt border-b t-border-divider">
+      <div class="max-w-7xl mx-auto px-6 py-12">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="t-label t-text-accent mb-3 tracking-widest">Resource Library</p>
+            <h1 class="text-4xl t-heading font-light tracking-wide mb-3">Documents</h1>
+            <p class="t-text-secondary text-lg">
+              Access important community documents, bylaws, and records
+            </p>
+          </div>
+          <div class="flex gap-3">
+            <!-- Category Manager toggle -->
             <Button
               @click="showCategoryManager = !showCategoryManager"
               variant="outline"
-              :class="showCategoryManager ? 'bg-stone-100' : ''"
+              class="t-border hover:t-bg-subtle"
+              :class="showCategoryManager ? 't-bg-subtle' : ''"
             >
               <Icon name="heroicons:tag" class="h-4 w-4 mr-2" />
               Categories
             </Button>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Category Manager (collapsible) -->
-        <DocumentsCategoryManager v-if="showCategoryManager" />
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 py-10 space-y-8">
+      <!-- Category Manager (collapsible) -->
+      <DocumentsCategoryManager v-if="showCategoryManager" />
 
-        <!-- Tabbed Interface -->
-        <Tabs v-model="activeTab" class="w-full">
-          <TabsList class="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="categories">
+      <!-- Tabbed Interface -->
+      <Tabs v-model="activeTab" class="w-full">
+        <div class="t-bg-elevated rounded-xl border t-border p-1 inline-flex mb-8">
+          <TabsList class="grid w-full grid-cols-2 max-w-md bg-transparent">
+            <TabsTrigger value="categories" class="rounded-lg data-[state=active]:t-bg-accent data-[state=active]:text-white">
               <Icon name="heroicons:squares-2x2" class="h-4 w-4 mr-2" />
               Document Categories
             </TabsTrigger>
-            <TabsTrigger value="files">
+            <TabsTrigger value="files" class="rounded-lg data-[state=active]:t-bg-accent data-[state=active]:text-white">
               <Icon name="heroicons:folder" class="h-4 w-4 mr-2" />
               File Library
             </TabsTrigger>
           </TabsList>
+        </div>
 
-          <!-- Document Categories Tab -->
-          <TabsContent value="categories" class="mt-6">
-            <DocumentsDocumentCategoryView />
-          </TabsContent>
+        <!-- Document Categories Tab -->
+        <TabsContent value="categories" class="mt-0">
+          <DocumentsDocumentCategoryView />
+        </TabsContent>
 
-          <!-- File Library Tab -->
-          <TabsContent value="files" class="mt-6">
-            <!-- File Library Header Actions -->
-            <div class="flex justify-end gap-2 mb-6">
-              <!-- Edit Selected button (shown when documents are selected) -->
-              <Button
-                v-if="selectedDocuments.size > 0"
-                @click="openBatchEdit"
-                variant="default"
-              >
-                <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
-                Edit {{ selectedDocuments.size }} Selected
-              </Button>
-              <!-- Selection mode toggle -->
-              <Button
-                @click="toggleSelectionMode"
-                variant="outline"
-                :class="selectionMode ? 'bg-blue-100 border-blue-300' : ''"
-              >
-                <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
-                {{ selectionMode ? 'Cancel Select' : 'Select' }}
-              </Button>
-              <Button
-                @click="openCreateFolderDialog(orgFolder!)"
-                variant="outline"
-              >
-                <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
-                New Folder
-              </Button>
-              <Button
-                @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
-              >
-                <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
-                Upload Documents
-              </Button>
-            </div>
+        <!-- File Library Tab -->
+        <TabsContent value="files" class="mt-0">
+          <!-- File Library Header -->
+          <div class="mb-8">
+            <h2 class="t-heading text-xl font-light tracking-wide mb-2 flex items-center gap-3">
+              <Icon name="heroicons:folder-open" class="w-5 h-5 t-text-accent" />
+              File Library
+            </h2>
+            <p class="t-text-secondary">Organize and manage your documents in folders</p>
+          </div>
 
-            <!-- Filters -->
+          <!-- File Library Header Actions -->
+          <div class="flex justify-end gap-3 mb-6">
+            <!-- Edit Selected button (shown when documents are selected) -->
+            <Button
+              v-if="selectedDocuments.size > 0"
+              @click="openBatchEdit"
+              variant="default"
+            >
+              <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
+              Edit {{ selectedDocuments.size }} Selected
+            </Button>
+            <!-- Selection mode toggle -->
+            <Button
+              @click="toggleSelectionMode"
+              variant="outline"
+              class="t-border hover:t-bg-subtle"
+              :class="selectionMode ? 't-bg-subtle t-border-accent' : ''"
+            >
+              <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
+              {{ selectionMode ? 'Cancel Select' : 'Select' }}
+            </Button>
+            <Button
+              @click="openCreateFolderDialog(orgFolder!)"
+              variant="outline"
+              class="t-border hover:t-bg-subtle"
+            >
+              <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
+              New Folder
+            </Button>
+            <Button
+              @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
+            >
+              <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
+              Upload Documents
+            </Button>
+          </div>
+
+          <!-- Filters -->
+          <div class="t-bg-elevated rounded-xl border t-border p-6 mb-6">
             <TooltipProvider>
-              <div class="space-y-6 flex flex-row justify-between">
+              <div class="flex flex-col md:flex-row justify-between gap-6">
                 <!-- Category Filters -->
                 <div>
-                  <label class="text-sm font-medium mb-3 block">Category</label>
+                  <label class="t-label mb-3 block">Category</label>
                   <div class="flex gap-2 flex-wrap">
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <button
                           @click="category = 'all'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             category === 'all'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:bars-3" class="h-6 w-6" />
+                          <Icon name="heroicons:bars-3" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> All Categories </TooltipContent>
+                      <TooltipContent>All Categories</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -619,16 +644,16 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="category = 'bylaws'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             category === 'bylaws'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:scale" class="h-6 w-6" />
+                          <Icon name="heroicons:scale" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Bylaws </TooltipContent>
+                      <TooltipContent>Bylaws</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -636,16 +661,16 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="category = 'financials'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             category === 'financials'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:currency-dollar" class="h-6 w-6" />
+                          <Icon name="heroicons:currency-dollar" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Financials </TooltipContent>
+                      <TooltipContent>Financials</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -653,16 +678,16 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="category = 'meeting_minutes'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             category === 'meeting_minutes'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:user-group" class="h-6 w-6" />
+                          <Icon name="heroicons:user-group" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Meeting Minutes </TooltipContent>
+                      <TooltipContent>Meeting Minutes</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -670,39 +695,39 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="category = 'notices'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             category === 'notices'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:bell" class="h-6 w-6" />
+                          <Icon name="heroicons:bell" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Notices </TooltipContent>
+                      <TooltipContent>Notices</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
 
                 <!-- Status Filters -->
                 <div>
-                  <label class="text-sm font-medium mb-3 block">Status</label>
+                  <label class="t-label mb-3 block">Status</label>
                   <div class="flex gap-2 flex-wrap">
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <button
                           @click="status = 'published'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             status === 'published'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:check" class="h-6 w-6" />
+                          <Icon name="heroicons:check" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Published </TooltipContent>
+                      <TooltipContent>Published</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -710,16 +735,16 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="status = 'draft'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             status === 'draft'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:pencil-square" class="h-6 w-6" />
+                          <Icon name="heroicons:pencil-square" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Draft </TooltipContent>
+                      <TooltipContent>Draft</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -727,76 +752,80 @@ const handleBatchUploadComplete = async () => {
                         <button
                           @click="status = 'archived'"
                           :class="[
-                            'w-[50px] h-[50px] rounded-lg border-2 transition-all flex items-center justify-center',
+                            'w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center',
                             status === 'archived'
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'bg-background border-border hover:border-primary/50',
+                              ? 't-bg-accent t-border-accent text-white'
+                              : 't-bg-elevated t-border hover:t-border-accent',
                           ]"
                         >
-                          <Icon name="heroicons:archive-box" class="h-6 w-6" />
+                          <Icon name="heroicons:archive-box" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent> Archived </TooltipContent>
+                      <TooltipContent>Archived</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
               </div>
             </TooltipProvider>
+          </div>
 
-            <!-- Document Tree -->
-            <Card class="mt-6">
-              <CardHeader>
-                <CardTitle>Documents & Folders</CardTitle>
-                <CardDescription>
-                  Organize your documents into folders. Drag and drop to move items.
-                </CardDescription>
-              </CardHeader>
-              <CardContent class="p-4">
-                <div class="space-y-1">
-                  <!-- Recursive Tree Component -->
-                  <TreeNode
-                    v-for="node in documentTree"
-                    :key="node.id"
-                    :node="node"
-                    :level="0"
-                    :dragged-item="draggedItem"
-                    :dragged-item-type="draggedItemType"
-                    :drag-over-item="dragOverItem"
-                    :editing-id="editingId"
-                    :selected-ids="selectedDocumentIds"
-                    :selection-mode="selectionMode"
-                    @toggle="toggleFolder"
-                    @start-drag="startDrag"
-                    @end-drag="endDrag"
-                    @drag-over="onDragOver"
-                    @drag-leave="onDragLeave"
-                    @drop="onDrop"
-                    @delete-folder="deleteFolder"
-                    @delete-document="handleDelete"
-                    @create-subfolder="openCreateFolderDialog"
-                    @upload-to-folder="openBatchUploadForFolder"
-                    @view-document="downloadDocument"
-                    @rename-folder="renameFolder"
-                    @rename-document="renameDocument"
-                    @start-edit="startEdit"
-                    @cancel-edit="cancelEdit"
-                    @toggle-select="toggleDocumentSelection"
-                    @edit-document="openEditForDocument"
-                  />
-                </div>
+          <!-- Document Tree -->
+          <div class="t-bg-elevated rounded-xl border t-border overflow-hidden">
+            <div class="p-6 border-b t-border-divider">
+              <h3 class="t-heading text-lg font-medium tracking-wide mb-1">Documents & Folders</h3>
+              <p class="t-text-secondary text-sm">
+                Organize your documents into folders. Drag and drop to move items.
+              </p>
+            </div>
+            <div class="p-4">
+              <div class="space-y-1">
+                <!-- Recursive Tree Component -->
+                <TreeNode
+                  v-for="node in documentTree"
+                  :key="node.id"
+                  :node="node"
+                  :level="0"
+                  :dragged-item="draggedItem"
+                  :dragged-item-type="draggedItemType"
+                  :drag-over-item="dragOverItem"
+                  :editing-id="editingId"
+                  :selected-ids="selectedDocumentIds"
+                  :selection-mode="selectionMode"
+                  @toggle="toggleFolder"
+                  @start-drag="startDrag"
+                  @end-drag="endDrag"
+                  @drag-over="onDragOver"
+                  @drag-leave="onDragLeave"
+                  @drop="onDrop"
+                  @delete-folder="deleteFolder"
+                  @delete-document="handleDelete"
+                  @create-subfolder="openCreateFolderDialog"
+                  @upload-to-folder="openBatchUploadForFolder"
+                  @view-document="downloadDocument"
+                  @rename-folder="renameFolder"
+                  @rename-document="renameDocument"
+                  @start-edit="startEdit"
+                  @cancel-edit="cancelEdit"
+                  @toggle-select="toggleDocumentSelection"
+                  @edit-document="openEditForDocument"
+                />
+              </div>
 
-                <!-- Empty state -->
-                <div
-                  v-if="documentTree.length === 0"
-                  class="text-center py-12 t-text-muted"
-                >
-                  No folders or documents found
+              <!-- Empty state -->
+              <div
+                v-if="documentTree.length === 0"
+                class="text-center py-16"
+              >
+                <div class="w-16 h-16 rounded-2xl t-bg-subtle flex items-center justify-center mx-auto mb-4">
+                  <Icon name="heroicons:folder" class="w-8 h-8 t-text-muted" />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                <h3 class="t-heading font-medium mb-1">No Documents</h3>
+                <p class="t-text-muted text-sm">No folders or documents found. Upload some documents to get started.</p>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
 
     <!-- Create Folder Dialog -->
