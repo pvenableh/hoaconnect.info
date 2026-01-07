@@ -175,6 +175,18 @@ export function useRoles() {
    */
   const canDeleteContent = computed(() => isAdmin.value)
 
+  /**
+   * Check if user can access admin content (documents, announcements, members, etc.)
+   * HOA Admin and App Admin both have full access to admin content
+   */
+  const canAccessAdminContent = computed(() => isHoaAdmin.value)
+
+  /**
+   * Check if user can manage admin features (settings, members, units, etc.)
+   * HOA Admin and App Admin both have full access to admin features
+   */
+  const canManageAdminFeatures = computed(() => isHoaAdmin.value)
+
   return {
     // State
     currentRole,
@@ -201,6 +213,8 @@ export function useRoles() {
     canCreateContent,
     canEditContent,
     canDeleteContent,
+    canAccessAdminContent,
+    canManageAdminFeatures,
 
     // Constants
     APP_ROLES
