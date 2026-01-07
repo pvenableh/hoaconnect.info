@@ -389,6 +389,32 @@ export interface HoaInvitation {
 	accepted_at?: string | null;
 }
 
+export interface HoaJoinRequest {
+	/** @primaryKey */
+	id: string;
+	status?: 'pending' | 'approved' | 'rejected' | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	/** @description The user requesting to join */
+	user?: DirectusUser | string | null;
+	/** @description The organization they want to join */
+	organization?: HoaOrganization | string | null;
+	/** @description The unit number they claim to be associated with */
+	unit_number?: string | null;
+	/** @description Type of membership they're requesting */
+	member_type?: 'owner' | 'tenant' | 'property_manager' | null;
+	/** @description Additional notes or message from the requester */
+	message?: string | null;
+	/** @description Admin who processed the request */
+	processed_by?: DirectusUser | string | null;
+	/** @description When the request was processed */
+	processed_at?: string | null;
+	/** @description Reason for rejection (if rejected) */
+	rejection_reason?: string | null;
+}
+
 export interface HoaMailingListMember {
 	/** @primaryKey */
 	id: string;
