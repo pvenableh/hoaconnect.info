@@ -2,8 +2,8 @@
 import type { HoaChannel } from "~~/types/directus";
 
 definePageMeta({
-  middleware: ["auth", "admin"],
-  layout: "default",
+  middleware: ["admin", "subscription"],
+  layout: "auth",
 });
 
 const router = useRouter();
@@ -11,7 +11,7 @@ const { selectedOrgId, isAdmin, currentOrg } = await useSelectedOrg();
 
 // Redirect if no organization selected
 if (!selectedOrgId.value) {
-  navigateTo("/organizations");
+  await navigateTo("/organizations");
 }
 
 const showCreateModal = ref(false);
