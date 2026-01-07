@@ -1,5 +1,34 @@
 <template>
 	<div class="sell-sheet t-bg min-h-screen">
+		<!-- Floating Navigation -->
+		<nav
+			class="floating-nav fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-500"
+			:class="[
+				showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
+				scrolledPastHero ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm' : ''
+			]">
+			<div class="max-w-6xl mx-auto flex items-center justify-between">
+				<NuxtLink to="/" class="t-heading text-xl font-light t-text hover:t-text-accent transition-colors">
+					HOA Connect
+				</NuxtLink>
+				<div class="flex items-center gap-6">
+					<button
+						@click="scrollToPlans"
+						class="text-sm t-text-secondary hover:t-text transition-colors hidden sm:block">
+						Pricing
+					</button>
+					<NuxtLink
+						to="/property-managers"
+						class="group flex items-center gap-2 px-4 py-2 rounded-full border t-border hover:t-border-accent transition-all duration-300">
+						<span class="text-sm t-text-secondary group-hover:t-text-accent transition-colors">For Property Managers</span>
+						<UIcon
+							name="i-heroicons-arrow-right"
+							class="w-4 h-4 t-text-tertiary group-hover:t-text-accent group-hover:translate-x-1 transition-all duration-300" />
+					</NuxtLink>
+				</div>
+			</div>
+		</nav>
+
 		<!-- Hero Section -->
 		<section ref="heroRef" class="hero min-h-screen flex flex-col justify-center items-center relative px-6">
 			<!-- Hero Background Image -->
@@ -655,6 +684,20 @@ const ctaRef = ref(null);
 
 const heroImageLoaded = ref(false);
 
+// Navigation scroll state
+const showNav = ref(false);
+const scrolledPastHero = ref(false);
+
+const handleScroll = () => {
+	const scrollY = window.scrollY;
+	const heroHeight = heroRef.value?.offsetHeight || window.innerHeight;
+
+	// Show nav after scrolling 100px
+	showNav.value = scrollY > 100;
+	// Change nav background after scrolling past hero
+	scrolledPastHero.value = scrollY > heroHeight * 0.8;
+};
+
 // Data
 const advantages = [
 	{ icon: 'i-heroicons-paint-brush', title: 'Design Excellence', text: 'Transforms buildings into brands, not just managed properties' },
@@ -790,6 +833,10 @@ const selectPlan = (planSlug) => {
 let ctx;
 
 onMounted(() => {
+	// Add scroll listener for floating nav
+	window.addEventListener('scroll', handleScroll, { passive: true });
+	handleScroll(); // Check initial scroll position
+
 	ctx = gsap.context(() => {
 		// Hero animations
 		const heroTl = gsap.timeline({ delay: 0.3 });
@@ -950,6 +997,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	window.removeEventListener('scroll', handleScroll);
 	if (ctx) ctx.revert();
 });
 
