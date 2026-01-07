@@ -3,8 +3,8 @@ import type { HoaChannel, HoaChannelMessage } from "~~/types/directus";
 import { toast } from "vue-sonner";
 
 definePageMeta({
-  middleware: ["auth", "admin"],
-  layout: "default",
+  middleware: ["admin", "subscription"],
+  layout: "auth",
 });
 
 const route = useRoute();
@@ -16,7 +16,7 @@ const { create: createMention } = useDirectusItems("hoa_channel_mentions");
 
 // Redirect if no organization selected
 if (!selectedOrgId.value) {
-  navigateTo("/organizations");
+  return navigateTo("/organizations");
 }
 
 const channelSlug = computed(() => route.params.channel as string);
@@ -25,16 +25,16 @@ const newMessage = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const editorRef = ref<any>(null);
 
-// Fetch channel data
+// Fetch channel data - use computed filter for reactivity
 const { data: channels, isLoading: channelLoading } =
   useRealtimeSubscription<HoaChannel>(
     "hoa_channels",
     ["id", "name", "slug", "description", "is_private", "organization"],
-    {
+    computed(() => ({
       slug: { _eq: channelSlug.value },
       organization: { _eq: selectedOrgId.value },
       status: { _eq: "published" },
-    }
+    }))
   );
 
 const currentChannel = computed(() => channels.value?.[0] || null);
