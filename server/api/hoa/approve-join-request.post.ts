@@ -60,6 +60,9 @@ export default defineEventHandler(async (event) => {
     const user = joinRequest.user as { id: string; email: string; first_name: string; last_name: string };
     const organization = joinRequest.organization as { id: string; name: string };
 
+    // Verify admin access to this organization
+    await requireAdminAccess(event, organization.id);
+
     // Use provided role or default to member role
     const memberRoleId = roleId || config.public.directusRoleMember;
 

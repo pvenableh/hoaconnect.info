@@ -37,6 +37,20 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Get organization ID and verify admin access
+    const organizationId = typeof joinRequest.organization === "string"
+      ? joinRequest.organization
+      : (joinRequest.organization as any)?.id;
+
+    if (!organizationId) {
+      throw createError({
+        statusCode: 400,
+        message: "Join request has no associated organization",
+      });
+    }
+
+    await requireAdminAccess(event, organizationId);
+
     // Update the join request status to rejected
     await directus.request(
       updateItem("hoa_join_requests", requestId, {

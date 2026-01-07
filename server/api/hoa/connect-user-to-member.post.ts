@@ -30,6 +30,20 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Get organization ID and verify admin access
+    const organizationId = typeof member.organization === "string"
+      ? member.organization
+      : (member.organization as any)?.id;
+
+    if (!organizationId) {
+      throw createError({
+        statusCode: 400,
+        message: "Member has no associated organization",
+      });
+    }
+
+    await requireAdminAccess(event, organizationId);
+
     // Check if member already has a user linked
     if (member.user) {
       throw createError({

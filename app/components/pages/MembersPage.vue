@@ -18,13 +18,20 @@ const {
 } = useDirectusItems("hoa_members");
 const { list: listInvitations, update: updateInvitation } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
-const { create: createMemberUnit } = useDirectusItems("hoa_member_units");
 const {
   list: listBoardTerms,
   create: createBoardTerm,
   update: updateBoardTerm,
   remove: removeBoardTerm,
 } = useDirectusItems("hoa_board_members");
+
+// Secured API function for member-unit assignment (admin-only)
+const assignMemberUnit = async (memberId: string, unitId: string, isPrimaryUnit = true) => {
+  return await $fetch("/api/hoa/member-units/assign", {
+    method: "POST",
+    body: { memberId, unitId, isPrimaryUnit },
+  });
+};
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
@@ -305,12 +312,7 @@ const handleSubmit = async () => {
       })) as any;
 
       if (form.unit && newMember?.id) {
-        await createMemberUnit({
-          member_id: newMember.id,
-          unit_id: form.unit,
-          is_primary_unit: true,
-          status: "published",
-        });
+        await assignMemberUnit(newMember.id, form.unit, true);
       }
 
       toast.success("Member added");
