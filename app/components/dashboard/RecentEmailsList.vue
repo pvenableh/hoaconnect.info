@@ -16,7 +16,7 @@ const getStatusColor = (status: string | null | undefined) => {
     sent: "bg-green-100 text-green-700",
     sending: "bg-blue-100 text-blue-700",
     scheduled: "bg-amber-100 text-amber-700",
-    draft: "bg-stone-100 text-stone-700",
+    draft: "t-bg-subtle t-text-secondary",
     failed: "bg-red-100 text-red-700",
   }
   return colors[status || "draft"] || colors.draft
@@ -60,10 +60,10 @@ const formatDate = (dateString: string | null | undefined) => {
         <div
           v-for="email in displayedEmails"
           :key="email.id"
-          class="flex items-start gap-3 p-3 rounded-lg border hover:bg-stone-50 transition-colors"
+          class="flex items-start gap-3 p-3 rounded-lg border hover:t-bg-subtle transition-colors"
         >
-          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center">
-            <Icon :name="getTypeIcon(email.email_type)" class="h-4 w-4 text-stone-600" />
+          <div class="flex-shrink-0 w-8 h-8 rounded-full t-bg-subtle flex items-center justify-center">
+            <Icon :name="getTypeIcon(email.email_type)" class="h-4 w-4 t-text-secondary" />
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">

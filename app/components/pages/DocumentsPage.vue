@@ -513,7 +513,7 @@ const handleBatchUploadComplete = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-6">
         <!-- Header -->
@@ -788,7 +788,7 @@ const handleBatchUploadComplete = async () => {
                 <!-- Empty state -->
                 <div
                   v-if="documentTree.length === 0"
-                  class="text-center py-12 text-stone-500"
+                  class="text-center py-12 t-text-muted"
                 >
                   No folders or documents found
                 </div>

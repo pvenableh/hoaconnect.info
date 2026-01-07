@@ -131,7 +131,7 @@ const handleDelete = async (id: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-6">
         <!-- Loading State -->
@@ -140,7 +140,7 @@ const handleDelete = async (id: string) => {
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading your organization...</p>
+          <p class="text-sm t-text-secondary">Loading your organization...</p>
         </div>
 
         <!-- No Organization State -->
@@ -206,7 +206,7 @@ const handleDelete = async (id: string) => {
 
             <div
               v-if="!units?.length"
-              class="col-span-full text-center py-12 text-stone-500"
+              class="col-span-full text-center py-12 t-text-muted"
             >
               No units added yet
             </div>

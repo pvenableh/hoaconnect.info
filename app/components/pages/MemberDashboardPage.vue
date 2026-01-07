@@ -249,7 +249,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-8">
         <!-- Welcome Header -->
@@ -263,10 +263,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             />
           </div>
 
-          <h1 class="text-3xl font-bold text-stone-900">
+          <h1 class="text-3xl font-bold t-text">
             {{ welcomeMessage }}, {{ userName }}
           </h1>
-          <p class="text-stone-600 mt-2">
+          <p class="t-text-secondary mt-2">
             Welcome to the {{ organization?.name }} resident portal
           </p>
 
@@ -276,8 +276,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full"
               :class="{
                 'bg-emerald-100 text-emerald-800': isOwner,
-                'bg-blue-100 text-blue-800': isTenant,
-                'bg-stone-100 text-stone-700': !isOwner && !isTenant,
+                't-bg-accent/20 t-text-accent': isTenant,
+                't-bg-subtle t-text-secondary': !isOwner && !isTenant,
               }"
             >
               <Icon
@@ -288,7 +288,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             </span>
             <span
               v-if="isBoardMember && boardTitleDisplay"
-              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-800"
+              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full t-bg-accent/20 t-text-accent"
             >
               <Icon name="heroicons:star" class="w-4 h-4 mr-1.5" />
               Board {{ boardTitleDisplay }}
@@ -338,8 +338,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <Icon name="heroicons:chart-bar" class="h-4 w-4 mr-2" />
                 Admin Dashboard
               </Button>
-              <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <p class="text-sm text-amber-800">
+              <div class="p-3 t-bg-subtle rounded-lg t-border">
+                <p class="text-sm t-text-secondary">
                   <Icon name="heroicons:light-bulb" class="h-4 w-4 inline mr-1" />
                   As a board member, you have access to community statistics and additional resources.
                 </p>
@@ -361,24 +361,24 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <Icon :name="action.icon" class="h-7 w-7 text-primary" />
               </div>
               <div>
-                <h3 class="font-semibold text-stone-900">{{ action.title }}</h3>
-                <p class="text-sm text-stone-500">{{ action.description }}</p>
+                <h3 class="font-semibold t-text">{{ action.title }}</h3>
+                <p class="text-sm t-text-muted">{{ action.description }}</p>
               </div>
-              <Icon name="heroicons:chevron-right" class="h-5 w-5 text-stone-400 ml-auto" />
+              <Icon name="heroicons:chevron-right" class="h-5 w-5 t-text-muted ml-auto" />
             </CardContent>
           </Card>
         </div>
 
         <!-- Board Member Status (only shown if user is a board member) -->
-        <Card v-if="isBoardMember && activeBoardTerms.length > 0" class="border-amber-200 bg-amber-50/50">
+        <Card v-if="isBoardMember && activeBoardTerms.length > 0" class="t-border t-bg-subtle">
           <CardHeader>
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                <Icon name="heroicons:star" class="h-5 w-5 text-amber-600" />
+              <div class="w-10 h-10 rounded-full t-bg-accent/20 flex items-center justify-center">
+                <Icon name="heroicons:star" class="h-5 w-5 t-text-accent" />
               </div>
               <div>
-                <CardTitle class="text-amber-900">Board Member Status</CardTitle>
-                <CardDescription class="text-amber-700">Your current board position(s)</CardDescription>
+                <CardTitle class="t-text">Board Member Status</CardTitle>
+                <CardDescription class="t-text-secondary">Your current board position(s)</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -387,15 +387,15 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               <div
                 v-for="term in activeBoardTerms"
                 :key="term.id"
-                class="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100"
+                class="flex items-center justify-between p-3 t-bg-elevated rounded-lg t-border"
               >
                 <div class="flex items-center gap-3">
-                  <Icon name="heroicons:identification" class="h-5 w-5 text-amber-600" />
+                  <Icon name="heroicons:identification" class="h-5 w-5 t-text-accent" />
                   <div>
-                    <p class="font-medium text-stone-900 capitalize">
+                    <p class="font-medium t-text capitalize">
                       {{ term.title?.replace('_', ' ') || 'Board Member' }}
                     </p>
-                    <p class="text-sm text-stone-500">
+                    <p class="text-sm t-text-muted">
                       <span v-if="term.term_start">{{ formatBoardTermDate(term.term_start) }}</span>
                       <span v-if="term.term_start && term.term_end"> - </span>
                       <span v-if="term.term_end">{{ formatBoardTermDate(term.term_end) }}</span>
@@ -433,14 +433,14 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 v-for="doc in recentDocuments"
                 :key="doc.id"
                 @click="downloadDocument(doc)"
-                class="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-stone-100 transition-colors text-left group"
+                class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
               >
-                <div class="w-10 h-10 rounded-lg bg-stone-100 group-hover:bg-stone-200 flex items-center justify-center flex-shrink-0">
-                  <Icon name="heroicons:document-text" class="h-5 w-5 text-stone-600" />
+                <div class="w-10 h-10 rounded-lg t-bg-subtle group-hover:t-bg transition-colors flex items-center justify-center flex-shrink-0">
+                  <Icon name="heroicons:document-text" class="h-5 w-5 t-text-secondary" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="font-medium text-stone-900 truncate">{{ doc.title }}</h4>
-                  <div class="flex items-center gap-2 text-sm text-stone-500">
+                  <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
+                  <div class="flex items-center gap-2 text-sm t-text-muted">
                     <span>{{ getCategoryName(doc) }}</span>
                     <span v-if="doc.date_published || doc.date_created">
                       &middot; {{ formatDate(doc.date_published || doc.date_created) }}
@@ -449,12 +449,12 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 </div>
                 <Icon
                   name="heroicons:arrow-down-tray"
-                  class="h-5 w-5 text-stone-400 group-hover:text-primary transition-colors"
+                  class="h-5 w-5 t-text-muted group-hover:text-primary transition-colors"
                 />
               </button>
             </div>
-            <div v-else class="py-8 text-center text-stone-500">
-              <Icon name="heroicons:document" class="h-12 w-12 mx-auto mb-3 text-stone-300" />
+            <div v-else class="py-8 text-center t-text-muted">
+              <Icon name="heroicons:document" class="h-12 w-12 mx-auto mb-3 t-text-muted opacity-50" />
               <p>No documents have been published yet.</p>
             </div>
           </CardContent>
@@ -471,27 +471,27 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               <a
                 v-if="organization?.phone"
                 :href="`tel:${organization.phone}`"
-                class="flex items-center gap-3 p-4 rounded-lg bg-stone-50 hover:bg-stone-100 transition-colors"
+                class="flex items-center gap-3 p-4 rounded-lg t-bg-subtle hover:t-bg transition-colors"
               >
                 <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Icon name="heroicons:phone" class="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p class="text-sm text-stone-500">Phone</p>
-                  <p class="font-medium text-stone-900">{{ organization.phone }}</p>
+                  <p class="text-sm t-text-muted">Phone</p>
+                  <p class="font-medium t-text">{{ organization.phone }}</p>
                 </div>
               </a>
               <a
                 v-if="organization?.email"
                 :href="`mailto:${organization.email}`"
-                class="flex items-center gap-3 p-4 rounded-lg bg-stone-50 hover:bg-stone-100 transition-colors"
+                class="flex items-center gap-3 p-4 rounded-lg t-bg-subtle hover:t-bg transition-colors"
               >
                 <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Icon name="heroicons:envelope" class="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p class="text-sm text-stone-500">Email</p>
-                  <p class="font-medium text-stone-900">{{ organization.email }}</p>
+                  <p class="text-sm t-text-muted">Email</p>
+                  <p class="font-medium t-text">{{ organization.email }}</p>
                 </div>
               </a>
             </div>

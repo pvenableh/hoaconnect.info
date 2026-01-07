@@ -120,7 +120,7 @@ const formatDate = (date: string | null | undefined) => {
 
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
-    draft: "bg-stone-100 text-stone-700",
+    draft: "t-bg-subtle t-text-secondary",
     scheduled: "bg-blue-100 text-blue-700",
     sending: "bg-yellow-100 text-yellow-700",
     sent: "bg-green-100 text-green-700",
@@ -131,7 +131,7 @@ const getStatusBadgeClass = (status: string) => {
 
 const getEmailTypeBadgeClass = (type: string) => {
   const classes: Record<string, string> = {
-    basic: "bg-stone-100 text-stone-600",
+    basic: "t-bg-subtle t-text-secondary",
     newsletter: "bg-sky-100 text-sky-700",
     announcement: "bg-orange-100 text-orange-700",
     reminder: "bg-amber-100 text-amber-700",
@@ -147,13 +147,13 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
         <div class="mb-8 flex justify-between items-start">
           <div>
             <h1 class="text-3xl font-bold mb-2">Email Management</h1>
-            <p class="text-stone-600">
+            <p class="t-text-secondary">
               Send emails to your HOA members individually or in bulk
             </p>
           </div>
@@ -169,7 +169,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading your organization...</p>
+          <p class="text-sm t-text-secondary">Loading your organization...</p>
         </div>
 
         <!-- No Organization State -->
@@ -205,7 +205,7 @@ useSeoMeta({
                   </div>
                   <div>
                     <p class="text-2xl font-bold">{{ pagination.total }}</p>
-                    <p class="text-sm text-stone-600">Total Emails</p>
+                    <p class="text-sm t-text-secondary">Total Emails</p>
                   </div>
                 </div>
               </CardContent>
@@ -220,7 +220,7 @@ useSeoMeta({
                     <p class="text-2xl font-bold">
                       {{ emails.filter((e: HoaEmail) => e.status === 'sent').length }}
                     </p>
-                    <p class="text-sm text-stone-600">Sent</p>
+                    <p class="text-sm t-text-secondary">Sent</p>
                   </div>
                 </div>
               </CardContent>
@@ -228,14 +228,14 @@ useSeoMeta({
             <Card>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
-                  <div class="p-2 bg-stone-100 rounded-lg">
-                    <Icon name="lucide:file-edit" class="w-5 h-5 text-stone-600" />
+                  <div class="p-2 t-bg-subtle rounded-lg">
+                    <Icon name="lucide:file-edit" class="w-5 h-5 t-text-secondary" />
                   </div>
                   <div>
                     <p class="text-2xl font-bold">
                       {{ emails.filter((e: HoaEmail) => e.status === 'draft').length }}
                     </p>
-                    <p class="text-sm text-stone-600">Drafts</p>
+                    <p class="text-sm t-text-secondary">Drafts</p>
                   </div>
                 </div>
               </CardContent>
@@ -250,7 +250,7 @@ useSeoMeta({
                     <p class="text-2xl font-bold">
                       {{ emails.filter((e: HoaEmail) => e.status === 'failed').length }}
                     </p>
-                    <p class="text-sm text-stone-600">Failed</p>
+                    <p class="text-sm t-text-secondary">Failed</p>
                   </div>
                 </div>
               </CardContent>
@@ -258,7 +258,7 @@ useSeoMeta({
           </div>
 
           <!-- Tabs -->
-          <div class="border-b border-stone-200">
+          <div class="border-b t-border">
             <nav class="flex space-x-8">
               <button
                 @click="activeTab = 'all'"
@@ -266,7 +266,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'all'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
                 ]"
               >
                 All Emails
@@ -277,7 +277,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'sent'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
                 ]"
               >
                 Sent
@@ -288,7 +288,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'drafts'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
                 ]"
               >
                 Drafts
@@ -302,7 +302,7 @@ useSeoMeta({
               <!-- Loading -->
               <div v-if="fetchStatus === 'pending'" class="text-center py-8">
                 <Icon name="lucide:loader-2" class="w-6 h-6 animate-spin mx-auto mb-2" />
-                <p class="text-sm text-stone-500">Loading emails...</p>
+                <p class="text-sm t-text-muted">Loading emails...</p>
               </div>
 
               <!-- Emails Table -->
@@ -322,7 +322,7 @@ useSeoMeta({
                     <tr
                       v-for="email in emails"
                       :key="email.id"
-                      class="border-b hover:bg-stone-50 cursor-pointer"
+                      class="border-b hover:t-bg-subtle cursor-pointer"
                       @click="goToEmail(email.id)"
                     >
                       <td class="p-3">
@@ -347,15 +347,15 @@ useSeoMeta({
                       <td class="p-3">
                         <div v-if="email.status === 'sent' || email.status === 'failed'">
                           <span class="text-green-600">{{ email.delivered_count || 0 }}</span>
-                          <span class="text-stone-400">/</span>
+                          <span class="t-text-muted">/</span>
                           <span>{{ email.recipient_count || 0 }}</span>
                           <span v-if="email.failed_count" class="text-red-500 ml-1">
                             ({{ email.failed_count }} failed)
                           </span>
                         </div>
-                        <span v-else class="text-stone-400">—</span>
+                        <span v-else class="t-text-muted">—</span>
                       </td>
-                      <td class="p-3 text-stone-600">
+                      <td class="p-3 t-text-secondary">
                         {{ formatDate(email.sent_at || email.date_created) }}
                       </td>
                       <td class="p-3 text-right" @click.stop>
@@ -383,10 +383,10 @@ useSeoMeta({
               </div>
 
               <!-- Empty State -->
-              <div v-else class="text-center py-12 text-stone-500">
+              <div v-else class="text-center py-12 t-text-muted">
                 <Icon
                   name="lucide:mail"
-                  class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
                 />
                 <p class="font-medium">No emails yet</p>
                 <p class="text-sm mt-1">
@@ -403,7 +403,7 @@ useSeoMeta({
                 v-if="pagination.totalPages > 1"
                 class="flex justify-between items-center mt-6 pt-4 border-t"
               >
-                <p class="text-sm text-stone-600">
+                <p class="text-sm t-text-secondary">
                   Showing {{ (pagination.page - 1) * pagination.limit + 1 }} to
                   {{ Math.min(pagination.page * pagination.limit, pagination.total) }} of
                   {{ pagination.total }} emails

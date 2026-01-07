@@ -254,7 +254,7 @@ watch(
 </script>
 
 <template>
-  <nav class="bg-white border-b border-stone-200 px-6">
+  <nav class="t-bg-elevated border-b t-border px-6">
     <div class="max-w-7xl mx-auto py-4">
       <div class="flex justify-between items-center">
         <!-- Logo / Brand -->
@@ -275,13 +275,13 @@ watch(
           <!-- Show org name when on org page or logged in but no logo -->
           <template v-else-if="showOrgBranding && orgName">
             <span
-              class="text-sm font-semibold tracking-extra-wide uppercase text-zinc-800"
+              class="text-sm font-semibold tracking-extra-wide uppercase t-text"
               >{{ orgName }}</span
             >
           </template>
           <!-- Default brand for main home page -->
           <template v-else>
-            <span class="text-xl font-semibold uppercase tracking-extra-wide"
+            <span class="text-xl font-semibold uppercase tracking-extra-wide t-text"
               ><span class="font-light">HOA</span>Connect</span
             >
           </template>
@@ -293,7 +293,7 @@ watch(
             v-for="item in marketingNavItems"
             :key="item.path"
             :href="item.path"
-            class="text-gray-600 hover:text-zinc-300 transition uppercase text-xs tracking-wider"
+            class="t-text-secondary hover:t-text transition uppercase text-xs tracking-wider"
           >
             {{ item.label }}
           </a>
@@ -309,8 +309,8 @@ watch(
             v-for="item in publicNavItems"
             :key="item.path"
             :to="item.path"
-            class="flex items-center gap-2 hover:text-stone-600 transition-colors uppercase text-xs tracking-wider"
-            active-class="text-stone-900 font-medium"
+            class="flex items-center gap-2 t-text-secondary hover:t-text transition-colors uppercase text-xs tracking-wider"
+            active-class="t-text font-medium"
           >
             <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4 hidden" />
             {{ item.label }}
@@ -339,10 +339,10 @@ watch(
             v-if="userStatusBadge && !isMainMarketingDomain"
             class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
             :class="{
-              'bg-amber-100 text-amber-800': showAdminUI,
-              'bg-blue-100 text-blue-800':
+              't-bg-accent/20 t-text-accent': showAdminUI,
+              't-bg-subtle t-text-accent':
                 !showAdminUI && userStatusBadge === 'Board Member',
-              'bg-stone-100 text-stone-700':
+              't-bg-subtle t-text-secondary':
                 !showAdminUI && userStatusBadge !== 'Board Member',
             }"
           >
@@ -397,14 +397,14 @@ watch(
               <!-- Notifications Quick Access in Mobile Menu -->
               <div
                 v-if="!isMainMarketingDomain"
-                class="py-3 border-b border-stone-200"
+                class="py-3 border-b t-border"
               >
                 <NotificationBell />
               </div>
 
               <!-- User Info in Mobile Menu -->
               <div
-                class="flex items-center gap-3 py-4 border-b border-stone-200"
+                class="flex items-center gap-3 py-4 border-b t-border"
               >
                 <Avatar>
                   <AvatarImage
@@ -434,10 +434,10 @@ watch(
                     v-if="userStatusBadge"
                     class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
                     :class="{
-                      'bg-amber-100 text-amber-800': showAdminUI,
-                      'bg-blue-100 text-blue-800':
+                      't-bg-accent/20 t-text-accent': showAdminUI,
+                      't-bg-subtle t-text-accent':
                         !showAdminUI && userStatusBadge === 'Board Member',
-                      'bg-stone-100 text-stone-700':
+                      't-bg-subtle t-text-secondary':
                         !showAdminUI && userStatusBadge !== 'Board Member',
                     }"
                   >
@@ -447,8 +447,8 @@ watch(
               </div>
 
               <!-- Organization Selector in Mobile Menu -->
-              <div class="py-4 border-b border-stone-200">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-2">
+              <div class="py-4 border-b t-border">
+                <p class="text-xs uppercase tracking-wider t-text-muted mb-2">
                   Organization
                 </p>
                 <OrgSelector class="w-full" />
@@ -456,7 +456,7 @@ watch(
 
               <!-- Public Navigation (hidden in maintenance mode for non-admins) -->
               <div v-if="!hideNavForMaintenance" class="py-4">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
+                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
                   Navigation
                 </p>
                 <nav class="space-y-1">
@@ -464,12 +464,12 @@ watch(
                     v-for="item in publicNavItems"
                     :key="item.path"
                     :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
-                    active-class="bg-stone-100 font-medium"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                    active-class="t-bg-subtle font-medium"
                   >
                     <Icon
                       :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 text-stone-600 hidden"
+                      class="w-5 h-5 t-text-secondary hidden"
                     />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
@@ -477,8 +477,8 @@ watch(
               </div>
 
               <!-- Admin Navigation - only show if user is admin of current domain's org -->
-              <div v-if="showAdminUI" class="py-4 border-t border-stone-200">
-                <p class="text-xs uppercase tracking-wider text-stone-500 mb-3">
+              <div v-if="showAdminUI" class="py-4 border-t t-border">
+                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
                   Admin
                 </p>
                 <nav class="space-y-1">
@@ -486,12 +486,12 @@ watch(
                     v-for="item in adminNavItems"
                     :key="item.path"
                     :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
-                    active-class="bg-stone-100 font-medium"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                    active-class="t-bg-subtle font-medium"
                   >
                     <Icon
                       :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 text-stone-600 hidden"
+                      class="w-5 h-5 t-text-secondary hidden"
                     />
                     <span>{{ item.label }}</span>
                   </NuxtLink>
@@ -499,18 +499,18 @@ watch(
               </div>
 
               <!-- Account & Logout -->
-              <div class="py-4 border-t border-stone-200 space-y-1">
+              <div class="py-4 border-t t-border space-y-1">
                 <NuxtLink
                   to="/account"
                   target="_blank"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
                 >
-                  <Icon name="i-lucide-user" class="w-5 h-5 text-stone-600" />
+                  <Icon name="i-lucide-user" class="w-5 h-5 t-text-secondary" />
                   <span>My Profile</span>
                 </NuxtLink>
                 <button
                   @click="handleLogout"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors w-full text-left text-red-600"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors w-full text-left text-red-600"
                 >
                   <Icon name="i-lucide-log-out" class="w-5 h-5" />
                   <span>Logout</span>
@@ -524,7 +524,7 @@ watch(
         <div v-else class="flex items-center gap-4">
           <NuxtLink
             to="/auth/login"
-            class="text-gray-600 hover:text-stone-600 uppercase text-xs tracking-wider"
+            class="t-text-secondary hover:t-text uppercase text-xs tracking-wider"
           >
             Login
           </NuxtLink>
@@ -545,7 +545,7 @@ watch(
           v-for="item in marketingNavItems"
           :key="item.path"
           :href="item.path"
-          class="flex-1 text-center py-2 text-sm hover:bg-stone-100 rounded"
+          class="flex-1 text-center py-2 text-sm hover:t-bg-subtle rounded"
         >
           {{ item.label }}
         </a>
@@ -554,17 +554,17 @@ watch(
       <!-- Admin Navigation Row - Desktop only, only show if user is admin of current domain's org -->
       <div
         v-if="user && showAdminUI && !isMainMarketingDomain"
-        class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t border-stone-100"
+        class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t t-border-divider"
       >
-        <span class="text-xs uppercase tracking-wider text-stone-400 mr-4"
+        <span class="text-xs uppercase tracking-wider t-text-tertiary mr-4"
           >Admin</span
         >
         <NuxtLink
           v-for="item in adminNavItems"
           :key="item.path"
           :to="item.path"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-stone-100 transition-colors text-xs uppercase tracking-wider text-stone-600"
-          active-class="bg-stone-100 text-stone-900 font-medium"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:t-bg-subtle transition-colors text-xs uppercase tracking-wider t-text-secondary"
+          active-class="t-bg-subtle t-text font-medium"
         >
           <Icon :name="'i-lucide-' + item.icon" class="w-3.5 h-3.5 hidden" />
           {{ item.label }}

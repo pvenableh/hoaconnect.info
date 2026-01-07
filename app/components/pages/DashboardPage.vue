@@ -278,13 +278,13 @@ const channelData = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-6">
         <!-- Header -->
         <div>
-          <h1 class="text-3xl font-bold">Dashboard</h1>
-          <p class="text-stone-600">{{ stats.organization }}</p>
+          <h1 class="text-3xl font-bold t-text">Dashboard</h1>
+          <p class="t-text-secondary">{{ stats.organization }}</p>
         </div>
 
         <!-- Stats Row -->
@@ -332,40 +332,40 @@ const channelData = computed(() => {
 
         <!-- Email Engagement Stats (from real-time Directus data) -->
         <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
-              <p class="text-2xl font-bold text-blue-600">{{ emailEngagementStats.totalSent }}</p>
-              <p class="text-xs text-stone-500">Total Sent</p>
+              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.totalSent }}</p>
+              <p class="text-xs t-text-muted">Total Sent</p>
             </div>
           </Card>
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
               <p class="text-2xl font-bold text-green-600">{{ emailEngagementStats.totalDelivered }}</p>
-              <p class="text-xs text-stone-500">Delivered</p>
+              <p class="text-xs t-text-muted">Delivered</p>
             </div>
           </Card>
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
-              <p class="text-2xl font-bold text-purple-600">{{ emailEngagementStats.uniqueOpens }}</p>
-              <p class="text-xs text-stone-500">Unique Opens</p>
+              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.uniqueOpens }}</p>
+              <p class="text-xs t-text-muted">Unique Opens</p>
             </div>
           </Card>
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
-              <p class="text-2xl font-bold text-indigo-600">{{ emailEngagementStats.uniqueClicks }}</p>
-              <p class="text-xs text-stone-500">Unique Clicks</p>
+              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.uniqueClicks }}</p>
+              <p class="text-xs t-text-muted">Unique Clicks</p>
             </div>
           </Card>
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
-              <p class="text-2xl font-bold text-cyan-600">{{ emailEngagementStats.openRate }}%</p>
-              <p class="text-xs text-stone-500">Open Rate</p>
+              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.openRate }}%</p>
+              <p class="text-xs t-text-muted">Open Rate</p>
             </div>
           </Card>
-          <Card class="p-4">
+          <Card class="p-4 t-bg-elevated">
             <div class="text-center">
-              <p class="text-2xl font-bold text-orange-600">{{ emailEngagementStats.clickRate }}%</p>
-              <p class="text-xs text-stone-500">Click Rate</p>
+              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.clickRate }}%</p>
+              <p class="text-xs t-text-muted">Click Rate</p>
             </div>
           </Card>
         </div>
@@ -373,9 +373,9 @@ const channelData = computed(() => {
         <!-- Content Row -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Recent Documents -->
-          <Card>
+          <Card class="t-bg-elevated">
             <CardHeader>
-              <CardTitle>Recent Documents</CardTitle>
+              <CardTitle class="t-text">Recent Documents</CardTitle>
             </CardHeader>
             <CardContent>
               <div v-if="documents?.length" class="space-y-2">
@@ -383,13 +383,13 @@ const channelData = computed(() => {
                   v-for="doc in documents"
                   :key="doc.id"
                   :to="buildOrgPath(`/documents/${doc.id}`)"
-                  class="block p-3 hover:bg-stone-100 rounded transition-colors"
+                  class="block p-3 hover:t-bg-subtle rounded transition-colors"
                 >
-                  <p class="font-medium">{{ doc.title }}</p>
-                  <p class="text-sm text-stone-500">{{ doc.document_category?.name }}</p>
+                  <p class="font-medium t-text">{{ doc.title }}</p>
+                  <p class="text-sm t-text-muted">{{ doc.document_category?.name }}</p>
                 </NuxtLink>
               </div>
-              <p v-else class="text-stone-500 py-4 text-center">No documents yet</p>
+              <p v-else class="t-text-muted py-4 text-center">No documents yet</p>
             </CardContent>
             <CardFooter>
               <Button
@@ -415,9 +415,9 @@ const channelData = computed(() => {
         </div>
 
         <!-- Quick Actions -->
-        <Card>
+        <Card class="t-bg-elevated">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle class="t-text">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent class="flex flex-wrap gap-2">
             <Button @click="navigateToOrg('/admin/documents/upload')">

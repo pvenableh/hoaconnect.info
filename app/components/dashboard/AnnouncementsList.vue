@@ -28,7 +28,7 @@ const getTypeColor = (type: string | null | undefined) => {
     maintenance: "text-amber-600 bg-amber-50",
     event: "text-blue-600 bg-blue-50",
     reminder: "text-purple-600 bg-purple-50",
-    general: "text-stone-600 bg-stone-50",
+    general: "t-text-secondary t-bg-subtle",
   }
   return colors[type || "general"] || colors.general
 }
