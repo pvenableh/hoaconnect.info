@@ -69,13 +69,13 @@
             <SettingsSubscriptionSettingsCard :organization="organization" />
           </TabsContent>
 
-          <!-- Payment Settings Tab -->
-          <TabsContent value="payments" class="space-y-6">
+          <!-- Payment Settings Tab - Hidden for now -->
+          <!-- <TabsContent value="payments" class="space-y-6">
             <SettingsPaymentSettingsForm
               :organization="organization"
               @updated="handleOrganizationUpdate"
             />
-          </TabsContent>
+          </TabsContent> -->
         </Tabs>
       </template>
 
@@ -123,12 +123,12 @@ const { get: getOrganization } =
 const { get: getSettings } =
   useDirectusItems<BlockSetting>("block_settings");
 
-// Tab management - hide subscription tab for free accounts
+// Tab management - hide subscription tab for free accounts, hide payments tab for now
 const allTabs = [
   { id: "general", label: "General", icon: "lucide:building-2" },
   { id: "branding", label: "Branding", icon: "lucide:palette" },
   { id: "seo", label: "SEO", icon: "lucide:search" },
-  { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" },
+  // { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" }, // Hidden for now
   { id: "subscription", label: "Subscription", icon: "lucide:sparkles" },
 ];
 

@@ -3,6 +3,7 @@
 // Falls back to Property Flow defaults when no org or no custom branding
 
 import type { DirectusFile, BlockSetting, HoaOrganization } from "~~/types/directus";
+import type { ThemeStyle } from "~/composables/useTheme";
 
 type ID = string | number;
 
@@ -13,11 +14,14 @@ interface BrandingConfig {
   faviconUrl: string;
   logoUrl: string;
   appleTouchIconUrl: string;
+  theme: ThemeStyle;
 }
 
 export const useOrgBranding = () => {
   const { activeHoa, isMainDomain } = useActiveHoa();
   const config = useRuntimeConfig();
+  const route = useRoute();
+  const { forceThemeStyle, themeMode } = useTheme();
 
   // Helper to extract file ID from DirectusFile relation
   const getFileId = (file: ID | DirectusFile | null | undefined): string | null => {
@@ -70,6 +74,9 @@ export const useOrgBranding = () => {
       ? getDirectusAssetUrl(iconFileId, { width: 180, height: 180, format: "png" })!
       : "/apple-touch-icon.png";
 
+    // Get theme from org settings, default to classic
+    const orgTheme = (settings?.theme as ThemeStyle) || "classic";
+
     return {
       siteName:
         settings?.title ||
@@ -85,8 +92,28 @@ export const useOrgBranding = () => {
       faviconUrl,
       logoUrl,
       appleTouchIconUrl,
+      theme: orgTheme,
     };
   });
+
+  // Check if current route is an admin page
+  const isAdminPage = computed(() => {
+    const path = route.path;
+    return path.includes("/admin");
+  });
+
+  // Apply theme based on route and org settings
+  // Admin pages always use modern theme, other pages use org theme
+  watch(
+    [() => branding.value.theme, isAdminPage, () => route.path],
+    ([orgTheme, isAdmin]) => {
+      if (import.meta.client) {
+        const themeToApply = isAdmin ? "modern" : orgTheme;
+        forceThemeStyle(themeToApply, themeMode.value);
+      }
+    },
+    { immediate: true }
+  );
 
   // Apply dynamic head tags
   useHead(() => {

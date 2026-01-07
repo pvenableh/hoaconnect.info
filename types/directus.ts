@@ -47,6 +47,8 @@ export interface BlockSetting {
 	title?: string | null;
 	seo?: ExtensionSeoMetadata | null;
 	organization?: HoaOrganization | string | null;
+	/** @description Site theme - classic or modern */
+	theme?: 'classic' | 'modern' | null;
 }
 
 export interface Coupon {
