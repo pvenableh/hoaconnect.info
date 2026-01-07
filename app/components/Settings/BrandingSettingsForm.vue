@@ -103,147 +103,84 @@
       </CardContent>
     </Card>
 
-    <!-- Colors -->
+    <!-- Theme -->
     <Card>
       <CardHeader>
-        <CardTitle>Colors</CardTitle>
+        <CardTitle>Theme</CardTitle>
         <CardDescription>
-          Customize your organization's color scheme
+          Choose a design theme for your organization's site
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Primary Color -->
-          <div class="space-y-2">
-            <Label for="primaryColor">Primary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="primaryColor"
-                type="color"
-                v-model="form.primaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.primaryColor"
-                placeholder="#2563eb"
-                class="font-mono"
-                :disabled="isSaving"
-              />
+        <div class="space-y-4">
+          <!-- Theme Selection Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Classic Theme -->
+            <div
+              class="relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md"
+              :class="form.theme === 'classic' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'"
+              @click="form.theme = 'classic'"
+            >
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                  <!-- Classic theme preview colors -->
+                  <div class="flex gap-0.5 rounded overflow-hidden shadow-sm">
+                    <div class="h-12 w-6" style="background-color: #FDFCFA;" />
+                    <div class="h-12 w-6" style="background-color: #C9A96E;" />
+                    <div class="h-12 w-6" style="background-color: #8B7355;" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-medium">Classic</h4>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Warm cream background, gold accents, serif headings. Elegant and timeless.
+                  </p>
+                </div>
+              </div>
+              <!-- Selected indicator -->
+              <div
+                v-if="form.theme === 'classic'"
+                class="absolute top-2 right-2"
+              >
+                <Icon name="lucide:check-circle-2" class="h-5 w-5 text-primary" />
+              </div>
+            </div>
+
+            <!-- Modern Theme -->
+            <div
+              class="relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md"
+              :class="form.theme === 'modern' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'"
+              @click="form.theme = 'modern'"
+            >
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                  <!-- Modern theme preview colors -->
+                  <div class="flex gap-0.5 rounded overflow-hidden shadow-sm">
+                    <div class="h-12 w-6" style="background-color: #FFFFFF;" />
+                    <div class="h-12 w-6" style="background-color: #00BFD8;" />
+                    <div class="h-12 w-6" style="background-color: #495057;" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-medium">Modern</h4>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Clean white background, cyan highlights, sans-serif typography. Fresh and contemporary.
+                  </p>
+                </div>
+              </div>
+              <!-- Selected indicator -->
+              <div
+                v-if="form.theme === 'modern'"
+                class="absolute top-2 right-2"
+              >
+                <Icon name="lucide:check-circle-2" class="h-5 w-5 text-primary" />
+              </div>
             </div>
           </div>
 
-          <!-- Secondary Color -->
-          <div class="space-y-2">
-            <Label for="secondaryColor">Secondary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="secondaryColor"
-                type="color"
-                v-model="form.secondaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.secondaryColor"
-                placeholder="#64748b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-
-          <!-- Accent Color -->
-          <div class="space-y-2">
-            <Label for="accentColor">Accent Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="accentColor"
-                type="color"
-                v-model="form.accentColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.accentColor"
-                placeholder="#f59e0b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Color Preview -->
-        <div class="mt-6 p-4 rounded-lg border">
-          <p class="text-sm font-medium mb-3">Preview</p>
-          <div class="flex items-center gap-4">
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.primaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.secondaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.accentColor }"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Typography -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Typography</CardTitle>
-        <CardDescription>
-          Choose fonts for your organization's site
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Heading Font -->
-          <div class="space-y-2">
-            <Label for="headingFont">Heading Font</Label>
-            <select
-              id="headingFont"
-              v-model="form.headingFont"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
-            >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
-            </select>
-            <p
-              class="text-lg font-bold mt-2"
-              :style="{ fontFamily: form.headingFont }"
-            >
-              Sample Heading Text
-            </p>
-          </div>
-
-          <!-- Body Font -->
-          <div class="space-y-2">
-            <Label for="bodyFont">Body Font</Label>
-            <select
-              id="bodyFont"
-              v-model="form.bodyFont"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
-            >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
-            </select>
-            <p
-              class="mt-2"
-              :style="{ fontFamily: form.bodyFont }"
-            >
-              This is sample body text to preview how your content will look.
-            </p>
-          </div>
+          <p class="text-xs text-muted-foreground">
+            The theme will automatically adapt to your visitors' light/dark mode preference.
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -349,23 +286,9 @@ const currentIconUrl = computed(() => {
   return `${config.public.directus.url}/assets/${iconId}`;
 });
 
-// Extract colors from settings
-const getColors = () => {
-  const colors = props.settings?.colors?.[0];
-  return {
-    primary: colors?.primary || "#2563eb",
-    secondary: colors?.secondary || "#64748b",
-    accent: colors?.accent || "#f59e0b",
-  };
-};
-
 // Form data
 const form = ref({
-  primaryColor: getColors().primary,
-  secondaryColor: getColors().secondary,
-  accentColor: getColors().accent,
-  headingFont: props.settings?.heading_font || "sans-serif",
-  bodyFont: props.settings?.body_font || "sans-serif",
+  theme: props.settings?.theme || "classic",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
 });
@@ -375,13 +298,8 @@ watch(
   () => props.settings,
   (newSettings) => {
     if (newSettings) {
-      const colors = newSettings.colors?.[0];
       form.value = {
-        primaryColor: colors?.primary || "#2563eb",
-        secondaryColor: colors?.secondary || "#64748b",
-        accentColor: colors?.accent || "#f59e0b",
-        headingFont: newSettings.heading_font || "sans-serif",
-        bodyFont: newSettings.body_font || "sans-serif",
+        theme: newSettings.theme || "classic",
         title: newSettings.title || "",
         description: newSettings.description || "",
       };
@@ -485,15 +403,7 @@ const saveChanges = async () => {
     const settingsData: Partial<BlockSetting> = {
       title: form.value.title,
       description: form.value.description,
-      heading_font: form.value.headingFont as "serif" | "sans-serif",
-      body_font: form.value.bodyFont as "serif" | "sans-serif",
-      colors: [
-        {
-          primary: form.value.primaryColor,
-          secondary: form.value.secondaryColor,
-          accent: form.value.accentColor,
-        },
-      ],
+      theme: form.value.theme as BlockSetting['theme'],
       logo: logoId,
       icon: iconId,
       status: "published",
