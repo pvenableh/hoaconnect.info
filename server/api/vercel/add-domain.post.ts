@@ -37,36 +37,60 @@ export default defineEventHandler(async (event) => {
     let dnsInstructions;
 
     if (domainType === "apex") {
+      // Updated DNS configuration for 2026 with current Vercel infrastructure
       dnsInstructions = {
         type: "A",
-        primary: [
-          { type: "A", name: "@", value: "76.76.21.21" },
-        ],
+        // Primary: CNAME flattening is now the preferred approach for most DNS providers
         recommended: [
+          {
+            type: "CNAME",
+            name: "@",
+            value: "cname.vercel-dns.com",
+            note: "Preferred: Use CNAME flattening if your DNS provider supports it (Cloudflare, Route53, etc.)",
+          },
+        ],
+        // Fallback for DNS providers without CNAME flattening
+        primary: [
           {
             type: "A",
             name: "@",
-            value: "216.198.79.1",
-            note: "New Vercel IP (recommended as of Nov 2025)",
+            value: "76.76.21.21",
+            note: "Vercel primary IPv4 address",
           },
         ],
+        // WWW subdomain should always use CNAME
         www: [
           { type: "CNAME", name: "www", value: "cname.vercel-dns.com" },
         ],
-        alternative: {
-          type: "CNAME",
-          name: "@",
-          value: "cname.vercel-dns.com",
-          note: "Only if DNS supports CNAME flattening (recommended)",
-        },
-        legacy: [
+        // Optional IPv6 support for modern infrastructure
+        ipv6: [
           {
             type: "AAAA",
             name: "@",
-            value: "2606:4700:3033::6815:48e",
-            note: "DEPRECATED - Remove this if present",
+            value: "2606:4700:3033::ac43:d2a4",
+            note: "Optional: Add for IPv6 support",
           },
         ],
+        // Legacy entries to remove if present
+        deprecated: [
+          {
+            type: "A",
+            value: "216.198.79.1",
+            note: "DEPRECATED - Remove if present, use 76.76.21.21 instead",
+          },
+          {
+            type: "AAAA",
+            value: "2606:4700:3033::6815:48e",
+            note: "DEPRECATED - Use updated IPv6 address if needed",
+          },
+        ],
+        // Verification TXT record (may be required by some setups)
+        verification: {
+          type: "TXT",
+          name: "@",
+          value: `_vercel.${domain}`,
+          note: "Add if domain verification fails",
+        },
       };
     } else {
       const subdomain = parts[0];

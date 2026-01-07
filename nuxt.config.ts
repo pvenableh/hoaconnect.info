@@ -2,13 +2,13 @@
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
-  // Nuxt 4 compatibility
-  compatibilityDate: "2024-11-01",
+  // Nuxt 4 compatibility - updated for 2026
+  compatibilityDate: "2025-01-01",
   future: {
     compatibilityVersion: 4,
   },
 
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== "production" },
 
   modules: [
     "nuxt-auth-utils",
@@ -23,6 +23,32 @@ export default defineNuxtConfig({
   ],
 
   css: ["~/assets/css/main.css"],
+
+  // Performance: Enable experimental features for better optimization
+  experimental: {
+    // Payload extraction for faster hydration
+    payloadExtraction: true,
+    // Component islands for partial hydration
+    componentIslands: true,
+    // Async context for better SSR
+    asyncContext: true,
+    // Inline styles for critical CSS
+    inlineRouteRules: true,
+  },
+
+  // Nitro server optimizations
+  nitro: {
+    // Compression for responses
+    compressPublicAssets: true,
+    // Route caching rules (prerendering disabled for dynamic multi-tenant app)
+    routeRules: {
+      // Cache static assets for 1 year
+      "/_nuxt/**": { headers: { "cache-control": "public, max-age=31536000, immutable" } },
+      // Cache HOA lookup API responses briefly
+      "/api/hoa/find": { cache: { maxAge: 60 } },
+      "/api/hoa/by-slug": { cache: { maxAge: 60 } },
+    },
+  },
 
   runtimeConfig: {
     // Server-only keys (never exposed to client-side)
@@ -83,10 +109,6 @@ export default defineNuxtConfig({
       defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
       defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
     },
-  },
-
-  vite: {
-    plugins: [tailwindcss()],
   },
 
   build: {
@@ -223,8 +245,60 @@ export default defineNuxtConfig({
   },
 
   typescript: {
-    strict: false,
-    typeCheck: false,
+    strict: true,
+    typeCheck: false, // Disabled to avoid vue-tsc dependency; use IDE for type checking
     shim: false,
+  },
+
+  // Build optimizations
+  optimization: {
+    // Tree-shake unused components
+    treeShake: {
+      composables: {
+        client: { exclude: [] },
+        server: { exclude: [] },
+      },
+    },
+  },
+
+  // Vite build optimizations
+  vite: {
+    plugins: [tailwindcss()],
+    build: {
+      // Enable minification
+      minify: "esbuild",
+      // Increase chunk size warning limit
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          // Function-based chunking for better control and error handling
+          manualChunks(id: string) {
+            // Vue core libraries
+            if (id.includes("node_modules/vue/") || id.includes("node_modules/vue-router/")) {
+              return "vue-vendor";
+            }
+            // UI component libraries
+            if (id.includes("node_modules/reka-ui/") ||
+                id.includes("node_modules/class-variance-authority/") ||
+                id.includes("node_modules/clsx/") ||
+                id.includes("node_modules/tailwind-merge/")) {
+              return "ui-vendor";
+            }
+            // Directus SDK
+            if (id.includes("node_modules/@directus/sdk/")) {
+              return "directus";
+            }
+            // TipTap editor (all tiptap packages)
+            if (id.includes("node_modules/@tiptap/")) {
+              return "editor";
+            }
+          },
+        },
+      },
+    },
+    // Optimize dependencies
+    optimizeDeps: {
+      include: ["vue", "vue-router", "@directus/sdk", "zod", "date-fns"],
+    },
   },
 });
