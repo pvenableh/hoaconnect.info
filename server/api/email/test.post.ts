@@ -372,6 +372,7 @@ export default defineEventHandler(async (event) => {
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
             templateId,
             templateData,
+            organizationId,
           });
         } else {
           // Fall back to MJML-generated HTML
@@ -399,6 +400,7 @@ export default defineEventHandler(async (event) => {
             text,
             fromName: organization.name || undefined,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
+            organizationId,
           });
         }
 
