@@ -27,6 +27,10 @@ interface SendGridEvent {
   sg_event_id?: string;
   type?: string;
   bounce_classification?: string;
+  // Custom args passed from sendOrganizationEmail
+  email_id?: string;
+  recipient_email?: string;
+  organization_id?: string;
 }
 
 export default defineEventHandler(async (event) => {
@@ -104,6 +108,8 @@ export default defineEventHandler(async (event) => {
           ip: sgEvent.ip || null,
           reason: sgEvent.reason || sgEvent.response || null,
           event_timestamp: sgEvent.timestamp || null,
+          // Organization ID from custom args
+          organization: sgEvent.organization_id || null,
         };
 
         await directus.request(createItem("hoa_email_activity", activityData));
