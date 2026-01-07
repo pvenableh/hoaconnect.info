@@ -251,7 +251,7 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    typeCheck: "build",
+    typeCheck: false, // Disabled to avoid vue-tsc dependency; use IDE for type checking
     shim: false,
   },
 
