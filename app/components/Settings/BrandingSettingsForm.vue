@@ -103,145 +103,29 @@
       </CardContent>
     </Card>
 
-    <!-- Colors -->
+    <!-- Theme -->
     <Card>
       <CardHeader>
-        <CardTitle>Colors</CardTitle>
+        <CardTitle>Theme</CardTitle>
         <CardDescription>
-          Customize your organization's color scheme
+          Choose a theme for your organization's site
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Primary Color -->
+        <div class="space-y-4">
           <div class="space-y-2">
-            <Label for="primaryColor">Primary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="primaryColor"
-                type="color"
-                v-model="form.primaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.primaryColor"
-                placeholder="#2563eb"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-
-          <!-- Secondary Color -->
-          <div class="space-y-2">
-            <Label for="secondaryColor">Secondary Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="secondaryColor"
-                type="color"
-                v-model="form.secondaryColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.secondaryColor"
-                placeholder="#64748b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-
-          <!-- Accent Color -->
-          <div class="space-y-2">
-            <Label for="accentColor">Accent Color</Label>
-            <div class="flex items-center gap-2">
-              <input
-                id="accentColor"
-                type="color"
-                v-model="form.accentColor"
-                class="h-10 w-14 rounded border cursor-pointer"
-                :disabled="isSaving"
-              />
-              <Input
-                v-model="form.accentColor"
-                placeholder="#f59e0b"
-                class="font-mono"
-                :disabled="isSaving"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Color Preview -->
-        <div class="mt-6 p-4 rounded-lg border">
-          <p class="text-sm font-medium mb-3">Preview</p>
-          <div class="flex items-center gap-4">
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.primaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.secondaryColor }"
-            />
-            <div
-              class="h-12 w-24 rounded"
-              :style="{ backgroundColor: form.accentColor }"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Typography -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Typography</CardTitle>
-        <CardDescription>
-          Choose fonts for your organization's site
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Heading Font -->
-          <div class="space-y-2">
-            <Label for="headingFont">Heading Font</Label>
+            <Label for="theme">Site Theme</Label>
             <select
-              id="headingFont"
-              v-model="form.headingFont"
+              id="theme"
+              v-model="form.theme"
               class="w-full px-3 py-2 border rounded-md bg-background"
               :disabled="isSaving"
             >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
+              <option value="classic">Classic</option>
+              <option value="modern">Modern</option>
             </select>
-            <p
-              class="text-lg font-bold mt-2"
-              :style="{ fontFamily: form.headingFont }"
-            >
-              Sample Heading Text
-            </p>
-          </div>
-
-          <!-- Body Font -->
-          <div class="space-y-2">
-            <Label for="bodyFont">Body Font</Label>
-            <select
-              id="bodyFont"
-              v-model="form.bodyFont"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
-            >
-              <option value="sans-serif">Sans-serif (Modern)</option>
-              <option value="serif">Serif (Classic)</option>
-            </select>
-            <p
-              class="mt-2"
-              :style="{ fontFamily: form.bodyFont }"
-            >
-              This is sample body text to preview how your content will look.
+            <p class="text-sm text-muted-foreground mt-2">
+              {{ form.theme === 'classic' ? 'Classic theme uses warm, elegant colors with serif fonts.' : 'Modern theme uses clean lines with a contemporary feel.' }}
             </p>
           </div>
         </div>
@@ -368,6 +252,7 @@ const form = ref({
   bodyFont: props.settings?.body_font || "sans-serif",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
+  theme: (props.settings?.theme as 'classic' | 'modern') || "classic",
 });
 
 // Watch for prop changes
@@ -384,6 +269,7 @@ watch(
         bodyFont: newSettings.body_font || "sans-serif",
         title: newSettings.title || "",
         description: newSettings.description || "",
+        theme: (newSettings.theme as 'classic' | 'modern') || "classic",
       };
     }
   },
@@ -494,6 +380,7 @@ const saveChanges = async () => {
           accent: form.value.accentColor,
         },
       ],
+      theme: form.value.theme,
       logo: logoId,
       icon: iconId,
       status: "published",

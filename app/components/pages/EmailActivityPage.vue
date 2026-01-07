@@ -123,27 +123,31 @@ async function fetchTotalCounts() {
   try {
     const items = useDirectusItems<{ count: number }[]>("hoa_email_activity");
 
+    // Filter by organization
+    const orgFilter = { organization: { _eq: orgId.value } };
+
     // Fetch aggregate counts for each event type in parallel
     const [totalResult, deliveredResult, openResult, clickResult, bounceResult] =
       await Promise.all([
         items.aggregate({
           aggregate: { count: ["*"] },
+          filter: orgFilter,
         }),
         items.aggregate({
           aggregate: { count: ["*"] },
-          filter: { event: { _eq: "delivered" } },
+          filter: { ...orgFilter, event: { _eq: "delivered" } },
         }),
         items.aggregate({
           aggregate: { count: ["*"] },
-          filter: { event: { _eq: "open" } },
+          filter: { ...orgFilter, event: { _eq: "open" } },
         }),
         items.aggregate({
           aggregate: { count: ["*"] },
-          filter: { event: { _eq: "click" } },
+          filter: { ...orgFilter, event: { _eq: "click" } },
         }),
         items.aggregate({
           aggregate: { count: ["*"] },
-          filter: { event: { _eq: "bounce" } },
+          filter: { ...orgFilter, event: { _eq: "bounce" } },
         }),
       ]);
 
@@ -167,6 +171,7 @@ async function fetchActivities(reset = false) {
   }
 
   if (!hasMore.value && !reset) return;
+  if (!orgId.value) return;
 
   loading.value = reset || activities.value.length === 0;
   loadingMore.value = !reset && activities.value.length > 0;
@@ -185,6 +190,9 @@ async function fetchActivities(reset = false) {
         "email_recipient.email.id",
         "email_recipient.email.subject",
       ],
+      filter: {
+        organization: { _eq: orgId.value },
+      },
       sort: ["-date_created"],
       limit: pageSize,
       offset: currentPage.value * pageSize,

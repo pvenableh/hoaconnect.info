@@ -98,6 +98,10 @@ const goToCompose = () => {
   navigateToOrg("/admin/email/compose");
 };
 
+const goToActivity = () => {
+  navigateToOrg("/admin/email/activity");
+};
+
 const goToEmail = (id: string) => {
   navigateToOrg(`/admin/email/${id}`);
 };
@@ -157,10 +161,16 @@ useSeoMeta({
               Send emails to your HOA members individually or in bulk
             </p>
           </div>
-          <Button @click="goToCompose" size="lg">
-            <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
-            Compose Email
-          </Button>
+          <div class="flex gap-3">
+            <Button @click="goToActivity" variant="outline" size="lg">
+              <Icon name="lucide:activity" class="w-5 h-5 mr-2" />
+              Email Activity
+            </Button>
+            <Button @click="goToCompose" size="lg">
+              <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
+              Compose Email
+            </Button>
+          </div>
         </div>
 
         <!-- Loading State -->

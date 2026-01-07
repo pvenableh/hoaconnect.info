@@ -47,6 +47,8 @@ export interface BlockSetting {
 	title?: string | null;
 	seo?: ExtensionSeoMetadata | null;
 	organization?: HoaOrganization | string | null;
+	/** @description Site theme - classic or modern */
+	theme?: 'classic' | 'modern' | null;
 }
 
 export interface Coupon {
@@ -294,6 +296,8 @@ export interface HoaEmailActivity {
 	event_timestamp?: number | null;
 	email_recipient?: HoaEmailRecipient | string | null;
 	member?: HoaMember | string | null;
+	/** @description Organization this activity belongs to */
+	organization?: HoaOrganization | string | null;
 }
 
 export interface HoaEmailRecipient {
