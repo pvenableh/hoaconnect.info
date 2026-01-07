@@ -12,6 +12,10 @@
  * - Keeps users logged in even when idle
  */
 
+// Enable debug logging only in development
+const DEBUG = process.env.NODE_ENV !== 'production';
+const log = (message: string) => DEBUG && console.log(`[auth-refresh] ${message}`);
+
 export default defineNuxtPlugin(() => {
   const { loggedIn, fetch: fetchSession, clear, session } = useUserSession();
   const router = useRouter();
@@ -26,32 +30,25 @@ export default defineNuxtPlugin(() => {
   const isInitialLoginTransition = ref(false);
 
   const refreshToken = async () => {
-    if (isRefreshing) {
-      console.log('[auth-refresh] Already refreshing, skipping...');
-      return;
-    }
+    if (isRefreshing) return;
 
     try {
       isRefreshing = true;
-      console.log('[auth-refresh] Refreshing token...');
+      log('Refreshing token...');
 
       const response = await $fetch('/api/auth/refresh', {
         method: 'POST',
       });
 
       if (response.success) {
-        console.log('[auth-refresh] Token refreshed successfully');
-        await fetchSession(); // Fetch updated session
+        log('Token refreshed successfully');
+        await fetchSession();
       } else {
         throw new Error('Token refresh failed');
       }
     } catch (error) {
       console.error('[auth-refresh] Failed to refresh token:', error);
-
-      // If refresh fails, clear session and redirect to login
       await clear();
-
-      // Redirect to login page
       await router.push('/auth/login');
     } finally {
       isRefreshing = false;
@@ -59,102 +56,72 @@ export default defineNuxtPlugin(() => {
   };
 
   const checkAndRefreshToken = async () => {
-    // Skip if not logged in
-    if (!loggedIn.value) {
-      return;
-    }
+    if (!loggedIn.value) return;
 
     try {
-      // Fetch current session to get expiration time
       await fetchSession();
-
-      // Get expiration time from session data
       const expiresAt = session.value?.expiresAt;
 
       if (!expiresAt) {
-        // Session exists but missing expiration time - this can happen with old sessions
-        // Trigger a refresh to establish the expiration time (only log once)
-        if (!sessionStorage.getItem('auth-refresh-missing-expiry-logged')) {
-          console.log('[auth-refresh] No expiration time found in session, triggering refresh to establish it');
-          sessionStorage.setItem('auth-refresh-missing-expiry-logged', 'true');
-        }
+        // Trigger refresh to establish expiration time
         await refreshToken();
         return;
       }
 
-      // Clear the logged flag since we now have expiration
-      sessionStorage.removeItem('auth-refresh-missing-expiry-logged');
-
-      const now = Date.now();
-      const timeUntilExpiry = expiresAt - now;
-      const minutesUntilExpiry = Math.floor(timeUntilExpiry / 60000);
-
-      console.log(`[auth-refresh] Token expires in ${minutesUntilExpiry} minutes`);
+      const timeUntilExpiry = expiresAt - Date.now();
 
       // Refresh if less than 5 minutes until expiry
       if (timeUntilExpiry < 5 * 60 * 1000) {
-        console.log('[auth-refresh] Token expiring soon, refreshing immediately...');
+        log('Token expiring soon, refreshing...');
         await refreshToken();
       }
     } catch (error) {
-      console.error('[auth-refresh] Error checking token expiration:', error);
+      console.error('[auth-refresh] Error checking token:', error);
     }
   };
 
   // Start monitoring when logged in
   watch(loggedIn, (isLoggedIn, wasLoggedIn) => {
     if (isLoggedIn) {
-      console.log('[auth-refresh] Starting token refresh monitoring');
+      log('Starting token refresh monitoring');
 
-      // Clear any pending initial check timeout
       if (initialCheckTimeout) {
         clearTimeout(initialCheckTimeout);
         initialCheckTimeout = null;
       }
 
-      // Delay initial check to avoid redundant fetches during login transition
-      // This gives the app time to complete navigation and initial data loading
       const isNewLogin = !wasLoggedIn;
       if (isNewLogin) {
         isInitialLoginTransition.value = true;
-        console.log('[auth-refresh] New login detected, delaying initial token check...');
         initialCheckTimeout = setTimeout(() => {
           isInitialLoginTransition.value = false;
-          console.log('[auth-refresh] Initial login transition complete, starting token checks');
           checkAndRefreshToken();
-        }, 3000); // 3 second delay to let initial navigation complete
+        }, 3000);
       } else {
-        // Already logged in (e.g., page refresh), check immediately
         checkAndRefreshToken();
       }
 
       // Check every minute for expiration
       if (!checkInterval) {
-        checkInterval = setInterval(checkAndRefreshToken, 60 * 1000); // Check every minute
+        checkInterval = setInterval(checkAndRefreshToken, 60 * 1000);
       }
 
-      // Proactively refresh every 10 minutes to keep session alive
+      // Proactively refresh every 10 minutes
       if (!proactiveRefreshInterval) {
-        proactiveRefreshInterval = setInterval(() => {
-          console.log('[auth-refresh] Proactive refresh (10-minute interval)');
-          refreshToken();
-        }, 10 * 60 * 1000); // Refresh every 10 minutes
+        proactiveRefreshInterval = setInterval(refreshToken, 10 * 60 * 1000);
       }
 
-      // Check and refresh token when user returns to tab
-      // This handles cases where browser throttles timers in background tabs
+      // Refresh on tab visibility change
       if (!visibilityHandler) {
         visibilityHandler = () => {
           if (document.visibilityState === 'visible' && loggedIn.value && !isInitialLoginTransition.value) {
-            console.log('[auth-refresh] Tab became visible, checking token...');
             checkAndRefreshToken();
           }
         };
         document.addEventListener('visibilitychange', visibilityHandler);
       }
     } else {
-      // Stop monitoring when logged out
-      console.log('[auth-refresh] Stopping token refresh monitoring');
+      log('Stopping token refresh monitoring');
 
       if (initialCheckTimeout) {
         clearTimeout(initialCheckTimeout);
@@ -183,18 +150,10 @@ export default defineNuxtPlugin(() => {
   // Cleanup on app unmount
   if (import.meta.client) {
     window.addEventListener('beforeunload', () => {
-      if (initialCheckTimeout) {
-        clearTimeout(initialCheckTimeout);
-      }
-      if (checkInterval) {
-        clearInterval(checkInterval);
-      }
-      if (proactiveRefreshInterval) {
-        clearInterval(proactiveRefreshInterval);
-      }
-      if (visibilityHandler) {
-        document.removeEventListener('visibilitychange', visibilityHandler);
-      }
+      if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
+      if (checkInterval) clearInterval(checkInterval);
+      if (proactiveRefreshInterval) clearInterval(proactiveRefreshInterval);
+      if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
     });
   }
 });
