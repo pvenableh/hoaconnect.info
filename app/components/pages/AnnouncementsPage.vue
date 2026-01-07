@@ -81,7 +81,7 @@ const getTypeInfo = (type: string | null | undefined) => {
     maintenance: { icon: "wrench", color: "text-amber-600 bg-amber-50 border-amber-200", label: "Maintenance" },
     event: { icon: "calendar", color: "text-blue-600 bg-blue-50 border-blue-200", label: "Event" },
     reminder: { icon: "bell", color: "text-purple-600 bg-purple-50 border-purple-200", label: "Reminder" },
-    general: { icon: "megaphone", color: "text-stone-600 bg-stone-50 border-stone-200", label: "General" },
+    general: { icon: "megaphone", color: "t-text-secondary t-bg-subtle t-border", label: "General" },
   };
   return types[type || "general"] || types.general;
 };
@@ -103,14 +103,14 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-4xl mx-auto">
         <div class="mb-8">
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-3xl font-bold mb-2">Announcements</h1>
-              <p class="text-stone-600">
+              <p class="t-text-secondary">
                 Stay updated with the latest community news
               </p>
             </div>
@@ -133,7 +133,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading announcements...</p>
+          <p class="text-sm t-text-secondary">Loading announcements...</p>
         </div>
 
         <!-- No Organization State -->
@@ -202,14 +202,14 @@ useSeoMeta({
                               Pinned
                             </span>
                           </div>
-                          <div class="flex items-center gap-2 text-sm text-stone-500 mt-0.5">
+                          <div class="flex items-center gap-2 text-sm t-text-muted mt-0.5">
                             <span
                               class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
                               :class="getTypeInfo(announcement.announcement_type).color"
                             >
                               {{ getTypeInfo(announcement.announcement_type).label }}
                             </span>
-                            <span class="text-stone-300">|</span>
+                            <span class="t-text-muted opacity-50">|</span>
                             <span>
                               {{ formatDate(announcement.publish_date || announcement.date_created) }}
                             </span>
@@ -235,14 +235,14 @@ useSeoMeta({
             v-else
             class="text-center py-16"
           >
-            <div class="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-4">
+            <div class="w-16 h-16 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-4">
               <Icon
                 name="lucide:megaphone"
-                class="w-8 h-8 text-stone-400"
+                class="w-8 h-8 t-text-muted"
               />
             </div>
-            <h3 class="font-medium text-stone-900 mb-1">No announcements</h3>
-            <p class="text-sm text-stone-500">
+            <h3 class="font-medium t-text mb-1">No announcements</h3>
+            <p class="text-sm t-text-muted">
               There are no announcements to display at this time.
             </p>
           </div>

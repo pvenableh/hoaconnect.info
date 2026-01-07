@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
       <!-- Loading State -->

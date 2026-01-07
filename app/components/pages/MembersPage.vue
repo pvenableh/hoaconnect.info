@@ -59,7 +59,7 @@ const getRoleBadgeClass = (roleId: string | null | undefined): string => {
   if (roleId === config.public.directusRoleHoaAdmin) {
     return "bg-purple-100 text-purple-800";
   }
-  return "bg-stone-100 text-stone-600";
+  return "t-bg-subtle t-text-secondary";
 };
 
 const { data: members, refresh: refreshMembers } = await useAsyncData(
@@ -481,9 +481,9 @@ const getBoardTitleColor = (title: string | null): string => {
     vice_president: "bg-blue-100 text-blue-700",
     secretary: "bg-emerald-100 text-emerald-700",
     treasurer: "bg-purple-100 text-purple-700",
-    director: "bg-stone-100 text-stone-700",
+    director: "t-bg-subtle t-text-secondary",
   };
-  return colors[title || ""] || "bg-stone-100 text-stone-700";
+  return colors[title || ""] || "t-bg-subtle t-text-secondary";
 };
 
 const getPrimaryUnit = (member: any) => {
@@ -520,12 +520,12 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
         <div class="mb-8">
           <h1 class="text-3xl font-bold mb-2">Manage Members</h1>
-          <p class="text-stone-600">
+          <p class="t-text-secondary">
             Invite new members and manage existing memberships
           </p>
         </div>
@@ -536,7 +536,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading your organization...</p>
+          <p class="text-sm t-text-secondary">Loading your organization...</p>
         </div>
 
         <!-- No Organization State -->
@@ -563,7 +563,7 @@ useSeoMeta({
         </Card>
 
         <!-- Tabs -->
-        <div class="border-b border-stone-200">
+        <div class="border-b t-border">
           <nav class="flex space-x-8">
             <button
               @click="activeTab = 'members'"
@@ -571,7 +571,7 @@ useSeoMeta({
                 'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                 activeTab === 'members'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
               ]"
             >
               Members ({{ members?.length || 0 }})
@@ -582,7 +582,7 @@ useSeoMeta({
                 'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                 activeTab === 'invite'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
               ]"
             >
               Invite Member
@@ -593,7 +593,7 @@ useSeoMeta({
                 'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                 activeTab === 'pending'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
               ]"
             >
               Pending Invitations ({{ invitations?.length || 0 }})
@@ -604,7 +604,7 @@ useSeoMeta({
                 'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                 activeTab === 'board'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
               ]"
             >
               <Icon name="lucide:award" class="w-4 h-4 inline mr-1" />
@@ -677,7 +677,7 @@ useSeoMeta({
                     <tr
                       v-for="member in members"
                       :key="member.id"
-                      class="border-b hover:bg-stone-50"
+                      class="border-b hover:t-bg-subtle"
                     >
                       <td class="p-3">
                         {{ member.first_name }} {{ member.last_name }}
@@ -703,7 +703,7 @@ useSeoMeta({
                         </span>
                         <span
                           v-else
-                          class="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded"
+                          class="text-xs t-bg-subtle t-text-secondary px-2 py-1 rounded"
                         >
                           No
                         </span>
@@ -731,11 +731,11 @@ useSeoMeta({
 
               <div
                 v-if="!members?.length"
-                class="text-center py-12 text-stone-500"
+                class="text-center py-12 t-text-muted"
               >
                 <Icon
                   name="lucide:users"
-                  class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
                 />
                 <p class="font-medium">No members yet</p>
                 <p class="text-sm mt-1">
@@ -771,7 +771,7 @@ useSeoMeta({
                   :key="invitation.id"
                   class="flex items-center justify-between p-4 border rounded-lg"
                   :class="{
-                    'bg-stone-50 border-stone-200': isExpired(
+                    't-bg-subtle t-border': isExpired(
                       invitation.expires_at
                     ),
                   }"
@@ -780,10 +780,10 @@ useSeoMeta({
                     <div class="flex items-center gap-3">
                       <div>
                         <p class="font-medium">{{ invitation.email }}</p>
-                        <p class="text-sm text-stone-600">
+                        <p class="text-sm t-text-secondary">
                           Role: {{ getRoleDisplay(invitation.role) }}
                         </p>
-                        <p class="text-xs text-stone-500 mt-1">
+                        <p class="text-xs t-text-muted mt-1">
                           Invited by
                           {{ invitation.invited_by?.first_name }}
                           {{ invitation.invited_by?.last_name }} on
@@ -806,7 +806,7 @@ useSeoMeta({
                       >
                         Pending
                       </div>
-                      <p class="text-xs text-stone-500 mt-1">
+                      <p class="text-xs t-text-muted mt-1">
                         Expires {{ formatDate(invitation.expires_at) }}
                       </p>
                     </div>
@@ -845,11 +845,11 @@ useSeoMeta({
 
                 <div
                   v-if="!invitations?.length"
-                  class="text-center py-12 text-stone-500"
+                  class="text-center py-12 t-text-muted"
                 >
                   <Icon
                     name="lucide:mail-check"
-                    class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                    class="w-12 h-12 mx-auto mb-4 t-text-muted"
                   />
                   <p class="font-medium">No pending invitations</p>
                   <p class="text-sm mt-1">
@@ -894,7 +894,7 @@ useSeoMeta({
                 <div
                   v-for="term in activeBoardTerms"
                   :key="term.id"
-                  class="flex items-center justify-between p-4 border rounded-lg hover:bg-stone-50"
+                  class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
                 >
                   <div class="flex items-center gap-4">
                     <div
@@ -913,7 +913,7 @@ useSeoMeta({
                       >
                         {{ formatBoardTitle(term.title) }}
                       </span>
-                      <p v-if="term.term_start || term.term_end" class="text-xs text-stone-500 mt-1">
+                      <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
                         <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
                         <span v-if="term.term_start && term.term_end"> - </span>
                         <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
@@ -939,10 +939,10 @@ useSeoMeta({
                   </div>
                 </div>
               </div>
-              <div v-else class="text-center py-12 text-stone-500">
+              <div v-else class="text-center py-12 t-text-muted">
                 <Icon
                   name="lucide:award"
-                  class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
                 />
                 <p class="font-medium">No active board members</p>
                 <p class="text-sm mt-1">
@@ -965,22 +965,22 @@ useSeoMeta({
                 <div
                   v-for="term in pastBoardTerms"
                   :key="term.id"
-                  class="flex items-center justify-between p-4 border rounded-lg bg-stone-50"
+                  class="flex items-center justify-between p-4 border rounded-lg t-bg-subtle"
                 >
                   <div class="flex items-center gap-4">
                     <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 text-stone-600"
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 t-text-secondary"
                     >
                       {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
                     </div>
                     <div>
-                      <p class="font-medium text-stone-600">
+                      <p class="font-medium t-text-secondary">
                         {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
                       </p>
-                      <span class="text-xs text-stone-500">
+                      <span class="text-xs t-text-muted">
                         {{ formatBoardTitle(term.title) }}
                       </span>
-                      <p v-if="term.term_start || term.term_end" class="text-xs text-stone-400 mt-1">
+                      <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
                         <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
                         <span v-if="term.term_start && term.term_end"> - </span>
                         <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
@@ -1069,7 +1069,7 @@ useSeoMeta({
                       {{ role.label }}
                     </option>
                   </select>
-                  <p class="text-xs text-stone-500">
+                  <p class="text-xs t-text-muted">
                     HOA Admins can manage members, documents, and settings
                   </p>
                 </div>
@@ -1087,7 +1087,7 @@ useSeoMeta({
                     {{ unit.unit_number }}
                   </option>
                 </select>
-                <p v-if="!units?.length" class="text-xs text-stone-500">
+                <p v-if="!units?.length" class="text-xs t-text-muted">
                   No units available.
                   <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
                     >Add units first</NuxtLink
@@ -1146,7 +1146,7 @@ useSeoMeta({
                     {{ member.first_name }} {{ member.last_name }}
                   </option>
                 </select>
-                <p v-if="!members?.length" class="text-xs text-stone-500">
+                <p v-if="!members?.length" class="text-xs t-text-muted">
                   No members available. Add members first.
                 </p>
               </div>
@@ -1184,7 +1184,7 @@ useSeoMeta({
                     v-model="boardForm.term_end"
                     type="date"
                   />
-                  <p class="text-xs text-stone-500">Leave empty for ongoing</p>
+                  <p class="text-xs t-text-muted">Leave empty for ongoing</p>
                 </div>
               </div>
 
