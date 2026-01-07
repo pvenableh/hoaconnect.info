@@ -484,12 +484,12 @@
 				<div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
 					<div class="content-label flex flex-col gap-2 opacity-0">
 						<span class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">06</span>
-						<span class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary">Florida Focus</span>
+						<span class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary">Compliance focused</span>
 					</div>
 					<div class="content-main max-w-4xl min-w-0 overflow-hidden">
 						<h2
 							class="section-title t-heading text-[clamp(2rem,5vw,3rem)] font-normal tracking-tight leading-tight mb-8 opacity-0">
-							Built for Post-Surfside Compliance
+							Built for Compliance
 						</h2>
 						<p class="section-body text-[1.0625rem] leading-relaxed t-text-secondary mb-8 opacity-0">
 							Florida condominiums face unique challenges—fund segregation requirements,
