@@ -40,16 +40,11 @@ export default defineNuxtConfig({
   nitro: {
     // Compression for responses
     compressPublicAssets: true,
-    // Prerender common routes
-    prerender: {
-      crawlLinks: true,
-      routes: ["/", "/auth/login", "/auth/register"],
-    },
-    // Route caching rules
+    // Route caching rules (prerendering disabled for dynamic multi-tenant app)
     routeRules: {
       // Cache static assets for 1 year
       "/_nuxt/**": { headers: { "cache-control": "public, max-age=31536000, immutable" } },
-      // Cache API responses for dynamic data
+      // Cache HOA lookup API responses briefly
       "/api/hoa/find": { cache: { maxAge: 60 } },
       "/api/hoa/by-slug": { cache: { maxAge: 60 } },
     },
