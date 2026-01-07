@@ -38,7 +38,7 @@ export interface BlockSetting {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
-	theme?: 'light' | 'dark' | 'ocean' | 'forest' | 'sunset' | 'midnight' | null;
+	theme?: 'classic' | 'modern' | null;
 	heading_font?: 'serif' | `sans-serif` | null;
 	body_font?: 'serif' | `sans-serif` | null;
 	logo?: DirectusFile | string | null;

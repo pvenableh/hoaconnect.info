@@ -108,57 +108,79 @@
       <CardHeader>
         <CardTitle>Theme</CardTitle>
         <CardDescription>
-          Choose a color theme for your organization's site
+          Choose a design theme for your organization's site
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div class="space-y-4">
-          <div class="space-y-2">
-            <Label for="theme">Color Theme</Label>
-            <select
-              id="theme"
-              v-model="form.theme"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
+          <!-- Theme Selection Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Classic Theme -->
+            <div
+              class="relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md"
+              :class="form.theme === 'classic' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'"
+              @click="form.theme = 'classic'"
             >
-              <option value="light">Light - Clean and bright</option>
-              <option value="dark">Dark - Modern and sleek</option>
-              <option value="ocean">Ocean - Cool blues and teals</option>
-              <option value="forest">Forest - Natural greens</option>
-              <option value="sunset">Sunset - Warm oranges and reds</option>
-              <option value="midnight">Midnight - Deep purple and blue</option>
-            </select>
-          </div>
-
-          <!-- Theme Preview -->
-          <div class="mt-4 p-4 rounded-lg border">
-            <p class="text-sm font-medium mb-3">Preview</p>
-            <div class="flex items-center gap-2 flex-wrap">
-              <div
-                v-for="theme in themeOptions"
-                :key="theme.value"
-                class="flex flex-col items-center gap-1 cursor-pointer p-2 rounded-lg border-2 transition-all"
-                :class="form.theme === theme.value ? 'border-primary bg-primary/5' : 'border-transparent hover:border-muted'"
-                @click="form.theme = theme.value"
-              >
-                <div class="flex gap-0.5">
-                  <div
-                    class="h-8 w-4 rounded-l"
-                    :style="{ backgroundColor: theme.colors.primary }"
-                  />
-                  <div
-                    class="h-8 w-4"
-                    :style="{ backgroundColor: theme.colors.secondary }"
-                  />
-                  <div
-                    class="h-8 w-4 rounded-r"
-                    :style="{ backgroundColor: theme.colors.accent }"
-                  />
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                  <!-- Classic theme preview colors -->
+                  <div class="flex gap-0.5 rounded overflow-hidden shadow-sm">
+                    <div class="h-12 w-6" style="background-color: #FDFCFA;" />
+                    <div class="h-12 w-6" style="background-color: #C9A96E;" />
+                    <div class="h-12 w-6" style="background-color: #8B7355;" />
+                  </div>
                 </div>
-                <span class="text-xs text-muted-foreground">{{ theme.label }}</span>
+                <div class="flex-1">
+                  <h4 class="font-medium">Classic</h4>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Warm cream background, gold accents, serif headings. Elegant and timeless.
+                  </p>
+                </div>
+              </div>
+              <!-- Selected indicator -->
+              <div
+                v-if="form.theme === 'classic'"
+                class="absolute top-2 right-2"
+              >
+                <Icon name="lucide:check-circle-2" class="h-5 w-5 text-primary" />
+              </div>
+            </div>
+
+            <!-- Modern Theme -->
+            <div
+              class="relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md"
+              :class="form.theme === 'modern' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'"
+              @click="form.theme = 'modern'"
+            >
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                  <!-- Modern theme preview colors -->
+                  <div class="flex gap-0.5 rounded overflow-hidden shadow-sm">
+                    <div class="h-12 w-6" style="background-color: #FFFFFF;" />
+                    <div class="h-12 w-6" style="background-color: #00BFD8;" />
+                    <div class="h-12 w-6" style="background-color: #495057;" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-medium">Modern</h4>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Clean white background, cyan highlights, sans-serif typography. Fresh and contemporary.
+                  </p>
+                </div>
+              </div>
+              <!-- Selected indicator -->
+              <div
+                v-if="form.theme === 'modern'"
+                class="absolute top-2 right-2"
+              >
+                <Icon name="lucide:check-circle-2" class="h-5 w-5 text-primary" />
               </div>
             </div>
           </div>
+
+          <p class="text-xs text-muted-foreground">
+            The theme will automatically adapt to your visitors' light/dark mode preference.
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -242,16 +264,6 @@ const iconPreview = ref<string | null>(null);
 const removedLogo = ref(false);
 const removedIcon = ref(false);
 
-// Theme options with preview colors
-const themeOptions = [
-  { value: 'light', label: 'Light', colors: { primary: '#2563eb', secondary: '#64748b', accent: '#f59e0b' } },
-  { value: 'dark', label: 'Dark', colors: { primary: '#3b82f6', secondary: '#94a3b8', accent: '#fbbf24' } },
-  { value: 'ocean', label: 'Ocean', colors: { primary: '#0891b2', secondary: '#0e7490', accent: '#06b6d4' } },
-  { value: 'forest', label: 'Forest', colors: { primary: '#16a34a', secondary: '#15803d', accent: '#84cc16' } },
-  { value: 'sunset', label: 'Sunset', colors: { primary: '#ea580c', secondary: '#dc2626', accent: '#fbbf24' } },
-  { value: 'midnight', label: 'Midnight', colors: { primary: '#7c3aed', secondary: '#6366f1', accent: '#a78bfa' } },
-];
-
 // Helper to get file ID
 const getFileId = (file: DirectusFile | string | null | undefined): string | null => {
   if (!file) return null;
@@ -276,7 +288,7 @@ const currentIconUrl = computed(() => {
 
 // Form data
 const form = ref({
-  theme: props.settings?.theme || "light",
+  theme: props.settings?.theme || "classic",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
 });
@@ -287,7 +299,7 @@ watch(
   (newSettings) => {
     if (newSettings) {
       form.value = {
-        theme: newSettings.theme || "light",
+        theme: newSettings.theme || "classic",
         title: newSettings.title || "",
         description: newSettings.description || "",
       };
