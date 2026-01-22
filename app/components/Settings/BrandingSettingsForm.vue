@@ -123,9 +123,10 @@
             >
               <option value="classic">Classic</option>
               <option value="modern">Modern</option>
+              <option value="luxury">Luxury (Premium)</option>
             </select>
             <p class="text-sm text-muted-foreground mt-2">
-              {{ form.theme === 'classic' ? 'Classic theme uses warm, elegant colors with serif fonts.' : 'Modern theme uses clean lines with a contemporary feel.' }}
+              {{ themeDescriptions[form.theme] }}
             </p>
           </div>
         </div>
@@ -252,8 +253,15 @@ const form = ref({
   bodyFont: props.settings?.body_font || "sans-serif",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
-  theme: (props.settings?.theme as 'classic' | 'modern') || "classic",
+  theme: (props.settings?.theme as 'classic' | 'modern' | 'luxury') || "classic",
 });
+
+// Theme descriptions for the settings form
+const themeDescriptions: Record<'classic' | 'modern' | 'luxury', string> = {
+  classic: 'Classic theme uses warm, elegant colors with serif fonts.',
+  modern: 'Modern theme uses clean lines with a contemporary feel.',
+  luxury: 'Luxury theme features gallery whites, aged brass accents, and refined typography.',
+};
 
 // Watch for prop changes
 watch(
@@ -269,7 +277,7 @@ watch(
         bodyFont: newSettings.body_font || "sans-serif",
         title: newSettings.title || "",
         description: newSettings.description || "",
-        theme: (newSettings.theme as 'classic' | 'modern') || "classic",
+        theme: (newSettings.theme as 'classic' | 'modern' | 'luxury') || "classic",
       };
     }
   },
