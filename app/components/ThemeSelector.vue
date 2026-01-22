@@ -1,10 +1,24 @@
 <script setup lang="ts">
-const { themeStyle, themeMode, setThemeStyle, setThemeMode, isDark } = useTheme();
+import type { ThemeStyle } from '~/composables/useTheme';
 
-const themes = [
-	{ id: 'classic', label: 'Classic', description: 'Cream & Serif' },
-	{ id: 'modern', label: 'Modern', description: 'White & Cyan' },
-] as const;
+const props = defineProps<{
+	hasPremium?: boolean;
+}>();
+
+const emit = defineEmits<{
+	premiumRequired: [];
+}>();
+
+const { themeStyle, themeMode, setThemeStyle, setThemeMode, isDark, THEME_OPTIONS } = useTheme();
+
+function handleThemeSelect(themeId: ThemeStyle) {
+	const theme = THEME_OPTIONS.find(t => t.id === themeId);
+	if (theme?.isPremium && !props.hasPremium) {
+		emit('premiumRequired');
+		return;
+	}
+	setThemeStyle(themeId);
+}
 </script>
 
 <template>
@@ -14,19 +28,32 @@ const themes = [
 		<!-- Theme Style Buttons -->
 		<div class="theme-selector__options">
 			<button
-				v-for="theme in themes"
+				v-for="theme in THEME_OPTIONS"
 				:key="theme.id"
 				class="theme-option"
-				:class="{ active: themeStyle === theme.id }"
-				@click="setThemeStyle(theme.id)">
-				<span class="theme-option__icon">
+				:class="{
+					active: themeStyle === theme.id,
+					premium: theme.isPremium,
+					locked: theme.isPremium && !hasPremium
+				}"
+				@click="handleThemeSelect(theme.id)">
+				<span class="theme-option__icon" :class="{ 'premium-icon': theme.isPremium }">
 					<span v-if="theme.id === 'classic'" class="icon-classic">Aa</span>
-					<Icon v-else name="i-heroicons-square-3-stack-3d" class="w-4 h-4" />
+					<Icon v-else-if="theme.id === 'modern'" name="i-heroicons-square-3-stack-3d" class="w-4 h-4" />
+					<Icon v-else-if="theme.id === 'luxury'" name="i-heroicons-sparkles" class="w-4 h-4" />
 				</span>
 				<span class="theme-option__text">
-					<span class="theme-option__label">{{ theme.label }}</span>
+					<span class="theme-option__label-row">
+						<span class="theme-option__label">{{ theme.label }}</span>
+						<span v-if="theme.isPremium" class="premium-badge">Premium</span>
+					</span>
 					<span class="theme-option__desc">{{ theme.description }}</span>
 				</span>
+				<Icon
+					v-if="theme.isPremium && !hasPremium"
+					name="i-heroicons-lock-closed"
+					class="w-4 h-4 theme-option__lock"
+				/>
 			</button>
 		</div>
 
@@ -75,6 +102,7 @@ const themes = [
 	cursor: pointer;
 	transition: all 0.2s ease;
 	text-align: left;
+	position: relative;
 }
 
 .theme-option:hover {
@@ -84,6 +112,15 @@ const themes = [
 .theme-option.active {
 	border-color: var(--theme-accent-primary, #c9a96e);
 	background: var(--theme-bg-secondary, #f5f3ef);
+}
+
+.theme-option.locked {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+.theme-option.locked:hover {
+	border-color: var(--theme-border-primary, #e5e0d8);
 }
 
 .theme-option__icon {
@@ -97,6 +134,11 @@ const themes = [
 	color: var(--theme-text-secondary, #6c6c6c);
 }
 
+.theme-option.premium .theme-option__icon.premium-icon {
+	background: linear-gradient(135deg, #B8956C 0%, #C9A87C 100%);
+	color: white;
+}
+
 .icon-classic {
 	font-family: 'Bauer Bodoni Pro_1 W05 Roman', serif;
 	font-size: 14px;
@@ -105,6 +147,13 @@ const themes = [
 .theme-option__text {
 	display: flex;
 	flex-direction: column;
+	flex: 1;
+}
+
+.theme-option__label-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 }
 
 .theme-option__label {
@@ -116,6 +165,22 @@ const themes = [
 .theme-option__desc {
 	font-size: 11px;
 	color: var(--theme-text-muted, #9a9a9a);
+}
+
+.theme-option__lock {
+	color: var(--theme-text-muted, #9a9a9a);
+	margin-left: auto;
+}
+
+.premium-badge {
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	padding: 2px 6px;
+	border-radius: 3px;
+	background: linear-gradient(135deg, #B8956C 0%, #C9A87C 100%);
+	color: white;
 }
 
 .theme-selector__mode {

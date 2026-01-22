@@ -1,14 +1,28 @@
 // Theme composable for managing design themes
-// Two themes: 'classic' (cream/serif) and 'modern' (white/grey/sans-serif/cyan)
+// Three themes: 'classic' (cream/serif), 'modern' (white/grey/sans-serif/cyan), 'luxury' (gallery white/brass/premium)
 // Each theme has light and dark mode variants
 
-export type ThemeStyle = 'classic' | 'modern';
+export type ThemeStyle = 'classic' | 'modern' | 'luxury';
 export type ThemeMode = 'light' | 'dark';
 
 export interface ThemeState {
 	style: ThemeStyle;
 	mode: ThemeMode;
 }
+
+// Theme metadata for UI display
+export interface ThemeOption {
+	id: ThemeStyle;
+	label: string;
+	description: string;
+	isPremium: boolean;
+}
+
+export const THEME_OPTIONS: ThemeOption[] = [
+	{ id: 'classic', label: 'Classic', description: 'Cream & Serif', isPremium: false },
+	{ id: 'modern', label: 'Modern', description: 'White & Cyan', isPremium: false },
+	{ id: 'luxury', label: 'Luxury', description: 'Gallery & Brass', isPremium: true },
+];
 
 const THEME_STORAGE_KEY = 'design-theme';
 
@@ -18,7 +32,11 @@ function getStoredTheme(): ThemeState {
 		const stored = localStorage.getItem(THEME_STORAGE_KEY);
 		if (stored) {
 			try {
-				return JSON.parse(stored);
+				const parsed = JSON.parse(stored);
+				// Validate the stored style is still valid
+				if (['classic', 'modern', 'luxury'].includes(parsed.style)) {
+					return parsed;
+				}
 			} catch {
 				// Invalid stored value, use default
 			}
@@ -45,6 +63,8 @@ export function useTheme() {
 	const isDark = computed(() => themeState.mode === 'dark');
 	const isClassic = computed(() => themeState.style === 'classic');
 	const isModern = computed(() => themeState.style === 'modern');
+	const isLuxury = computed(() => themeState.style === 'luxury');
+	const isPremiumTheme = computed(() => themeState.style === 'luxury');
 
 	// Set theme class on html element (works with SSR via useHead)
 	function setHtmlThemeClass(style: ThemeStyle, mode: ThemeMode = 'light') {
@@ -61,7 +81,7 @@ export function useTheme() {
 		themeState.mode = mode;
 	}
 
-	// Set theme style (classic or modern)
+	// Set theme style (classic, modern, or luxury)
 	async function setThemeStyle(style: ThemeStyle, persist = true) {
 		themeState.style = style;
 		saveThemeLocal();
@@ -98,9 +118,12 @@ export function useTheme() {
 		setThemeMode(themeState.mode === 'light' ? 'dark' : 'light');
 	}
 
-	// Toggle between classic and modern theme
-	function toggleStyle() {
-		setThemeStyle(themeState.style === 'classic' ? 'modern' : 'classic');
+	// Cycle through theme styles
+	function cycleStyle() {
+		const styles: ThemeStyle[] = ['classic', 'modern', 'luxury'];
+		const currentIndex = styles.indexOf(themeState.style);
+		const nextIndex = (currentIndex + 1) % styles.length;
+		setThemeStyle(styles[nextIndex]);
 	}
 
 	// Set full theme (style + mode)
@@ -159,7 +182,9 @@ export function useTheme() {
 				'theme-classic-light',
 				'theme-classic-dark',
 				'theme-modern-light',
-				'theme-modern-dark'
+				'theme-modern-dark',
+				'theme-luxury-light',
+				'theme-luxury-dark'
 			);
 
 			// Add current theme class
@@ -185,11 +210,11 @@ export function useTheme() {
 
 			// If user is logged in, check if they have a saved preference
 			if (user.value) {
-				// Get theme style from user's theme_light field (we repurpose this for style)
+				// Get theme style from user's theme_light field
 				const userStyle = user.value.theme_light as ThemeStyle | undefined;
 				const userMode = user.value.appearance as ThemeMode | undefined;
 
-				if (userStyle && (userStyle === 'classic' || userStyle === 'modern')) {
+				if (userStyle && ['classic', 'modern', 'luxury'].includes(userStyle)) {
 					themeState.style = userStyle;
 				}
 
@@ -209,7 +234,7 @@ export function useTheme() {
 			const userStyle = user.value.theme_light as ThemeStyle | undefined;
 			const userMode = user.value.appearance as ThemeMode | undefined;
 
-			if (userStyle && (userStyle === 'classic' || userStyle === 'modern')) {
+			if (userStyle && ['classic', 'modern', 'luxury'].includes(userStyle)) {
 				themeState.style = userStyle;
 			}
 
@@ -222,6 +247,16 @@ export function useTheme() {
 		}
 	}
 
+	// Check if a theme style requires premium subscription
+	function isPremiumRequired(style: ThemeStyle): boolean {
+		return style === 'luxury';
+	}
+
+	// Get available themes based on subscription tier
+	function getAvailableThemes(hasPremium: boolean): ThemeOption[] {
+		return THEME_OPTIONS.filter(theme => !theme.isPremium || hasPremium);
+	}
+
 	return {
 		// State
 		themeState,
@@ -231,17 +266,26 @@ export function useTheme() {
 		isDark,
 		isClassic,
 		isModern,
+		isLuxury,
+		isPremiumTheme,
+
+		// Theme options
+		THEME_OPTIONS,
 
 		// Actions
 		setThemeStyle,
 		setThemeMode,
 		toggleMode,
-		toggleStyle,
+		cycleStyle,
 		setTheme,
 		forceThemeStyle,
 		setHtmlThemeClass,
 		initTheme,
 		applyTheme,
 		loadUserTheme,
+
+		// Premium helpers
+		isPremiumRequired,
+		getAvailableThemes,
 	};
 }
