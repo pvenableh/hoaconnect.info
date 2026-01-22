@@ -21,15 +21,15 @@
   --breakpoint-medium: 768px;
   --breakpoint-large: 1024px;
   --breakpoint-xlarge: 1280px;
-  --font-bold: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica, Arial,
+  --font-bold: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Arial,
     sans-serif;
-  --font-body: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+  --font-body: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica,
     Arial, sans-serif;
-  --font-light: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+  --font-light: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica,
     Arial, sans-serif;
-  --font-display: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+  --font-display: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica,
     Arial, sans-serif;
-  --font-sans: 'AvenirNextLTW01', 'Helvetica Neue', Helvetica,
+  --font-sans: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica,
     Arial, sans-serif;
   --font-serif: 'Bauer Bodoni W01 Roman', 'Times New Roman', Times, serif;
 

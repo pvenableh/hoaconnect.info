@@ -75,13 +75,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        // Set Proxima Thin as the default body font
-        sans: ["AvenirNextLTW01", ...fontFamily.sans],
+        // Set Proxima Nova Light as the default body font
+        sans: ["Proxima Nova W01 Light", ...fontFamily.sans],
 
         // Add your other custom fonts as utilities
-        "proxima-light": ["AvenirNextLTW01", ...fontFamily.sans],
-        "proxima-regular": ["AvenirNextLTW01", ...fontFamily.sans],
-        "proxima-thin": ["AvenirNextLTW01", ...fontFamily.sans],
+        "proxima-light": ["Proxima Nova W01 Light", ...fontFamily.sans],
+        "proxima-regular": ["Proxima Nova W01 Regular", ...fontFamily.sans],
+        "proxima-thin": ["Proxima Nova W01 Thin", ...fontFamily.sans],
         "bauer-bodoni": ["Bauer Bodoni Pro_1 W05 Roman", ...fontFamily.serif],
       },
       letterSpacing: {
