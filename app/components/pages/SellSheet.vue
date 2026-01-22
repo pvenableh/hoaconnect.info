@@ -395,10 +395,9 @@
       </div>
     </section>
 
-    <!-- Pricing Section -->
+    <!-- Theme Showcase Section -->
     <section
-      ref="pricingRef"
-      id="plans"
+      ref="themesRef"
       class="section py-24 lg:py-32 px-6 lg:px-16 t-bg-alt"
     >
       <div class="max-w-6xl mx-auto">
@@ -407,6 +406,216 @@
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
               >04</span
+            >
+            <span
+              class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
+              >Customization</span
+            >
+          </div>
+          <div class="content-main max-w-4xl min-w-0 overflow-hidden">
+            <h2
+              class="section-title t-heading text-[clamp(2rem,5vw,3rem)] font-normal tracking-tight leading-tight mb-8 opacity-0"
+            >
+              Your Brand, Your Style
+            </h2>
+            <p
+              class="section-body text-[1.0625rem] leading-relaxed t-text-secondary mb-8 opacity-0"
+            >
+              Choose from three distinct design themes to match your building's
+              personality. Each theme includes light and dark modes, with
+              carefully curated typography and color palettes.
+            </p>
+
+            <!-- Theme Preview Cards -->
+            <div
+              class="theme-showcase grid grid-cols-1 md:grid-cols-3 gap-6 my-8"
+            >
+              <!-- Classic Theme -->
+              <div
+                class="theme-preview-card p-6 border-2 transition relative opacity-0"
+                style="
+                  background: #fdfcfa;
+                  border-color: #e5e0d8;
+                "
+              >
+                <div class="text-center mb-4">
+                  <div
+                    class="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center"
+                    style="background: #ede9e3"
+                  >
+                    <span
+                      style="
+                        font-family: 'Bauer Bodoni Pro_1 W05 Roman', serif;
+                        color: #6c6c6c;
+                      "
+                      >Aa</span
+                    >
+                  </div>
+                  <h4
+                    class="text-lg font-normal mb-1"
+                    style="
+                      font-family: 'Bauer Bodoni Pro_1 W05 Roman', serif;
+                      color: #454545;
+                    "
+                  >
+                    Classic
+                  </h4>
+                  <p class="text-xs" style="color: #9a9a9a">Cream & Serif</p>
+                </div>
+                <div class="space-y-2">
+                  <div
+                    class="h-2 rounded"
+                    style="background: #c9a96e; width: 60%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e5e0d8; width: 100%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e5e0d8; width: 80%"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Modern Theme -->
+              <div
+                class="theme-preview-card p-6 border-2 transition relative opacity-0"
+                style="
+                  background: #ffffff;
+                  border-color: #e2e8f0;
+                "
+              >
+                <div class="text-center mb-4">
+                  <div
+                    class="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center"
+                    style="background: #f1f5f9"
+                  >
+                    <Icon
+                      name="i-heroicons-square-3-stack-3d"
+                      class="w-4 h-4"
+                      style="color: #64748b"
+                    />
+                  </div>
+                  <h4
+                    class="text-lg font-medium mb-1"
+                    style="
+                      font-family: 'Proxima Nova W01 Regular', sans-serif;
+                      color: #1e293b;
+                    "
+                  >
+                    Modern
+                  </h4>
+                  <p class="text-xs" style="color: #94a3b8">White & Cyan</p>
+                </div>
+                <div class="space-y-2">
+                  <div
+                    class="h-2 rounded"
+                    style="background: #00bfd8; width: 60%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e2e8f0; width: 100%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e2e8f0; width: 80%"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Luxury Theme -->
+              <div
+                class="theme-preview-card p-6 border-2 transition relative opacity-0"
+                style="
+                  background: #faf9f7;
+                  border-color: #e8e4df;
+                "
+              >
+                <!-- Premium Badge -->
+                <div
+                  class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                >
+                  <span
+                    class="px-3 py-1 text-xs font-semibold tracking-wider uppercase"
+                    style="
+                      background: linear-gradient(
+                        135deg,
+                        #b8956c 0%,
+                        #c9a87c 100%
+                      );
+                      color: white;
+                    "
+                    >Premium</span
+                  >
+                </div>
+                <div class="text-center mb-4">
+                  <div
+                    class="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center"
+                    style="
+                      background: linear-gradient(
+                        135deg,
+                        #b8956c 0%,
+                        #c9a87c 100%
+                      );
+                    "
+                  >
+                    <Icon
+                      name="i-heroicons-sparkles"
+                      class="w-4 h-4"
+                      style="color: white"
+                    />
+                  </div>
+                  <h4
+                    class="text-lg font-normal mb-1"
+                    style="
+                      font-family: 'Bauer Bodoni Pro_1 W05 Roman', serif;
+                      color: #3d3a36;
+                    "
+                  >
+                    Luxury
+                  </h4>
+                  <p class="text-xs" style="color: #9a958e">Gallery & Brass</p>
+                </div>
+                <div class="space-y-2">
+                  <div
+                    class="h-2 rounded"
+                    style="background: #b8956c; width: 60%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e8e4df; width: 100%"
+                  ></div>
+                  <div
+                    class="h-2 rounded"
+                    style="background: #e8e4df; width: 80%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <p
+              class="section-tagline t-heading text-lg italic t-text-accent-tertiary pt-8 border-t t-border-divider opacity-0"
+            >
+              Light and dark modes included. Switch anytime.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section
+      ref="pricingRef"
+      id="plans"
+      class="section py-24 lg:py-32 px-6 lg:px-16 t-bg"
+    >
+      <div class="max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
+          <div class="content-label flex flex-col gap-2 opacity-0">
+            <span
+              class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
+              >05</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -610,7 +819,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >05</span
+              >06</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -694,7 +903,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >06</span
+              >07</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -759,7 +968,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >07</span
+              >08</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -952,6 +1161,7 @@ const introRef = ref(null);
 const problemRef = ref(null);
 const solutionRef = ref(null);
 const featuresRef = ref(null);
+const themesRef = ref(null);
 const pricingRef = ref(null);
 const caseStudyRef = ref(null);
 const floridaRef = ref(null);
@@ -1288,6 +1498,13 @@ onMounted(() => {
       ".section-title",
       ".section-image",
       ".feature-item",
+      ".section-tagline",
+    ]);
+    animateSection(themesRef, [
+      ".content-label",
+      ".section-title",
+      ".section-body",
+      ".theme-preview-card",
       ".section-tagline",
     ]);
     animateSection(pricingRef, [

@@ -91,11 +91,11 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* Font families */
-  --font-sans: "AvenirNextLTW01", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: "Proxima Nova W01 Light", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-serif: "Bauer Bodoni Pro_1 W05 Roman", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-proxima-light: "AvenirNextLTW01", ui-sans-serif, system-ui, sans-serif;
-  --font-proxima-regular: "AvenirNextLTW01", ui-sans-serif, system-ui, sans-serif;
-  --font-proxima-thin: "AvenirNextLTW01", ui-sans-serif, system-ui, sans-serif;
+  --font-proxima-light: "Proxima Nova W01 Light", ui-sans-serif, system-ui, sans-serif;
+  --font-proxima-regular: "Proxima Nova W01 Regular", ui-sans-serif, system-ui, sans-serif;
+  --font-proxima-thin: "Proxima Nova W01 Thin", ui-sans-serif, system-ui, sans-serif;
   --font-bauer-bodoni: "Bauer Bodoni Pro_1 W05 Roman", ui-serif, Georgia, Cambria, serif;
 
   /* Letter spacing */
