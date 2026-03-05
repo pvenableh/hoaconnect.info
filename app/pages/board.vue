@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// Board page for custom domains (e.g., 605lincolnroad.com/board)
-// Uses activeHoa from custom domain context instead of slug param
+// Board page - uses activeHoa context
 const config = useRuntimeConfig();
 
-// Get active HOA from custom domain context
-const { activeHoa, isCustomDomain } = useActiveHoa();
+// Get active HOA context
+const { activeHoa } = useActiveHoa();
 
 // Fetch board members using activeHoa slug
 const { data: boardData, pending: boardPending } = await useAsyncData(

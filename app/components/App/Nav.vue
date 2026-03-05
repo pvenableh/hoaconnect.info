@@ -26,12 +26,12 @@ const currentSlug = computed(() => {
   return null;
 });
 
-// Get active HOA for public org pages (when viewing /my-org or custom domain)
-const { activeHoa, isCustomDomain } = useActiveHoa();
+// Get active HOA for public org pages (when viewing /my-org)
+const { activeHoa } = useActiveHoa();
 
-// Check if we're on the main marketing domain (not custom domain, not org page)
+// Check if we're on the main marketing domain (not org page)
 const isMainMarketingDomain = computed(
-  () => !isCustomDomain.value && !isOnOrgPage.value
+  () => !isOnOrgPage.value
 );
 
 // Get current organization, role, and member details for logged-in users
@@ -63,14 +63,14 @@ const {
 } = useCurrentDomainAccess();
 
 // Determine if admin UI should be shown
-// On org context (custom domain or slug route): only show if admin of THAT org
+// On org context (slug route): only show if admin of THAT org
 // On main domain: show based on selected org admin status
 const showAdminUI = computed(() => {
   // If not logged in, never show admin UI
   if (!user.value) return false;
 
-  // If on org context (custom domain or slug route), check current domain access
-  if (isOnOrgPage.value || isCustomDomain.value) {
+  // If on org context (slug route), check current domain access
+  if (isOnOrgPage.value) {
     return isAdminOfCurrentDomain.value;
   }
 
@@ -81,7 +81,7 @@ const showAdminUI = computed(() => {
 // Determine the appropriate user status badge for current context
 const contextAwareStatusBadge = computed(() => {
   // On org context, use current domain membership info
-  if (isOnOrgPage.value || isCustomDomain.value) {
+  if (isOnOrgPage.value) {
     if (isAdminOfCurrentDomain.value) return "Admin";
     if (isBoardMemberOfCurrentDomain.value) return "Board Member";
     if (isMemberOfCurrentDomain.value) return "Member";
@@ -125,9 +125,9 @@ const orgName = computed(() => {
   return currentOrg.value?.organization?.name || null;
 });
 
-// Determine if we should show org branding (on org page OR on custom domain, but NOT on main marketing domain even if logged in)
+// Determine if we should show org branding (on org page, but NOT on main marketing domain even if logged in)
 const showOrgBranding = computed(
-  () => isOnOrgPage.value || isCustomDomain.value
+  () => isOnOrgPage.value
 );
 
 const handleLogout = async () => {
@@ -142,10 +142,6 @@ const handleLogout = async () => {
 
 // Helper to build org-prefixed paths
 const buildPath = (path: string) => {
-  // On custom domains, never add slug prefix - the domain IS the org context
-  if (isCustomDomain.value) {
-    return path.startsWith("/") ? path : `/${path}`;
-  }
   if (!currentSlug.value) return path;
   // Home path just goes to org root
   if (path === "/") return `/${currentSlug.value}`;
@@ -529,9 +525,9 @@ watch(
           >
             Login
           </NuxtLink>
-          <!-- Hide Get Started on org pages and custom domains -->
+          <!-- Hide Get Started on org pages -->
           <Button
-            v-if="!isOnOrgPage && !isCustomDomain"
+            v-if="!isOnOrgPage"
             as-child
             class="uppercase font-body tracking-widest text-xs"
           >

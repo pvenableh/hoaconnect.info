@@ -3,7 +3,7 @@ import { toast } from "vue-sonner";
 
 const router = useRouter();
 const { register } = useDirectusAuth();
-const { activeHoa, isCustomDomain } = useActiveHoa();
+const { activeHoa } = useActiveHoa();
 const config = useRuntimeConfig();
 const isLoading = ref(false);
 
@@ -64,23 +64,11 @@ useSeoMeta({
   >
     <div class="w-full max-w-md">
       <div class="mb-8 text-center">
-        <!-- Organization Logo (for custom domains) -->
-        <div v-if="isCustomDomain && activeHoa?.logo" class="mb-4">
-          <img
-            :src="getFileUrl(activeHoa.logo)"
-            :alt="activeHoa.name"
-            class="h-16 mx-auto object-contain"
-          />
-        </div>
-        <!-- Organization Name (for custom domains without logo) -->
-        <h2 v-else-if="isCustomDomain && activeHoa?.name" class="text-xl font-semibold text-gray-900 mb-2">
-          {{ activeHoa.name }}
-        </h2>
         <NuxtLink
           to="/"
           class="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; Back to {{ isCustomDomain && activeHoa?.name ? activeHoa.name : 'home' }}
+          &larr; Back to home
         </NuxtLink>
       </div>
       <AuthRegisterForm @submit="handleSubmit" @login="handleLogin" />
