@@ -613,196 +613,209 @@
       <div class="max-w-6xl mx-auto">
         <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
           <div class="content-label flex flex-col gap-2 opacity-0">
-            <span
-              class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >05</span
-            >
-            <span
-              class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
-              >Pricing</span
-            >
+            <span class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">05</span>
+            <span class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary">Pricing</span>
           </div>
           <div class="content-main max-w-4xl min-w-0 overflow-hidden">
-            <h2
-              class="section-title t-heading text-[clamp(2rem,5vw,3rem)] font-normal tracking-tight leading-tight mb-4 opacity-0"
-            >
+            <h2 class="section-title t-heading text-[clamp(2rem,5vw,3rem)] font-normal tracking-tight leading-tight mb-4 opacity-0">
               Per-Unit Pricing
             </h2>
-            <p
-              class="section-subtitle text-sm tracking-[0.15em] uppercase t-text-accent-tertiary mb-8 opacity-0"
-            >
+            <p class="section-subtitle text-sm tracking-[0.15em] uppercase t-text-accent-tertiary mb-8 opacity-0">
               Scales With Your Building
             </p>
-            <p
-              class="section-body text-[1.0625rem] leading-relaxed t-text-secondary mb-8 opacity-0"
-            >
-              Industry-standard per-unit pricing that grows naturally with your
-              community. A 50-unit building generating $240,000/year in HOA fees
-              would pay less than 0.4% of their budget for a complete digital
-              transformation.
+            <p class="section-body text-[1.0625rem] leading-relaxed t-text-secondary mb-8 opacity-0">
+              Industry-standard per-unit pricing that grows naturally with your community.
+              A 50-unit building generating $240,000/year in HOA fees pays less than
+              0.4% of their budget for a complete digital transformation.
             </p>
 
             <!-- Loading State -->
-            <div
-              v-if="pending"
-              class="text-center py-12 opacity-0 section-image"
-            >
-              <div
-                class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 t-border-accent"
-              ></div>
+            <div v-if="pending" class="text-center py-12 opacity-0 section-image">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 t-border-accent"></div>
               <p class="mt-4 t-text-secondary">Loading plans...</p>
             </div>
 
             <!-- Error State -->
-            <div
-              v-else-if="error"
-              class="text-center py-12 opacity-0 section-image"
-            >
-              <p class="text-red-600">
-                Error loading plans. Please try again later.
-              </p>
+            <div v-else-if="error" class="text-center py-12 opacity-0 section-image">
+              <p class="text-red-600">Error loading plans. Please try again later.</p>
             </div>
 
-            <!-- Pricing Cards -->
+            <!-- Live Stripe Pricing Cards -->
             <div
               v-else-if="plans && plans.length > 0"
-              class="pricing-cards grid grid-cols-1 md:grid-cols-3 gap-6 my-8"
+              class="pricing-cards grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 my-8"
             >
               <div
                 v-for="(plan, index) in plans"
                 :key="plan.id"
                 class="pricing-card p-6 t-bg-elevated border-2 transition relative opacity-0"
-                :class="[
-                  plan.is_featured
-                    ? 't-border-accent'
-                    : 't-border hover:t-border-accent',
-                ]"
+                :class="[plan.is_featured ? 't-border-accent' : 't-border hover:t-border-accent']"
               >
-                <!-- Featured Badge -->
-                <div
-                  v-if="plan.is_featured"
-                  class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                >
-                  <span
-                    class="t-bg-accent t-text-inverse px-3 py-1 text-xs font-semibold tracking-wider uppercase"
-                    >Popular</span
-                  >
+                <div v-if="plan.is_featured" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <span class="t-bg-accent t-text-inverse px-3 py-1 text-xs font-semibold tracking-wider uppercase">Popular</span>
                 </div>
-
                 <div class="text-center mb-6">
-                  <h4 class="t-heading text-xl font-normal t-text mb-2">
-                    {{ plan.name }}
-                  </h4>
+                  <h4 class="t-heading text-xl font-normal t-text mb-2">{{ plan.name }}</h4>
                   <div class="text-3xl font-light t-text-accent mb-1">
-                    ${{
-                      formatPrice(plan.price_per_unit || plan.price_monthly)
-                    }}
+                    ${{ formatPrice(plan.price_per_unit || plan.price_monthly) }}
                     <span class="text-sm t-text-secondary">/unit/mo</span>
                   </div>
-                  <p
-                    class="text-xs t-text-tertiary"
-                    v-if="plan.minimum_monthly"
-                  >
+                  <p class="text-xs t-text-tertiary" v-if="plan.minimum_monthly">
                     ${{ formatPrice(plan.minimum_monthly) }} minimum
                   </p>
                 </div>
-
                 <ul class="space-y-2 mb-6">
-                  <li
-                    v-for="(feature, fIndex) in plan.features?.slice(0, 5)"
-                    :key="fIndex"
-                    class="flex items-start text-sm"
-                  >
-                    <span
-                      class="w-1.5 h-1.5 t-bg-accent rounded-full flex-shrink-0 mt-2 mr-3"
-                    ></span>
+                  <li v-for="(feature, fIndex) in plan.features?.slice(0, 6)" :key="fIndex" class="flex items-start text-sm">
+                    <span class="w-1.5 h-1.5 t-bg-accent rounded-full flex-shrink-0 mt-2 mr-3"></span>
                     <span class="t-text-secondary">{{ feature }}</span>
                   </li>
                 </ul>
-
-                <button
-                  @click="selectPlan(plan.slug)"
-                  class="w-full py-3 text-sm font-medium transition"
-                  :class="[
-                    plan.is_featured
-                      ? 't-btn'
-                      : 't-bg-subtle t-text hover:opacity-80',
-                  ]"
-                >
+                <button @click="selectPlan(plan.slug)" class="w-full py-3 text-sm font-medium transition"
+                  :class="[plan.is_featured ? 't-btn' : 't-bg-subtle t-text hover:opacity-80']">
                   Get Started
                 </button>
               </div>
             </div>
 
-            <!-- Fallback Static Pricing if no plans loaded -->
+            <!-- Fallback Static Pricing Cards -->
             <div
               v-else
-              class="pricing-cards grid grid-cols-1 md:grid-cols-3 gap-6 my-8"
+              class="pricing-cards grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 my-8"
             >
               <div
                 v-for="(tier, index) in pricingTiers"
                 :key="index"
-                class="pricing-card p-6 t-bg-elevated border-2 transition relative opacity-0"
+                class="pricing-card p-6 t-bg-elevated border-2 transition relative opacity-0 flex flex-col"
                 :class="[
-                  tier.featured
-                    ? 't-border-accent'
-                    : 't-border hover:t-border-accent',
+                  tier.isPremium
+                    ? 'border-[var(--theme-accent-tertiary)]'
+                    : tier.featured
+                      ? 't-border-accent'
+                      : 't-border hover:t-border-accent',
                 ]"
               >
-                <div
-                  v-if="tier.featured"
-                  class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                >
+                <div v-if="tier.badge || tier.featured" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                   <span
-                    class="t-bg-accent t-text-inverse px-3 py-1 text-xs font-semibold tracking-wider uppercase"
-                    >Popular</span
-                  >
+                    class="px-3 py-1 text-xs font-semibold tracking-wider uppercase whitespace-nowrap"
+                    :class="[tier.isPremium ? 'bg-[var(--theme-accent-tertiary)] text-white' : 't-bg-accent t-text-inverse']"
+                  >{{ tier.badge || 'Popular' }}</span>
                 </div>
-
                 <div class="text-center mb-6">
-                  <h4 class="t-heading text-xl font-normal t-text mb-2">
-                    {{ tier.name }}
-                  </h4>
-                  <div class="text-3xl font-light t-text-accent mb-1">
-                    ${{ tier.price }}
-                    <span class="text-sm t-text-secondary">/unit/mo</span>
+                  <h4 class="t-heading text-xl font-normal t-text mb-2">{{ tier.name }}</h4>
+                  <div v-if="tier.price !== 'Custom'" class="text-3xl font-light t-text-accent mb-1">
+                    ${{ tier.price }}<span class="text-sm t-text-secondary">/unit/mo</span>
                   </div>
-                  <p class="text-xs t-text-tertiary">
-                    ${{ tier.minimum }} minimum
-                  </p>
+                  <div v-else class="text-2xl font-light t-text-accent mb-1">Custom</div>
+                  <p class="text-xs t-text-tertiary" v-if="tier.minimum">${{ tier.minimum }} minimum/mo</p>
+                  <p class="text-xs t-text-tertiary italic" v-if="tier.isPremium">Agency engagement</p>
                 </div>
-
-                <ul class="space-y-2 mb-6">
-                  <li
-                    v-for="(feature, fIndex) in tier.features"
-                    :key="fIndex"
-                    class="flex items-start text-sm"
-                  >
-                    <span
-                      class="w-1.5 h-1.5 t-bg-accent rounded-full flex-shrink-0 mt-2 mr-3"
-                    ></span>
+                <ul class="space-y-2 mb-6 flex-1">
+                  <li v-for="(feature, fIndex) in tier.features" :key="fIndex" class="flex items-start text-sm">
+                    <span class="w-1.5 h-1.5 t-bg-accent rounded-full flex-shrink-0 mt-2 mr-3"></span>
                     <span class="t-text-secondary">{{ feature }}</span>
                   </li>
                 </ul>
-
                 <button
-                  @click="selectPlan(tier.slug)"
+                  @click="tier.isPremium ? scrollToContact() : selectPlan(tier.slug)"
                   class="w-full py-3 text-sm font-medium transition"
                   :class="[
-                    tier.featured
-                      ? 't-btn'
-                      : 't-bg-subtle t-text hover:opacity-80',
+                    tier.isPremium
+                      ? 'border t-border-accent t-text-accent hover:t-bg-subtle'
+                      : tier.featured
+                        ? 't-btn'
+                        : 't-bg-subtle t-text hover:opacity-80',
                   ]"
-                >
-                  Get Started
-                </button>
+                >{{ tier.isPremium ? 'Enquire →' : 'Get Started' }}</button>
               </div>
             </div>
 
-            <p
-              class="section-tagline t-heading text-lg italic t-text-accent-tertiary pt-8 border-t t-border-divider opacity-0"
-            >
+            <p class="section-tagline t-heading text-lg italic t-text-accent-tertiary pt-8 border-t t-border-divider opacity-0">
               Less than 0.4% of your annual budget. 100% of the transformation.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Signature Tier Section -->
+    <section
+      ref="signatureRef"
+      class="section py-24 lg:py-32 px-6 lg:px-16 t-bg-alt"
+    >
+      <div class="max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
+          <div class="content-label flex flex-col gap-2 opacity-0">
+            <span class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">06</span>
+            <span class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary">Signature</span>
+          </div>
+          <div class="content-main max-w-4xl min-w-0 overflow-hidden">
+            <div class="flex items-center gap-3 mb-8 opacity-0 signature-label">
+              <div class="w-8 h-px bg-[var(--theme-accent-tertiary)]"></div>
+              <span class="text-xs tracking-[0.25em] uppercase text-[var(--theme-accent-tertiary)]">Premium · Agency Tier</span>
+            </div>
+            <h2 class="section-title t-heading text-[clamp(2rem,5vw,3rem)] font-normal tracking-tight leading-tight mb-6 opacity-0">
+              Your Building Gets<br />Its Own Website
+            </h2>
+            <p class="section-body text-[1.0625rem] leading-relaxed t-text-secondary mb-12 opacity-0">
+              The Signature tier is for buildings that want more than a management portal.
+              We design and deploy a fully custom Nuxt frontend at your own domain —
+              <em>605lincolnroad.com</em>, not a subdomain of ours. Your building gets a
+              stunning public website <em>and</em> the full HOA Connect platform, built and
+              maintained by the Hue Creative team.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-px t-border-divider border opacity-0 signature-grid">
+              <div class="p-8 t-bg-elevated">
+                <div class="w-8 h-8 t-bg-subtle flex items-center justify-center mb-4">
+                  <Icon name="i-heroicons-globe-alt" class="w-4 h-4 t-text-accent-tertiary" />
+                </div>
+                <h4 class="t-heading text-lg font-normal t-text mb-3">Your Own Domain</h4>
+                <p class="text-sm leading-relaxed t-text-secondary">
+                  <code class="text-xs bg-[var(--theme-bg-tertiary)] px-2 py-0.5 font-mono">605lincolnroad.com</code>
+                  — not <code class="text-xs bg-[var(--theme-bg-tertiary)] px-2 py-0.5 font-mono">605lincoln.hoaconnect.info</code>.
+                  Full DNS ownership. SSL included. Managed by us.
+                </p>
+              </div>
+              <div class="p-8 t-bg-elevated">
+                <div class="w-8 h-8 t-bg-subtle flex items-center justify-center mb-4">
+                  <Icon name="i-heroicons-paint-brush" class="w-4 h-4 t-text-accent-tertiary" />
+                </div>
+                <h4 class="t-heading text-lg font-normal t-text mb-3">Bespoke Design</h4>
+                <p class="text-sm leading-relaxed t-text-secondary">
+                  Built by Hue Creative — not a template swap. Custom photography direction,
+                  typography selection, and brand identity work included.
+                </p>
+              </div>
+              <div class="p-8 t-bg-elevated">
+                <div class="w-8 h-8 t-bg-subtle flex items-center justify-center mb-4">
+                  <Icon name="i-heroicons-server-stack" class="w-4 h-4 t-text-accent-tertiary" />
+                </div>
+                <h4 class="t-heading text-lg font-normal t-text mb-3">HOA Connect Data Layer</h4>
+                <p class="text-sm leading-relaxed t-text-secondary">
+                  The custom site connects to your Directus backend. Documents, announcements,
+                  resident portals — all live. No double entry.
+                </p>
+              </div>
+              <div class="p-8 t-bg-elevated">
+                <div class="w-8 h-8 t-bg-subtle flex items-center justify-center mb-4">
+                  <Icon name="i-heroicons-wrench-screwdriver" class="w-4 h-4 t-text-accent-tertiary" />
+                </div>
+                <h4 class="t-heading text-lg font-normal t-text mb-3">Managed & Maintained</h4>
+                <p class="text-sm leading-relaxed t-text-secondary">
+                  Ongoing hosting, updates, and support. Your board never touches a server.
+                  We handle deployments; you handle your community.
+                </p>
+              </div>
+            </div>
+            <div class="mt-10 flex flex-col sm:flex-row gap-4 items-start opacity-0 signature-cta">
+              <button @click="scrollToContact()" class="t-btn px-8 py-4 text-sm tracking-widest uppercase font-medium">
+                Enquire About Signature
+              </button>
+              <p class="text-sm t-text-tertiary italic self-center">
+                Starting from $5,000 setup + Enterprise monthly plan
+              </p>
+            </div>
+            <p class="section-tagline t-heading text-lg italic t-text-accent-tertiary pt-8 mt-8 border-t t-border-divider opacity-0">
+              Your building. Your domain. Built to last.
             </p>
           </div>
         </div>
@@ -819,7 +832,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >06</span
+              >07</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -903,7 +916,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >07</span
+              >08</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -968,7 +981,7 @@
           <div class="content-label flex flex-col gap-2 opacity-0">
             <span
               class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent"
-              >08</span
+              >09</span
             >
             <span
               class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary"
@@ -1033,6 +1046,8 @@
         </div>
       </div>
     </section>
+
+    <PagesEarlyAccessForm />
 
     <!-- CTA Section -->
     <section
@@ -1166,6 +1181,7 @@ const pricingRef = ref(null);
 const caseStudyRef = ref(null);
 const floridaRef = ref(null);
 const targetRef = ref(null);
+const signatureRef = ref(null);
 const ctaRef = ref(null);
 
 const heroImageLoaded = ref(false);
@@ -1252,20 +1268,26 @@ const features = [
     icon: "i-heroicons-wrench-screwdriver",
     text: "Maintenance request system with status tracking",
   },
+  {
+    icon: "i-heroicons-globe-alt",
+    text: "Custom subdomain portal (yourbuilding.hoaconnect.info) — included on every plan",
+    wide: true,
+  },
 ];
 
 const pricingTiers = [
   {
-    name: "Essentials",
-    slug: "essentials",
+    name: "Starter",
+    slug: "starter",
     price: "2.50",
     minimum: "75",
+    badge: null,
     features: [
-      "Public building website",
-      "Document library",
-      "Announcements with email",
+      "Building portal (yourbuilding.hoaconnect.info)",
+      "Document library with version history",
+      "Announcements with email delivery",
       "Resident directory",
-      "Meeting management",
+      "Meeting management & agendas",
     ],
   },
   {
@@ -1274,12 +1296,14 @@ const pricingTiers = [
     price: "4.00",
     minimum: "149",
     featured: true,
+    badge: "Most Popular",
     features: [
-      "Everything in Essentials",
-      "Financial dashboard",
-      "Budget vs actual reporting",
-      "Channels & messaging",
-      "Project management",
+      "Everything in Starter",
+      "Financial dashboard (operating, reserve, special)",
+      "Budget vs. actual reporting",
+      "Channels & resident messaging",
+      "Projects & maintenance tracking",
+      "Classic & Modern themes",
     ],
   },
   {
@@ -1287,12 +1311,30 @@ const pricingTiers = [
     slug: "enterprise",
     price: "6.00",
     minimum: "299",
+    badge: null,
     features: [
       "Everything in Professional",
-      "Access control integration",
-      "Custom branding",
+      "Luxury theme (gallery white + brass)",
+      "Priority support & dedicated onboarding",
+      "Advanced compliance reporting",
+      "40-year recertification project tools",
       "API access",
-      "Dedicated onboarding",
+    ],
+  },
+  {
+    name: "Signature",
+    slug: "signature",
+    price: "Custom",
+    minimum: null,
+    isPremium: true,
+    badge: "White Glove",
+    features: [
+      "Everything in Enterprise",
+      "Dedicated Nuxt frontend for your building",
+      "Your own domain (e.g. 605lincolnroad.com)",
+      "Custom design by Hue Creative",
+      "Full brand identity integration",
+      "Managed hosting & deployments",
     ],
   },
 ];
@@ -1353,6 +1395,13 @@ const scrollToPlans = () => {
   if (import.meta.client) {
     const plansSection = document.getElementById("plans");
     plansSection?.scrollIntoView({ behavior: "smooth" });
+  }
+};
+
+const scrollToContact = () => {
+  if (import.meta.client) {
+    const ctaSection = document.getElementById("early-access") || ctaRef.value;
+    ctaSection?.scrollIntoView({ behavior: "smooth" });
   }
 };
 
@@ -1511,6 +1560,36 @@ onMounted(() => {
       ".pricing-card",
       ".section-tagline",
     ]);
+
+    // Signature section animations
+    if (signatureRef.value) {
+      animateSection(signatureRef, [
+        ".content-label",
+        ".signature-label",
+        ".section-title",
+        ".section-body",
+        ".section-tagline",
+      ]);
+      gsap.fromTo(
+        ".signature-grid",
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
+          scrollTrigger: { trigger: signatureRef.value, start: "top 65%" },
+          delay: 0.3,
+        }
+      );
+      gsap.fromTo(
+        ".signature-cta",
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1, y: 0, duration: 0.6, ease: "power3.out",
+          scrollTrigger: { trigger: signatureRef.value, start: "top 60%" },
+          delay: 0.5,
+        }
+      );
+    }
+
     animateSection(caseStudyRef, [
       ".content-label",
       ".section-title",
