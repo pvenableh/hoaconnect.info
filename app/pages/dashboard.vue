@@ -7,20 +7,17 @@ definePageMeta({
 });
 
 const { currentOrg, isLoading } = await useSelectedOrg();
-const { isCustomDomain } = useActiveHoa();
 
 // Track if we've already initiated a redirect to prevent multiple navigations
 const hasRedirected = ref(false);
 
 // Redirect to org-specific dashboard when org is available
-// On custom domains, don't redirect - /dashboard is the correct path
 // On main domain, redirect to /{slug}/dashboard
-// Use watch instead of watchEffect for more controlled execution
 watch(
-  [isLoading, () => currentOrg.value?.organization?.slug, isCustomDomain],
-  ([loading, slug, customDomain]) => {
-    // Skip if still loading, already redirected, or on custom domain
-    if (loading || hasRedirected.value || customDomain) {
+  [isLoading, () => currentOrg.value?.organization?.slug],
+  ([loading, slug]) => {
+    // Skip if still loading or already redirected
+    if (loading || hasRedirected.value) {
       return;
     }
 

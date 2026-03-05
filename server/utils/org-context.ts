@@ -5,26 +5,20 @@
  * Extracts organization context from requests via:
  * 1. Session (selectedOrgId)
  * 2. Query parameter (?orgId=...)
- * 3. Custom domain header (x-org-domain)
- * 4. Request host (custom domain lookup)
  */
 
 import type { H3Event } from 'h3'
-import { readItems } from '@directus/sdk'
 
 interface OrgContext {
   orgId: string | null
   orgSlug: string | null
-  isCustomDomain: boolean
-  source: 'session' | 'query' | 'domain' | 'none'
+  source: 'session' | 'query' | 'none'
 }
 
 /**
  * Get organization context from request
  */
 export async function getOrgContext(event: H3Event): Promise<OrgContext> {
-  const config = useRuntimeConfig()
-
   // 1. Try session first
   try {
     const session = await getUserSession(event)
@@ -32,7 +26,6 @@ export async function getOrgContext(event: H3Event): Promise<OrgContext> {
       return {
         orgId: session.selectedOrgId,
         orgSlug: null,
-        isCustomDomain: false,
         source: 'session'
       }
     }
@@ -46,62 +39,15 @@ export async function getOrgContext(event: H3Event): Promise<OrgContext> {
     return {
       orgId: String(query.orgId),
       orgSlug: null,
-      isCustomDomain: false,
       source: 'query'
-    }
-  }
-
-  // 3. Try custom domain from host
-  const host = getHeader(event, 'host') || ''
-  const mainDomain = config.public.mainDomain || ''
-
-  // Normalize domains for comparison
-  const normalizedHost = host.replace(/^www\./, '').toLowerCase()
-  const normalizedMain = mainDomain.replace(/^www\./, '').toLowerCase()
-
-  if (normalizedHost && normalizedHost !== normalizedMain && !normalizedHost.includes('localhost')) {
-    try {
-      const org = await findOrgByDomain(normalizedHost)
-      if (org) {
-        return {
-          orgId: org.id,
-          orgSlug: org.slug,
-          isCustomDomain: true,
-          source: 'domain'
-        }
-      }
-    } catch {
-      // Domain lookup failed, continue
     }
   }
 
   return {
     orgId: null,
     orgSlug: null,
-    isCustomDomain: false,
     source: 'none'
   }
-}
-
-/**
- * Find organization by custom domain
- */
-async function findOrgByDomain(domain: string) {
-  const directus = getTypedDirectus()
-
-  const orgs = await directus.request(
-    readItems('hoa_organizations', {
-      filter: {
-        custom_domain: { _eq: domain },
-        domain_verified: { _eq: true },
-        status: { _in: ['active', 'published'] }
-      },
-      fields: ['id', 'slug', 'name'],
-      limit: 1
-    })
-  )
-
-  return orgs[0] || null
 }
 
 /**

@@ -245,9 +245,9 @@ export default defineEventHandler(async (event) => {
     ].filter(Boolean);
     const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
 
-    // Build organization URL
-    const orgUrl = (org as any).custom_domain
-      ? `https://${(org as any).custom_domain}`
+    // Build organization URL (slug-based)
+    const orgUrl = (org as any).slug
+      ? `${config.public.appUrl}/${(org as any).slug}`
       : config.public.appUrl;
 
     try {

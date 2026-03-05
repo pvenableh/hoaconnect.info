@@ -236,9 +236,6 @@ const form = reactive({
 // Site URL
 const siteUrl = computed(() => {
   const baseUrl = config.public.appUrl || "https://propertyflow.app";
-  if (props.organization.custom_domain && props.organization.domain_verified) {
-    return `https://${props.organization.custom_domain}`;
-  }
   return `${baseUrl}/${props.organization.slug}`;
 });
 

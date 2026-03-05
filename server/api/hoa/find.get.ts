@@ -2,42 +2,25 @@
 import { readItems } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
-  const { domain, slug } = getQuery(event);
+  const { slug } = getQuery(event);
 
-  if (!domain && !slug) {
+  if (!slug) {
     throw createError({
       statusCode: 400,
-      message: "Domain or slug is required",
+      message: "Slug is required",
     });
   }
 
   const directus = getTypedDirectus();
 
-  // Build filter - prioritize custom_domain (with verification check), then slug
-  const filters: any[] = [];
-
-  if (domain) {
-    // Check exact custom_domain match - MUST be verified for security
-    filters.push({
-      _and: [
-        { custom_domain: { _eq: domain as string } },
-        { domain_verified: { _eq: true } }
-      ]
-    });
-    // Also check slug as fallback (extract subdomain from domain)
-    const potentialSlug = (domain as string).split(".")[0];
-    filters.push({ slug: { _eq: potentialSlug } });
-  }
-
-  if (slug) {
-    filters.push({ slug: { _eq: slug as string } });
-  }
-
   try {
     const organizations = await directus.request(
       readItems("hoa_organizations", {
         filter: {
-          _and: [{ _or: filters }, { status: { _in: ["active", "published"] } }],
+          _and: [
+            { slug: { _eq: slug as string } },
+            { status: { _in: ["active", "published"] } },
+          ],
         },
         fields: [
           "*",
@@ -52,8 +35,6 @@ export default defineEventHandler(async (event) => {
           },
         ],
         limit: 1,
-        // Sort to prioritize custom_domain matches over slug matches
-        sort: ["-custom_domain"],
       })
     );
 

@@ -3,27 +3,10 @@ import { toast } from "vue-sonner";
 
 const router = useRouter();
 const { login } = useDirectusAuth();
-const { activeHoa, isCustomDomain } = useActiveHoa();
 const isLoading = ref(false);
 
 // Ref to the login form component for setting errors
 const loginFormRef = ref<{ setFormError: (message: string | null, fieldErrors?: { email?: string; password?: string }) => void } | null>(null);
-
-// Get organization context for custom domain login
-const organizationName = computed(() => {
-  if (isCustomDomain.value && activeHoa.value?.name) {
-    return activeHoa.value.name;
-  }
-  return null;
-});
-
-// Get allowed email domain from custom domain
-const allowedDomain = computed(() => {
-  if (isCustomDomain.value && activeHoa.value?.custom_domain) {
-    return activeHoa.value.custom_domain;
-  }
-  return null;
-});
 
 const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
@@ -69,41 +52,7 @@ const handleSubmit = async (values: { email: string; password: string }) => {
     // Redirect to organization URL if available
     const org = response?.user?.organization;
 
-    if (org?.custom_domain && org?.domain_verified) {
-      // Check if we're already on the custom domain
-      const currentHostname = window.location.hostname.toLowerCase().replace(/^www\./, '');
-      const targetDomain = org.custom_domain.toLowerCase().replace(/^www\./, '');
-
-      if (currentHostname === targetDomain) {
-        // Already on the custom domain, session is set - just redirect to dashboard
-        // Use navigateTo instead of window.location.href to prevent full page reload
-        await navigateTo('/dashboard', { replace: true });
-        return;
-      }
-
-      // Different domain - use cross-domain token flow
-      try {
-        const tokenResponse = await $fetch('/api/auth/cross-domain-token', {
-          method: 'POST',
-          body: { targetDomain: org.custom_domain },
-        });
-
-        const protocol = window.location.protocol;
-        const customDomainUrl = new URL(`${protocol}//${org.custom_domain}`);
-        if (tokenResponse?.token) {
-          customDomainUrl.searchParams.set('_auth_token', tokenResponse.token);
-        }
-
-        // Cross-domain navigation requires external: true
-        await navigateTo(customDomainUrl.toString(), { external: true });
-        return;
-      } catch (tokenError) {
-        // If token generation fails, redirect anyway (user will need to re-login on custom domain)
-        console.warn('Failed to generate cross-domain token:', tokenError);
-        await navigateTo(`${window.location.protocol}//${org.custom_domain}`, { external: true });
-        return;
-      }
-    } else if (org?.slug) {
+    if (org?.slug) {
       // Redirect to organization slug path using navigateTo for smooth client-side navigation
       await navigateTo(`/${org.slug}`, { replace: true });
     } else {
@@ -186,8 +135,6 @@ const handleRegister = () => {
       <AuthLoginForm
         ref="loginFormRef"
         :is-loading="isLoading"
-        :organization-name="organizationName"
-        :allowed-domain="allowedDomain"
         @submit="handleSubmit"
         @forgot-password="handleForgotPassword"
         @register="handleRegister"
