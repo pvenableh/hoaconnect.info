@@ -1,20 +1,19 @@
 // composables/useCurrentDomainAccess.ts
 /**
- * Composable to check user's access rights for the CURRENT domain/organization being viewed.
+ * Composable to check user's access rights for the CURRENT organization being viewed.
  *
  * This is different from useSelectedOrg which checks the user's role in their SELECTED organization.
  * This composable specifically checks if the logged-in user has membership in the organization
- * whose domain or slug they are currently viewing.
+ * whose slug they are currently viewing.
  *
  * Use cases:
- * - User visits a custom domain (org-b.com) but is logged in with Org A membership
  * - User navigates to /org-b/dashboard but only has membership in Org A
  *
- * In both cases, this composable will correctly identify that the user is NOT an admin
+ * In this case, this composable will correctly identify that the user is NOT an admin
  * of the currently viewed organization, preventing unauthorized access.
  */
 export const useCurrentDomainAccess = () => {
-  const { activeHoa, isCustomDomain } = useActiveHoa();
+  const { activeHoa } = useActiveHoa();
   const { loggedIn, user } = useUserSession();
   const config = useRuntimeConfig();
   const route = useRoute();
@@ -22,9 +21,9 @@ export const useCurrentDomainAccess = () => {
   // Get memberships from the user-members async data (populated by useSelectedOrg)
   const membershipsState = useState<any[]>("user-members", () => []);
 
-  // Check if we're on an org context (custom domain or slug route)
+  // Check if we're on an org context (slug route)
   const isOrgContext = computed(() => {
-    return isCustomDomain.value || !!route.params.slug;
+    return !!route.params.slug;
   });
 
   // Get the organization ID for the current domain context

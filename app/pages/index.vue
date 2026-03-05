@@ -1,9 +1,8 @@
 <template>
   <div class="min-h-screen t-bg t-text">
     <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
-    <!-- Only show on main domain AND not on custom domain -->
     <PagesSellSheet
-      v-if="isMainDomain && !isCustomDomain"
+      v-if="isMainDomain"
       :plans="activePlans"
       :error="error"
       :pending="pending"
@@ -319,7 +318,7 @@
 </template>
 
 <script setup>
-const { activeHoa, isMainDomain, isCustomDomain } = useActiveHoa();
+const { activeHoa, isMainDomain } = useActiveHoa();
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();

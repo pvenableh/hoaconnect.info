@@ -12,7 +12,7 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
   const { user } = useDirectusAuth();
-  const { activeHoa, isCustomDomain } = useActiveHoa();
+  const { activeHoa } = useActiveHoa();
 
   // First check if user is logged in
   if (!loggedIn.value) {
@@ -28,8 +28,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // Ensure useSelectedOrg is called to populate memberships state
     const { isAdmin, currentOrg } = await useSelectedOrg();
 
-    // Determine if we're on an org-specific context (custom domain or slug route)
-    const isOnOrgContext = isCustomDomain.value || !!to.params.slug;
+    // Determine if we're on an org-specific context (slug route)
+    const isOnOrgContext = !!to.params.slug;
 
     // If on an org-specific context, check admin access for THAT org specifically
     if (isOnOrgContext) {

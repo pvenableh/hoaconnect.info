@@ -171,8 +171,7 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // Send invitation email via SendGrid
-    // Use custom domain if available, otherwise fall back to main app URL
+    // Build invitation URL
     const invitationUrl = `${orgUrl}/accept-invite?token=${token}`;
 
     try {

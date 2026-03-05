@@ -52,8 +52,6 @@ export const useActiveHoa = () => {
   return {
     activeHoa: computed(() => activeHoa.value),
     isMainDomain: computed(() => isMainDomain.value),
-    // Custom domain support removed — always false (subdomain-only routing)
-    isCustomDomain: computed(() => false),
     isLoading: computed(() => isLoading.value),
     fetchActiveHoa,
     clearActiveHoa,
