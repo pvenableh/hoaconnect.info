@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     // Fetch fresh user data
     const user = await authClient.request(
       readMe({
-        fields: ["*", "role", { organization: ["id", "slug", "name", "custom_domain", "domain_verified"] }],
+        fields: ["*", "role", { organization: ["id", "slug", "name"] }],
       })
     );
 

@@ -10,7 +10,7 @@ A modern property management platform built with Nuxt 4, Directus CMS, and shadc
 - **Member Management**: Invite and manage HOA members with role-based access
 - **Document Management**: Upload and organize documents with Directus file handling
 - **Real-time Updates**: WebSocket subscriptions for live data updates
-- **Custom Domains**: Vercel integration for custom domain management
+- **Multi-tenant**: Subdomain-based organization routing (`[org].hoaconnect.com`). Custom domain (APEX) setups are available as a separate agency engagement.
 
 ## Tech Stack
 
@@ -98,12 +98,6 @@ STRIPE_PUBLIC_KEY_LIVE=pk_live_xxxxx
 STRIPE_SECRET_KEY_LIVE=sk_live_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 
-# ===========================================
-# VERCEL CONFIGURATION (Optional - for custom domains)
-# ===========================================
-VERCEL_API_TOKEN=your-vercel-api-token
-VERCEL_PROJECT_ID=your-vercel-project-id
-VERCEL_TEAM_ID=your-vercel-team-id
 ```
 
 ## Project Structure

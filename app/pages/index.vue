@@ -319,8 +319,7 @@
 </template>
 
 <script setup>
-const { activeHoa, isMainDomain, isCustomDomain, fetchActiveHoaByDomain } =
-  useActiveHoa();
+const { activeHoa, isMainDomain, isCustomDomain } = useActiveHoa();
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
@@ -341,28 +340,6 @@ use3DMouseRotation(heroTitle, {
   orbitalDepth: 60,
   hoverScale: 1.05,
   resetOnLeave: true,
-});
-
-// CRITICAL: Fetch HOA data server-side for SEO on custom domains
-// The domain-detector middleware handles setting isCustomDomain, but we need to ensure
-// the HOA data is fetched server-side for proper SEO
-await useAsyncData("active-hoa", async () => {
-  // Only fetch if on custom domain and HOA not already loaded
-  if (isCustomDomain.value && !activeHoa.value) {
-    // Get the hostname to fetch by domain
-    let hostname = "";
-    if (import.meta.server) {
-      const event = useRequestEvent();
-      const host = event?.node?.req?.headers?.host || "";
-      hostname = host.split(":")[0];
-    } else if (import.meta.client) {
-      hostname = window.location.hostname;
-    }
-    if (hostname) {
-      return await fetchActiveHoaByDomain(hostname);
-    }
-  }
-  return null;
 });
 
 // Set dynamic meta tags based on active HOA

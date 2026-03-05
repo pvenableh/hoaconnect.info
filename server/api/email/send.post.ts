@@ -129,7 +129,7 @@ export default defineEventHandler(async (event) => {
     // Get organization with settings
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "custom_domain", {
+        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", {
           settings: ["id", "logo", "title", "description"],
         }],
       })
@@ -328,9 +328,9 @@ export default defineEventHandler(async (event) => {
       organization.zip,
     ].filter(Boolean).join(', ');
 
-    // Build org website URL
-    const orgUrl = organization.custom_domain
-      ? `https://${organization.custom_domain}`
+    // Build org website URL (slug-based)
+    const orgUrl = organization.slug
+      ? `${config.public.appUrl}/${organization.slug}`
       : `${config.public.appUrl}`;
 
     for (const member of members) {

@@ -517,14 +517,10 @@ export interface HoaOrganization {
 	subscription_status?: 'active' | 'trial' | 'canceled' | 'expired' | null;
 	trial_ends_at?: string | null;
 	member_count?: number | null;
-	custom_domain?: string | null;
-	domain_verified?: boolean | null;
 	phone?: string | null;
 	email?: string | null;
 	settings?: BlockSetting | string | null;
 	hero?: BlockHero | string | null;
-	domain_type?: string | null;
-	domain_config?: unknown[] | null;
 	/** @required */
 	slug: string;
 	folder?: DirectusFolder | string | null;

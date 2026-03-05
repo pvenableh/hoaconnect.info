@@ -21,8 +21,6 @@ export default defineEventHandler(async (event) => {
     "/api/hoa/invite-member",
     "/api/hoa/check-slug",
     "/api/hoa/by-slug",
-    "/api/hoa/by-domain",
-    "/api/vercel/",
     "/api/debug/",
     "/_nuxt/",
     "/favicon.ico",

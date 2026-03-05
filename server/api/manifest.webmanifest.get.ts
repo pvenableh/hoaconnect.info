@@ -48,23 +48,11 @@ export default defineEventHandler(async (event) => {
       // Extract potential slug from subdomain
       const potentialSlug = host.split(".")[0];
 
-      const filters: any[] = [
-        // Custom domain match (verified only)
-        {
-          _and: [
-            { custom_domain: { _eq: host } },
-            { domain_verified: { _eq: true } },
-          ],
-        },
-        // Slug match
-        { slug: { _eq: potentialSlug } },
-      ];
-
       const organizations = await directus.request(
         readItems("hoa_organizations", {
           filter: {
             _and: [
-              { _or: filters },
+              { slug: { _eq: potentialSlug } },
               { status: { _in: ["active", "published"] } },
             ],
           },
@@ -75,7 +63,6 @@ export default defineEventHandler(async (event) => {
             },
           ],
           limit: 1,
-          sort: ["-custom_domain"],
         })
       );
 

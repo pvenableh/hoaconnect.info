@@ -1341,10 +1341,6 @@ const targetCustomers = [
 // Helper functions
 const getOrgUrl = (org) => {
   if (!org) return "/";
-  if (org.custom_domain && org.domain_verified) {
-    const protocol = import.meta.client ? window.location.protocol : "https:";
-    return `${protocol}//${org.custom_domain}`;
-  }
   return `/${org.slug}`;
 };
 

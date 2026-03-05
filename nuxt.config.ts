@@ -32,11 +32,6 @@ export default defineNuxtConfig({
       url: process.env.DIRECTUS_URL,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
     },
-    vercel: {
-      apiToken: process.env.VERCEL_API_TOKEN,
-      projectId: process.env.VERCEL_PROJECT_ID,
-      teamId: process.env.VERCEL_TEAM_ID || "",
-    },
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY,
     // Universal invite email template (handles invitation, welcome, and accepted notification emails)

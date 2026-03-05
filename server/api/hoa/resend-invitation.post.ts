@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
         fields: [
           "name",
           "legal_name",
-          "custom_domain",
+          "slug",
           "email",
           "phone",
           "street_address",
@@ -95,9 +95,9 @@ export default defineEventHandler(async (event) => {
     ].filter(Boolean);
     const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
 
-    // Build organization URL
-    const orgUrl = organization.custom_domain
-      ? `https://${organization.custom_domain}`
+    // Build organization URL (slug-based)
+    const orgUrl = organization.slug
+      ? `${config.public.appUrl}/${organization.slug}`
       : config.public.appUrl;
 
     // Get role name
