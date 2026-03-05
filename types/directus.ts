@@ -47,7 +47,6 @@ export interface BlockSetting {
 	title?: string | null;
 	seo?: ExtensionSeoMetadata | null;
 	organization?: HoaOrganization | string | null;
-	/** @description Site theme - classic or modern */
 	theme?: 'classic' | 'modern' | null;
 }
 
@@ -136,14 +135,6 @@ export interface HoaAnnouncement {
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
 	is_pinned?: boolean | null;
-	/** CTA button text (e.g., "Learn More") */
-	button_text?: string | null;
-	/** URL for the CTA button */
-	button_link?: string | null;
-	/** Force external link behavior */
-	external_link?: boolean | null;
-	/** Whether to show toast notification (default: true) */
-	show_toast?: boolean | null;
 }
 
 export interface HoaBoardMember {
@@ -296,7 +287,6 @@ export interface HoaEmailActivity {
 	event_timestamp?: number | null;
 	email_recipient?: HoaEmailRecipient | string | null;
 	member?: HoaMember | string | null;
-	/** @description Organization this activity belongs to */
 	organization?: HoaOrganization | string | null;
 }
 
@@ -330,14 +320,10 @@ export interface HoaEmail {
 	date_updated?: string | null;
 	/** @description Email subject line @required */
 	subject: string;
-	/** @description Email subtitle for additional context */
-	subtitle?: string | null;
 	/** @description Email body content (HTML supported) @required */
 	content: string;
 	/** @description Type of email for categorization @required */
 	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
-	/** @description Whether this is an urgent email (displays with alert styling) */
-	urgent?: boolean | null;
 	/** @description When to send the email (leave empty for immediate send) */
 	scheduled_at?: string | null;
 	/** @description When the email was actually sent */
@@ -389,32 +375,6 @@ export interface HoaInvitation {
 	accepted_at?: string | null;
 }
 
-export interface HoaJoinRequest {
-	/** @primaryKey */
-	id: string;
-	status?: 'pending' | 'approved' | 'rejected' | null;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	user_updated?: DirectusUser | string | null;
-	date_updated?: string | null;
-	/** @description The user requesting to join */
-	user?: DirectusUser | string | null;
-	/** @description The organization they want to join */
-	organization?: HoaOrganization | string | null;
-	/** @description The unit number they claim to be associated with */
-	unit_number?: string | null;
-	/** @description Type of membership they're requesting */
-	member_type?: 'owner' | 'tenant' | 'property_manager' | null;
-	/** @description Additional notes or message from the requester */
-	message?: string | null;
-	/** @description Admin who processed the request */
-	processed_by?: DirectusUser | string | null;
-	/** @description When the request was processed */
-	processed_at?: string | null;
-	/** @description Reason for rejection (if rejected) */
-	rejection_reason?: string | null;
-}
-
 export interface HoaMailingListMember {
 	/** @primaryKey */
 	id: string;
@@ -462,17 +422,16 @@ export interface HoaMember {
 	last_name?: string | null;
 	email?: string | null;
 	phone?: string | null;
-	/** @description Company or business name (for property managers) */
-	company?: string | null;
-	member_type?: 'owner' | 'tenant' | 'property_manager' | null;
+	member_type?: 'owner' | 'tenant' | null;
 	total_payments?: number | null;
 	last_payment_date?: string | null;
 	last_payment_amount?: number | null;
 	payment_status?: 'current' | 'overdue' | 'delinquent' | null;
 	outstanding_balance?: number | null;
+	company?: string | null;
 	units?: HoaMemberUnit[] | string[];
-	pets?: HoaPet[] | string[];
 	vehicles?: HoaVehicle[] | string[];
+	pets?: HoaPet[] | string[];
 	board_member_terms?: HoaBoardMember[] | string[];
 }
 
@@ -503,10 +462,6 @@ export interface HoaOrganization {
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
 	name?: string | null;
-	/** @description Legal name for copyright/official use */
-	legal_name?: string | null;
-	/** @description Organization type - residential or commercial */
-	type?: 'residential' | 'commercial' | null;
 	billing_cycle?: 'monthly' | 'yearly' | null;
 	city?: string | null;
 	state?: string | null;
@@ -517,10 +472,14 @@ export interface HoaOrganization {
 	subscription_status?: 'active' | 'trial' | 'canceled' | 'expired' | null;
 	trial_ends_at?: string | null;
 	member_count?: number | null;
+	custom_domain?: string | null;
+	domain_verified?: boolean | null;
 	phone?: string | null;
 	email?: string | null;
 	settings?: BlockSetting | string | null;
 	hero?: BlockHero | string | null;
+	domain_type?: string | null;
+	domain_config?: unknown[] | null;
 	/** @required */
 	slug: string;
 	folder?: DirectusFolder | string | null;
