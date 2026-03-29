@@ -485,7 +485,7 @@ export const sendOrganizationEmail = async ({
       categories: string[];
       attachments?: EmailAttachment[];
       replyTo?: { email: string; name?: string };
-      customArgs?: Record<string, string>;
+      custom_args?: Record<string, string>;
     } = {
       to: { email: to, name: toName },
       from: { email: fromEmail, name: fromName },
@@ -511,11 +511,12 @@ export const sendOrganizationEmail = async ({
     }
 
     if (customArgs) {
-      dynamicMsg.customArgs = customArgs;
+      dynamicMsg.custom_args = customArgs;
     }
 
     console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
     console.log(`[SendGrid] Has attachments: ${attachments?.length || 0}`);
+    console.log(`[SendGrid] Custom args:`, customArgs);
     console.log(`[SendGrid] Template data:`, JSON.stringify(templateData, null, 2));
 
     try {
@@ -542,7 +543,7 @@ export const sendOrganizationEmail = async ({
     categories: string[];
     attachments?: EmailAttachment[];
     replyTo?: { email: string; name?: string };
-    customArgs?: Record<string, string>;
+    custom_args?: Record<string, string>;
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
@@ -571,11 +572,12 @@ export const sendOrganizationEmail = async ({
 
   // Add custom args for tracking
   if (customArgs) {
-    msg.customArgs = customArgs;
+    msg.custom_args = customArgs;
   }
 
   // Log detailed info about the email being sent
   console.log(`[SendGrid] Preparing to send email:`);
+  console.log(`[SendGrid] - Custom args:`, customArgs);
   console.log(`[SendGrid] - To: ${to} (${toName || 'no name'})`);
   console.log(`[SendGrid] - From: ${fromEmail} (${fromName || 'no name'})`);
   console.log(`[SendGrid] - Subject: ${subject}`);
