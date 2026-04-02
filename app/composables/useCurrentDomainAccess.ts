@@ -19,7 +19,8 @@ export const useCurrentDomainAccess = () => {
   const route = useRoute();
 
   // Get memberships from the user-members async data (populated by useSelectedOrg)
-  const membershipsState = useState<any[]>("user-members", () => []);
+  // Must use useNuxtData to access data from useAsyncData, not useState (different namespaces)
+  const { data: membershipsData } = useNuxtData<any[]>("user-members");
 
   // Check if we're on an org context (slug route)
   const isOrgContext = computed(() => {
@@ -36,7 +37,7 @@ export const useCurrentDomainAccess = () => {
   const currentDomainMembership = computed(() => {
     if (!loggedIn.value || !currentDomainOrgId.value) return null;
 
-    const memberships = membershipsState.value;
+    const memberships = membershipsData.value;
     if (!memberships || !Array.isArray(memberships)) return null;
 
     return (
