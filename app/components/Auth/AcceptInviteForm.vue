@@ -9,14 +9,6 @@ import { refDebounced } from "@vueuse/core";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "vue-sonner";
 import { Loader2, Check, X, PartyPopper } from "lucide-vue-next";
 
@@ -68,7 +60,7 @@ const { handleSubmit, isSubmitting } = useForm({
   },
 });
 
-const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const cardRef = ref<HTMLElement | null>(null);
 const successRef = ref<HTMLElement | null>(null);
 const isSuccess = ref(false);
 const passwordValue = ref("");
@@ -100,7 +92,7 @@ const onSubmit = handleSubmit(async (values) => {
     });
 
     // Animate transition to success state
-    const cardEl = cardRef.value?.$el;
+    const cardEl = cardRef.value;
     if (cardEl && $gsap) {
       $gsap.to(cardEl.querySelector("form"), {
         opacity: 0,
@@ -151,7 +143,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 onMounted(() => {
-  const el = cardRef.value?.$el;
+  const el = cardRef.value;
   if (el && $gsap) {
     $gsap.fromTo(
       el,
@@ -164,24 +156,23 @@ onMounted(() => {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <Card ref="cardRef">
-      <CardHeader>
-        <CardTitle class="text-2xl">
+    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+      <div class="mb-7 space-y-1.5">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">
           {{ isSuccess ? "Welcome aboard!" : "Accept invitation" }}
-        </CardTitle>
-        <CardDescription>
+        </h1>
+        <p class="text-sm t-text-muted">
           {{
             isSuccess
               ? "Your account has been created successfully"
               : "Complete your account setup to get started"
           }}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
         <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
-          <div v-if="email" class="rounded-lg bg-muted p-3 text-sm mb-2">
-            <span class="text-muted-foreground">Invitation sent to: </span>
-            <span class="font-medium">{{ email }}</span>
+          <div v-if="email" class="rounded-xl t-bg-subtle p-3 text-sm mb-2">
+            <span class="t-text-muted">Invitation sent to: </span>
+            <span class="font-medium t-text">{{ email }}</span>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
@@ -259,8 +250,8 @@ onMounted(() => {
             />
           </VeeField>
 
-          <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isSubmitting">
+          <div class="flex flex-col gap-3 pt-3">
+            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Creating account..." : "Accept invitation" }}
             </Button>
@@ -269,21 +260,20 @@ onMounted(() => {
 
         <div v-else ref="successRef" class="space-y-4 text-center">
           <div
-            class="success-icon mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"
+            class="success-icon mx-auto flex h-12 w-12 items-center justify-center rounded-full t-bg-accent/10"
           >
-            <PartyPopper class="h-6 w-6 text-primary" />
+            <PartyPopper class="h-6 w-6 t-text-accent" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm text-muted-foreground">
+            <p class="text-sm t-text-muted">
               Your account has been created and you're ready to go. Click below
               to sign in.
             </p>
           </div>
-          <Button type="button" class="w-full mt-4" @click="emit('login')">
+          <Button type="button" size="lg" class="w-full rounded-full mt-4" @click="emit('login')">
             Continue to login
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   </div>
 </template>

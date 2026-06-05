@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 
+definePageMeta({ layout: "auth-blank" });
+
 const router = useRouter();
 const { register } = useDirectusAuth();
 const isLoading = ref(false);
@@ -38,19 +40,7 @@ const handleLogin = () => {
 </script>
 
 <template>
-  <div
-    class="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4"
-  >
-    <div class="w-full max-w-md">
-      <div class="mb-8 text-center">
-        <NuxtLink
-          to="/"
-          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          &larr; Back to home
-        </NuxtLink>
-      </div>
-      <AuthRegisterForm @submit="handleSubmit" @login="handleLogin" />
-    </div>
-  </div>
+  <AuthShell>
+    <AuthRegisterForm @submit="handleSubmit" @login="handleLogin" />
+  </AuthShell>
 </template>

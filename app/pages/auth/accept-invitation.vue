@@ -1,65 +1,46 @@
 <template>
-  <div
-    class="container flex min-h-screen w-screen flex-col items-center justify-center"
-  >
-    <div
-      class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]"
-    >
-      <!-- Logo/Brand -->
-      <div class="flex flex-col space-y-2 text-center">
-        <Icon name="lucide:mail-check" class="mx-auto h-12 w-12 text-primary" />
-        <h1 class="text-2xl font-semibold tracking-tight">Accept Invitation</h1>
-        <p class="text-sm text-muted-foreground">
-          Complete your account setup to get started
-        </p>
+  <AuthShell back-to="/auth/login" back-label="Back to login">
+      <!-- Loading State -->
+      <div v-if="loading" class="glass-surface glass-surface--strong p-8 sm:p-10">
+        <div class="flex flex-col items-center space-y-4 py-6">
+          <Icon name="lucide:loader-2" class="h-8 w-8 animate-spin t-text-accent" />
+          <p class="text-sm t-text-muted">Verifying invitation...</p>
+        </div>
       </div>
 
-      <!-- Loading State -->
-      <Card v-if="loading">
-        <CardContent class="pt-6">
-          <div class="flex flex-col items-center space-y-4">
-            <Icon
-              name="lucide:loader-2"
-              class="h-8 w-8 animate-spin text-primary"
-            />
-            <p class="text-sm text-muted-foreground">Verifying invitation...</p>
-          </div>
-        </CardContent>
-      </Card>
-
       <!-- Invalid Invitation -->
-      <Card v-else-if="!invitationValid">
-        <CardContent class="pt-6">
-          <Alert variant="destructive">
-            <Icon name="lucide:alert-triangle" class="h-4 w-4" />
-            <div class="ml-2">
-              <p class="font-medium">Invalid or Expired Invitation</p>
-              <p class="text-sm mt-1">
-                This invitation link is invalid or has already been used. Please
-                contact your administrator for a new invitation.
-              </p>
-            </div>
-          </Alert>
-          <Button
-            class="w-full mt-4"
-            variant="outline"
-            @click="router.push('/auth/login')"
-          >
-            Go to Login
-          </Button>
-        </CardContent>
-      </Card>
+      <div v-else-if="!invitationValid" class="glass-surface glass-surface--strong p-8 sm:p-10 space-y-4">
+        <div class="flex items-start gap-2 p-3 rounded-xl text-sm text-destructive bg-destructive/10 border border-destructive/20">
+          <Icon name="lucide:alert-triangle" class="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p class="font-medium">Invalid or expired invitation</p>
+            <p class="mt-1">
+              This invitation link is invalid or has already been used. Please
+              contact your administrator for a new invitation.
+            </p>
+          </div>
+        </div>
+        <Button
+          class="w-full rounded-full"
+          size="lg"
+          variant="outline"
+          @click="router.push('/auth/login')"
+        >
+          Go to login
+        </Button>
+      </div>
 
       <!-- Accept Form -->
-      <Card v-else>
-        <CardHeader>
-          <CardTitle>Welcome {{ invitation?.first_name }}!</CardTitle>
-          <CardDescription>
+      <div v-else class="glass-surface glass-surface--strong p-8 sm:p-10">
+        <div class="mb-7 space-y-1.5">
+          <h1 class="text-2xl font-semibold tracking-tight t-text">
+            Welcome {{ invitation?.first_name }}!
+          </h1>
+          <p class="text-sm t-text-muted">
             You've been invited to join {{ invitation?.organization?.name }}.
-            Please set up your password to complete registration.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+            Set up your password to complete registration.
+          </p>
+        </div>
           <form @submit="onSubmit" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <!-- First Name -->
@@ -119,7 +100,7 @@
               <p v-if="errors.password" class="text-sm text-destructive">
                 {{ errors.password }}
               </p>
-              <p class="text-xs text-muted-foreground">
+              <p class="text-xs t-text-muted">
                 Must be at least 8 characters with uppercase, lowercase, and
                 numbers
               </p>
@@ -158,7 +139,8 @@
             <!-- Submit Button -->
             <Button
               type="submit"
-              class="w-full"
+              size="lg"
+              class="w-full rounded-full"
               :disabled="isSubmitting || success"
             >
               <Icon
@@ -166,24 +148,18 @@
                 name="lucide:loader-2"
                 class="mr-2 h-4 w-4 animate-spin"
               />
-              {{ isSubmitting ? "Creating account..." : "Accept Invitation" }}
+              {{ isSubmitting ? "Creating account..." : "Accept invitation" }}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
 
-      <!-- Sign In Link -->
-      <p class="px-8 text-center text-sm text-muted-foreground">
-        Already have an account?
-        <NuxtLink
-          to="/auth/login"
-          class="hover:text-primary underline underline-offset-4"
-        >
-          Sign in instead
-        </NuxtLink>
-      </p>
-    </div>
-  </div>
+            <p class="text-center text-sm t-text-muted">
+              Already have an account?
+              <NuxtLink to="/auth/login" class="font-medium t-text-accent underline-offset-4 hover:underline">
+                Sign in instead
+              </NuxtLink>
+            </p>
+          </form>
+      </div>
+  </AuthShell>
 </template>
 
 <script setup lang="ts">
@@ -197,7 +173,7 @@ import { toast } from "vue-sonner";
 import type { HoaInvitation } from "~~/types/directus";
 
 definePageMeta({
-  layout: false,
+  layout: "auth-blank",
   middleware: "guest",
 });
 
