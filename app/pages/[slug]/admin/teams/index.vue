@@ -19,13 +19,13 @@ const { buildOrgPath } = useOrgNavigation();
       </NuxtLink>
 
       <div>
-        <h1 class="text-2xl font-semibold t-text">Committees</h1>
+        <h1 class="text-2xl font-semibold t-text">Teams</h1>
         <p class="text-sm t-text-muted mt-0.5">
-          Empower non-board members to manage a specific domain.
+          Create named teams and empower members to manage a domain.
         </p>
       </div>
 
-      <CommitteesCommitteeManager />
+      <TeamsTeamManager />
     </div>
   </div>
 </template>

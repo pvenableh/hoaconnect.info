@@ -63,7 +63,14 @@ const formatDate = (s: string | null | undefined) => {
 </script>
 
 <template>
-  <article class="ios-card p-5">
+  <!-- Polls render as an interactive vote card -->
+  <PollsPollCard
+    v-if="item.kind === 'poll'"
+    :poll="item.raw"
+    :can-manage="isBoard"
+  />
+
+  <article v-else class="ios-card p-5">
     <!-- Header -->
     <div class="flex items-start gap-3">
       <div

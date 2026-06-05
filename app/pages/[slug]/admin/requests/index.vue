@@ -43,10 +43,10 @@ const onCreated = async (id: string) => {
       <div class="flex items-center justify-between gap-2">
         <h1 class="text-2xl font-semibold t-text">Requests</h1>
         <div class="flex items-center gap-2">
-          <NuxtLink :to="buildOrgPath('/admin/committees')">
+          <NuxtLink :to="buildOrgPath('/admin/teams')">
             <Button variant="outline" class="rounded-full">
               <Icon name="lucide:users" class="w-4 h-4 mr-1.5" />
-              Committees
+              Teams
             </Button>
           </NuxtLink>
           <Button class="rounded-full" @click="showNew = !showNew">

@@ -16,7 +16,7 @@ export interface FeedItem {
   id: string;
   sourceCollection: string;
   sourceId: string;
-  kind: "announcement" | "meeting" | "document" | "request";
+  kind: "announcement" | "meeting" | "document" | "request" | "poll";
   title: string;
   subtitle?: string;
   excerpt?: string;
@@ -24,6 +24,7 @@ export interface FeedItem {
   icon: string;
   accent: string; // tailwind text/bg accent key
   isPinned?: boolean;
+  raw?: any; // full source row when the card needs it (e.g. a poll)
 }
 
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
@@ -35,6 +36,7 @@ export const useActivityFeed = () => {
   const { list: listMeetings } = useDirectusItems("hoa_meetings");
   const { list: listDocuments } = useDirectusItems("hoa_documents");
   const { list: listRequests } = useDirectusItems("hoa_requests");
+  const { list: listPolls } = useDirectusItems("hoa_polls");
 
   const items = ref<FeedItem[]>([]);
   const isLoading = ref(false);
@@ -184,6 +186,36 @@ export const useActivityFeed = () => {
       } catch (e) {
         console.warn("Feed: requests failed", e);
       }
+    }
+
+    // Open community polls. Isolated (hoa_polls may not exist until migration).
+    try {
+      const polls = (await listPolls({
+        fields: ["id", "status", "title", "description", "options", "allow_multiple", "is_anonymous", "closes_at", "target_audience", "organization", "date_created"],
+        filter: {
+          organization: { _eq: selectedOrgId.value },
+          status: { _eq: "open" },
+          target_audience: { _in: audienceFilter },
+        },
+        sort: ["-date_created"],
+        limit: 10,
+      })) as any[];
+      all.push(
+        ...polls.map((p) => ({
+          id: `poll-${p.id}`,
+          sourceCollection: "hoa_polls",
+          sourceId: p.id,
+          kind: "poll" as const,
+          title: p.title || "Poll",
+          subtitle: "Poll",
+          date: p.date_created || "",
+          icon: "lucide:bar-chart-3",
+          accent: "fuchsia",
+          raw: p,
+        }))
+      );
+    } catch (e) {
+      console.warn("Feed: polls failed", e);
     }
 
     // Pinned announcements first, then newest.

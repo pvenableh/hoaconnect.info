@@ -28,12 +28,18 @@ All four tracks were advanced and committed on this branch (off `main`):
   landing style applied; `migrate-1033.ts` needs the 1033 source creds + mapping
   confirmation. See `phaseD-landing-themes-1033.md`.
 
-**Backend scripts were intentionally NOT executed** (they mutate the live
-Directus and were gated on confirmation). To finish: run the create/migration
-scripts in order, `pnpm generate:types`, add permissions, then verify in the
-preview with a manual login. New scripts:
-`add-connect-fields`, `create-comments-collections`,
-`create-requests-collections`, `extend-landing-theme`, `migrate-1033`.
+**Phase 5 backend is now LIVE** (collections + permissions created on the
+Directus at `admin.hoaconnect.info`, `types/directus.ts` regenerated):
+`hoa_comments`, `hoa_reactions`, `hoa_comment_reports`, `hoa_requests`,
+`hoa_teams`, `hoa_team_members`, `hoa_polls`, `hoa_poll_votes`. So comments,
+reactions, moderation/reports, requests, teams, and polls all have backing data
+— verify in the preview with a manual login.
+
+**Still NOT executed** (gated, run when ready): `add-connect-fields` +
+`extend-landing-theme` (Tracks B/D — additive, harmless) and `migrate-1033`
+(needs the 1033 source creds). Follow-up: extend the `hoa_requests` read filter
+so team members can *list* all of their domain's requests via the API (today
+they manage ones they can already open).
 
 ---
 

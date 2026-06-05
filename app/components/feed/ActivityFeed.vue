@@ -16,6 +16,7 @@ const KIND_TABS = [
   { key: "announcement", label: "Announcements" },
   { key: "meeting", label: "Meetings" },
   { key: "document", label: "Documents" },
+  { key: "poll", label: "Polls" },
   { key: "request", label: "My Requests" },
 ];
 const activeKind = ref<string>("all");

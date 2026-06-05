@@ -232,6 +232,63 @@ export interface HoaChannel {
 	date_updated?: string | null;
 }
 
+export interface HoaCommentReport {
+	/** @primaryKey */
+	id: string;
+	status?: 'open' | 'reviewed' | 'dismissed' | 'actioned' | null;
+	/** @required */
+	reason: 'vulgar' | 'harassment' | 'spam' | 'off_topic' | 'other';
+	/** @description Optional context from the reporter */
+	details?: string | null;
+	/** @required */
+	comment: HoaComment | string;
+	reporter?: DirectusUser | string | null;
+	/** @description Moderator note on resolution */
+	resolution_note?: string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaComment {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	status?: 'published' | 'draft' | 'deleted' | null;
+	/** @description e.g. hoa_announcements, hoa_requests, hoa_documents, hoa_meetings, payment_requests @required */
+	target_collection: string;
+	/** @description id of the target row (string to tolerate uuid/int pks) @required */
+	target_id: string;
+	/** @description Parent comment for threaded replies */
+	parent_comment?: HoaComment | string | null;
+	/** @description HTML with @mentions (TipTap), same as channel messages */
+	body?: string | null;
+	/** @description Array of file IDs */
+	attachments?: Record<string, any> | null;
+	/** @description Array of mentioned user IDs */
+	mentioned_users?: Record<string, any> | null;
+	is_edited?: boolean | null;
+	/** @description Board/admin-only note — hidden from members */
+	is_internal?: boolean | null;
+	/** @description Hidden by a moderator — not shown to members */
+	is_hidden?: boolean | null;
+	/** @description Why the comment was hidden */
+	hidden_reason?: string | null;
+	/** @description Moderator who hid the comment */
+	hidden_by?: DirectusUser | string | null;
+	/** @description Open report count (denormalized) */
+	report_count?: number | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaDocumentCategory {
 	/** @primaryKey */
 	id: string;
@@ -577,6 +634,122 @@ export interface HoaPet {
 	breed?: string | null;
 	weight?: string | null;
 	image?: DirectusFile | string | null;
+}
+
+export interface HoaPoll {
+	/** @primaryKey */
+	id: string;
+	status?: 'draft' | 'open' | 'closed' | null;
+	/** @required */
+	title: string;
+	description?: string | null;
+	/** @description Array of { id, label } @required */
+	options: Record<string, any>;
+	allow_multiple?: boolean | null;
+	/** @description Hide voter identity in the UI */
+	is_anonymous?: boolean | null;
+	closes_at?: string | null;
+	target_audience?: 'all' | 'owners' | 'tenants' | 'board_members' | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
+export interface HoaPollVote {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	poll: HoaPoll | string;
+	/** @required */
+	option_id: string;
+	user?: DirectusUser | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+}
+
+export interface HoaReaction {
+	/** @primaryKey */
+	id: string;
+	/** @description hoa_comments (react to a comment) or any entity @required */
+	target_collection: string;
+	/** @required */
+	target_id: string;
+	/** @description Unicode emoji or shortcode @required */
+	emoji: string;
+	/** @description Reacting user */
+	user?: DirectusUser | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+}
+
+export interface HoaRequest {
+	/** @primaryKey */
+	id: string;
+	status?: 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed' | null;
+	/** @required */
+	type: 'maintenance' | 'arc' | 'violation' | 'complaint' | 'task';
+	/** @required */
+	title: string;
+	description?: string | null;
+	priority?: 'low' | 'normal' | 'high' | 'urgent' | null;
+	/** @description Optional subcategory per type */
+	category?: string | null;
+	/** @description Reporter */
+	submitted_by?: DirectusUser | string | null;
+	/** @description Owner (board/manager/committee) */
+	assigned_to?: DirectusUser | string | null;
+	/** @description Unit/property the request concerns */
+	unit?: HoaUnit | string | null;
+	/** @description Subject member (violator, requester) */
+	member?: HoaMember | string | null;
+	due_date?: string | null;
+	/** @description Array of file IDs (photos for maintenance/violations) */
+	attachments?: Record<string, any> | null;
+	/** @description Type-specific fields (Tier 2 — see requestWorkflows.ts) */
+	metadata?: Record<string, any> | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaTeamMember {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	team: HoaTeam | string;
+	/** @required */
+	user: DirectusUser | string;
+	member?: HoaMember | string | null;
+	role?: 'member' | 'lead' | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
+export interface HoaTeam {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	status?: 'active' | 'archived' | null;
+	/** @description Free-text team name @required */
+	name: string;
+	/** @description Optional — grants manager rights on the matching request type */
+	domain?: 'none' | 'violations' | 'arc' | 'maintenance' | 'finance' | 'general' | null;
+	color?: string | null;
+	icon?: string | null;
+	description?: string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	members?: HoaTeamMember[] | string[];
 }
 
 export interface HoaUnit {
@@ -1184,6 +1357,8 @@ export interface Schema {
 	hoa_channel_mentions: HoaChannelMention[];
 	hoa_channel_messages: HoaChannelMessage[];
 	hoa_channels: HoaChannel[];
+	hoa_comment_reports: HoaCommentReport[];
+	hoa_comments: HoaComment[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_email_activity: HoaEmailActivity[];
@@ -1200,6 +1375,12 @@ export interface Schema {
 	hoa_member_units: HoaMemberUnit[];
 	hoa_organizations: HoaOrganization[];
 	hoa_pets: HoaPet[];
+	hoa_polls: HoaPoll[];
+	hoa_poll_votes: HoaPollVote[];
+	hoa_reactions: HoaReaction[];
+	hoa_requests: HoaRequest[];
+	hoa_team_members: HoaTeamMember[];
+	hoa_teams: HoaTeam[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
 	payment_requests: PaymentRequest[];
@@ -1248,6 +1429,8 @@ export enum CollectionNames {
 	hoa_channel_mentions = 'hoa_channel_mentions',
 	hoa_channel_messages = 'hoa_channel_messages',
 	hoa_channels = 'hoa_channels',
+	hoa_comment_reports = 'hoa_comment_reports',
+	hoa_comments = 'hoa_comments',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_email_activity = 'hoa_email_activity',
@@ -1264,6 +1447,12 @@ export enum CollectionNames {
 	hoa_member_units = 'hoa_member_units',
 	hoa_organizations = 'hoa_organizations',
 	hoa_pets = 'hoa_pets',
+	hoa_polls = 'hoa_polls',
+	hoa_poll_votes = 'hoa_poll_votes',
+	hoa_reactions = 'hoa_reactions',
+	hoa_requests = 'hoa_requests',
+	hoa_team_members = 'hoa_team_members',
+	hoa_teams = 'hoa_teams',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
 	payment_requests = 'payment_requests',
