@@ -18,6 +18,13 @@ const props = withDefaults(
     showToolbar?: boolean;
     organizationId?: string | null;
     channelId?: string | null;
+    // Opt-in: when true, accept ANY file type. Non-image files are uploaded and
+    // their ids emitted via update:attachments (stored in the row's attachments
+    // JSON), instead of being inlined. Images still inline as before. Channels
+    // leave this off → image-only behaviour is unchanged.
+    allowFileAttachments?: boolean;
+    accept?: string;
+    attachments?: string[];
   }>(),
   {
     modelValue: "",
@@ -26,15 +33,25 @@ const props = withDefaults(
     showToolbar: false,
     organizationId: null,
     channelId: null,
+    allowFileAttachments: false,
+    accept: "",
+    attachments: () => [],
   }
 );
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
+  (e: "update:attachments", ids: string[]): void;
   (e: "mention", user: MentionUser): void;
   (e: "submit"): void;
   (e: "blur", event: FocusEvent): void;
 }>();
+
+// File input accept attribute: explicit prop wins, else any file when
+// attachments are allowed, else images only (channels default).
+const acceptAttr = computed(
+  () => props.accept || (props.allowFileAttachments ? "*/*" : "image/*")
+);
 
 interface MentionUser {
   id: string;
@@ -320,6 +337,7 @@ const handleFiles = async (files: File[]) => {
   isUploading.value = true;
 
   try {
+    const newAttachmentIds: string[] = [];
     for (const file of files) {
       if (file.type.startsWith("image/")) {
         const result = await filesComposable.upload(file, {
@@ -332,7 +350,17 @@ const handleFiles = async (files: File[]) => {
             editor.value.chain().focus().setImage({ src: fileUrl }).run();
           }
         }
+      } else if (props.allowFileAttachments) {
+        // Non-image file (PDF, docx, …): upload and collect its id for the
+        // attachments array rather than inlining it into the HTML.
+        const result = await filesComposable.upload(file, { title: file.name });
+        if (result && typeof result === "object" && "id" in result) {
+          newAttachmentIds.push(result.id as string);
+        }
       }
+    }
+    if (newAttachmentIds.length) {
+      emit("update:attachments", [...props.attachments, ...newAttachmentIds]);
     }
   } catch (error) {
     console.error("Upload failed:", error);
@@ -513,7 +541,7 @@ defineExpose({
         <input
           ref="fileInput"
           type="file"
-          accept="image/*"
+          :accept="acceptAttr"
           multiple
           class="hidden"
           @change="handleFileUpload"
@@ -547,7 +575,7 @@ defineExpose({
         <input
           ref="fileInput"
           type="file"
-          accept="image/*"
+          :accept="acceptAttr"
           multiple
           class="hidden"
           @change="handleFileUpload"
