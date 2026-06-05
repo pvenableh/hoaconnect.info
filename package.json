@@ -15,6 +15,8 @@
     "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",
     "create:comments": "dotenv -- tsx scripts/create-comments-collections.ts",
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
+    "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
+    "migrate:1033": "dotenv -- tsx scripts/migrate-1033.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },

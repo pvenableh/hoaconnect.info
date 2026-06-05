@@ -405,6 +405,18 @@ const { data: organization, pending } = await useAsyncData(
   }
 );
 
+// Apply the org's per-tenant landing style (classic | modern | luxury). Stored
+// on settings.theme; forceThemeStyle is SSR-safe (uses useHead) and does not
+// persist to the visitor's preferences.
+const { forceThemeStyle } = useTheme();
+const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
+watchEffect(() => {
+  const style = organization.value?.settings?.theme;
+  if (style && VALID_LANDING_STYLES.includes(style)) {
+    forceThemeStyle(style);
+  }
+});
+
 // Check if account is expired (not free and subscription is expired/canceled)
 const isAccountExpired = computed(() => {
   if (!organization.value) return false;
