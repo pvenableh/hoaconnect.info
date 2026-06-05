@@ -6,15 +6,17 @@
  * source (collection + id) so the polymorphic reaction + comment rails attach
  * directly — every item in the feed is reactable and commentable.
  *
- * Personal/sensitive items (payments, requests, violations) are intentionally
- * NOT in the building feed.
+ * Community content (announcements, meetings, documents) is shown to everyone.
+ * Requests/tasks are personal — only those assigned to or submitted by the
+ * current user appear, so the feed doubles as the user's action list.
  */
+import { getWorkflow } from "~/config/requestWorkflows";
 
 export interface FeedItem {
   id: string;
   sourceCollection: string;
   sourceId: string;
-  kind: "announcement" | "meeting" | "document";
+  kind: "announcement" | "meeting" | "document" | "request";
   title: string;
   subtitle?: string;
   excerpt?: string;
@@ -27,10 +29,12 @@ export interface FeedItem {
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
 
 export const useActivityFeed = () => {
+  const { user } = useDirectusAuth();
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
   const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
   const { list: listMeetings } = useDirectusItems("hoa_meetings");
   const { list: listDocuments } = useDirectusItems("hoa_documents");
+  const { list: listRequests } = useDirectusItems("hoa_requests");
 
   const items = ref<FeedItem[]>([]);
   const isLoading = ref(false);
@@ -141,6 +145,45 @@ export const useActivityFeed = () => {
       );
     } catch (e) {
       console.warn("Feed: documents failed", e);
+    }
+
+    // Requests/tasks assigned to or submitted by the current user. Isolated
+    // (hoa_requests may not exist until Phase 5 migration).
+    if (user.value?.id) {
+      try {
+        const requests = (await listRequests({
+          fields: ["id", "title", "type", "status", "priority", "description", "date_created", "date_updated", "metadata"],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            status: { _nin: ["closed"] },
+            _or: [
+              { assigned_to: { _eq: user.value.id } },
+              { submitted_by: { _eq: user.value.id } },
+            ],
+          },
+          sort: ["-date_updated"],
+          limit: 20,
+        })) as any[];
+        all.push(
+          ...requests.map((r) => {
+            const wf = getWorkflow(r.type);
+            return {
+              id: `request-${r.id}`,
+              sourceCollection: "hoa_requests",
+              sourceId: r.id,
+              kind: "request" as const,
+              title: r.title || "Request",
+              subtitle: `${wf.label} · ${(r.status || "open").replace(/_/g, " ")}`,
+              excerpt: r.description ? stripHtml(r.description).slice(0, 160) : undefined,
+              date: r.date_updated || r.date_created || "",
+              icon: wf.icon,
+              accent: wf.accent,
+            };
+          })
+        );
+      } catch (e) {
+        console.warn("Feed: requests failed", e);
+      }
     }
 
     // Pinned announcements first, then newest.

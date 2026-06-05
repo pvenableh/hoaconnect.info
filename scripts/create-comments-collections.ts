@@ -546,13 +546,19 @@ async function setupPermissions(): Promise<void> {
   const memberPolicy = memberRole ? await getRolePolicy(memberRole.id, memberRole.name) : null;
 
   const orgFilter = { organization: { _eq: "$CURRENT_USER.organization" } };
-  // Members never see internal or moderator-hidden comments
+  // Members never see internal comments, and don't see others' hidden comments
+  // — but the AUTHOR can still see their own comment after it's hidden.
   const memberReadFilter = {
     _and: [
       { organization: { _eq: "$CURRENT_USER.organization" } },
       { is_internal: { _eq: false } },
-      { is_hidden: { _neq: true } },
       { status: { _neq: "deleted" } },
+      {
+        _or: [
+          { is_hidden: { _neq: true } },
+          { user_created: { _eq: "$CURRENT_USER" } },
+        ],
+      },
     ],
   };
   // Members may only edit/delete their own comments

@@ -40,12 +40,20 @@ const onCreated = async (id: string) => {
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <div class="p-6 max-w-4xl mx-auto space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-2">
         <h1 class="text-2xl font-semibold t-text">Requests</h1>
-        <Button class="rounded-full" @click="showNew = !showNew">
-          <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
-          New request
-        </Button>
+        <div class="flex items-center gap-2">
+          <NuxtLink :to="buildOrgPath('/admin/committees')">
+            <Button variant="outline" class="rounded-full">
+              <Icon name="lucide:users" class="w-4 h-4 mr-1.5" />
+              Committees
+            </Button>
+          </NuxtLink>
+          <Button class="rounded-full" @click="showNew = !showNew">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            New request
+          </Button>
+        </div>
       </div>
 
       <!-- New request inline -->

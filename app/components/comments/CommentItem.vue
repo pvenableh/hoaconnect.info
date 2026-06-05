@@ -40,12 +40,18 @@ const isEditing = ref(false);
 const editBody = ref("");
 const showReportDialog = ref(false);
 
-// A moderator viewing a hidden comment can reveal it; everyone else just sees
-// the muted placeholder (members never receive hidden rows from the API).
-const revealHidden = ref(false);
+// A hidden comment stays visible (greyed) to its AUTHOR and to moderators;
+// other members never receive it from the API. No click-to-reveal needed.
 const showBody = computed(
-  () => !props.comment.is_hidden || (props.canModerate && revealHidden.value)
+  () => !props.comment.is_hidden || isAuthor(props.comment) || props.canModerate
 );
+const hiddenNotice = computed(() => {
+  if (!props.comment.is_hidden) return "";
+  const reason = props.comment.hidden_reason ? ` — ${props.comment.hidden_reason}` : "";
+  return isAuthor(props.comment)
+    ? `Hidden by a moderator${reason}. Only you and admins can see this.`
+    : `Hidden from members${reason}.`;
+});
 
 const onReport = async (payload: { reason: string; details?: string }) => {
   try {
@@ -158,26 +164,28 @@ const onDelete = async () => {
           </div>
         </div>
 
-        <!-- Hidden placeholder -->
-        <div v-else-if="comment.is_hidden && !showBody" class="text-sm text-red-700/80 italic flex items-center gap-2">
-          <Icon name="lucide:eye-off" class="w-4 h-4" />
-          This comment was hidden by a moderator{{ comment.hidden_reason ? ` — ${comment.hidden_reason}` : "" }}.
-          <button
-            v-if="canModerate"
-            type="button"
-            class="not-italic text-xs underline text-red-700"
-            @click="revealHidden = true"
-          >
-            Reveal
-          </button>
-        </div>
+        <!-- Hidden notice (shown to the author + moderators) -->
+        <p
+          v-else-if="comment.is_hidden && showBody"
+          class="text-[11px] text-red-600/80 italic mb-1 flex items-center gap-1"
+        >
+          <Icon name="lucide:eye-off" class="w-3 h-3" />
+          {{ hiddenNotice }}
+        </p>
 
-        <!-- Body -->
+        <!-- Body (greyed when hidden) -->
         <div
-          v-else
+          v-if="!isEditing && showBody"
           class="prose prose-sm prose-stone max-w-none text-sm text-stone-700"
+          :class="{ 'opacity-50': comment.is_hidden }"
           v-html="comment.body"
         />
+        <div
+          v-else-if="!isEditing"
+          class="text-sm text-stone-400 italic"
+        >
+          This comment was hidden by a moderator.
+        </div>
 
         <!-- Attachments -->
         <div v-if="comment.attachments?.length && showBody" class="flex flex-wrap gap-1.5 mt-2">

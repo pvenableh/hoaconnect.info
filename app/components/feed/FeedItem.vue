@@ -41,9 +41,14 @@ const link = computed(() => {
     hoa_announcements: "/announcements",
     hoa_meetings: "/meetings",
     hoa_documents: `/documents/${props.item.sourceId}`,
+    hoa_requests: `/requests/${props.item.sourceId}`,
   };
   return buildOrgPath(routes[props.item.sourceCollection] || "/dashboard");
 });
+
+// Requests have their own detail view + thread, so feed cards link out rather
+// than embedding inline reactions/comments.
+const isRequest = computed(() => props.item.kind === "request");
 
 const formatDate = (s: string | null | undefined) => {
   if (!s) return "";
@@ -92,8 +97,11 @@ const formatDate = (s: string | null | undefined) => {
       {{ item.excerpt }}
     </p>
 
-    <!-- Engagement bar -->
-    <div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between gap-3">
+    <!-- Engagement bar (community content) -->
+    <div
+      v-if="!isRequest"
+      class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between gap-3"
+    >
       <CommentsReactionBar
         :target-collection="item.sourceCollection"
         :target-id="item.sourceId"
@@ -109,8 +117,19 @@ const formatDate = (s: string | null | undefined) => {
       </button>
     </div>
 
+    <!-- Request cards link to their detail/timeline -->
+    <div v-else class="mt-3 pt-3 border-t border-stone-100 flex justify-end">
+      <NuxtLink
+        :to="link"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-stone-700 hover:text-stone-900 transition-colors"
+      >
+        View request
+        <Icon name="lucide:arrow-right" class="w-4 h-4" />
+      </NuxtLink>
+    </div>
+
     <!-- Inline comment thread -->
-    <div v-if="showComments" class="mt-4 pt-4 border-t border-stone-100">
+    <div v-if="showComments && !isRequest" class="mt-4 pt-4 border-t border-stone-100">
       <CommentsCommentThread
         :target-collection="item.sourceCollection"
         :target-id="item.sourceId"

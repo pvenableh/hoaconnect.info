@@ -31,10 +31,16 @@ const props = withDefaults(
   }
 );
 
+const { user } = useDirectusAuth();
 const { threaded, isLoading, commentCount } = useComments(
   props.targetCollection,
   () => props.targetId
 );
+
+const authorId = (c: { user_created?: unknown }) =>
+  typeof c.user_created === "string"
+    ? c.user_created
+    : (c.user_created as { id?: string })?.id;
 
 const cap = computed(() => getCommentCapability(props.targetCollection));
 const viewer = computed<CommentViewerContext>(() => ({
@@ -47,12 +53,16 @@ const canComment = computed(() => can(cap.value.comment, viewer.value));
 const canReact = computed(() => can(cap.value.react, viewer.value));
 const canPostInternal = computed(() => can(cap.value.internal, viewer.value));
 
-// Members never see internal or moderator-hidden comments; board sees all
-// (hidden ones render as a reveal-able placeholder).
+// Board sees everything (hidden rendered greyed). Members never see internal,
+// and don't see others' hidden comments — but the author still sees their own.
 const visibleThread = computed(() =>
   props.isBoard
     ? threaded.value
-    : threaded.value.filter((c) => !c.is_internal && !c.is_hidden)
+    : threaded.value.filter(
+        (c) =>
+          !c.is_internal &&
+          (!c.is_hidden || authorId(c) === user.value?.id)
+      )
 );
 </script>
 

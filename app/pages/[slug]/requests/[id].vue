@@ -9,14 +9,28 @@ const { buildOrgPath } = useOrgNavigation();
 const { user } = useDirectusAuth();
 const { selectedOrgId, isAdmin, isBoardMember } = await useSelectedOrg();
 const { getOne } = useRequests();
+const { loadMine, canManageRequestType } = useCommittees();
 
 const requestId = computed(() => route.params.id as string);
-const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 
 const { data: request, pending, refresh } = await useAsyncData(
   `request-${requestId.value}`,
   () => getOne(requestId.value),
   { watch: [requestId], server: false }
+);
+
+// Committee members manage their domain's requests like the board does.
+const { data: myCommittees } = await useAsyncData(
+  `my-committees-${selectedOrgId.value}`,
+  () => loadMine().then((s) => Array.from(s)),
+  { watch: [selectedOrgId], server: false, default: () => [] }
+);
+
+const isBoard = computed(
+  () =>
+    isAdmin.value ||
+    isBoardMember.value ||
+    canManageRequestType(new Set(myCommittees.value || []), request.value?.type)
 );
 
 const submittedById = computed(() => {

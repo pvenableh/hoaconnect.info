@@ -13,6 +13,20 @@
 > `create-comments-collections.ts` script now also creates `hoa_comment_reports`
 > and the moderation fields — re-run `pnpm create:comments` (idempotent) +
 > `pnpm generate:types`.
+>
+> **Update 2:** (a) hidden comments stay visible to their **author** (greyed,
+> with a notice) and to admins (greyed); other members never receive them (the
+> member read filter now allows own-hidden). (b) The Building feed also surfaces
+> **requests/tasks assigned to or submitted by the current user** (request cards
+> link to their detail/timeline). (c) **Committees** — a new
+> `hoa_committee_members` collection (`pnpm create:committees`) +
+> `useCommittees` lets a non-board member manage a domain
+> (violations/arc/maintenance/finance/general): on requests of the matching type
+> they get board-style controls (transitions, assignment, internal comments).
+> Managed at `/{slug}/admin/committees` (linked from the admin Requests page).
+> Code-first capability; the one backend follow-up is extending the
+> `hoa_requests` read filter so committee members can *list* all of their
+> domain's requests via the API (today they manage ones they can already open).
 
 > Hand this to a fresh Claude Code session in the `hoaconnect` repo. It is
 > self-contained. Skim `docs/ROADMAP.md` for strategic context and
