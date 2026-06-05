@@ -67,7 +67,10 @@ A large design + feature pass is in `main` (commit `8bb0a0a`):
 - `docs/prompts/phase3-polish-app-shell.md` — design-system rollout (mostly done).
 - `docs/prompts/phase4-notifications-center.md` — finish the notification center.
 - `docs/prompts/phase5-comments-reactions-requests.md` — universal comments +
-  reactions + the requests/tickets system (fully specced, ready to build).
+  reactions + the requests/tickets system (BUILT + backend live).
+- `docs/prompts/phase6-resident-records-governance.md` — **NEXT**: unit-attached,
+  historically-accurate pets/vehicles/leases + searchable by-laws/rules. Ready to
+  build in a fresh session.
 
 ## Recommended execution order
 
