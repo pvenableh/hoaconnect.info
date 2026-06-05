@@ -17,7 +17,8 @@ onMounted(() => {
   initTheme();
 });
 
-const { selectedOrgId } = await useSelectedOrg();
+const { selectedOrgId, isAdmin, isBoardMember, isMember } = await useSelectedOrg();
+const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 const documentId = computed(() => route.params.id as string);
 
 const { data: doc, pending } = await useAsyncData(
@@ -221,6 +222,17 @@ const downloadDocument = async () => {
               :src="previewUrl"
               :title="doc.title || 'Document'"
               class="w-full h-[70vh] rounded-2xl"
+            />
+          </div>
+
+          <!-- Conversation (Phase 5 substrate on an existing entity) -->
+          <div class="ios-card p-6">
+            <CommentsCommentThread
+              :target-collection="'hoa_documents'"
+              :target-id="doc.id"
+              :organization-id="selectedOrgId"
+              :is-board="isBoard"
+              :is-member="isMember"
             />
           </div>
         </template>

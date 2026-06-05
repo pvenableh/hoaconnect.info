@@ -143,6 +143,7 @@ export function useAppNav() {
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "users", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
     { key: "directory", label: "Directory", shortName: "People", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/units"] },
+    { key: "requests", label: "Requests", shortName: "Tickets", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests", "/requests"] },
     { key: "email", label: "Email", shortName: "Email", icon: "mail", path: "/admin/email", match: ["/admin/email"] },
   ];
 
@@ -153,6 +154,7 @@ export function useAppNav() {
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
     { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
     { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
+    { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
   ];
 
   const appsFor = (isAdmin: boolean): AppDef[] => (isAdmin ? ADMIN_APPS : MEMBER_APPS);

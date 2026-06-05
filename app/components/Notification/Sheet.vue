@@ -88,6 +88,31 @@ const goToDirectory = () => {
   router.push(buildOrgPath("/admin/members"));
 };
 
+// Navigate to a request detail
+const goToRequest = () => {
+  if (!selectedNotification.value) return;
+  const requestId = selectedNotification.value.metadata.requestId;
+  closeNotification();
+  router.push(buildOrgPath(requestId ? `/requests/${requestId}` : "/requests"));
+};
+
+// Navigate to the surface a comment was posted on. Requests deep-link to the
+// request; other targets fall back to that entity's list for now.
+const goToCommentTarget = () => {
+  if (!selectedNotification.value) return;
+  const { commentTargetCollection, commentTargetId } =
+    selectedNotification.value.metadata;
+  closeNotification();
+  const routes: Record<string, string> = {
+    hoa_requests: `/requests/${commentTargetId}`,
+    hoa_documents: `/documents/${commentTargetId}`,
+    hoa_meetings: "/meetings",
+    hoa_announcements: "/announcements",
+    payment_requests: "/payments",
+  };
+  router.push(buildOrgPath(routes[commentTargetCollection || ""] || "/dashboard"));
+};
+
 // Format a currency amount
 const formatAmount = (amount: number | undefined): string => {
   if (amount == null) return "";
@@ -411,6 +436,52 @@ const formatFullDate = (dateString: string | null | undefined): string => {
                 class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
               >
                 View directory
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Request Content -->
+          <template v-else-if="selectedNotification.type === 'request'">
+            <div
+              v-if="selectedNotification.content"
+              class="text-stone-700"
+            >
+              {{ selectedNotification.content }}
+            </div>
+            <p v-else class="text-stone-500 italic">
+              A request needs your attention.
+            </p>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToRequest"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View request
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Comment Content -->
+          <template v-else-if="selectedNotification.type === 'comment'">
+            <div class="p-4 bg-stone-50 rounded-lg">
+              <p
+                v-if="selectedNotification.content"
+                class="text-stone-900"
+              >
+                "{{ selectedNotification.content }}…"
+              </p>
+              <p v-else class="text-stone-500 italic">New comment on a thread you follow.</p>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToCommentTarget"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View conversation
                 <Icon name="lucide:arrow-right" class="w-4 h-4" />
               </button>
             </div>

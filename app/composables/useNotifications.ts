@@ -36,7 +36,9 @@ export type NotificationType =
   | "meeting"
   | "payment"
   | "document"
-  | "membership";
+  | "membership"
+  | "comment"
+  | "request";
 
 // Unified notification interface
 export interface UnifiedNotification {
@@ -79,6 +81,14 @@ export interface UnifiedNotification {
     // Membership specific
     memberId?: string;
     memberStatus?: string;
+    // Comment specific
+    commentId?: string;
+    commentTargetCollection?: string;
+    commentTargetId?: string;
+    // Request specific
+    requestId?: string;
+    requestType?: string;
+    requestStatus?: string;
   };
   // Original data for detail view
   originalData:
@@ -88,7 +98,8 @@ export interface UnifiedNotification {
     | HoaMeeting
     | PaymentRequest
     | HoaDocument
-    | HoaMember;
+    | HoaMember
+    | Record<string, any>;
 }
 
 // Storage key prefix for seen tracking
@@ -112,6 +123,8 @@ export const useNotifications = () => {
   const { list: listPaymentRequests } = useDirectusItems("payment_requests");
   const { list: listDocuments } = useDirectusItems("hoa_documents");
   const { list: listMembers } = useDirectusItems("hoa_members");
+  const { list: listComments } = useDirectusItems("hoa_comments");
+  const { list: listRequests } = useDirectusItems("hoa_requests");
 
   // Access shared state from useSelectedOrg
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -343,6 +356,66 @@ export const useNotifications = () => {
         memberStatus: member.status || undefined,
       },
       originalData: member,
+    };
+  };
+
+  // Transform a comment into a notification (thread participation)
+  const TARGET_LABELS: Record<string, string> = {
+    hoa_announcements: "an announcement",
+    hoa_documents: "a document",
+    hoa_meetings: "a meeting",
+    hoa_requests: "a request",
+    payment_requests: "a payment",
+    hoa_comments: "a comment",
+  };
+  const transformComment = (comment: any): UnifiedNotification => {
+    const isRead = isSeen(comment.id, "comment");
+    const author = comment.user_created;
+    const authorName =
+      author && typeof author === "object"
+        ? `${author.first_name || ""} ${author.last_name || ""}`.trim() || "Someone"
+        : "Someone";
+    const where = TARGET_LABELS[comment.target_collection] || "a discussion";
+    return {
+      id: comment.id,
+      type: "comment",
+      title: `${authorName} commented`,
+      subtitle: `on ${where}`,
+      content: comment.body ? stripHtml(comment.body).substring(0, 120) : undefined,
+      date: comment.date_created || "",
+      isRead,
+      priority: "normal",
+      metadata: {
+        commentId: comment.id,
+        commentTargetCollection: comment.target_collection,
+        commentTargetId: comment.target_id,
+      },
+      originalData: comment,
+    };
+  };
+
+  // Transform a request into a notification (new / assigned / status change)
+  const transformRequest = (request: any): UnifiedNotification => {
+    const isRead = isSeen(request.id, "request");
+    return {
+      id: request.id,
+      type: "request",
+      title: request.title || "Request",
+      subtitle: `${capitalizeFirst(request.type || "request")} · ${capitalizeFirst(
+        (request.status || "open").replace(/_/g, " ")
+      )}`,
+      content: request.description
+        ? stripHtml(request.description).substring(0, 120)
+        : undefined,
+      date: request.date_updated || request.date_created || "",
+      isRead,
+      priority: request.priority === "urgent" ? "urgent" : "normal",
+      metadata: {
+        requestId: request.id,
+        requestType: request.type || undefined,
+        requestStatus: request.status || undefined,
+      },
+      originalData: request,
     };
   };
 
@@ -620,6 +693,99 @@ export const useNotifications = () => {
         console.warn("Failed to fetch membership notifications:", e);
       }
 
+      // Fetch requests assigned to or submitted by the current user. Isolated
+      // (the hoa_requests collection may not exist until Phase 5 migration).
+      try {
+        const requests = (await listRequests({
+          fields: [
+            "id",
+            "title",
+            "type",
+            "status",
+            "priority",
+            "description",
+            "date_created",
+            "date_updated",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            status: { _nin: ["closed"] },
+            _or: [
+              { assigned_to: { _eq: user.value.id } },
+              { submitted_by: { _eq: user.value.id } },
+            ],
+          },
+          sort: ["-date_updated"],
+          limit: 20,
+        })) as any[];
+        allNotifications.push(...requests.map(transformRequest));
+      } catch (e) {
+        console.warn("Failed to fetch request notifications:", e);
+      }
+
+      // Fetch comments on threads the user participates in (authored a comment
+      // on the same target), by others, excluding @mentions (those surface as
+      // mentions). Isolated — hoa_comments may not exist until Phase 5.
+      try {
+        const myComments = (await listComments({
+          fields: ["target_collection", "target_id"],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            user_created: { _eq: user.value.id },
+            status: { _neq: "deleted" },
+          },
+          limit: 100,
+        })) as any[];
+
+        // Distinct target pairs the user participates in.
+        const seenKeys = new Set<string>();
+        const targetConds: any[] = [];
+        for (const c of myComments) {
+          const key = `${c.target_collection}::${c.target_id}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          targetConds.push({
+            _and: [
+              { target_collection: { _eq: c.target_collection } },
+              { target_id: { _eq: c.target_id } },
+            ],
+          });
+        }
+
+        if (targetConds.length) {
+          const others = (await listComments({
+            fields: [
+              "id",
+              "body",
+              "target_collection",
+              "target_id",
+              "date_created",
+              "is_internal",
+              "mentioned_users",
+              "user_created.id",
+              "user_created.first_name",
+              "user_created.last_name",
+            ],
+            filter: {
+              organization: { _eq: selectedOrgId.value },
+              status: { _neq: "deleted" },
+              is_internal: { _eq: false },
+              user_created: { _neq: user.value.id },
+              _or: targetConds,
+            },
+            sort: ["-date_created"],
+            limit: 30,
+          })) as any[];
+
+          const fresh = others.filter(
+            (c) => !(c.mentioned_users || []).includes(user.value!.id)
+          );
+          allNotifications.push(...fresh.map(transformComment));
+        }
+      } catch (e) {
+        console.warn("Failed to fetch comment notifications:", e);
+      }
+
       // Sort all notifications by date (newest first)
       allNotifications.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -676,6 +842,8 @@ export const useNotifications = () => {
     localStorage.removeItem(getStorageKey("payment"));
     localStorage.removeItem(getStorageKey("document"));
     localStorage.removeItem(getStorageKey("membership"));
+    localStorage.removeItem(getStorageKey("comment"));
+    localStorage.removeItem(getStorageKey("request"));
   };
 
   // Helper functions
@@ -755,6 +923,16 @@ export const useNotifications = () => {
 
     if (notification.type === "membership") {
       return { bg: "bg-indigo-50", text: "text-indigo-700", icon: "user-plus" };
+    }
+
+    if (notification.type === "comment") {
+      return { bg: "bg-slate-50", text: "text-slate-700", icon: "message-circle" };
+    }
+
+    if (notification.type === "request") {
+      return notification.priority === "urgent"
+        ? { bg: "bg-red-50", text: "text-red-700", icon: "clipboard-list" }
+        : { bg: "bg-amber-50", text: "text-amber-700", icon: "clipboard-list" };
     }
 
     return { bg: "bg-stone-50", text: "text-stone-700", icon: "bell" };

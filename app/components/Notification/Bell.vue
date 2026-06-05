@@ -47,6 +47,8 @@ const TAB_DEFS: { key: FilterKey; label: string }[] = [
   { key: "payment", label: "Payments" },
   { key: "document", label: "Documents" },
   { key: "membership", label: "Members" },
+  { key: "request", label: "Requests" },
+  { key: "comment", label: "Comments" },
   { key: "mention", label: "Mentions" },
   { key: "email", label: "Email" },
 ];
@@ -115,6 +117,8 @@ const getTypeLabel = (type: string) => {
     payment: "Payment",
     document: "Document",
     membership: "Member",
+    comment: "Comment",
+    request: "Request",
   };
   return labels[type] || type;
 };
