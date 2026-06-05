@@ -18,11 +18,19 @@ export interface ThemeOption {
 	isPremium: boolean;
 }
 
+// NOTE: 'classic' is intentionally NOT a selectable app theme — it's reserved
+// for the public-facing landing pages (which force it via forceThemeStyle).
+// Inside the app, 'modern' is the default and any stored 'classic' is coerced
+// to 'modern' (see normalizeStyle).
 export const THEME_OPTIONS: ThemeOption[] = [
-	{ id: 'classic', label: 'Classic', description: 'Cream & Serif', isPremium: false },
 	{ id: 'modern', label: 'Modern', description: 'White & Cyan', isPremium: false },
 	{ id: 'luxury', label: 'Luxury', description: 'Gallery & Brass', isPremium: true },
 ];
+
+// Coerce a stored/profile style into an in-app style. 'classic' → 'modern'.
+function normalizeStyle(style: unknown): ThemeStyle {
+	return style === 'modern' || style === 'luxury' ? style : 'modern';
+}
 
 const THEME_STORAGE_KEY = 'design-theme';
 
@@ -33,10 +41,10 @@ function getStoredTheme(): ThemeState {
 		if (stored) {
 			try {
 				const parsed = JSON.parse(stored);
-				// Validate the stored style is still valid
-				if (['classic', 'modern', 'luxury'].includes(parsed.style)) {
-					return parsed;
-				}
+				return {
+					style: normalizeStyle(parsed.style),
+					mode: parsed.mode === 'dark' ? 'dark' : 'light',
+				};
 			} catch {
 				// Invalid stored value, use default
 			}
@@ -118,9 +126,9 @@ export function useTheme() {
 		setThemeMode(themeState.mode === 'light' ? 'dark' : 'light');
 	}
 
-	// Cycle through theme styles
+	// Cycle through theme styles (classic excluded — landing-page only)
 	function cycleStyle() {
-		const styles: ThemeStyle[] = ['classic', 'modern', 'luxury'];
+		const styles: ThemeStyle[] = ['modern', 'luxury'];
 		const currentIndex = styles.indexOf(themeState.style);
 		const nextIndex = (currentIndex + 1) % styles.length;
 		setThemeStyle(styles[nextIndex]);
@@ -214,8 +222,8 @@ export function useTheme() {
 				const userStyle = user.value.theme_light as ThemeStyle | undefined;
 				const userMode = user.value.appearance as ThemeMode | undefined;
 
-				if (userStyle && ['classic', 'modern', 'luxury'].includes(userStyle)) {
-					themeState.style = userStyle;
+				if (userStyle) {
+					themeState.style = normalizeStyle(userStyle);
 				}
 
 				if (userMode && (userMode === 'light' || userMode === 'dark')) {
@@ -234,8 +242,8 @@ export function useTheme() {
 			const userStyle = user.value.theme_light as ThemeStyle | undefined;
 			const userMode = user.value.appearance as ThemeMode | undefined;
 
-			if (userStyle && ['classic', 'modern', 'luxury'].includes(userStyle)) {
-				themeState.style = userStyle;
+			if (userStyle) {
+				themeState.style = normalizeStyle(userStyle);
 			}
 
 			if (userMode && (userMode === 'light' || userMode === 'dark')) {

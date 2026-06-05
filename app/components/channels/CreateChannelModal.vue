@@ -15,7 +15,6 @@ const emit = defineEmits<{
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
-const { create: createChannel } = useDirectusItems("hoa_channels");
 const isSubmitting = ref(false);
 
 // Form validation schema
@@ -57,15 +56,22 @@ const onSubmit = handleSubmit(async (formValues) => {
   isSubmitting.value = true;
 
   try {
-    const channel = await createChannel({
-      name: formValues.name,
-      slug: slug.value,
-      description: formValues.description || null,
-      is_private: formValues.is_private,
-      is_default: formValues.is_default,
-      organization: props.organizationId,
-      status: "published",
-    });
+    // Route through the elevated endpoint so admins + active board members are
+    // auto-enrolled (membership rows that keep realtime access correct).
+    const { channel } = await $fetch<{ channel: any }>(
+      "/api/hoa/channels/create",
+      {
+        method: "POST",
+        body: {
+          name: formValues.name,
+          slug: slug.value,
+          description: formValues.description || null,
+          is_private: formValues.is_private,
+          is_default: formValues.is_default,
+          organization: props.organizationId,
+        },
+      }
+    );
 
     toast.success(`Channel #${formValues.name} created`);
     emit("created", channel);

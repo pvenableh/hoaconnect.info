@@ -68,11 +68,11 @@ const color = (d: MembershipData) => d.fill
       <div class="flex justify-center gap-4 mt-2">
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
-          <span class="text-sm text-muted-foreground">Owners ({{ owners }})</span>
+          <span class="text-xs text-muted-foreground">Owners ({{ owners }})</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
-          <span class="text-sm text-muted-foreground">Tenants ({{ tenants }})</span>
+          <span class="text-xs text-muted-foreground">Tenants ({{ tenants }})</span>
         </div>
       </div>
     </CardContent>

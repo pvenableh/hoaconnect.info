@@ -92,8 +92,7 @@ const openDetail = (m: any) => {
 
 <template>
   <div class="ui-kit accent-violet min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-4xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <WidgetGlass strong>
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">
             {{ organization?.name }}
@@ -150,8 +149,7 @@ const openDetail = (m: any) => {
             <p class="t-text-secondary">No meetings have been published yet.</p>
           </div>
         </section>
-      </div>
-    </div>
+      </PageContainer>
 
     <Dialog v-model:open="showDetail">
       <DialogContent v-if="selected" class="ui-kit accent-violet max-w-2xl max-h-[90vh] overflow-y-auto">

@@ -135,16 +135,9 @@ const downloadDocument = async () => {
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6">
-      <div class="max-w-3xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <!-- Back link -->
-        <NuxtLink
-          :to="buildOrgPath('/documents')"
-          class="inline-flex items-center gap-1.5 text-sm t-text-muted hover:t-text transition-colors"
-        >
-          <Icon name="lucide:arrow-left" class="w-4 h-4" />
-          All documents
-        </NuxtLink>
+        <BackLink :to="buildOrgPath('/documents')" label="All documents" />
 
         <!-- Loading -->
         <div v-if="pending" class="py-24 flex justify-center">
@@ -236,7 +229,6 @@ const downloadDocument = async () => {
             />
           </div>
         </template>
-      </div>
-    </div>
+    </PageContainer>
   </div>
 </template>

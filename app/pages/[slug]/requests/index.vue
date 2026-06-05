@@ -37,7 +37,7 @@ const onCreated = async (id: string) => {
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6 max-w-3xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold t-text">My Requests</h1>
@@ -63,6 +63,6 @@ const onCreated = async (id: string) => {
       <div class="ios-card p-2">
         <RequestsRequestList :requests="requests || []" :base-path="basePath" :loading="pending" />
       </div>
-    </div>
+    </PageContainer>
   </div>
 </template>

@@ -51,6 +51,8 @@ provideChartContext({
       '--vis-crosshair-circle-stroke-color': '#0000',
       '--vis-crosshair-line-stroke-width': cursor ? '1px' : '0px',
       '--vis-font-family': 'var(--font-sans)',
+      '--vis-axis-tick-label-font-size': '10px',
+      '--vis-axis-label-font-size': '10px',
     }"
   >
     <slot :id="uniqueId" :config="config" />

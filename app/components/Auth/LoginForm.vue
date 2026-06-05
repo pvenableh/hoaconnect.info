@@ -8,13 +8,6 @@ import { z } from "zod";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "vue-sonner";
 import { Loader2, AlertCircle } from "lucide-vue-next";
 
@@ -71,7 +64,7 @@ const clearFormError = () => {
 
 defineExpose({ setFormError, resetForm });
 
-const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const cardRef = ref<HTMLElement | null>(null);
 
 // Combined loading state from form submission and external loading
 const isProcessing = computed(() => isSubmitting.value || props.isLoading);
@@ -111,7 +104,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 onMounted(() => {
-  const el = cardRef.value?.$el;
+  const el = cardRef.value;
   if (el && $gsap) {
     $gsap.fromTo(
       el,
@@ -124,102 +117,106 @@ onMounted(() => {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <Card ref="cardRef">
-      <CardHeader>
-        <CardTitle class="text-2xl">
-          {{ organizationName ? `Login to ${organizationName}` : 'Login to your account' }}
-        </CardTitle>
-        <CardDescription>
+    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+      <div class="mb-7 space-y-1.5">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">
+          {{ organizationName ? `Sign in to ${organizationName}` : 'Sign in to your account' }}
+        </h1>
+        <p class="text-sm t-text-muted">
           <template v-if="allowedDomain">
-            Enter your {{ allowedDomain }} email to login
+            Enter your {{ allowedDomain }} email to continue
           </template>
           <template v-else>
-            Enter your email below to login to your account
+            Welcome back — enter your details to continue
           </template>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form @submit="onSubmit" class="space-y-2">
-          <!-- Form-level error alert -->
-          <Transition
-            enter-active-class="transition-all duration-300 ease-out"
-            leave-active-class="transition-all duration-200 ease-in"
-            enter-from-class="opacity-0 -translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 -translate-y-2"
+        </p>
+      </div>
+
+      <form @submit="onSubmit" class="space-y-2">
+        <!-- Form-level error alert -->
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          leave-active-class="transition-all duration-200 ease-in"
+          enter-from-class="opacity-0 -translate-y-2"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 -translate-y-2"
+        >
+          <div
+            v-if="formError"
+            class="flex items-center gap-2 p-3 mb-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl"
           >
-            <div
-              v-if="formError"
-              class="flex items-center gap-2 p-3 mb-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md"
-            >
-              <AlertCircle class="h-4 w-4 flex-shrink-0" />
-              <span>{{ formError }}</span>
-            </div>
-          </Transition>
+            <AlertCircle class="h-4 w-4 flex-shrink-0" />
+            <span>{{ formError }}</span>
+          </div>
+        </Transition>
 
-          <VeeField v-slot="{ field, errors }" name="email">
-            <FormCustomInput
-              id="email"
-              label="Email"
-              type="email"
-              :placeholder="allowedDomain ? `you@${allowedDomain}` : 'm@example.com'"
-              v-bind="field"
-              :error-message="errors[0]"
-              variant="underline"
-              :disabled="isProcessing"
-              @input="clearFormError"
-            />
-          </VeeField>
+        <VeeField v-slot="{ field, errors }" name="email">
+          <FormCustomInput
+            id="email"
+            label="Email"
+            type="email"
+            :placeholder="allowedDomain ? `you@${allowedDomain}` : 'm@example.com'"
+            v-bind="field"
+            :error-message="errors[0]"
+            variant="underline"
+            :disabled="isProcessing"
+            @input="clearFormError"
+          />
+        </VeeField>
 
-          <VeeField v-slot="{ field, errors }" name="password">
-            <FormCustomInput
-              id="password"
-              type="password"
-              v-bind="field"
-              :error-message="errors[0]"
-              variant="underline"
-              :disabled="isProcessing"
-              @input="clearFormError"
-            >
-              <template #label>
-                <label for="password" class="text-sm font-medium leading-none">
-                  Password
-                </label>
-              </template>
-              <template #label-end>
-                <button
-                  type="button"
-                  class="text-sm text-muted-foreground underline-offset-4 hover:underline hover:text-foreground transition-colors"
-                  @click="emit('forgot-password')"
-                  :disabled="isProcessing"
-                >
-                  Forgot your password?
-                </button>
-              </template>
-            </FormCustomInput>
-          </VeeField>
-
-          <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isProcessing">
-              <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
-              {{ isProcessing ? "Verifying credentials..." : "Login" }}
-            </Button>
-
-            <p class="text-center text-sm text-muted-foreground">
-              Don't have an account?
+        <VeeField v-slot="{ field, errors }" name="password">
+          <FormCustomInput
+            id="password"
+            type="password"
+            v-bind="field"
+            :error-message="errors[0]"
+            variant="underline"
+            :disabled="isProcessing"
+            @input="clearFormError"
+          >
+            <template #label>
+              <label for="password" class="text-sm font-medium leading-none t-text">
+                Password
+              </label>
+            </template>
+            <template #label-end>
               <button
                 type="button"
-                class="text-foreground underline-offset-4 hover:underline font-medium transition-colors"
-                @click="emit('register')"
+                class="text-sm t-text-muted hover:t-text underline-offset-4 hover:underline transition-colors"
+                @click="emit('forgot-password')"
                 :disabled="isProcessing"
               >
-                Sign up
+                Forgot password?
               </button>
-            </p>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+            </template>
+          </FormCustomInput>
+        </VeeField>
+
+        <div class="flex flex-col gap-4 pt-3">
+          <Button
+            type="submit"
+            size="lg"
+            class="w-full rounded-full"
+            :disabled="isProcessing"
+          >
+            <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
+            {{ isProcessing ? "Verifying credentials..." : "Sign in" }}
+          </Button>
+
+          <p class="text-center text-sm t-text-muted">
+            Don't have an account?
+            <button
+              type="button"
+              class="font-medium t-text-accent underline-offset-4 hover:underline transition-colors"
+              @click="emit('register')"
+              :disabled="isProcessing"
+            >
+              Sign up
+            </button>
+          </p>
+        </div>
+      </form>
+    </div>
   </div>
 </template>

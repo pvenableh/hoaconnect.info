@@ -279,8 +279,7 @@ const channelData = computed(() => {
 
 <template>
   <div class="ui-kit accent-cyan min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <!-- Glass hero header -->
         <WidgetGlass strong>
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">{{ stats.organization }}</p>
@@ -431,7 +430,6 @@ const channelData = computed(() => {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

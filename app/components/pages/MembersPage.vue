@@ -529,8 +529,7 @@ useSeoMeta({
 
 <template>
   <div class="ui-kit accent-cyan min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <WidgetGlass strong class="mb-8">
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Members</p>
           <h1 class="text-3xl font-semibold tracking-tight t-text">Manage Members</h1>
@@ -669,18 +668,18 @@ useSeoMeta({
           <Card>
             <CardContent class="pt-6">
               <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full text-sm">
                   <thead>
                     <tr class="border-b">
-                      <th class="text-left p-3">Name</th>
-                      <th class="text-left p-3">Email</th>
-                      <th class="text-left p-3">Phone</th>
-                      <th class="text-left p-3">Company</th>
-                      <th class="text-left p-3">Type</th>
-                      <th class="text-left p-3">Role</th>
-                      <th class="text-left p-3">Unit(s)</th>
-                      <th class="text-left p-3">Account</th>
-                      <th class="text-right p-3">Actions</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Phone</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Company</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Type</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
+                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Account</th>
+                      <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -719,21 +718,23 @@ useSeoMeta({
                           No
                         </span>
                       </td>
-                      <td class="p-3 text-right space-x-2">
-                        <Button
-                          @click="handleEdit(member)"
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Icon name="lucide:edit" class="w-4 h-4" />
-                        </Button>
-                        <Button
-                          @click="handleDelete(member.id)"
-                          variant="destructive"
-                          size="sm"
-                        >
-                          <Icon name="lucide:trash-2" class="w-4 h-4" />
-                        </Button>
+                      <td class="p-3">
+                        <div class="flex items-center justify-end gap-2">
+                          <Button
+                            @click="handleEdit(member)"
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Icon name="lucide:edit" class="w-4 h-4" />
+                          </Button>
+                          <Button
+                            @click="handleDelete(member.id)"
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <Icon name="lucide:trash-2" class="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -1242,7 +1243,6 @@ useSeoMeta({
           </DialogContent>
         </Dialog>
         </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

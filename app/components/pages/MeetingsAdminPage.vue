@@ -380,8 +380,7 @@ const handleDelete = async (id: string) => {
 
 <template>
   <div class="ui-kit accent-violet min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-5xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <!-- Glass hero -->
         <WidgetGlass strong class="flex items-center justify-between gap-4">
           <div>
@@ -485,8 +484,7 @@ const handleDelete = async (id: string) => {
             </Button>
           </div>
         </section>
-      </div>
-    </div>
+      </PageContainer>
 
     <!-- Create / edit dialog -->
     <Dialog v-model:open="showModal">

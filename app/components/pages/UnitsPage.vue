@@ -43,6 +43,7 @@ const removeUnit = async (unitId: string) => {
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId, currentOrg, isLoading } = await useSelectedOrg();
+const { buildOrgPath } = useOrgNavigation();
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -160,8 +161,7 @@ const handleDelete = async (id: string) => {
 
 <template>
   <div class="ui-kit accent-violet min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <!-- Loading State -->
         <div v-if="isLoading" class="text-center py-12">
           <Icon
@@ -204,31 +204,40 @@ const handleDelete = async (id: string) => {
           <!-- Units Grid -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card v-for="unit in units" :key="unit.id" class="relative">
-              <CardHeader>
-                <CardTitle class="text-center text-2xl">{{
-                  unit.unit_number
-                }}</CardTitle>
-                <CardDescription class="text-center capitalize">{{
-                  unit.status
-                }}</CardDescription>
-              </CardHeader>
-              <CardFooter class="flex gap-2">
-                <Button
-                  @click="handleEdit(unit)"
-                  variant="outline"
-                  size="sm"
-                  class="flex-1"
-                >
-                  Edit
+              <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)" class="block hover:opacity-80 transition-opacity">
+                <CardHeader>
+                  <CardTitle class="text-center text-2xl">{{
+                    unit.unit_number
+                  }}</CardTitle>
+                  <CardDescription class="text-center capitalize">{{
+                    unit.status
+                  }}</CardDescription>
+                </CardHeader>
+              </NuxtLink>
+              <CardFooter class="flex flex-col gap-2">
+                <Button as-child variant="secondary" size="sm" class="w-full">
+                  <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)">
+                    <Icon name="lucide:folder-open" class="w-4 h-4 mr-1.5" /> Records
+                  </NuxtLink>
                 </Button>
-                <Button
-                  @click="handleDelete(unit.id)"
-                  variant="destructive"
-                  size="sm"
-                  class="flex-1"
-                >
-                  Delete
-                </Button>
+                <div class="flex gap-2 w-full">
+                  <Button
+                    @click="handleEdit(unit)"
+                    variant="outline"
+                    size="sm"
+                    class="flex-1"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    @click="handleDelete(unit.id)"
+                    variant="destructive"
+                    size="sm"
+                    class="flex-1"
+                  >
+                    Delete
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
 
@@ -279,7 +288,6 @@ const handleDelete = async (id: string) => {
             </DialogContent>
           </Dialog>
         </template>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

@@ -32,14 +32,8 @@ const isAssignee = computed(() => !!user.value?.id && assignedById.value === use
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6 max-w-3xl mx-auto space-y-6">
-      <NuxtLink
-        :to="buildOrgPath('/admin/requests')"
-        class="inline-flex items-center gap-1.5 text-sm t-text-muted hover:t-text transition-colors"
-      >
-        <Icon name="lucide:arrow-left" class="w-4 h-4" />
-        All requests
-      </NuxtLink>
+    <PageContainer class="space-y-6">
+      <BackLink :to="buildOrgPath('/admin/requests')" label="All requests" />
 
       <div v-if="pending" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
 
@@ -54,6 +48,6 @@ const isAssignee = computed(() => !!user.value?.id && assignedById.value === use
       />
 
       <p v-else class="t-text-muted py-16 text-center">Request not found.</p>
-    </div>
+    </PageContainer>
   </div>
 </template>

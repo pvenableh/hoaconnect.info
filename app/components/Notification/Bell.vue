@@ -130,11 +130,11 @@ const getTypeLabel = (type: string) => {
     <button
       ref="buttonRef"
       @click="toggleDropdown"
-      class="relative p-2 rounded-lg hover:bg-stone-100 transition-colors focus:outline-none focus:ring-2 focus:ring-stone-300"
+      class="relative inline-flex items-center justify-center w-10 h-10 rounded-full t-bg-subtle t-text-secondary hover:t-text transition-colors focus:outline-none focus:ring-2 focus:ring-stone-300"
       :class="{ 'animate-bell-ring': shouldAnimate }"
       :aria-label="`Notifications${getUnseenCount > 0 ? ` (${getUnseenCount} unread)` : ''}`"
     >
-      <Icon name="lucide:bell" class="w-5 h-5 text-stone-600" />
+      <Icon name="lucide:bell" class="w-5 h-5" />
 
       <!-- Unseen Badge -->
       <span

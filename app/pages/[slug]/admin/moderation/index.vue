@@ -7,7 +7,7 @@ definePageMeta({
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6 max-w-2xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
       <div>
         <h1 class="text-2xl font-semibold t-text">Moderation</h1>
         <p class="text-sm t-text-muted mt-0.5">
@@ -16,6 +16,6 @@ definePageMeta({
       </div>
 
       <ModerationModerationQueue />
-    </div>
+    </PageContainer>
   </div>
 </template>

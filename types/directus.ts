@@ -212,7 +212,7 @@ export interface HoaChannelMessage {
 export interface HoaChannel {
 	/** @primaryKey */
 	id: string;
-	status?: 'published' | 'draft' | 'archived' | null;
+	status?: 'published' | 'draft' | 'archived' | 'deleted' | null;
 	sort?: number | null;
 	/** @description Channel name (e.g., general, announcements) @required */
 	name: string;
@@ -230,6 +230,12 @@ export interface HoaChannel {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+	/** @description The ticket this channel is the internal discussion thread for. */
+	request?: HoaRequest | string | null;
+	/** @description Pinned channels float to the top of the sidebar. */
+	is_pinned?: boolean | null;
+	/** @description Members enrolled in / invited to this channel. */
+	channel_members?: HoaChannelMember[] | string[];
 }
 
 export interface HoaCommentReport {
@@ -413,6 +419,33 @@ export interface HoaEmailsFile {
 	directus_files_id?: DirectusFile | string | null;
 }
 
+export interface HoaGovernance {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived' | null;
+	category?: 'bylaw' | 'rule' | 'ccr' | 'policy' | 'guideline' | null;
+	/** @required */
+	title: string;
+	/** @description e.g. "4.2.1" (sortable) */
+	section_number?: string | null;
+	effective_date?: string | null;
+	/** @description Short plain-text blurb (powers search snippets) */
+	summary?: string | null;
+	/** @description The rule body */
+	content?: string | null;
+	/** @description Keyword list */
+	tags?: string[] | null;
+	/** @description Parent section */
+	parent?: HoaGovernance | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	sort?: number | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_updated?: string | null;
+	user_updated?: DirectusUser | string | null;
+}
+
 export interface HoaInvitation {
 	/** @primaryKey */
 	id: string;
@@ -430,6 +463,32 @@ export interface HoaInvitation {
 	/** @required */
 	expires_at: string;
 	accepted_at?: string | null;
+}
+
+export interface HoaLease {
+	/** @primaryKey */
+	id: string;
+	status?: 'active' | 'expired' | 'terminated' | null;
+	/** @required */
+	unit: HoaUnit | string;
+	/** @description The lessee */
+	tenant?: HoaMember | string | null;
+	/** @description Landlord / owner (optional) */
+	owner?: HoaMember | string | null;
+	start_date?: string | null;
+	end_date?: string | null;
+	rent_amount?: number | null;
+	deposit_amount?: number | null;
+	/** @description Signed lease PDF */
+	document?: DirectusFile | string | null;
+	notes?: string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	sort?: number | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_updated?: string | null;
+	user_updated?: DirectusUser | string | null;
 }
 
 export interface HoaMailingListMember {
@@ -616,6 +675,8 @@ export interface HoaOrganization {
 	is_free_account?: boolean | null;
 	legal_name?: string | null;
 	type?: 'residential' | 'commercial' | null;
+	/** @description Per-org optional module on/off toggles (managed from Settings → Modules). Missing keys are treated as enabled. */
+	modules?: Record<string, any> | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -630,10 +691,18 @@ export interface HoaPet {
 	date_updated?: string | null;
 	member_id?: HoaMember | string | null;
 	name?: string | null;
-	type?: 'dog' | 'cat' | null;
+	type?: 'dog' | 'cat' | 'bird' | 'reptile' | 'other' | null;
 	breed?: string | null;
 	weight?: string | null;
 	image?: DirectusFile | string | null;
+	/** @description Tenancy (denormalized from member/unit) */
+	organization?: HoaOrganization | string | null;
+	/** @description The unit this record is tied to (persists across tenants) */
+	unit_id?: HoaUnit | string | null;
+	/** @description Registration / residency window start */
+	start_date?: string | null;
+	/** @description Set on move-out instead of deleting */
+	end_date?: string | null;
 }
 
 export interface HoaPoll {
@@ -716,6 +785,8 @@ export interface HoaRequest {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+	/** @description Parent ticket this request/task was spawned from. */
+	parent_request?: HoaRequest | string | null;
 }
 
 export interface HoaTeamMember {
@@ -764,6 +835,7 @@ export interface HoaUnit {
 	organization?: HoaOrganization | string | null;
 	unit_number?: string | null;
 	members?: HoaMemberUnit[] | string[];
+	leases?: HoaLease[] | string[];
 }
 
 export interface HoaVehicle {
@@ -782,6 +854,41 @@ export interface HoaVehicle {
 	parking_spot?: string | null;
 	image?: DirectusFile | string | null;
 	member_id?: HoaMember | string | null;
+	/** @description Tenancy (denormalized from member/unit) */
+	organization?: HoaOrganization | string | null;
+	/** @description The unit this record is tied to (persists across tenants) */
+	unit_id?: HoaUnit | string | null;
+	/** @description Registration / residency window start */
+	start_date?: string | null;
+	/** @description Set on move-out instead of deleting */
+	end_date?: string | null;
+}
+
+export interface PaymentExpense {
+	/** @primaryKey */
+	id: string;
+	status?: 'draft' | 'approved' | 'paid' | null;
+	category?: 'maintenance' | 'utilities' | 'insurance' | 'landscaping' | 'admin' | 'other' | null;
+	/** @required */
+	title: string;
+	/** @description Who was paid */
+	vendor?: string | null;
+	/** @description USD (decimal) @required */
+	amount: number;
+	expense_date?: string | null;
+	paid_date?: string | null;
+	description?: string | null;
+	/** @description Internal notes */
+	notes?: string | null;
+	/** @description Receipt or invoice */
+	receipt?: DirectusFile | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	sort?: number | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_updated?: string | null;
+	user_updated?: DirectusUser | string | null;
 }
 
 export interface PaymentRequest {
@@ -1365,7 +1472,9 @@ export interface Schema {
 	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_emails: HoaEmail[];
 	hoa_emails_files: HoaEmailsFile[];
+	hoa_governance: HoaGovernance[];
 	hoa_invitations: HoaInvitation[];
+	hoa_leases: HoaLease[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
 	hoa_meeting_attendees: HoaMeetingAttendee[];
@@ -1383,6 +1492,7 @@ export interface Schema {
 	hoa_teams: HoaTeam[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
+	payment_expenses: PaymentExpense[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
@@ -1437,7 +1547,9 @@ export enum CollectionNames {
 	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_emails = 'hoa_emails',
 	hoa_emails_files = 'hoa_emails_files',
+	hoa_governance = 'hoa_governance',
 	hoa_invitations = 'hoa_invitations',
+	hoa_leases = 'hoa_leases',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
 	hoa_meeting_attendees = 'hoa_meeting_attendees',
@@ -1455,6 +1567,7 @@ export enum CollectionNames {
 	hoa_teams = 'hoa_teams',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
+	payment_expenses = 'payment_expenses',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',

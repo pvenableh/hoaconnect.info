@@ -254,8 +254,7 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
 
         <!-- Modern Theme Layout -->
         <template v-if="isModern">
@@ -438,7 +437,6 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
           </Card>
         </template>
 
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

@@ -152,8 +152,7 @@ useSeoMeta({
 
 <template>
   <div class="ui-kit accent-cyan min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
           <div>
             <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Email</p>
@@ -461,7 +460,6 @@ useSeoMeta({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

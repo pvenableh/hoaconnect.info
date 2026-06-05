@@ -134,17 +134,26 @@ function loadPrefs() {
 export function useAppNav() {
   const route = useRoute();
   const { buildOrgPath, navigateToOrg } = useOrgNavigation();
+  const { isEnabled } = useModules();
 
   loadPrefs();
+
+  // Channels is an internal admin/board comms tool. It lives in ADMIN_APPS, but
+  // is ALSO injected into the dock for board members + channel-invited members
+  // (who otherwise get MEMBER_APPS) — see App/Dock.vue. Exported for that.
+  const CHANNELS_APP: AppDef = { key: "channels", label: "Channels", shortName: "Chat", icon: "messages-square", path: "/admin/channels", match: ["/admin/channels"] };
 
   const ADMIN_APPS: AppDef[] = [
     { key: "dashboard", label: "Dashboard", shortName: "Dash", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
     { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
     { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/admin/announcements", match: ["/admin/announcements", "/announcements"] },
-    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "users", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
+    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
+    { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
     { key: "directory", label: "Directory", shortName: "People", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/units"] },
     { key: "requests", label: "Requests", shortName: "Tickets", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests", "/requests"] },
+    CHANNELS_APP,
+    { key: "payments", label: "Finances", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
     { key: "moderation", label: "Moderation", shortName: "Mod", icon: "shield-alert", path: "/admin/moderation", match: ["/admin/moderation"] },
     { key: "email", label: "Email", shortName: "Email", icon: "mail", path: "/admin/email", match: ["/admin/email"] },
   ];
@@ -153,14 +162,19 @@ export function useAppNav() {
     { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
     { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
     { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/announcements", match: ["/announcements"] },
-    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "users", path: "/meetings", match: ["/meetings"] },
+    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
+    { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
     { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
     { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
     { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
   ];
 
-  const appsFor = (isAdmin: boolean): AppDef[] => (isAdmin ? ADMIN_APPS : MEMBER_APPS);
+  // Hide apps whose org module is toggled off (Track B). An app's `key` doubles
+  // as its module key; core apps (dashboard/home) aren't in any module map so
+  // isEnabled() returns true for them by default.
+  const appsFor = (isAdmin: boolean): AppDef[] =>
+    (isAdmin ? ADMIN_APPS : MEMBER_APPS).filter((app) => isEnabled(app.key));
 
   // Per-app accent sampled from the active palette ramp by the app's position
   const accentsForApps = (apps: AppDef[], paletteId: PaletteId = palette.value): HSL[] => {
@@ -225,6 +239,7 @@ export function useAppNav() {
     showLabels,
     glassChrome,
     appsFor,
+    CHANNELS_APP,
     accentsForApps,
     swatchesFor,
     activeKeyFor,

@@ -124,13 +124,7 @@ useSeoMeta({
 
         <!-- Back to Home Link -->
         <div class="text-center mt-12 pb-8">
-          <NuxtLink
-            :to="`/${slug}`"
-            class="inline-flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors"
-          >
-            <Icon name="heroicons:arrow-left" class="w-4 h-4" />
-            Back to {{ organization?.name || 'Home' }}
-          </NuxtLink>
+          <BackLink :to="`/${slug}`" :label="`Back to ${organization?.name || 'Home'}`" />
         </div>
       </div>
     </div>

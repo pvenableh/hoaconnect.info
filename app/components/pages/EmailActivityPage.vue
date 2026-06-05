@@ -339,8 +339,7 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <!-- Header -->
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
@@ -671,7 +670,6 @@ useSeoMeta({
             More" to see older events.
           </p>
         </template>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

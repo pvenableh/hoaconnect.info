@@ -435,8 +435,7 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <div class="mb-8">
           <h1 class="text-3xl font-bold mb-2">User Management</h1>
           <p class="t-text-secondary">
@@ -549,16 +548,16 @@ useSeoMeta({
             <Card>
               <CardContent class="pt-6">
                 <div class="overflow-x-auto">
-                  <table class="w-full">
+                  <table class="w-full text-sm">
                     <thead>
                       <tr class="border-b">
-                        <th class="text-left p-3">Name</th>
-                        <th class="text-left p-3">Email</th>
-                        <th class="text-left p-3">Role</th>
-                        <th class="text-left p-3">Unit(s)</th>
-                        <th class="text-left p-3">Status</th>
-                        <th class="text-left p-3">Last Access</th>
-                        <th class="text-right p-3">Actions</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
+                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Last Access</th>
+                        <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1012,7 +1011,6 @@ useSeoMeta({
             </DialogContent>
           </Dialog>
         </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

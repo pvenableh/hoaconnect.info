@@ -516,7 +516,7 @@ const handleBatchUploadComplete = async () => {
   <div class="ui-kit accent-blue min-h-screen t-bg t-text">
     <!-- Page Header Section -->
     <div class="t-bg-alt border-b t-border-divider">
-      <div class="max-w-7xl mx-auto px-6 py-12">
+      <div class="max-w-6xl mx-auto px-6 py-12">
         <div class="flex items-center justify-between">
           <div>
             <p class="t-label t-text-accent mb-3 tracking-widest">Resource Library</p>
@@ -542,7 +542,7 @@ const handleBatchUploadComplete = async () => {
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-6 py-10 space-y-8">
+    <div class="max-w-6xl mx-auto px-6 py-10 space-y-8">
       <!-- Category Manager (collapsible) -->
       <DocumentsCategoryManager v-if="showCategoryManager" />
 

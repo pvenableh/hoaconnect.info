@@ -50,38 +50,45 @@ const tickFormat = (i: number) => {
       <CardDescription>Activity breakdown by day</CardDescription>
     </CardHeader>
     <CardContent>
-      <ChartContainer :config="chartConfig" class="h-[200px] w-full">
-        <VisXYContainer :data="data">
-          <VisStackedBar
-            :x="x"
-            :y="y"
-            :color="color"
-            :roundedCorners="4"
-            :barPadding="0.3"
-          />
-          <VisAxis
-            type="x"
-            :tickFormat="tickFormat"
-            :gridLine="false"
-          />
-          <VisAxis
-            type="y"
-            :gridLine="true"
-          />
-        </VisXYContainer>
-      </ChartContainer>
+      <!-- unovis is not SSR-safe (and this data is client-only); render
+           client-only with a height-reserving fallback to avoid layout shift. -->
+      <ClientOnly>
+        <ChartContainer :config="chartConfig" class="h-[200px] w-full">
+          <VisXYContainer :data="data" :margin="{ top: 8, right: 12, bottom: 24, left: 40 }">
+            <VisStackedBar
+              :x="x"
+              :y="y"
+              :color="color"
+              :roundedCorners="4"
+              :barPadding="0.3"
+            />
+            <VisAxis
+              type="x"
+              :tickFormat="tickFormat"
+              :gridLine="false"
+            />
+            <VisAxis
+              type="y"
+              :gridLine="true"
+            />
+          </VisXYContainer>
+        </ChartContainer>
+        <template #fallback>
+          <div class="h-[200px] w-full" />
+        </template>
+      </ClientOnly>
       <div class="flex justify-center gap-4 mt-2">
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
-          <span class="text-sm text-muted-foreground">Documents</span>
+          <span class="text-xs text-muted-foreground">Documents</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
-          <span class="text-sm text-muted-foreground">Emails</span>
+          <span class="text-xs text-muted-foreground">Emails</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 rounded-full bg-[var(--chart-3)]" />
-          <span class="text-sm text-muted-foreground">New Members</span>
+          <span class="text-xs text-muted-foreground">New Members</span>
         </div>
       </div>
     </CardContent>

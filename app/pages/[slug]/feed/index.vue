@@ -11,7 +11,7 @@ const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <div class="p-6 max-w-2xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
       <div class="flex items-start justify-between gap-2">
         <div>
           <h1 class="text-2xl font-semibold t-text">Building</h1>
@@ -32,6 +32,6 @@ const isBoard = computed(() => isAdmin.value || isBoardMember.value);
         :is-board="isBoard"
         :is-member="isMember"
       />
-    </div>
+    </PageContainer>
   </div>
 </template>

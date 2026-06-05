@@ -79,6 +79,7 @@ export const useRequests = () => {
     due_date?: string | null;
     attachments?: string[];
     metadata?: Record<string, any>;
+    parent_request?: string | null;
   }) => {
     if (!selectedOrgId.value) throw new Error("No organization selected");
     const wf = getWorkflow(input.type);
@@ -96,6 +97,7 @@ export const useRequests = () => {
       attachments: input.attachments?.length ? input.attachments : null,
       metadata: { ...(input.metadata || {}), workflow_state: wf.initialState },
       organization: selectedOrgId.value,
+      ...(input.parent_request ? { parent_request: input.parent_request } : {}),
     } as RequestRow);
   };
 

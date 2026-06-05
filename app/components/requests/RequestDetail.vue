@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RequestRow } from "~/composables/useRequests";
+import { toast } from "vue-sonner";
 import {
   getWorkflow,
   getStateMeta,
@@ -19,7 +20,12 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: "updated"): void }>();
 
-const { applyTransition, updateRequest, currentState } = useRequests();
+const { applyTransition, updateRequest, currentState, createRequest } = useRequests();
+const { buildOrgPath } = useOrgNavigation();
+const { isEnabled } = useModules();
+const { list: listChannels } = useDirectusItems("hoa_channels");
+
+const channelsEnabled = computed(() => isEnabled("channels"));
 
 const local = ref<RequestRow>({ ...props.request });
 watch(
@@ -91,6 +97,90 @@ const saveMetadata = async () => {
 
 const formatDate = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";
+
+// ── Ticket ↔ channel / task integration (Track D) ──────────────────────────────
+const idOf = (v: any): string | null =>
+  v == null ? null : typeof v === "string" ? v : (v.id ?? null);
+
+const authorUserId = computed(() => idOf(props.request.submitted_by));
+const authorName = computed(() => personName(props.request.submitted_by));
+
+// Linked discussion channel (reverse lookup hoa_channels.request === this ticket).
+const linkedChannel = ref<{ id: string; name: string; slug: string } | null>(null);
+const loadLinkedChannel = async () => {
+  if (!channelsEnabled.value) return;
+  try {
+    const rows = (await listChannels({
+      fields: ["id", "name", "slug"],
+      filter: { request: { _eq: props.request.id } },
+      limit: 1,
+    })) as any[];
+    linkedChannel.value = rows?.[0] || null;
+  } catch {
+    // `request` field may not exist yet (pre-migration) — ignore.
+    linkedChannel.value = null;
+  }
+};
+onMounted(loadLinkedChannel);
+watch(() => props.request.id, loadLinkedChannel);
+
+const showSpawnDialog = ref(false);
+const inviteAuthor = ref(true);
+const spawningChannel = ref(false);
+const spawningTask = ref(false);
+
+const doSpawnChannel = async () => {
+  spawningChannel.value = true;
+  try {
+    const slug = `ticket-${props.request.id.slice(0, 8)}`;
+    const invite_users =
+      inviteAuthor.value && authorUserId.value ? [authorUserId.value] : [];
+    const { channel } = await $fetch<{ channel: any }>(
+      "/api/hoa/channels/create",
+      {
+        method: "POST",
+        body: {
+          organization: props.organizationId,
+          name: props.request.title
+            ? `Ticket: ${props.request.title}`.slice(0, 80)
+            : slug,
+          slug,
+          description: `Internal discussion for ticket "${props.request.title || slug}".`,
+          is_private: false,
+          request: props.request.id,
+          invite_users,
+        },
+      }
+    );
+    toast.success("Discussion channel created");
+    showSpawnDialog.value = false;
+    await navigateTo(buildOrgPath(`/admin/channels/${channel.slug}`));
+  } catch (e: any) {
+    toast.error(e?.data?.message || "Failed to create channel");
+  } finally {
+    spawningChannel.value = false;
+  }
+};
+
+const spawnTask = async () => {
+  spawningTask.value = true;
+  try {
+    const created: any = await createRequest({
+      type: "task",
+      title: `Follow-up: ${props.request.title || "ticket"}`.slice(0, 100),
+      description: props.request.description || undefined,
+      member: idOf(props.request.member),
+      unit: idOf(props.request.unit),
+      parent_request: props.request.id,
+    });
+    toast.success("Task created");
+    await navigateTo(buildOrgPath(`/admin/requests/${created.id}`));
+  } catch (e: any) {
+    toast.error(e?.message || "Failed to create task");
+  } finally {
+    spawningTask.value = false;
+  }
+};
 </script>
 
 <template>
@@ -153,7 +243,81 @@ const formatDate = (s: string | null | undefined) =>
           {{ t.label }}
         </Button>
       </div>
+
+      <!-- Spawn channel / task (board + admin) -->
+      <div
+        v-if="isBoard && channelsEnabled"
+        class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-stone-100"
+      >
+        <NuxtLink
+          v-if="linkedChannel"
+          :to="buildOrgPath(`/admin/channels/${linkedChannel.slug}`)"
+        >
+          <Button size="sm" variant="outline" class="rounded-full">
+            <Icon name="lucide:messages-square" class="w-3.5 h-3.5 mr-1" />
+            Discussion
+          </Button>
+        </NuxtLink>
+        <Button
+          v-else
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :disabled="spawningChannel"
+          @click="showSpawnDialog = true"
+        >
+          <Icon name="lucide:message-square-plus" class="w-3.5 h-3.5 mr-1" />
+          Spawn channel
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :disabled="spawningTask"
+          @click="spawnTask"
+        >
+          <Icon name="lucide:list-plus" class="w-3.5 h-3.5 mr-1" />
+          Spawn task
+        </Button>
+      </div>
     </div>
+
+    <!-- Spawn channel dialog -->
+    <Dialog v-model:open="showSpawnDialog">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Spawn discussion channel</DialogTitle>
+          <DialogDescription>
+            Creates an internal channel linked to this ticket. Admins and active
+            board members are added automatically.
+          </DialogDescription>
+        </DialogHeader>
+        <label
+          v-if="authorUserId"
+          class="flex items-center gap-2 text-sm t-text"
+        >
+          <input v-model="inviteAuthor" type="checkbox" class="rounded" />
+          Invite the ticket author{{ authorName ? ` (${authorName})` : "" }}
+        </label>
+        <DialogFooter class="gap-2">
+          <Button
+            variant="outline"
+            :disabled="spawningChannel"
+            @click="showSpawnDialog = false"
+          >
+            Cancel
+          </Button>
+          <Button :disabled="spawningChannel" @click="doSpawnChannel">
+            <Icon
+              v-if="spawningChannel"
+              name="lucide:loader-2"
+              class="w-4 h-4 mr-1 animate-spin"
+            />
+            Create channel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Metadata -->
     <div v-if="metaFields.length" class="ios-card p-6">

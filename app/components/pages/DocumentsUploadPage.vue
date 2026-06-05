@@ -188,8 +188,7 @@ const handleSubmit = async () => {
 
 <template>
   <div class="min-h-screen bg-stone-50">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
+    <PageContainer class="space-y-6">
         <!-- Header -->
         <div>
           <Button
@@ -348,7 +347,6 @@ const handleSubmit = async () => {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

@@ -263,27 +263,6 @@ function handlePremiumRequired() {
   router.push("/settings/subscription");
 }
 
-// Breadcrumb / location indicator — navigation now lives in the floating dock,
-// so the header just shows where you are: active app ▸ sub-page.
-const { appsFor, activeKeyFor } = useAppNav();
-const navApps = computed(() => appsFor(showAdminUI.value));
-const activeApp = computed(() => {
-  const key = activeKeyFor(navApps.value);
-  return navApps.value.find((a) => a.key === key) || null;
-});
-const subPage = computed(() => {
-  const slug = currentSlug.value;
-  const rel = slug ? route.path.replace(`/${slug}`, "") : route.path;
-  const segs = rel.split("/").filter(Boolean);
-  const last = segs[segs.length - 1];
-  if (!last) return null;
-  // Skip ids (uuid / numeric)
-  if (/^[0-9a-f]{8}-/i.test(last) || /^\d+$/.test(last)) return null;
-  const appTerminal = activeApp.value?.path.split("/").filter(Boolean).pop();
-  if (!appTerminal || last === appTerminal) return null;
-  return last.replace(/-/g, " ");
-});
-
 // Close mobile menu on route change
 watch(
   () => route.path,
@@ -296,13 +275,13 @@ watch(
 <template>
   <nav class="t-bg-elevated border-b t-border px-6">
     <div class="max-w-7xl mx-auto py-4">
-      <div class="flex justify-between items-center">
-        <!-- Logo / Brand -->
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        <!-- Logo / Brand — centered org identity -->
         <!-- On org page (slug route): link to org root -->
         <!-- Otherwise (main domain or custom domain): link to home -->
         <NuxtLink
           :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
-          class="flex items-center gap-2 hover:opacity-80 transition"
+          class="col-start-2 row-start-1 justify-self-center flex items-center gap-2 hover:opacity-80 transition"
         >
           <!-- Show org logo when on org page or logged in with org logo -->
           <template v-if="showOrgBranding && orgLogoUrl">
@@ -328,7 +307,7 @@ watch(
         </NuxtLink>
 
         <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->
-        <div v-if="isMainMarketingDomain" class="hidden md:flex gap-6">
+        <div v-if="isMainMarketingDomain" class="col-start-1 row-start-1 justify-self-start hidden md:flex gap-6">
           <a
             v-for="item in marketingNavItems"
             :key="item.path"
@@ -339,34 +318,8 @@ watch(
           </a>
         </div>
 
-        <!-- Location breadcrumb — navigation lives in the floating dock -->
-        <div
-          v-else-if="user && !hideNavForMaintenance"
-          class="hidden md:flex items-center gap-2 min-w-0"
-        >
-          <template v-if="activeApp">
-            <span class="inline-flex items-center gap-1.5 text-sm font-medium t-text">
-              <Icon :name="'i-lucide-' + activeApp.icon" class="w-4 h-4 t-text-accent" />
-              {{ activeApp.label }}
-            </span>
-            <template v-if="subPage">
-              <Icon name="i-lucide-chevron-right" class="w-3.5 h-3.5 t-text-muted" />
-              <span class="text-sm t-text-secondary capitalize">{{ subPage }}</span>
-            </template>
-          </template>
-        </div>
-
-        <!-- Empty spacer when logged in but in maintenance mode (non-admin) -->
-        <div
-          v-else-if="user && hideNavForMaintenance"
-          class="hidden md:flex"
-        ></div>
-
-        <!-- Empty spacer when on org page or custom domain but not logged in -->
-        <div v-else class="hidden md:flex"></div>
-
         <!-- User Menu (Authenticated) -->
-        <div v-if="user" class="flex items-center gap-4">
+        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-4">
           <!-- Notification Bell - show on org pages/custom domains -->
           <NotificationBell
             v-if="!isMainMarketingDomain"
@@ -592,7 +545,7 @@ watch(
         </div>
 
         <!-- Public User Menu -->
-        <div v-else class="flex items-center gap-4">
+        <div v-else class="col-start-3 row-start-1 justify-self-end flex items-center gap-4">
           <NuxtLink
             to="/auth/login"
             class="t-text-secondary hover:t-text uppercase text-xs tracking-wider"

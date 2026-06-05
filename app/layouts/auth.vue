@@ -1,6 +1,19 @@
 <script setup lang="ts">
 const { user } = useDirectusAuth();
 
+// Apply the app theme class on <html> during SSR so the first paint already
+// matches the app's default (modern) theme — prevents the flash of an unthemed/
+// classic background on refresh. The class is reactive and includes Tailwind's
+// `dark` class, so dark mode is preserved; initTheme() then syncs the user's
+// saved preference on the client.
+const { initTheme, themeState } = useTheme();
+const htmlThemeClass = computed(() => {
+  const base = `theme-${themeState.style}-${themeState.mode}`;
+  return themeState.mode === "dark" ? `${base} dark` : base;
+});
+useHead({ htmlAttrs: { class: htmlThemeClass } });
+onMounted(() => initTheme());
+
 // Always initialize useSelectedOrg - it handles the case when user is not logged in
 // This ensures the org data is ready when the user logs in
 const { currentOrg, isAdmin, isBoardMember, memberType, selectedOrgId } =
@@ -53,6 +66,8 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-background flex flex-col">
     <AppNav />
+    <!-- Slim breadcrumb row beneath the header (hidden on root pages) -->
+    <AppBreadcrumbs />
     <!-- Subscription warning banner -->
     <SubscriptionBanner
       v-if="currentOrg?.organization"

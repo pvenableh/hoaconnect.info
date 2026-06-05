@@ -151,8 +151,9 @@ const authorName = computed(() => {
 
 <template>
   <div
+    :id="`msg-${message.id}`"
     :class="[
-      'group flex flex-col gap-2',
+      'group flex flex-col gap-2 scroll-mt-20 rounded-lg transition-colors',
       isReply ? 'pl-8 border-l-2 border-stone-100 dark:border-stone-800' : '',
     ]"
   >
@@ -195,6 +196,14 @@ const authorName = computed(() => {
           class="prose prose-sm dark:prose-invert max-w-none text-stone-700 dark:text-stone-300"
           v-html="message.content"
         />
+
+        <!-- Reactions (universal reaction system) -->
+        <div class="mt-1.5">
+          <CommentsReactionBar
+            target-collection="hoa_channel_messages"
+            :target-id="message.id"
+          />
+        </div>
 
         <!-- Message Actions -->
         <div

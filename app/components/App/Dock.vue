@@ -10,6 +10,7 @@ const {
   showLabels,
   glassChrome,
   appsFor,
+  CHANNELS_APP,
   accentsForApps,
   activeKeyFor,
   go,
@@ -18,13 +19,30 @@ const {
 
 // Role detection (mirrors App/Nav.vue)
 const { isAdmin } = user.value ? await useSelectedOrg() : { isAdmin: ref(false) };
-const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { isAdminOfCurrentDomain, isBoardMemberOfCurrentDomain } = useCurrentDomainAccess();
 const isOnOrgPage = computed(() => !!route.params.slug);
 const showAdminUI = computed(() =>
   isOnOrgPage.value ? isAdminOfCurrentDomain.value : isAdmin.value
 );
 
-const apps = computed(() => appsFor(showAdminUI.value));
+// Channels is an internal admin/board tool. Admins get it via ADMIN_APPS; board
+// members + channel-invited members otherwise see MEMBER_APPS, so inject it for
+// them (when the org has the module enabled).
+const { isEnabled } = useModules();
+const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
+onMounted(refreshChannelAccess);
+watch(() => route.params.slug, refreshChannelAccess);
+
+const apps = computed(() => {
+  const base = appsFor(showAdminUI.value);
+  const wantChannels =
+    isEnabled("channels") &&
+    (isBoardMemberOfCurrentDomain.value || hasChannelMembership.value);
+  if (wantChannels && !base.some((a) => a.key === "channels")) {
+    return [...base, CHANNELS_APP];
+  }
+  return base;
+});
 const accents = computed(() => accentsForApps(apps.value, palette.value));
 const activeKey = computed(() => activeKeyFor(apps.value));
 const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeKey.value));

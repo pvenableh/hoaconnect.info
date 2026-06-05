@@ -331,8 +331,7 @@ useSeoMeta({
 
 <template>
   <div class="ui-kit accent-amber min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <WidgetGlass strong class="mb-8">
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Announcements</p>
           <h1 class="text-3xl font-semibold tracking-tight t-text">Manage Announcements</h1>
@@ -734,7 +733,6 @@ useSeoMeta({
             </DialogContent>
           </Dialog>
         </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

@@ -250,8 +250,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
 <template>
   <div class="ui-kit accent-blue min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto space-y-8">
+    <PageContainer class="space-y-8">
         <!-- Welcome Header -->
         <WidgetGlass strong class="text-center py-8">
           <!-- Organization Logo -->
@@ -505,7 +504,6 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             Go to Admin Dashboard
           </Button>
         </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>

@@ -250,8 +250,7 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen bg-stone-50">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
         <!-- Header -->
         <div class="mb-6">
           <Button variant="ghost" size="sm" @click="handleBack" class="mb-4">
@@ -698,8 +697,7 @@ useSeoMeta({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>
 

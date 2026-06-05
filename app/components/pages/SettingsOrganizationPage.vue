@@ -1,7 +1,6 @@
 <template>
   <div class="ui-kit accent-blue min-h-screen t-bg">
-    <div class="p-6">
-      <div class="max-w-7xl mx-auto">
+    <PageContainer>
       <!-- Loading State -->
       <div
         v-if="isLoading || !isHydrated"
@@ -64,18 +63,26 @@
             />
           </TabsContent>
 
+          <!-- Modules Tab -->
+          <TabsContent value="modules" class="space-y-6">
+            <SettingsModulesForm
+              :organization="organization"
+              @updated="handleOrganizationUpdate"
+            />
+          </TabsContent>
+
           <!-- Subscription Tab -->
           <TabsContent value="subscription" class="space-y-6">
             <SettingsSubscriptionSettingsCard :organization="organization" />
           </TabsContent>
 
-          <!-- Payment Settings Tab - Hidden for now -->
-          <!-- <TabsContent value="payments" class="space-y-6">
+          <!-- Payment Settings Tab (surfaces Stripe Connect payouts + dues/late fees) -->
+          <TabsContent value="payments" class="space-y-6">
             <SettingsPaymentSettingsForm
               :organization="organization"
               @updated="handleOrganizationUpdate"
             />
-          </TabsContent> -->
+          </TabsContent>
         </Tabs>
       </template>
 
@@ -93,8 +100,7 @@
           Go to Dashboard
         </Button>
       </div>
-      </div>
-    </div>
+      </PageContainer>
   </div>
 </template>
 
@@ -128,7 +134,8 @@ const allTabs = [
   { id: "general", label: "General", icon: "lucide:building-2" },
   { id: "branding", label: "Branding", icon: "lucide:palette" },
   { id: "seo", label: "SEO", icon: "lucide:search" },
-  // { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" }, // Hidden for now
+  { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" },
+  { id: "modules", label: "Modules", icon: "lucide:toggle-right" },
   { id: "subscription", label: "Subscription", icon: "lucide:sparkles" },
 ];
 

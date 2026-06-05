@@ -1,0 +1,283 @@
+<script setup lang="ts">
+import type { PaymentRequest, PaymentTransaction } from "~~/types/directus";
+
+definePageMeta({
+  middleware: ["auth", "subscription"],
+  layout: "auth",
+});
+
+const { user } = useDirectusAuth();
+const { selectedOrgId, currentOrg } = await useSelectedOrg();
+const { list: listRequests } = useDirectusItems<PaymentRequest>("payment_requests");
+const { list: listTransactions } = useDirectusItems<PaymentTransaction>("payment_transactions");
+
+// The member's hoa_members id (payment_requests.member is a hoa_members M2O).
+const memberId = computed(() => currentOrg.value?.id ?? null);
+const userEmail = computed(() => user.value?.email || "");
+
+// --- Data ---------------------------------------------------------------
+const { data: requests, pending, refresh } = await useAsyncData(
+  `member-payments-${selectedOrgId.value}`,
+  async () => {
+    if (!selectedOrgId.value || !memberId.value) return [];
+    const rows = await listRequests({
+      fields: [
+        "id", "title", "description", "status", "request_type",
+        "amount", "amount_paid", "amount_remaining", "due_date", "paid_at",
+        "organization", "member",
+      ],
+      filter: {
+        organization: { _eq: selectedOrgId.value },
+        member: { _eq: memberId.value },
+        status: { _neq: "draft" },
+      },
+      sort: ["-date_created"],
+    });
+    return (rows || []) as PaymentRequest[];
+  },
+  { watch: [selectedOrgId, memberId], server: false }
+);
+
+const { data: transactions } = await useAsyncData(
+  `member-transactions-${selectedOrgId.value}`,
+  async () => {
+    if (!selectedOrgId.value || !memberId.value) return [];
+    const rows = await listTransactions({
+      fields: ["id", "amount", "status", "description", "receipt_url", "date_created", "stripe_payment_method"],
+      filter: {
+        organization: { _eq: selectedOrgId.value },
+        member: { _eq: memberId.value },
+        status: { _eq: "succeeded" },
+      },
+      sort: ["-date_created"],
+      limit: 20,
+    });
+    return (rows || []) as PaymentTransaction[];
+  },
+  { watch: [selectedOrgId, memberId], server: false }
+);
+
+const outstanding = computed(() =>
+  (requests.value || []).filter((r) =>
+    ["active", "overdue", "partially_paid"].includes(r.status as string)
+  )
+);
+const paid = computed(() =>
+  (requests.value || []).filter((r) => r.status === "paid")
+);
+const totalDue = computed(() =>
+  outstanding.value.reduce((sum, r) => sum + (r.amount_remaining ?? r.amount ?? 0), 0)
+);
+
+// --- Pay flow -----------------------------------------------------------
+const showPaymentModal = ref(false);
+const selectedRequest = ref<PaymentRequest | null>(null);
+
+const payRequest = (request: PaymentRequest) => {
+  selectedRequest.value = request;
+  showPaymentModal.value = true;
+};
+
+const handlePaymentSuccess = async () => {
+  showPaymentModal.value = false;
+  selectedRequest.value = null;
+  // Stripe confirms async via webhook; refresh shortly after to pick up status.
+  setTimeout(() => refresh(), 1500);
+};
+const handlePaymentError = (error: Error) => {
+  console.error("Payment error:", error);
+};
+
+// --- Formatting ---------------------------------------------------------
+const currency = (value?: number | null) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
+
+const formatDate = (date?: string | null) => {
+  if (!date) return "No due date";
+  return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  active: "Due", overdue: "Overdue", partially_paid: "Partially Paid",
+  paid: "Paid", canceled: "Canceled",
+};
+const TYPE_LABEL: Record<string, string> = {
+  monthly_dues: "Monthly Dues", assessment: "Assessment", late_fee: "Late Fee", other: "Other",
+};
+</script>
+
+<template>
+  <div class="ui-kit accent-emerald min-h-screen t-bg">
+    <PageContainer class="space-y-6">
+      <!-- Glass hero -->
+      <WidgetGlass strong>
+        <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Payments</p>
+        <h1 class="text-3xl font-semibold tracking-tight t-text">My Payments</h1>
+        <p class="t-text-secondary mt-1">
+          View and pay your HOA dues, assessments, and other charges.
+        </p>
+        <p v-if="totalDue > 0" class="mt-3 text-lg font-semibold t-text">
+          {{ currency(totalDue) }} <span class="t-text-muted font-normal">currently due</span>
+        </p>
+      </WidgetGlass>
+
+      <!-- Loading -->
+      <div v-if="pending" class="flex justify-center items-center py-16">
+        <span class="spinner-ios spinner-ios--xl" />
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="!requests?.length" class="ios-card p-12 text-center">
+        <Icon name="heroicons:check-circle" class="mx-auto h-14 w-14 t-text-muted mb-3" />
+        <h3 class="text-lg font-medium t-text mb-1">You're all caught up</h3>
+        <p class="t-text-muted">You don't have any payment requests at this time.</p>
+      </div>
+
+      <template v-else>
+        <!-- Outstanding -->
+        <section v-if="outstanding.length" class="space-y-3">
+          <h2 class="text-lg font-semibold t-text">Outstanding</h2>
+          <div
+            v-for="request in outstanding"
+            :key="request.id"
+            class="ios-card p-5 border-l-4"
+            :class="{
+              'border-red-500': request.status === 'overdue',
+              'border-amber-500': request.status === 'active',
+              'border-blue-500': request.status === 'partially_paid',
+            }"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="font-semibold t-text">{{ request.title }}</h3>
+                  <span
+                    class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium"
+                    :class="{
+                      'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200': request.status === 'overdue',
+                      'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200': request.status === 'active',
+                      'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200': request.status === 'partially_paid',
+                    }"
+                  >{{ STATUS_LABEL[request.status as string] || request.status }}</span>
+                </div>
+                <p v-if="request.description" class="text-sm t-text-muted mt-1">{{ request.description }}</p>
+                <div class="flex items-center gap-4 text-sm t-text-muted mt-2">
+                  <span class="inline-flex items-center gap-1">
+                    <Icon name="heroicons:calendar" class="h-4 w-4" /> Due {{ formatDate(request.due_date) }}
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <Icon name="heroicons:tag" class="h-4 w-4" /> {{ TYPE_LABEL[request.request_type as string] || request.request_type }}
+                  </span>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="text-2xl font-bold tabular-nums t-text">
+                  {{ currency(request.amount_remaining ?? request.amount) }}
+                </p>
+                <p v-if="(request.amount_paid || 0) > 0" class="text-sm t-text-muted">
+                  of {{ currency(request.amount) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Partial progress -->
+            <div v-if="request.status === 'partially_paid' && request.amount" class="mt-4">
+              <div class="w-full bg-black/[0.06] dark:bg-white/[0.08] rounded-full h-2">
+                <div
+                  class="bg-blue-600 h-2 rounded-full"
+                  :style="{ width: `${Math.min(100, ((request.amount_paid || 0) / request.amount) * 100)}%` }"
+                />
+              </div>
+              <p class="text-xs t-text-muted mt-1">{{ currency(request.amount_paid) }} paid</p>
+            </div>
+
+            <div class="mt-4">
+              <Button class="rounded-full" @click="payRequest(request)">
+                <Icon name="heroicons:credit-card" class="mr-2 h-4 w-4" /> Pay Now
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Payment history (transactions with receipts) -->
+        <section v-if="transactions?.length || paid.length" class="space-y-3">
+          <h2 class="text-lg font-semibold t-text">Payment History</h2>
+
+          <div class="ios-card overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-black/[0.06] dark:border-white/[0.08]">
+                  <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Description</th>
+                  <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Date</th>
+                  <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Amount</th>
+                  <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="tx in transactions"
+                  :key="tx.id"
+                  class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
+                >
+                  <td class="py-2.5 px-4 t-text">{{ tx.description || "Payment" }}</td>
+                  <td class="py-2.5 px-4 t-text-muted">{{ formatDate(tx.date_created) }}</td>
+                  <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(tx.amount) }}</td>
+                  <td class="py-2.5 px-4 text-right">
+                    <a
+                      v-if="tx.receipt_url"
+                      :href="tx.receipt_url"
+                      target="_blank"
+                      rel="noopener"
+                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
+                      title="View receipt"
+                    >
+                      <Icon name="heroicons:arrow-top-right-on-square" class="h-4 w-4" />
+                    </a>
+                    <span v-else class="t-text-muted">—</span>
+                  </td>
+                </tr>
+                <!-- Paid requests without a linked transaction (e.g. recorded offline) -->
+                <tr
+                  v-for="request in paid"
+                  :key="request.id"
+                  class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
+                >
+                  <td class="py-2.5 px-4 t-text">{{ request.title }}</td>
+                  <td class="py-2.5 px-4 t-text-muted">{{ formatDate(request.paid_at) }}</td>
+                  <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(request.amount) }}</td>
+                  <td class="py-2.5 px-4 text-right t-text-muted">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </template>
+
+      <!-- Payment modal -->
+      <Dialog v-model:open="showPaymentModal">
+        <DialogContent class="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Make Payment</DialogTitle>
+            <DialogDescription>{{ selectedRequest?.title }}</DialogDescription>
+          </DialogHeader>
+          <div v-if="selectedRequest" class="py-2">
+            <PaymentMethods
+              :email="userEmail"
+              :amount="selectedRequest.amount_remaining ?? selectedRequest.amount ?? 0"
+              :metadata="{
+                organizationId: selectedRequest.organization,
+                memberId: selectedRequest.member,
+                paymentRequestId: selectedRequest.id,
+                description: selectedRequest.title,
+                routeDuesToConnect: true,
+              }"
+              return-url="/payments?payment_success=true"
+              @success="handlePaymentSuccess"
+              @error="handlePaymentError"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
+  </div>
+</template>
