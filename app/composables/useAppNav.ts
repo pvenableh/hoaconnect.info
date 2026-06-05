@@ -139,16 +139,19 @@ export function useAppNav() {
 
   const ADMIN_APPS: AppDef[] = [
     { key: "dashboard", label: "Dashboard", shortName: "Dash", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
+    { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
     { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/admin/announcements", match: ["/admin/announcements", "/announcements"] },
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "users", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
     { key: "directory", label: "Directory", shortName: "People", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/units"] },
     { key: "requests", label: "Requests", shortName: "Tickets", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests", "/requests"] },
+    { key: "moderation", label: "Moderation", shortName: "Mod", icon: "shield-alert", path: "/admin/moderation", match: ["/admin/moderation"] },
     { key: "email", label: "Email", shortName: "Email", icon: "mail", path: "/admin/email", match: ["/admin/email"] },
   ];
 
   const MEMBER_APPS: AppDef[] = [
     { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
+    { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
     { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/announcements", match: ["/announcements"] },
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "users", path: "/meetings", match: ["/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },

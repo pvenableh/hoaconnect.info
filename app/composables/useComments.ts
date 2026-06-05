@@ -28,6 +28,10 @@ export interface Comment {
   mentioned_users?: string[] | null;
   is_edited?: boolean | null;
   is_internal?: boolean | null;
+  is_hidden?: boolean | null;
+  hidden_reason?: string | null;
+  hidden_by?: CommentUserRef | string | null;
+  report_count?: number | null;
   organization?: string | null;
   user_created?: CommentUserRef | string | null;
   date_created?: string | null;
@@ -49,6 +53,9 @@ const COMMENT_FIELDS = [
   "mentioned_users",
   "is_edited",
   "is_internal",
+  "is_hidden",
+  "hidden_reason",
+  "report_count",
   "organization",
   "date_created",
   "date_updated",
@@ -161,6 +168,52 @@ export const useComments = (
     await refresh();
   };
 
+  // --- Moderation (board/admin) ---
+  const hideComment = async (id: string, reason?: string) => {
+    await update(id, {
+      is_hidden: true,
+      hidden_reason: reason || null,
+      hidden_by: user.value?.id || null,
+    } as Partial<Comment>);
+    await refresh();
+  };
+
+  const unhideComment = async (id: string) => {
+    await update(id, {
+      is_hidden: false,
+      hidden_reason: null,
+      hidden_by: null,
+    } as Partial<Comment>);
+    await refresh();
+  };
+
+  // --- Reporting (any member) ---
+  const reportComment = async (
+    commentId: string,
+    reason: string,
+    details?: string
+  ) => {
+    if (!selectedOrgId.value) throw new Error("No organization selected");
+    const { create: createReport } = useDirectusItems("hoa_comment_reports");
+    await createReport({
+      comment: commentId,
+      reason,
+      details: details || null,
+      status: "open",
+      organization: selectedOrgId.value,
+    });
+    // Best-effort denormalized bump so moderators see activity quickly.
+    try {
+      const target = (comments.value || []).find((c) => c.id === commentId);
+      await update(commentId, {
+        report_count: (target?.report_count || 0) + 1,
+      } as Partial<Comment>);
+    } catch {
+      /* non-fatal — report row is the source of truth */
+    }
+    await refresh();
+  };
+
   const isAuthor = (comment: Comment): boolean => {
     const authorId =
       typeof comment.user_created === "string"
@@ -184,6 +237,9 @@ export const useComments = (
     createComment,
     editComment,
     deleteComment,
+    hideComment,
+    unhideComment,
+    reportComment,
     isAuthor,
   };
 };

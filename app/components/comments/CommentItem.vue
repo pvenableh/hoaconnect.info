@@ -10,26 +10,52 @@ const props = withDefaults(
     canReact?: boolean;
     canReply?: boolean;
     canPostInternal?: boolean;
+    /** board/admin may hide/unhide any comment */
+    canModerate?: boolean;
     depth?: number;
   }>(),
   {
     canReact: true,
     canReply: true,
     canPostInternal: false,
+    canModerate: false,
     depth: 0,
   }
 );
 
 const config = useRuntimeConfig();
+const { user } = useDirectusAuth();
 const { getUrl } = useDirectusFiles();
-const { editComment, deleteComment, isAuthor } = useComments(
-  props.targetCollection,
-  () => props.targetId
-);
+const {
+  editComment,
+  deleteComment,
+  isAuthor,
+  hideComment,
+  unhideComment,
+  reportComment,
+} = useComments(props.targetCollection, () => props.targetId);
 
 const showReply = ref(false);
 const isEditing = ref(false);
 const editBody = ref("");
+const showReportDialog = ref(false);
+
+// A moderator viewing a hidden comment can reveal it; everyone else just sees
+// the muted placeholder (members never receive hidden rows from the API).
+const revealHidden = ref(false);
+const showBody = computed(
+  () => !props.comment.is_hidden || (props.canModerate && revealHidden.value)
+);
+
+const onReport = async (payload: { reason: string; details?: string }) => {
+  try {
+    await reportComment(props.comment.id, payload.reason, payload.details);
+  } catch (e) {
+    console.error("Failed to report comment:", e);
+  } finally {
+    showReportDialog.value = false;
+  }
+};
 
 const author = computed(() =>
   typeof props.comment.user_created === "object" ? props.comment.user_created : null
@@ -83,7 +109,13 @@ const onDelete = async () => {
     <div class="flex-1 min-w-0">
       <div
         class="rounded-2xl px-3 py-2"
-        :class="comment.is_internal ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-stone-50'"
+        :class="
+          comment.is_hidden
+            ? 'bg-red-50/60 ring-1 ring-red-200'
+            : comment.is_internal
+            ? 'bg-amber-50 ring-1 ring-amber-200'
+            : 'bg-stone-50'
+        "
       >
         <div class="flex items-center gap-2 mb-0.5">
           <span class="text-sm font-medium text-stone-900">{{ authorName }}</span>
@@ -93,8 +125,21 @@ const onDelete = async () => {
           >
             <Icon name="lucide:lock" class="w-2.5 h-2.5" /> Internal
           </span>
+          <span
+            v-if="comment.is_hidden"
+            class="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-700"
+          >
+            <Icon name="lucide:eye-off" class="w-2.5 h-2.5" /> Hidden
+          </span>
           <span class="text-xs text-stone-400">{{ formatDate(comment.date_created) }}</span>
           <span v-if="comment.is_edited" class="text-xs text-stone-400">(edited)</span>
+          <span
+            v-if="canModerate && (comment.report_count || 0) > 0"
+            class="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-600"
+            :title="`${comment.report_count} report(s)`"
+          >
+            <Icon name="lucide:flag" class="w-2.5 h-2.5" /> {{ comment.report_count }}
+          </span>
         </div>
 
         <!-- Edit mode -->
@@ -113,6 +158,20 @@ const onDelete = async () => {
           </div>
         </div>
 
+        <!-- Hidden placeholder -->
+        <div v-else-if="comment.is_hidden && !showBody" class="text-sm text-red-700/80 italic flex items-center gap-2">
+          <Icon name="lucide:eye-off" class="w-4 h-4" />
+          This comment was hidden by a moderator{{ comment.hidden_reason ? ` — ${comment.hidden_reason}` : "" }}.
+          <button
+            v-if="canModerate"
+            type="button"
+            class="not-italic text-xs underline text-red-700"
+            @click="revealHidden = true"
+          >
+            Reveal
+          </button>
+        </div>
+
         <!-- Body -->
         <div
           v-else
@@ -121,7 +180,7 @@ const onDelete = async () => {
         />
 
         <!-- Attachments -->
-        <div v-if="comment.attachments?.length" class="flex flex-wrap gap-1.5 mt-2">
+        <div v-if="comment.attachments?.length && showBody" class="flex flex-wrap gap-1.5 mt-2">
           <a
             v-for="id in comment.attachments"
             :key="id"
@@ -167,7 +226,38 @@ const onDelete = async () => {
         >
           Delete
         </button>
+        <button
+          v-if="!mine && user?.id"
+          type="button"
+          class="text-xs text-stone-400 hover:text-red-600"
+          @click="showReportDialog = true"
+        >
+          Report
+        </button>
+        <button
+          v-if="canModerate && !comment.is_hidden"
+          type="button"
+          class="text-xs text-stone-400 hover:text-red-600 inline-flex items-center gap-0.5"
+          @click="hideComment(comment.id)"
+        >
+          <Icon name="lucide:eye-off" class="w-3 h-3" /> Hide
+        </button>
+        <button
+          v-if="canModerate && comment.is_hidden"
+          type="button"
+          class="text-xs text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-0.5"
+          @click="unhideComment(comment.id)"
+        >
+          <Icon name="lucide:eye" class="w-3 h-3" /> Unhide
+        </button>
       </div>
+
+      <!-- Report dialog -->
+      <CommentsReportDialog
+        v-if="showReportDialog"
+        @submit="onReport"
+        @cancel="showReportDialog = false"
+      />
 
       <!-- Reply composer -->
       <div v-if="showReply" class="mt-2">
@@ -195,6 +285,7 @@ const onDelete = async () => {
           :can-react="canReact"
           :can-reply="canReply"
           :can-post-internal="canPostInternal"
+          :can-moderate="canModerate"
           :depth="depth + 1"
         />
       </div>

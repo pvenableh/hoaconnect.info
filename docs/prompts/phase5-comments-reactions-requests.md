@@ -1,5 +1,19 @@
 # Prompt — Phase 5: Universal comments + reactions, and the Requests/Tickets system
 
+> **Update (this session):** built on top of the rails below —
+> (1) a unified **Building activity feed** (`/{slug}/feed`, `Building` dock app)
+> that aggregates announcements + meetings + documents into one stream, each item
+> reactable and commentable via the polymorphic rails;
+> (2) **admin comment moderation** — `hoa_comments.{is_hidden,hidden_reason,
+> hidden_by,report_count}`, a Hide/Unhide control in `CommentItem`, hidden
+> comments filtered from members (shown as a reveal-able placeholder to board);
+> (3) a **report-a-comment** system — `hoa_comment_reports` collection,
+> `ReportDialog`, and an admin **Moderation** queue (`/{slug}/admin/moderation`,
+> `Moderation` dock app) to dismiss or hide reported comments. The
+> `create-comments-collections.ts` script now also creates `hoa_comment_reports`
+> and the moderation fields — re-run `pnpm create:comments` (idempotent) +
+> `pnpm generate:types`.
+
 > Hand this to a fresh Claude Code session in the `hoaconnect` repo. It is
 > self-contained. Skim `docs/ROADMAP.md` for strategic context and
 > `docs/channels-schema.md` for the pattern this work mirrors. The product is a

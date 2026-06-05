@@ -47,9 +47,12 @@ const canComment = computed(() => can(cap.value.comment, viewer.value));
 const canReact = computed(() => can(cap.value.react, viewer.value));
 const canPostInternal = computed(() => can(cap.value.internal, viewer.value));
 
-// Members never see internal comments; board does.
+// Members never see internal or moderator-hidden comments; board sees all
+// (hidden ones render as a reveal-able placeholder).
 const visibleThread = computed(() =>
-  props.isBoard ? threaded.value : threaded.value.filter((c) => !c.is_internal)
+  props.isBoard
+    ? threaded.value
+    : threaded.value.filter((c) => !c.is_internal && !c.is_hidden)
 );
 </script>
 
@@ -90,6 +93,7 @@ const visibleThread = computed(() =>
         :can-react="canReact"
         :can-reply="canComment"
         :can-post-internal="canPostInternal"
+        :can-moderate="isBoard"
       />
     </div>
 

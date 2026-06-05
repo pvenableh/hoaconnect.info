@@ -312,8 +312,124 @@ async function createCommentsCollection(): Promise<void> {
     },
   });
 
+  // --- Moderation fields ---
+  await createField("hoa_comments", "is_hidden", {
+    type: "boolean",
+    schema: { default_value: false },
+    meta: {
+      interface: "boolean",
+      width: "half",
+      note: "Hidden by a moderator — not shown to members",
+    },
+  });
+
+  await createField("hoa_comments", "hidden_reason", {
+    type: "string",
+    meta: { interface: "input", width: "half", note: "Why the comment was hidden" },
+  });
+
+  await createField("hoa_comments", "hidden_by", {
+    type: "uuid",
+    meta: {
+      interface: "select-dropdown-m2o",
+      display: "user",
+      width: "half",
+      note: "Moderator who hid the comment",
+    },
+  });
+  await createRelation({
+    collection: "hoa_comments",
+    field: "hidden_by",
+    related_collection: "directus_users",
+    schema: { on_delete: "SET NULL" },
+  });
+
+  await createField("hoa_comments", "report_count", {
+    type: "integer",
+    schema: { default_value: 0 },
+    meta: { interface: "input", width: "half", readonly: true, note: "Open report count (denormalized)" },
+  });
+
   await addOrganizationField("hoa_comments");
   await addSystemFields("hoa_comments");
+}
+
+// ============================================
+// hoa_comment_reports — member-filed reports on a comment
+// ============================================
+const REPORT_STATUS_CHOICES = [
+  { text: "Open", value: "open", color: "var(--theme--warning)" },
+  { text: "Reviewed", value: "reviewed", color: "var(--theme--primary)" },
+  { text: "Dismissed", value: "dismissed", color: "var(--theme--foreground-subdued)" },
+  { text: "Actioned", value: "actioned", color: "var(--theme--success)" },
+];
+
+const REPORT_REASON_CHOICES = [
+  { text: "Vulgar / offensive", value: "vulgar" },
+  { text: "Harassment", value: "harassment" },
+  { text: "Spam", value: "spam" },
+  { text: "Off-topic", value: "off_topic" },
+  { text: "Other", value: "other" },
+];
+
+async function createReportsCollection(): Promise<void> {
+  console.log("\n📁 Creating hoa_comment_reports collection...");
+
+  await createCollection("hoa_comment_reports", {
+    collection: "hoa_comment_reports",
+    icon: "flag",
+    note: "Member-filed reports on a comment, for the moderation queue",
+    display_template: "{{reason}} · {{status}}",
+  });
+
+  await createField("hoa_comment_reports", "status", {
+    type: "string",
+    schema: { default_value: "open" },
+    meta: { interface: "select-dropdown", display: "labels", width: "half", options: { choices: REPORT_STATUS_CHOICES } },
+  });
+
+  await createField("hoa_comment_reports", "reason", {
+    type: "string",
+    schema: { is_nullable: false, default_value: "vulgar" },
+    meta: { interface: "select-dropdown", display: "labels", width: "half", required: true, options: { choices: REPORT_REASON_CHOICES } },
+  });
+
+  await createField("hoa_comment_reports", "details", {
+    type: "text",
+    meta: { interface: "input-multiline", width: "full", note: "Optional context from the reporter" },
+  });
+
+  // The reported comment (M2O)
+  await createField("hoa_comment_reports", "comment", {
+    type: "uuid",
+    schema: { is_nullable: false },
+    meta: { interface: "select-dropdown-m2o", required: true, width: "half", display: "related-values" },
+  });
+  await createRelation({
+    collection: "hoa_comment_reports",
+    field: "comment",
+    related_collection: "hoa_comments",
+    schema: { on_delete: "CASCADE" },
+  });
+
+  await createField("hoa_comment_reports", "reporter", {
+    type: "uuid",
+    meta: { interface: "select-dropdown-m2o", display: "user", width: "half", special: ["user-created"] },
+  });
+  await createRelation({
+    collection: "hoa_comment_reports",
+    field: "reporter",
+    related_collection: "directus_users",
+    schema: { on_delete: "SET NULL" },
+  });
+
+  await createField("hoa_comment_reports", "resolution_note", {
+    type: "text",
+    meta: { interface: "input-multiline", width: "full", note: "Moderator note on resolution" },
+  });
+
+  await addOrganizationField("hoa_comment_reports");
+  await addSystemFields("hoa_comment_reports");
 }
 
 // ============================================
@@ -430,11 +546,12 @@ async function setupPermissions(): Promise<void> {
   const memberPolicy = memberRole ? await getRolePolicy(memberRole.id, memberRole.name) : null;
 
   const orgFilter = { organization: { _eq: "$CURRENT_USER.organization" } };
-  // Members never see internal comments
+  // Members never see internal or moderator-hidden comments
   const memberReadFilter = {
     _and: [
       { organization: { _eq: "$CURRENT_USER.organization" } },
       { is_internal: { _eq: false } },
+      { is_hidden: { _neq: true } },
       { status: { _neq: "deleted" } },
     ],
   };
@@ -473,6 +590,28 @@ async function setupPermissions(): Promise<void> {
         create: { permissions: {}, validation: orgFilter, fields: ["*"] },
         read: { permissions: orgFilter, validation: null, fields: ["*"] },
         delete: { permissions: { _and: [orgFilter, { user: { _eq: "$CURRENT_USER" } }] }, validation: null, fields: ["*"] },
+      },
+    },
+    {
+      collection: "hoa_comment_reports",
+      adminPermissions: {
+        create: { permissions: {}, validation: orgFilter, fields: ["*"] },
+        read: { permissions: orgFilter, validation: null, fields: ["*"] },
+        update: { permissions: orgFilter, validation: orgFilter, fields: ["*"] },
+        delete: { permissions: orgFilter, validation: null, fields: ["*"] },
+      },
+      memberPermissions: {
+        // Members may file a report and read only their own.
+        create: {
+          permissions: {},
+          validation: { _and: [orgFilter, { reporter: { _eq: "$CURRENT_USER" } }] },
+          fields: ["*"],
+        },
+        read: {
+          permissions: { _and: [orgFilter, { reporter: { _eq: "$CURRENT_USER" } }] },
+          validation: null,
+          fields: ["*"],
+        },
       },
     },
   ];
@@ -519,8 +658,9 @@ async function main(): Promise<void> {
   try {
     await createCommentsCollection();
     await createReactionsCollection();
+    await createReportsCollection();
     await setupPermissions();
-    console.log("\n✅ Comments + reactions collections and permissions complete!");
+    console.log("\n✅ Comments + reactions + reports collections and permissions complete!");
     console.log("\n📌 Next steps:");
     console.log("   1. Run `pnpm generate:types` to refresh types/directus.ts");
     console.log("   2. Drop CommentThread + ReactionBar onto an entity detail view");
