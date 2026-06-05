@@ -95,15 +95,19 @@ const confirmDelete = (id: string) => {
 
 // Navigation
 const goToCompose = () => {
-  navigateToOrg("/admin/email/compose");
+  navigateToOrg("/admin/communications/compose");
 };
 
 const goToActivity = () => {
-  navigateToOrg("/admin/email/activity");
+  navigateToOrg("/admin/communications/activity");
+};
+
+const goToTemplates = () => {
+  navigateToOrg("/admin/communications/templates");
 };
 
 const goToEmail = (id: string) => {
-  navigateToOrg(`/admin/email/${id}`);
+  navigateToOrg(`/admin/communications/${id}`);
 };
 
 const goToPage = (page: number) => {
@@ -136,6 +140,7 @@ const getStatusBadgeClass = (status: string) => {
 const getEmailTypeBadgeClass = (type: string) => {
   const classes: Record<string, string> = {
     basic: "t-bg-subtle t-text-secondary",
+    alert: "bg-red-100 text-red-700",
     newsletter: "bg-sky-100 text-sky-700",
     announcement: "bg-orange-100 text-orange-700",
     reminder: "bg-amber-100 text-amber-700",
@@ -155,20 +160,24 @@ useSeoMeta({
     <PageContainer>
         <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
           <div>
-            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Email</p>
-            <h1 class="text-3xl font-semibold tracking-tight t-text">Email Management</h1>
+            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications</p>
+            <h1 class="text-3xl font-semibold tracking-tight t-text">Communications</h1>
             <p class="t-text-secondary mt-1">
-              Send emails to your HOA members individually or in bulk
+              Email your members — alerts, newsletters, reminders, and notices
             </p>
           </div>
-          <div class="flex gap-3">
+          <div class="flex flex-wrap gap-3">
+            <Button @click="goToTemplates" variant="outline" size="lg">
+              <Icon name="lucide:layout-template" class="w-5 h-5 mr-2" />
+              Templates
+            </Button>
             <Button @click="goToActivity" variant="outline" size="lg">
               <Icon name="lucide:activity" class="w-5 h-5 mr-2" />
-              Email Activity
+              Activity
             </Button>
             <Button @click="goToCompose" size="lg">
               <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
-              Compose Email
+              Compose
             </Button>
           </div>
         </WidgetGlass>

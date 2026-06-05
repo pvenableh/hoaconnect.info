@@ -14,6 +14,7 @@ const {
   selectedOrgId,
   currentOrg,
   isAdmin,
+  isMember,
   memberType,
   isOwner,
   isTenant,
@@ -25,6 +26,33 @@ const {
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed<HoaOrganization | null>(() => currentOrg.value?.organization || null);
 const memberInfo = computed(() => currentOrg.value);
+
+// ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
+const route = useRoute();
+const router = useRouter();
+const { isEnabled } = useModules();
+const feedEnabled = computed(() => isEnabled("feed"));
+const isBoard = computed(() => isAdmin.value || isBoardMember.value);
+
+const normalizeTab = (t: unknown): string => {
+  const tab = typeof t === "string" ? t : "overview";
+  if (tab === "building" && !feedEnabled.value) return "overview";
+  return tab === "building" ? "building" : "overview";
+};
+const activeTab = ref(normalizeTab(route.query.tab));
+watch(
+  () => route.query.tab,
+  (t) => {
+    const tab = normalizeTab(t);
+    if (tab !== activeTab.value) activeTab.value = tab;
+  }
+);
+watch(activeTab, (t) => {
+  const q = t === "overview" ? undefined : t;
+  if ((route.query.tab as string | undefined) !== q) {
+    router.replace({ query: { ...route.query, tab: q } });
+  }
+});
 
 // Get org logo URL
 const orgLogoUrl = computed(() => {
@@ -295,6 +323,19 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </div>
         </WidgetGlass>
 
+        <Tabs v-model="activeTab" class="space-y-8">
+          <TabsList class="flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview">
+              <Icon name="lucide:layout-dashboard" class="w-4 h-4 mr-1.5" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger v-if="feedEnabled" value="building">
+              <Icon name="lucide:building-2" class="w-4 h-4 mr-1.5" />
+              Building
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" class="space-y-8 mt-0">
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <DashboardStatsCard
@@ -410,9 +451,6 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </CardContent>
         </Card>
 
-        <!-- Announcements -->
-        <DashboardAnnouncementsList :announcements="announcements || []" />
-
         <!-- Recent Documents -->
         <Card>
           <CardHeader>
@@ -504,6 +542,31 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             Go to Admin Dashboard
           </Button>
         </div>
+          </TabsContent>
+
+          <!-- Building feed tab -->
+          <TabsContent v-if="feedEnabled" value="building" class="space-y-6 mt-0">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h2 class="text-xl font-semibold t-text">Building</h2>
+                <p class="text-sm t-text-muted mt-0.5">
+                  Everything happening in your community — react and join the conversation.
+                </p>
+              </div>
+              <NuxtLink :to="buildOrgPath('/polls')">
+                <Button variant="outline" class="rounded-full">
+                  <Icon name="lucide:bar-chart-3" class="w-4 h-4 mr-1.5" />
+                  Polls
+                </Button>
+              </NuxtLink>
+            </div>
+            <FeedActivityFeed
+              :organization-id="selectedOrgId"
+              :is-board="isBoard"
+              :is-member="isMember"
+            />
+          </TabsContent>
+        </Tabs>
       </PageContainer>
   </div>
 </template>

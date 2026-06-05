@@ -24,6 +24,7 @@ const getStatusColor = (status: string | null | undefined) => {
 
 const getTypeIcon = (type: string | null | undefined) => {
   const icons: Record<string, string> = {
+    alert: "heroicons:exclamation-triangle",
     newsletter: "heroicons:newspaper",
     announcement: "heroicons:megaphone",
     reminder: "heroicons:bell",

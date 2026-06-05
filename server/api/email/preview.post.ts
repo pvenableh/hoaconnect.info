@@ -1,5 +1,6 @@
 import { readItem, readItems, readFiles } from "@directus/sdk";
-import { buildEmailHtml, type EmailType } from "../../utils/email-templates-mjml";
+import { buildEmailHtml, buildRawEmailHtml, type EmailType } from "../../utils/email-templates-mjml";
+import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
 interface PreviewEmailBody {
@@ -7,6 +8,7 @@ interface PreviewEmailBody {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: "visual" | "mjml";
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
@@ -22,6 +24,7 @@ export default defineEventHandler(async (event) => {
     subject,
     content,
     emailType,
+    contentMode = "visual",
     greeting,
     salutation,
     includeBoardFooter = true,
@@ -88,17 +91,23 @@ export default defineEventHandler(async (event) => {
     console.log(`[preview.post] Building preview with content (${content.length} chars): "${content.substring(0, 200)}..."`);
     console.log(`[preview.post] Email type: ${emailType}`);
 
-    const html = buildEmailHtml({
-      organization,
-      subject,
-      content,
-      emailType,
-      greeting,
-      salutation,
-      boardMembers: includeBoardFooter ? boardMembers : undefined,
-      directusUrl: config.directus.url,
-      forPreview: true,
-    });
+    // Raw MJML/HTML mode: render the author's content directly. Visual mode:
+    // wrap the Tiptap content in the typed MJML chrome as before.
+    // Merge tokens are substituted with sample values so the preview is realistic.
+    const html =
+      contentMode === "mjml"
+        ? buildRawEmailHtml(applyMergeFields(content, SAMPLE_MERGE_VALUES(organization)))
+        : buildEmailHtml({
+            organization,
+            subject,
+            content,
+            emailType,
+            greeting,
+            salutation,
+            boardMembers: includeBoardFooter ? boardMembers : undefined,
+            directusUrl: config.directus.url,
+            forPreview: true,
+          });
 
     console.log(`[preview.post] Preview HTML generated (${html.length} chars)`);
     console.log(`[preview.post] HTML preview: "${html.substring(0, 500)}..."`);
