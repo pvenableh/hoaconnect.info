@@ -6,6 +6,37 @@
 > multi-tenant HOA SaaS (Nuxt 4 + Directus, code name **Property Flow**), aiming to
 > be a **one-stop-shop for HOAs**. Strategic context: `docs/ROADMAP.md`.
 
+## Session status (branch `feat/roadmap-notifications-connect-phase5`)
+
+All four tracks were advanced and committed on this branch (off `main`):
+
+- **A — Notification center: DONE.** payment/document/membership categories +
+  comment/request categories, dynamic filter chips, Sheet deep-links, dock
+  badges, and the new `/{slug}/documents/{id}` detail page (fixes the broken
+  deep-link). Frontend-only; queries existing collections. Live demo (publish a
+  meeting, watch the badge) still needs a manual preview login.
+- **B — Stripe Connect: CODE COMPLETE, not activated.** Connect routes, webhook
+  events, dues routing, org-settings card, migration script. See
+  `phaseB-stripe-connect.md` for the activation checklist (run migration, set
+  fee %, wire `routeDuesToConnect`, Stripe test webhooks).
+- **C — Phase 5 comments/reactions/requests: BUILT.** Polymorphic comment +
+  reaction rails, requests/tickets system (Tier 1 + Tier 2 config), Requests
+  dock app + pages, notification wiring. Collection scripts written but **NOT
+  run** — `pnpm create:comments && pnpm create:requests`, then
+  `pnpm generate:types`, before the UI has data.
+- **D — Landing themes + 1033: landing DONE, migration scaffolded.** Per-tenant
+  landing style applied; `migrate-1033.ts` needs the 1033 source creds + mapping
+  confirmation. See `phaseD-landing-themes-1033.md`.
+
+**Backend scripts were intentionally NOT executed** (they mutate the live
+Directus and were gated on confirmation). To finish: run the create/migration
+scripts in order, `pnpm generate:types`, add permissions, then verify in the
+preview with a manual login. New scripts:
+`add-connect-fields`, `create-comments-collections`,
+`create-requests-collections`, `extend-landing-theme`, `migrate-1033`.
+
+---
+
 ## Where we are (committed as of the last session)
 
 A large design + feature pass is in `main` (commit `8bb0a0a`):
