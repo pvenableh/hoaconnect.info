@@ -66,6 +66,37 @@ const goToMeetings = () => {
   router.push(buildOrgPath("/meetings"));
 };
 
+// Navigate to the payments app
+const goToPayments = () => {
+  closeNotification();
+  router.push(buildOrgPath("/payments"));
+};
+
+// Navigate to a document detail page
+const goToDocument = () => {
+  if (!selectedNotification.value) return;
+  const documentId = selectedNotification.value.metadata.documentId;
+  closeNotification();
+  router.push(
+    buildOrgPath(documentId ? `/documents/${documentId}` : "/documents")
+  );
+};
+
+// Navigate to the member directory
+const goToDirectory = () => {
+  closeNotification();
+  router.push(buildOrgPath("/admin/members"));
+};
+
+// Format a currency amount
+const formatAmount = (amount: number | undefined): string => {
+  if (amount == null) return "";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+};
+
 // Handle sheet close
 const handleOpenChange = (open: boolean) => {
   if (!open) {
@@ -301,6 +332,85 @@ const formatFullDate = (dateString: string | null | undefined): string => {
                 class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
               >
                 View meeting
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Payment Content -->
+          <template v-else-if="selectedNotification.type === 'payment'">
+            <div class="p-4 bg-stone-50 rounded-lg space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-stone-500">Amount due</span>
+                <span class="text-lg font-semibold text-stone-900">
+                  {{ formatAmount(selectedNotification.metadata.amount) }}
+                </span>
+              </div>
+              <div
+                v-if="selectedNotification.metadata.dueDate"
+                class="flex items-center justify-between"
+              >
+                <span class="text-sm text-stone-500">Due</span>
+                <span class="text-sm text-stone-700">
+                  {{ formatFullDate(selectedNotification.metadata.dueDate) }}
+                </span>
+              </div>
+              <p
+                v-if="selectedNotification.content"
+                class="text-sm text-stone-600 pt-2 border-t border-stone-200"
+              >
+                {{ selectedNotification.content }}
+              </p>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToPayments"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View payment
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Document Content -->
+          <template v-else-if="selectedNotification.type === 'document'">
+            <p class="text-stone-600">
+              A new document is available in your community library.
+            </p>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToDocument"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View document
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Membership Content -->
+          <template v-else-if="selectedNotification.type === 'membership'">
+            <div class="p-4 bg-stone-50 rounded-lg">
+              <p class="text-stone-900">
+                {{ selectedNotification.title }}
+              </p>
+              <p
+                v-if="selectedNotification.content"
+                class="text-sm text-stone-500 mt-1"
+              >
+                {{ selectedNotification.content }}
+              </p>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToDirectory"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View directory
                 <Icon name="lucide:arrow-right" class="w-4 h-4" />
               </button>
             </div>

@@ -22,11 +22,21 @@ import type {
   HoaChannelMessage,
   HoaChannel,
   HoaMeeting,
+  HoaDocument,
+  HoaMember,
+  PaymentRequest,
   DirectusUser,
 } from "~~/types/directus";
 
 // Notification types
-export type NotificationType = "announcement" | "mention" | "email" | "meeting";
+export type NotificationType =
+  | "announcement"
+  | "mention"
+  | "email"
+  | "meeting"
+  | "payment"
+  | "document"
+  | "membership";
 
 // Unified notification interface
 export interface UnifiedNotification {
@@ -58,9 +68,27 @@ export interface UnifiedNotification {
     meetingId?: string;
     meetingType?: string;
     meetingDate?: string;
+    // Payment specific
+    paymentId?: string;
+    paymentRequestType?: string;
+    amount?: number;
+    dueDate?: string;
+    // Document specific
+    documentId?: string;
+    documentCategory?: string;
+    // Membership specific
+    memberId?: string;
+    memberStatus?: string;
   };
   // Original data for detail view
-  originalData: HoaAnnouncement | HoaChannelMention | HoaEmailRecipient | HoaMeeting;
+  originalData:
+    | HoaAnnouncement
+    | HoaChannelMention
+    | HoaEmailRecipient
+    | HoaMeeting
+    | PaymentRequest
+    | HoaDocument
+    | HoaMember;
 }
 
 // Storage key prefix for seen tracking
@@ -81,6 +109,9 @@ export const useNotifications = () => {
     "hoa_email_recipients"
   );
   const { list: listMeetings } = useDirectusItems("hoa_meetings");
+  const { list: listPaymentRequests } = useDirectusItems("payment_requests");
+  const { list: listDocuments } = useDirectusItems("hoa_documents");
+  const { list: listMembers } = useDirectusItems("hoa_members");
 
   // Access shared state from useSelectedOrg
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -232,6 +263,86 @@ export const useNotifications = () => {
         meetingDate: meeting.meeting_date || undefined,
       },
       originalData: meeting,
+    };
+  };
+
+  // Transform payment request to unified notification (member-facing)
+  const PAYMENT_TYPE_LABELS: Record<string, string> = {
+    monthly_dues: "Monthly Dues",
+    assessment: "Assessment",
+    late_fee: "Late Fee",
+    other: "Payment",
+  };
+  const transformPayment = (
+    payment: PaymentRequest
+  ): UnifiedNotification => {
+    const isRead = isSeen(payment.id, "payment");
+    const isOverdue = payment.status === "overdue";
+    return {
+      id: payment.id,
+      type: "payment",
+      title: payment.title || "Payment Request",
+      subtitle: PAYMENT_TYPE_LABELS[payment.request_type || "other"] || "Payment",
+      content: payment.description || undefined,
+      date: payment.due_date || payment.date_created || "",
+      isRead,
+      priority: isOverdue ? "urgent" : "high",
+      metadata: {
+        paymentId: payment.id,
+        paymentRequestType: payment.request_type || "other",
+        amount: payment.amount ?? undefined,
+        dueDate: payment.due_date || undefined,
+      },
+      originalData: payment,
+    };
+  };
+
+  // Transform document to unified notification (newly published docs)
+  const transformDocument = (doc: HoaDocument): UnifiedNotification => {
+    const isRead = isSeen(doc.id, "document");
+    const category =
+      typeof doc.document_category === "object" && doc.document_category
+        ? doc.document_category.name
+        : undefined;
+    return {
+      id: doc.id,
+      type: "document",
+      title: doc.title || "New Document",
+      subtitle: category || "Document",
+      content: undefined,
+      date: doc.date_published || doc.date_created || "",
+      isRead,
+      priority: "normal",
+      metadata: {
+        documentId: doc.id,
+        documentCategory: category || undefined,
+      },
+      originalData: doc,
+    };
+  };
+
+  // Transform member to unified notification (membership activity, admin-facing)
+  const transformMembership = (member: HoaMember): UnifiedNotification => {
+    const isRead = isSeen(member.id, "membership");
+    const name =
+      `${member.first_name || ""} ${member.last_name || ""}`.trim() ||
+      member.email ||
+      "New member";
+    const isPending = member.status === "pending";
+    return {
+      id: member.id,
+      type: "membership",
+      title: isPending ? `${name} requested to join` : `${name} joined`,
+      subtitle: isPending ? "Pending approval" : "New member",
+      content: member.email || undefined,
+      date: member.date_created || "",
+      isRead,
+      priority: isPending ? "high" : "normal",
+      metadata: {
+        memberId: member.id,
+        memberStatus: member.status || undefined,
+      },
+      originalData: member,
     };
   };
 
@@ -435,6 +546,80 @@ export const useNotifications = () => {
         console.warn("Failed to fetch meeting notifications:", e);
       }
 
+      // Fetch outstanding payment requests for the current user (member-facing).
+      // Isolated so a failure can't drop the rest.
+      try {
+        const payments = (await listPaymentRequests({
+          fields: [
+            "id",
+            "title",
+            "description",
+            "request_type",
+            "status",
+            "amount",
+            "due_date",
+            "date_created",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            member: { user: { _eq: user.value.id } },
+            status: { _in: ["active", "partially_paid", "overdue"] },
+          },
+          sort: ["-date_created"],
+          limit: 20,
+        })) as PaymentRequest[];
+        allNotifications.push(...payments.map(transformPayment));
+      } catch (e) {
+        console.warn("Failed to fetch payment notifications:", e);
+      }
+
+      // Fetch recently published documents for the org. Isolated.
+      try {
+        const documents = (await listDocuments({
+          fields: [
+            "id",
+            "title",
+            "status",
+            "date_published",
+            "date_created",
+            "document_category.id",
+            "document_category.name",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            status: { _eq: "published" },
+          },
+          sort: ["-date_published", "-date_created"],
+          limit: 15,
+        })) as HoaDocument[];
+        allNotifications.push(...documents.map(transformDocument));
+      } catch (e) {
+        console.warn("Failed to fetch document notifications:", e);
+      }
+
+      // Fetch pending membership requests for the org (admin-facing). Isolated.
+      try {
+        const members = (await listMembers({
+          fields: [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "status",
+            "date_created",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            status: { _eq: "pending" },
+          },
+          sort: ["-date_created"],
+          limit: 20,
+        })) as HoaMember[];
+        allNotifications.push(...members.map(transformMembership));
+      } catch (e) {
+        console.warn("Failed to fetch membership notifications:", e);
+      }
+
       // Sort all notifications by date (newest first)
       allNotifications.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -488,6 +673,9 @@ export const useNotifications = () => {
     localStorage.removeItem(getStorageKey("mention"));
     localStorage.removeItem(getStorageKey("email"));
     localStorage.removeItem(getStorageKey("meeting"));
+    localStorage.removeItem(getStorageKey("payment"));
+    localStorage.removeItem(getStorageKey("document"));
+    localStorage.removeItem(getStorageKey("membership"));
   };
 
   // Helper functions
@@ -553,6 +741,20 @@ export const useNotifications = () => {
 
     if (notification.type === "meeting") {
       return { bg: "bg-violet-50", text: "text-violet-700", icon: "users" };
+    }
+
+    if (notification.type === "payment") {
+      return notification.priority === "urgent"
+        ? { bg: "bg-red-50", text: "text-red-700", icon: "credit-card" }
+        : { bg: "bg-emerald-50", text: "text-emerald-700", icon: "credit-card" };
+    }
+
+    if (notification.type === "document") {
+      return { bg: "bg-sky-50", text: "text-sky-700", icon: "file-text" };
+    }
+
+    if (notification.type === "membership") {
+      return { bg: "bg-indigo-50", text: "text-indigo-700", icon: "user-plus" };
     }
 
     return { bg: "bg-stone-50", text: "text-stone-700", icon: "bell" };

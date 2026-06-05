@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import type { UnifiedNotification } from "~/composables/useNotifications";
+import type {
+  UnifiedNotification,
+  NotificationType,
+} from "~/composables/useNotifications";
 
 const {
   notifications,
   getUnseenCount,
+  getUnseenCountByType,
   openNotification,
   markAllAsSeen,
   getNotificationStyle,
   formatDate,
 } = useNotifications();
+
+type FilterKey = "all" | NotificationType;
 
 // Get org navigation helpers for building correct paths
 const { buildOrgPath } = useOrgNavigation();
@@ -22,7 +28,7 @@ const dropdownRef = ref<HTMLElement | null>(null);
 const buttonRef = ref<HTMLElement | null>(null);
 
 // Active filter tab
-const activeFilter = ref<"all" | "announcement" | "mention" | "email">("all");
+const activeFilter = ref<FilterKey>("all");
 
 // Filter notifications by type
 const filteredNotifications = computed(() => {
@@ -32,15 +38,31 @@ const filteredNotifications = computed(() => {
   return notifications.value.filter((n) => n.type === activeFilter.value);
 });
 
-// Get counts by type
-const announcementCount = computed(
-  () => notifications.value.filter((n) => n.type === "announcement" && !n.isRead).length
-);
-const mentionCount = computed(
-  () => notifications.value.filter((n) => n.type === "mention" && !n.isRead).length
-);
-const emailCount = computed(
-  () => notifications.value.filter((n) => n.type === "email" && !n.isRead).length
+// Category tabs — "all" plus one chip per notification type. Each chip shows
+// its unread count and only the categories present (or "all") are rendered.
+const TAB_DEFS: { key: FilterKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "announcement", label: "Announcements" },
+  { key: "meeting", label: "Meetings" },
+  { key: "payment", label: "Payments" },
+  { key: "document", label: "Documents" },
+  { key: "membership", label: "Members" },
+  { key: "mention", label: "Mentions" },
+  { key: "email", label: "Email" },
+];
+
+const tabs = computed(() =>
+  TAB_DEFS.filter(
+    (t) =>
+      t.key === "all" ||
+      notifications.value.some((n) => n.type === t.key)
+  ).map((t) => ({
+    ...t,
+    count:
+      t.key === "all"
+        ? getUnseenCount.value
+        : getUnseenCountByType(t.key as NotificationType),
+  }))
 );
 
 // Close dropdown when clicking outside
@@ -89,6 +111,10 @@ const getTypeLabel = (type: string) => {
     announcement: "Announcement",
     mention: "Mention",
     email: "Email",
+    meeting: "Meeting",
+    payment: "Payment",
+    document: "Document",
+    membership: "Member",
   };
   return labels[type] || type;
 };
@@ -141,32 +167,27 @@ const getTypeLabel = (type: string) => {
           </button>
         </div>
 
-        <!-- Filter Tabs -->
-        <div class="flex border-b border-stone-100">
+        <!-- Filter Chips (horizontally scrollable) -->
+        <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-stone-100 no-scrollbar">
           <button
-            v-for="tab in [
-              { key: 'all', label: 'All', count: getUnseenCount },
-              { key: 'announcement', label: 'Announcements', count: announcementCount },
-              { key: 'mention', label: 'Mentions', count: mentionCount },
-              { key: 'email', label: 'Emails', count: emailCount },
-            ]"
+            v-for="tab in tabs"
             :key="tab.key"
-            @click="activeFilter = tab.key as any"
-            class="flex-1 px-3 py-2 text-xs font-medium transition-colors relative"
+            @click="activeFilter = tab.key"
+            class="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full transition-colors"
             :class="
               activeFilter === tab.key
-                ? 'text-stone-900 border-b-2 border-stone-900'
-                : 'text-stone-500 hover:text-stone-700'
+                ? 'bg-stone-900 text-white'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             "
           >
             {{ tab.label }}
             <span
               v-if="tab.count > 0"
-              class="ml-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-medium rounded-full"
+              class="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-semibold rounded-full"
               :class="
                 activeFilter === tab.key
-                  ? 'bg-stone-900 text-white'
-                  : 'bg-stone-200 text-stone-600'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-stone-300/70 text-stone-700'
               "
             >
               {{ tab.count > 9 ? "9+" : tab.count }}
@@ -301,5 +322,14 @@ const getTypeLabel = (type: string) => {
 .animate-bell-ring {
   animation: bell-ring 1s ease-in-out;
   animation-delay: 0.5s;
+}
+
+/* Hide the horizontal scrollbar on the filter chip row */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>

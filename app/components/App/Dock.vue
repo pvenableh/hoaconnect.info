@@ -45,6 +45,12 @@ const badges = computed<Record<string, number>>(() => {
         ? "email"
         : n.type === "meeting"
         ? "meetings"
+        : n.type === "payment"
+        ? "payments"
+        : n.type === "document"
+        ? "documents"
+        : n.type === "membership"
+        ? "directory"
         : null;
     if (key) counts[key] = (counts[key] || 0) + 1;
   }
