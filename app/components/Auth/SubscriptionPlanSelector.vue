@@ -64,30 +64,30 @@ const getStorageLimit = (plan: any) => {
   <div class="space-y-6">
     <!-- Billing Cycle Toggle -->
     <div class="flex justify-center">
-      <div class="inline-flex rounded-lg border p-1">
+      <div class="inline-flex rounded-full t-border border p-1">
         <button
           @click="toggleBillingCycle('monthly')"
-          class="px-4 py-2 rounded-md transition-colors"
+          class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
           :class="
             localBillingCycle === 'monthly'
               ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-muted'
+              : 't-text-muted hover:t-text'
           "
         >
           Monthly
         </button>
         <button
           @click="toggleBillingCycle('yearly')"
-          class="px-4 py-2 rounded-md transition-colors relative"
+          class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors relative"
           :class="
             localBillingCycle === 'yearly'
               ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-muted'
+              : 't-text-muted hover:t-text'
           "
         >
           Yearly
           <span
-            class="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full"
+            class="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full"
           >
             Save 17%
           </span>
@@ -100,89 +100,76 @@ const getStorageLimit = (plan: any) => {
       v-if="pending"
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
     >
-      <Card v-for="i in 4" :key="i" class="animate-pulse">
-        <CardHeader class="h-32 bg-muted" />
-        <CardContent class="h-48 bg-muted/50" />
-      </Card>
+      <div v-for="i in 4" :key="i" class="ios-card h-80 animate-pulse" />
     </div>
 
     <!-- Plans Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card
+      <button
         v-for="plan in plans"
         :key="plan.id"
-        class="cursor-pointer transition-all relative"
-        :class="[
+        type="button"
+        class="ios-card p-5 text-left cursor-pointer transition-all relative space-y-4"
+        :class="
           localSelectedPlan === plan.id
-            ? 'ring-2 ring-primary shadow-lg scale-105'
-            : 'hover:shadow-md',
-          plan.is_featured ? 'border-primary' : '',
-        ]"
+            ? 'ring-2 ring-primary shadow-lg'
+            : 'hover:shadow-md'
+        "
         @click="selectPlan(plan.id)"
       >
         <!-- Featured Badge -->
         <div
           v-if="plan.is_featured"
-          class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold"
+          class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold"
         >
           Most Popular
         </div>
 
-        <CardHeader>
-          <CardTitle class="text-xl">{{ plan.name }}</CardTitle>
-          <CardDescription class="text-sm">
-            {{ plan.description }}
-          </CardDescription>
-        </CardHeader>
+        <div class="space-y-1">
+          <h3 class="text-xl font-semibold t-text">{{ plan.name }}</h3>
+          <p class="text-sm t-text-muted">{{ plan.description }}</p>
+        </div>
 
-        <CardContent class="space-y-4">
-          <!-- Price -->
-          <div class="text-center">
-            <div class="text-4xl font-bold">
-              ${{ getPrice(plan) }}
-              <span class="text-sm text-muted-foreground font-normal">
-                /{{ localBillingCycle === "yearly" ? "year" : "month" }}
-              </span>
-            </div>
-            <div
-              v-if="plan.trial_days > 0"
-              class="text-sm text-muted-foreground mt-1"
-            >
-              {{ plan.trial_days }}-day free trial
-            </div>
+        <!-- Price -->
+        <div class="text-center">
+          <div class="text-4xl font-bold t-text">
+            ${{ getPrice(plan) }}
+            <span class="text-sm t-text-muted font-normal">
+              /{{ localBillingCycle === "yearly" ? "year" : "month" }}
+            </span>
           </div>
-
-          <!-- Key Limits -->
-          <div class="space-y-1 text-sm text-muted-foreground">
-            <div>{{ getMemberLimit(plan) }}</div>
-            <div>{{ getStorageLimit(plan) }}</div>
+          <div v-if="plan.trial_days > 0" class="text-sm t-text-muted mt-1">
+            {{ plan.trial_days }}-day free trial
           </div>
+        </div>
 
-          <!-- Features -->
-          <ul class="space-y-2 text-sm">
-            <li
-              v-for="(feature, index) in plan.features"
-              :key="index"
-              class="flex items-start gap-2"
-            >
-              <Icon
-                name="lucide:check"
-                class="w-4 h-4 text-primary mt-0.5 shrink-0"
-              />
-              <span>{{ feature }}</span>
-            </li>
-          </ul>
+        <!-- Key Limits -->
+        <div class="space-y-1 text-sm t-text-muted">
+          <div>{{ getMemberLimit(plan) }}</div>
+          <div>{{ getStorageLimit(plan) }}</div>
+        </div>
 
-          <!-- Selection Indicator -->
-          <div
-            v-if="localSelectedPlan === plan.id"
-            class="flex items-center justify-center gap-2 text-primary font-medium mt-4"
+        <!-- Features -->
+        <ul class="space-y-2 text-sm t-text">
+          <li
+            v-for="(feature, index) in plan.features"
+            :key="index"
+            class="flex items-start gap-2"
           >
-            <Icon name="lucide:check-circle" class="w-5 h-5" />
-            <span>Selected</span>
-          </div>
-        </CardContent>
-      </Card>
+            <Icon name="lucide:check" class="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <span>{{ feature }}</span>
+          </li>
+        </ul>
+
+        <!-- Selection Indicator -->
+        <div
+          v-if="localSelectedPlan === plan.id"
+          class="flex items-center justify-center gap-2 text-primary font-medium pt-1"
+        >
+          <Icon name="lucide:check-circle" class="w-5 h-5" />
+          <span>Selected</span>
+        </div>
+      </button>
     </div>
   </div>
 </template>

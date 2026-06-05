@@ -8,13 +8,6 @@ import { z } from "zod";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "vue-sonner";
 import { Loader2, ArrowLeft, Mail } from "lucide-vue-next";
 
@@ -40,7 +33,7 @@ const { handleSubmit, isSubmitting } = useForm({
   },
 });
 
-const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const cardRef = ref<HTMLElement | null>(null);
 const successRef = ref<HTMLElement | null>(null);
 const isSuccess = ref(false);
 const submittedEmail = ref("");
@@ -51,7 +44,7 @@ const onSubmit = handleSubmit(async (values) => {
     emit("submit", { email: values.email! });
 
     // Animate transition to success state
-    const cardEl = cardRef.value?.$el;
+    const cardEl = cardRef.value;
     if (cardEl && $gsap) {
       $gsap.to(cardEl.querySelector("form"), {
         opacity: 0,
@@ -79,7 +72,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 onMounted(() => {
-  const el = cardRef.value?.$el;
+  const el = cardRef.value;
   if (el && $gsap) {
     $gsap.fromTo(
       el,
@@ -92,18 +85,17 @@ onMounted(() => {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <Card ref="cardRef">
-      <CardHeader>
-        <CardTitle class="text-2xl">Reset your password</CardTitle>
-        <CardDescription>
+    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+      <div class="mb-7 space-y-1.5">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">Reset your password</h1>
+        <p class="text-sm t-text-muted">
           {{
             isSuccess
               ? "Check your email for a reset link"
-              : "Enter your email address and we'll send you a link to reset your password"
+              : "Enter your email and we'll send you a link to reset your password"
           }}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
         <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
           <VeeField v-slot="{ field, errors }" name="email">
             <FormCustomInput
@@ -117,50 +109,45 @@ onMounted(() => {
             />
           </VeeField>
 
-          <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isSubmitting">
+          <div class="flex flex-col gap-3 pt-3">
+            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Sending..." : "Send reset link" }}
             </Button>
 
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              class="w-full"
+              class="inline-flex items-center justify-center gap-1 text-sm t-text-muted hover:t-text transition-colors"
               @click="emit('back-to-login')"
             >
-              <ArrowLeft class="mr-2 h-4 w-4" />
+              <ArrowLeft class="h-3.5 w-3.5" />
               Back to login
-            </Button>
+            </button>
           </div>
         </form>
 
         <div v-else ref="successRef" class="space-y-4 text-center">
           <div
-            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"
+            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full t-bg-accent/10"
           >
-            <Mail class="h-6 w-6 text-primary" />
+            <Mail class="h-6 w-6 t-text-accent" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm text-muted-foreground">
-              We've sent a password reset link to
-            </p>
-            <p class="font-medium">{{ submittedEmail }}</p>
-            <p class="text-sm text-muted-foreground">
-              Please check your inbox and spam folder.
-            </p>
+            <p class="text-sm t-text-muted">We've sent a password reset link to</p>
+            <p class="font-medium t-text">{{ submittedEmail }}</p>
+            <p class="text-sm t-text-muted">Please check your inbox and spam folder.</p>
           </div>
           <Button
             type="button"
             variant="outline"
-            class="w-full mt-4"
+            size="lg"
+            class="w-full rounded-full mt-4"
             @click="emit('back-to-login')"
           >
             <ArrowLeft class="mr-2 h-4 w-4" />
             Back to login
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   </div>
 </template>

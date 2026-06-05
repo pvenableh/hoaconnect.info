@@ -9,14 +9,6 @@ import { refDebounced } from "@vueuse/core";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "vue-sonner";
 import { Loader2, Check, X, CheckCircle2 } from "lucide-vue-next";
 
@@ -55,7 +47,7 @@ const { handleSubmit, isSubmitting } = useForm({
   },
 });
 
-const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const cardRef = ref<HTMLElement | null>(null);
 const successRef = ref<HTMLElement | null>(null);
 const isSuccess = ref(false);
 const passwordValue = ref("");
@@ -81,7 +73,7 @@ const onSubmit = handleSubmit(async (values) => {
     emit("submit", { password: values.password, token: props.token || "" });
 
     // Animate transition to success state
-    const cardEl = cardRef.value?.$el;
+    const cardEl = cardRef.value;
     if (cardEl && $gsap) {
       $gsap.to(cardEl.querySelector("form"), {
         opacity: 0,
@@ -115,7 +107,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 onMounted(() => {
-  const el = cardRef.value?.$el;
+  const el = cardRef.value;
   if (el && $gsap) {
     $gsap.fromTo(
       el,
@@ -128,20 +120,19 @@ onMounted(() => {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <Card ref="cardRef">
-      <CardHeader>
-        <CardTitle class="text-2xl">
-          {{ isSuccess ? "Password reset successful" : "Set new password" }}
-        </CardTitle>
-        <CardDescription>
+    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+      <div class="mb-7 space-y-1.5">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">
+          {{ isSuccess ? "Password reset" : "Set new password" }}
+        </h1>
+        <p class="text-sm t-text-muted">
           {{
             isSuccess
               ? "Your password has been updated successfully"
               : "Enter your new password below"
           }}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
         <form v-if="!isSuccess" @submit="onSubmit" class="space-y-2">
           <VeeField v-slot="{ field, errors }" name="password">
             <FormCustomInput
@@ -150,6 +141,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
               @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
@@ -187,11 +179,12 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
             />
           </VeeField>
 
-          <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isSubmitting">
+          <div class="flex flex-col gap-3 pt-3">
+            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Resetting password..." : "Reset password" }}
             </Button>
@@ -200,21 +193,20 @@ onMounted(() => {
 
         <div v-else ref="successRef" class="space-y-4 text-center">
           <div
-            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100"
+            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30"
           >
-            <CheckCircle2 class="h-6 w-6 text-green-600" />
+            <CheckCircle2 class="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm text-muted-foreground">
+            <p class="text-sm t-text-muted">
               Your password has been successfully reset. You can now sign in
               with your new password.
             </p>
           </div>
-          <Button type="button" class="w-full mt-4" @click="emit('login')">
+          <Button type="button" size="lg" class="w-full rounded-full mt-4" @click="emit('login')">
             Continue to login
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   </div>
 </template>

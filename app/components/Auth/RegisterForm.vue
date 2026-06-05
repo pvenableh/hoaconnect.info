@@ -10,14 +10,6 @@ import type { AppliedCoupon } from "@/composables/useCoupons";
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "vue-sonner";
 import { Loader2, Check, X } from "lucide-vue-next";
 
@@ -87,7 +79,7 @@ const { handleSubmit, isSubmitting, values } = useForm({
   },
 });
 
-const cardRef = ref<InstanceType<typeof Card> | null>(null);
+const cardRef = ref<HTMLElement | null>(null);
 const passwordValue = ref("");
 const debouncedPassword = refDebounced(passwordValue, 300);
 
@@ -121,7 +113,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 onMounted(() => {
-  const el = cardRef.value?.$el;
+  const el = cardRef.value;
   if (el && $gsap) {
     $gsap.fromTo(
       el,
@@ -134,14 +126,11 @@ onMounted(() => {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <Card ref="cardRef">
-      <CardHeader>
-        <CardTitle class="text-2xl">Create an account</CardTitle>
-        <CardDescription>
-          Enter your details below to create your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+      <div class="mb-7 space-y-1.5">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">Create an account</h1>
+        <p class="text-sm t-text-muted">Enter your details below to get started</p>
+      </div>
         <form @submit="onSubmit" class="space-y-2">
           <div class="grid grid-cols-2 gap-4">
             <VeeField v-slot="{ field, errors }" name="firstName">
@@ -152,6 +141,7 @@ onMounted(() => {
                 placeholder="John"
                 v-bind="field"
                 :error-message="errors[0]"
+                variant="underline"
               />
             </VeeField>
 
@@ -163,6 +153,7 @@ onMounted(() => {
                 placeholder="Doe"
                 v-bind="field"
                 :error-message="errors[0]"
+                variant="underline"
               />
             </VeeField>
           </div>
@@ -175,6 +166,7 @@ onMounted(() => {
               placeholder="m@example.com"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
             />
           </VeeField>
 
@@ -185,6 +177,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
               @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
@@ -222,6 +215,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
+              variant="underline"
             />
           </VeeField>
 
@@ -234,17 +228,17 @@ onMounted(() => {
             @error="handleCouponError"
           />
 
-          <div class="flex flex-col gap-3 pt-2">
-            <Button type="submit" class="w-full" :disabled="isSubmitting">
+          <div class="flex flex-col gap-4 pt-3">
+            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Creating account..." : "Create account" }}
             </Button>
 
-            <p class="text-center text-sm text-muted-foreground">
+            <p class="text-center text-sm t-text-muted">
               Already have an account?
               <button
                 type="button"
-                class="text-foreground underline-offset-4 hover:underline font-medium transition-colors"
+                class="font-medium t-text-accent underline-offset-4 hover:underline transition-colors"
                 @click="emit('login')"
               >
                 Sign in
@@ -252,7 +246,6 @@ onMounted(() => {
             </p>
           </div>
         </form>
-      </CardContent>
-    </Card>
+    </div>
   </div>
 </template>
