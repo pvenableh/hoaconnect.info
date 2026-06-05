@@ -7,11 +7,15 @@ interface SaveEmailBody {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: "visual" | "mjml";
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
+  recurrenceRule?: "none" | "weekly" | "monthly";
+  recipientFilter?: "all" | "owners" | "tenants" | "custom";
+  recipientIds?: string[];
   attachmentIds?: string[];
 }
 
@@ -25,11 +29,15 @@ export default defineEventHandler(async (event) => {
     subject,
     content,
     emailType,
+    contentMode = "visual",
     greeting,
     salutation,
     includeBoardFooter = true,
     status = "draft",
     scheduledAt,
+    recurrenceRule = "none",
+    recipientFilter = "all",
+    recipientIds,
     attachmentIds,
   } = body;
 
@@ -54,11 +62,16 @@ export default defineEventHandler(async (event) => {
       subject,
       content,
       email_type: emailType,
+      content_mode: contentMode,
       greeting: greeting || null,
       salutation: salutation || null,
       include_board_footer: includeBoardFooter,
       status,
       scheduled_at: scheduledAt || null,
+      recurrence_rule: recurrenceRule,
+      recipient_filter: recipientFilter,
+      recipient_ids: recipientIds && recipientIds.length > 0 ? recipientIds : null,
+      next_run_at: status === "scheduled" ? scheduledAt || null : null,
       attachments: attachmentsData,
     };
 

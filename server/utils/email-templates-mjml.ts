@@ -7,6 +7,7 @@ import type {
 
 export type EmailType =
   | "basic"
+  | "alert"
   | "newsletter"
   | "announcement"
   | "reminder"
@@ -45,6 +46,12 @@ const emailTypeStyles: Record<
     icon: "✉️",
     label: "",
   },
+  alert: {
+    headerBg: "#7f1d1d",
+    accentColor: "#ef4444",
+    icon: "🚨",
+    label: "Alert",
+  },
   newsletter: {
     headerBg: "#1e3a5f",
     accentColor: "#0ea5e9",
@@ -74,6 +81,7 @@ const emailTypeStyles: Record<
 // Default salutations based on email type
 const defaultSalutations: Record<EmailType, string> = {
   basic: "Best regards",
+  alert: "Sincerely",
   newsletter: "Warm regards",
   announcement: "Sincerely",
   reminder: "Thank you",
@@ -579,6 +587,26 @@ export function buildEmailHtml(
   }
 
   return html;
+}
+
+/**
+ * Raw editor mode: the author supplies the full email body themselves.
+ * If it looks like MJML, compile it to HTML; otherwise assume it's already a
+ * complete/HTML document and pass it through untouched (board footer, greeting,
+ * and the type chrome are intentionally NOT applied in raw mode).
+ */
+export function buildRawEmailHtml(content: string): string {
+  if (/<mjml[\s>]/i.test(content)) {
+    const { html, errors } = mjml2html(content, {
+      validationLevel: "soft",
+      minify: false,
+    });
+    if (errors && errors.length > 0) {
+      console.warn("[MJML raw] compile warnings:", JSON.stringify(errors));
+    }
+    return html;
+  }
+  return content;
 }
 
 /**

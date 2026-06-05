@@ -1,6 +1,7 @@
 import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
 
 interface CidImage {
@@ -99,6 +100,7 @@ interface SendEmailBody {
   subtitle?: string;
   content: string;
   emailType: EmailType;
+  contentMode?: "visual" | "mjml";
   recipientIds: string[];
   greeting?: string;
   salutation?: string;
@@ -112,7 +114,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, subtitle, content, emailType, recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent } = body;
+  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -178,13 +180,16 @@ export default defineEventHandler(async (event) => {
           organization: { _eq: organizationId },
           status: { _eq: "active" },
         },
-        fields: ["id", "first_name", "last_name", "email", {
+        fields: ["id", "first_name", "last_name", "email", "phone", "member_type", "company",
+          "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date", {
           units: ["id", "is_primary_unit", {
             unit_id: ["id", "unit_number"],
           }],
+          vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"],
+          pets: ["id", "name", "type", "breed"],
         }],
       })
-    ) as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }> }>;
+    ) as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }>; vehicles?: any[]; pets?: any[] }>;
 
     if (!members.length) {
       throw createError({
@@ -250,6 +255,7 @@ export default defineEventHandler(async (event) => {
           subtitle: subtitle || null,
           content,
           email_type: emailType,
+          content_mode: contentMode,
           urgent: urgent || false,
           greeting: greeting || null,
           salutation: salutation || null,
@@ -267,6 +273,7 @@ export default defineEventHandler(async (event) => {
           subtitle: subtitle || null,
           content,
           email_type: emailType,
+          content_mode: contentMode,
           urgent: urgent || false,
           greeting: greeting || null,
           salutation: salutation || null,
@@ -352,8 +359,13 @@ export default defineEventHandler(async (event) => {
       const primaryUnit = member.units?.find(u => u.is_primary_unit) || member.units?.[0];
       const unitNumber = primaryUnit?.unit_id?.unit_number || undefined;
 
+      // Per-recipient merge fields ({{first_name}}, {{unit}}, {{parking_spot}}, ...)
+      const mergeValues = resolveMergeFields(member, organization);
+      const recipientContent = applyMergeFields(processedContent, mergeValues);
+      const recipientSubject = applyMergeFields(subject, mergeValues) || subject;
+
       // Process the HTML content for email (inline styles, etc.)
-      const processedHtmlContent = processHtmlForEmail(processedContent);
+      const processedHtmlContent = processHtmlForEmail(recipientContent);
 
       // Build personalized greeting
       let personalizedContent = processedHtmlContent;
@@ -370,8 +382,8 @@ export default defineEventHandler(async (event) => {
       // Build plain text version
       const text = buildEmailText({
         organization,
-        subject,
-        content: processedContent,
+        subject: recipientSubject,
+        content: recipientContent,
         emailType,
         greeting,
         salutation,
@@ -386,7 +398,29 @@ export default defineEventHandler(async (event) => {
 
         let sendResult;
 
-        if (useDynamicTemplate) {
+        if (contentMode === "mjml") {
+          // Raw MJML/HTML mode: the author controls the whole email. Compile
+          // their (merge-applied) content directly and send it — no chrome,
+          // no greeting/salutation/board-footer injection, no dynamic template.
+          const html = buildRawEmailHtml(recipientContent);
+
+          sendResult = await sendOrganizationEmail({
+            to: member.email,
+            toName: recipientName || undefined,
+            subject: recipientSubject,
+            html,
+            text,
+            fromName: organization.name || undefined,
+            attachments: allAttachments.length > 0 ? allAttachments : undefined,
+            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
+            customArgs: {
+              email_id: String((email as any).id),
+              recipient_email: member.email,
+              organization_id: organizationId,
+            },
+            organizationId,
+          });
+        } else if (useDynamicTemplate) {
           // Use SendGrid dynamic template
           const templateData: EmailTemplateData = {
             // Recipient info
@@ -394,7 +428,7 @@ export default defineEventHandler(async (event) => {
             unit: unitNumber || '',
 
             // Email content
-            subject,
+            subject: recipientSubject,
             subtitle: subtitle || '',
             content: personalizedContent,
             salutation: salutation || undefined,
@@ -429,7 +463,7 @@ export default defineEventHandler(async (event) => {
           sendResult = await sendOrganizationEmail({
             to: member.email,
             toName: recipientName || undefined,
-            subject,
+            subject: recipientSubject,
             html: personalizedContent, // Fallback if template fails
             text,
             fromName: organization.name || undefined,
@@ -448,8 +482,8 @@ export default defineEventHandler(async (event) => {
           // Fall back to MJML-generated HTML
           const html = buildEmailHtml({
             organization,
-            subject,
-            content: processedContent,
+            subject: recipientSubject,
+            content: recipientContent,
             emailType,
             greeting,
             salutation,
@@ -470,7 +504,7 @@ export default defineEventHandler(async (event) => {
           sendResult = await sendOrganizationEmail({
             to: member.email,
             toName: recipientName || undefined,
-            subject,
+            subject: recipientSubject,
             html,
             text,
             fromName: organization.name || undefined,

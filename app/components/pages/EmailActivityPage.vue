@@ -321,7 +321,7 @@ function handleScroll() {
 
 // Navigation
 const goToEmails = () => {
-  navigateToOrg("/admin/email");
+  navigateToOrg("/admin/communications");
 };
 
 // Initialize

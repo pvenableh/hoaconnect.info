@@ -158,7 +158,7 @@ const handleDelete = async () => {
   try {
     await emailSystem.deleteEmail(props.emailId);
     toast.success("Email draft deleted");
-    navigateToOrg("/admin/email");
+    navigateToOrg("/admin/communications");
   } catch (error: any) {
     toast.error(error.message || "Failed to delete email");
   } finally {
@@ -168,12 +168,12 @@ const handleDelete = async () => {
 
 // Edit draft
 const handleEdit = () => {
-  navigateToOrg(`/admin/email/compose?id=${props.emailId}`);
+  navigateToOrg(`/admin/communications/compose?id=${props.emailId}`);
 };
 
 // Back to list
 const handleBack = () => {
-  navigateToOrg("/admin/email");
+  navigateToOrg("/admin/communications");
 };
 
 // Format helpers

@@ -17,7 +17,7 @@
 
 import type { HoaEmail, HoaEmailRecipient, HoaMember } from "~~/types/directus";
 
-export type EmailType = "basic" | "newsletter" | "announcement" | "reminder" | "notice";
+export type EmailType = "basic" | "alert" | "newsletter" | "announcement" | "reminder" | "notice";
 
 export interface EmailAttachmentInfo {
   id: string;
@@ -26,10 +26,13 @@ export interface EmailAttachmentInfo {
   size: number;
 }
 
+export type EmailContentMode = "visual" | "mjml";
+
 export interface EmailFormData {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: EmailContentMode;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
@@ -43,11 +46,15 @@ export interface EmailSaveData {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: EmailContentMode;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
+  recurrenceRule?: "none" | "weekly" | "monthly";
+  recipientFilter?: "all" | "owners" | "tenants" | "custom";
+  recipientIds?: string[];
   attachmentIds?: string[];
 }
 
@@ -61,6 +68,7 @@ export interface EmailPreviewData {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: EmailContentMode;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
@@ -112,6 +120,7 @@ export interface EmailTestData {
   subject: string;
   content: string;
   emailType: EmailType;
+  contentMode?: EmailContentMode;
   greeting?: string;
   salutation?: string;
   includeBoardFooter?: boolean;
@@ -153,6 +162,12 @@ export const emailTypeOptions: Array<{
     icon: "heroicons-outline:mail",
   },
   {
+    value: "alert",
+    label: "Alert",
+    description: "Urgent, simple notice — the fastest way to reach members",
+    icon: "heroicons-outline:exclamation",
+  },
+  {
     value: "newsletter",
     label: "Newsletter",
     description: "Regular updates and community news",
@@ -181,6 +196,7 @@ export const emailTypeOptions: Array<{
 // Default salutations for each email type
 export const defaultSalutations: Record<EmailType, string> = {
   basic: "Best regards",
+  alert: "Sincerely",
   newsletter: "Warm regards",
   announcement: "Sincerely",
   reminder: "Thank you",
@@ -189,6 +205,50 @@ export const defaultSalutations: Record<EmailType, string> = {
 
 // Default greeting template - {{first_name}} will be replaced with recipient's name or org fallback
 export const defaultGreeting = "Hello {{first_name}},";
+
+// Merge field catalog for the composer's insert menu. Keep in sync with
+// server/utils/email-merge.ts (MERGE_FIELDS). Tokens resolve per recipient at
+// send time (vehicle/pet/parking use the recipient's first matching record).
+export const mergeFieldGroups: Array<{
+  group: string;
+  fields: Array<{ token: string; label: string }>;
+}> = [
+  {
+    group: "Resident",
+    fields: [
+      { token: "first_name", label: "First name" },
+      { token: "last_name", label: "Last name" },
+      { token: "full_name", label: "Full name" },
+      { token: "email", label: "Email" },
+      { token: "phone", label: "Phone" },
+      { token: "member_type", label: "Owner/Tenant" },
+      { token: "company", label: "Company" },
+      { token: "outstanding_balance", label: "Balance due" },
+      { token: "payment_status", label: "Payment status" },
+      { token: "last_payment_amount", label: "Last payment" },
+      { token: "last_payment_date", label: "Last payment date" },
+    ],
+  },
+  {
+    group: "Unit & Vehicle",
+    fields: [
+      { token: "unit", label: "Unit #" },
+      { token: "vehicle", label: "Vehicle" },
+      { token: "license_plate", label: "License plate" },
+      { token: "parking_spot", label: "Parking spot #" },
+    ],
+  },
+  {
+    group: "Pet & Org",
+    fields: [
+      { token: "pet", label: "Pet name" },
+      { token: "pet_type", label: "Pet type" },
+      { token: "org_name", label: "Org name" },
+      { token: "org_address", label: "Org address" },
+      { token: "org_phone", label: "Org phone" },
+    ],
+  },
+];
 
 export const useEmailSystem = () => {
   const { loggedIn } = useUserSession();
@@ -464,5 +524,6 @@ export const useEmailSystem = () => {
     emailTypeOptions,
     defaultSalutations,
     defaultGreeting,
+    mergeFieldGroups,
   };
 };

@@ -11,10 +11,38 @@ const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
-const { selectedOrgId, currentOrg, currentRole } = await useSelectedOrg();
+const { selectedOrgId, currentOrg, currentRole, isAdmin, isBoardMember, isMember } = await useSelectedOrg();
 
 // Watch for org changes and refresh data
 const orgId = computed(() => selectedOrgId.value);
+
+// ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
+const route = useRoute();
+const router = useRouter();
+const { isEnabled } = useModules();
+const feedEnabled = computed(() => isEnabled("feed"));
+const isBoard = computed(() => isAdmin.value || isBoardMember.value);
+
+// Tab state, two-way synced with ?tab= so it's deep-linkable
+const normalizeTab = (t: unknown): string => {
+  const tab = typeof t === "string" ? t : "overview";
+  if (tab === "building" && !feedEnabled.value) return "overview";
+  return tab === "building" ? "building" : "overview";
+};
+const activeTab = ref(normalizeTab(route.query.tab));
+watch(
+  () => route.query.tab,
+  (t) => {
+    const tab = normalizeTab(t);
+    if (tab !== activeTab.value) activeTab.value = tab;
+  }
+);
+watch(activeTab, (t) => {
+  const q = t === "overview" ? undefined : t;
+  if ((route.query.tab as string | undefined) !== q) {
+    router.replace({ query: { ...route.query, tab: q } });
+  }
+});
 
 // Fetch recent documents
 const { data: documents } = await useAsyncData(
@@ -287,6 +315,19 @@ const channelData = computed(() => {
           <p class="t-text-secondary mt-1">Here's how your community is doing.</p>
         </WidgetGlass>
 
+        <Tabs v-model="activeTab" class="space-y-6">
+          <TabsList class="flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview">
+              <Icon name="lucide:layout-dashboard" class="w-4 h-4 mr-1.5" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger v-if="feedEnabled" value="building">
+              <Icon name="lucide:building-2" class="w-4 h-4 mr-1.5" />
+              Building
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" class="space-y-6 mt-0">
         <!-- Stats Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <DashboardStatsCard
@@ -388,9 +429,6 @@ const channelData = computed(() => {
             </Button>
           </div>
 
-          <!-- Announcements -->
-          <DashboardAnnouncementsList :announcements="announcements || []" />
-
           <!-- Recent Emails -->
           <DashboardRecentEmailsList :emails="emails || []" />
         </div>
@@ -420,7 +458,7 @@ const channelData = computed(() => {
               <Icon name="heroicons:users" class="h-4 w-4 mr-2" />
               Manage Members
             </Button>
-            <Button @click="navigateToOrg('/admin/email/compose')" variant="outline" class="rounded-full">
+            <Button @click="navigateToOrg('/admin/communications/compose')" variant="outline" class="rounded-full">
               <Icon name="heroicons:envelope" class="h-4 w-4 mr-2" />
               Send Email
             </Button>
@@ -430,6 +468,31 @@ const channelData = computed(() => {
             </Button>
           </div>
         </div>
+          </TabsContent>
+
+          <!-- Building feed tab -->
+          <TabsContent v-if="feedEnabled" value="building" class="space-y-6 mt-0">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h2 class="text-xl font-semibold t-text">Building</h2>
+                <p class="text-sm t-text-muted mt-0.5">
+                  Everything happening in your community — react and join the conversation.
+                </p>
+              </div>
+              <NuxtLink :to="buildOrgPath('/polls')">
+                <Button variant="outline" class="rounded-full">
+                  <Icon name="lucide:bar-chart-3" class="w-4 h-4 mr-1.5" />
+                  Polls
+                </Button>
+              </NuxtLink>
+            </div>
+            <FeedActivityFeed
+              :organization-id="selectedOrgId"
+              :is-board="isBoard"
+              :is-member="isMember"
+            />
+          </TabsContent>
+        </Tabs>
       </PageContainer>
   </div>
 </template>

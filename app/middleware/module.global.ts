@@ -24,7 +24,7 @@ const MODULE_PREFIXES: { module: string; prefixes: string[] }[] = [
   { module: "expenses", prefixes: ["/admin/expenses"] },
   { module: "requests", prefixes: ["/requests", "/admin/requests"] },
   { module: "moderation", prefixes: ["/admin/moderation"] },
-  { module: "email", prefixes: ["/admin/email"] },
+  { module: "email", prefixes: ["/admin/communications", "/admin/email"] },
   { module: "directory", prefixes: ["/admin/members", "/admin/units", "/admin/teams"] },
   { module: "channels", prefixes: ["/admin/channels"] },
 ];

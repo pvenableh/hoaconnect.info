@@ -145,8 +145,6 @@ export function useAppNav() {
 
   const ADMIN_APPS: AppDef[] = [
     { key: "dashboard", label: "Dashboard", shortName: "Dash", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
-    { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
-    { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/admin/announcements", match: ["/admin/announcements", "/announcements"] },
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
     { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
@@ -155,13 +153,11 @@ export function useAppNav() {
     CHANNELS_APP,
     { key: "payments", label: "Finances", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
     { key: "moderation", label: "Moderation", shortName: "Mod", icon: "shield-alert", path: "/admin/moderation", match: ["/admin/moderation"] },
-    { key: "email", label: "Email", shortName: "Email", icon: "mail", path: "/admin/email", match: ["/admin/email"] },
+    { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email"] },
   ];
 
   const MEMBER_APPS: AppDef[] = [
     { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
-    { key: "feed", label: "Building", shortName: "Feed", icon: "building-2", path: "/feed", match: ["/feed"] },
-    { key: "announcements", label: "Announcements", shortName: "News", icon: "megaphone", path: "/announcements", match: ["/announcements"] },
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
     { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },

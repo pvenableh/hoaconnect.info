@@ -62,8 +62,7 @@ const GROUPS: {
     label: "Community",
     description: "Social and engagement features for residents.",
     modules: [
-      { key: "feed", label: "Building Feed", description: "Community posts and activity feed." },
-      { key: "announcements", label: "Announcements", description: "Official notices from management." },
+      { key: "feed", label: "Building Feed", description: "Community posts and activity feed (shown as a Dashboard tab)." },
       { key: "meetings", label: "Meetings", description: "Agendas, minutes, and RSVPs." },
       { key: "polls", label: "Polls", description: "Community votes and surveys." },
       { key: "requests", label: "Requests", description: "Maintenance and service tickets." },
@@ -102,7 +101,7 @@ const GROUPS: {
     description: "Additional tools.",
     modules: [
       { key: "board", label: "Board", description: "Board member roster and terms." },
-      { key: "email", label: "Email", description: "Email broadcasts and activity." },
+      { key: "email", label: "Communications", description: "Email broadcasts, newsletters, alerts, templates, and delivery activity." },
     ],
   },
 ];

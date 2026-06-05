@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const { navigateToOrg } = useOrgNavigation();
 const emailSystem = useEmailSystem();
+const emailTemplates = useEmailTemplates();
 const { list: listMembers } = useDirectusItems("hoa_members");
 const filesComposable = useDirectusFiles();
 const foldersComposable = useDirectusFolders();
@@ -40,10 +41,12 @@ const form = reactive({
   content: "",
   emailType: "basic" as
     | "basic"
+    | "alert"
     | "newsletter"
     | "announcement"
     | "reminder"
     | "notice",
+  contentMode: "visual" as "visual" | "mjml",
   greeting: "",
   salutation: "",
   includeBoardFooter: true,
@@ -169,6 +172,7 @@ watch(
       form.subject = email.subject || "";
       form.content = email.content || "";
       form.emailType = email.email_type || "basic";
+      form.contentMode = (email as any).content_mode === "mjml" ? "mjml" : "visual";
       form.greeting = email.greeting || "";
       form.salutation = email.salutation || "";
       form.includeBoardFooter = email.include_board_footer ?? true;
@@ -205,6 +209,87 @@ watch(
   },
   { immediate: true }
 );
+
+// ---- Template library (Phase 9 Stage B) ----
+import type { HoaEmailTemplate } from "~~/types/directus";
+
+const showTemplatePicker = ref(false);
+const availableTemplates = ref<HoaEmailTemplate[]>([]);
+const loadingTemplates = ref(false);
+
+const openTemplatePicker = async () => {
+  if (!orgId.value) return;
+  showTemplatePicker.value = true;
+  loadingTemplates.value = true;
+  try {
+    availableTemplates.value = await emailTemplates.listForOrg(orgId.value);
+  } catch (e: any) {
+    toast.error(e.message || "Failed to load templates");
+  } finally {
+    loadingTemplates.value = false;
+  }
+};
+
+const applyTemplate = (tpl: HoaEmailTemplate) => {
+  if (tpl.subject) form.subject = tpl.subject;
+  if (tpl.content) form.content = tpl.content;
+  if (tpl.email_type) form.emailType = tpl.email_type;
+  form.contentMode = tpl.content_mode === "mjml" ? "mjml" : "visual";
+  if (tpl.greeting != null) form.greeting = tpl.greeting;
+  if (tpl.salutation != null) form.salutation = tpl.salutation;
+  if (tpl.include_board_footer != null) form.includeBoardFooter = tpl.include_board_footer;
+  showTemplatePicker.value = false;
+  toast.success(`Started from "${tpl.name}"`);
+};
+
+const showSaveTemplate = ref(false);
+const savingTemplate = ref(false);
+const newTemplate = reactive({ name: "", description: "" });
+
+const openSaveTemplate = () => {
+  if (!form.subject && !form.content) {
+    toast.error("Add some content before saving a template");
+    return;
+  }
+  newTemplate.name = form.subject || "";
+  newTemplate.description = "";
+  showSaveTemplate.value = true;
+};
+
+const saveAsTemplate = async () => {
+  if (!orgId.value || !newTemplate.name.trim()) {
+    toast.error("Give the template a name");
+    return;
+  }
+  savingTemplate.value = true;
+  try {
+    await emailTemplates.create(orgId.value, {
+      name: newTemplate.name.trim(),
+      description: newTemplate.description.trim() || null,
+      email_type: form.emailType,
+      subject: form.subject || null,
+      content: form.content || null,
+      content_mode: form.contentMode,
+      greeting: form.greeting || null,
+      salutation: form.salutation || null,
+      include_board_footer: form.includeBoardFooter,
+    });
+    toast.success("Saved as template");
+    showSaveTemplate.value = false;
+  } catch (e: any) {
+    toast.error(e.message || "Failed to save template");
+  } finally {
+    savingTemplate.value = false;
+  }
+};
+
+// ---- Merge fields (Phase 9 Stage B) ----
+const showMergeFields = ref(false);
+
+const insertMergeField = (token: string) => {
+  form.content = `${form.content || ""} {{${token}}}`.trimStart();
+  toast.success(`Inserted {{${token}}}`);
+};
 
 // Computed recipients based on selection mode
 const selectedRecipients = computed(() => {
@@ -252,6 +337,7 @@ const handlePreview = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      contentMode: form.contentMode,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -281,6 +367,7 @@ const handleSaveDraft = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      contentMode: form.contentMode,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -288,7 +375,7 @@ const handleSaveDraft = async () => {
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
     toast.success("Draft saved");
-    navigateToOrg("/admin/email");
+    navigateToOrg("/admin/communications");
     return result;
   } catch (error: any) {
     toast.error(error.message || "Failed to save draft");
@@ -324,6 +411,7 @@ const handleSend = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
+      contentMode: form.contentMode,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
@@ -338,6 +426,7 @@ const handleSend = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      contentMode: form.contentMode,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -354,15 +443,74 @@ const handleSend = async () => {
       toast.success(`Email sent to ${result.stats.delivered} recipients`);
     }
 
-    navigateToOrg("/admin/email");
+    navigateToOrg("/admin/communications");
   } catch (error: any) {
     toast.error(error.message || "Failed to send email");
   }
 };
 
+// ---- Scheduling (Phase 9 Stage C) ----
+const scheduleEnabled = ref(false);
+const scheduledAt = ref(""); // datetime-local string
+const recurrenceRule = ref<"none" | "weekly" | "monthly">("none");
+
+// Map the recipient UI to stored targeting for the scheduler
+const targetingForSave = () => {
+  if (selectionMode.value === "selected") {
+    return { recipientFilter: "custom" as const, recipientIds: [...form.recipientIds] };
+  }
+  return { recipientFilter: recipientFilter.value as "all" | "owners" | "tenants", recipientIds: undefined };
+};
+
+const handleSchedule = async () => {
+  if (!orgId.value || !form.subject || !form.content) {
+    toast.error("Please fill in subject and content");
+    return;
+  }
+  if (!scheduledAt.value) {
+    toast.error("Pick a date and time to schedule");
+    return;
+  }
+  const when = new Date(scheduledAt.value);
+  if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
+    toast.error("Schedule time must be in the future");
+    return;
+  }
+  const { recipientFilter: rf, recipientIds: rids } = targetingForSave();
+  if (rf === "custom" && (!rids || rids.length === 0)) {
+    toast.error("Select at least one recipient to schedule");
+    return;
+  }
+
+  try {
+    await emailSystem.saveDraft({
+      emailId: props.emailId,
+      organizationId: orgId.value,
+      subject: form.subject,
+      content: form.content,
+      emailType: form.emailType,
+      contentMode: form.contentMode,
+      greeting: form.greeting || undefined,
+      salutation: form.salutation || undefined,
+      includeBoardFooter: form.includeBoardFooter,
+      status: "scheduled",
+      scheduledAt: when.toISOString(),
+      recurrenceRule: recurrenceRule.value,
+      recipientFilter: rf,
+      recipientIds: rids,
+      attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+    });
+    const repeat = recurrenceRule.value !== "none" ? `, repeating ${recurrenceRule.value}` : "";
+    toast.success(`Scheduled for ${when.toLocaleString()}${repeat}`);
+    navigateToOrg("/admin/communications");
+  } catch (error: any) {
+    toast.error(error.message || "Failed to schedule email");
+  }
+};
+
 // Cancel
 const handleCancel = () => {
-  navigateToOrg("/admin/email");
+  navigateToOrg("/admin/communications");
 };
 
 // Attachment functions
@@ -561,6 +709,7 @@ const handleTestEmail = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
+      contentMode: form.contentMode,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
@@ -579,6 +728,7 @@ const handleTestEmail = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      contentMode: form.contentMode,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -615,12 +765,26 @@ useSeoMeta({
             <Icon name="lucide:arrow-left" class="w-4 h-4 mr-2" />
             Back to Emails
           </Button>
-          <h1 class="text-3xl font-bold mb-2">
-            {{ props.emailId ? "Edit Email" : "Compose Email" }}
-          </h1>
-          <p class="text-stone-600 dark:text-stone-400">
-            Create and send emails to your HOA members
-          </p>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 class="text-3xl font-bold mb-2">
+                {{ props.emailId ? "Edit Email" : "Compose Email" }}
+              </h1>
+              <p class="text-stone-600 dark:text-stone-400">
+                Create and send emails to your HOA members
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <Button variant="outline" size="sm" @click="openTemplatePicker">
+                <Icon name="lucide:layout-template" class="w-4 h-4 mr-2" />
+                Start from template
+              </Button>
+              <Button variant="outline" size="sm" @click="openSaveTemplate">
+                <Icon name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
+                Save as template
+              </Button>
+            </div>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -678,7 +842,38 @@ useSeoMeta({
             <!-- Subject & Content -->
             <Card>
               <CardHeader>
-                <CardTitle>Email Content</CardTitle>
+                <div class="flex items-center justify-between gap-3">
+                  <CardTitle>Email Content</CardTitle>
+                  <!-- Editor mode toggle: visual rich text vs raw MJML/HTML -->
+                  <div class="inline-flex rounded-lg border border-stone-200 dark:border-stone-700 p-0.5">
+                    <button
+                      type="button"
+                      @click="form.contentMode = 'visual'"
+                      :class="[
+                        'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                        form.contentMode === 'visual'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
+                      ]"
+                    >
+                      <Icon name="lucide:type" class="w-3.5 h-3.5 mr-1 inline" />
+                      Visual
+                    </button>
+                    <button
+                      type="button"
+                      @click="form.contentMode = 'mjml'"
+                      :class="[
+                        'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                        form.contentMode === 'mjml'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
+                      ]"
+                    >
+                      <Icon name="lucide:code-2" class="w-3.5 h-3.5 mr-1 inline" />
+                      MJML / HTML
+                    </button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent class="space-y-4">
                 <div class="space-y-2">
@@ -712,14 +907,68 @@ useSeoMeta({
                 <div class="space-y-2">
                   <Label for="content">Message *</Label>
                   <TiptapEditor
+                    v-if="form.contentMode === 'visual'"
                     v-model="form.content"
                     placeholder="Write your email message here..."
                     :folder-id="orgFolderId"
                   />
+                  <template v-else>
+                    <textarea
+                      v-model="form.content"
+                      rows="18"
+                      spellcheck="false"
+                      placeholder="<mjml>&#10;  <mj-body>&#10;    <mj-section><mj-column>&#10;      <mj-text>Hello {{first_name}}</mj-text>&#10;    </mj-column></mj-section>&#10;  </mj-body>&#10;</mjml>"
+                      class="w-full font-mono text-xs leading-relaxed rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-3 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </template>
                   <p class="text-xs text-stone-500 dark:text-stone-400">
-                    Use the toolbar to format text, add images, or browse your
-                    organization's files.
+                    <template v-if="form.contentMode === 'visual'">
+                      Use the toolbar to format text, add images, or browse your
+                      organization's files.
+                    </template>
+                    <template v-else>
+                      Write raw <strong>MJML</strong> (compiled on send) or plain HTML for full control.
+                      Merge fields like <code class="bg-stone-100 dark:bg-stone-800 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code> work in both modes.
+                    </template>
                   </p>
+
+                  <!-- Merge fields -->
+                  <div class="rounded-lg border border-stone-200 dark:border-stone-700">
+                    <button
+                      type="button"
+                      class="flex items-center justify-between w-full px-3 py-2 text-left"
+                      @click="showMergeFields = !showMergeFields"
+                    >
+                      <span class="text-xs font-medium flex items-center gap-1.5">
+                        <Icon name="lucide:braces" class="w-3.5 h-3.5" />
+                        Insert merge field
+                      </span>
+                      <Icon
+                        :name="showMergeFields ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+                        class="w-4 h-4 text-stone-400"
+                      />
+                    </button>
+                    <div v-if="showMergeFields" class="px-3 pb-3 space-y-2 border-t border-stone-100 dark:border-stone-800 pt-2">
+                      <div v-for="grp in emailSystem.mergeFieldGroups" :key="grp.group">
+                        <p class="text-[10px] uppercase tracking-wide font-semibold text-stone-400 mb-1">{{ grp.group }}</p>
+                        <div class="flex flex-wrap gap-1.5">
+                          <button
+                            v-for="f in grp.fields"
+                            :key="f.token"
+                            type="button"
+                            class="text-xs px-2 py-1 rounded-md bg-stone-100 dark:bg-stone-800 hover:bg-primary/10 hover:text-primary transition-colors"
+                            :title="`Insert {{${f.token}}}`"
+                            @click="insertMergeField(f.token)"
+                          >
+                            {{ f.label }}
+                          </button>
+                        </div>
+                      </div>
+                      <p class="text-[11px] text-stone-400 pt-1">
+                        Each recipient sees their own values. Vehicle/pet/parking use the first matching record.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -992,6 +1241,51 @@ useSeoMeta({
                   }}
                 </Button>
 
+                <!-- Schedule for later -->
+                <div class="rounded-lg border border-stone-200 dark:border-stone-700">
+                  <button
+                    type="button"
+                    class="flex items-center justify-between w-full px-3 py-2"
+                    @click="scheduleEnabled = !scheduleEnabled"
+                  >
+                    <span class="text-sm font-medium flex items-center gap-1.5">
+                      <Icon name="lucide:calendar-clock" class="w-4 h-4" />
+                      Schedule for later
+                    </span>
+                    <Switch :model-value="scheduleEnabled" @update:model-value="(v) => scheduleEnabled = v" />
+                  </button>
+                  <div v-if="scheduleEnabled" class="px-3 pb-3 pt-1 space-y-3 border-t border-stone-100 dark:border-stone-800">
+                    <div class="space-y-1.5">
+                      <Label for="sched-at" class="text-xs">Send at</Label>
+                      <input
+                        id="sched-at"
+                        v-model="scheduledAt"
+                        type="datetime-local"
+                        class="w-full text-sm rounded-md border border-stone-200 dark:border-stone-700 bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="sched-repeat" class="text-xs">Repeat</Label>
+                      <select
+                        id="sched-repeat"
+                        v-model="recurrenceRule"
+                        class="w-full text-sm rounded-md border border-stone-200 dark:border-stone-700 bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      >
+                        <option value="none">Does not repeat</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                    <Button class="w-full" @click="handleSchedule" :disabled="emailSystem.isLoading.value">
+                      <Icon name="lucide:calendar-clock" class="w-4 h-4 mr-2" />
+                      Schedule
+                    </Button>
+                    <p class="text-[11px] text-stone-400">
+                      Recipients are locked in at schedule time using the selection above.
+                    </p>
+                  </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
@@ -1094,6 +1388,95 @@ useSeoMeta({
             </Card>
           </div>
         </div>
+
+        <!-- Template Picker -->
+        <Dialog v-model:open="showTemplatePicker">
+          <DialogContent class="sm:max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Start from a template</DialogTitle>
+              <DialogDescription>
+                Pick a saved template to pre-fill the subject, content, and settings.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div class="flex-1 overflow-y-auto min-h-[200px]">
+              <div v-if="loadingTemplates" class="flex items-center justify-center py-12">
+                <Icon name="lucide:loader-2" class="w-7 h-7 animate-spin text-stone-400" />
+              </div>
+              <div
+                v-else-if="availableTemplates.length === 0"
+                class="flex flex-col items-center justify-center py-12 text-stone-500 dark:text-stone-400"
+              >
+                <Icon name="lucide:layout-template" class="w-10 h-10 mb-2 opacity-50" />
+                <p>No templates yet. Build an email and "Save as template".</p>
+              </div>
+              <div v-else class="space-y-2">
+                <button
+                  v-for="tpl in availableTemplates"
+                  :key="tpl.id"
+                  type="button"
+                  class="w-full text-left p-3 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-primary hover:bg-primary/5 transition-colors"
+                  @click="applyTemplate(tpl)"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium">{{ tpl.name }}</span>
+                    <span class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300">
+                      {{ tpl.email_type }}
+                    </span>
+                    <span
+                      v-if="!emailTemplates.isOwnedBy(tpl, orgId || '')"
+                      class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700"
+                    >
+                      Global
+                    </span>
+                  </div>
+                  <p v-if="tpl.description" class="text-sm text-stone-500 dark:text-stone-400 mt-0.5 truncate">
+                    {{ tpl.description }}
+                  </p>
+                  <p v-if="tpl.subject" class="text-xs text-stone-400 mt-0.5 truncate">
+                    Subject: {{ tpl.subject }}
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" @click="showTemplatePicker = false">Cancel</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <!-- Save as Template -->
+        <Dialog v-model:open="showSaveTemplate">
+          <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Save as template</DialogTitle>
+              <DialogDescription>
+                Save the current subject, content, type, greeting, and salutation as a reusable template.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <Label for="tpl-name">Template name *</Label>
+                <Input id="tpl-name" v-model="newTemplate.name" placeholder="e.g. Monthly Newsletter" />
+              </div>
+              <div class="space-y-2">
+                <Label for="tpl-desc">Description</Label>
+                <Input id="tpl-desc" v-model="newTemplate.description" placeholder="Optional — when to use this" />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" @click="showSaveTemplate = false">Cancel</Button>
+              <Button :disabled="savingTemplate || !newTemplate.name.trim()" @click="saveAsTemplate">
+                <Icon v-if="savingTemplate" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
+                <Icon v-else name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
+                Save template
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <!-- Preview Modal -->
         <Dialog v-model:open="showPreview">

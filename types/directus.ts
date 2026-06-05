@@ -386,7 +386,7 @@ export interface HoaEmail {
 	/** @description Email body content (HTML supported) @required */
 	content: string;
 	/** @description Type of email for categorization @required */
-	email_type: 'basic' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
+	email_type: 'basic' | 'alert' | 'newsletter' | 'announcement' | 'reminder' | 'notice';
 	/** @description When to send the email (leave empty for immediate send) */
 	scheduled_at?: string | null;
 	/** @description When the email was actually sent */
@@ -407,6 +407,20 @@ export interface HoaEmail {
 	organization: HoaOrganization | string;
 	urgent?: boolean | null;
 	subtitle?: string | null;
+	/** @description Template this email was created from (optional) */
+	template?: HoaEmailTemplate | string | null;
+	/** @description Who a scheduled email is sent to */
+	recipient_filter?: 'all' | 'owners' | 'tenants' | 'custom' | null;
+	/** @description Array of hoa_members ids (used when recipient_filter = custom) */
+	recipient_ids?: Record<string, any> | null;
+	/** @description Repeat cadence for a scheduled email */
+	recurrence_rule?: 'none' | 'weekly' | 'monthly' | null;
+	/** @description Last successful send */
+	last_run_at?: string | null;
+	/** @description Next scheduled run (recurring) */
+	next_run_at?: string | null;
+	/** @description How `content` should be interpreted by the renderer */
+	content_mode?: 'visual' | 'mjml' | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -417,6 +431,37 @@ export interface HoaEmailsFile {
 	id: number;
 	hoa_emails_id?: HoaEmail | string | null;
 	directus_files_id?: DirectusFile | string | null;
+}
+
+export interface HoaEmailTemplate {
+	/** @primaryKey */
+	id: string;
+	status?: 'published' | 'draft' | 'archived' | null;
+	sort?: number | null;
+	/** @description Template name shown in the picker @required */
+	name: string;
+	/** @description Which email type this template seeds */
+	email_type?: 'basic' | 'alert' | 'newsletter' | 'announcement' | 'reminder' | 'notice' | null;
+	/** @description Short description shown in the template library */
+	description?: string | null;
+	/** @description Default subject (merge fields like {{first_name}} allowed) */
+	subject?: string | null;
+	/** @description How `content` should be interpreted by the renderer */
+	content_mode?: 'visual' | 'mjml' | null;
+	/** @description Default board-footer toggle */
+	include_board_footer?: boolean | null;
+	/** @description Template body (HTML, or raw MJML when content_mode = mjml) */
+	content?: string | null;
+	/** @description Default greeting, e.g. Hello {{first_name}}, */
+	greeting?: string | null;
+	/** @description Default closing salutation */
+	salutation?: string | null;
+	/** @description Owning organization (leave empty for a global template) */
+	organization?: HoaOrganization | string | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
 }
 
 export interface HoaGovernance {
@@ -1472,6 +1517,7 @@ export interface Schema {
 	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_emails: HoaEmail[];
 	hoa_emails_files: HoaEmailsFile[];
+	hoa_email_templates: HoaEmailTemplate[];
 	hoa_governance: HoaGovernance[];
 	hoa_invitations: HoaInvitation[];
 	hoa_leases: HoaLease[];
@@ -1547,6 +1593,7 @@ export enum CollectionNames {
 	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_emails = 'hoa_emails',
 	hoa_emails_files = 'hoa_emails_files',
+	hoa_email_templates = 'hoa_email_templates',
 	hoa_governance = 'hoa_governance',
 	hoa_invitations = 'hoa_invitations',
 	hoa_leases = 'hoa_leases',

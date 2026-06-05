@@ -1,37 +1,27 @@
 <script setup lang="ts">
+// Phase 9: the building feed now lives as a tab inside the dashboard.
+// This route is kept only as a back-compat redirect for old links / deep-links.
 definePageMeta({
   middleware: ["auth", "subscription"],
   layout: "auth",
 });
 
 const { buildOrgPath } = useOrgNavigation();
-const { selectedOrgId, isAdmin, isBoardMember, isMember } = await useSelectedOrg();
-const isBoard = computed(() => isAdmin.value || isBoardMember.value);
+const { isAdmin } = await useSelectedOrg();
+const { isEnabled } = useModules();
+
+// Admins land on /[slug]/dashboard, members on the org home (/[slug]).
+const base = buildOrgPath(isAdmin.value ? "/dashboard" : "/");
+
+// If the feed module is enabled, deep-link straight to the Building tab.
+// If it's disabled, module.global middleware already blocks /feed; this is a
+// belt-and-suspenders fallback that just sends them to their dashboard.
+await navigateTo(
+  isEnabled("feed") ? { path: base, query: { tab: "building" } } : { path: base },
+  { replace: true }
+);
 </script>
 
 <template>
-  <div class="min-h-screen t-bg t-text t-transition">
-    <PageContainer class="space-y-6">
-      <div class="flex items-start justify-between gap-2">
-        <div>
-          <h1 class="text-2xl font-semibold t-text">Building</h1>
-          <p class="text-sm t-text-muted mt-0.5">
-            Everything happening in your community — react and join the conversation.
-          </p>
-        </div>
-        <NuxtLink :to="buildOrgPath('/polls')">
-          <Button variant="outline" class="rounded-full">
-            <Icon name="lucide:bar-chart-3" class="w-4 h-4 mr-1.5" />
-            Polls
-          </Button>
-        </NuxtLink>
-      </div>
-
-      <FeedActivityFeed
-        :organization-id="selectedOrgId"
-        :is-board="isBoard"
-        :is-member="isMember"
-      />
-    </PageContainer>
-  </div>
+  <div />
 </template>
