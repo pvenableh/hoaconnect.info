@@ -12,6 +12,7 @@
     "generate-icons": "node scripts/generate-icons.js",
     "create:channels": "dotenv -- tsx scripts/create-channels-collections.ts",
     "create:meetings": "dotenv -- tsx scripts/create-meetings-collections.ts",
+    "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },

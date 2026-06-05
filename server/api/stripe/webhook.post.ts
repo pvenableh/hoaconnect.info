@@ -117,6 +117,21 @@ export default defineEventHandler(async (event) => {
 				break;
 			}
 
+			// --- Stripe Connect events ---
+			case 'account.updated': {
+				const account = stripeEvent.data.object as Stripe.Account;
+				await handleConnectAccountUpdated(directus, account);
+				break;
+			}
+
+			case 'payout.paid':
+			case 'payout.failed':
+			case 'payout.canceled': {
+				const payout = stripeEvent.data.object as Stripe.Payout;
+				await handleConnectPayoutEvent(payout, stripeEvent.type, stripeEvent.account);
+				break;
+			}
+
 			default:
 				console.log(`Unhandled event type: ${stripeEvent.type}`);
 		}
@@ -376,6 +391,69 @@ async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventT
 	} catch (err) {
 		console.error('Error handling invoice event:', err);
 	}
+}
+
+// --- Stripe Connect handlers ---
+
+// Sync an org's onboarding state whenever its Express account changes.
+async function handleConnectAccountUpdated(directus: any, account: Stripe.Account) {
+	console.log('Connect Account Updated:', account.id, {
+		charges_enabled: account.charges_enabled,
+		payouts_enabled: account.payouts_enabled,
+		details_submitted: account.details_submitted,
+	});
+
+	// Derive a simple onboarding status from the Stripe account flags.
+	let onboardingStatus: 'none' | 'pending' | 'restricted' | 'active' = 'pending';
+	if (account.charges_enabled && account.payouts_enabled) {
+		onboardingStatus = 'active';
+	} else if (account.requirements?.disabled_reason) {
+		onboardingStatus = 'restricted';
+	} else {
+		onboardingStatus = 'pending';
+	}
+
+	try {
+		const organizations = await directus.request(
+			readItems('hoa_organizations', {
+				filter: { stripe_connect_account_id: { _eq: account.id } },
+				limit: 1,
+			})
+		);
+
+		if (organizations && organizations.length > 0) {
+			const org = organizations[0];
+			await directus.request(
+				updateItem('hoa_organizations', org.id, {
+					connect_onboarding_status: onboardingStatus,
+					connect_charges_enabled: account.charges_enabled ?? false,
+					connect_payouts_enabled: account.payouts_enabled ?? false,
+				})
+			);
+			console.log(`Updated organization ${org.id} connect status to ${onboardingStatus}`);
+		} else {
+			console.log(`No organization found for connect account ${account.id}`);
+		}
+	} catch (err) {
+		console.error('Error syncing connect account status:', err);
+	}
+}
+
+// Connect payouts land in the association's own bank — we just log the
+// lifecycle for now (no payout ledger collection yet; that is ROADMAP Phase 2).
+async function handleConnectPayoutEvent(
+	payout: Stripe.Payout,
+	eventType: string,
+	connectedAccountId: string | undefined
+) {
+	console.log('Connect Payout Event:', eventType, {
+		payoutId: payout.id,
+		account: connectedAccountId,
+		amount: payout.amount / 100,
+		currency: payout.currency,
+		status: payout.status,
+		arrival_date: payout.arrival_date,
+	});
 }
 
 async function updatePaymentRequest(directus: any, paymentRequestId: string, amount: number) {

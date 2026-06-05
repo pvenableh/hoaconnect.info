@@ -1,5 +1,7 @@
 import Stripe from 'stripe';
 import { z } from 'zod';
+import { readItem } from '@directus/sdk';
+// getTypedDirectus is auto-imported from server/utils/directus.ts
 
 const SUPPORTED_PAYMENT_TYPES = ['card', 'us_bank_account'] as const;
 const SUPPORTED_CURRENCIES = ['usd'] as const;
@@ -23,6 +25,11 @@ const paymentIntentSchema = z.object({
 	paymentRequestId: z.string().uuid().optional(),
 	description: z.string().optional(),
 	metadata: z.record(z.any()).optional(),
+	// Stripe Connect: when true (and the org has an active connected account),
+	// route this dues payment to the association's connected account as a
+	// destination charge and take the platform application fee. Set ONLY by the
+	// resident dues flow — SaaS subscription billing must never set this.
+	routeDuesToConnect: z.boolean().optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -78,6 +85,49 @@ export default defineEventHandler(async (event) => {
 		// Add description if provided
 		if (validatedData.description) {
 			baseOptions.description = validatedData.description;
+		}
+
+		// Stripe Connect: route dues to the association's connected account as a
+		// destination charge, taking the platform application fee. Looked up
+		// server-side from the org (never trust a destination account from the
+		// client). Silently falls back to a normal platform charge if the org
+		// has no active connected account yet.
+		if (validatedData.routeDuesToConnect && validatedData.organizationId) {
+			try {
+				const directus = getTypedDirectus();
+				const org = (await directus.request(
+					readItem('hoa_organizations', validatedData.organizationId, {
+						fields: ['id', 'stripe_connect_account_id', 'connect_charges_enabled'],
+					})
+				)) as { stripe_connect_account_id?: string | null; connect_charges_enabled?: boolean | null };
+
+				if (org?.stripe_connect_account_id && org.connect_charges_enabled) {
+					const feePercent = parseFloat(config.stripeConnectFeePercent || '2') || 0;
+					const applicationFeeAmount = Math.round((validatedData.amount * feePercent) / 100);
+
+					baseOptions.transfer_data = { destination: org.stripe_connect_account_id };
+					if (applicationFeeAmount > 0) {
+						baseOptions.application_fee_amount = applicationFeeAmount;
+					}
+					baseOptions.metadata = {
+						...baseOptions.metadata,
+						connect_account_id: org.stripe_connect_account_id,
+						platform_fee_percent: String(feePercent),
+					};
+
+					console.log('Routing dues to connected account:', {
+						destination: org.stripe_connect_account_id,
+						applicationFeeAmount,
+						feePercent,
+					});
+				} else {
+					console.warn(
+						`routeDuesToConnect set but org ${validatedData.organizationId} has no active connected account; using platform charge`
+					);
+				}
+			} catch (connectErr: any) {
+				console.error('Connect routing lookup failed; using platform charge:', connectErr.message);
+			}
 		}
 
 		// Configure payment method types based on paymentType

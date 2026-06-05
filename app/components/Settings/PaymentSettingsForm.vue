@@ -1,5 +1,11 @@
 <template>
   <div class="space-y-6">
+    <!-- Stripe Connect payouts -->
+    <SettingsConnectPayoutsCard
+      :organization="organization"
+      @refresh="emit('updated', organization)"
+    />
+
     <!-- Monthly Dues -->
     <Card>
       <CardHeader>

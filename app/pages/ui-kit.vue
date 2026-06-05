@@ -29,7 +29,7 @@ const stats = [
 const settingsRows = [
 	{ icon: 'lucide:building-2', label: 'Association profile', hint: 'Name, logo, address' },
 	{ icon: 'lucide:credit-card', label: 'Billing & subscription', hint: 'Studio plan' },
-	{ icon: 'lucide:banknote', label: 'Payouts (Stripe Connect)', hint: 'Not connected' },
+	{ icon: 'lucide:banknote', label: 'Payouts (Stripe Connect)', hint: 'Manage in Org Settings → Payments' },
 	{ icon: 'lucide:users', label: 'Members & roles', hint: '34 members' },
 ];
 </script>

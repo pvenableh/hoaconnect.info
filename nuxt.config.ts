@@ -42,6 +42,10 @@ export default defineNuxtConfig({
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    // Stripe Connect: platform fee taken on resident dues routed through a
+    // connected (Express) account, as a percentage of the charge. Default 2%.
+    // Confirm the final rate with the business before going live.
+    stripeConnectFeePercent: process.env.STRIPE_CONNECT_FEE_PERCENT || "2",
 
     public: {
       directus: {
@@ -73,6 +77,9 @@ export default defineNuxtConfig({
           ? process.env.STRIPE_PUBLIC_KEY_LIVE
           : process.env.STRIPE_PUBLIC_KEY_TEST,
       companyName: "Property Flow",
+      // Stripe Connect platform fee % (display only; the server recomputes the
+      // authoritative fee from the private stripeConnectFeePercent).
+      stripeConnectFeePercent: process.env.STRIPE_CONNECT_FEE_PERCENT || "2",
       // Default branding assets (Directus file IDs)
       // These are used when no organization is active or org has no custom branding
       defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
