@@ -15,11 +15,11 @@ const props = defineProps<{
 const chartConfig: ChartConfig = {
   messages: {
     label: "Messages",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   members: {
     label: "Members",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 }
 
@@ -28,7 +28,7 @@ const y = [
   (d: ChannelData) => d.messages,
   (d: ChannelData) => d.members,
 ]
-const color = ["hsl(var(--chart-1))", "hsl(var(--chart-2))"]
+const color = ["var(--chart-1)", "var(--chart-2)"]
 
 const tickFormat = (i: number) => {
   const item = props.data[i]
@@ -66,11 +66,11 @@ const tickFormat = (i: number) => {
       </ChartContainer>
       <div class="flex justify-center gap-4 mt-2">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-1))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
           <span class="text-sm text-muted-foreground">Messages</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
           <span class="text-sm text-muted-foreground">Members</span>
         </div>
       </div>

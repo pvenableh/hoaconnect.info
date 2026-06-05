@@ -149,7 +149,7 @@ export interface HoaBoardMember {
 	hoa_member?: HoaMember | string | null;
 	term_start?: string | null;
 	term_end?: string | null;
-	title?: `borad member` | 'president' | `Vice President` | 'secretary' | 'treasurer' | null;
+	title?: 'president' | 'vice_president' | 'secretary' | 'treasurer' | 'director' | null;
 	icon?: string | null;
 	message?: string | null;
 }
@@ -404,6 +404,71 @@ export interface HoaMailingList {
 	member_count?: number | null;
 	organization?: HoaOrganization | string | null;
 	members?: HoaMailingListMember[] | string[];
+}
+
+export interface HoaMeetingAttendee {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	meeting: HoaMeeting | string;
+	/** @description The person who attended */
+	hoa_member?: HoaMember | string | null;
+	/** @description The hoa_board_members term active on the meeting date */
+	board_term?: HoaBoardMember | string | null;
+	/** @description Role/title at the time of the meeting (frozen for history) */
+	role_at_meeting?: string | null;
+	is_board_member?: boolean | null;
+	attendance?: 'present' | 'absent' | 'excused' | 'proxy' | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaMeeting {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	/** @required */
+	title: string;
+	type?: 'board' | 'annual' | 'special' | 'committee' | null;
+	status?: 'scheduled' | 'in_progress' | 'completed' | 'canceled' | null;
+	/** @description Date & time the meeting starts */
+	meeting_date?: string | null;
+	/** @description Optional end date/time */
+	end_date?: string | null;
+	/** @description Physical location */
+	location?: string | null;
+	/** @description Video conference / livestream link */
+	virtual_url?: string | null;
+	/** @description Meeting notice document */
+	notice_file?: DirectusFile | string | null;
+	/** @description Meeting agenda */
+	agenda?: string | null;
+	/** @description Meeting minutes (published after the meeting) */
+	minutes?: string | null;
+	/** @description Link to recording (YouTube, Vimeo, etc.) */
+	recording_url?: string | null;
+	/** @description Uploaded recording file */
+	recording_file?: DirectusFile | string | null;
+	/** @description Visible to members when true */
+	is_published?: boolean | null;
+	target_audience?: 'all' | 'owners' | 'tenants' | 'board_members' | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+	attendees?: HoaMeetingAttendee[] | string[];
+	attachments?: HoaMeetingsFile[] | string[];
+}
+
+export interface HoaMeetingsFile {
+	/** @primaryKey */
+	id: string;
+	hoa_meetings_id?: HoaMeeting | string | null;
+	directus_files_id?: DirectusFile | string | null;
 }
 
 export interface HoaMember {
@@ -1128,6 +1193,9 @@ export interface Schema {
 	hoa_invitations: HoaInvitation[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
+	hoa_meeting_attendees: HoaMeetingAttendee[];
+	hoa_meetings: HoaMeeting[];
+	hoa_meetings_files: HoaMeetingsFile[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
 	hoa_organizations: HoaOrganization[];
@@ -1189,6 +1257,9 @@ export enum CollectionNames {
 	hoa_invitations = 'hoa_invitations',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
+	hoa_meeting_attendees = 'hoa_meeting_attendees',
+	hoa_meetings = 'hoa_meetings',
+	hoa_meetings_files = 'hoa_meetings_files',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
 	hoa_organizations = 'hoa_organizations',

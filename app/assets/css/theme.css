@@ -39,42 +39,42 @@
 ============================================================================= */
 :root,
 .theme-classic-light {
-	/* Background colors */
-	--theme-bg-primary: #FDFCFA;
-	--theme-bg-secondary: #F5F3EF;
-	--theme-bg-tertiary: #EDE9E3;
-	--theme-bg-elevated: #FFFFFF;
-	--theme-bg-overlay: rgba(253, 252, 250, 0.95);
+	/* Background colors - editorial cream paper (GreaterOps editorial) */
+	--theme-bg-primary: #F7F3EA;
+	--theme-bg-secondary: #F1ECE0;
+	--theme-bg-tertiary: #EAE3D4;
+	--theme-bg-elevated: #FFFDF8;
+	--theme-bg-overlay: rgba(247, 243, 234, 0.95);
 
-	/* Text colors */
-	--theme-text-primary: #454545;
-	--theme-text-secondary: #6c6c6c;
-	--theme-text-tertiary: #8B7355;
-	--theme-text-muted: #9a9a9a;
-	--theme-text-inverse: #FFFFFF;
+	/* Text colors - ink */
+	--theme-text-primary: #1C1A16;
+	--theme-text-secondary: #4A463E;
+	--theme-text-tertiary: #8A8475;
+	--theme-text-muted: #8A8475;
+	--theme-text-inverse: #FFFDF8;
 
-	/* Accent colors */
-	--theme-accent-primary: #C9A96E;
-	--theme-accent-secondary: #D4BA8A;
-	--theme-accent-tertiary: #8B7355;
-	--theme-accent-hover: #B89A5F;
-	--theme-accent-active: var(--cyan2, #00d4aa);
+	/* Accent colors - terracotta */
+	--theme-accent-primary: #B14D2B;
+	--theme-accent-secondary: #C76A47;
+	--theme-accent-tertiary: #8A8475;
+	--theme-accent-hover: #9A4225;
+	--theme-accent-active: #B14D2B;
 
-	/* Border colors */
-	--theme-border-primary: #E5E0D8;
-	--theme-border-secondary: #D4CFC7;
-	--theme-border-light: #F0EBE3;
+	/* Border colors - editorial hairline rules */
+	--theme-border-primary: #D9D1C0;
+	--theme-border-secondary: #C4BAA4;
+	--theme-border-light: #E8E0D0;
 
 	/* Component-specific */
-	--theme-header-bg: #F5F3EF;
-	--theme-footer-bg: #FDFCFA;
-	--theme-card-bg: #FFFFFF;
-	--theme-nav-bg: rgba(255, 255, 255, 0.85);
-	--theme-drawer-bg: rgba(255, 255, 255, 0.92);
+	--theme-header-bg: #F1ECE0;
+	--theme-footer-bg: #F7F3EA;
+	--theme-card-bg: #FFFDF8;
+	--theme-nav-bg: rgba(247, 243, 234, 0.85);
+	--theme-drawer-bg: rgba(255, 253, 248, 0.92);
 
-	/* Typography */
+	/* Typography - editorial serif display + serif body */
 	--theme-heading-font: 'Bauer Bodoni Pro_1 W05 Roman', 'Times New Roman', Times, serif;
-	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	--theme-body-font: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 
 	/* Shadows */
 	--theme-shadow-sm: 0 1px 2px rgba(139, 115, 85, 0.05);
@@ -82,15 +82,15 @@
 	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
 
 	/* Interactive */
-	--theme-link-color: #8B7355;
-	--theme-link-hover: #C9A96E;
-	--theme-button-bg: #C9A96E;
-	--theme-button-text: #FFFFFF;
-	--theme-button-hover-bg: #B89A5F;
+	--theme-link-color: #B14D2B;
+	--theme-link-hover: #9A4225;
+	--theme-button-bg: #B14D2B;
+	--theme-button-text: #FFFDF8;
+	--theme-button-hover-bg: #9A4225;
 
 	/* Dividers */
-	--theme-divider: #E5E0D8;
-	--theme-divider-light: #F0EBE3;
+	--theme-divider: #D9D1C0;
+	--theme-divider-light: #E8E0D0;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -205,58 +205,58 @@
    Clean white with grey text, cyan highlights, sans-serif typography
 ============================================================================= */
 .theme-modern-light {
-	/* Background colors */
-	--theme-bg-primary: #FFFFFF;
-	--theme-bg-secondary: #F8F9FA;
-	--theme-bg-tertiary: #F1F3F5;
+	/* Background colors - white-on-white; depth comes from shadow + glass */
+	--theme-bg-primary: #F9FAFB;
+	--theme-bg-secondary: #F3F4F6;
+	--theme-bg-tertiary: #EAECEF;
 	--theme-bg-elevated: #FFFFFF;
-	--theme-bg-overlay: rgba(255, 255, 255, 0.95);
+	--theme-bg-overlay: rgba(249, 250, 251, 0.95);
 
-	/* Text colors - grey palette */
-	--theme-text-primary: #495057;
-	--theme-text-secondary: #6C757D;
-	--theme-text-tertiary: #868E96;
-	--theme-text-muted: #ADB5BD;
+	/* Text colors - crisp near-black for a clean modern read */
+	--theme-text-primary: #16181D;
+	--theme-text-secondary: #45474F;
+	--theme-text-tertiary: #6B6E78;
+	--theme-text-muted: #9498A1;
 	--theme-text-inverse: #FFFFFF;
 
-	/* Accent colors - cyan/turquoise */
-	--theme-accent-primary: #00BFD8;
-	--theme-accent-secondary: #00D4E8;
-	--theme-accent-tertiary: #0097A7;
-	--theme-accent-hover: #00A8C0;
+	/* Accent colors - bright cyan pop (#00bfff) */
+	--theme-accent-primary: #00BFFF;
+	--theme-accent-secondary: #33CCFF;
+	--theme-accent-tertiary: #0095CC;
+	--theme-accent-hover: #00A6E0;
 	--theme-accent-active: #00efd1;
 
 	/* Border colors */
-	--theme-border-primary: #DEE2E6;
-	--theme-border-secondary: #CED4DA;
-	--theme-border-light: #E9ECEF;
+	--theme-border-primary: #EAECEF;
+	--theme-border-secondary: #DDE0E4;
+	--theme-border-light: #F2F3F5;
 
 	/* Component-specific */
-	--theme-header-bg: #FFFFFF;
-	--theme-footer-bg: #F8F9FA;
+	--theme-header-bg: rgba(255, 255, 255, 0.72);
+	--theme-footer-bg: #F3F4F6;
 	--theme-card-bg: #FFFFFF;
-	--theme-nav-bg: rgba(255, 255, 255, 0.92);
+	--theme-nav-bg: rgba(255, 255, 255, 0.72);
 	--theme-drawer-bg: rgba(255, 255, 255, 0.95);
 
 	/* Typography - sans-serif for headings */
 	--theme-heading-font: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 
-	/* Shadows */
-	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
-	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+	/* Shadows - wide, soft & subtle; lighter opacity, larger spread */
+	--theme-shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.035);
+	--theme-shadow-md: 0 8px 28px -6px rgba(15, 23, 42, 0.06);
+	--theme-shadow-lg: 0 20px 56px -16px rgba(15, 23, 42, 0.09);
 
 	/* Interactive */
-	--theme-link-color: #00BFD8;
-	--theme-link-hover: #0097A7;
-	--theme-button-bg: #00BFD8;
+	--theme-link-color: #0095CC;
+	--theme-link-hover: #00A6E0;
+	--theme-button-bg: #00BFFF;
 	--theme-button-text: #FFFFFF;
-	--theme-button-hover-bg: #00A8C0;
+	--theme-button-hover-bg: #00A6E0;
 
 	/* Dividers */
-	--theme-divider: #DEE2E6;
-	--theme-divider-light: #E9ECEF;
+	--theme-divider: #EAECEF;
+	--theme-divider-light: #F2F3F5;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;

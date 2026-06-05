@@ -21,11 +21,12 @@ import type {
   HoaEmailRecipient,
   HoaChannelMessage,
   HoaChannel,
+  HoaMeeting,
   DirectusUser,
 } from "~~/types/directus";
 
 // Notification types
-export type NotificationType = "announcement" | "mention" | "email";
+export type NotificationType = "announcement" | "mention" | "email" | "meeting";
 
 // Unified notification interface
 export interface UnifiedNotification {
@@ -53,9 +54,13 @@ export interface UnifiedNotification {
     emailId?: string;
     emailType?: string;
     isUrgent?: boolean;
+    // Meeting specific
+    meetingId?: string;
+    meetingType?: string;
+    meetingDate?: string;
   };
   // Original data for detail view
-  originalData: HoaAnnouncement | HoaChannelMention | HoaEmailRecipient;
+  originalData: HoaAnnouncement | HoaChannelMention | HoaEmailRecipient | HoaMeeting;
 }
 
 // Storage key prefix for seen tracking
@@ -75,6 +80,7 @@ export const useNotifications = () => {
   const { list: listEmailRecipients } = useDirectusItems(
     "hoa_email_recipients"
   );
+  const { list: listMeetings } = useDirectusItems("hoa_meetings");
 
   // Access shared state from useSelectedOrg
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -202,6 +208,33 @@ export const useNotifications = () => {
     };
   };
 
+  // Transform meeting to unified notification
+  const MEETING_TYPE_LABELS: Record<string, string> = {
+    board: "Board Meeting",
+    annual: "Annual Meeting",
+    special: "Special Meeting",
+    committee: "Committee Meeting",
+  };
+  const transformMeeting = (meeting: HoaMeeting): UnifiedNotification => {
+    const isRead = isSeen(meeting.id, "meeting");
+    return {
+      id: meeting.id,
+      type: "meeting",
+      title: meeting.title || "Meeting",
+      subtitle: MEETING_TYPE_LABELS[meeting.type || "board"] || "Meeting",
+      content: meeting.agenda || undefined,
+      date: meeting.date_created || meeting.meeting_date || "",
+      isRead,
+      priority: "normal",
+      metadata: {
+        meetingId: meeting.id,
+        meetingType: meeting.type || "board",
+        meetingDate: meeting.meeting_date || undefined,
+      },
+      originalData: meeting,
+    };
+  };
+
   // Transform mention to unified notification
   const transformMention = (
     mention: HoaChannelMention & {
@@ -298,10 +331,6 @@ export const useNotifications = () => {
           "expiry_date",
           "is_pinned",
           "date_created",
-          "button_text",
-          "button_link",
-          "external_link",
-          "show_toast",
         ],
         filter: {
           organization: { _eq: selectedOrgId.value },
@@ -376,6 +405,36 @@ export const useNotifications = () => {
         allNotifications.push(...emailRecipients.map(transformEmailRecipient));
       }
 
+      // Fetch published meetings (audience-targeted). Isolated so a failure
+      // here never drops the announcements/mentions/emails already collected.
+      try {
+        const meetingAudience = audienceFilter.map((a) =>
+          a === "board members" ? "board_members" : a
+        );
+        const meetings = (await listMeetings({
+          fields: [
+            "id",
+            "title",
+            "type",
+            "agenda",
+            "meeting_date",
+            "date_created",
+            "is_published",
+            "target_audience",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            is_published: { _eq: true },
+            target_audience: { _in: meetingAudience },
+          },
+          sort: ["-date_created"],
+          limit: 20,
+        })) as HoaMeeting[];
+        allNotifications.push(...meetings.map(transformMeeting));
+      } catch (e) {
+        console.warn("Failed to fetch meeting notifications:", e);
+      }
+
       // Sort all notifications by date (newest first)
       allNotifications.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -428,6 +487,7 @@ export const useNotifications = () => {
     localStorage.removeItem(getStorageKey("announcement"));
     localStorage.removeItem(getStorageKey("mention"));
     localStorage.removeItem(getStorageKey("email"));
+    localStorage.removeItem(getStorageKey("meeting"));
   };
 
   // Helper functions
@@ -489,6 +549,10 @@ export const useNotifications = () => {
       return notification.metadata.isUrgent
         ? { bg: "bg-red-50", text: "text-red-700", icon: "mail" }
         : { bg: "bg-green-50", text: "text-green-700", icon: "mail" };
+    }
+
+    if (notification.type === "meeting") {
+      return { bg: "bg-violet-50", text: "text-violet-700", icon: "users" };
     }
 
     return { bg: "bg-stone-50", text: "text-stone-700", icon: "bell" };

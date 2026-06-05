@@ -60,6 +60,12 @@ const navigateToChannel = () => {
   }
 };
 
+// Navigate to the meetings app
+const goToMeetings = () => {
+  closeNotification();
+  router.push(buildOrgPath("/meetings"));
+};
+
 // Handle sheet close
 const handleOpenChange = (open: boolean) => {
   if (!open) {
@@ -138,8 +144,11 @@ const formatFullDate = (dateString: string | null | undefined): string => {
               <template v-else-if="selectedNotification.type === 'mention'">
                 Mention
               </template>
-              <template v-else>
+              <template v-else-if="selectedNotification.type === 'email'">
                 Email
+              </template>
+              <template v-else>
+                {{ selectedNotification.subtitle || 'Meeting' }}
               </template>
             </div>
 
@@ -273,6 +282,28 @@ const formatFullDate = (dateString: string | null | undefined): string => {
             <p class="mt-4 text-sm text-stone-500">
               Check your email inbox for the full message.
             </p>
+          </template>
+
+          <!-- Meeting Content -->
+          <template v-else-if="selectedNotification.type === 'meeting'">
+            <div
+              v-if="selectedNotification.content"
+              class="prose prose-stone prose-sm max-w-none"
+              v-html="selectedNotification.content"
+            />
+            <p v-else class="text-stone-500 italic">
+              A new meeting has been posted for your community.
+            </p>
+
+            <div class="mt-6 pt-6 border-t border-stone-100">
+              <button
+                @click="goToMeetings"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                View meeting
+                <Icon name="lucide:arrow-right" class="w-4 h-4" />
+              </button>
+            </div>
           </template>
         </div>
 

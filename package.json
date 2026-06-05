@@ -11,6 +11,7 @@
     "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js",
     "create:channels": "dotenv -- tsx scripts/create-channels-collections.ts",
+    "create:meetings": "dotenv -- tsx scripts/create-meetings-collections.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },

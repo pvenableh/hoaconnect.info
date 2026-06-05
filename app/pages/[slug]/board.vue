@@ -60,16 +60,13 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="ui-kit accent-violet min-h-screen bg-stone-50">
     <!-- Loading State -->
     <div v-if="pending" class="flex items-center justify-center min-h-[400px]">
       <div class="text-center">
-        <div
-          class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-          role="status"
-        >
+        <span class="spinner-ios spinner-ios--lg" role="status">
           <span class="sr-only">Loading...</span>
-        </div>
+        </span>
         <p class="mt-4 text-gray-600">Loading board members...</p>
       </div>
     </div>

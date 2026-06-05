@@ -1,19 +1,15 @@
 <template>
-  <div class="container max-w-6xl mx-auto py-8 px-4">
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-        My Payments
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400">
+  <div class="ui-kit accent-emerald container max-w-6xl mx-auto py-8 px-4">
+    <WidgetGlass strong class="mb-8">
+      <h1 class="text-3xl font-semibold tracking-tight t-text">My Payments</h1>
+      <p class="t-text-secondary mt-1">
         View and pay your HOA dues, assessments, and other charges.
       </p>
-    </div>
+    </WidgetGlass>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center items-center py-12">
-      <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"
-      ></div>
+      <span class="spinner-ios spinner-ios--xl" />
     </div>
 
     <!-- Empty State -->
@@ -44,7 +40,7 @@
           <div
             v-for="request in outstandingRequests"
             :key="request.id"
-            class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-l-4"
+            class="ios-card p-6 border-l-4"
             :class="{
               'border-red-500': request.status === 'overdue',
               'border-yellow-500': request.status === 'active',
@@ -145,7 +141,7 @@
           <div
             v-for="request in paidRequests"
             :key="request.id"
-            class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-l-4 border-green-500"
+            class="ios-card p-6 border-l-4 border-green-500"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1">

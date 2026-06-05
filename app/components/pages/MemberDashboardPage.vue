@@ -249,11 +249,11 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-blue min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-8">
         <!-- Welcome Header -->
-        <div class="text-center py-8">
+        <WidgetGlass strong class="text-center py-8">
           <!-- Organization Logo -->
           <div v-if="orgLogoUrl" class="mb-6">
             <img
@@ -294,7 +294,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               Board {{ boardTitleDisplay }}
             </span>
           </div>
-        </div>
+        </WidgetGlass>
 
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">

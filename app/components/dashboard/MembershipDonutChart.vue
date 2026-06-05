@@ -15,8 +15,8 @@ const props = defineProps<{
 }>()
 
 const data = computed<MembershipData[]>(() => [
-  { type: "Owners", count: props.owners, fill: "hsl(var(--chart-1))" },
-  { type: "Tenants", count: props.tenants, fill: "hsl(var(--chart-2))" },
+  { type: "Owners", count: props.owners, fill: "var(--chart-1)" },
+  { type: "Tenants", count: props.tenants, fill: "var(--chart-2)" },
 ])
 
 const total = computed(() => props.owners + props.tenants)
@@ -24,11 +24,11 @@ const total = computed(() => props.owners + props.tenants)
 const chartConfig: ChartConfig = {
   owners: {
     label: "Owners",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   tenants: {
     label: "Tenants",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 }
 
@@ -67,11 +67,11 @@ const color = (d: MembershipData) => d.fill
       </ChartContainer>
       <div class="flex justify-center gap-4 mt-2">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-1))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
           <span class="text-sm text-muted-foreground">Owners ({{ owners }})</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
           <span class="text-sm text-muted-foreground">Tenants ({{ tenants }})</span>
         </div>
       </div>

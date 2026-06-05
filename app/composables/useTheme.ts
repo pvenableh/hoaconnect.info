@@ -42,7 +42,7 @@ function getStoredTheme(): ThemeState {
 			}
 		}
 	}
-	return { style: 'classic', mode: 'light' };
+	return { style: 'modern', mode: 'light' };
 }
 
 // Global reactive state

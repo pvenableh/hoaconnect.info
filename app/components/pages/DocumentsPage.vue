@@ -513,7 +513,7 @@ const handleBatchUploadComplete = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen t-bg t-text">
+  <div class="ui-kit accent-blue min-h-screen t-bg t-text">
     <!-- Page Header Section -->
     <div class="t-bg-alt border-b t-border-divider">
       <div class="max-w-7xl mx-auto px-6 py-12">

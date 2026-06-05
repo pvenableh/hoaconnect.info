@@ -17,6 +17,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     '/setup',
     '/api/',
     '/account',
+    '/ui-kit', // design system showcase (main-domain, no org context)
   ];
 
   if (skipPaths.some(path => to.path.startsWith(path))) {

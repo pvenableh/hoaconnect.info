@@ -528,15 +528,16 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-cyan min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold mb-2">Manage Members</h1>
-          <p class="t-text-secondary">
+        <WidgetGlass strong class="mb-8">
+          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Members</p>
+          <h1 class="text-3xl font-semibold tracking-tight t-text">Manage Members</h1>
+          <p class="t-text-secondary mt-1">
             Invite new members and manage existing memberships
           </p>
-        </div>
+        </WidgetGlass>
 
         <!-- Loading State -->
         <div v-if="isLoading" class="text-center py-12">

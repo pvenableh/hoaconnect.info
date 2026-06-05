@@ -1,9 +1,9 @@
 <template>
-	<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+	<div class="ui-kit accent-emerald min-h-screen flex items-center justify-center t-bg py-12 px-4 sm:px-6 lg:px-8">
 		<div class="max-w-md w-full space-y-8">
 			<!-- Loading State -->
 			<div v-if="isLoading" class="text-center">
-				<div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+				<span class="spinner-ios spinner-ios--xl mx-auto mb-4 block" />
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Processing your payment...</h2>
 				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we confirm your payment.</p>
 			</div>
@@ -18,7 +18,7 @@
 					Your payment of <strong>{{ formatCurrency(paymentAmount) }}</strong> has been processed successfully.
 				</p>
 
-				<div v-if="paymentIntent" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 text-left">
+				<div v-if="paymentIntent" class="ios-card p-6 mb-6 text-left">
 					<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-4">
 						Payment Details
 					</h3>

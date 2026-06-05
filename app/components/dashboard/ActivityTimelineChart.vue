@@ -16,15 +16,15 @@ const props = defineProps<{
 const chartConfig: ChartConfig = {
   documents: {
     label: "Documents",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   emails: {
     label: "Emails",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
   members: {
     label: "New Members",
-    color: "hsl(var(--chart-3))",
+    color: "var(--chart-3)",
   },
 }
 
@@ -34,7 +34,7 @@ const y = [
   (d: ActivityData) => d.emails,
   (d: ActivityData) => d.members,
 ]
-const color = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))"]
+const color = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]
 
 const tickFormat = (i: number) => {
   const item = props.data[i]
@@ -72,15 +72,15 @@ const tickFormat = (i: number) => {
       </ChartContainer>
       <div class="flex justify-center gap-4 mt-2">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-1))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
           <span class="text-sm text-muted-foreground">Documents</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
           <span class="text-sm text-muted-foreground">Emails</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[hsl(var(--chart-3))]" />
+          <div class="w-3 h-3 rounded-full bg-[var(--chart-3)]" />
           <span class="text-sm text-muted-foreground">New Members</span>
         </div>
       </div>

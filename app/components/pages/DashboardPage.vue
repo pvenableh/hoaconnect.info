@@ -278,14 +278,15 @@ const channelData = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-cyan min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-6">
-        <!-- Header -->
-        <div>
-          <h1 class="text-3xl font-bold t-text">Dashboard</h1>
-          <p class="t-text-secondary">{{ stats.organization }}</p>
-        </div>
+        <!-- Glass hero header -->
+        <WidgetGlass strong>
+          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">{{ stats.organization }}</p>
+          <h1 class="text-3xl font-semibold tracking-tight t-text">Dashboard</h1>
+          <p class="t-text-secondary mt-1">Here's how your community is doing.</p>
+        </WidgetGlass>
 
         <!-- Stats Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -294,24 +295,28 @@ const channelData = computed(() => {
             :value="stats.documents"
             description="Published documents"
             icon="heroicons:document-text"
+            accent="blue"
           />
           <DashboardStatsCard
             title="Units"
             :value="stats.units"
             description="Total units"
             icon="heroicons:building-office"
+            accent="violet"
           />
           <DashboardStatsCard
             title="Members"
             :value="stats.members"
             description="Owners & Tenants"
             icon="heroicons:users"
+            accent="emerald"
           />
           <DashboardStatsCard
             title="Emails Sent"
             :value="emailStats.sent"
             description="Communications sent"
             icon="heroicons:envelope"
+            accent="amber"
           />
         </div>
 
@@ -332,75 +337,57 @@ const channelData = computed(() => {
 
         <!-- Email Engagement Stats (from real-time Directus data) -->
         <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.totalSent }}</p>
-              <p class="text-xs t-text-muted">Total Sent</p>
-            </div>
-          </Card>
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold text-green-600">{{ emailEngagementStats.totalDelivered }}</p>
-              <p class="text-xs t-text-muted">Delivered</p>
-            </div>
-          </Card>
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.uniqueOpens }}</p>
-              <p class="text-xs t-text-muted">Unique Opens</p>
-            </div>
-          </Card>
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.uniqueClicks }}</p>
-              <p class="text-xs t-text-muted">Unique Clicks</p>
-            </div>
-          </Card>
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.openRate }}%</p>
-              <p class="text-xs t-text-muted">Open Rate</p>
-            </div>
-          </Card>
-          <Card class="p-4 t-bg-elevated">
-            <div class="text-center">
-              <p class="text-2xl font-bold t-text-accent">{{ emailEngagementStats.clickRate }}%</p>
-              <p class="text-xs t-text-muted">Click Rate</p>
-            </div>
-          </Card>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.totalSent }}</p>
+            <p class="text-xs t-text-muted mt-0.5">Total Sent</p>
+          </div>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums text-emerald-600">{{ emailEngagementStats.totalDelivered }}</p>
+            <p class="text-xs t-text-muted mt-0.5">Delivered</p>
+          </div>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueOpens }}</p>
+            <p class="text-xs t-text-muted mt-0.5">Unique Opens</p>
+          </div>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueClicks }}</p>
+            <p class="text-xs t-text-muted mt-0.5">Unique Clicks</p>
+          </div>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.openRate }}%</p>
+            <p class="text-xs t-text-muted mt-0.5">Open Rate</p>
+          </div>
+          <div class="ios-card p-4 text-center">
+            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.clickRate }}%</p>
+            <p class="text-xs t-text-muted mt-0.5">Click Rate</p>
+          </div>
         </div>
 
         <!-- Content Row -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Recent Documents -->
-          <Card class="t-bg-elevated">
-            <CardHeader>
-              <CardTitle class="t-text">Recent Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div v-if="documents?.length" class="space-y-2">
-                <NuxtLink
-                  v-for="doc in documents"
-                  :key="doc.id"
-                  :to="buildOrgPath(`/documents/${doc.id}`)"
-                  class="block p-3 hover:t-bg-subtle rounded transition-colors"
-                >
-                  <p class="font-medium t-text">{{ doc.title }}</p>
-                  <p class="text-sm t-text-muted">{{ doc.document_category?.name }}</p>
-                </NuxtLink>
-              </div>
-              <p v-else class="t-text-muted py-4 text-center">No documents yet</p>
-            </CardContent>
-            <CardFooter>
-              <Button
-                @click="navigateToOrg('/documents')"
-                variant="outline"
-                class="w-full"
+          <div class="ios-card p-5 flex flex-col">
+            <h3 class="font-semibold t-text mb-3">Recent Documents</h3>
+            <div v-if="documents?.length" class="space-y-1 flex-1">
+              <NuxtLink
+                v-for="doc in documents"
+                :key="doc.id"
+                :to="buildOrgPath(`/documents/${doc.id}`)"
+                class="block px-3 py-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
               >
-                View All Documents
-              </Button>
-            </CardFooter>
-          </Card>
+                <p class="font-medium t-text truncate">{{ doc.title }}</p>
+                <p class="text-sm t-text-muted truncate">{{ doc.document_category?.name }}</p>
+              </NuxtLink>
+            </div>
+            <p v-else class="t-text-muted py-4 text-center flex-1">No documents yet</p>
+            <Button
+              @click="navigateToOrg('/documents')"
+              variant="outline"
+              class="w-full mt-3 rounded-full"
+            >
+              View All Documents
+            </Button>
+          </div>
 
           <!-- Announcements -->
           <DashboardAnnouncementsList :announcements="announcements || []" />
@@ -415,37 +402,35 @@ const channelData = computed(() => {
         </div>
 
         <!-- Quick Actions -->
-        <Card class="t-bg-elevated">
-          <CardHeader>
-            <CardTitle class="t-text">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent class="flex flex-wrap gap-2">
-            <Button @click="navigateToOrg('/admin/documents/upload')">
+        <div class="ios-card p-5">
+          <h3 class="font-semibold t-text mb-3">Quick Actions</h3>
+          <div class="flex flex-wrap gap-2">
+            <Button @click="navigateToOrg('/admin/documents/upload')" class="rounded-full">
               <Icon name="heroicons:arrow-up-tray" class="h-4 w-4 mr-2" />
               Upload Document
             </Button>
-            <Button @click="navigateToOrg('/admin/units')" variant="outline">
+            <Button @click="navigateToOrg('/admin/units')" variant="outline" class="rounded-full">
               <Icon name="heroicons:building-office" class="h-4 w-4 mr-2" />
               Manage Units
             </Button>
-            <Button @click="navigateToOrg('/admin/members')" variant="outline">
+            <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
               <Icon name="heroicons:user-plus" class="h-4 w-4 mr-2" />
               Invite Member
             </Button>
-            <Button @click="navigateToOrg('/admin/members')" variant="outline">
+            <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
               <Icon name="heroicons:users" class="h-4 w-4 mr-2" />
               Manage Members
             </Button>
-            <Button @click="navigateToOrg('/admin/email/compose')" variant="outline">
+            <Button @click="navigateToOrg('/admin/email/compose')" variant="outline" class="rounded-full">
               <Icon name="heroicons:envelope" class="h-4 w-4 mr-2" />
               Send Email
             </Button>
-            <Button @click="navigateToOrg('/admin/settings/organization')" variant="outline">
+            <Button @click="navigateToOrg('/admin/settings/organization')" variant="outline" class="rounded-full">
               <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
               Settings
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   </div>

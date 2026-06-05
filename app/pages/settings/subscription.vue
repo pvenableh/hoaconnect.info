@@ -186,17 +186,17 @@ const handleManageBilling = async () => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
+  <div class="ui-kit accent-blue max-w-6xl mx-auto px-6 py-8">
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-semibold text-stone-900">Subscription</h1>
-      <p class="text-stone-600 mt-1">
+    <WidgetGlass strong class="mb-8">
+      <h1 class="text-2xl font-semibold tracking-tight t-text">Subscription</h1>
+      <p class="t-text-secondary mt-1">
         Manage your organization's subscription and billing
       </p>
-    </div>
+    </WidgetGlass>
 
     <!-- Current Subscription Status -->
-    <div class="bg-white rounded-xl border border-stone-200 p-6 mb-8">
+    <div class="ios-card p-6 mb-8">
       <h2 class="text-lg font-semibold text-stone-900 mb-4">
         Current Subscription
       </h2>
@@ -324,9 +324,7 @@ const handleManageBilling = async () => {
 
     <!-- Plans Loading (hidden for free accounts) -->
     <div v-if="!currentSubscription.isFreeAccount && plansPending" class="flex justify-center py-12">
-      <div
-        class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
-      ></div>
+      <span class="spinner-ios spinner-ios--lg" />
     </div>
 
     <!-- Plans Grid (hidden for free accounts) -->
@@ -338,7 +336,7 @@ const handleManageBilling = async () => {
         v-for="plan in plans"
         :key="plan.id"
         :class="[
-          'bg-white rounded-xl border-2 p-6 relative',
+          'ios-card border-2 p-6 relative',
           plan.is_featured
             ? 'border-blue-500 shadow-lg'
             : 'border-stone-200 hover:border-stone-300',
@@ -437,7 +435,7 @@ const handleManageBilling = async () => {
     <!-- No Plans Available (hidden for free accounts) -->
     <div
       v-else-if="!currentSubscription.isFreeAccount"
-      class="text-center py-12 bg-white rounded-xl border border-stone-200"
+      class="text-center py-12 ios-card"
     >
       <Icon
         name="i-lucide-package"

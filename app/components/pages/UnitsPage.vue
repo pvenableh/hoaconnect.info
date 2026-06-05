@@ -159,7 +159,7 @@ const handleDelete = async (id: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-violet min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto space-y-6">
         <!-- Loading State -->

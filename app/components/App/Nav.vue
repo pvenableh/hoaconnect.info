@@ -8,6 +8,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
@@ -241,6 +249,41 @@ const userAvatarUrl = computed(() => {
   return null;
 });
 
+// Premium gating for the Luxury theme in the avatar dropdown.
+// Free accounts have full access; otherwise require an active/trial subscription.
+const hasPremiumTheme = computed(() => {
+  const org = currentOrg.value?.organization as any;
+  if (!org) return false;
+  if (org.is_free_account === true) return true;
+  return ["active", "trial"].includes(org.subscription_status);
+});
+
+function handlePremiumRequired() {
+  toast.info("The Luxury theme requires a premium plan");
+  router.push("/settings/subscription");
+}
+
+// Breadcrumb / location indicator — navigation now lives in the floating dock,
+// so the header just shows where you are: active app ▸ sub-page.
+const { appsFor, activeKeyFor } = useAppNav();
+const navApps = computed(() => appsFor(showAdminUI.value));
+const activeApp = computed(() => {
+  const key = activeKeyFor(navApps.value);
+  return navApps.value.find((a) => a.key === key) || null;
+});
+const subPage = computed(() => {
+  const slug = currentSlug.value;
+  const rel = slug ? route.path.replace(`/${slug}`, "") : route.path;
+  const segs = rel.split("/").filter(Boolean);
+  const last = segs[segs.length - 1];
+  if (!last) return null;
+  // Skip ids (uuid / numeric)
+  if (/^[0-9a-f]{8}-/i.test(last) || /^\d+$/.test(last)) return null;
+  const appTerminal = activeApp.value?.path.split("/").filter(Boolean).pop();
+  if (!appTerminal || last === appTerminal) return null;
+  return last.replace(/-/g, " ");
+});
+
 // Close mobile menu on route change
 watch(
   () => route.path,
@@ -296,22 +339,21 @@ watch(
           </a>
         </div>
 
-        <!-- Authenticated Nav Links - Show on org pages and custom domains when logged in (hidden in maintenance mode for non-admins) -->
+        <!-- Location breadcrumb — navigation lives in the floating dock -->
         <div
           v-else-if="user && !hideNavForMaintenance"
-          class="hidden md:flex gap-6"
+          class="hidden md:flex items-center gap-2 min-w-0"
         >
-          <!-- Public Navigation Items -->
-          <NuxtLink
-            v-for="item in publicNavItems"
-            :key="item.path"
-            :to="item.path"
-            class="flex items-center gap-2 t-text-secondary hover:t-text transition-colors uppercase text-xs tracking-wider"
-            active-class="t-text font-medium"
-          >
-            <Icon :name="'i-lucide-' + item.icon" class="w-4 h-4 hidden" />
-            {{ item.label }}
-          </NuxtLink>
+          <template v-if="activeApp">
+            <span class="inline-flex items-center gap-1.5 text-sm font-medium t-text">
+              <Icon :name="'i-lucide-' + activeApp.icon" class="w-4 h-4 t-text-accent" />
+              {{ activeApp.label }}
+            </span>
+            <template v-if="subPage">
+              <Icon name="i-lucide-chevron-right" class="w-3.5 h-3.5 t-text-muted" />
+              <span class="text-sm t-text-secondary capitalize">{{ subPage }}</span>
+            </template>
+          </template>
         </div>
 
         <!-- Empty spacer when logged in but in maintenance mode (non-admin) -->
@@ -331,55 +373,87 @@ watch(
             class="hidden sm:block"
           />
           <OrgSelector class="hidden sm:flex" />
-          <!-- User status badge - uses context-aware admin check -->
-          <span
-            v-if="userStatusBadge && !isMainMarketingDomain"
-            class="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-            :class="{
-              't-bg-accent/20 t-text-accent': showAdminUI,
-              't-bg-subtle t-text-accent':
-                !showAdminUI && userStatusBadge === 'Board Member',
-              't-bg-subtle t-text-secondary':
-                !showAdminUI && userStatusBadge !== 'Board Member',
-            }"
-          >
-            {{ userStatusBadge }}
-          </span>
-          <NuxtLink
-            to="/account"
-            target="_blank"
-            class="hover:opacity-80 transition hidden sm:block"
-            title="My Profile"
-          >
-            <Avatar>
-              <AvatarImage
-                v-if="userAvatarUrl"
-                :src="userAvatarUrl"
-                :alt="user?.firstName + ' ' + user?.lastName"
-              />
-              <AvatarImage
-                v-else
-                :src="
-                  'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
-                  user?.firstName +
-                  '+' +
-                  user?.lastName
-                "
-                :alt="user?.firstName + ' ' + user?.lastName"
-              />
-              <AvatarFallback>
-                {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
-              </AvatarFallback>
-            </Avatar>
-          </NuxtLink>
-          <Button
-            @click="handleLogout"
-            variant="outline"
-            size="sm"
-            class="uppercase tracking-wider text-xs hidden sm:flex"
-          >
-            Logout
-          </Button>
+          <!-- Avatar dropdown (desktop) -->
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              class="hidden sm:block rounded-full transition hover:opacity-80 focus:outline-none"
+              title="Account menu"
+            >
+              <Avatar>
+                <AvatarImage
+                  v-if="userAvatarUrl"
+                  :src="userAvatarUrl"
+                  :alt="user?.firstName + ' ' + user?.lastName"
+                />
+                <AvatarImage
+                  v-else
+                  :src="
+                    'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
+                    user?.firstName +
+                    '+' +
+                    user?.lastName
+                  "
+                  :alt="user?.firstName + ' ' + user?.lastName"
+                />
+                <AvatarFallback>
+                  {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
+                </AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-72">
+              <DropdownMenuLabel class="flex flex-col gap-0.5">
+                <span class="font-medium">
+                  {{ user?.firstName }} {{ user?.lastName }}
+                </span>
+                <span class="text-xs font-normal t-text-muted">
+                  {{ user?.email }}
+                </span>
+                <span
+                  v-if="userStatusBadge"
+                  class="mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider t-bg-accent/20 t-text-accent"
+                >
+                  {{ userStatusBadge }}
+                </span>
+              </DropdownMenuLabel>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem as-child>
+                <NuxtLink to="/account" class="cursor-pointer">
+                  <Icon name="i-lucide-user" class="size-4" />
+                  My Profile
+                </NuxtLink>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <!-- Appearance: theme style + dark mode (reuses ThemeSelector) -->
+              <div class="px-2 pb-1">
+                <ThemeSelector
+                  :has-premium="hasPremiumTheme"
+                  @premium-required="handlePremiumRequired"
+                />
+              </div>
+
+              <DropdownMenuSeparator />
+
+              <!-- App dock appearance: palette, labels, glass chrome, position -->
+              <div class="px-2 pb-1" @click.stop @keydown.stop>
+                <AppAppearanceSettings />
+              </div>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                variant="destructive"
+                class="cursor-pointer"
+                @select="handleLogout"
+              >
+                <Icon name="i-lucide-log-out" class="size-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <!-- Mobile Menu Trigger -->
           <Sheet v-model:open="mobileMenuOpen">
@@ -548,25 +622,6 @@ watch(
         </a>
       </div>
 
-      <!-- Admin Navigation Row - Desktop only, only show if user is admin of current domain's org -->
-      <div
-        v-if="user && showAdminUI && !isMainMarketingDomain"
-        class="hidden md:flex items-center gap-1 mt-3 pt-3 border-t t-border-divider"
-      >
-        <span class="text-xs uppercase tracking-wider t-text-tertiary mr-4"
-          >Admin</span
-        >
-        <NuxtLink
-          v-for="item in adminNavItems"
-          :key="item.path"
-          :to="item.path"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:t-bg-subtle transition-colors text-xs uppercase tracking-wider t-text-secondary"
-          active-class="t-bg-subtle t-text font-medium"
-        >
-          <Icon :name="'i-lucide-' + item.icon" class="w-3.5 h-3.5 hidden" />
-          {{ item.label }}
-        </NuxtLink>
-      </div>
     </div>
   </nav>
 </template>

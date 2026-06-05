@@ -2,6 +2,7 @@
 @import "./fonts.css";
 @import "./variables.css";
 @import "./theme.css";
+@import "./earnest-ui.css";
 
 /* Premium Typography Classes */
 .text-ultra-light {
@@ -46,9 +47,11 @@
   }
 }
 
-/* Smooth scrolling */
+/* Smooth scrolling + slightly tighter global type scale for a cleaner,
+   more modern feel (everything rem-based scales down ~6%). */
 html {
   scroll-behavior: smooth;
+  font-size: 15px;
 }
 
 /* Custom scrollbar */

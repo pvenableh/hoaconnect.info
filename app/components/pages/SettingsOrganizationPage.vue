@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-blue min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
       <!-- Loading State -->

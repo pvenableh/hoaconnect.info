@@ -61,10 +61,15 @@ onMounted(() => {
       :organization-name="currentOrg.organization.name"
       :is-free-account="currentOrg.organization.is_free_account"
     />
-    <main class="flex-1">
+    <main class="flex-1 pb-28">
       <slot />
     </main>
     <AppFooter />
+
+    <!-- Floating app dock (macOS-style); additive alongside the top nav -->
+    <ClientOnly>
+      <AppDock />
+    </ClientOnly>
 
     <!-- Global Notification Components -->
     <ClientOnly>

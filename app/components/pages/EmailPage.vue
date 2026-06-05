@@ -151,13 +151,14 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <div class="ui-kit accent-cyan min-h-screen t-bg">
     <div class="p-6">
       <div class="max-w-7xl mx-auto">
-        <div class="mb-8 flex justify-between items-start">
+        <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
           <div>
-            <h1 class="text-3xl font-bold mb-2">Email Management</h1>
-            <p class="t-text-secondary">
+            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Email</p>
+            <h1 class="text-3xl font-semibold tracking-tight t-text">Email Management</h1>
+            <p class="t-text-secondary mt-1">
               Send emails to your HOA members individually or in bulk
             </p>
           </div>
@@ -171,7 +172,7 @@ useSeoMeta({
               Compose Email
             </Button>
           </div>
-        </div>
+        </WidgetGlass>
 
         <!-- Loading State -->
         <div v-if="isLoading" class="text-center py-12">
