@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
@@ -93,6 +101,7 @@ const verify = async () => {
   }
 };
 
+const showDisconnectConfirm = ref(false);
 const disconnect = async () => {
   if (!orgId.value) return;
   disconnecting.value = true;
@@ -102,6 +111,7 @@ const disconnect = async () => {
       body: { organizationId: orgId.value },
     });
     toast.success("Domain disconnected");
+    showDisconnectConfirm.value = false;
     await load();
   } catch (e: any) {
     toast.error(e.data?.message || e.message || "Failed to disconnect");
@@ -170,7 +180,7 @@ useSeoMeta({ title: "Custom Domain" });
               <span class="font-mono font-medium truncate">{{ org?.custom_domain }}</span>
               <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">{{ statusLabel }}</span>
             </div>
-            <Button variant="ghost" size="sm" :disabled="disconnecting" @click="disconnect">
+            <Button variant="ghost" size="sm" :disabled="disconnecting" @click="showDisconnectConfirm = true">
               <Icon name="lucide:unlink" class="w-4 h-4 mr-1.5" />
               Disconnect
             </Button>
@@ -237,5 +247,32 @@ useSeoMeta({ title: "Custom Domain" });
         </div>
       </template>
     </PageContainer>
+
+    <!-- Disconnect confirmation -->
+    <Dialog v-model:open="showDisconnectConfirm">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Disconnect this domain?</DialogTitle>
+          <DialogDescription>
+            <template v-if="isVerified">
+              Your public site will stop being served at
+              <span class="font-mono">{{ org?.custom_domain }}</span>. You can reconnect it later,
+              but you'll need to re-verify.
+            </template>
+            <template v-else>
+              This removes <span class="font-mono">{{ org?.custom_domain }}</span> and its pending
+              verification.
+            </template>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="gap-2">
+          <Button variant="outline" :disabled="disconnecting" @click="showDisconnectConfirm = false">Cancel</Button>
+          <Button variant="destructive" :disabled="disconnecting" @click="disconnect">
+            <Icon v-if="disconnecting" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
+            Disconnect
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
