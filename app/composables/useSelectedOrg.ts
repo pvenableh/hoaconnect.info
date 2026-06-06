@@ -151,6 +151,7 @@ export const useSelectedOrg = async () => {
             "organization.is_free_account",
             "role",
             "member_type",
+            "manager_permissions",
             "board_member_terms.id",
             "board_member_terms.status",
             "board_member_terms.term_start",

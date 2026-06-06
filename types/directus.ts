@@ -48,6 +48,12 @@ export interface BlockSetting {
 	seo?: ExtensionSeoMetadata | null;
 	organization?: HoaOrganization | string | null;
 	theme?: 'classic' | 'modern' | null;
+	/** @description Custom line shown under the logo in emails, e.g. "Official Communication of {name}". Supports {name} and {legal_name}. */
+	header_text?: string | null;
+	/** @description Homepage link shown in the email footer. Falls back to the org's external site or resident portal. */
+	homepage_url?: string | null;
+	/** @description Building photo shown full-width at the bottom of the email footer. */
+	footer_image?: DirectusFile | string | null;
 }
 
 export interface Coupon {
@@ -421,6 +427,12 @@ export interface HoaEmail {
 	next_run_at?: string | null;
 	/** @description How `content` should be interpreted by the renderer */
 	content_mode?: 'visual' | 'mjml' | null;
+	/** @description Pretty URL slug for the public web view (/{org}/announcements/email/{web_slug}). Auto-derived from the subject; falls back to the id. */
+	web_slug?: string | null;
+	/** @description Optional override of the org's default header line for this send. */
+	header_text?: string | null;
+	/** @description Optional override of the org's default footer building photo for this send. */
+	footer_image?: DirectusFile | string | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -567,6 +579,34 @@ export interface HoaMailingList {
 	members?: HoaMailingListMember[] | string[];
 }
 
+export interface HoaManagementContact {
+	/** @primaryKey */
+	id: string;
+	/** @description Which inquiries route to this contact @required */
+	kind: 'rental_sales' | 'violations' | 'general';
+	status?: 'active' | 'inactive' | null;
+	/** @required */
+	name: string;
+	company?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	/** @description Send an email when a routed inquiry is submitted */
+	notify_email?: boolean | null;
+	/** @description Create an in-app notification (only if a user is linked) */
+	notify_inapp?: boolean | null;
+	sort?: number | null;
+	/** @description Optional: linked login user (for in-app notifications) */
+	user?: DirectusUser | string | null;
+	/** @description Optional: linked member row */
+	hoa_member?: HoaMember | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaMeetingAttendee {
 	/** @primaryKey */
 	id: string;
@@ -655,6 +695,8 @@ export interface HoaMember {
 	payment_status?: 'current' | 'overdue' | 'delinquent' | null;
 	outstanding_balance?: number | null;
 	company?: string | null;
+	/** @description Per-manager grant flags for Property Manager members (inquiries, violations, directory, documents, communications). Enforced app-side + in server routes. */
+	manager_permissions?: Record<string, any> | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
@@ -724,6 +766,8 @@ export interface HoaOrganization {
 	modules?: Record<string, any> | null;
 	/** @description External marketing site URL (e.g. https://yourbuilding.com). When set, the built-in landing is disabled and HOA Connect serves the resident portal only. */
 	external_url?: string | null;
+	/** @description Inquiry → management-contact routing (managed from Settings → Property management). board_default notifies the board on every inquiry. */
+	inquiry_routing?: Record<string, any> | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1525,6 +1569,7 @@ export interface Schema {
 	hoa_leases: HoaLease[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
+	hoa_management_contacts: HoaManagementContact[];
 	hoa_meeting_attendees: HoaMeetingAttendee[];
 	hoa_meetings: HoaMeeting[];
 	hoa_meetings_files: HoaMeetingsFile[];
@@ -1601,6 +1646,7 @@ export enum CollectionNames {
 	hoa_leases = 'hoa_leases',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
+	hoa_management_contacts = 'hoa_management_contacts',
 	hoa_meeting_attendees = 'hoa_meeting_attendees',
 	hoa_meetings = 'hoa_meetings',
 	hoa_meetings_files = 'hoa_meetings_files',

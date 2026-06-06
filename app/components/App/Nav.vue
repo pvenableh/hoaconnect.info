@@ -68,6 +68,8 @@ const {
   isAdminOfCurrentDomain,
   isMemberOfCurrentDomain,
   isBoardMemberOfCurrentDomain,
+  isPropertyManagerOfCurrentDomain,
+  managerCan,
 } = useCurrentDomainAccess();
 
 // Determine if admin UI should be shown
@@ -85,6 +87,22 @@ const showAdminUI = computed(() => {
   // On main domain, use selected org admin status
   return isAdmin.value;
 });
+
+// Property managers (not admins) see a scoped "Manage" section with only the
+// areas the admin granted them.
+const showManagerUI = computed(() => {
+  if (!user.value || !isOnOrgPage.value) return false;
+  return isPropertyManagerOfCurrentDomain.value && !isAdminOfCurrentDomain.value;
+});
+const managerNavItems = computed(() =>
+  [
+    { label: "Overview", path: buildPath("/manage"), icon: "layout-dashboard", show: true },
+    { label: "Inquiries", path: buildPath("/manage/inquiries"), icon: "inbox", show: managerCan("inquiries") },
+    { label: "Directory", path: buildPath("/manage/directory"), icon: "users", show: managerCan("directory") },
+    { label: "Documents", path: buildPath("/documents"), icon: "file-text", show: managerCan("documents") },
+    { label: "Communications", path: buildPath("/manage/communications"), icon: "mail", show: managerCan("communications") },
+  ].filter((i) => i.show)
+);
 
 // Determine the appropriate user status badge for current context
 const contextAwareStatusBadge = computed(() => {
@@ -222,6 +240,11 @@ const adminNavItems = computed(() => [
   { label: "Members", path: buildPath("/admin/members"), icon: "users" },
   { label: "Users", path: buildPath("/admin/users"), icon: "user-cog" },
   { label: "Communications", path: buildPath("/admin/communications"), icon: "mail" },
+  {
+    label: "Property mgmt",
+    path: buildPath("/admin/settings/property-management"),
+    icon: "contact",
+  },
   {
     label: "Settings",
     path: buildPath("/admin/settings/organization"),
@@ -508,6 +531,28 @@ watch(
                 <nav class="space-y-1">
                   <NuxtLink
                     v-for="item in adminNavItems"
+                    :key="item.path"
+                    :to="item.path"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                    active-class="t-bg-subtle font-medium"
+                  >
+                    <Icon
+                      :name="'i-lucide-' + item.icon"
+                      class="w-5 h-5 t-text-secondary hidden"
+                    />
+                    <span>{{ item.label }}</span>
+                  </NuxtLink>
+                </nav>
+              </div>
+
+              <!-- Manager Navigation - property managers (non-admin) only -->
+              <div v-if="showManagerUI" class="py-4 border-t t-border">
+                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
+                  Manage
+                </p>
+                <nav class="space-y-1">
+                  <NuxtLink
+                    v-for="item in managerNavItems"
                     :key="item.path"
                     :to="item.path"
                     class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"

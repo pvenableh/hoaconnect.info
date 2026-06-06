@@ -83,7 +83,7 @@ export const useRequests = () => {
   }) => {
     if (!selectedOrgId.value) throw new Error("No organization selected");
     const wf = getWorkflow(input.type);
-    return create({
+    const created = await create({
       type: input.type,
       title: input.title,
       description: input.description || null,
@@ -99,6 +99,17 @@ export const useRequests = () => {
       organization: selectedOrgId.value,
       ...(input.parent_request ? { parent_request: input.parent_request } : {}),
     } as RequestRow);
+
+    // Fire-and-forget: notify the routed management contacts + the board.
+    // Never block (or fail) request creation on the notification step.
+    const newId = (created as any)?.id;
+    if (newId) {
+      $fetch("/api/hoa/requests/notify", { method: "POST", body: { requestId: newId } }).catch(
+        (e) => console.warn("[useRequests] inquiry notify failed:", e)
+      );
+    }
+
+    return created;
   };
 
   const updateRequest = (id: string, patch: Partial<RequestRow>) => update(id, patch);
