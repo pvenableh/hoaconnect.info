@@ -17,6 +17,17 @@ const {
   applyDocumentAccent,
 } = useAppNav();
 
+// Channels is chat — open it as a slide-over panel over the current page rather
+// than navigating to a full-page destination.
+const channelsPanel = useChannelsPanel();
+const onAppClick = (app: AppDef) => {
+  if (app.key === "channels") {
+    channelsPanel.toggle();
+    return;
+  }
+  go(app);
+};
+
 // Role detection (mirrors App/Nav.vue)
 const { isAdmin } = user.value ? await useSelectedOrg() : { isAdmin: ref(false) };
 const { isAdminOfCurrentDomain, isBoardMemberOfCurrentDomain } = useCurrentDomainAccess();
@@ -159,7 +170,7 @@ watch(apps, reset, { immediate: true });
           :style="{ ...accentVars(accents[i]), ...chipStyle(i) }"
           :aria-label="app.label"
           :aria-current="app.key === activeKey ? 'page' : undefined"
-          @click="go(app)"
+          @click="onAppClick(app)"
         >
           <span class="dock-item__tip">{{ app.label }}</span>
           <span class="dock-item__chip">
