@@ -174,17 +174,21 @@
           v-if="
             organization?.settings?.description || organization?.settings?.about
           "
-          class="py-20 bg-white"
+          class="py-24 sm:py-32 t-bg"
         >
-        <div class="container mx-auto px-4">
-          <div class="max-w-4xl mx-auto">
-            <h2 class="text-4xl font-bold text-gray-900 mb-8 text-center">
-              About Our Community
-            </h2>
-            <div
-              class="prose prose-lg max-w-none text-gray-700 leading-relaxed"
-            >
-              <p>
+          <div class="container mx-auto px-6">
+            <div class="max-w-3xl mx-auto text-center">
+              <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
+                The Community
+              </p>
+              <h2 class="font-serif text-4xl sm:text-5xl leading-tight t-text">
+                About {{ organization.name }}
+              </h2>
+              <div
+                class="mx-auto w-14 h-px my-8"
+                style="background: var(--theme-accent-primary)"
+              ></div>
+              <p class="text-lg leading-relaxed font-light t-text-secondary">
                 {{
                   organization.settings.description ||
                   organization.settings.about
@@ -192,52 +196,43 @@
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       <!-- Amenities Section -->
       <section
         v-if="organization?.amenities && organization.amenities.length > 0"
-        class="py-20 bg-gray-50"
+        class="py-24 sm:py-32 t-bg-elevated border-t t-border"
       >
-        <div class="container mx-auto px-4">
+        <div class="container mx-auto px-6">
           <div class="max-w-6xl mx-auto">
-            <h2 class="text-4xl font-bold text-gray-900 mb-4 text-center">
-              Community Amenities
-            </h2>
-            <p class="text-xl text-gray-600 mb-12 text-center">
-              Enjoy the exclusive features available to our residents
-            </p>
+            <div class="text-center mb-16">
+              <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
+                Amenities
+              </p>
+              <h2 class="font-serif text-4xl sm:text-5xl t-text">
+                Life at {{ organization.name }}
+              </h2>
+              <div
+                class="mx-auto w-14 h-px mt-8"
+                style="background: var(--theme-accent-primary)"
+              ></div>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-14">
               <div
                 v-for="amenity in organization.amenities"
                 :key="amenity.id"
-                class="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow"
+                class="text-center"
               >
-                <!-- Amenity Icon -->
-                <div
-                  class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6"
-                >
-                  <svg
-                    class="w-8 h-8 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">
+                <Icon
+                  :name="amenity.icon || 'lucide:sparkles'"
+                  class="w-7 h-7 mx-auto mb-5"
+                  style="color: var(--theme-accent-primary)"
+                />
+                <h3 class="font-serif text-2xl t-text mb-2">
                   {{ amenity.title }}
                 </h3>
-                <p class="text-gray-600 leading-relaxed">
+                <p class="font-light leading-relaxed t-text-secondary">
                   {{ amenity.description }}
                 </p>
               </div>
@@ -247,114 +242,91 @@
       </section>
 
       <!-- Board Members Section Link (hidden when show_board is false) -->
-      <section v-if="organization?.show_board !== false" class="py-16 bg-white">
-        <div class="container mx-auto px-4">
-          <div class="max-w-4xl mx-auto text-center">
-            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Icon name="heroicons:user-group" class="h-8 w-8 text-amber-600" />
-            </div>
-            <h2 class="text-3xl font-bold text-gray-900 mb-4">
-              Meet Our Board of Directors
+      <section v-if="organization?.show_board !== false" class="py-24 sm:py-32 t-bg border-t t-border">
+        <div class="container mx-auto px-6">
+          <div class="max-w-2xl mx-auto text-center">
+            <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
+              Governance
+            </p>
+            <h2 class="font-serif text-4xl sm:text-5xl t-text">
+              Board of Directors
             </h2>
-            <p class="text-lg text-gray-600 mb-8">
-              Our dedicated board members volunteer their time to help guide our community.
+            <div
+              class="mx-auto w-14 h-px my-8"
+              style="background: var(--theme-accent-primary)"
+            ></div>
+            <p class="text-lg font-light leading-relaxed t-text-secondary mb-10">
+              A dedicated group of residents who volunteer their time to guide
+              our community.
             </p>
             <NuxtLink
               :to="`/${slug}/board`"
-              class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-600 transition"
+              class="inline-flex items-center gap-2 text-[11px] uppercase tracking-ultra-wide t-text hover:opacity-60 transition-opacity"
             >
-              <Icon name="heroicons:users" class="w-5 h-5" />
-              View Board Members
+              Meet the board
+              <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
             </NuxtLink>
           </div>
         </div>
       </section>
 
       <!-- Contact CTA Section -->
-      <section
-        id="contact"
-        class="py-20 bg-gradient-to-br from-blue-600 to-blue-800 text-white"
-      >
-        <div class="container mx-auto px-4">
-          <div class="max-w-4xl mx-auto text-center">
-            <h2 class="text-4xl lg:text-5xl font-bold mb-6">Get in Touch</h2>
-            <p class="text-xl text-blue-100 mb-12">
-              Have questions or need assistance? Our community management team
-              is here to help.
+      <section id="contact" class="py-24 sm:py-32 t-bg-elevated border-t t-border">
+        <div class="container mx-auto px-6">
+          <div class="max-w-3xl mx-auto text-center">
+            <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
+              Contact
+            </p>
+            <h2 class="font-serif text-4xl sm:text-5xl t-text">Get in Touch</h2>
+            <div
+              class="mx-auto w-14 h-px my-8"
+              style="background: var(--theme-accent-primary)"
+            ></div>
+            <p class="text-lg font-light t-text-secondary mb-14">
+              Questions or need assistance? Our community management team is here
+              to help.
             </p>
 
-            <!-- Contact Information Cards -->
-            <div class="grid md:grid-cols-2 gap-6 mb-12">
-              <!-- Phone Card -->
-              <div
-                v-if="organization?.phone"
-                class="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20"
-              >
-                <div
-                  class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
-                >
-                  <svg
-                    class="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">Call Us</h3>
-
+            <!-- Contact details -->
+            <div
+              class="flex flex-col sm:flex-row items-center justify-center gap-12 sm:gap-20 mb-14"
+            >
+              <div v-if="organization?.phone">
+                <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-2">
+                  Call
+                </p>
                 <a
                   :href="`tel:${organization.phone}`"
-                  class="text-2xl font-bold hover:text-blue-200 transition"
+                  class="font-serif text-2xl t-text hover:t-text-accent transition-colors"
                 >
                   {{ organization.phone }}
                 </a>
               </div>
 
-              <!-- Email Card -->
               <div
-                v-if="organization?.email"
-                class="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20"
-              >
-                <div
-                  class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
-                >
-                  <svg
-                    class="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">Email Us</h3>
+                v-if="organization?.phone && organization?.email"
+                class="hidden sm:block w-px h-10"
+                style="background: var(--theme-border, rgba(0,0,0,0.12))"
+              ></div>
 
+              <div v-if="organization?.email">
+                <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-2">
+                  Email
+                </p>
                 <a
                   :href="`mailto:${organization.email}`"
-                  class="text-2xl font-bold hover:text-blue-200 transition break-all"
+                  class="font-serif text-2xl t-text hover:t-text-accent transition-colors break-all"
                 >
                   {{ organization.email }}
                 </a>
               </div>
             </div>
 
-            <!-- Additional CTA Button -->
-            <div v-if="!user" class="mt-8">
+            <!-- CTA -->
+            <div v-if="!user">
               <NuxtLink
                 :to="`/${slug}/signup`"
-                class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg"
+                class="inline-flex items-center gap-2 px-9 py-3.5 border t-border t-text text-[11px] uppercase tracking-ultra-wide hover:t-bg-subtle transition-colors"
               >
                 Become a Resident
               </NuxtLink>
