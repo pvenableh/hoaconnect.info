@@ -48,6 +48,12 @@ export interface BlockSetting {
 	seo?: ExtensionSeoMetadata | null;
 	organization?: HoaOrganization | string | null;
 	theme?: 'classic' | 'modern' | null;
+	/** @description Custom line shown under the logo in emails, e.g. "Official Communication of {name}". Supports {name} and {legal_name}. */
+	header_text?: string | null;
+	/** @description Homepage link shown in the email footer. Falls back to the org's external site or resident portal. */
+	homepage_url?: string | null;
+	/** @description Building photo shown full-width at the bottom of the email footer. */
+	footer_image?: DirectusFile | string | null;
 }
 
 export interface Coupon {
@@ -421,6 +427,12 @@ export interface HoaEmail {
 	next_run_at?: string | null;
 	/** @description How `content` should be interpreted by the renderer */
 	content_mode?: 'visual' | 'mjml' | null;
+	/** @description Pretty URL slug for the public web view (/{org}/announcements/email/{web_slug}). Auto-derived from the subject; falls back to the id. */
+	web_slug?: string | null;
+	/** @description Optional override of the org's default header line for this send. */
+	header_text?: string | null;
+	/** @description Optional override of the org's default footer building photo for this send. */
+	footer_image?: DirectusFile | string | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -655,6 +667,8 @@ export interface HoaMember {
 	payment_status?: 'current' | 'overdue' | 'delinquent' | null;
 	outstanding_balance?: number | null;
 	company?: string | null;
+	/** @description Per-manager grant flags for Property Manager members (inquiries, violations, directory, documents, communications). Enforced app-side + in server routes. */
+	manager_permissions?: Record<string, any> | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
@@ -724,6 +738,8 @@ export interface HoaOrganization {
 	modules?: Record<string, any> | null;
 	/** @description External marketing site URL (e.g. https://yourbuilding.com). When set, the built-in landing is disabled and HOA Connect serves the resident portal only. */
 	external_url?: string | null;
+	/** @description Inquiry → management-contact routing (managed from Settings → Property management). board_default notifies the board on every inquiry. */
+	inquiry_routing?: Record<string, any> | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -909,6 +925,48 @@ export interface HoaVehicle {
 	start_date?: string | null;
 	/** @description Set on move-out instead of deleting */
 	end_date?: string | null;
+}
+
+export interface HoaVendor {
+	/** @primaryKey */
+	id: string;
+	/** @description Vendor type @required */
+	category: 'management' | 'attorney' | 'accountant' | 'insurance' | 'elevator' | 'landscaping' | 'plumbing' | 'electrical' | 'cleaning' | 'security' | 'pest_control' | 'hvac' | 'general_contractor' | 'other';
+	/** @description Custom label when category is 'Other' */
+	category_other?: string | null;
+	status?: 'active' | 'inactive' | 'archived' | null;
+	/** @description Visible in the member-facing vendor directory */
+	show_to_members?: boolean | null;
+	/** @description Company / firm name (primary label) */
+	company?: string | null;
+	/** @description Contact person (optional) */
+	name?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	website?: string | null;
+	address?: string | null;
+	/** @description When this vendor started serving the community */
+	active_since?: string | null;
+	/** @description When the relationship ended (leave blank if current) */
+	active_until?: string | null;
+	notes?: string | null;
+	sort?: number | null;
+	/** @description MANAGEMENT vendors only: which inquiries route here */
+	management_role?: 'rental_sales' | 'violations' | 'general' | null;
+	/** @description MANAGEMENT vendors: email on a routed inquiry */
+	notify_email?: boolean | null;
+	/** @description MANAGEMENT vendors: in-app notify the linked login */
+	notify_inapp?: boolean | null;
+	/** @description Optional: linked login user (Property Manager) */
+	user?: DirectusUser | string | null;
+	/** @description Optional: linked member row */
+	hoa_member?: HoaMember | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
 }
 
 export interface PaymentExpense {
@@ -1540,6 +1598,7 @@ export interface Schema {
 	hoa_teams: HoaTeam[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
+	hoa_vendors: HoaVendor[];
 	payment_expenses: PaymentExpense[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
@@ -1616,6 +1675,7 @@ export enum CollectionNames {
 	hoa_teams = 'hoa_teams',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
+	hoa_vendors = 'hoa_vendors',
 	payment_expenses = 'payment_expenses',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',

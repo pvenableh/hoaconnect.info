@@ -27,6 +27,7 @@ const MODULE_PREFIXES: { module: string; prefixes: string[] }[] = [
   { module: "email", prefixes: ["/admin/communications", "/admin/email"] },
   { module: "directory", prefixes: ["/admin/members", "/admin/units", "/admin/teams"] },
   { module: "channels", prefixes: ["/admin/channels"] },
+  { module: "vendors", prefixes: ["/vendors"] },
 ];
 
 export default defineNuxtRouteMiddleware((to) => {

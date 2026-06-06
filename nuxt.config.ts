@@ -59,6 +59,8 @@ export default defineNuxtConfig({
       directusRoleHoaAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_HOA_ADMIN || "38494e81-9b49-4c64-a197-fcb8097cd433",
       // HOA Member - regular member access (front-facing only)
       directusRoleMember: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_MEMBER || "558b04ed-fdcc-48c2-9cd0-977cccf988b9",
+      // Property Manager - external management staff with admin-granted, org-scoped access
+      directusRolePropertyManager: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_PROPERTY_MANAGER || "b3c5a96f-ca24-41f1-8c1f-5683db384844",
       // Legacy - keeping for backwards compatibility
       directusRoleAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN,
       directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,

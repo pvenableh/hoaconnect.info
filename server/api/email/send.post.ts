@@ -126,6 +126,10 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Authorize: must be an org admin, or a property manager with the
+  // "communications" grant. (Previously this route only required a session.)
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
+
   try {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();

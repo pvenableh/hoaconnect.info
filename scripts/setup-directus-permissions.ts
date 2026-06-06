@@ -31,6 +31,9 @@ const ROLES = {
   HOA_ADMIN: "38494e81-9b49-4c64-a197-fcb8097cd433",
   HOA_MEMBER: "558b04ed-fdcc-48c2-9cd0-977cccf988b9",
   APP_ADMIN: "c4903b32-db6f-4479-a627-55be7f328321", // Global admin (has all permissions)
+  // Property Manager — external management staff; org-scoped, admin-granted.
+  // Created by scripts/create-property-management.ts (fixed UUIDs).
+  PROPERTY_MANAGER: "b3c5a96f-ca24-41f1-8c1f-5683db384844",
 } as const;
 
 // Policy UUIDs - these must match your Directus instance
@@ -38,15 +41,25 @@ const ROLES = {
 const POLICIES = {
   HOA_ADMIN: "d09e906c-b418-4cd1-a680-fe5fbbc05576",
   HOA_MEMBER: "58d28da6-d31f-40bf-966e-cfbee05b3464",
+  PROPERTY_MANAGER: "e3459a90-725a-4861-82c4-c0047d961420",
 } as const;
 
-// Permission levels
-type PermissionLevel = "full" | "read_only" | "member_specific" | "none";
+// Permission levels.
+// "read_create_update" = read all in org + create + update, but NOT delete
+// (the safe ceiling for a Property Manager on operational collections).
+type PermissionLevel =
+  | "full"
+  | "read_create_update"
+  | "read_only"
+  | "member_specific"
+  | "none";
 
 interface CollectionConfig {
   collection: string;
   adminLevel: PermissionLevel;
   memberLevel: PermissionLevel;
+  // Property Manager level. Optional — omitted means "none" (no access).
+  pmLevel?: PermissionLevel;
   filterType: "organization" | "member" | "channel" | "email" | "none";
   description: string;
 }
@@ -71,6 +84,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_organizations",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only", // PM needs org context to load the app
     filterType: "none", // Special: filtered by membership
     description: "Organization profiles",
   },
@@ -78,6 +92,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_members",
     adminLevel: "full",
     memberLevel: "read_only", // Members can see other members in their org
+    pmLevel: "read_only", // Directory (grant gated app-side)
     filterType: "organization",
     description: "Organization members",
   },
@@ -85,6 +100,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_units",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only", // Requests reference units
     filterType: "organization",
     description: "Property units",
   },
@@ -101,6 +117,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_board_members",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only", // PM may need board context (e.g. notify-the-board)
     filterType: "none", // Filtered through hoa_member -> organization
     description: "Board member terms and roles",
   },
@@ -124,6 +141,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_documents",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only", // Documents (grant gated app-side)
     filterType: "organization",
     description: "Document storage",
   },
@@ -131,6 +149,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_document_categories",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only",
     filterType: "organization",
     description: "Document categories",
   },
@@ -170,6 +189,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_emails",
     adminLevel: "full",
     memberLevel: "none", // Only admins can manage emails
+    pmLevel: "read_only", // Communications view; actual send is via server route (grant-gated)
     filterType: "organization",
     description: "Email campaigns",
   },
@@ -177,6 +197,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_email_recipients",
     adminLevel: "full",
     memberLevel: "none",
+    pmLevel: "read_only",
     filterType: "email",
     description: "Email recipients",
   },
@@ -257,6 +278,7 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "block_settings",
     adminLevel: "full",
     memberLevel: "read_only",
+    pmLevel: "read_only", // Org logo/branding for the app shell
     filterType: "none", // Filtered through organization relationship
     description: "Organization branding settings",
   },
@@ -736,6 +758,37 @@ function buildPermissionsForLevel(
       });
       break;
 
+    case "read_create_update":
+      // Like "full" but without delete — the safe ceiling for operational
+      // collections a manager works in.
+      permissions.push(
+        {
+          policy: policyId,
+          collection,
+          action: "read",
+          permissions: filter || {},
+          validation: null,
+          fields: ["*"],
+        },
+        {
+          policy: policyId,
+          collection,
+          action: "create",
+          permissions: {},
+          validation: filter,
+          fields: ["*"],
+        },
+        {
+          policy: policyId,
+          collection,
+          action: "update",
+          permissions: filter || {},
+          validation: filter,
+          fields: ["*"],
+        }
+      );
+      break;
+
     case "member_specific":
       // Members can read all in their org, but only create/update/delete their own
       const memberFilter = buildMemberSpecificFilter(collection);
@@ -824,7 +877,11 @@ async function setupCollectionPermissions(
   auditMode: boolean
 ): Promise<{ created: number; updated: number; removed: number }> {
   const level =
-    roleName === "HOA Admin" ? config.adminLevel : config.memberLevel;
+    roleName === "HOA Admin"
+      ? config.adminLevel
+      : roleName === "Property Manager"
+        ? config.pmLevel ?? "none"
+        : config.memberLevel;
 
   console.log(`\n📦 ${config.collection} (${config.description})`);
   console.log(`   Level: ${level}`);
@@ -1104,10 +1161,27 @@ async function main() {
 
   try {
     // Process each role with its associated policy
-    const rolesToProcess = [
+    // Optional role filter: `--only="Property Manager"` (repeatable / comma-list)
+    // applies the reconcile to a subset of roles only. Useful when adding a new
+    // role without re-reconciling (and possibly mutating) the others.
+    const onlyArg = process.argv
+      .filter((a) => a.startsWith("--only="))
+      .flatMap((a) => a.slice("--only=".length).split(","))
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    const allRoles = [
       { id: ROLES.HOA_ADMIN, name: "HOA Admin", policyId: POLICIES.HOA_ADMIN },
       { id: ROLES.HOA_MEMBER, name: "HOA Member", policyId: POLICIES.HOA_MEMBER },
+      { id: ROLES.PROPERTY_MANAGER, name: "Property Manager", policyId: POLICIES.PROPERTY_MANAGER },
     ];
+    const rolesToProcess = onlyArg.length
+      ? allRoles.filter((r) => onlyArg.includes(r.name.toLowerCase()))
+      : allRoles;
+
+    if (onlyArg.length) {
+      console.log(`🎯 Role filter active — processing: ${rolesToProcess.map((r) => r.name).join(", ") || "(none matched)"}\n`);
+    }
 
     for (const role of rolesToProcess) {
       console.log("\n" + "═".repeat(60));

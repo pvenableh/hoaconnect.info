@@ -139,6 +139,35 @@ export const useCurrentDomainAccess = () => {
     return currentDomainBoardTerms.value.length > 0;
   });
 
+  // ── Property Manager (external management staff) ──────────────────────────
+  // A real login role with per-manager grant flags (manager_permissions) the
+  // admin toggles. The Directus policy is an org-scoped ceiling shared by all
+  // managers; these flags decide what each manager actually sees/does (enforced
+  // app-side here, and in server routes for sends / violation writes).
+  const isPropertyManagerOfCurrentDomain = computed(() => {
+    return currentDomainRoleId.value === config.public.directusRolePropertyManager;
+  });
+
+  const currentDomainManagerPermissions = computed(() => {
+    const raw = currentDomainMembership.value?.manager_permissions;
+    const obj = raw && typeof raw === "object" ? raw : {};
+    return {
+      inquiries: obj.inquiries === true,
+      violations: obj.violations === true,
+      directory: obj.directory === true,
+      documents: obj.documents === true,
+      communications: obj.communications === true,
+    };
+  });
+
+  // True if the user may access a capability of the current domain: admins
+  // always can; property managers only for a granted capability.
+  const managerCan = (key: "inquiries" | "violations" | "directory" | "documents" | "communications"): boolean => {
+    if (isAdminOfCurrentDomain.value) return true;
+    if (isPropertyManagerOfCurrentDomain.value) return currentDomainManagerPermissions.value[key];
+    return false;
+  };
+
   // Get member type for current domain
   const currentDomainMemberType = computed<"owner" | "tenant" | null>(() => {
     return currentDomainMembership.value?.member_type || null;
@@ -160,6 +189,11 @@ export const useCurrentDomainAccess = () => {
     // Board member status for current domain
     isBoardMemberOfCurrentDomain,
     currentDomainBoardTerms,
+
+    // Property Manager status + grants for current domain
+    isPropertyManagerOfCurrentDomain,
+    currentDomainManagerPermissions,
+    managerCan,
 
     // Member type for current domain
     currentDomainMemberType,
