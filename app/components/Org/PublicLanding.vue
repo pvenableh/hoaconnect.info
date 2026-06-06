@@ -1,12 +1,17 @@
 <!--
-  Org public landing page — the community's public-facing site (hero, about,
-  amenities, board, contact). Shared by:
+  Org public landing page — the community's public-facing site. Imitates
+  1033lenox.com: a photographic hero with a scrollable row of frosted glass
+  widgets, a glass side drawer + avatar, an inquiry CTA, real-estate listings,
+  and editorial content sections. Two personalities share this markup, driven by
+  the org's theme: CLASSIC/LUXURY = editorial print (Harper's Bazaar /
+  Restoration Hardware); MODERN = iOS. See app/assets/css/landing.css.
+
+  Shared by:
    - app/pages/[slug]/index.vue  (main host, /{slug})
    - app/pages/index.vue         (a verified custom domain's clean root)
-  so both render identical markup. Pass the loaded org + its slug.
 -->
 <template>
-  <div>
+  <div id="top" ref="rootEl">
     <!-- Maintenance Mode Banner for Admins -->
     <div
       v-if="organization?.maintenance_mode && isAdminOfCurrentDomain"
@@ -15,13 +20,10 @@
       <Icon name="lucide:wrench" class="w-4 h-4 inline-block mr-2" />
       Maintenance Mode - This content is hidden from public visitors
     </div>
+
     <!-- Hero Section -->
     <section
-      class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center flex-col relative"
-      :class="{
-        'bg-gradient-to-b from-black/70 via-black/50 to-black/90 bg-blend-darken':
-          organization?.hero?.background_image,
-      }"
+      class="relative min-h-screen flex items-center justify-center flex-col bg-cover bg-center bg-no-repeat overflow-hidden"
       :style="
         organization?.hero?.background_image
           ? {
@@ -31,56 +33,80 @@
                 ')',
               backgroundColor: 'rgba(0, 0, 0, 0.6)',
             }
-          : null
+          : { backgroundColor: '#15130f' }
       "
     >
+      <!-- Cinematic scrim for legibility on any photo -->
+      <div
+        v-if="organization?.hero?.background_image"
+        class="absolute inset-0 bg-gradient-to-b from-black/65 via-black/40 to-black/85 pointer-events-none"
+      />
+
+      <!-- Top bar: admin edit (left) · drawer + avatar (right) -->
+      <div class="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-4 sm:px-6 py-4">
+        <button
+          v-if="isAdminOfCurrentDomain"
+          type="button"
+          class="landing-glass-btn h-10 px-4 gap-2 text-xs uppercase tracking-wide"
+          @click="navigateToOrg('/admin/settings/domains')"
+        >
+          <Icon name="lucide:pencil" class="w-4 h-4" />
+          <span class="hidden sm:inline">Edit public site</span>
+        </button>
+        <span v-else />
+        <div class="flex items-center gap-2">
+          <OrgLandingAvatar v-if="user" :user="user" />
+          <OrgLandingDrawer
+            :organization="organization"
+            :slug="slug"
+            :user="user"
+            :has-amenities="hasAmenities"
+            :has-listings="hasListings"
+          />
+        </div>
+      </div>
+
+      <!-- Centered brand block -->
       <div
         ref="heroTitle"
-        class="uppercase flex items-center justify-center flex-col px-4 sm:px-12 max-w-4xl w-full"
+        class="relative z-10 flex items-center justify-center flex-col px-6 sm:px-12 max-w-4xl w-full pb-40 sm:pb-36"
       >
-        <div v-if="organization?.hero?.foreground_image" class="mb-8">
+        <div v-if="organization?.hero?.foreground_image" class="hero-fade mb-8">
           <img
             :src="getFileUrl(organization.hero.foreground_image)"
             :alt="organization.name"
-            class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
+            class="mx-auto object-contain w-full h-auto max-h-[42vh] sm:max-h-[46vh] drop-shadow-2xl"
           />
         </div>
-        <div v-else-if="organization?.logo" class="mb-8">
+        <div v-else-if="organization?.logo" class="hero-fade mb-8">
           <img
             :src="getFileUrl(organization.logo)"
             :alt="organization.name"
-            class="mx-auto object-contain w-full h-auto drop-shadow-2xl"
+            class="mx-auto object-contain w-full h-auto max-h-[38vh] drop-shadow-2xl"
           />
         </div>
         <h1
-          v-else-if="organization?.hero?.title"
-          class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
-        >
-          {{ organization?.hero?.title }}
-        </h1>
-        <!-- Organization Name -->
-        <h1
           v-else
-          class="text-5xl text-white font-light tracking-ultra-wide uppercase mb-6"
+          class="hero-fade text-5xl sm:text-6xl text-white font-light tracking-ultra-wide uppercase mb-6"
         >
-          {{ organization?.name }}
+          {{ organization?.hero?.title || organization?.name }}
         </h1>
+
         <h5
           v-if="organization?.hero?.subtitle"
-          class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          class="hero-fade text-xs sm:text-sm text-white/80 mb-2 uppercase tracking-ultra-wide"
         >
           {{ organization.hero.subtitle }}
         </h5>
-
-        <!-- Address -->
         <h5
           v-else-if="organization?.street_address"
-          class="text-sm text-white/75 mb-8 uppercase tracking-ultra-wide"
+          class="hero-fade text-xs sm:text-sm text-white/80 mb-2 uppercase tracking-ultra-wide"
         >
           {{ organization?.street_address }} {{ organization?.city }},
           {{ organization?.state }} {{ organization?.zip }}
         </h5>
-        <!-- Under Construction Message (shown when in maintenance mode for non-admins) -->
+
+        <!-- Under Construction -->
         <p
           v-if="organization?.maintenance_mode && !isAdminOfCurrentDomain"
           class="text-lg text-white/90 mt-8 bg-amber-500/80 px-6 py-3 rounded-lg"
@@ -88,120 +114,106 @@
           The site is currently under construction
         </p>
 
-        <!-- Account Expired Message (shown when subscription is expired/canceled and not a free account) -->
+        <!-- Account Expired -->
         <div v-else-if="isAccountExpired" class="mt-8 text-center">
           <p class="text-lg text-white/90 bg-red-500/80 px-6 py-3 rounded-lg mb-4">
             This account has expired
           </p>
-          <a
-            href="/auth/login"
-            class="inline-block glass-container tracking-extra-wide text-sm text-white hover:bg-white/20 transition"
-          >
-            Login here to renew your account
-          </a>
+          <a href="/auth/login" class="landing-cta">Login here to renew your account</a>
         </div>
 
+        <!-- CTAs -->
         <div
           v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
-          class="flex flex-col sm:flex-row gap-4 justify-center mt-10"
+          class="hero-fade flex flex-col sm:flex-row gap-3 justify-center mt-9"
         >
-          <a
-            v-if="user"
-            href="/dashboard"
-            class="inline-block glass-container tracking-extra-wide text-sm text-white"
-          >
-            Resident Portal
+          <a :href="user ? '/dashboard' : '/auth/login'" class="landing-cta">
+            <Icon :name="user ? 'lucide:layout-dashboard' : 'lucide:log-in'" class="w-4 h-4" />
+            {{ user ? "Resident Portal" : "Resident Login" }}
           </a>
-
-          <a
-            v-else
-            href="/auth/login"
-            class="inline-block glass-container tracking-extra-wide text-sm text-white"
-          >
-            Resident Login
-          </a>
-
-          <a
-            href="#contact"
-            class="inline-block glass-container tracking-extra-wide text-sm text-white"
-          >
+          <button v-if="inquiryEnabled" type="button" class="landing-cta--ghost" @click="openInquiry('general')">
+            <Icon name="lucide:mail" class="w-4 h-4" />
+            Inquire
+          </button>
+          <a v-else href="#contact" class="landing-cta--ghost">
+            <Icon name="lucide:mail" class="w-4 h-4" />
             Contact Us
           </a>
         </div>
       </div>
+
+      <!-- Glass widget row, pinned to the bottom of the hero -->
+      <div
+        v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
+        ref="widgetRowEl"
+        class="hero-fade hero-fade--widgets absolute bottom-14 sm:bottom-12 inset-x-0 z-10 px-4 sm:px-8 max-w-5xl mx-auto"
+      >
+        <OrgLandingWidgetRow :organization="organization" :slug="slug" />
+      </div>
     </section>
 
-    <!-- Content Sections (hidden in maintenance mode for non-admins, or when account is expired) -->
+    <!-- Content Sections -->
     <template v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired">
-      <!-- About Section -->
+      <!-- About -->
       <section
-        v-if="organization?.settings?.description || organization?.settings?.about"
-        class="py-24 sm:py-32 t-bg"
+        v-if="aboutText"
+        class="landing-section py-24 sm:py-36 t-bg"
       >
         <div class="container mx-auto px-6">
-          <div class="max-w-3xl mx-auto text-center">
-            <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
-              The Community
-            </p>
-            <h2 class="font-serif text-4xl sm:text-5xl leading-tight t-text">
-              About {{ organization.name }}
-            </h2>
-            <div class="mx-auto w-14 h-px my-8" style="background: var(--theme-accent-primary)"></div>
-            <p class="text-lg leading-relaxed font-light t-text-secondary">
-              {{ organization.settings.description || organization.settings.about }}
+          <div class="reveal max-w-3xl mx-auto text-center">
+            <p class="landing-eyebrow mb-5">The Community</p>
+            <h2 class="landing-heading text-4xl sm:text-5xl mb-8">About {{ organization.name }}</h2>
+            <div class="landing-rule mx-auto mb-9" />
+            <p class="landing-dropcap landing-lede text-lg sm:text-xl leading-relaxed text-left sm:text-center">
+              {{ aboutText }}
             </p>
           </div>
         </div>
       </section>
 
-      <!-- Amenities Section -->
+      <!-- Amenities -->
       <section
-        v-if="organization?.amenities && organization.amenities.length > 0"
-        class="py-24 sm:py-32 t-bg-elevated border-t t-border"
+        v-if="hasAmenities"
+        id="amenities"
+        class="landing-section py-24 sm:py-36 t-bg-elevated border-t t-border"
       >
         <div class="container mx-auto px-6">
           <div class="max-w-6xl mx-auto">
-            <div class="text-center mb-16">
-              <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
-                Amenities
-              </p>
-              <h2 class="font-serif text-4xl sm:text-5xl t-text">
-                Life at {{ organization.name }}
-              </h2>
-              <div class="mx-auto w-14 h-px mt-8" style="background: var(--theme-accent-primary)"></div>
+            <div class="reveal text-center mb-16">
+              <p class="landing-eyebrow mb-5">Amenities</p>
+              <h2 class="landing-heading text-4xl sm:text-5xl">Life at {{ organization.name }}</h2>
+              <div class="landing-rule mx-auto mt-8" />
             </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-14">
+            <div class="reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
               <div
                 v-for="amenity in organization.amenities"
                 :key="amenity.id"
                 class="text-center"
               >
                 <Icon
-                  :name="amenity.icon || 'lucide:sparkles'"
+                  :name="iconName(amenity.icon)"
                   class="w-7 h-7 mx-auto mb-5"
                   style="color: var(--theme-accent-primary)"
                 />
-                <h3 class="font-serif text-2xl t-text mb-2">{{ amenity.title }}</h3>
-                <p class="font-light leading-relaxed t-text-secondary">
-                  {{ amenity.description }}
-                </p>
+                <h3 class="landing-heading text-2xl mb-2">{{ amenity.title }}</h3>
+                <p class="landing-lede leading-relaxed">{{ amenity.description }}</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Board Members Section Link (hidden when show_board is false) -->
-      <section v-if="organization?.show_board !== false" class="py-24 sm:py-32 t-bg border-t t-border">
+      <!-- Listings -->
+      <OrgLandingListings :listings="cfg.listings" />
+
+      <!-- Board -->
+      <section v-if="organization?.show_board !== false" class="landing-section py-24 sm:py-36 t-bg border-t t-border">
         <div class="container mx-auto px-6">
-          <div class="max-w-2xl mx-auto text-center">
-            <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
-              Governance
-            </p>
-            <h2 class="font-serif text-4xl sm:text-5xl t-text">Board of Directors</h2>
-            <div class="mx-auto w-14 h-px my-8" style="background: var(--theme-accent-primary)"></div>
-            <p class="text-lg font-light leading-relaxed t-text-secondary mb-10">
+          <div class="reveal max-w-2xl mx-auto text-center">
+            <p class="landing-eyebrow mb-5">Governance</p>
+            <h2 class="landing-heading text-4xl sm:text-5xl">Board of Directors</h2>
+            <div class="landing-rule mx-auto my-8" />
+            <p class="landing-lede text-lg leading-relaxed mb-10">
               A dedicated group of residents who volunteer their time to guide our community.
             </p>
             <NuxtLink
@@ -215,54 +227,42 @@
         </div>
       </section>
 
-      <!-- Contact CTA Section -->
-      <section id="contact" class="py-24 sm:py-32 t-bg-elevated border-t t-border">
+      <!-- Contact -->
+      <section id="contact" class="landing-section py-24 sm:py-36 t-bg-elevated border-t t-border">
         <div class="container mx-auto px-6">
-          <div class="max-w-3xl mx-auto text-center">
-            <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">
-              Contact
-            </p>
-            <h2 class="font-serif text-4xl sm:text-5xl t-text">Get in Touch</h2>
-            <div class="mx-auto w-14 h-px my-8" style="background: var(--theme-accent-primary)"></div>
-            <p class="text-lg font-light t-text-secondary mb-14">
+          <div class="reveal max-w-3xl mx-auto text-center">
+            <p class="landing-eyebrow mb-5">Contact</p>
+            <h2 class="landing-heading text-4xl sm:text-5xl">Get in Touch</h2>
+            <div class="landing-rule mx-auto my-8" />
+            <p class="landing-lede text-lg mb-14">
               Questions or need assistance? Our community management team is here to help.
             </p>
 
-            <!-- Contact details -->
             <div class="flex flex-col sm:flex-row items-center justify-center gap-12 sm:gap-20 mb-14">
               <div v-if="organization?.phone">
-                <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-2">Call</p>
-                <a
-                  :href="`tel:${organization.phone}`"
-                  class="font-serif text-2xl t-text hover:t-text-accent transition-colors"
-                >
+                <p class="landing-eyebrow mb-2">Call</p>
+                <a :href="`tel:${organization.phone}`" class="landing-heading text-2xl hover:t-text-accent transition-colors">
                   {{ organization.phone }}
                 </a>
               </div>
-
               <div
                 v-if="organization?.phone && organization?.email"
                 class="hidden sm:block w-px h-10"
-                style="background: var(--theme-border, rgba(0,0,0,0.12))"
-              ></div>
-
+                style="background: var(--theme-border-secondary)"
+              />
               <div v-if="organization?.email">
-                <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-2">Email</p>
-                <a
-                  :href="`mailto:${organization.email}`"
-                  class="font-serif text-2xl t-text hover:t-text-accent transition-colors break-all"
-                >
+                <p class="landing-eyebrow mb-2">Email</p>
+                <a :href="`mailto:${organization.email}`" class="landing-heading text-2xl hover:t-text-accent transition-colors break-all">
                   {{ organization.email }}
                 </a>
               </div>
             </div>
 
-            <!-- CTA -->
-            <div v-if="!user">
-              <NuxtLink
-                :to="`/${slug}/signup`"
-                class="inline-flex items-center gap-2 px-9 py-3.5 border t-border t-text text-[11px] uppercase tracking-ultra-wide hover:t-bg-subtle transition-colors"
-              >
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button v-if="inquiryEnabled" type="button" class="landing-btn" @click="openInquiry('general')">
+                Send an inquiry
+              </button>
+              <NuxtLink v-if="!user" :to="`/${slug}/signup`" class="landing-btn-outline">
                 Become a Resident
               </NuxtLink>
             </div>
@@ -270,10 +270,26 @@
         </div>
       </section>
     </template>
+
+    <!-- Inquiry dialog -->
+    <OrgLandingInquiryForm
+      v-if="inquiryEnabled"
+      v-model:open="inquiryOpen"
+      :slug="slug"
+      :organization-name="organization?.name"
+      :default-category="inquiryCategory"
+    />
   </div>
 </template>
 
 <script setup>
+import { normalizeLandingConfig } from "~~/shared/utils/landing";
+import OrgLandingAvatar from "./Landing/LandingAvatar.vue";
+import OrgLandingDrawer from "./Landing/LandingDrawer.vue";
+import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
+import OrgLandingListings from "./Landing/LandingListings.vue";
+import OrgLandingInquiryForm from "./Landing/LandingInquiryForm.vue";
+
 const props = defineProps({
   organization: { type: Object, required: true },
   slug: { type: String, required: true },
@@ -281,18 +297,43 @@ const props = defineProps({
 
 const { user } = useDirectusAuth();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
+
+const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
+const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
+const hasAmenities = computed(
+  () => Array.isArray(props.organization?.amenities) && props.organization.amenities.length > 0
+);
+const hasListings = computed(() => cfg.value.listings.length > 0);
+const aboutText = computed(
+  () => props.organization?.settings?.description || props.organization?.settings?.about || ""
+);
+
+// Tolerate icon names stored without a collection prefix (e.g. "wine" → "lucide:wine").
+const iconName = (name) => {
+  if (!name) return "lucide:sparkles";
+  return name.includes(":") ? name : `lucide:${name}`;
+};
+
+// Inquiry dialog state
+const inquiryOpen = ref(false);
+const inquiryCategory = ref("general");
+const openInquiry = (cat) => {
+  inquiryCategory.value = cat || "general";
+  inquiryOpen.value = true;
+};
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
   orbitalMode: true,
-  intensity: 0.2,
-  maxRotation: 6,
+  intensity: 0.18,
+  maxRotation: 5,
   ease: 0.12,
-  perspective: 300,
+  perspective: 320,
   enableTranslation: true,
-  orbitalDepth: 60,
-  hoverScale: 1.05,
+  orbitalDepth: 50,
+  hoverScale: 1.03,
   resetOnLeave: true,
 });
 
@@ -308,5 +349,30 @@ const isAccountExpired = computed(() => {
   if (o.is_free_account) return false;
   const status = o.subscription_status;
   return status === "expired" || status === "canceled";
+});
+
+// ---- Scroll reveal (hero entrance is pure CSS; see .hero-fade in landing.css) ----
+const rootEl = ref(null);
+onMounted(() => {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const els = rootEl.value?.querySelectorAll(".reveal") || [];
+  // Reveal sections as they enter the viewport (scroller-agnostic). Degrade to
+  // immediately-visible when reduced-motion or IntersectionObserver is absent.
+  if (reduced || !("IntersectionObserver" in window)) {
+    els.forEach((el) => el.classList.add("is-in"));
+    return;
+  }
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add("is-in");
+          io.unobserve(e.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  );
+  els.forEach((el) => io.observe(el));
 });
 </script>

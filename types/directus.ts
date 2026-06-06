@@ -101,6 +101,8 @@ export interface BlockSetting {
 	homepage_url?: string | null;
 	/** @description Building photo shown full-width at the bottom of the email footer. */
 	footer_image?: DirectusFile | string | null;
+	/** @description Public landing config (widgets, neighborhood/walk-score, listings, inquiry routing, cached geo). Edited via Settings → Public site. */
+	landing?: Record<string, any> | null;
 }
 
 export interface Coupon {
