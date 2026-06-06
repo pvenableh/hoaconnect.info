@@ -1,15 +1,11 @@
 <template>
   <div class="min-h-screen t-bg t-text">
-    <!-- Main Domain: Marketing Page (for all users, logged in or not) -->
-    <PagesSellSheet
-      v-if="isMainDomain"
-      :plans="activePlans"
-      :error="error"
-      :pending="pending"
-    />
-
-    <!-- Custom Domain (605lincolnroad.com, etc) - Organization Landing Page -->
-    <div v-else>
+    <!--
+      Custom Domain (605lincolnroad.com, etc) — Organization Landing Page.
+      Platform marketing no longer lives at the app root: on the main app host
+      the page middleware below redirects into the app (see docs/plan-marketing-split.md).
+    -->
+    <div>
       <!-- Maintenance Mode Banner for Admins -->
       <div
         v-if="activeHoa?.maintenance_mode && isAdminOfCurrentDomain"
@@ -318,6 +314,24 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: [
+    function rootRedirect() {
+      // Marketing split: the app root no longer hosts platform marketing — that
+      // moved to a separate project at the apex (docs/plan-marketing-split.md).
+      // On the main app host, route visitors into the app. Custom-domain org
+      // landings have isMainDomain=false (set by domain-detector.global, which
+      // runs before page middleware) and fall through to render the page below.
+      const isMainDomain = useState("isMainDomain", () => true);
+      if (!isMainDomain.value) return;
+
+      const { loggedIn } = useUserSession();
+      // Logged-in → /dashboard (org-redirect.global carries on to /{slug}).
+      return navigateTo(loggedIn.value ? "/dashboard" : "/auth/login");
+    },
+  ],
+});
+
 const { activeHoa, isMainDomain } = useActiveHoa();
 const { user } = useDirectusAuth();
 const { currentOrg } = await useSelectedOrg();
@@ -366,41 +380,10 @@ const getFileUrl = (file) => {
   return `${config.public.directus.url}/assets/${fileId}`;
 };
 
-// Subscription plans (only fetch if on main domain)
-const { list } = useDirectusItems("subscription_plans", { requireAuth: false });
-const {
-  data: plans,
-  pending,
-  error,
-} = await useAsyncData(
-  "subscription-plans",
-  async () => {
-    // Only fetch plans on main domain
-    if (!isMainDomain.value) {
-      return [];
-    }
-
-    return await list({
-      fields: ["*"],
-      filter: {
-        status: { _eq: "published" },
-        is_active: { _eq: true },
-      },
-      sort: ["sort"],
-    });
-  },
-  {
-    server: true,
-    lazy: false,
-  }
-);
-
-const activePlans = computed(() => {
-  if (!plans.value) return [];
-  return plans.value.filter(
-    (plan) => plan.is_active && plan.status === "published"
-  );
-});
+// NOTE: platform marketing (the sell-sheets + public pricing) has moved out of
+// the app entirely to the standalone hoaconnect-marketing project. On the main
+// app host the page middleware above redirects into the app; this page now only
+// renders the per-org public landing for custom domains (the v-else content).
 
 // Check if account is expired (not free and subscription is expired/canceled)
 const isAccountExpired = computed(() => {

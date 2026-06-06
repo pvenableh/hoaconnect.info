@@ -24,10 +24,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return;
   }
 
-  // Skip redirect on home page - allow logged-in users to view main domain
-  if (to.path === '/') {
-    return;
-  }
+  // Marketing split: the app root no longer shows platform marketing, so we no
+  // longer skip '/' for logged-in users — fall through and redirect them to
+  // their org's slug path like any other non-slug route
+  // (docs/plan-marketing-split.md §3.2). The index.vue page middleware handles
+  // logged-out visitors (and SSR, where this client-only middleware doesn't run).
 
   // Skip if already on a slug route (org page)
   if (to.params.slug) {
