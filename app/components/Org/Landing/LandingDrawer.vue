@@ -56,7 +56,7 @@
           </ul>
         </nav>
 
-        <div class="px-5 py-5 border-t border-white/10">
+        <div class="px-5 py-5 border-t border-white/10 space-y-2.5">
           <a
             v-if="user"
             href="/dashboard"
@@ -65,14 +65,34 @@
             <Icon name="lucide:layout-dashboard" class="w-4 h-4" />
             Resident portal
           </a>
-          <a
-            v-else
-            href="/auth/login"
-            class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full bg-white text-gray-900 text-sm uppercase tracking-wide font-medium"
-          >
-            <Icon name="lucide:log-in" class="w-4 h-4" />
-            Resident login
-          </a>
+          <template v-else>
+            <a
+              href="/auth/login"
+              class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full bg-white text-gray-900 text-sm uppercase tracking-wide font-medium"
+              @click="open = false"
+            >
+              <Icon name="lucide:log-in" class="w-4 h-4" />
+              Resident login
+            </a>
+            <div class="grid grid-cols-2 gap-2.5">
+              <NuxtLink
+                :to="`/${slug}/request-join`"
+                class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full border border-white/30 text-white text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+                @click="open = false"
+              >
+                <Icon name="lucide:key-round" class="w-3.5 h-3.5" />
+                Request access
+              </NuxtLink>
+              <NuxtLink
+                :to="`/${slug}/signup`"
+                class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full border border-white/30 text-white text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+                @click="open = false"
+              >
+                <Icon name="lucide:user-plus" class="w-3.5 h-3.5" />
+                Create account
+              </NuxtLink>
+            </div>
+          </template>
         </div>
       </aside>
     </Teleport>
