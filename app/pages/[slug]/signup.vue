@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 
+definePageMeta({ layout: "auth-blank" });
+
 const route = useRoute();
 const router = useRouter();
 const { register } = useDirectusAuth();
@@ -72,66 +74,34 @@ useSeoMeta({
 </script>
 
 <template>
-  <div
-    class="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4"
+  <AuthShell
+    :back-to="organization ? `/${slug}` : '/'"
+    :back-label="organization ? `Back to ${organization.name}` : 'Back to home'"
   >
     <!-- Loading State -->
-    <div v-if="pending" class="flex items-center justify-center min-h-[400px]">
-      <div class="text-center">
-        <div
-          class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-          role="status"
-        >
-          <span class="sr-only">Loading...</span>
-        </div>
-        <p class="mt-4 text-gray-600">Loading...</p>
-      </div>
+    <div v-if="pending" class="glass-surface glass-surface--strong p-8 sm:p-10 flex justify-center">
+      <div class="spinner-ios" />
     </div>
 
     <!-- Organization Not Found -->
-    <div
-      v-else-if="!organization"
-      class="flex items-center justify-center min-h-[400px]"
-    >
-      <div class="text-center">
-        <h1 class="text-4xl font-bold text-gray-900 mb-4">
-          Organization Not Found
-        </h1>
-        <p class="text-xl text-gray-600 mb-8">
-          The organization you're looking for doesn't exist.
-        </p>
-        <a
-          href="/"
-          class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition"
-        >
-          Go Home
-        </a>
-      </div>
+    <div v-else-if="!organization" class="glass-surface glass-surface--strong p-8 sm:p-10 text-center space-y-3">
+      <h1 class="text-xl font-semibold t-text">Organization not found</h1>
+      <p class="text-sm t-text-muted">The organization you're looking for doesn't exist.</p>
+      <NuxtLink to="/">
+        <Button class="rounded-full mt-2">Go home</Button>
+      </NuxtLink>
     </div>
 
     <!-- Signup Form with Organization Context -->
-    <div v-else class="w-full max-w-md">
-      <div class="mb-8 text-center">
-        <!-- Organization Logo -->
-        <div v-if="organization?.logo" class="mb-4">
-          <img
-            :src="getFileUrl(organization.logo)"
-            :alt="organization.name"
-            class="h-16 mx-auto object-contain"
-          />
-        </div>
-        <!-- Organization Name -->
-        <h2 v-else class="text-xl font-semibold text-gray-900 mb-2">
-          {{ organization.name }}
-        </h2>
-        <NuxtLink
-          :to="`/${slug}`"
-          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          &larr; Back to {{ organization.name }}
-        </NuxtLink>
+    <template v-else>
+      <div v-if="organization?.logo" class="mb-5 text-center">
+        <img
+          :src="getFileUrl(organization.logo)"
+          :alt="organization.name"
+          class="h-14 mx-auto object-contain"
+        />
       </div>
       <AuthRegisterForm @submit="handleSubmit" @login="handleLogin" />
-    </div>
-  </div>
+    </template>
+  </AuthShell>
 </template>
