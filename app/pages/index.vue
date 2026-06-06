@@ -380,9 +380,10 @@ const getFileUrl = (file) => {
   return `${config.public.directus.url}/assets/${fileId}`;
 };
 
-// NOTE: the public subscription-plans fetch + PagesSellSheet that used to live
-// here were removed with the marketing split — pricing now lives in the separate
-// marketing project (docs/plan-marketing-split.md §3.5).
+// NOTE: platform marketing (the sell-sheets + public pricing) has moved out of
+// the app entirely to the standalone hoaconnect-marketing project. On the main
+// app host the page middleware above redirects into the app; this page now only
+// renders the per-org public landing for custom domains (the v-else content).
 
 // Check if account is expired (not free and subscription is expired/canceled)
 const isAccountExpired = computed(() => {
