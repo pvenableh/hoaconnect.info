@@ -32,6 +32,7 @@
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
     "create:expenses": "dotenv -- tsx scripts/create-expenses-collection.ts",
     "create:property-mgmt": "dotenv -- tsx scripts/create-property-management.ts",
+    "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
     "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
     "migrate:1033": "dotenv -- tsx scripts/migrate-1033.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",

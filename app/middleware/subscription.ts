@@ -27,30 +27,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Get organization data
   try {
-    const { currentOrg } = await useSelectedOrg();
+    const { currentOrg, effectiveEntitlement } = await useSelectedOrg();
 
     // If no org selected, let them through (they may need to set up)
     if (!currentOrg.value?.organization) return;
 
-    const org = currentOrg.value.organization;
-
-    // Free accounts bypass subscription checking
-    if (org.is_free_account === true) return;
-
-    // Check subscription status
-    const status = org.subscription_status;
-
-    // Allow active and trial subscriptions
-    if (status === 'active' || status === 'trial') return;
-
-    // Check if trial is still valid (even if status says trial)
-    if (status === 'trial' && org.trial_ends_at) {
-      const trialEnd = new Date(org.trial_ends_at);
-      if (trialEnd > new Date()) return;
-    }
+    // Effective entitlement resolves up to a parent billing_account when the
+    // org belongs to one (agency billing); otherwise it's the org's own fields.
+    // Covers free accounts, active, and unexpired trials in one rule.
+    const { isEntitled, subscription_status } = effectiveEntitlement.value;
+    if (isEntitled) return;
 
     // Subscription is expired or canceled - redirect to blocked page
-    console.log('[subscription middleware] Blocking access - subscription status:', status);
+    console.log('[subscription middleware] Blocking access - subscription status:', subscription_status);
     return navigateTo('/subscription-expired');
 
   } catch (error) {
