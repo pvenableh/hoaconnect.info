@@ -79,7 +79,7 @@
               type="button"
               variant="outline"
               size="sm"
-              @click="navigateTo('/domain-setup')"
+              @click="navigateTo(`/${organization.slug}/admin/settings/domains`)"
             >
               <Icon name="lucide:globe" class="h-4 w-4 mr-1" />
               Domain
