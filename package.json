@@ -34,6 +34,7 @@
     "create:property-mgmt": "dotenv -- tsx scripts/create-property-management.ts",
     "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
     "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
+    "add:landing-config": "dotenv -- tsx scripts/add-landing-config-fields.ts",
     "migrate:1033": "dotenv -- tsx scripts/migrate-1033.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"

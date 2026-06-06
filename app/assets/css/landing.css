@@ -1,0 +1,271 @@
+/* =============================================================================
+   LANDING AESTHETIC LAYER
+   Two distinct personalities driven by the active theme class, sharing one
+   markup:
+     • CLASSIC  → editorial print (Harper's Bazaar / Restoration Hardware):
+                  Bauer Bodoni display, ultra-wide tracked eyebrows, hairline
+                  rules, drop caps, squared hairline buttons, generous air.
+     • MODERN   → iOS: rounded surfaces, layered soft shadows, frosted depth,
+                  pill buttons, spring micro-interactions.
+     • LUXURY   → inherits classic editorial cues with brass accents.
+   Everything reads from the --theme-* tokens in theme.css.
+============================================================================= */
+
+/* ---- Shared scaffolding ---------------------------------------------------- */
+.landing-eyebrow {
+	font-family: var(--theme-body-font);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.28em;
+	color: var(--theme-text-muted);
+}
+.landing-heading {
+	font-family: var(--theme-heading-font);
+	color: var(--theme-text-primary);
+	line-height: 1.05;
+	letter-spacing: var(--theme-tracking-tight);
+}
+.landing-lede {
+	color: var(--theme-text-secondary);
+	font-weight: 300;
+}
+.landing-rule {
+	height: 1px;
+	width: 3.5rem;
+	background: var(--theme-accent-primary);
+}
+.landing-section {
+	position: relative;
+}
+
+/* Hero entrance — pure CSS so there's no flash and no JS dependency. */
+.hero-fade {
+	opacity: 0;
+	animation: heroFadeUp 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+}
+.hero-fade--widgets {
+	animation-delay: 0.5s;
+}
+@keyframes heroFadeUp {
+	from { opacity: 0; transform: translateY(24px); }
+	to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.hero-fade {
+		opacity: 1;
+		animation: none;
+	}
+}
+
+/* Reveal-on-scroll (toggled by an IntersectionObserver in PublicLanding). */
+.reveal {
+	opacity: 0;
+	transform: translateY(22px);
+	transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+		transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: opacity, transform;
+}
+.reveal.is-in {
+	opacity: 1;
+	transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.reveal {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+}
+
+/* ---- Hero CTAs (sit on the dark hero — always light text) ------------------ */
+.landing-cta,
+.landing-cta--ghost {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.95rem 2rem;
+	font-family: var(--theme-body-font);
+	font-size: 0.75rem;
+	color: #fff;
+	cursor: pointer;
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	transition: background 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+		border-color 0.3s ease;
+}
+.landing-cta {
+	background: rgba(255, 255, 255, 0.16);
+	border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.landing-cta--ghost {
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.landing-cta:hover,
+.landing-cta--ghost:hover {
+	background: rgba(255, 255, 255, 0.26);
+}
+.landing-cta:active,
+.landing-cta--ghost:active {
+	transform: scale(0.97);
+}
+
+/* ---- Buttons on light content sections ------------------------------------ */
+.landing-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.95rem 2.25rem;
+	font-family: var(--theme-body-font);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.2em;
+	background: var(--theme-accent-primary);
+	color: var(--theme-text-inverse);
+	cursor: pointer;
+	transition: background 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+		box-shadow 0.25s ease;
+}
+.landing-btn:hover {
+	background: var(--theme-accent-hover);
+}
+.landing-btn-outline {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.95rem 2.25rem;
+	font-family: var(--theme-body-font);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.2em;
+	border: 1px solid var(--theme-border-secondary);
+	color: var(--theme-text-primary);
+	cursor: pointer;
+	transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+.landing-btn-outline:hover {
+	background: var(--theme-bg-subtle);
+}
+
+/* Surface card for listings / grouped content. */
+.landing-card {
+	background: var(--theme-card-bg);
+	border: 1px solid var(--theme-border-light);
+	overflow: hidden;
+	transition: box-shadow 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =============================================================================
+   CLASSIC + LUXURY — editorial print
+============================================================================= */
+html.theme-classic-light .landing-eyebrow,
+html.theme-classic-dark .landing-eyebrow,
+html.theme-luxury-light .landing-eyebrow,
+html.theme-luxury-dark .landing-eyebrow {
+	letter-spacing: 0.36em;
+	color: var(--theme-accent-primary);
+}
+
+/* Squared, hairline, print-style buttons. */
+html.theme-classic-light .landing-cta,
+html.theme-classic-dark .landing-cta,
+html.theme-luxury-light .landing-cta,
+html.theme-luxury-dark .landing-cta,
+html.theme-classic-light .landing-cta--ghost,
+html.theme-classic-dark .landing-cta--ghost,
+html.theme-luxury-light .landing-cta--ghost,
+html.theme-luxury-dark .landing-cta--ghost {
+	border-radius: 0;
+	text-transform: uppercase;
+	letter-spacing: 0.22em;
+}
+html.theme-classic-light .landing-btn,
+html.theme-classic-dark .landing-btn,
+html.theme-luxury-light .landing-btn,
+html.theme-luxury-dark .landing-btn,
+html.theme-classic-light .landing-btn-outline,
+html.theme-classic-dark .landing-btn-outline,
+html.theme-luxury-light .landing-btn-outline,
+html.theme-luxury-dark .landing-btn-outline {
+	border-radius: 0;
+}
+html.theme-classic-light .landing-card,
+html.theme-classic-dark .landing-card,
+html.theme-luxury-light .landing-card,
+html.theme-luxury-dark .landing-card {
+	border-radius: 2px;
+}
+html.theme-classic-light .landing-card:hover,
+html.theme-classic-dark .landing-card:hover,
+html.theme-luxury-light .landing-card:hover,
+html.theme-luxury-dark .landing-card:hover {
+	box-shadow: var(--theme-shadow-md);
+}
+
+/* Editorial drop cap on the lede paragraph. */
+html.theme-classic-light .landing-dropcap::first-letter,
+html.theme-classic-dark .landing-dropcap::first-letter,
+html.theme-luxury-light .landing-dropcap::first-letter,
+html.theme-luxury-dark .landing-dropcap::first-letter {
+	float: left;
+	font-family: var(--theme-heading-font);
+	font-size: 3.6em;
+	line-height: 0.74;
+	padding: 0.06em 0.12em 0 0;
+	color: var(--theme-accent-primary);
+}
+
+/* =============================================================================
+   MODERN — iOS
+============================================================================= */
+html.theme-modern-light .landing-eyebrow,
+html.theme-modern-dark .landing-eyebrow {
+	letter-spacing: 0.2em;
+	color: var(--theme-accent-primary);
+}
+
+/* Pill buttons, spring press. */
+html.theme-modern-light .landing-cta,
+html.theme-modern-dark .landing-cta,
+html.theme-modern-light .landing-cta--ghost,
+html.theme-modern-dark .landing-cta--ghost,
+html.theme-modern-light .landing-btn,
+html.theme-modern-dark .landing-btn,
+html.theme-modern-light .landing-btn-outline,
+html.theme-modern-dark .landing-btn-outline {
+	border-radius: 9999px;
+	letter-spacing: 0.08em;
+	text-transform: none;
+	font-size: 0.875rem;
+}
+html.theme-modern-light .landing-btn,
+html.theme-modern-dark .landing-btn {
+	font-weight: 600;
+	box-shadow: 0 8px 24px -8px var(--theme-accent-primary);
+}
+html.theme-modern-light .landing-btn:hover,
+html.theme-modern-dark .landing-btn:hover {
+	transform: translateY(-1px);
+}
+
+/* Floating rounded cards with layered shadow + hover lift. */
+html.theme-modern-light .landing-card,
+html.theme-modern-dark .landing-card {
+	border-radius: 1.25rem;
+	box-shadow: var(--theme-shadow-md);
+}
+html.theme-modern-light .landing-card:hover,
+html.theme-modern-dark .landing-card:hover {
+	box-shadow: var(--theme-shadow-lg);
+	transform: translateY(-4px);
+}
+
+/* Modern glass widgets get a touch more frost + rounding. */
+html.theme-modern-light .glass-widget,
+html.theme-modern-dark .glass-widget {
+	border-radius: 1rem;
+	backdrop-filter: blur(16px) saturate(150%);
+	-webkit-backdrop-filter: blur(16px) saturate(150%);
+}

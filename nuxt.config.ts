@@ -32,6 +32,10 @@ export default defineNuxtConfig({
       url: process.env.DIRECTUS_URL,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
     },
+    // OpenWeatherMap key (server-only) — powers the landing Weather widget via
+    // /api/landing/weather. One platform key covers all tenants; if unset the
+    // weather widget hides gracefully.
+    openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY,
     // Universal invite email template (handles invitation, welcome, and accepted notification emails)
