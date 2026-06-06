@@ -740,6 +740,8 @@ export interface HoaOrganization {
 	external_url?: string | null;
 	/** @description Inquiry → management-contact routing (managed from Settings → Property management). board_default notifies the board on every inquiry. */
 	inquiry_routing?: Record<string, any> | null;
+	/** @description Optional agency billing account. When set, entitlement resolves up to this account and the org's own subscription_* fields are advisory. Null = self-billed (default). */
+	billing_account?: BillingAccount | string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1107,6 +1109,43 @@ export interface SubscriptionPlan {
 	is_active?: boolean | null;
 	is_featured?: boolean | null;
 	trial_days?: number | null;
+}
+
+export interface BillingAccount {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	name: string;
+	status?: 'active' | 'past_due' | 'canceled' | 'suspended' | null;
+	owner?: DirectusUser | string | null;
+	subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled' | 'expired' | null;
+	trial_ends_at?: string | null;
+	is_free_account?: boolean | null;
+	subscription_plan?: SubscriptionPlan | string | null;
+	billing_cycle?: 'monthly' | 'yearly' | null;
+	stripe_customer_id?: string | null;
+	stripe_subscription_id?: string | null;
+	seats_purchased?: number | null;
+	included_properties?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface BillingAccountMember {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	billing_account: BillingAccount | string;
+	/** @required */
+	user: DirectusUser | string;
+	/** @required */
+	role: 'owner' | 'billing_admin' | 'viewer';
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
 }
 
 export interface DirectusAccess {
@@ -1604,6 +1643,8 @@ export interface Schema {
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
 	subscription_plans: SubscriptionPlan[];
+	billing_accounts: BillingAccount[];
+	billing_account_members: BillingAccountMember[];
 	directus_access: DirectusAccess[];
 	directus_activity: DirectusActivity[];
 	directus_collections: DirectusCollection[];
@@ -1681,6 +1722,8 @@ export enum CollectionNames {
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',
 	subscription_plans = 'subscription_plans',
+	billing_accounts = 'billing_accounts',
+	billing_account_members = 'billing_account_members',
 	directus_access = 'directus_access',
 	directus_activity = 'directus_activity',
 	directus_collections = 'directus_collections',

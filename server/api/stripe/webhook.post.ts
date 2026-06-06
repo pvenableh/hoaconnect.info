@@ -288,6 +288,14 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 
 	const customerId = subscription.customer as string;
 
+	// Agency billing: route to a billing_accounts row first (one customer + one
+	// subscription spanning many orgs). Child orgs resolve entitlement UP to the
+	// account, so we must NOT touch their own fields here. Match by subscription
+	// id first, then customer id. (docs/plan-agency-multi-property-billing.md §7)
+	if (await routeBillingAccountSubscription(directus, subscription, eventType)) {
+		return;
+	}
+
 	try {
 		// Find organization by stripe_customer_id
 		const organizations = await directus.request(
@@ -360,6 +368,11 @@ async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventT
 
 	const customerId = invoice.customer as string;
 	const subscriptionId = invoice.subscription as string;
+
+	// Agency billing: route to a billing_accounts row first (see above).
+	if (await routeBillingAccountInvoice(directus, invoice, eventType)) {
+		return;
+	}
 
 	try {
 		// Find organization by stripe_customer_id
@@ -454,6 +467,106 @@ async function handleConnectPayoutEvent(
 		status: payout.status,
 		arrival_date: payout.arrival_date,
 	});
+}
+
+// --- Agency billing-account routing ---
+
+// If this subscription belongs to a billing_accounts row, update THAT row and
+// return true (caller skips the per-org branch). Match by subscription id
+// first, then customer id. (docs/plan-agency-multi-property-billing.md §7)
+async function routeBillingAccountSubscription(
+	directus: any,
+	subscription: Stripe.Subscription,
+	eventType: string
+): Promise<boolean> {
+	const customerId = subscription.customer as string;
+	try {
+		let accounts = await directus.request(
+			readItems('billing_accounts', {
+				filter: { stripe_subscription_id: { _eq: subscription.id } },
+				limit: 1,
+			})
+		);
+		if (!accounts?.length) {
+			accounts = await directus.request(
+				readItems('billing_accounts', {
+					filter: { stripe_customer_id: { _eq: customerId } },
+					limit: 1,
+				})
+			);
+		}
+		if (!accounts?.length) return false;
+
+		const account = accounts[0];
+		const mapped = mapStripeStatus(subscription.status);
+		const updateData: Record<string, any> = {
+			stripe_subscription_id: subscription.id,
+			subscription_status: mapped.subscription_status,
+			status: mapped.status,
+		};
+		if (subscription.trial_end) {
+			updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
+		}
+		if (eventType === 'customer.subscription.deleted') {
+			updateData.subscription_status = 'canceled';
+			updateData.status = 'canceled';
+		}
+
+		const item = subscription.items?.data?.[0];
+		if (typeof item?.quantity === 'number') updateData.seats_purchased = item.quantity;
+		if (item?.price?.recurring?.interval) {
+			updateData.billing_cycle = item.price.recurring.interval === 'year' ? 'yearly' : 'monthly';
+		}
+
+		await directus.request(updateItem('billing_accounts', account.id, updateData));
+		console.log(`Updated billing account ${account.id} → ${updateData.subscription_status}`);
+		return true;
+	} catch (err) {
+		console.error('Error routing billing-account subscription:', err);
+		// Returning false would double-process via the org branch; the org branch
+		// won't match an agency customer, so it's safe. Treat as handled.
+		return true;
+	}
+}
+
+async function routeBillingAccountInvoice(
+	directus: any,
+	invoice: Stripe.Invoice,
+	eventType: string
+): Promise<boolean> {
+	const customerId = invoice.customer as string;
+	try {
+		const accounts = await directus.request(
+			readItems('billing_accounts', {
+				filter: { stripe_customer_id: { _eq: customerId } },
+				limit: 1,
+			})
+		);
+		if (!accounts?.length) return false;
+
+		const account = accounts[0];
+		if (eventType === 'invoice.paid') {
+			await directus.request(
+				updateItem('billing_accounts', account.id, {
+					subscription_status: 'active',
+					status: 'active',
+				})
+			);
+			console.log(`Billing account ${account.id} subscription renewed`);
+		} else if (eventType === 'invoice.payment_failed') {
+			await directus.request(
+				updateItem('billing_accounts', account.id, {
+					subscription_status: 'past_due',
+					status: 'past_due',
+				})
+			);
+			console.log(`Billing account ${account.id} payment failed → past_due`);
+		}
+		return true;
+	} catch (err) {
+		console.error('Error routing billing-account invoice:', err);
+		return true;
+	}
 }
 
 async function updatePaymentRequest(directus: any, paymentRequestId: string, amount: number) {
