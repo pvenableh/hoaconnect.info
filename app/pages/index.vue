@@ -33,6 +33,9 @@
 
 <script setup>
 definePageMeta({
+  // Chromeless: a custom domain's clean root only ever renders the org's public
+  // landing (or a not-found) — no HOA Connect app header/footer.
+  layout: "auth-blank",
   middleware: [
     function rootRedirect() {
       // On the main app host, the root is not a public page — route visitors

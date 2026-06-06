@@ -125,20 +125,47 @@
         <!-- CTAs -->
         <div
           v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
-          class="hero-fade flex flex-col sm:flex-row gap-3 justify-center mt-9"
+          class="hero-fade flex flex-col items-center gap-4 mt-9"
         >
-          <a :href="user ? '/dashboard' : '/auth/login'" class="landing-cta">
-            <Icon :name="user ? 'lucide:layout-dashboard' : 'lucide:log-in'" class="w-4 h-4" />
-            {{ user ? "Resident Portal" : "Resident Login" }}
+          <!-- Signed-in resident -->
+          <a v-if="user" href="/dashboard" class="landing-cta">
+            <Icon name="lucide:layout-dashboard" class="w-4 h-4" />
+            Resident Portal
           </a>
-          <button v-if="inquiryEnabled" type="button" class="landing-cta--ghost" @click="openInquiry('general')">
-            <Icon name="lucide:mail" class="w-4 h-4" />
-            Inquire
-          </button>
-          <a v-else href="#contact" class="landing-cta--ghost">
-            <Icon name="lucide:mail" class="w-4 h-4" />
-            Contact Us
-          </a>
+
+          <!-- Public visitor: log in, request access, or create an account -->
+          <template v-else>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+              <a href="/auth/login" class="landing-cta">
+                <Icon name="lucide:log-in" class="w-4 h-4" />
+                Resident Login
+              </a>
+              <NuxtLink :to="`/${slug}/request-join`" class="landing-cta">
+                <Icon name="lucide:key-round" class="w-4 h-4" />
+                Request Access
+              </NuxtLink>
+            </div>
+            <div class="flex items-center gap-5 text-[11px] uppercase tracking-[0.18em] text-white/80">
+              <NuxtLink :to="`/${slug}/signup`" class="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                <Icon name="lucide:user-plus" class="w-3.5 h-3.5" />
+                Create account
+              </NuxtLink>
+              <span class="opacity-40">·</span>
+              <button
+                v-if="inquiryEnabled"
+                type="button"
+                class="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                @click="openInquiry('general')"
+              >
+                <Icon name="lucide:mail" class="w-3.5 h-3.5" />
+                Inquire
+              </button>
+              <a v-else href="#contact" class="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                <Icon name="lucide:mail" class="w-3.5 h-3.5" />
+                Contact
+              </a>
+            </div>
+          </template>
         </div>
       </div>
 

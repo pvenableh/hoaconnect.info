@@ -62,6 +62,14 @@ const { isMember } = user.value
 // Get admin status for current domain
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 
+// The public landing is a self-contained, full-bleed experience with its own
+// nav drawer + CTAs — render it chromeless (no HOA Connect app header/footer).
+// Logged-in members fall through to the member dashboard, which keeps the app
+// chrome (default layout).
+if (!(user.value && isMember.value)) {
+  setPageLayout("auth-blank");
+}
+
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
   orbitalMode: true,
