@@ -38,6 +38,10 @@ export interface EmailFormData {
   includeBoardFooter?: boolean;
   recipientIds: string[];
   attachmentIds?: string[];
+  /** Per-send override of the org's default header line ("Official Communication of …"). */
+  headerText?: string | null;
+  /** Per-send override of the org's default footer building photo (Directus file id). */
+  footerImageId?: string | null;
 }
 
 export interface EmailSaveData {
@@ -73,6 +77,8 @@ export interface EmailPreviewData {
   salutation?: string;
   includeBoardFooter?: boolean;
   attachmentIds?: string[];
+  headerText?: string | null;
+  footerImageId?: string | null;
 }
 
 export interface EmailListResponse {

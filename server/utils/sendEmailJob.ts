@@ -83,7 +83,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
       fields: [
         "id", "organization", "subject", "subtitle", "content", "email_type",
         "content_mode", "greeting", "salutation", "include_board_footer", "urgent",
-        "recipient_filter", "recipient_ids",
+        "recipient_filter", "recipient_ids", "web_slug", "header_text", "footer_image",
       ],
     })
   )) as any;
@@ -95,8 +95,8 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
 
   const organization = (await directus.request(
     readItem("hoa_organizations", organizationId, {
-      fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug",
-        { settings: ["id", "logo", "title", "description"] }],
+      fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url",
+        { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"] }],
     })
   )) as HoaOrganization & { settings: BlockSetting | null };
 
@@ -134,6 +134,34 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
   const greeting = email.greeting || undefined;
   const salutation = email.salutation || undefined;
 
+  // Resolve branding (per-send overrides over org defaults) and a friendly
+  // web-view slug for this scheduled email.
+  const branding = resolveEmailBranding(organization, email, {
+    appUrl: config.public.appUrl as string,
+  });
+
+  let webSlug: string | null = email.web_slug || null;
+  if (!webSlug) {
+    const slugRows = (await directus.request(
+      readItems("hoa_emails", {
+        filter: {
+          organization: { _eq: organizationId },
+          web_slug: { _nnull: true },
+          id: { _neq: email.id },
+        },
+        fields: ["web_slug"],
+        limit: -1,
+      })
+    )) as Array<{ web_slug?: string | null }>;
+    const taken = new Set(slugRows.map((r) => r.web_slug).filter(Boolean) as string[]);
+    webSlug = buildUniqueWebSlug(email.subject || "", taken);
+    await directus.request(updateItem("hoa_emails", email.id, { web_slug: webSlug }));
+  }
+
+  const webViewUrl = organization.slug
+    ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || email.id}`
+    : `${config.public.appUrl}/api/email/view/${email.id}`;
+
   let delivered = 0;
   let failed = 0;
 
@@ -160,6 +188,8 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
             greeting, salutation, boardMembers: includeBoardFooter ? boardMembers : undefined,
             recipientFirstName, directusUrl: config.directus.url,
             emailId: email.id, appUrl: config.public.appUrl as string,
+            headerText: branding.headerText, footerImage: branding.footerImage,
+            homepageUrl: branding.homepageUrl, webViewUrl,
           });
 
     try {

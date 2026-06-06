@@ -421,6 +421,9 @@ export interface EmailTemplateData {
   org_address?: string;
   org_email?: string;
   org_phone_number?: string;
+  org_header_text?: string; // Custom line under the logo (e.g. "Official Communication of …")
+  org_homepage_url?: string; // Homepage link shown in footer
+  footer_image_url?: string; // Full-width building photo in footer
 
   // Board members (each with name, title, icon)
   board_members?: Array<{ name: string; title: string; icon?: string }>;

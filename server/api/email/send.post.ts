@@ -108,13 +108,15 @@ interface SendEmailBody {
   emailId?: string; // If updating existing draft
   attachmentIds?: string[]; // File IDs from Directus to attach
   urgent?: boolean;
+  headerText?: string | null; // Per-send override of the org's default header line
+  footerImageId?: string | null; // Per-send override of the org's default footer photo
 }
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent } = body;
+  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -131,8 +133,8 @@ export default defineEventHandler(async (event) => {
     // Get organization with settings
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", {
-          settings: ["id", "logo", "title", "description"],
+        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url", {
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -246,6 +248,32 @@ export default defineEventHandler(async (event) => {
       ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
       : [];
 
+    // Resolve a friendly web_slug for the public view page. Reuse an existing
+    // one when re-sending a draft; otherwise derive it from the subject and make
+    // it unique within the org.
+    let webSlug: string | null = null;
+    if (emailId) {
+      const existing = (await directus.request(
+        readItem("hoa_emails", emailId, { fields: ["web_slug"] })
+      )) as { web_slug?: string | null };
+      webSlug = existing?.web_slug || null;
+    }
+    if (!webSlug) {
+      const slugRows = (await directus.request(
+        readItems("hoa_emails", {
+          filter: {
+            organization: { _eq: organizationId },
+            web_slug: { _nnull: true },
+            ...(emailId ? { id: { _neq: emailId } } : {}),
+          },
+          fields: ["web_slug"],
+          limit: -1,
+        })
+      )) as Array<{ web_slug?: string | null }>;
+      const taken = new Set(slugRows.map((r) => r.web_slug).filter(Boolean) as string[]);
+      webSlug = buildUniqueWebSlug(subject, taken);
+    }
+
     // Create or update email record
     let email;
     if (emailId) {
@@ -263,6 +291,9 @@ export default defineEventHandler(async (event) => {
           status: "sending",
           recipient_count: members.length,
           attachments: attachmentsData,
+          web_slug: webSlug,
+          header_text: headerText || null,
+          footer_image: footerImageId || null,
         })
       );
     } else {
@@ -281,6 +312,9 @@ export default defineEventHandler(async (event) => {
           status: "sending",
           recipient_count: members.length,
           attachments: attachmentsData,
+          web_slug: webSlug,
+          header_text: headerText || null,
+          footer_image: footerImageId || null,
         })
       );
     }
@@ -339,6 +373,21 @@ export default defineEventHandler(async (event) => {
     const orgUrl = organization.slug
       ? `${config.public.appUrl}/${organization.slug}`
       : `${config.public.appUrl}`;
+
+    // Resolve branding (custom header line, footer photo, homepage link) with
+    // per-send overrides winning over the org defaults.
+    const branding = resolveEmailBranding(organization, null, {
+      appUrl: config.public.appUrl as string,
+      overrides: { headerText: headerText ?? null, footerImage: footerImageId ?? null },
+    });
+    const footerImageUrl = branding.footerImage
+      ? `${config.directus.url}/assets/${branding.footerImage}`
+      : "";
+
+    // Friendly public web-view URL (/{slug}/announcements/email/{web_slug}).
+    const webViewUrl = organization.slug
+      ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || (email as any).id}`
+      : `${config.public.appUrl}/api/email/view/${(email as any).id}`;
 
     for (const member of members) {
       if (!member.email) {
@@ -444,12 +493,15 @@ export default defineEventHandler(async (event) => {
             org_address: orgAddress || undefined,
             org_email: organization.email || undefined,
             org_phone_number: organization.phone || '',
+            org_header_text: applyHeaderTextTokens(branding.headerText, organization.name || 'Your HOA', organization.legal_name) || undefined,
+            org_homepage_url: branding.homepageUrl || undefined,
+            footer_image_url: footerImageUrl || undefined,
 
             // Board members
             board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
 
             // Links
-            Weblink: `${config.public.appUrl}/email/view/${(email as any).id}`,
+            Weblink: webViewUrl,
 
             // Meta
             year: new Date().getFullYear().toString(),
@@ -492,6 +544,10 @@ export default defineEventHandler(async (event) => {
             directusUrl: config.directus.url,
             emailId: (email as any).id,
             appUrl: config.public.appUrl as string,
+            headerText: branding.headerText,
+            footerImage: branding.footerImage,
+            homepageUrl: branding.homepageUrl,
+            webViewUrl,
           });
 
           // Log HTML for first recipient only (for debugging)
