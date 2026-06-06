@@ -86,6 +86,11 @@ onMounted(() => {
       <AppDock />
     </ClientOnly>
 
+    <!-- Slide-over Channels panel (chat as an overlay, not a full page) -->
+    <ClientOnly>
+      <AppChannelsPanel />
+    </ClientOnly>
+
     <!-- Global Notification Components -->
     <ClientOnly>
       <NotificationSheet />
