@@ -722,6 +722,8 @@ export interface HoaOrganization {
 	type?: 'residential' | 'commercial' | null;
 	/** @description Per-org optional module on/off toggles (managed from Settings → Modules). Missing keys are treated as enabled. */
 	modules?: Record<string, any> | null;
+	/** @description External marketing site URL (e.g. https://yourbuilding.com). When set, the built-in landing is disabled and HOA Connect serves the resident portal only. */
+	external_url?: string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

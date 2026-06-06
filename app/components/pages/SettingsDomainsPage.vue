@@ -9,9 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const route = useRoute();
 const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
 const mainDomain = computed(() => (config.public.mainDomain as string) || "hoaconnect.info");
+const slug = computed(() => route.params.slug as string);
 
 const { selectedOrgId } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
@@ -22,6 +24,7 @@ interface DomainState {
   domain_verified?: boolean | null;
   domain_type?: string | null;
   domain_config?: any;
+  external_url?: string | null;
 }
 
 const org = ref<DomainState | null>(null);
@@ -32,8 +35,10 @@ const load = async () => {
   loading.value = true;
   try {
     org.value = (await orgItems.get(orgId.value, {
-      fields: ["custom_domain", "domain_verified", "domain_type", "domain_config"],
+      fields: ["custom_domain", "domain_verified", "domain_type", "domain_config", "external_url"],
     })) as DomainState;
+    externalUrlInput.value = org.value?.external_url || "";
+    externalMode.value = !!org.value?.external_url;
   } catch (e: any) {
     toast.error(e.message || "Failed to load domain settings");
   } finally {
@@ -41,6 +46,38 @@ const load = async () => {
   }
 };
 watch(orgId, load, { immediate: true });
+
+// ---- Public landing mode (built-in vs external marketing site) ----
+const externalMode = ref(false);
+const externalUrlInput = ref("");
+const savingExternal = ref(false);
+
+const appBase = computed(() =>
+  ((config.public.appUrl as string) || `https://${mainDomain.value}`).replace(/\/$/, "")
+);
+// The link to put on the external site's "Resident Login" button.
+const portalUrl = computed(() => `${appBase.value}/${slug.value}/dashboard`);
+
+const saveExternalUrl = async () => {
+  if (!orgId.value) return;
+  const url = externalMode.value ? externalUrlInput.value.trim() : "";
+  if (externalMode.value && url && !/^https?:\/\//i.test(url)) {
+    toast.error("Enter a full URL, e.g. https://yourbuilding.com");
+    return;
+  }
+  savingExternal.value = true;
+  try {
+    await orgItems.update(orgId.value, { external_url: url || null } as any);
+    toast.success(
+      url ? "External site saved — built-in landing disabled" : "Built-in landing enabled"
+    );
+    await load();
+  } catch (e: any) {
+    toast.error(e.data?.message || e.message || "Failed to save");
+  } finally {
+    savingExternal.value = false;
+  }
+};
 
 const domainInput = ref("");
 const connecting = ref(false);
@@ -140,22 +177,83 @@ useSeoMeta({ title: "Custom Domain" });
           <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
           Settings
         </Button>
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-semibold t-text">Custom domain</h1>
-          <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">
-            {{ statusLabel }}
-          </span>
-        </div>
+        <h1 class="text-2xl font-semibold t-text">Public site</h1>
         <p class="text-sm t-text-muted mt-0.5">
-          Serve your community's public site at your own web address — your content stays the same,
-          it just lives at your domain.
+          Choose where your community's public landing lives, and optionally connect a custom domain.
         </p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-16"><div class="spinner-ios" /></div>
 
+      <template v-else>
+      <!-- Public landing: built-in vs external marketing site -->
+      <div class="ios-card p-6 space-y-4">
+        <div>
+          <h2 class="font-semibold t-text">Landing page</h2>
+          <p class="text-sm t-text-muted mt-0.5">
+            Use HOA Connect's built-in landing, or host your own marketing site and use HOA Connect
+            as the resident portal only.
+          </p>
+        </div>
+
+        <div class="inline-flex rounded-lg border t-border p-0.5">
+          <button
+            type="button"
+            @click="externalMode = false"
+            :class="['px-3 py-1.5 rounded-md text-sm font-medium transition-colors', !externalMode ? 'bg-primary text-primary-foreground' : 't-text-muted hover:t-text']"
+          >
+            Built-in
+          </button>
+          <button
+            type="button"
+            @click="externalMode = true"
+            :class="['px-3 py-1.5 rounded-md text-sm font-medium transition-colors', externalMode ? 'bg-primary text-primary-foreground' : 't-text-muted hover:t-text']"
+          >
+            External site
+          </button>
+        </div>
+
+        <div v-if="externalMode" class="space-y-3">
+          <div class="space-y-1.5">
+            <Label for="ext-url">External site URL</Label>
+            <Input id="ext-url" v-model="externalUrlInput" placeholder="https://yourbuilding.com" class="font-mono" />
+            <p class="text-xs t-text-muted">
+              When set, the built-in landing is disabled — visitors at your HOA Connect address are
+              sent to the resident login.
+            </p>
+          </div>
+
+          <div class="rounded-xl t-bg-subtle p-3 text-sm">
+            <p class="t-text-muted mb-1.5">Add this "Resident Login" link to your external site:</p>
+            <div class="flex items-center gap-2">
+              <span class="font-mono break-all t-text">{{ portalUrl }}</span>
+              <Button variant="ghost" size="sm" class="w-8 h-8 p-0 shrink-0" @click="copy(portalUrl)">
+                <Icon name="lucide:copy" class="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-xs t-text-muted">
+          The built-in editorial landing is shown at your HOA Connect address.
+        </p>
+
+        <Button class="rounded-full" :disabled="savingExternal" @click="saveExternalUrl">
+          <Icon v-if="savingExternal" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
+          <Icon v-else name="lucide:check" class="w-4 h-4 mr-2" />
+          Save landing setting
+        </Button>
+      </div>
+
+      <!-- Custom domain -->
+      <div class="pt-2 flex items-center gap-3">
+        <h2 class="text-lg font-semibold t-text">Custom domain</h2>
+        <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">
+          {{ statusLabel }}
+        </span>
+      </div>
+
       <!-- Connect form -->
-      <div v-else-if="!hasDomain" class="ios-card p-6 space-y-4">
+      <div v-if="!hasDomain" class="ios-card p-6 space-y-4">
         <div class="space-y-1.5">
           <Label for="domain">Your domain</Label>
           <Input id="domain" v-model="domainInput" placeholder="yourbuilding.com" class="font-mono" />
@@ -245,6 +343,7 @@ useSeoMeta({ title: "Custom Domain" });
           </div>
           </template>
         </div>
+      </template>
       </template>
     </PageContainer>
 
