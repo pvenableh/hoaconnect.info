@@ -12,7 +12,7 @@ import {
 const route = useRoute();
 const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
-const mainDomain = computed(() => (config.public.mainDomain as string) || "hoaconnect.info");
+const mainDomain = computed(() => (config.public.mainDomain as string) || "app.hoaconnect.info");
 const slug = computed(() => route.params.slug as string);
 
 const { selectedOrgId } = await useSelectedOrg();

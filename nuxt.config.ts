@@ -66,7 +66,7 @@ export default defineNuxtConfig({
       directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,
       // Legacy - can be removed after migration
       directusUrl: process.env.DIRECTUS_URL,
-      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN,
+      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || "app.hoaconnect.info",
       appUrl: process.env.APP_URL || "http://localhost:3000",
       fromEmail: process.env.FROM_EMAIL,
       siteTitle: "Property Flow - Premier Property Management App",
