@@ -377,6 +377,18 @@ const { data: organization, pending } = await useAsyncData(
   }
 );
 
+// External landing mode: when the org hosts its public/marketing site elsewhere
+// (settings → set external_url), HOA Connect's built-in landing is disabled and
+// HOA Connect acts as the resident portal only. Public visitors go to the
+// resident login; logged-in members fall through to their dashboard below.
+const { buildOrgPath } = useOrgNavigation();
+if (organization.value?.external_url && !(user.value && isMember.value)) {
+  await navigateTo(
+    user.value ? buildOrgPath("/dashboard") : "/auth/login",
+    { replace: true }
+  );
+}
+
 // Apply the org's per-tenant landing style (classic | modern | luxury). Stored
 // on settings.theme; forceThemeStyle is SSR-safe (uses useHead) and does not
 // persist to the visitor's preferences.

@@ -14,6 +14,7 @@
     "create:email-templates": "dotenv -- tsx scripts/create-email-templates-collection.ts",
     "add:email-type-alert": "dotenv -- tsx scripts/add-email-type-alert.ts",
     "add:email-scheduling": "dotenv -- tsx scripts/add-email-scheduling-fields.ts",
+    "add:external-url": "dotenv -- tsx scripts/add-external-url-field.ts",
     "create:scheduled-flow": "dotenv -- tsx scripts/create-scheduled-email-flow.ts",
     "restrict:channels": "dotenv -- tsx scripts/restrict-channel-access.ts",
     "channels:pin-softdelete": "dotenv -- tsx scripts/add-channel-pin-softdelete.ts",
