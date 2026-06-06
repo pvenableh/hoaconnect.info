@@ -12,6 +12,53 @@ export interface ExtensionSeoMetadata {
     no_follow?: boolean;
 }
 
+export interface BillingAccountMember {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	billing_account: BillingAccount | string;
+	/** @required */
+	user: DirectusUser | string;
+	/** @required */
+	role: 'owner' | 'billing_admin' | 'viewer';
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface BillingAccount {
+	/** @primaryKey */
+	id: string;
+	/** @description e.g. "Acme Property Management" @required */
+	name: string;
+	/** @description Account lifecycle (mirrors Stripe) */
+	status?: 'active' | 'past_due' | 'canceled' | 'suspended' | null;
+	/** @description Primary billing contact */
+	owner?: DirectusUser | string | null;
+	/** @description SOURCE OF TRUTH for every org pointing at this account (entitlement resolves up). */
+	subscription_status?: 'active' | 'trial' | 'past_due' | 'canceled' | 'expired' | null;
+	/** @description One trial per agency; child properties don't carry their own once account-billed. */
+	trial_ends_at?: string | null;
+	/** @description Comped agency — bypasses subscription checks for all child orgs. */
+	is_free_account?: boolean | null;
+	/** @description The agency plan/tier */
+	subscription_plan?: SubscriptionPlan | string | null;
+	billing_cycle?: 'monthly' | 'yearly' | null;
+	/** @description The single Stripe customer */
+	stripe_customer_id?: string | null;
+	/** @description The single Stripe subscription */
+	stripe_subscription_id?: string | null;
+	/** @description Denormalized mirror of the live Stripe quantity (= active property count). Not a hard cap. */
+	seats_purchased?: number | null;
+	/** @description Reserved: properties bundled before per-seat pricing. Left 0/unused in v1 (flat per-property). */
+	included_properties?: number | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
 export interface BlockHero {
 	/** @primaryKey */
 	id: string;
@@ -740,6 +787,8 @@ export interface HoaOrganization {
 	external_url?: string | null;
 	/** @description Inquiry → management-contact routing (managed from Settings → Property management). board_default notifies the board on every inquiry. */
 	inquiry_routing?: Record<string, any> | null;
+	/** @description Optional agency billing account. When set, the org's own subscription_* fields are advisory and entitlement resolves up to this account. Null = self-billed (default). */
+	billing_account?: BillingAccount | string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1557,6 +1606,8 @@ export interface DirectusExtension {
 }
 
 export interface Schema {
+	billing_account_members: BillingAccountMember[];
+	billing_accounts: BillingAccount[];
 	block_hero: BlockHero[];
 	block_settings: BlockSetting[];
 	coupons: Coupon[];
@@ -1634,6 +1685,8 @@ export interface Schema {
 }
 
 export enum CollectionNames {
+	billing_account_members = 'billing_account_members',
+	billing_accounts = 'billing_accounts',
 	block_hero = 'block_hero',
 	block_settings = 'block_settings',
 	coupons = 'coupons',

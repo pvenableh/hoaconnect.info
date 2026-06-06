@@ -146,9 +146,8 @@ export const useSelectedOrg = async () => {
             "organization.folder",
             "organization.slug",
             "organization.settings.logo",
-            "organization.subscription_status",
-            "organization.trial_ends_at",
-            "organization.is_free_account",
+            // Entitlement (own fields + parent billing_account, resolved up)
+            ...entitlementFields("organization"),
             "role",
             "member_type",
             "manager_permissions",
@@ -347,10 +346,21 @@ export const useSelectedOrg = async () => {
     return displayNames[title] || title;
   });
 
+  // Effective entitlement — resolves "up" to a parent billing_account when the
+  // org belongs to one (agency / multi-property billing), else the org's own
+  // fields. Self-billed orgs (the default) are unchanged.
+  const effectiveEntitlement = computed(() =>
+    resolveEntitlement(currentOrg.value?.organization as any)
+  );
+
   // Check if current organization is a free account (bypasses subscription checking)
-  const isFreeAccount = computed(() => {
-    return currentOrg.value?.organization?.is_free_account === true;
-  });
+  const isFreeAccount = computed(() => effectiveEntitlement.value.is_free_account);
+
+  // Effective subscription status (own or inherited from the billing account)
+  const effectiveStatus = computed(() => effectiveEntitlement.value.subscription_status);
+
+  // The single gate: may the current org use the app right now?
+  const isEntitled = computed(() => effectiveEntitlement.value.isEntitled);
 
   // Set selected organization
   const setOrganization = async (orgId: string) => {
@@ -401,5 +411,9 @@ export const useSelectedOrg = async () => {
     boardTitleDisplay,
     // Free account (bypasses subscription checking)
     isFreeAccount,
+    // Effective entitlement (resolves up to a parent billing_account when set)
+    effectiveEntitlement,
+    effectiveStatus,
+    isEntitled,
   };
 };

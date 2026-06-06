@@ -78,6 +78,10 @@ export default defineNuxtConfig({
         process.env.NODE_ENV === "production"
           ? process.env.STRIPE_PUBLIC_KEY_LIVE
           : process.env.STRIPE_PUBLIC_KEY_TEST,
+      // Agency billing: flat per-seat Price IDs for the agency plan (one Product,
+      // monthly + yearly recurring Prices). See docs/stripe-setup.md.
+      agencyPriceIdMonthly: process.env.STRIPE_AGENCY_PRICE_ID_MONTHLY || "",
+      agencyPriceIdYearly: process.env.STRIPE_AGENCY_PRICE_ID_YEARLY || "",
       companyName: "Property Flow",
       // Stripe Connect platform fee % (display only; the server recomputes the
       // authoritative fee from the private stripeConnectFeePercent).

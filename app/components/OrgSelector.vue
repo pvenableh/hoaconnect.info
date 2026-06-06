@@ -4,7 +4,16 @@ const router = useRouter();
 const { currentOrg, memberships, setOrganization, hasMultipleOrgs } =
   useSelectedOrg();
 
+// Agency / multi-property billing: surface the user's billing account(s) so a
+// property manager can jump to the agency dashboard ("All properties").
+const { accounts: billingAccounts, hasBillingAccounts } = useBillingMemberships();
+
 const showDropdown = ref(false);
+
+const goToAgency = async (accountId: string) => {
+  showDropdown.value = false;
+  await router.push(`/billing/${accountId}`);
+};
 
 const handleSelect = async (orgId: string) => {
   // Find the selected organization to get its slug
@@ -53,8 +62,8 @@ const getTrialDaysRemaining = (trialEndsAt: string | null | undefined) => {
 </script>
 
 <template>
-  <!-- Show organization name for single org (no dropdown) -->
-  <div v-if="!hasMultipleOrgs && currentOrg" class="flex items-center gap-2 px-3 py-2 text-sm">
+  <!-- Show organization name for single org (no dropdown, no agency account) -->
+  <div v-if="!hasMultipleOrgs && !hasBillingAccounts && currentOrg" class="flex items-center gap-2 px-3 py-2 text-sm">
     <div class="relative">
       <Icon name="i-lucide-building-2" class="w-4 h-4" />
       <!-- Status indicator dot -->
@@ -85,8 +94,8 @@ const getTrialDaysRemaining = (trialEndsAt: string | null | undefined) => {
     </span>
   </div>
 
-  <!-- Show dropdown for multiple orgs -->
-  <div v-else-if="hasMultipleOrgs" class="relative">
+  <!-- Show dropdown for multiple orgs or agency billing members -->
+  <div v-else-if="hasMultipleOrgs || hasBillingAccounts" class="relative">
     <button
       @click="showDropdown = !showDropdown"
       class="flex items-center gap-2 px-3 py-2 text-sm border rounded hover:bg-stone-50 transition-colors"
@@ -102,7 +111,7 @@ const getTrialDaysRemaining = (trialEndsAt: string | null | undefined) => {
         />
       </div>
       <span class="font-medium">{{
-        currentOrg?.organization?.name || "Select HOA"
+        currentOrg?.organization?.name || billingAccounts[0]?.name || "Select HOA"
       }}</span>
       <span class="text-xs">▼</span>
     </button>
@@ -163,6 +172,30 @@ const getTrialDaysRemaining = (trialEndsAt: string | null | undefined) => {
             </span>
           </div>
         </button>
+
+        <!-- Agency billing: jump to the agency dashboard (all properties) -->
+        <template v-if="hasBillingAccounts">
+          <div class="border-t my-1" />
+          <p class="text-xs text-stone-500 px-2 py-1">Agency</p>
+          <button
+            v-for="acct in billingAccounts"
+            :key="acct.id"
+            @click="goToAgency(acct.id)"
+            class="w-full text-left px-3 py-2 rounded hover:bg-stone-100 transition-colors"
+          >
+            <div class="flex items-center justify-between">
+              <p class="font-medium flex items-center gap-1.5">
+                <Icon name="i-lucide-layout-grid" class="w-3.5 h-3.5" />
+                {{ acct.name }}
+              </p>
+              <span
+                :class="['w-2 h-2 rounded-full', getStatusColor(acct.subscription_status)]"
+                :title="acct.subscription_status || 'Unknown'"
+              />
+            </div>
+            <p class="text-xs text-stone-500 mt-0.5">All properties · {{ acct.role }}</p>
+          </button>
+        </template>
       </div>
     </div>
 

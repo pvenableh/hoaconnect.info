@@ -59,9 +59,8 @@ export default defineEventHandler(async (event) => {
             "organization.id",
             "organization.name",
             "organization.slug",
-            "organization.subscription_status",
-            "organization.trial_ends_at",
-            "organization.is_free_account",
+            // Entitlement (own fields + parent billing_account, resolved up)
+            ...entitlementFields("organization"),
             "role",
           ],
           sort: ["organization.name"],
@@ -71,20 +70,12 @@ export default defineEventHandler(async (event) => {
       console.warn("Could not fetch memberships:", memberError);
     }
 
-    // Check subscription status for all organizations
-    // Free accounts bypass subscription checking entirely
-    const hasActiveOrg = memberships.some(
-      (m) =>
-        m.organization?.is_free_account === true ||
-        m.organization?.subscription_status === "active" ||
-        m.organization?.subscription_status === "trial"
-    );
-    const allExpired = memberships.length > 0 && memberships.every(
-      (m) =>
-        !m.organization?.is_free_account &&
-        (m.organization?.subscription_status === "expired" ||
-        m.organization?.subscription_status === "canceled")
-    );
+    // Resolve effective entitlement per org (resolves up to a parent
+    // billing_account when set; otherwise the org's own subscription fields).
+    const entitlements = memberships.map((m) => resolveEntitlement(m.organization));
+    const hasActiveOrg = entitlements.some((e) => e.isEntitled);
+    const allExpired =
+      entitlements.length > 0 && entitlements.every((e) => !e.isEntitled);
 
     // Set user session with tokens in secure section
     await setUserSession(event, {
@@ -121,12 +112,12 @@ export default defineEventHandler(async (event) => {
       subscriptionInfo: {
         hasActiveOrg,
         allExpired,
-        memberships: memberships.map((m) => ({
+        memberships: memberships.map((m, i) => ({
           organizationId: m.organization?.id,
           organizationName: m.organization?.name,
-          subscriptionStatus: m.organization?.subscription_status,
-          trialEndsAt: m.organization?.trial_ends_at,
-          isFreeAccount: m.organization?.is_free_account || false,
+          subscriptionStatus: entitlements[i].subscription_status,
+          trialEndsAt: entitlements[i].trial_ends_at,
+          isFreeAccount: entitlements[i].is_free_account,
         })),
       },
     };
