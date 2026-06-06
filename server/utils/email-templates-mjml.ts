@@ -33,6 +33,14 @@ interface EmailTemplateOptions {
   directusUrl: string;
   emailId?: string;
   appUrl?: string;
+  /** Custom line under the logo, e.g. "Official Communication of {name}". Supports {name}/{legal_name}. */
+  headerText?: string | null;
+  /** Building-photo file (id or object) shown full-width in the footer. */
+  footerImage?: DirectusFile | string | null;
+  /** Homepage link shown in the footer. */
+  homepageUrl?: string | null;
+  /** Friendly public web-view URL for the "open in browser" banner (overrides the /api/email/view fallback). */
+  webViewUrl?: string | null;
 }
 
 // Email type configurations with colors and styling
@@ -136,6 +144,35 @@ function getLogoUrl(
   if (!logoId) return null;
 
   return `${directusUrl}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
+}
+
+/**
+ * Build a Directus asset URL for any file reference (id string or file object).
+ */
+function getFileUrl(
+  file: DirectusFile | string | null | undefined,
+  directusUrl: string,
+  query = ""
+): string | null {
+  if (!file) return null;
+  const id = typeof file === "string" ? file : file?.id;
+  if (!id) return null;
+  return `${directusUrl}/assets/${id}${query ? `?${query}` : ""}`;
+}
+
+/**
+ * Resolve a header line template, substituting {name} / {legal_name}.
+ * Returns null/empty when no template is provided.
+ */
+function processHeaderText(
+  template: string | null | undefined,
+  orgName: string,
+  legalName?: string | null
+): string {
+  if (!template) return "";
+  return template
+    .replace(/\{name\}/gi, orgName)
+    .replace(/\{legal_name\}/gi, legalName || orgName);
 }
 
 /**
@@ -391,12 +428,19 @@ export function buildEmailHtml(
     forPreview,
     emailId,
     appUrl,
+    headerText,
+    footerImage,
+    homepageUrl,
+    webViewUrl,
   } = options;
 
   const orgName = organization.name || "Organization";
+  const legalName = organization.legal_name || orgName;
   const style = emailTypeStyles[emailType];
   const logoUrl = getLogoUrl(organization, directusUrl);
   const finalSalutation = salutation || defaultSalutations[emailType];
+  const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
+  const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
 
   // Process greeting
   const greetingTemplate = greeting || getDefaultGreeting(orgName);
@@ -454,20 +498,21 @@ export function buildEmailHtml(
   ].filter(Boolean);
   const addressLine = addressParts.join(", ");
 
-  // Build web view banner
-  const webViewBanner =
-    emailId && appUrl
-      ? `
+  // Build web view banner — prefer the friendly /{slug}/announcements/email/{web_slug}
+  // URL, falling back to the /api/email/view/{id} endpoint.
+  const bannerHref = webViewUrl || (emailId && appUrl ? `${appUrl}/api/email/view/${emailId}` : null);
+  const webViewBanner = bannerHref
+    ? `
     <mj-section background-color="#e5e7eb" padding="8px 16px">
       <mj-column>
         <mj-text align="center" font-size="8px" color="#6b7280" text-transform="uppercase" letter-spacing="0.5px">
-          <a href="${appUrl}/api/email/view/${emailId}" style="color: #6b7280; text-decoration: none;">
+          <a href="${bannerHref}" style="color: #6b7280; text-decoration: none;">
             OPEN THIS EMAIL IN A WEB BROWSER
           </a>
         </mj-text>
       </mj-column>
     </mj-section>`
-      : "";
+    : "";
 
   // Build the MJML template
   // For basic emails: white background, minimal padding, no grey wrapper
@@ -506,6 +551,11 @@ export function buildEmailHtml(
               : isBasic
                 ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
                 : `<mj-text align="center" font-size="24px" font-weight="600" color="#ffffff">${orgName}</mj-text>`
+          }
+          ${
+            processedHeaderText
+              ? `<mj-text align="center" padding-top="10px" font-size="11px" color="${isBasic ? "#6b7280" : "#e5e7eb"}" text-transform="uppercase" letter-spacing="2px">${processedHeaderText}</mj-text>`
+              : ""
           }
           ${
             style.label
@@ -547,11 +597,26 @@ export function buildEmailHtml(
         <mj-column>
           ${addressLine ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px">${addressLine}</mj-text>` : ""}
           ${organization.email ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
+          ${
+            homepageUrl
+              ? `<mj-text align="center" padding-top="6px" font-size="12px"><a href="${homepageUrl}" style="color: ${isBasic ? "#6b7280" : "#9ca3af"}; text-decoration: underline;">${homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></mj-text>`
+              : ""
+          }
           <mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">
-            © ${new Date().getFullYear()} ${orgName}. All rights reserved.
+            © ${new Date().getFullYear()} ${legalName}. All rights reserved.
           </mj-text>
         </mj-column>
       </mj-section>
+
+      ${
+        footerImageUrl
+          ? `<mj-section padding="0">
+        <mj-column>
+          <mj-image src="${footerImageUrl}" alt="${orgName}" padding="0" fluid-on-mobile="true" />
+        </mj-column>
+      </mj-section>`
+          : ""
+      }
     </mj-wrapper>
   </mj-body>
 </mjml>`;
@@ -725,6 +790,12 @@ interface WebViewTemplateOptions {
   boardMembers?: BoardMemberInfo[];
   directusUrl: string;
   urgent?: boolean;
+  /** Custom line under the logo, e.g. "Official Communication of {name}". Supports {name}/{legal_name}. */
+  headerText?: string | null;
+  /** Building-photo file (id or object) shown full-width in the footer. */
+  footerImage?: DirectusFile | string | null;
+  /** Homepage link shown in the footer. */
+  homepageUrl?: string | null;
 }
 
 /**
@@ -743,12 +814,18 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
     boardMembers,
     directusUrl,
     urgent,
+    headerText,
+    footerImage,
+    homepageUrl,
   } = options;
 
   const orgName = organization.name || "Organization";
   const logoUrl = getLogoUrl(organization, directusUrl);
   const finalSalutation = salutation || defaultSalutations[emailType];
   const year = new Date().getFullYear();
+  const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
+  const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
+  const homepageLabel = homepageUrl ? homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
 
   // Process content with styling for headings and paragraphs
   const processedContent = processHtmlForEmail(content);
@@ -826,6 +903,10 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                                         ${logoUrl
                                           ? `<img height="auto" src="${logoUrl}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;max-width:150px;margin-bottom:10px;" width="150">`
                                           : `<span style="display: inline-block; font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-decoration: none; color: #666666; letter-spacing: 0.15em; font-weight: 700; font-size: 16px; line-height:20px; text-transform: uppercase;">${orgName}</span>`
+                                        }
+                                        ${processedHeaderText
+                                          ? `<div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align:center; color:#888888; letter-spacing:0.25em; font-weight:700; font-size:9px; line-height:14px; text-transform:uppercase; margin-top:6px;">${processedHeaderText}</div>`
+                                          : ""
                                         }
                                       </td>
                                     </tr>
@@ -1052,6 +1133,10 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" style="font-size:0px;padding:10px 25px;padding-top:15px;padding-bottom:0px;word-break:break-word;">
+                                ${homepageUrl
+                                  ? `<div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:9px;font-weight:700;letter-spacing:0.25em;line-height:1;text-align:center;text-transform:uppercase;color:#666666;padding-bottom:12px;"><a href="${homepageUrl}" style="color:#666666;text-decoration:none;">${homepageLabel}</a></div>`
+                                  : ""
+                                }
                                 <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:8px;font-weight:700;letter-spacing:0.3em;line-height:1;text-align:center;text-decoration:none;text-transform:uppercase;color:#666666;">
                                   © ${year} ${organization.legal_name || orgName}
                                 </div>
@@ -1069,6 +1154,14 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
         </tr>
       </tbody>
     </table>
+
+    <!-- Footer building photo (full width) -->
+    ${footerImageUrl
+      ? `<div style="margin:0 auto;max-width:600px;">
+      <img src="${footerImageUrl}" alt="${orgName}" width="600" style="border:0;display:block;outline:none;text-decoration:none;width:100%;height:auto;" />
+    </div>`
+      : ""
+    }
   </div>
 </body>
 </html>`;

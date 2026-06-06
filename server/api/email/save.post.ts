@@ -1,4 +1,4 @@
-import { createItem, updateItem, readItem } from "@directus/sdk";
+import { createItem, updateItem, readItem, readItems } from "@directus/sdk";
 import type { EmailType } from "../../utils/email-templates-mjml";
 
 interface SaveEmailBody {
@@ -17,6 +17,8 @@ interface SaveEmailBody {
   recipientFilter?: "all" | "owners" | "tenants" | "custom";
   recipientIds?: string[];
   attachmentIds?: string[];
+  headerText?: string | null;
+  footerImageId?: string | null;
 }
 
 export default defineEventHandler(async (event) => {
@@ -39,6 +41,8 @@ export default defineEventHandler(async (event) => {
     recipientFilter = "all",
     recipientIds,
     attachmentIds,
+    headerText,
+    footerImageId,
   } = body;
 
   // Validation
@@ -57,6 +61,31 @@ export default defineEventHandler(async (event) => {
       ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
       : [];
 
+    // Resolve a friendly web_slug so drafts are shareable with a pretty URL.
+    // Reuse an existing one; otherwise derive it from the subject, unique per org.
+    let webSlug: string | null = null;
+    if (emailId) {
+      const existing = (await directus.request(
+        readItem("hoa_emails", emailId, { fields: ["web_slug"] })
+      )) as { web_slug?: string | null };
+      webSlug = existing?.web_slug || null;
+    }
+    if (!webSlug) {
+      const slugRows = (await directus.request(
+        readItems("hoa_emails", {
+          filter: {
+            organization: { _eq: organizationId },
+            web_slug: { _nnull: true },
+            ...(emailId ? { id: { _neq: emailId } } : {}),
+          },
+          fields: ["web_slug"],
+          limit: -1,
+        })
+      )) as Array<{ web_slug?: string | null }>;
+      const taken = new Set(slugRows.map((r) => r.web_slug).filter(Boolean) as string[]);
+      webSlug = buildUniqueWebSlug(subject, taken);
+    }
+
     const emailData = {
       organization: organizationId,
       subject,
@@ -73,6 +102,9 @@ export default defineEventHandler(async (event) => {
       recipient_ids: recipientIds && recipientIds.length > 0 ? recipientIds : null,
       next_run_at: status === "scheduled" ? scheduledAt || null : null,
       attachments: attachmentsData,
+      header_text: headerText || null,
+      footer_image: footerImageId || null,
+      web_slug: webSlug,
     };
 
     let email;

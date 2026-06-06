@@ -37,6 +37,8 @@ export default defineEventHandler(async (event) => {
           "urgent",
           "status",
           "sent_at",
+          "header_text",
+          "footer_image",
           {
             organization: [
               "id",
@@ -44,12 +46,14 @@ export default defineEventHandler(async (event) => {
               "legal_name",
               "email",
               "phone",
+              "slug",
+              "external_url",
               "street_address",
               "city",
               "state",
               "zip",
               {
-                settings: ["id", "logo", "title", "description"],
+                settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
               },
             ],
           },
@@ -108,6 +112,12 @@ export default defineEventHandler(async (event) => {
         }));
     }
 
+    // Resolve branding (custom header line, footer photo, homepage link),
+    // honoring per-send overrides over the org defaults.
+    const branding = resolveEmailBranding(organization, email, {
+      appUrl: config.public.appUrl as string,
+    });
+
     // Build the HTML with SendGrid-matching style for web view
     const html = buildWebViewHtml({
       organization,
@@ -120,6 +130,9 @@ export default defineEventHandler(async (event) => {
       boardMembers: email.include_board_footer ? boardMembers : undefined,
       directusUrl: config.directus.url,
       urgent: email.urgent || false,
+      headerText: branding.headerText,
+      footerImage: branding.footerImage,
+      homepageUrl: branding.homepageUrl,
     });
 
     // Return the full HTML page

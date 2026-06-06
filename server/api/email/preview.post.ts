@@ -13,6 +13,8 @@ interface PreviewEmailBody {
   salutation?: string;
   includeBoardFooter?: boolean;
   attachmentIds?: string[];
+  headerText?: string | null;
+  footerImageId?: string | null;
 }
 
 export default defineEventHandler(async (event) => {
@@ -29,6 +31,8 @@ export default defineEventHandler(async (event) => {
     salutation,
     includeBoardFooter = true,
     attachmentIds,
+    headerText,
+    footerImageId,
   } = body;
 
   // Validation
@@ -46,8 +50,8 @@ export default defineEventHandler(async (event) => {
     // Get organization with settings
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "email", "street_address", "city", "state", "zip", {
-          settings: ["id", "logo", "title", "description"],
+        fields: ["id", "name", "legal_name", "email", "phone", "slug", "external_url", "street_address", "city", "state", "zip", {
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -94,6 +98,11 @@ export default defineEventHandler(async (event) => {
     // Raw MJML/HTML mode: render the author's content directly. Visual mode:
     // wrap the Tiptap content in the typed MJML chrome as before.
     // Merge tokens are substituted with sample values so the preview is realistic.
+    const branding = resolveEmailBranding(organization, null, {
+      appUrl: config.public.appUrl as string,
+      overrides: { headerText: headerText ?? null, footerImage: footerImageId ?? null },
+    });
+
     const html =
       contentMode === "mjml"
         ? buildRawEmailHtml(applyMergeFields(content, SAMPLE_MERGE_VALUES(organization)))
@@ -107,6 +116,9 @@ export default defineEventHandler(async (event) => {
             boardMembers: includeBoardFooter ? boardMembers : undefined,
             directusUrl: config.directus.url,
             forPreview: true,
+            headerText: branding.headerText,
+            footerImage: branding.footerImage,
+            homepageUrl: branding.homepageUrl,
           });
 
     console.log(`[preview.post] Preview HTML generated (${html.length} chars)`);

@@ -170,6 +170,92 @@
       </CardContent>
     </Card>
 
+    <!-- Email Branding -->
+    <Card>
+      <CardHeader>
+        <CardTitle>Email Branding</CardTitle>
+        <CardDescription>
+          Defaults for outgoing emails &amp; the "view on web" page. Each send can override these.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="space-y-4">
+          <!-- Header line -->
+          <div class="space-y-2">
+            <Label for="header_text">Header line</Label>
+            <Input
+              id="header_text"
+              v-model="form.headerText"
+              placeholder="Official Communication of {name}"
+              :disabled="isSaving"
+            />
+            <p class="text-xs text-muted-foreground">
+              Shown under the logo. Use <code>{name}</code> or <code>{legal_name}</code> as placeholders.
+            </p>
+          </div>
+
+          <!-- Homepage URL -->
+          <div class="space-y-2">
+            <Label for="homepage_url">Footer homepage link</Label>
+            <Input
+              id="homepage_url"
+              v-model="form.homepageUrl"
+              placeholder="https://yourbuilding.com"
+              :disabled="isSaving"
+            />
+            <p class="text-xs text-muted-foreground">
+              Optional. Falls back to your external site, then your resident portal.
+            </p>
+          </div>
+
+          <!-- Footer building photo -->
+          <div class="space-y-2">
+            <Label>Footer building photo</Label>
+            <div
+              class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+              @click="triggerFooterUpload"
+              @drop.prevent="handleFooterDrop"
+              @dragover.prevent
+            >
+              <input
+                ref="footerInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleFooterChange"
+              />
+              <div v-if="footerPreview || currentFooterImageUrl" class="mb-4">
+                <img
+                  :src="footerPreview || currentFooterImageUrl"
+                  alt="Footer building photo preview"
+                  class="max-h-40 w-full mx-auto object-cover rounded"
+                />
+              </div>
+              <div v-else>
+                <Icon name="lucide:building" class="h-12 w-12 mx-auto text-muted-foreground" />
+              </div>
+              <p class="text-sm text-muted-foreground mt-2">
+                {{ footerPreview ? "Click to change" : "Click or drag to upload" }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Shown full-width at the bottom of emails. Recommended: 1200px wide.
+              </p>
+            </div>
+            <Button
+              v-if="footerPreview || currentFooterImageUrl"
+              variant="outline"
+              size="sm"
+              @click="removeFooterImage"
+              :disabled="isSaving"
+            >
+              <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
+              Remove Photo
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
     <!-- Save Button -->
     <div class="flex justify-end">
       <Button @click="saveChanges" :disabled="isSaving">
@@ -205,12 +291,16 @@ const { update: updateOrganization } = useDirectusItems<HoaOrganization>("hoa_or
 const isSaving = ref(false);
 const logoInput = ref<HTMLInputElement | null>(null);
 const iconInput = ref<HTMLInputElement | null>(null);
+const footerInput = ref<HTMLInputElement | null>(null);
 const logoFile = ref<File | null>(null);
 const iconFile = ref<File | null>(null);
+const footerFile = ref<File | null>(null);
 const logoPreview = ref<string | null>(null);
 const iconPreview = ref<string | null>(null);
+const footerPreview = ref<string | null>(null);
 const removedLogo = ref(false);
 const removedIcon = ref(false);
+const removedFooter = ref(false);
 
 // Helper to get file ID
 const getFileId = (file: DirectusFile | string | null | undefined): string | null => {
@@ -234,6 +324,13 @@ const currentIconUrl = computed(() => {
   return `${config.public.directus.url}/assets/${iconId}`;
 });
 
+const currentFooterImageUrl = computed(() => {
+  if (removedFooter.value) return null;
+  const footerId = getFileId(props.settings?.footer_image);
+  if (!footerId) return null;
+  return `${config.public.directus.url}/assets/${footerId}`;
+});
+
 // Extract colors from settings
 const getColors = () => {
   const colors = props.settings?.colors?.[0];
@@ -254,6 +351,8 @@ const form = ref({
   title: props.settings?.title || "",
   description: props.settings?.description || "",
   theme: (props.settings?.theme as 'classic' | 'modern' | 'luxury') || "classic",
+  headerText: props.settings?.header_text || "",
+  homepageUrl: props.settings?.homepage_url || "",
 });
 
 // Theme descriptions for the settings form
@@ -278,6 +377,8 @@ watch(
         title: newSettings.title || "",
         description: newSettings.description || "",
         theme: (newSettings.theme as 'classic' | 'modern' | 'luxury') || "classic",
+        headerText: newSettings.header_text || "",
+        homepageUrl: newSettings.homepage_url || "",
       };
     }
   },
@@ -345,6 +446,36 @@ const removeIcon = () => {
   if (iconInput.value) iconInput.value.value = "";
 };
 
+const triggerFooterUpload = () => {
+  footerInput.value?.click();
+};
+
+const handleFooterChange = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (file) {
+    footerFile.value = file;
+    footerPreview.value = URL.createObjectURL(file);
+    removedFooter.value = false;
+  }
+};
+
+const handleFooterDrop = (event: DragEvent) => {
+  const file = event.dataTransfer?.files?.[0];
+  if (file && file.type.startsWith("image/")) {
+    footerFile.value = file;
+    footerPreview.value = URL.createObjectURL(file);
+    removedFooter.value = false;
+  }
+};
+
+const removeFooterImage = () => {
+  footerFile.value = null;
+  footerPreview.value = null;
+  removedFooter.value = true;
+  if (footerInput.value) footerInput.value.value = "";
+};
+
 // Save changes
 const saveChanges = async () => {
   isSaving.value = true;
@@ -375,6 +506,16 @@ const saveChanges = async () => {
       iconId = (uploadedIcon as any)?.id || null;
     }
 
+    // Upload new footer building photo if provided
+    let footerImageId = removedFooter.value ? null : getFileId(props.settings?.footer_image);
+    if (footerFile.value) {
+      const uploadedFooter = await uploadFile(footerFile.value, {
+        title: `${props.organization.name} Email Footer Photo`,
+        folder: folderId || undefined,
+      });
+      footerImageId = (uploadedFooter as any)?.id || null;
+    }
+
     // Prepare settings data
     const settingsData: Partial<BlockSetting> = {
       title: form.value.title,
@@ -391,6 +532,9 @@ const saveChanges = async () => {
       theme: form.value.theme,
       logo: logoId,
       icon: iconId,
+      header_text: form.value.headerText || null,
+      homepage_url: form.value.homepageUrl || null,
+      footer_image: footerImageId,
       status: "published",
     };
 
@@ -417,10 +561,13 @@ const saveChanges = async () => {
     // Clear file refs
     logoFile.value = null;
     iconFile.value = null;
+    footerFile.value = null;
     logoPreview.value = null;
     iconPreview.value = null;
+    footerPreview.value = null;
     removedLogo.value = false;
     removedIcon.value = false;
+    removedFooter.value = false;
 
     emit("updated", updatedSettings);
   } catch (error: any) {

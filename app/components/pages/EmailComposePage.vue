@@ -50,6 +50,7 @@ const form = reactive({
   greeting: "",
   salutation: "",
   includeBoardFooter: true,
+  headerText: "",
   recipientIds: [] as string[],
   attachmentIds: [] as string[],
 });
@@ -176,6 +177,7 @@ watch(
       form.greeting = email.greeting || "";
       form.salutation = email.salutation || "";
       form.includeBoardFooter = email.include_board_footer ?? true;
+      form.headerText = (email as any).header_text || "";
 
       // Load attachments if they exist (M2M structure from Directus)
       if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
@@ -341,6 +343,7 @@ const handlePreview = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      headerText: form.headerText || undefined,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
     previewHtml.value = result.html;
@@ -371,6 +374,7 @@ const handleSaveDraft = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      headerText: form.headerText || undefined,
       status: "draft",
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
@@ -415,6 +419,7 @@ const handleSend = async () => {
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
+        headerText: form.headerText || undefined,
         status: "draft",
         attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
       });
@@ -430,6 +435,7 @@ const handleSend = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      headerText: form.headerText || undefined,
       recipientIds,
       emailId,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
@@ -493,6 +499,7 @@ const handleSchedule = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      headerText: form.headerText || undefined,
       status: "scheduled",
       scheduledAt: when.toISOString(),
       recurrenceRule: recurrenceRule.value,
@@ -713,6 +720,7 @@ const handleTestEmail = async () => {
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
+        headerText: form.headerText || undefined,
         status: "draft",
         attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
       });
@@ -732,6 +740,7 @@ const handleTestEmail = async () => {
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
+      headerText: form.headerText || undefined,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
 
@@ -979,6 +988,20 @@ useSeoMeta({
                 <CardTitle>Footer Options</CardTitle>
               </CardHeader>
               <CardContent class="space-y-4">
+                <div class="space-y-2">
+                  <Label for="header-line">Header line (under logo)</Label>
+                  <Input
+                    id="header-line"
+                    v-model="form.headerText"
+                    placeholder="Official Communication of {name}"
+                  />
+                  <p class="text-xs text-stone-500 dark:text-stone-400">
+                    Optional. Overrides your organization's default for this send.
+                    Use {name} or {legal_name} as placeholders. Leave empty to use
+                    the org default.
+                  </p>
+                </div>
+
                 <div class="space-y-2">
                   <Label for="salutation">Custom Salutation</Label>
                   <Input
