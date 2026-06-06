@@ -579,34 +579,6 @@ export interface HoaMailingList {
 	members?: HoaMailingListMember[] | string[];
 }
 
-export interface HoaManagementContact {
-	/** @primaryKey */
-	id: string;
-	/** @description Which inquiries route to this contact @required */
-	kind: 'rental_sales' | 'violations' | 'general';
-	status?: 'active' | 'inactive' | null;
-	/** @required */
-	name: string;
-	company?: string | null;
-	email?: string | null;
-	phone?: string | null;
-	/** @description Send an email when a routed inquiry is submitted */
-	notify_email?: boolean | null;
-	/** @description Create an in-app notification (only if a user is linked) */
-	notify_inapp?: boolean | null;
-	sort?: number | null;
-	/** @description Optional: linked login user (for in-app notifications) */
-	user?: DirectusUser | string | null;
-	/** @description Optional: linked member row */
-	hoa_member?: HoaMember | string | null;
-	/** @required */
-	organization: HoaOrganization | string;
-	user_created?: DirectusUser | string | null;
-	date_created?: string | null;
-	user_updated?: DirectusUser | string | null;
-	date_updated?: string | null;
-}
-
 export interface HoaMeetingAttendee {
 	/** @primaryKey */
 	id: string;
@@ -953,6 +925,48 @@ export interface HoaVehicle {
 	start_date?: string | null;
 	/** @description Set on move-out instead of deleting */
 	end_date?: string | null;
+}
+
+export interface HoaVendor {
+	/** @primaryKey */
+	id: string;
+	/** @description Vendor type @required */
+	category: 'management' | 'attorney' | 'accountant' | 'insurance' | 'elevator' | 'landscaping' | 'plumbing' | 'electrical' | 'cleaning' | 'security' | 'pest_control' | 'hvac' | 'general_contractor' | 'other';
+	/** @description Custom label when category is 'Other' */
+	category_other?: string | null;
+	status?: 'active' | 'inactive' | 'archived' | null;
+	/** @description Visible in the member-facing vendor directory */
+	show_to_members?: boolean | null;
+	/** @description Company / firm name (primary label) */
+	company?: string | null;
+	/** @description Contact person (optional) */
+	name?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	website?: string | null;
+	address?: string | null;
+	/** @description When this vendor started serving the community */
+	active_since?: string | null;
+	/** @description When the relationship ended (leave blank if current) */
+	active_until?: string | null;
+	notes?: string | null;
+	sort?: number | null;
+	/** @description MANAGEMENT vendors only: which inquiries route here */
+	management_role?: 'rental_sales' | 'violations' | 'general' | null;
+	/** @description MANAGEMENT vendors: email on a routed inquiry */
+	notify_email?: boolean | null;
+	/** @description MANAGEMENT vendors: in-app notify the linked login */
+	notify_inapp?: boolean | null;
+	/** @description Optional: linked login user (Property Manager) */
+	user?: DirectusUser | string | null;
+	/** @description Optional: linked member row */
+	hoa_member?: HoaMember | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
 }
 
 export interface PaymentExpense {
@@ -1569,7 +1583,6 @@ export interface Schema {
 	hoa_leases: HoaLease[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
-	hoa_management_contacts: HoaManagementContact[];
 	hoa_meeting_attendees: HoaMeetingAttendee[];
 	hoa_meetings: HoaMeeting[];
 	hoa_meetings_files: HoaMeetingsFile[];
@@ -1585,6 +1598,7 @@ export interface Schema {
 	hoa_teams: HoaTeam[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
+	hoa_vendors: HoaVendor[];
 	payment_expenses: PaymentExpense[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
@@ -1646,7 +1660,6 @@ export enum CollectionNames {
 	hoa_leases = 'hoa_leases',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
-	hoa_management_contacts = 'hoa_management_contacts',
 	hoa_meeting_attendees = 'hoa_meeting_attendees',
 	hoa_meetings = 'hoa_meetings',
 	hoa_meetings_files = 'hoa_meetings_files',
@@ -1662,6 +1675,7 @@ export enum CollectionNames {
 	hoa_teams = 'hoa_teams',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
+	hoa_vendors = 'hoa_vendors',
 	payment_expenses = 'payment_expenses',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',

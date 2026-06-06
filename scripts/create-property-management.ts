@@ -11,9 +11,12 @@
  *     permissions a manager needs are NOT in that script's COLLECTION_CONFIGS, so
  *     they're granted here (mirrors create-requests / create-comments).
  *
- *  2. `hoa_management_contacts` — the external property-management company's
- *     notification contacts (rental/sales, violations, general). M2O org. These
- *     are notification targets; they may optionally link to a `user`/`hoa_member`.
+ *  2. `hoa_vendors` — the unified directory of service providers the community
+ *     works with (management, attorney, accountant, elevator, landscaping, …),
+ *     with per-vendor member visibility and active-since/until history. The
+ *     "management" category carries the extra notification-routing fields
+ *     (management_role + notify flags + optional `user`/`hoa_member` PM link).
+ *     Supersedes the first iteration's hoa_management_contacts (dropped here).
  *
  *  3. `hoa_organizations.inquiry_routing` (JSON) — per-org map of inquiry type →
  *     contact kind, plus a board-default toggle. Admin-editable from the UI.
@@ -228,109 +231,173 @@ async function createRoleAndPolicy(): Promise<void> {
 }
 
 // ============================================================================
-// 2. hoa_management_contacts collection
+// 2. hoa_vendors collection (unified directory — management is one category)
 // ============================================================================
 
-const KIND_CHOICES = [
+// Curated vendor categories + a custom "Other" escape hatch.
+const CATEGORY_CHOICES = [
+  { text: "Management", value: "management" },
+  { text: "Attorney", value: "attorney" },
+  { text: "Accountant", value: "accountant" },
+  { text: "Insurance", value: "insurance" },
+  { text: "Elevator", value: "elevator" },
+  { text: "Landscaping", value: "landscaping" },
+  { text: "Plumbing", value: "plumbing" },
+  { text: "Electrical", value: "electrical" },
+  { text: "Cleaning / Janitorial", value: "cleaning" },
+  { text: "Security", value: "security" },
+  { text: "Pest Control", value: "pest_control" },
+  { text: "HVAC", value: "hvac" },
+  { text: "General Contractor", value: "general_contractor" },
+  { text: "Other", value: "other" },
+];
+
+// For management-category vendors only: which inquiries route to them.
+const MANAGEMENT_ROLE_CHOICES = [
   { text: "Rental / Sales", value: "rental_sales" },
   { text: "Violations / Management", value: "violations" },
   { text: "General", value: "general" },
 ];
 
-async function createContactsCollection(): Promise<void> {
-  console.log("\n📁 hoa_management_contacts collection...");
+const VENDOR_STATUS_CHOICES = [
+  { text: "Active", value: "active" },
+  { text: "Inactive", value: "inactive" },
+  { text: "Archived (historical)", value: "archived" },
+];
 
-  await createCollection("hoa_management_contacts", {
-    collection: "hoa_management_contacts",
-    icon: "contact_phone",
-    note: "External property-management company notification contacts (rental/sales, violations, general)",
-    display_template: "{{name}} ({{kind}})",
+// Removes the first iteration's collection if present (it was superseded by
+// hoa_vendors before merge; safe — it only ever held throwaway test rows).
+async function dropOldContactsCollection(): Promise<void> {
+  try {
+    await directusFetch(`/collections/hoa_management_contacts`);
+  } catch {
+    return; // doesn't exist — nothing to drop
+  }
+  console.log("\n🧹 Removing superseded hoa_management_contacts collection...");
+  await directusFetch(`/collections/hoa_management_contacts`, { method: "DELETE" });
+  console.log("   ✅ Dropped hoa_management_contacts");
+}
+
+async function createVendorsCollection(): Promise<void> {
+  console.log("\n📁 hoa_vendors collection...");
+
+  await createCollection("hoa_vendors", {
+    collection: "hoa_vendors",
+    icon: "contacts",
+    note: "Service providers the community works with (management, attorney, accountant, elevator, landscaping, …), incl. history.",
+    display_template: "{{company}} ({{category}})",
   });
 
-  await createField("hoa_management_contacts", "kind", {
+  await createField("hoa_vendors", "category", {
     type: "string",
-    schema: { default_value: "general", is_nullable: false },
-    meta: { interface: "select-dropdown", display: "labels", width: "half", required: true, options: { choices: KIND_CHOICES }, note: "Which inquiries route to this contact" },
+    schema: { default_value: "other", is_nullable: false },
+    meta: { interface: "select-dropdown", display: "labels", width: "half", required: true, options: { choices: CATEGORY_CHOICES }, note: "Vendor type" },
+  });
+  await createField("hoa_vendors", "category_other", {
+    type: "string",
+    meta: { interface: "input", width: "half", note: "Custom label when category is 'Other'" },
   });
 
-  await createField("hoa_management_contacts", "status", {
+  await createField("hoa_vendors", "status", {
     type: "string",
     schema: { default_value: "active" },
-    meta: {
-      interface: "select-dropdown",
-      display: "labels",
-      width: "half",
-      options: { choices: [{ text: "Active", value: "active" }, { text: "Inactive", value: "inactive" }] },
-    },
+    meta: { interface: "select-dropdown", display: "labels", width: "half", options: { choices: VENDOR_STATUS_CHOICES } },
   });
 
-  await createField("hoa_management_contacts", "name", {
+  await createField("hoa_vendors", "show_to_members", {
+    type: "boolean",
+    schema: { default_value: true },
+    meta: { interface: "boolean", width: "half", note: "Visible in the member-facing vendor directory" },
+  });
+
+  await createField("hoa_vendors", "company", {
     type: "string",
-    schema: { is_nullable: false },
-    meta: { interface: "input", required: true, width: "half" },
+    meta: { interface: "input", width: "half", note: "Company / firm name (primary label)" },
   });
-
-  await createField("hoa_management_contacts", "company", {
+  await createField("hoa_vendors", "name", {
     type: "string",
-    meta: { interface: "input", width: "half" },
+    meta: { interface: "input", width: "half", note: "Contact person (optional)" },
   });
 
-  await createField("hoa_management_contacts", "email", {
+  await createField("hoa_vendors", "email", {
     type: "string",
     meta: { interface: "input", width: "half", options: { placeholder: "name@company.com" } },
   });
-
-  await createField("hoa_management_contacts", "phone", {
+  await createField("hoa_vendors", "phone", {
     type: "string",
     meta: { interface: "input", width: "half" },
   });
-
-  await createField("hoa_management_contacts", "notify_email", {
-    type: "boolean",
-    schema: { default_value: true },
-    meta: { interface: "boolean", width: "half", note: "Send an email when a routed inquiry is submitted" },
+  await createField("hoa_vendors", "website", {
+    type: "string",
+    meta: { interface: "input", width: "half", options: { placeholder: "https://…" } },
+  });
+  await createField("hoa_vendors", "address", {
+    type: "text",
+    meta: { interface: "input-multiline", width: "half" },
   });
 
-  await createField("hoa_management_contacts", "notify_inapp", {
-    type: "boolean",
-    schema: { default_value: true },
-    meta: { interface: "boolean", width: "half", note: "Create an in-app notification (only if a user is linked)" },
+  // Years active / history.
+  await createField("hoa_vendors", "active_since", {
+    type: "date",
+    meta: { interface: "datetime", width: "half", note: "When this vendor started serving the community" },
+  });
+  await createField("hoa_vendors", "active_until", {
+    type: "date",
+    meta: { interface: "datetime", width: "half", note: "When the relationship ended (leave blank if current)" },
   });
 
-  await createField("hoa_management_contacts", "sort", {
+  await createField("hoa_vendors", "notes", {
+    type: "text",
+    meta: { interface: "input-rich-text-html", width: "full" },
+  });
+
+  await createField("hoa_vendors", "sort", {
     type: "integer",
     meta: { interface: "input", hidden: true },
   });
 
-  // Optional links to a login user / member row (a contact may be a Property
-  // Manager login, or just an email address with no account).
-  await createField("hoa_management_contacts", "user", {
-    type: "uuid",
-    meta: { interface: "select-dropdown-m2o", width: "half", display: "user", note: "Optional: linked login user (for in-app notifications)" },
+  // ── Management-category-only fields ──
+  await createField("hoa_vendors", "management_role", {
+    type: "string",
+    meta: { interface: "select-dropdown", display: "labels", width: "half", options: { choices: MANAGEMENT_ROLE_CHOICES }, note: "MANAGEMENT vendors only: which inquiries route here" },
   });
-  await createRelation({ collection: "hoa_management_contacts", field: "user", related_collection: "directus_users", schema: { on_delete: "SET NULL" } });
+  await createField("hoa_vendors", "notify_email", {
+    type: "boolean",
+    schema: { default_value: true },
+    meta: { interface: "boolean", width: "half", note: "MANAGEMENT vendors: email on a routed inquiry" },
+  });
+  await createField("hoa_vendors", "notify_inapp", {
+    type: "boolean",
+    schema: { default_value: true },
+    meta: { interface: "boolean", width: "half", note: "MANAGEMENT vendors: in-app notify the linked login" },
+  });
+  await createField("hoa_vendors", "user", {
+    type: "uuid",
+    meta: { interface: "select-dropdown-m2o", width: "half", display: "user", note: "Optional: linked login user (Property Manager)" },
+  });
+  await createRelation({ collection: "hoa_vendors", field: "user", related_collection: "directus_users", schema: { on_delete: "SET NULL" } });
 
-  await createField("hoa_management_contacts", "hoa_member", {
+  await createField("hoa_vendors", "hoa_member", {
     type: "uuid",
     meta: { interface: "select-dropdown-m2o", width: "half", display: "related-values", display_options: { template: "{{first_name}} {{last_name}}" }, note: "Optional: linked member row" },
   });
-  await createRelation({ collection: "hoa_management_contacts", field: "hoa_member", related_collection: "hoa_members", schema: { on_delete: "SET NULL" } });
+  await createRelation({ collection: "hoa_vendors", field: "hoa_member", related_collection: "hoa_members", schema: { on_delete: "SET NULL" } });
 
   // Organization (M2O, required, cascade)
-  await createField("hoa_management_contacts", "organization", {
+  await createField("hoa_vendors", "organization", {
     type: "uuid",
     schema: { is_nullable: false },
     meta: { interface: "select-dropdown-m2o", required: true, width: "half", display: "related-values", display_options: { template: "{{name}}" } },
   });
   await createRelation({
-    collection: "hoa_management_contacts",
+    collection: "hoa_vendors",
     field: "organization",
     related_collection: "hoa_organizations",
     meta: { sort_field: null },
     schema: { on_delete: "CASCADE" },
   });
 
-  await addSystemFields("hoa_management_contacts");
+  await addSystemFields("hoa_vendors");
 }
 
 // ============================================================================
@@ -467,20 +534,50 @@ async function setupManagerRequestPermissions(): Promise<void> {
 }
 
 // ============================================================================
+// 6. Vendor directory permissions
+//    (hoa_vendors is NOT in setup-directus-permissions COLLECTION_CONFIGS because
+//    member read must be filtered to show_to_members=true.)
+// ============================================================================
+
+// Existing role policies (must match scripts/setup-directus-permissions.ts).
+const HOA_ADMIN_POLICY = "d09e906c-b418-4cd1-a680-fe5fbbc05576";
+const HOA_MEMBER_POLICY = "58d28da6-d31f-40bf-966e-cfbee05b3464";
+
+async function setupVendorPermissions(): Promise<void> {
+  console.log("\n🔐 Vendor directory permissions...");
+  const orgFilter = { organization: { _in: "$CURRENT_USER.hoa_members.organization" } };
+  const memberVisibleFilter = { _and: [orgFilter, { show_to_members: { _eq: true } }] };
+
+  // Admin: full CRUD within their org.
+  await postPermission(HOA_ADMIN_POLICY, "hoa_vendors", "create", { permissions: {}, validation: orgFilter, fields: ["*"] });
+  await postPermission(HOA_ADMIN_POLICY, "hoa_vendors", "read", { permissions: orgFilter, validation: null, fields: ["*"] });
+  await postPermission(HOA_ADMIN_POLICY, "hoa_vendors", "update", { permissions: orgFilter, validation: orgFilter, fields: ["*"] });
+  await postPermission(HOA_ADMIN_POLICY, "hoa_vendors", "delete", { permissions: orgFilter, validation: null, fields: ["*"] });
+
+  // Member: read only vendors flagged show_to_members.
+  await postPermission(HOA_MEMBER_POLICY, "hoa_vendors", "read", { permissions: memberVisibleFilter, validation: null, fields: ["*"] });
+
+  // Property Manager: read all org vendors.
+  await postPermission(PROPERTY_MANAGER_POLICY, "hoa_vendors", "read", { permissions: orgFilter, validation: null, fields: ["*"] });
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
 async function main(): Promise<void> {
-  console.log("🚀 Property management setup (role, contacts, routing, grants)...\n");
+  console.log("🚀 Property management + vendors setup (role, vendors, routing, grants)...\n");
   console.log(`📡 Connecting to: ${DIRECTUS_URL}`);
   try {
     await createRoleAndPolicy();
-    await createContactsCollection();
+    await createVendorsCollection();
+    await dropOldContactsCollection();
     await addConfigFields();
     await setupManagerRequestPermissions();
-    console.log("\n✅ Property management setup complete!");
+    await setupVendorPermissions();
+    console.log("\n✅ Property management + vendors setup complete!");
     console.log("\n📌 Next steps:");
-    console.log("   1. Run `pnpm run setup:permissions` (fills the PM policy's collection perms)");
+    console.log("   1. Run `pnpm run setup:permissions --only=\"Property Manager\"` (fills the PM policy's collection perms)");
     console.log("   2. Run `pnpm generate:types` to refresh types/directus.ts");
   } catch (error: any) {
     console.error("\n❌ Error:", error.message);

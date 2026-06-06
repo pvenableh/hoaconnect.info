@@ -99,12 +99,17 @@ export async function routeInquiryNotifications(requestId: string): Promise<Rout
   const userRecipients = new Map<string, void>(); // user id → in-app
   const emailRecipients = new Map<string, void>(); // lowercased email → email
 
-  // 3. Routed management contacts.
+  // 3. Routed management vendors (category=management with the matching role).
   if (kind && kind !== "none") {
     const contacts: any[] = await directus.request(
-      readItems("hoa_management_contacts", {
-        filter: { organization: { _eq: orgId }, status: { _eq: "active" }, kind: { _eq: kind } },
-        fields: ["id", "name", "email", "user", "notify_email", "notify_inapp"],
+      readItems("hoa_vendors", {
+        filter: {
+          organization: { _eq: orgId },
+          status: { _eq: "active" },
+          category: { _eq: "management" },
+          management_role: { _eq: kind },
+        },
+        fields: ["id", "company", "name", "email", "user", "notify_email", "notify_inapp"],
         limit: -1,
       })
     );

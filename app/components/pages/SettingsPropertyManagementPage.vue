@@ -1,15 +1,14 @@
 <script setup lang="ts">
 /**
- * Settings → Property management.
+ * Settings → Vendors & management.
  *
- * Three tabs:
- *  - Contacts: the external management company's notification contacts
- *    (rental/sales, violations, general) — who gets pinged when an inquiry is
- *    routed to their kind.
- *  - Managers: people with the Property Manager login role in this org, with
- *    per-manager grant switches (inquiries / violations / directory / documents
- *    / communications). Invite new managers here.
- *  - Routing: inquiry type → contact kind map + "always notify the board".
+ *  - Vendors: the full directory of service providers (management, attorney,
+ *    accountant, elevator, landscaping, …) with per-vendor member visibility,
+ *    active-since/until history, and an archive view. Management-category vendors
+ *    carry the inquiry-routing role + notify flags + an optional PM login link.
+ *  - Managers: people with the Property Manager login role, with per-manager
+ *    grant switches. Invite new managers here.
+ *  - Routing: inquiry type → management role + "always notify the board".
  */
 import { toast } from "vue-sonner";
 import {
@@ -21,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { requestTypeList } from "~/config/requestWorkflows";
-import type { HoaManagementContact } from "~~/types/directus";
+import type { HoaVendor } from "~~/types/directus";
 
 const config = useRuntimeConfig();
 const { selectedOrgId } = await useSelectedOrg();
@@ -29,13 +28,30 @@ const orgId = computed(() => selectedOrgId.value);
 
 const PM_ROLE = config.public.directusRolePropertyManager as string;
 
-const contactsApi = useDirectusItems<HoaManagementContact>("hoa_management_contacts");
+const vendorsApi = useDirectusItems<HoaVendor>("hoa_vendors");
 const membersApi = useDirectusItems("hoa_members");
 const orgApi = useDirectusItems("hoa_organizations");
 
-const activeTab = ref("contacts");
+const activeTab = ref("vendors");
 
-const KIND_OPTIONS = [
+const CATEGORY_OPTIONS = [
+  { value: "management", label: "Management" },
+  { value: "attorney", label: "Attorney" },
+  { value: "accountant", label: "Accountant" },
+  { value: "insurance", label: "Insurance" },
+  { value: "elevator", label: "Elevator" },
+  { value: "landscaping", label: "Landscaping" },
+  { value: "plumbing", label: "Plumbing" },
+  { value: "electrical", label: "Electrical" },
+  { value: "cleaning", label: "Cleaning / Janitorial" },
+  { value: "security", label: "Security" },
+  { value: "pest_control", label: "Pest Control" },
+  { value: "hvac", label: "HVAC" },
+  { value: "general_contractor", label: "General Contractor" },
+  { value: "other", label: "Other" },
+] as const;
+
+const MANAGEMENT_ROLE_OPTIONS = [
   { value: "rental_sales", label: "Rental / Sales" },
   { value: "violations", label: "Violations / Management" },
   { value: "general", label: "General" },
@@ -49,108 +65,158 @@ const GRANTS = [
   { key: "communications", label: "Send communications", desc: "Send emails to members. Higher-trust." },
 ] as const;
 
-const kindLabel = (k: string) => KIND_OPTIONS.find((o) => o.value === k)?.label || k;
+const categoryLabel = (v: HoaVendor) =>
+  v.category === "other"
+    ? v.category_other || "Other"
+    : CATEGORY_OPTIONS.find((o) => o.value === v.category)?.label || v.category;
+const roleLabel = (k?: string | null) => MANAGEMENT_ROLE_OPTIONS.find((o) => o.value === k)?.label || k || "—";
+const vendorTitle = (v: HoaVendor) => v.company || v.name || "Unnamed vendor";
 
-// ─────────────────────────── Contacts ───────────────────────────
-const contacts = ref<HoaManagementContact[]>([]);
-const loadingContacts = ref(true);
+// ─────────────────────────── Vendors ───────────────────────────
+const vendors = ref<HoaVendor[]>([]);
+const loadingVendors = ref(true);
+const showArchived = ref(false);
 
-const loadContacts = async () => {
+const loadVendors = async () => {
   if (!orgId.value) return;
-  loadingContacts.value = true;
+  loadingVendors.value = true;
   try {
-    contacts.value = await contactsApi.list({
+    vendors.value = await vendorsApi.list({
       filter: { organization: { _eq: orgId.value } },
-      sort: ["kind", "sort", "name"],
+      sort: ["category", "sort", "company"],
       limit: -1,
     });
   } catch (e: any) {
-    toast.error(e.message || "Failed to load contacts");
+    toast.error(e.message || "Failed to load vendors");
   } finally {
-    loadingContacts.value = false;
+    loadingVendors.value = false;
   }
 };
 
-const blankContact = () => ({
+const visibleVendors = computed(() =>
+  (vendors.value || []).filter((v) => (showArchived.value ? v.status === "archived" : v.status !== "archived"))
+);
+
+const blankVendor = () => ({
   id: undefined as string | undefined,
-  name: "",
+  category: "management" as HoaVendor["category"],
+  category_other: "",
   company: "",
-  kind: "general" as HoaManagementContact["kind"],
+  name: "",
   email: "",
   phone: "",
+  website: "",
+  address: "",
+  show_to_members: true,
+  status: "active" as "active" | "inactive" | "archived",
+  active_since: "",
+  active_until: "",
+  notes: "",
+  management_role: "general" as "rental_sales" | "violations" | "general",
   notify_email: true,
   notify_inapp: true,
-  status: "active" as "active" | "inactive",
 });
-const editing = ref(blankContact());
+const editing = ref(blankVendor());
 const dialogOpen = ref(false);
-const savingContact = ref(false);
+const savingVendor = ref(false);
+const isManagement = computed(() => editing.value.category === "management");
 
 const openNew = () => {
-  editing.value = blankContact();
+  editing.value = blankVendor();
   dialogOpen.value = true;
 };
-const openEdit = (c: HoaManagementContact) => {
+const openEdit = (v: HoaVendor) => {
   editing.value = {
-    id: c.id,
-    name: c.name || "",
-    company: c.company || "",
-    kind: c.kind,
-    email: c.email || "",
-    phone: c.phone || "",
-    notify_email: c.notify_email !== false,
-    notify_inapp: c.notify_inapp !== false,
-    status: (c.status as any) || "active",
+    id: v.id,
+    category: v.category,
+    category_other: v.category_other || "",
+    company: v.company || "",
+    name: v.name || "",
+    email: v.email || "",
+    phone: v.phone || "",
+    website: v.website || "",
+    address: v.address || "",
+    show_to_members: v.show_to_members !== false,
+    status: (v.status as any) || "active",
+    active_since: (v.active_since || "").slice(0, 10),
+    active_until: (v.active_until || "").slice(0, 10),
+    notes: v.notes || "",
+    management_role: (v.management_role as any) || "general",
+    notify_email: v.notify_email !== false,
+    notify_inapp: v.notify_inapp !== false,
   };
   dialogOpen.value = true;
 };
 
-const saveContact = async () => {
+const saveVendor = async () => {
   if (!orgId.value) return;
-  if (!editing.value.name.trim()) {
-    toast.error("Name is required");
+  const e = editing.value;
+  if (!e.company.trim() && !e.name.trim()) {
+    toast.error("A company or contact name is required");
     return;
   }
-  if (editing.value.notify_email && !editing.value.email.trim()) {
+  if (e.category === "other" && !e.category_other.trim()) {
+    toast.error("Enter a label for the 'Other' category");
+    return;
+  }
+  if (isManagement.value && e.notify_email && !e.email.trim()) {
     toast.error("An email is required when email notifications are on");
     return;
   }
-  savingContact.value = true;
-  const payload = {
-    name: editing.value.name.trim(),
-    company: editing.value.company.trim() || null,
-    kind: editing.value.kind,
-    email: editing.value.email.trim() || null,
-    phone: editing.value.phone.trim() || null,
-    notify_email: editing.value.notify_email,
-    notify_inapp: editing.value.notify_inapp,
-    status: editing.value.status,
+  savingVendor.value = true;
+  const payload: Record<string, any> = {
+    category: e.category,
+    category_other: e.category === "other" ? e.category_other.trim() || null : null,
+    company: e.company.trim() || null,
+    name: e.name.trim() || null,
+    email: e.email.trim() || null,
+    phone: e.phone.trim() || null,
+    website: e.website.trim() || null,
+    address: e.address.trim() || null,
+    show_to_members: e.show_to_members,
+    status: e.status,
+    active_since: e.active_since || null,
+    active_until: e.active_until || null,
+    notes: e.notes.trim() || null,
+    // Management-only fields (null them out for other categories)
+    management_role: isManagement.value ? e.management_role : null,
+    notify_email: isManagement.value ? e.notify_email : null,
+    notify_inapp: isManagement.value ? e.notify_inapp : null,
   };
   try {
-    if (editing.value.id) {
-      await contactsApi.update(editing.value.id, payload as any);
-    } else {
-      await contactsApi.create({ ...payload, organization: orgId.value } as any);
-    }
-    toast.success("Contact saved");
+    if (e.id) await vendorsApi.update(e.id, payload as any);
+    else await vendorsApi.create({ ...payload, organization: orgId.value } as any);
+    toast.success("Vendor saved");
     dialogOpen.value = false;
-    await loadContacts();
-  } catch (e: any) {
-    toast.error(e.message || "Failed to save contact");
+    await loadVendors();
+  } catch (err: any) {
+    toast.error(err.message || "Failed to save vendor");
   } finally {
-    savingContact.value = false;
+    savingVendor.value = false;
   }
 };
 
-const deleteContact = async (c: HoaManagementContact) => {
-  if (!c.id) return;
-  if (!confirm(`Remove ${c.name}?`)) return;
+const archiveVendor = async (v: HoaVendor) => {
+  if (!v.id) return;
+  const next = v.status === "archived" ? "active" : "archived";
   try {
-    await contactsApi.remove(c.id);
-    toast.success("Contact removed");
-    await loadContacts();
+    await vendorsApi.update(v.id, { status: next } as any);
+    toast.success(next === "archived" ? "Vendor archived" : "Vendor restored");
+    await loadVendors();
   } catch (e: any) {
-    toast.error(e.message || "Failed to remove contact");
+    toast.error(e.message || "Failed to update vendor");
+  }
+};
+
+const deleteVendor = async (v: HoaVendor) => {
+  if (!v.id) return;
+  if (!confirm(`Permanently delete ${vendorTitle(v)}? Use Archive to keep history instead.`)) return;
+  try {
+    await vendorsApi.remove(v.id);
+    toast.success("Vendor deleted");
+    await loadVendors();
+  } catch (e: any) {
+    toast.error(e.message || "Failed to delete vendor");
   }
 };
 
@@ -199,7 +265,6 @@ const toggleGrant = async (m: ManagerRow, key: string, value: boolean) => {
   }
 };
 
-// Invite a new property manager
 const inviteOpen = ref(false);
 const invite = ref({ firstName: "", lastName: "", email: "" });
 const inviting = ref(false);
@@ -232,11 +297,8 @@ const sendInvite = async () => {
 };
 
 // ─────────────────────────── Routing ───────────────────────────
-const ROUTING_KIND_OPTIONS = [...KIND_OPTIONS, { value: "none", label: "Don't notify a contact" }] as const;
-const routing = ref<{ board_default: boolean; map: Record<string, string> }>({
-  board_default: true,
-  map: {},
-});
+const ROUTING_OPTIONS = [...MANAGEMENT_ROLE_OPTIONS, { value: "none", label: "Don't notify a vendor" }] as const;
+const routing = ref<{ board_default: boolean; map: Record<string, string> }>({ board_default: true, map: {} });
 const loadingRouting = ref(true);
 const savingRouting = ref(false);
 
@@ -247,7 +309,6 @@ const loadRouting = async () => {
     const org: any = await orgApi.get(orgId.value, { fields: ["inquiry_routing"] });
     const stored = org?.inquiry_routing || {};
     const map: Record<string, string> = { ...(stored.map || {}) };
-    // Ensure every known type has an entry for the UI.
     for (const t of requestTypeList) if (!(t.type in map)) map[t.type] = "general";
     routing.value = { board_default: stored.board_default !== false, map };
   } catch (e: any) {
@@ -271,7 +332,7 @@ const saveRouting = async () => {
 };
 
 watch(orgId, () => {
-  loadContacts();
+  loadVendors();
   loadManagers();
   loadRouting();
 }, { immediate: true });
@@ -281,57 +342,65 @@ watch(orgId, () => {
   <div class="ui-kit accent-blue min-h-screen t-bg">
     <PageContainer>
       <div class="mb-8">
-        <h1 class="text-3xl font-bold t-text">Property management</h1>
+        <h1 class="text-3xl font-bold t-text">Vendors &amp; management</h1>
         <p class="t-text-muted mt-2">
-          Control who from your management company is notified about inquiries, and what each
-          manager can do.
+          Keep your service providers in one place, control who members can see, and decide who's
+          notified about inquiries.
         </p>
       </div>
 
-      <Tabs v-model="activeTab" default-value="contacts">
+      <Tabs v-model="activeTab" default-value="vendors">
         <TabsList class="mb-6 flex-wrap h-auto gap-1">
-          <TabsTrigger value="contacts"><Icon name="lucide:contact" class="h-4 w-4 mr-2" />Contacts</TabsTrigger>
+          <TabsTrigger value="vendors"><Icon name="lucide:contact" class="h-4 w-4 mr-2" />Vendors</TabsTrigger>
           <TabsTrigger value="managers"><Icon name="lucide:user-cog" class="h-4 w-4 mr-2" />Managers</TabsTrigger>
           <TabsTrigger value="routing"><Icon name="lucide:route" class="h-4 w-4 mr-2" />Routing</TabsTrigger>
         </TabsList>
 
-        <!-- ───────── Contacts ───────── -->
-        <TabsContent value="contacts" class="space-y-6">
+        <!-- ───────── Vendors ───────── -->
+        <TabsContent value="vendors" class="space-y-6">
           <Card>
             <CardHeader class="flex flex-row items-start justify-between gap-3">
               <div>
-                <CardTitle>Management contacts</CardTitle>
-                <CardDescription>People at your management company who get notified about inquiries.</CardDescription>
+                <CardTitle>Vendor directory</CardTitle>
+                <CardDescription>Attorney, accountant, management, elevator, landscaping, and more.</CardDescription>
               </div>
-              <Button class="rounded-full shrink-0" @click="openNew">
-                <Icon name="lucide:plus" class="h-4 w-4 mr-1.5" />Add contact
-              </Button>
+              <div class="flex items-center gap-2 shrink-0">
+                <Button variant="outline" class="rounded-full" @click="showArchived = !showArchived">
+                  <Icon :name="showArchived ? 'lucide:list' : 'lucide:archive'" class="h-4 w-4 mr-1.5" />
+                  {{ showArchived ? "Active" : "Archive" }}
+                </Button>
+                <Button class="rounded-full" @click="openNew">
+                  <Icon name="lucide:plus" class="h-4 w-4 mr-1.5" />Add vendor
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div v-if="loadingContacts" class="py-10 text-center t-text-muted">Loading…</div>
-              <div v-else-if="!contacts.length" class="py-10 text-center t-text-muted">
-                No contacts yet. Add your rental/sales and violations contacts.
+              <div v-if="loadingVendors" class="py-10 text-center t-text-muted">Loading…</div>
+              <div v-else-if="!visibleVendors.length" class="py-10 text-center t-text-muted">
+                {{ showArchived ? "No archived vendors." : "No vendors yet. Add your management company, attorney, etc." }}
               </div>
               <div v-else class="divide-y">
-                <div v-for="c in contacts" :key="c.id" class="flex items-center gap-3 py-3">
+                <div v-for="v in visibleVendors" :key="v.id" class="flex items-center gap-3 py-3">
                   <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                      <span class="font-medium t-text truncate">{{ c.name }}</span>
-                      <span class="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0">{{ kindLabel(c.kind) }}</span>
-                      <span v-if="c.status === 'inactive'" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Inactive</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-medium t-text truncate">{{ vendorTitle(v) }}</span>
+                      <span class="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0">{{ categoryLabel(v) }}</span>
+                      <span v-if="v.category === 'management' && v.management_role" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">{{ roleLabel(v.management_role) }}</span>
+                      <span v-if="v.show_to_members === false" class="text-xs px-2 py-0.5 rounded-full bg-stone-200 text-stone-600 shrink-0">Hidden</span>
+                      <span v-if="v.status === 'inactive'" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Inactive</span>
+                      <span v-if="v.status === 'archived'" class="text-xs px-2 py-0.5 rounded-full bg-stone-300 text-stone-700 shrink-0">Archived</span>
                     </div>
                     <div class="text-sm t-text-muted truncate">
-                      <span v-if="c.company">{{ c.company }} · </span>{{ c.email || "no email" }}<span v-if="c.phone"> · {{ c.phone }}</span>
-                    </div>
-                    <div class="text-xs t-text-muted mt-0.5">
-                      <span v-if="c.notify_email !== false">✉️ email</span>
-                      <span v-if="c.notify_inapp !== false"> · 🔔 in-app</span>
+                      <span v-if="v.company && v.name">{{ v.name }} · </span>{{ v.email || "no email" }}<span v-if="v.phone"> · {{ v.phone }}</span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" class="rounded-full" @click="openEdit(c)">
+                  <Button variant="ghost" size="sm" class="rounded-full" @click="openEdit(v)" title="Edit">
                     <Icon name="lucide:pencil" class="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" class="rounded-full text-rose-600" @click="deleteContact(c)">
+                  <Button variant="ghost" size="sm" class="rounded-full" @click="archiveVendor(v)" :title="v.status === 'archived' ? 'Restore' : 'Archive'">
+                    <Icon :name="v.status === 'archived' ? 'lucide:archive-restore' : 'lucide:archive'" class="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" class="rounded-full text-rose-600" @click="deleteVendor(v)" title="Delete">
                     <Icon name="lucide:trash-2" class="h-4 w-4" />
                   </Button>
                 </div>
@@ -390,7 +459,7 @@ watch(orgId, () => {
           <Card>
             <CardHeader>
               <CardTitle>Inquiry routing</CardTitle>
-              <CardDescription>Decide which contact gets notified for each kind of inquiry.</CardDescription>
+              <CardDescription>Decide which management vendor is notified for each kind of inquiry.</CardDescription>
             </CardHeader>
             <CardContent>
               <div v-if="loadingRouting" class="py-10 text-center t-text-muted">Loading…</div>
@@ -398,7 +467,7 @@ watch(orgId, () => {
                 <div class="flex items-center justify-between gap-3 p-4 rounded-lg border bg-stone-50 mb-4">
                   <div class="space-y-0.5">
                     <Label class="text-base font-medium">Always notify the board</Label>
-                    <p class="text-sm t-text-muted">The board is notified on every inquiry, in addition to the routed contact.</p>
+                    <p class="text-sm t-text-muted">The board is notified on every inquiry, in addition to the routed vendor.</p>
                   </div>
                   <Switch v-model="routing.board_default" />
                 </div>
@@ -406,14 +475,13 @@ watch(orgId, () => {
                 <div class="divide-y">
                   <div v-for="t in requestTypeList" :key="t.type" class="flex items-center justify-between gap-3 py-3">
                     <Label class="text-sm font-medium">{{ t.label }}</Label>
-                    <select
-                      v-model="routing.map[t.type]"
-                      class="flex h-9 rounded-md border bg-transparent px-3 text-sm"
-                    >
-                      <option v-for="o in ROUTING_KIND_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                    <select v-model="routing.map[t.type]" class="flex h-9 rounded-md border bg-transparent px-3 text-sm">
+                      <option v-for="o in ROUTING_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
                     </select>
                   </div>
                 </div>
+
+                <p class="text-xs t-text-muted mt-3">Routes to active vendors in the <strong>Management</strong> category whose role matches.</p>
 
                 <div class="flex justify-end pt-4">
                   <Button class="rounded-full" :disabled="savingRouting" @click="saveRouting">
@@ -427,30 +495,38 @@ watch(orgId, () => {
       </Tabs>
     </PageContainer>
 
-    <!-- Contact dialog -->
+    <!-- Vendor dialog -->
     <Dialog v-model:open="dialogOpen">
-      <DialogContent>
+      <DialogContent class="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{{ editing.id ? "Edit contact" : "Add contact" }}</DialogTitle>
-          <DialogDescription>Management company contact for inquiry notifications.</DialogDescription>
+          <DialogTitle>{{ editing.id ? "Edit vendor" : "Add vendor" }}</DialogTitle>
+          <DialogDescription>A service provider for this community.</DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <Label>Name</Label>
-              <Input v-model="editing.name" placeholder="Jane Smith" />
+              <Label>Category</Label>
+              <select v-model="editing.category" class="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm">
+                <option v-for="o in CATEGORY_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
             </div>
+            <div v-if="editing.category === 'other'" class="space-y-1.5">
+              <Label>Custom category</Label>
+              <Input v-model="editing.category_other" placeholder="e.g. Roofing" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <Label>Company</Label>
+              <Label>Company / firm</Label>
               <Input v-model="editing.company" placeholder="Acme Property Mgmt" />
             </div>
+            <div class="space-y-1.5">
+              <Label>Contact person</Label>
+              <Input v-model="editing.name" placeholder="Jane Smith" />
+            </div>
           </div>
-          <div class="space-y-1.5">
-            <Label>Handles</Label>
-            <select v-model="editing.kind" class="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm">
-              <option v-for="o in KIND_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
-          </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Email</Label>
@@ -461,23 +537,74 @@ watch(orgId, () => {
               <Input v-model="editing.phone" placeholder="(555) 123-4567" />
             </div>
           </div>
-          <div class="flex items-center justify-between py-1">
-            <Label class="text-sm">Notify by email</Label>
-            <Switch v-model="editing.notify_email" />
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Website</Label>
+              <Input v-model="editing.website" placeholder="https://…" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Address</Label>
+              <Input v-model="editing.address" placeholder="123 Main St" />
+            </div>
           </div>
-          <div class="flex items-center justify-between py-1">
-            <Label class="text-sm">Notify in-app (if linked to a login)</Label>
-            <Switch v-model="editing.notify_inapp" />
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Active since</Label>
+              <Input v-model="editing.active_since" type="date" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Active until</Label>
+              <Input v-model="editing.active_until" type="date" />
+            </div>
           </div>
+
+          <div class="space-y-1.5">
+            <Label>Status</Label>
+            <select v-model="editing.status" class="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="archived">Archived (historical)</option>
+            </select>
+          </div>
+
           <div class="flex items-center justify-between py-1">
-            <Label class="text-sm">Active</Label>
-            <Switch :model-value="editing.status === 'active'" @update:model-value="(v) => editing.status = v ? 'active' : 'inactive'" />
+            <div>
+              <Label class="text-sm">Show to members</Label>
+              <p class="text-xs t-text-muted">Appears in the member-facing vendor directory.</p>
+            </div>
+            <Switch v-model="editing.show_to_members" />
+          </div>
+
+          <!-- Management-only routing fields -->
+          <div v-if="isManagement" class="rounded-lg border p-3 space-y-3 bg-blue-50/40">
+            <p class="text-sm font-medium t-text">Management settings</p>
+            <div class="space-y-1.5">
+              <Label class="text-sm">Handles which inquiries</Label>
+              <select v-model="editing.management_role" class="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm">
+                <option v-for="o in MANAGEMENT_ROLE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between">
+              <Label class="text-sm">Notify by email on routed inquiries</Label>
+              <Switch v-model="editing.notify_email" />
+            </div>
+            <div class="flex items-center justify-between">
+              <Label class="text-sm">Notify in-app (if linked to a login)</Label>
+              <Switch v-model="editing.notify_inapp" />
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <Label>Notes</Label>
+            <textarea v-model="editing.notes" rows="3" class="flex w-full rounded-md border bg-transparent px-3 py-2 text-sm" placeholder="Contract terms, account number, etc." />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" class="rounded-full" @click="dialogOpen = false">Cancel</Button>
-          <Button class="rounded-full" :disabled="savingContact" @click="saveContact">
-            {{ savingContact ? "Saving…" : "Save contact" }}
+          <Button class="rounded-full" :disabled="savingVendor" @click="saveVendor">
+            {{ savingVendor ? "Saving…" : "Save vendor" }}
           </Button>
         </DialogFooter>
       </DialogContent>

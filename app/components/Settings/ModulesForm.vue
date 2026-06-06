@@ -76,6 +76,7 @@ const GROUPS: {
       { key: "documents", label: "Documents", description: "Shared files and document library." },
       { key: "rules", label: "Rules", description: "By-laws, CC&Rs, and searchable governance." },
       { key: "directory", label: "Directory", description: "Members, units, and teams." },
+      { key: "vendors", label: "Vendors", description: "Service-provider directory (management, attorney, elevator, …), member-visible per vendor." },
       { key: "pets", label: "Pets", description: "Pet registration records." },
       { key: "vehicles", label: "Vehicles", description: "Vehicle and parking records." },
       { key: "leases", label: "Leases", description: "Tenant lease records." },

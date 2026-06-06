@@ -16,6 +16,9 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Only org admins (or app admins) may invite members to this organization
+  await requireAdminAccess(event, organizationId);
+
   // Normalize email to lowercase
   const normalizedEmail = email.toLowerCase().trim();
 

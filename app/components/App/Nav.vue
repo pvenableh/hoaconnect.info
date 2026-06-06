@@ -72,6 +72,9 @@ const {
   managerCan,
 } = useCurrentDomainAccess();
 
+// Per-org module toggles (gate optional member-facing nav links).
+const { isEnabled: isModuleEnabled } = useModules();
+
 // Determine if admin UI should be shown
 // On org context (slug route): only show if admin of THAT org
 // On main domain: show based on selected org admin status
@@ -211,6 +214,10 @@ const publicNavItems = computed(() => {
     icon: "file",
   });
 
+  if (isModuleEnabled("vendors")) {
+    items.push({ label: "Vendors", path: buildPath("/vendors"), icon: "contact" });
+  }
+
   return items;
 });
 
@@ -241,7 +248,7 @@ const adminNavItems = computed(() => [
   { label: "Users", path: buildPath("/admin/users"), icon: "user-cog" },
   { label: "Communications", path: buildPath("/admin/communications"), icon: "mail" },
   {
-    label: "Property mgmt",
+    label: "Vendors",
     path: buildPath("/admin/settings/property-management"),
     icon: "contact",
   },
