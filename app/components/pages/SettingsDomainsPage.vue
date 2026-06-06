@@ -171,7 +171,7 @@ useSeoMeta({ title: "Custom Domain" });
 
 <template>
   <div class="min-h-screen t-bg t-text">
-    <PageContainer class="space-y-6 max-w-3xl">
+    <PageContainer class="space-y-6">
       <div>
         <Button variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/settings/organization')">
           <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
