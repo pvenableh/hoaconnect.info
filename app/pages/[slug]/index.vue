@@ -38,10 +38,13 @@
       </div>
     </div>
 
-    <!-- Member Dashboard (for logged-in members who are not admins) -->
-    <PagesMemberDashboardPage v-else-if="user && isMember" />
+    <!-- Admin workspace at the clean root (role-aware home) -->
+    <PagesDashboardPage v-else-if="isWorkspaceUser && isAdminOfCurrentDomain" />
 
-    <!-- Organization Public Landing Page (for public visitors or admins) -->
+    <!-- Member workspace at the clean root -->
+    <PagesMemberDashboardPage v-else-if="isWorkspaceUser" />
+
+    <!-- Public landing — visitors, and any logged-in user via ?preview -->
     <OrgPublicLanding v-else :organization="organization" :slug="slug" />
   </div>
 </template>
@@ -54,21 +57,32 @@ const config = useRuntimeConfig();
 // Get slug from route params
 const slug = computed(() => route.params.slug);
 
-// Get role info for logged-in users
-const { isMember } = user.value
-  ? await useSelectedOrg()
-  : { isMember: ref(false) };
+// Ensure this user's memberships are loaded so the current-domain role checks
+// below resolve (they read the shared "user-members" state).
+if (user.value) await useSelectedOrg();
 
-// Get admin status for current domain
-const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+// Role within the org being VIEWED (the slug) — not the user's selected org.
+const { isMemberOfCurrentDomain, isAdminOfCurrentDomain } =
+  useCurrentDomainAccess();
 
-// The public landing is a self-contained, full-bleed experience with its own
-// nav drawer + CTAs — render it chromeless (no HOA Connect app header/footer).
-// Logged-in members fall through to the member dashboard, which keeps the app
-// chrome (default layout).
-if (!(user.value && isMember.value)) {
-  setPageLayout("auth-blank");
-}
+// "?preview" lets any logged-in user view the public landing (the org's front
+// door) even though their clean root normally renders their own workspace.
+const forcePublic = computed(() => route.query.preview !== undefined);
+
+// A logged-in member/admin of THIS org gets their workspace at the clean root —
+// no "/dashboard" suffix, which keeps APEX custom-domain URLs pristine
+// (605lincolnroad.com/ === your dashboard). Everyone else sees the landing.
+const isWorkspaceUser = computed(
+  () =>
+    !!user.value &&
+    !forcePublic.value &&
+    (isMemberOfCurrentDomain.value || isAdminOfCurrentDomain.value)
+);
+
+// Workspace users get the full app shell (nav + dock + breadcrumbs + banner) via
+// the `auth` layout. Visitors and the public-site preview get the self-contained,
+// chromeless landing (its own nav drawer + CTAs).
+setPageLayout(isWorkspaceUser.value ? "auth" : "auth-blank");
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
@@ -96,12 +110,11 @@ const { data: organization, pending } = await useAsyncData(
 // (settings → set external_url), HOA Connect's built-in landing is disabled and
 // HOA Connect acts as the resident portal only. Public visitors go to the
 // resident login; logged-in members fall through to their dashboard below.
-const { buildOrgPath } = useOrgNavigation();
-if (organization.value?.external_url && !(user.value && isMember.value)) {
-  await navigateTo(
-    user.value ? buildOrgPath("/dashboard") : "/auth/login",
-    { replace: true }
-  );
+if (organization.value?.external_url && !isWorkspaceUser.value) {
+  // Built-in landing disabled for this org. Workspace users render their
+  // dashboard inline (above); a logged-in non-member is sent to the slug-agnostic
+  // `/dashboard` entry (resolves to THEIR org's clean root), visitors to login.
+  await navigateTo(user.value ? "/dashboard" : "/auth/login", { replace: true });
 }
 
 // Apply the org's per-tenant landing style (classic | modern | luxury). Stored

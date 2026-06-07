@@ -77,7 +77,7 @@ const handleChannelCreated = (channel: any) => {
     >
       <div class="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center gap-2.5">
         <NuxtLink
-          :to="buildOrgPath('/dashboard')"
+          :to="buildOrgPath('/')"
           class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80 shrink-0"
           title="Back to dashboard"
         >

@@ -146,7 +146,7 @@ export function useAppNav() {
   // panel. `key` doubles as the module-gate key; people/reporting aren't modules
   // so they're always shown (their hub cards gate the individual features).
   const ADMIN_APPS: AppDef[] = [
-    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
+    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__"] },
     { key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people", match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams"] },
     { key: "reporting", label: "Reporting", shortName: "Reports", icon: "book-open", path: "/admin/reporting", match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules"] },
     { key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },

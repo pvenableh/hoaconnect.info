@@ -450,7 +450,7 @@ const savingExternal = ref(false);
 const appBase = computed(() =>
   ((config.public.appUrl as string) || `https://${mainDomain.value}`).replace(/\/$/, "")
 );
-const portalUrl = computed(() => `${appBase.value}/${slug.value}/dashboard`);
+const portalUrl = computed(() => `${appBase.value}/${slug.value}`);
 
 const saveExternalUrl = async () => {
   if (!orgId.value) return;

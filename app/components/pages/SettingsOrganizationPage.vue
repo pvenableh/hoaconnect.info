@@ -106,7 +106,7 @@
         <p class="text-muted-foreground mt-2">
           Please select an organization to manage its settings.
         </p>
-        <Button @click="navigateToOrg('/dashboard')" class="mt-4">
+        <Button @click="navigateToOrg('/')" class="mt-4">
           Go to Dashboard
         </Button>
       </div>

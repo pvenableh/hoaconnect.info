@@ -56,9 +56,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       return;
     }
 
-    // Redirect to the org's slug path
-    // Preserve the current path under the org slug
-    const targetPath = to.path === '/' ? `/${org.slug}` : `/${org.slug}${to.path}`;
+    // Redirect to the org's slug path. The clean org root IS the dashboard, so
+    // the slug-agnostic `/` and `/dashboard` entry points both collapse to it
+    // (no `/{slug}/dashboard` — that route no longer exists).
+    const targetPath =
+      to.path === '/' || to.path === '/dashboard'
+        ? `/${org.slug}`
+        : `/${org.slug}${to.path}`;
     return navigateTo(targetPath);
   } catch (error) {
     // If there's an error fetching org data, don't redirect
