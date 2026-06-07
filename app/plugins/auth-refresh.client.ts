@@ -51,8 +51,19 @@ export default defineNuxtPlugin(() => {
       // If refresh fails, clear session and redirect to login
       await clear();
 
-      // Redirect to login page
-      await router.push('/auth/login');
+      // Only force a redirect to login when on a PROTECTED route. On public pages
+      // — an org's landing (/ or /{slug}), board/signup/request-join, or /auth/* —
+      // leave the visitor where they are; route middleware will gate any protected
+      // navigation. Avoids yanking a public visitor (or a logged-in member idly
+      // viewing the landing) to login when a background refresh fails.
+      const r = router.currentRoute.value;
+      const slug = r.params.slug as string | undefined;
+      const isLandingRoot = r.path === '/' || (!!slug && r.path === `/${slug}`);
+      const isPublicSub = !!slug && /^\/[^/]+\/(board|signup|request-join)(\/|$)/.test(r.path);
+      const isAuthRoute = r.path.startsWith('/auth');
+      if (!isLandingRoot && !isPublicSub && !isAuthRoute) {
+        await router.push('/auth/login');
+      }
     } finally {
       isRefreshing = false;
     }

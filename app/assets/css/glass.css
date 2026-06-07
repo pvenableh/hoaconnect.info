@@ -84,6 +84,11 @@
 .widget-row > * {
 	scroll-snap-align: start;
 }
+/* Soft right-edge fade hinting more widgets when the row overflows. */
+.widget-row.is-scrollable {
+	-webkit-mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+	mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+}
 
 /* Glass side drawer (logged-out nav) + its toggle + scrim. Always a dark
    frosted tint (independent of theme) so the white nav text stays legible —

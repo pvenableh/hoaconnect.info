@@ -101,6 +101,9 @@ export default defineEventHandler(async (event) => {
       })
     );
 
+    // Keep the org's denormalized member_count in sync.
+    await recomputeMemberCount(organization.id, directus);
+
     // Welcome the approved member (best-effort).
     if (user.email) {
       try {
