@@ -160,6 +160,9 @@ export default defineEventHandler(async (event) => {
       })
     );
 
+    // Keep the org's denormalized member_count in sync.
+    await recomputeMemberCount(organizationId, directus);
+
     // 7. Log the user in automatically
     const authClient = createDirectus(config.directus.url)
       .with(authentication("json"))

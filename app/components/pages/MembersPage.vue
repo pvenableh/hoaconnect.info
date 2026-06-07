@@ -284,6 +284,19 @@ const handleEdit = (member: any) => {
   showAddModal.value = true;
 };
 
+// Keep the org's denormalized member_count in sync after member changes.
+const recomputeCount = async () => {
+  if (!organization.value?.id) return;
+  try {
+    await $fetch("/api/hoa/recompute-member-count", {
+      method: "POST",
+      body: { organizationId: organization.value.id },
+    });
+  } catch {
+    /* non-fatal */
+  }
+};
+
 const handleSubmit = async () => {
   if (!organization.value?.id) {
     toast.error("No organization selected");
@@ -325,6 +338,7 @@ const handleSubmit = async () => {
     }
 
     await refreshMembers();
+    await recomputeCount();
     showAddModal.value = false;
     resetForm();
   } catch (error: any) {
@@ -344,6 +358,7 @@ const handleDelete = async (id: string) => {
   try {
     await removeMember(id);
     await refreshMembers();
+    await recomputeCount();
     toast.success("Member deleted");
   } catch (error) {
     toast.error("Failed to delete member");

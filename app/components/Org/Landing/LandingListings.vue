@@ -10,11 +10,30 @@
           <p class="text-[11px] uppercase tracking-ultra-wide t-text-muted mb-5">Available now</p>
           <h2 class="font-serif text-4xl sm:text-5xl t-text">For Sale &amp; Rent</h2>
           <div class="mx-auto w-14 h-px mt-8" style="background: var(--theme-accent-primary)" />
+
+          <!-- Sale/Rent filter (only when both kinds exist) -->
+          <div v-if="showFilter" class="mt-8 inline-flex rounded-full border t-border p-0.5">
+            <button
+              v-for="opt in [
+                { key: 'all', label: 'All' },
+                { key: 'sale', label: 'For Sale' },
+                { key: 'rental', label: 'For Rent' },
+              ]"
+              :key="opt.key"
+              type="button"
+              class="px-4 py-1.5 rounded-full text-xs uppercase tracking-wide transition-colors"
+              :class="filter === opt.key ? 't-text' : 't-text-muted hover:t-text'"
+              :style="filter === opt.key ? 'background: var(--theme-accent-primary); color: var(--theme-text-inverse)' : ''"
+              @click="filter = opt.key as any"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           <a
-            v-for="(l, i) in listings"
+            v-for="(l, i) in shown"
             :key="i"
             :href="l.url"
             target="_blank"
@@ -63,4 +82,13 @@ const config = useRuntimeConfig();
 
 const listings = computed(() => props.listings || []);
 const imgUrl = (id: string) => `${config.public.directus.url}/assets/${id}?key=medium`;
+
+// Sale/Rent filter — only offered when the org has both kinds.
+const filter = ref<"all" | "sale" | "rental">("all");
+const hasSale = computed(() => listings.value.some((l) => l.type === "sale"));
+const hasRental = computed(() => listings.value.some((l) => l.type === "rental"));
+const showFilter = computed(() => hasSale.value && hasRental.value);
+const shown = computed(() =>
+  filter.value === "all" ? listings.value : listings.value.filter((l) => l.type === filter.value)
+);
 </script>
