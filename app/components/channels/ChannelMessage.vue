@@ -25,6 +25,7 @@ const filesComposable = useDirectusFiles();
 
 const showReplyInput = ref(false);
 const replyContent = ref("");
+const replyAttachments = ref<string[]>([]);
 const showReplies = ref(false);
 const isDeleting = ref(false);
 
@@ -35,6 +36,7 @@ const { data: replies, isLoading: repliesLoading } = useRealtimeSubscription(
     "id",
     "status",
     "content",
+    "attachments",
     "date_created",
     "is_edited",
     "user_created.id",
@@ -64,17 +66,20 @@ const toggleReplies = () => {
 
 const sendReply = async () => {
   const content = replyContent.value?.replace(/<[^>]*>/g, "").trim();
-  if (!content || !props.channelId) return;
+  const hasAttachments = replyAttachments.value.length > 0;
+  if ((!content && !hasAttachments) || !props.channelId) return;
 
   try {
     await createMessage({
       content: replyContent.value,
       channel: props.channelId,
       parent_message: props.message.id,
+      attachments: hasAttachments ? [...replyAttachments.value] : [],
       status: "published",
     });
 
     replyContent.value = "";
+    replyAttachments.value = [];
     showReplyInput.value = false;
     showReplies.value = true;
   } catch (error) {
@@ -197,6 +202,12 @@ const authorName = computed(() => {
           v-html="message.content"
         />
 
+        <!-- Attachments -->
+        <ChannelsChannelAttachments
+          v-if="(message as any).attachments?.length"
+          :ids="(message as any).attachments"
+        />
+
         <!-- Reactions (universal reaction system) -->
         <div class="mt-1.5">
           <CommentsReactionBar
@@ -276,12 +287,15 @@ const authorName = computed(() => {
       <div class="space-y-2">
         <ChannelsChannelEditor
           v-model="replyContent"
+          v-model:attachments="replyAttachments"
           placeholder="Write a reply..."
           :organization-id="organizationId"
           :channel-id="channelId"
+          allow-file-attachments
           upload-source="message"
           @submit="sendReply"
         />
+        <ChannelsChannelAttachments v-if="replyAttachments.length" :ids="replyAttachments" />
         <div class="flex items-center justify-between">
           <span class="text-xs text-stone-500">Press Enter to send</span>
           <div class="flex gap-2">
@@ -296,7 +310,7 @@ const authorName = computed(() => {
             <Button
               size="sm"
               class="h-7"
-              :disabled="!replyContent?.replace(/<[^>]*>/g, '').trim()"
+              :disabled="!replyContent?.replace(/<[^>]*>/g, '').trim() && !replyAttachments.length"
               @click="sendReply"
             >
               Reply
