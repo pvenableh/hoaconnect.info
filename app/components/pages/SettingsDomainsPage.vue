@@ -82,6 +82,16 @@ const heroPreviewFg = computed(
   () => heroFgPreview.value || fileUrl(getFileId(org.value?.hero?.foreground_image))
 );
 
+// Basic landing insights (hoa_organizations.landing_stats).
+const stats = computed(() => {
+  const s = (org.value?.landing_stats && typeof org.value.landing_stats === "object"
+    ? org.value.landing_stats
+    : {}) as any;
+  const views = Number(s.views) || 0;
+  const inquiries = Number(s.inquiries) || 0;
+  return { views, inquiries, conversion: views ? Math.round((inquiries / views) * 100) : 0 };
+});
+
 const THEME_OPTIONS = [
   { value: "classic", label: "Classic", hint: "Cream paper, terracotta, serif" },
   { value: "modern", label: "Modern", hint: "Clean white, cyan, sans-serif" },
@@ -544,6 +554,28 @@ useSeoMeta({ title: "Public site" });
             </div>
           </div>
 
+          <!-- Insights -->
+          <div class="ios-card p-6">
+            <h2 class="font-semibold t-text mb-4">Insights</h2>
+            <div class="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div class="text-2xl font-semibold t-text">{{ stats.views }}</div>
+                <div class="text-[11px] t-text-muted uppercase tracking-wide mt-1">Views</div>
+              </div>
+              <div>
+                <div class="text-2xl font-semibold t-text">{{ stats.inquiries }}</div>
+                <div class="text-[11px] t-text-muted uppercase tracking-wide mt-1">Inquiries</div>
+              </div>
+              <div>
+                <div class="text-2xl font-semibold t-text">{{ stats.conversion }}%</div>
+                <div class="text-[11px] t-text-muted uppercase tracking-wide mt-1">Conversion</div>
+              </div>
+            </div>
+            <p class="text-xs t-text-muted mt-3">
+              Landing views (once per visitor session) and inquiry-form submissions.
+            </p>
+          </div>
+
           <!-- Theme -->
           <div class="ios-card p-6 space-y-4">
             <div>
@@ -770,6 +802,20 @@ useSeoMeta({ title: "Public site" });
               <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removePlace(i)">
                 <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
               </Button>
+            </div>
+          </div>
+
+          <!-- Community news teaser -->
+          <div class="ios-card p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <h2 class="font-semibold t-text">Community news</h2>
+                <p class="text-sm t-text-muted mt-0.5">
+                  Show your most recent sent announcements on the public landing. Off by default —
+                  only enable if those announcements are okay to show publicly.
+                </p>
+              </div>
+              <Switch v-model="landing.show_announcements" />
             </div>
           </div>
 

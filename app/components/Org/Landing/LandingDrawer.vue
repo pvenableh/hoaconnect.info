@@ -56,15 +56,17 @@
             </li>
           </ul>
 
-          <!-- The member portal (locked for logged-out visitors) -->
-          <template v-if="!user && portalLinks.length">
+          <!-- The member portal — locked, hinting the full site behind the landing.
+               (PublicLanding only renders for non-members, so a logged-in viewer
+               here isn't a member yet — point them at "request access".) -->
+          <template v-if="portalLinks.length">
             <p class="px-3 mt-7 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">
               {{ memberNoun.singular }} portal
             </p>
             <ul class="space-y-1">
               <li v-for="p in portalLinks" :key="p.key">
                 <a
-                  href="/auth/login"
+                  :href="lockHref"
                   class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm uppercase tracking-wide text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
                   @click="open = false"
                 >
@@ -75,8 +77,8 @@
               </li>
             </ul>
             <p class="px-3 mt-3 text-[11px] normal-case tracking-normal text-white/45 leading-relaxed">
-              Sign in to unlock the full {{ memberNoun.plural.toLowerCase() }} portal — documents,
-              payments, meetings and more.
+              <template v-if="user">Request access to unlock the full {{ memberNoun.plural.toLowerCase() }} portal — documents, payments, meetings and more.</template>
+              <template v-else>Sign in to unlock the full {{ memberNoun.plural.toLowerCase() }} portal — documents, payments, meetings and more.</template>
             </p>
           </template>
         </nav>
@@ -139,6 +141,9 @@ const props = defineProps<{
 
 const open = ref(false);
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
+// Locked portal links send logged-out visitors to login, logged-in non-members
+// to request access.
+const lockHref = computed(() => (props.user ? `/${props.slug}/request-join` : "/auth/login"));
 
 // Public landing anchors.
 const links = computed(() => {

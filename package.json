@@ -37,6 +37,8 @@
     "add:landing-config": "dotenv -- tsx scripts/add-landing-config-fields.ts",
     "recompute:member-counts": "dotenv -- tsx scripts/recompute-member-counts.ts",
     "audit:admin-roles": "dotenv -- tsx scripts/audit-admin-roles.ts",
+    "add:landing-stats": "dotenv -- tsx scripts/add-landing-stats-field.ts",
+    "create:member-count-flow": "dotenv -- tsx scripts/create-member-count-flow.ts",
     "migrate:1033": "dotenv -- tsx scripts/migrate-1033.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"

@@ -172,11 +172,20 @@
       <!-- Glass widget row, pinned to the bottom of the hero -->
       <div
         v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
-        ref="widgetRowEl"
         class="hero-fade hero-fade--widgets absolute bottom-14 sm:bottom-12 inset-x-0 z-10 px-4 sm:px-8 max-w-5xl mx-auto"
       >
         <OrgLandingWidgetRow :organization="organization" :slug="slug" />
       </div>
+
+      <!-- Scroll-down cue (fades once scrolling) -->
+      <Transition name="cue-fade">
+        <div
+          v-if="showScrollCue && (!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
+          class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+        >
+          <Icon name="lucide:chevron-down" class="w-5 h-5 text-white/55 animate-bounce" />
+        </div>
+      </Transition>
     </section>
 
     <!-- Content Sections -->
@@ -232,6 +241,9 @@
 
       <!-- Listings -->
       <OrgLandingListings :listings="cfg.listings" />
+
+      <!-- Community news (opt-in; self-hides) -->
+      <OrgLandingAnnouncements :slug="slug" />
 
       <!-- Board -->
       <section v-if="organization?.show_board !== false" class="landing-section py-24 sm:py-36 t-bg border-t t-border">
@@ -293,6 +305,18 @@
                 Become a {{ memberNoun.singular }}
               </NuxtLink>
             </div>
+
+            <!-- Map (no API key; shown once coordinates are known) -->
+            <div v-if="osmUrl" class="mt-14 overflow-hidden rounded-2xl border t-border t-shadow-sm">
+              <iframe
+                :src="osmUrl"
+                class="w-full h-72 sm:h-80"
+                style="border: 0"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                :title="`Map of ${organization?.name || 'the community'}`"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -317,6 +341,7 @@ import OrgLandingDrawer from "./Landing/LandingDrawer.vue";
 import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
 import OrgLandingListings from "./Landing/LandingListings.vue";
 import OrgLandingInquiryForm from "./Landing/LandingInquiryForm.vue";
+import OrgLandingAnnouncements from "./Landing/LandingAnnouncements.vue";
 
 const props = defineProps({
   organization: { type: Object, required: true },
@@ -330,6 +355,16 @@ const config = useRuntimeConfig();
 
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
+
+// OpenStreetMap embed for the contact section (no API key), using the geo cached
+// by the weather route. Hidden when we have no coordinates yet.
+const osmUrl = computed(() => {
+  const g = cfg.value.geo;
+  if (!g) return "";
+  const d = 0.008;
+  const bbox = [g.lon - d, g.lat - d, g.lon + d, g.lat + d].join("%2C");
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${g.lat}%2C${g.lon}`;
+});
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
 const hasAmenities = computed(
   () => Array.isArray(props.organization?.amenities) && props.organization.amenities.length > 0
@@ -380,10 +415,29 @@ const isAccountExpired = computed(() => {
   return status === "expired" || status === "canceled";
 });
 
+// Hero scroll-down cue — fades out once the visitor starts scrolling.
+const showScrollCue = ref(true);
+const onScroll = () => {
+  if (window.scrollY > 40) showScrollCue.value = false;
+};
+
 // ---- Scroll reveal (hero entrance is pure CSS; see .hero-fade in landing.css) ----
 const rootEl = ref(null);
 onMounted(() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Page-view beacon (once per session, best-effort).
+  try {
+    const key = `landing-view-${props.slug}`;
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "1");
+      $fetch("/api/landing/view", { method: "POST", body: { slug: props.slug } }).catch(() => {});
+    }
+  } catch {
+    /* ignore */
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
   const els = rootEl.value?.querySelectorAll(".reveal") || [];
   // Reveal sections as they enter the viewport (scroller-agnostic). Degrade to
   // immediately-visible when reduced-motion or IntersectionObserver is absent.
@@ -404,4 +458,5 @@ onMounted(() => {
   );
   els.forEach((el) => io.observe(el));
 });
+onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
 </script>
