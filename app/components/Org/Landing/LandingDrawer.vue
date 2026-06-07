@@ -129,7 +129,6 @@
 
 <script setup lang="ts">
 import { NuxtLink } from "#components";
-import { orgMemberNoun } from "~~/shared/utils/terminology";
 
 const props = defineProps<{
   organization: any;
@@ -140,45 +139,15 @@ const props = defineProps<{
 }>();
 
 const open = ref(false);
-const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
-// Locked portal links send logged-out visitors to login, logged-in non-members
-// to request access.
-const lockHref = computed(() => (props.user ? `/${props.slug}/request-join` : "/auth/login"));
 
-// Public landing anchors.
-const links = computed(() => {
-  const out: Array<{ label: string; icon: string; to?: string; href?: string }> = [
-    { label: "Home", icon: "lucide:home", href: "#top" },
-  ];
-  if (props.hasAmenities) out.push({ label: "Amenities", icon: "lucide:sparkles", href: "#amenities" });
-  if (props.hasListings) out.push({ label: "Listings", icon: "lucide:home", href: "#listings" });
-  if (props.organization?.show_board !== false)
-    out.push({ label: "Board", icon: "lucide:users", to: `/${props.slug}/board` });
-  out.push({ label: "Contact", icon: "lucide:mail", href: "#contact" });
-  return out;
+// Shared nav model (explore anchors, locked portal links, terminology, lockHref).
+const { memberNoun, lockHref, exploreLinks: links, portalLinks } = useLandingNav({
+  organization: () => props.organization,
+  slug: () => props.slug,
+  user: () => props.user,
+  hasAmenities: () => props.hasAmenities,
+  hasListings: () => props.hasListings,
 });
-
-// Resident-portal sections, shown locked. Filtered to the modules the org has
-// enabled (missing/null = enabled, mirroring useModules). Home is always shown.
-const PORTAL: Array<{ label: string; icon: string; key: string }> = [
-  { label: "Dashboard", icon: "lucide:layout-dashboard", key: "home" },
-  { label: "Announcements", icon: "lucide:megaphone", key: "announcements" },
-  { label: "Documents", icon: "lucide:file-text", key: "documents" },
-  { label: "Meetings", icon: "lucide:calendar-days", key: "meetings" },
-  { label: "Payments", icon: "lucide:credit-card", key: "payments" },
-  { label: "Requests", icon: "lucide:clipboard-list", key: "requests" },
-  { label: "Rules", icon: "lucide:scale", key: "rules" },
-  { label: "Polls", icon: "lucide:bar-chart-3", key: "polls" },
-  { label: "Directory", icon: "lucide:users-round", key: "directory" },
-];
-const moduleOn = (key: string): boolean => {
-  if (key === "home" || key === "dashboard") return true;
-  const m = props.organization?.modules;
-  if (!m || typeof m !== "object") return true;
-  const v = m[key];
-  return v === undefined || v === null ? true : v !== false;
-};
-const portalLinks = computed(() => PORTAL.filter((p) => moduleOn(p.key)));
 
 // Close on Escape.
 const onKey = (e: KeyboardEvent) => {

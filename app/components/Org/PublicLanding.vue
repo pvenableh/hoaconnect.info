@@ -11,7 +11,16 @@
    - app/pages/index.vue         (a verified custom domain's clean root)
 -->
 <template>
-  <div id="top" ref="rootEl">
+  <div id="top" ref="rootEl" :class="{ 'lg:pl-60': navVariant === 'editorial' }">
+    <!-- Theme-aware navigation (editorial sidebar+drawer, or modern dock) -->
+    <OrgLandingNav
+      :organization="organization"
+      :slug="slug"
+      :user="user"
+      :has-amenities="hasAmenities"
+      :has-listings="hasListings"
+    />
+
     <!-- Maintenance Mode Banner for Admins -->
     <div
       v-if="organization?.maintenance_mode && isAdminOfCurrentDomain"
@@ -54,16 +63,6 @@
           <span class="hidden sm:inline">Edit public site</span>
         </button>
         <span v-else />
-        <div class="flex items-center gap-2">
-          <OrgLandingAvatar v-if="user" :user="user" />
-          <OrgLandingDrawer
-            :organization="organization"
-            :slug="slug"
-            :user="user"
-            :has-amenities="hasAmenities"
-            :has-listings="hasListings"
-          />
-        </div>
       </div>
 
       <!-- Centered brand block -->
@@ -336,8 +335,7 @@
 <script setup>
 import { normalizeLandingConfig } from "~~/shared/utils/landing";
 import { orgMemberNoun } from "~~/shared/utils/terminology";
-import OrgLandingAvatar from "./Landing/LandingAvatar.vue";
-import OrgLandingDrawer from "./Landing/LandingDrawer.vue";
+import OrgLandingNav from "./Landing/LandingNav.vue";
 import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
 import OrgLandingListings from "./Landing/LandingListings.vue";
 import OrgLandingInquiryForm from "./Landing/LandingInquiryForm.vue";
@@ -351,7 +349,12 @@ const props = defineProps({
 const { user } = useDirectusAuth();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const { navigateToOrg } = useOrgNavigation();
+const { themeStyle } = useTheme();
 const config = useRuntimeConfig();
+
+// Editorial themes (classic/luxury) get the persistent left sidebar, so the page
+// is offset on desktop to make room for it; modern uses a floating dock (no offset).
+const navVariant = computed(() => (themeStyle.value === "modern" ? "dock" : "editorial"));
 
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
