@@ -221,48 +221,18 @@ const publicNavItems = computed(() => {
   return items;
 });
 
-// Admin-only navigation items
-const adminNavItems = computed(() => [
-  {
-    label: "Dashboard",
-    path: buildPath("/dashboard"),
-    icon: "layout-dashboard",
-  },
-  {
-    label: "Announcements",
-    path: buildPath("/admin/announcements"),
-    icon: "megaphone",
-  },
-  {
-    label: "Channels",
-    path: buildPath("/admin/channels"),
-    icon: "message-square",
-  },
-  {
-    label: "Documents",
-    path: buildPath("/admin/documents"),
-    icon: "file-text",
-  },
-  { label: "Units", path: buildPath("/admin/units"), icon: "door-closed" },
-  { label: "Members", path: buildPath("/admin/members"), icon: "users" },
-  { label: "Users", path: buildPath("/admin/users"), icon: "user-cog" },
-  { label: "Communications", path: buildPath("/admin/communications"), icon: "mail" },
-  {
-    label: "Vendors",
-    path: buildPath("/admin/settings/property-management"),
-    icon: "contact",
-  },
-  {
-    label: "Public site",
-    path: buildPath("/admin/settings/domains"),
-    icon: "globe",
-  },
-  {
-    label: "Settings",
-    path: buildPath("/admin/settings/organization"),
-    icon: "settings",
-  },
-]);
+// Admin-only navigation items — derived from the SAME dock registry (useAppNav
+// ADMIN_APPS) so the mobile sheet and the desktop dock can never drift apart.
+// Module gating + the always-on Settings gear come through for free. Less-used
+// destinations (Users, Teams, Announcements) live under Settings → People/Features.
+const { appsFor } = useAppNav();
+const adminNavItems = computed(() =>
+  appsFor(true).map((app) => ({
+    label: app.label,
+    path: buildPath(app.path),
+    icon: app.icon,
+  }))
+);
 
 // Legacy userStatusBadge - kept for backwards compatibility but prefer contextAwareStatusBadge
 const userStatusBadge = computed(() => {

@@ -295,14 +295,23 @@ const activityData = computed(() => {
   }));
 });
 
-// Channel activity data
-const channelData = computed(() => {
-  return (channels.value || []).slice(0, 5).map((channel: HoaChannel) => ({
-    name: channel.name,
-    messages: Math.floor(Math.random() * 50) + 5, // TODO: Replace with real message counts
-    members: Math.floor(Math.random() * 20) + 3,  // TODO: Replace with real member counts
-  }));
-});
+// Channels for the (optional) Channels widget — real list, no synthetic counts.
+const topChannels = computed(() => (channels.value || []).slice(0, 6));
+const channelsPanel = useChannelsPanel();
+
+// ---- Customizable widget grid (iOS-home-screen style) ----
+// This page is admin-only (admin middleware), so admins see admin+board widgets.
+const {
+  visible: visibleWidgets,
+  hidden: hiddenWidgets,
+  isEditing,
+  toggleEdit,
+  hide: hideWidget,
+  show: showWidget,
+  move: moveWidget,
+  reorder: reorderWidget,
+  reset: resetWidgets,
+} = useDashboardWidgets({ roles: ["admin", "board"] });
 </script>
 
 <template>
@@ -327,147 +336,175 @@ const channelData = computed(() => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" class="space-y-6 mt-0">
-        <!-- Stats Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <DashboardStatsCard
-            title="Documents"
-            :value="stats.documents"
-            description="Published documents"
-            icon="heroicons:document-text"
-            accent="blue"
-          />
-          <DashboardStatsCard
-            title="Units"
-            :value="stats.units"
-            description="Total units"
-            icon="heroicons:building-office"
-            accent="violet"
-          />
-          <DashboardStatsCard
-            title="Members"
-            :value="stats.members"
-            description="Owners & Tenants"
-            icon="heroicons:users"
-            accent="emerald"
-          />
-          <DashboardStatsCard
-            title="Emails Sent"
-            :value="emailStats.sent"
-            description="Communications sent"
-            icon="heroicons:envelope"
-            accent="amber"
-          />
-        </div>
-
-        <!-- Charts Row -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Owners vs Tenants Chart -->
-          <DashboardMembershipDonutChart
-            :owners="memberBreakdown.owners"
-            :tenants="memberBreakdown.tenants"
-          />
-
-          <!-- Activity Timeline -->
-          <DashboardActivityTimelineChart :data="activityData" />
-
-          <!-- Email Activity -->
-          <DashboardEmailActivityChart :data="emailActivityData" />
-        </div>
-
-        <!-- Email Engagement Stats (from real-time Directus data) -->
-        <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.totalSent }}</p>
-            <p class="text-xs t-text-muted mt-0.5">Total Sent</p>
-          </div>
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums text-emerald-600">{{ emailEngagementStats.totalDelivered }}</p>
-            <p class="text-xs t-text-muted mt-0.5">Delivered</p>
-          </div>
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueOpens }}</p>
-            <p class="text-xs t-text-muted mt-0.5">Unique Opens</p>
-          </div>
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueClicks }}</p>
-            <p class="text-xs t-text-muted mt-0.5">Unique Clicks</p>
-          </div>
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.openRate }}%</p>
-            <p class="text-xs t-text-muted mt-0.5">Open Rate</p>
-          </div>
-          <div class="ios-card p-4 text-center">
-            <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.clickRate }}%</p>
-            <p class="text-xs t-text-muted mt-0.5">Click Rate</p>
-          </div>
-        </div>
-
-        <!-- Content Row -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Recent Documents -->
-          <div class="ios-card p-5 flex flex-col">
-            <h3 class="font-semibold t-text mb-3">Recent Documents</h3>
-            <div v-if="documents?.length" class="space-y-1 flex-1">
-              <NuxtLink
-                v-for="doc in documents"
-                :key="doc.id"
-                :to="buildOrgPath(`/documents/${doc.id}`)"
-                class="block px-3 py-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
-              >
-                <p class="font-medium t-text truncate">{{ doc.title }}</p>
-                <p class="text-sm t-text-muted truncate">{{ doc.document_category?.name }}</p>
-              </NuxtLink>
+          <TabsContent value="overview" class="space-y-4 mt-0">
+            <!-- Edit toolbar — toggle the iOS-home-screen-style customization -->
+            <div class="flex items-center justify-between">
+              <p class="text-sm t-text-muted">
+                {{ isEditing ? "Drag cards to rearrange, or use the arrows. Tap × to remove." : "Your dashboard, your way." }}
+              </p>
+              <Button variant="outline" size="sm" class="rounded-full" @click="toggleEdit">
+                <Icon :name="isEditing ? 'lucide:check' : 'lucide:layout-grid'" class="w-4 h-4 mr-1.5" />
+                {{ isEditing ? "Done" : "Customize" }}
+              </Button>
             </div>
-            <p v-else class="t-text-muted py-4 text-center flex-1">No documents yet</p>
-            <Button
-              @click="navigateToOrg('/documents')"
-              variant="outline"
-              class="w-full mt-3 rounded-full"
-            >
-              View All Documents
-            </Button>
-          </div>
 
-          <!-- Recent Emails -->
-          <DashboardRecentEmailsList :emails="emails || []" />
-        </div>
+            <ClientOnly>
+              <template #fallback>
+                <div class="flex items-center justify-center min-h-[300px]">
+                  <div class="spinner-ios" />
+                </div>
+              </template>
 
-        <!-- Channel Activity (if channels exist) -->
-        <div v-if="channelData.length > 0" class="grid grid-cols-1 gap-4">
-          <DashboardChannelActivityChart :data="channelData" />
-        </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <DashboardWidgetCard
+                  v-for="(w, i) in visibleWidgets"
+                  :key="w.key"
+                  :widget="w"
+                  :editing="isEditing"
+                  :is-first="i === 0"
+                  :is-last="i === visibleWidgets.length - 1"
+                  @hide="hideWidget"
+                  @move="moveWidget"
+                  @reorder="reorderWidget"
+                >
+                  <!-- Quick Actions -->
+                  <div v-if="w.key === 'quick-actions'" class="ios-card p-5">
+                    <h3 class="font-semibold t-text mb-3">Quick Actions</h3>
+                    <div class="flex flex-wrap gap-2">
+                      <Button @click="navigateToOrg('/admin/documents/upload')" class="rounded-full">
+                        <Icon name="heroicons:arrow-up-tray" class="h-4 w-4 mr-2" />
+                        Upload Document
+                      </Button>
+                      <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
+                        <Icon name="heroicons:user-plus" class="h-4 w-4 mr-2" />
+                        Invite Member
+                      </Button>
+                      <Button @click="navigateToOrg('/admin/communications/compose')" variant="outline" class="rounded-full">
+                        <Icon name="heroicons:envelope" class="h-4 w-4 mr-2" />
+                        Send Email
+                      </Button>
+                      <Button @click="navigateToOrg('/admin/units')" variant="outline" class="rounded-full">
+                        <Icon name="heroicons:building-office" class="h-4 w-4 mr-2" />
+                        Manage Units
+                      </Button>
+                      <Button @click="navigateToOrg('/admin/settings')" variant="outline" class="rounded-full">
+                        <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
+                        Settings
+                      </Button>
+                    </div>
+                  </div>
 
-        <!-- Quick Actions -->
-        <div class="ios-card p-5">
-          <h3 class="font-semibold t-text mb-3">Quick Actions</h3>
-          <div class="flex flex-wrap gap-2">
-            <Button @click="navigateToOrg('/admin/documents/upload')" class="rounded-full">
-              <Icon name="heroicons:arrow-up-tray" class="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
-            <Button @click="navigateToOrg('/admin/units')" variant="outline" class="rounded-full">
-              <Icon name="heroicons:building-office" class="h-4 w-4 mr-2" />
-              Manage Units
-            </Button>
-            <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
-              <Icon name="heroicons:user-plus" class="h-4 w-4 mr-2" />
-              Invite Member
-            </Button>
-            <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
-              <Icon name="heroicons:users" class="h-4 w-4 mr-2" />
-              Manage Members
-            </Button>
-            <Button @click="navigateToOrg('/admin/communications/compose')" variant="outline" class="rounded-full">
-              <Icon name="heroicons:envelope" class="h-4 w-4 mr-2" />
-              Send Email
-            </Button>
-            <Button @click="navigateToOrg('/admin/settings/organization')" variant="outline" class="rounded-full">
-              <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
+                  <!-- Key Stats -->
+                  <div v-else-if="w.key === 'stats'" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <DashboardStatsCard title="Documents" :value="stats.documents" description="Published documents" icon="heroicons:document-text" accent="blue" />
+                    <DashboardStatsCard title="Units" :value="stats.units" description="Total units" icon="heroicons:building-office" accent="violet" />
+                    <DashboardStatsCard title="Members" :value="stats.members" description="Owners & Tenants" icon="heroicons:users" accent="emerald" />
+                    <DashboardStatsCard title="Emails Sent" :value="emailStats.sent" description="Communications sent" icon="heroicons:envelope" accent="amber" />
+                  </div>
+
+                  <!-- Owners vs Tenants -->
+                  <DashboardMembershipDonutChart
+                    v-else-if="w.key === 'members-donut'"
+                    :owners="memberBreakdown.owners"
+                    :tenants="memberBreakdown.tenants"
+                  />
+
+                  <!-- Activity Timeline -->
+                  <DashboardActivityTimelineChart v-else-if="w.key === 'activity-timeline'" :data="activityData" />
+
+                  <!-- Email Activity -->
+                  <DashboardEmailActivityChart v-else-if="w.key === 'email-activity'" :data="emailActivityData" />
+
+                  <!-- Email Engagement -->
+                  <div v-else-if="w.key === 'email-engagement'">
+                    <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.totalSent }}</p>
+                        <p class="text-xs t-text-muted mt-0.5">Total Sent</p>
+                      </div>
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums text-emerald-600">{{ emailEngagementStats.totalDelivered }}</p>
+                        <p class="text-xs t-text-muted mt-0.5">Delivered</p>
+                      </div>
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueOpens }}</p>
+                        <p class="text-xs t-text-muted mt-0.5">Unique Opens</p>
+                      </div>
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.uniqueClicks }}</p>
+                        <p class="text-xs t-text-muted mt-0.5">Unique Clicks</p>
+                      </div>
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.openRate }}%</p>
+                        <p class="text-xs t-text-muted mt-0.5">Open Rate</p>
+                      </div>
+                      <div class="ios-card p-4 text-center">
+                        <p class="text-2xl font-semibold tabular-nums t-text">{{ emailEngagementStats.clickRate }}%</p>
+                        <p class="text-xs t-text-muted mt-0.5">Click Rate</p>
+                      </div>
+                    </div>
+                    <div v-else class="ios-card p-5 text-center t-text-muted">
+                      No email engagement data yet — send a campaign to see opens and clicks here.
+                    </div>
+                  </div>
+
+                  <!-- Recent Documents -->
+                  <div v-else-if="w.key === 'recent-documents'" class="ios-card p-5 flex flex-col h-full">
+                    <h3 class="font-semibold t-text mb-3">Recent Documents</h3>
+                    <div v-if="documents?.length" class="space-y-1 flex-1">
+                      <NuxtLink
+                        v-for="doc in documents"
+                        :key="doc.id"
+                        :to="buildOrgPath(`/documents/${doc.id}`)"
+                        class="block px-3 py-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+                      >
+                        <p class="font-medium t-text truncate">{{ doc.title }}</p>
+                        <p class="text-sm t-text-muted truncate">{{ doc.document_category?.name }}</p>
+                      </NuxtLink>
+                    </div>
+                    <p v-else class="t-text-muted py-4 text-center flex-1">No documents yet</p>
+                    <Button @click="navigateToOrg('/documents')" variant="outline" class="w-full mt-3 rounded-full">
+                      View All Documents
+                    </Button>
+                  </div>
+
+                  <!-- Recent Emails -->
+                  <DashboardRecentEmailsList v-else-if="w.key === 'recent-emails'" :emails="emails || []" />
+
+                  <!-- Channels -->
+                  <div v-else-if="w.key === 'channels'" class="ios-card p-5 flex flex-col">
+                    <div class="flex items-center justify-between mb-3">
+                      <h3 class="font-semibold t-text">Channels</h3>
+                      <Button variant="ghost" size="sm" class="rounded-full" @click="channelsPanel.open()">
+                        <Icon name="lucide:messages-square" class="w-4 h-4 mr-1.5" />
+                        Open chat
+                      </Button>
+                    </div>
+                    <div v-if="topChannels.length" class="space-y-1 flex-1">
+                      <NuxtLink
+                        v-for="ch in topChannels"
+                        :key="ch.id"
+                        :to="buildOrgPath(`/admin/channels/${ch.slug}`)"
+                        class="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+                      >
+                        <Icon name="lucide:hash" class="w-4 h-4 t-text-muted shrink-0" />
+                        <span class="font-medium t-text truncate">{{ ch.name }}</span>
+                      </NuxtLink>
+                    </div>
+                    <p v-else class="t-text-muted py-4 text-center flex-1">No channels yet</p>
+                  </div>
+                </DashboardWidgetCard>
+              </div>
+
+              <!-- Add-widget tray (edit mode) -->
+              <DashboardWidgetGallery
+                v-if="isEditing"
+                :hidden="hiddenWidgets"
+                class="mt-4"
+                @add="showWidget"
+                @reset="resetWidgets"
+              />
+            </ClientOnly>
           </TabsContent>
 
           <!-- Building feed tab -->

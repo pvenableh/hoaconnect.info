@@ -147,7 +147,7 @@ export function useAppNav() {
     { key: "dashboard", label: "Dashboard", shortName: "Dash", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
-    { key: "files", label: "Files", shortName: "Files", icon: "folder", path: "/admin/files", match: ["/admin/files"] },
+    { key: "files", label: "Storage", shortName: "Files", icon: "folder", path: "/admin/files", match: ["/admin/files"] },
     { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
     { key: "directory", label: "Directory", shortName: "People", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/units"] },
     { key: "requests", label: "Requests", shortName: "Tickets", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests", "/requests"] },
@@ -155,6 +155,9 @@ export function useAppNav() {
     { key: "payments", label: "Finances", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
     { key: "moderation", label: "Moderation", shortName: "Mod", icon: "shield-alert", path: "/admin/moderation", match: ["/admin/moderation"] },
     { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email"] },
+    // Settings is a core app (never module-toggled) — keep it last so the dock
+    // always ends with a way into org configuration / public site / billing.
+    { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },
   ];
 
   const MEMBER_APPS: AppDef[] = [
