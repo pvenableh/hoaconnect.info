@@ -47,6 +47,11 @@ export interface LandingListing {
   image?: string | null; // Directus file id
 }
 
+export interface LandingFaqItem {
+  question: string;
+  answer: string;
+}
+
 export interface LandingInquiryConfig {
   enabled: boolean;
   recipient_type: InquiryRecipientType;
@@ -59,10 +64,87 @@ export interface LandingGeo {
   lon: number;
 }
 
+// ---------------------------------------------------------------------------
+// Unified content blocks — the admin-orderable list of landing sections.
+//
+// Each block is either a BUILT-IN (positions/toggles a feature whose data lives
+// elsewhere: amenities/board/contact read org data, listings/faq read the
+// cfg.listings/cfg.faq arrays, about reads settings.description) or a flexible
+// "content" block that carries its own editorial copy + imagery. One list, fully
+// reorderable, mirroring the bespoke 1033lenox.com index page.
+// ---------------------------------------------------------------------------
+
+export type LandingBlockType =
+  | "about"
+  | "content"
+  | "amenities"
+  | "listings"
+  | "faq"
+  | "board"
+  | "contact";
+
+/** Built-in block types carry no data of their own (data lives elsewhere). */
+export const BUILTIN_BLOCK_TYPES: LandingBlockType[] = [
+  "about",
+  "amenities",
+  "listings",
+  "faq",
+  "board",
+  "contact",
+];
+
+export type ContentLayout =
+  | "text-image"
+  | "image-text"
+  | "image-grid"
+  | "stats"
+  | "gallery";
+
+export const CONTENT_LAYOUTS: ContentLayout[] = [
+  "text-image",
+  "image-text",
+  "image-grid",
+  "stats",
+  "gallery",
+];
+
+export interface LandingImage {
+  file: string | null; // Directus file id
+  caption_title?: string;
+  caption_body?: string;
+  fit?: "cover" | "contain";
+}
+
+export interface LandingStat {
+  value: string;
+  unit?: string;
+  label: string;
+}
+
+export interface LandingBlock {
+  id: string; // stable key for reorder
+  type: LandingBlockType;
+  enabled: boolean;
+  // content-only fields:
+  layout?: ContentLayout;
+  number_label?: string; // "01"
+  category?: string; // "Philosophy"
+  eyebrow?: string;
+  title?: string;
+  body?: string;
+  tagline?: string;
+  images?: LandingImage[];
+  stats?: LandingStat[];
+}
+
 export interface LandingConfig {
   widgets: LandingWidgetPref[];
   places: LandingPlaces;
   listings: LandingListing[];
+  /** Frequently-asked questions, rendered as an editorial accordion section. */
+  faq: LandingFaqItem[];
+  /** The ordered, admin-controlled list of landing sections. */
+  blocks: LandingBlock[];
   inquiry: LandingInquiryConfig;
   geo?: LandingGeo | null;
   /** Opt-in: surface recent sent announcements on the public landing. Off by
@@ -134,11 +216,30 @@ export function defaultLandingWidgets(): LandingWidgetPref[] {
   return LANDING_WIDGET_REGISTRY.map((w) => ({ key: w.key, enabled: true }));
 }
 
+/**
+ * Default block order — reproduces the landing's historical fixed sequence so
+ * existing orgs (whose `blocks` is absent until first save) render unchanged.
+ */
+export function defaultLandingBlocks(): LandingBlock[] {
+  return (["about", "amenities", "listings", "faq", "board", "contact"] as LandingBlockType[]).map(
+    (type) => ({ id: `b_${type}`, type, enabled: true })
+  );
+}
+
+/** Stable-ish id for a freshly-added block (no Date/Math.random — keep it pure). */
+let _blockSeq = 0;
+export function newBlockId(): string {
+  _blockSeq += 1;
+  return `b_${_blockSeq}_${_blockSeq * 2654435761 % 100000}`;
+}
+
 export function defaultLandingConfig(): LandingConfig {
   return {
     widgets: defaultLandingWidgets(),
     places: { neighborhood: "", walk_score: null, bike_score: null, items: [] },
     listings: [],
+    faq: [],
+    blocks: defaultLandingBlocks(),
     inquiry: { enabled: true, recipient_type: "email", email: null, user: null },
     geo: null,
     show_announcements: false,
@@ -198,6 +299,20 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
         }))
     : [];
 
+  const faq: LandingFaqItem[] = Array.isArray(r.faq)
+    ? r.faq
+        .filter((f: any) => f && f.question && f.answer)
+        .map((f: any) => ({ question: String(f.question), answer: String(f.answer) }))
+    : [];
+
+  // Blocks: coerce each stored block; fall back to the historical default order
+  // when none are stored so existing orgs render exactly as before.
+  const blocks: LandingBlock[] = Array.isArray(r.blocks) && r.blocks.length
+    ? r.blocks
+        .filter((b: any) => b && ALL_BLOCK_TYPES.includes(b.type))
+        .map((b: any, i: number) => normalizeBlock(b, i))
+    : defaultLandingBlocks();
+
   const inquiry: LandingInquiryConfig = {
     enabled: r.inquiry?.enabled !== false,
     recipient_type: r.inquiry?.recipient_type === "user" ? "user" : "email",
@@ -210,12 +325,66 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
       ? { lat: Number(r.geo.lat), lon: Number(r.geo.lon) }
       : null;
 
-  return { widgets, places, listings, inquiry, geo, show_announcements: r.show_announcements === true };
+  return { widgets, places, listings, faq, blocks, inquiry, geo, show_announcements: r.show_announcements === true };
+}
+
+const ALL_BLOCK_TYPES: LandingBlockType[] = [
+  "about",
+  "content",
+  "amenities",
+  "listings",
+  "faq",
+  "board",
+  "contact",
+];
+
+/** Coerce one stored block into a complete LandingBlock. */
+function normalizeBlock(b: any, index: number): LandingBlock {
+  const type: LandingBlockType = ALL_BLOCK_TYPES.includes(b.type) ? b.type : "content";
+  const block: LandingBlock = {
+    id: b.id ? String(b.id) : `b_${type}_${index}`,
+    type,
+    enabled: b.enabled !== false,
+  };
+  if (type !== "content") return block;
+
+  block.layout = CONTENT_LAYOUTS.includes(b.layout) ? b.layout : "text-image";
+  block.number_label = b.number_label ? String(b.number_label) : "";
+  block.category = b.category ? String(b.category) : "";
+  block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";
+  block.title = b.title ? String(b.title) : "";
+  block.body = b.body ? String(b.body) : "";
+  block.tagline = b.tagline ? String(b.tagline) : "";
+  block.images = Array.isArray(b.images)
+    ? b.images
+        .filter((im: any) => im && (im.file || im.caption_title || im.caption_body))
+        .map((im: any) => ({
+          file: im.file || null,
+          caption_title: im.caption_title ? String(im.caption_title) : undefined,
+          caption_body: im.caption_body ? String(im.caption_body) : undefined,
+          fit: im.fit === "contain" ? "contain" : "cover",
+        }))
+    : [];
+  block.stats = Array.isArray(b.stats)
+    ? b.stats
+        .filter((s: any) => s && (s.value || s.label))
+        .map((s: any) => ({
+          value: String(s.value ?? ""),
+          unit: s.unit ? String(s.unit) : undefined,
+          label: String(s.label ?? ""),
+        }))
+    : [];
+  return block;
 }
 
 /** The enabled widget keys, in display order. */
 export function enabledLandingWidgets(cfg: LandingConfig): LandingWidgetKey[] {
   return cfg.widgets.filter((w) => w.enabled).map((w) => w.key);
+}
+
+/** The enabled blocks, in display order. */
+export function enabledLandingBlocks(cfg: LandingConfig): LandingBlock[] {
+  return (cfg.blocks || []).filter((b) => b.enabled);
 }
 
 function numOrNull(v: any): number | null {

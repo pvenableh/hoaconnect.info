@@ -13,6 +13,7 @@
  */
 import type { MaybeRefOrGetter } from "vue";
 import { orgMemberNoun } from "~~/shared/utils/terminology";
+import { normalizeLandingConfig, enabledLandingBlocks } from "~~/shared/utils/landing";
 
 export interface LandingNavLink {
   label: string;
@@ -34,6 +35,7 @@ export interface UseLandingNavOptions {
   user?: MaybeRefOrGetter<any>;
   hasAmenities?: MaybeRefOrGetter<boolean | undefined>;
   hasListings?: MaybeRefOrGetter<boolean | undefined>;
+  hasFaq?: MaybeRefOrGetter<boolean | undefined>;
 }
 
 // Resident-portal sections, shown LOCKED. Filtered to the modules the org has
@@ -54,9 +56,6 @@ export function useLandingNav(opts: UseLandingNavOptions) {
   const organization = computed(() => toValue(opts.organization));
   const slug = computed(() => toValue(opts.slug));
   const user = computed(() => toValue(opts.user));
-  const hasAmenities = computed(() => !!toValue(opts.hasAmenities));
-  const hasListings = computed(() => !!toValue(opts.hasListings));
-
   const isSignedIn = computed(() => !!user.value);
   const memberNoun = computed(() => orgMemberNoun(organization.value?.type));
 
@@ -64,14 +63,31 @@ export function useLandingNav(opts: UseLandingNavOptions) {
   // to request access.
   const lockHref = computed(() => (isSignedIn.value ? `/${slug.value}/request-join` : "/auth/login"));
 
-  // Public landing anchors.
+  // Public landing anchors — built FROM the admin's ordered block list so the
+  // nav mirrors the page (including custom content sections). Each built-in
+  // anchor only shows when its data is present; content anchors need a label.
+  const landingCfg = computed(() => normalizeLandingConfig(organization.value?.settings?.landing));
+  const amenitiesPresent = computed(
+    () =>
+      (Array.isArray(organization.value?.amenities) && organization.value.amenities.length > 0) ||
+      !!toValue(opts.hasAmenities)
+  );
   const exploreLinks = computed<LandingNavLink[]>(() => {
     const out: LandingNavLink[] = [{ label: "Home", icon: "lucide:home", href: "#top" }];
-    if (hasAmenities.value) out.push({ label: "Amenities", icon: "lucide:sparkles", href: "#amenities" });
-    if (hasListings.value) out.push({ label: "Listings", icon: "lucide:home", href: "#listings" });
-    if (organization.value?.show_board !== false)
-      out.push({ label: "Board", icon: "lucide:users", to: `/${slug.value}/board` });
-    out.push({ label: "Contact", icon: "lucide:mail", href: "#contact" });
+    for (const b of enabledLandingBlocks(landingCfg.value)) {
+      if (b.type === "amenities" && amenitiesPresent.value)
+        out.push({ label: "Amenities", icon: "lucide:sparkles", href: "#amenities" });
+      else if (b.type === "listings" && landingCfg.value.listings.length)
+        out.push({ label: "Listings", icon: "lucide:home", href: "#listings" });
+      else if (b.type === "faq" && landingCfg.value.faq.length)
+        out.push({ label: "FAQ", icon: "lucide:circle-help", href: "#faq" });
+      else if (b.type === "board" && organization.value?.show_board !== false)
+        out.push({ label: "Board", icon: "lucide:users", to: `/${slug.value}/board` });
+      else if (b.type === "contact")
+        out.push({ label: "Contact", icon: "lucide:mail", href: "#contact" });
+      else if (b.type === "content" && (b.title || b.category))
+        out.push({ label: (b.category || b.title) as string, icon: "lucide:bookmark", href: `#${b.id}` });
+    }
     return out;
   });
 

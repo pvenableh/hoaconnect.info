@@ -39,38 +39,38 @@
 ============================================================================= */
 :root,
 .theme-classic-light {
-	/* Background colors - editorial cream paper (GreaterOps editorial) */
-	--theme-bg-primary: #F7F3EA;
-	--theme-bg-secondary: #F1ECE0;
-	--theme-bg-tertiary: #EAE3D4;
-	--theme-bg-elevated: #FFFDF8;
-	--theme-bg-overlay: rgba(247, 243, 234, 0.95);
+	/* Background colors - warm cream paper (matched to 1033lenox.com) */
+	--theme-bg-primary: #fdfcfa;
+	--theme-bg-secondary: #f5f3ef;
+	--theme-bg-tertiary: #ede9e3;
+	--theme-bg-elevated: #ffffff;
+	--theme-bg-overlay: rgba(253, 252, 250, 0.95);
 
 	/* Text colors - ink */
-	--theme-text-primary: #1C1A16;
-	--theme-text-secondary: #4A463E;
-	--theme-text-tertiary: #8A8475;
-	--theme-text-muted: #8A8475;
-	--theme-text-inverse: #FFFDF8;
+	--theme-text-primary: #454545;
+	--theme-text-secondary: #6c6c6c;
+	--theme-text-tertiary: #8b7355;
+	--theme-text-muted: #9a9a9a;
+	--theme-text-inverse: #ffffff;
 
-	/* Accent colors - terracotta */
-	--theme-accent-primary: #B14D2B;
-	--theme-accent-secondary: #C76A47;
-	--theme-accent-tertiary: #8A8475;
-	--theme-accent-hover: #9A4225;
-	--theme-accent-active: #B14D2B;
+	/* Accent colors - aged brass / gold (matched to 1033lenox.com) */
+	--theme-accent-primary: #c9a96e;
+	--theme-accent-secondary: #d4ba8a;
+	--theme-accent-tertiary: #8b7355;
+	--theme-accent-hover: #b89a5f;
+	--theme-accent-active: var(--cyan2, #00d4aa);
 
 	/* Border colors - editorial hairline rules */
-	--theme-border-primary: #D9D1C0;
-	--theme-border-secondary: #C4BAA4;
-	--theme-border-light: #E8E0D0;
+	--theme-border-primary: #e5e0d8;
+	--theme-border-secondary: #d4cfc7;
+	--theme-border-light: #f0ebe3;
 
 	/* Component-specific */
-	--theme-header-bg: #F1ECE0;
-	--theme-footer-bg: #F7F3EA;
-	--theme-card-bg: #FFFDF8;
-	--theme-nav-bg: rgba(247, 243, 234, 0.85);
-	--theme-drawer-bg: rgba(255, 253, 248, 0.92);
+	--theme-header-bg: #f5f3ef;
+	--theme-footer-bg: #fdfcfa;
+	--theme-card-bg: #ffffff;
+	--theme-nav-bg: rgba(255, 255, 255, 0.85);
+	--theme-drawer-bg: rgba(255, 255, 255, 0.92);
 
 	/* Typography - editorial serif display + serif body */
 	--theme-heading-font: 'Bauer Bodoni Pro_1 W05 Roman', 'Times New Roman', Times, serif;
@@ -82,15 +82,15 @@
 	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
 
 	/* Interactive */
-	--theme-link-color: #B14D2B;
-	--theme-link-hover: #9A4225;
-	--theme-button-bg: #B14D2B;
-	--theme-button-text: #FFFDF8;
-	--theme-button-hover-bg: #9A4225;
+	--theme-link-color: #8b7355;
+	--theme-link-hover: #c9a96e;
+	--theme-button-bg: #c9a96e;
+	--theme-button-text: #ffffff;
+	--theme-button-hover-bg: #b89a5f;
 
 	/* Dividers */
-	--theme-divider: #D9D1C0;
-	--theme-divider-light: #E8E0D0;
+	--theme-divider: #e5e0d8;
+	--theme-divider-light: #f0ebe3;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
