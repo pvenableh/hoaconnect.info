@@ -330,6 +330,40 @@ html.theme-modern-dark .glass-widget {
 	background: var(--theme-accent-hover);
 }
 
+/* Collapse / expand toggle (sits top of the rail) */
+.landing-sidebar__toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 9999px;
+	color: var(--theme-text-secondary);
+	border: 1px solid var(--theme-border-primary);
+	background: transparent;
+	transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.landing-sidebar__toggle:hover {
+	color: var(--theme-text-primary);
+	border-color: var(--theme-accent-primary);
+}
+
+/* Collapsed-rail icon login button */
+.landing-sidebar__icon-cta {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border-radius: 9999px;
+	background: var(--theme-accent-primary);
+	color: var(--theme-text-inverse);
+	transition: background 0.25s ease;
+}
+.landing-sidebar__icon-cta:hover {
+	background: var(--theme-accent-hover);
+}
+
 /* =============================================================================
    MODERN DOCK — floating frosted macOS-style dock, icons magnify on hover
 ============================================================================= */
