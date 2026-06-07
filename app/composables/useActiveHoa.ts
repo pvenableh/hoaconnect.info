@@ -49,11 +49,25 @@ export const useActiveHoa = () => {
     isMainDomain.value = true;
   };
 
+  /**
+   * Shallow-merge fresh fields into the cached active org so anything reading
+   * `activeHoa` (the dock, nav, module gates) updates without a route change or
+   * reload. No-op when no org is loaded; ignored when `patch.id` names a
+   * different org than the one in context. Pass only the fields you changed —
+   * merging a whole settings-page payload could clobber server-side expansions.
+   */
+  const patchActiveHoa = (patch: Record<string, any> | null | undefined) => {
+    if (!patch || !activeHoa.value) return;
+    if (patch.id && activeHoa.value.id && patch.id !== activeHoa.value.id) return;
+    activeHoa.value = { ...activeHoa.value, ...patch };
+  };
+
   return {
     activeHoa: computed(() => activeHoa.value),
     isMainDomain: computed(() => isMainDomain.value),
     isLoading: computed(() => isLoading.value),
     fetchActiveHoa,
     clearActiveHoa,
+    patchActiveHoa,
   };
 };

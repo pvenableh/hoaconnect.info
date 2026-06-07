@@ -17,11 +17,21 @@
 
       <template v-else-if="organization">
         <!-- Page Header -->
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold">Organization Settings</h1>
-          <p class="text-muted-foreground mt-2">
-            Manage your organization's information, branding, and subscription
-          </p>
+        <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 class="text-3xl font-bold">Organization Settings</h1>
+            <p class="text-muted-foreground mt-2">
+              Manage your organization's information, branding, and subscription
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            class="rounded-full"
+            @click="navigateToOrg('/admin/settings/domains')"
+          >
+            <Icon name="lucide:globe" class="h-4 w-4 mr-2" />
+            Edit public site
+          </Button>
         </div>
 
         <!-- Settings Tabs -->
@@ -115,6 +125,7 @@ import {
 } from "@/components/ui/tabs";
 
 const { navigateToOrg } = useOrgNavigation();
+const { patchActiveHoa } = useActiveHoa();
 
 // Track client-side hydration
 const isHydrated = ref(false);
@@ -194,6 +205,15 @@ watch(
 // Handle organization update
 const handleOrganizationUpdate = async (updatedOrg: HoaOrganization) => {
   organization.value = updatedOrg;
+  // Keep the dock / nav / module gates (which read activeHoa) in sync without a
+  // reload — push just the nav-relevant fields that can change here.
+  patchActiveHoa({
+    id: updatedOrg.id,
+    modules: (updatedOrg as any).modules,
+    show_board: (updatedOrg as any).show_board,
+    maintenance_mode: (updatedOrg as any).maintenance_mode,
+    name: updatedOrg.name,
+  });
   toast.success("Organization settings saved");
 };
 

@@ -14,9 +14,14 @@ import {
   normalizeLandingConfig,
   defaultLandingConfig,
   LANDING_WIDGET_REGISTRY,
+  BUILTIN_BLOCK_TYPES,
+  CONTENT_LAYOUTS,
+  newBlockId,
   type LandingConfig,
   type LandingWidgetKey,
   type ListingType,
+  type LandingBlock,
+  type LandingBlockType,
 } from "~~/shared/utils/landing";
 
 const route = useRoute();
@@ -35,7 +40,7 @@ const { upload: uploadFile } = useDirectusFiles();
 
 const org = ref<any>(null);
 const loading = ref(true);
-const activeTab = ref("content");
+const activeTab = ref("sections");
 
 const WIDGET_DEFS = LANDING_WIDGET_REGISTRY;
 const widgetLabel = (k: LandingWidgetKey) => WIDGET_DEFS.find((w) => w.key === k);
@@ -341,6 +346,88 @@ const onListingImage = async (i: number, e: Event) => {
   }
 };
 
+// FAQ
+const addFaq = () => landing.value.faq.push({ question: "", answer: "" });
+const removeFaq = (i: number) => landing.value.faq.splice(i, 1);
+const moveFaq = (i: number, dir: -1 | 1) => {
+  const j = i + dir;
+  const arr = landing.value.faq;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+};
+
+// ---- Sections (the unified, ordered block list) ----
+const BLOCK_META: Record<LandingBlockType, { label: string; icon: string; hint: string }> = {
+  about: { label: "About", icon: "lucide:text", hint: "Text lives in the Content tab (Description)." },
+  content: { label: "Custom section", icon: "lucide:layout-template", hint: "" },
+  amenities: { label: "Amenities", icon: "lucide:sparkles", hint: "Amenities are edited in the Content tab." },
+  listings: { label: "Listings", icon: "lucide:home", hint: "Listings are edited in the Listings tab." },
+  faq: { label: "FAQ", icon: "lucide:circle-help", hint: "Questions are edited in the FAQ tab." },
+  board: { label: "Board", icon: "lucide:users", hint: "Roster lives under Members; toggle visibility here." },
+  contact: { label: "Contact", icon: "lucide:mail", hint: "Phone/email are edited in the Content tab." },
+};
+const LAYOUT_LABELS: Record<string, string> = {
+  "text-image": "Text + image (image right)",
+  "image-text": "Image + text (image left)",
+  "image-grid": "Image grid",
+  stats: "Stat band",
+  gallery: "Gallery / marquee",
+};
+
+const blockTitle = (b: LandingBlock) =>
+  b.type === "content" ? b.title || "Custom section" : BLOCK_META[b.type].label;
+const blockSubtitle = (b: LandingBlock) =>
+  b.type === "content" ? LAYOUT_LABELS[b.layout || "text-image"] : BLOCK_META[b.type].hint;
+
+const missingBuiltins = computed(() =>
+  BUILTIN_BLOCK_TYPES.filter((t) => !landing.value.blocks.some((b) => b.type === t))
+);
+
+const addContentBlock = () =>
+  landing.value.blocks.push({
+    id: newBlockId(),
+    type: "content",
+    enabled: true,
+    layout: "text-image",
+    number_label: "",
+    category: "",
+    eyebrow: "",
+    title: "",
+    body: "",
+    tagline: "",
+    images: [],
+    stats: [],
+  });
+const addBuiltinBlock = (type: LandingBlockType) =>
+  landing.value.blocks.push({ id: `b_${type}`, type, enabled: true });
+const removeBlock = (i: number) => landing.value.blocks.splice(i, 1);
+const moveBlock = (i: number, dir: -1 | 1) => {
+  const j = i + dir;
+  const arr = landing.value.blocks;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+};
+
+const onBlockImage = async (b: LandingBlock, e: Event) => {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  if (!f) return;
+  try {
+    const folderId =
+      typeof org.value?.folder === "object" ? org.value?.folder?.id : org.value?.folder;
+    const up: any = await uploadFile(f, { title: "Section image", folder: folderId || undefined });
+    if (!Array.isArray(b.images)) b.images = [];
+    b.images.push({ file: up?.id || null, caption_title: "", caption_body: "", fit: "cover" });
+  } catch {
+    toast.error("Image upload failed");
+  }
+};
+const removeBlockImage = (b: LandingBlock, idx: number) => b.images?.splice(idx, 1);
+const addStat = (b: LandingBlock) => {
+  if (!Array.isArray(b.stats)) b.stats = [];
+  b.stats.push({ value: "", unit: "", label: "" });
+};
+const removeStat = (b: LandingBlock, idx: number) => b.stats?.splice(idx, 1);
+
 // Inquiry recipient picker mode
 const inquiryMode = ref<"email" | "member">("email");
 watch(
@@ -474,9 +561,11 @@ const copy = async (text: string) => {
 };
 
 const tabs = [
+  { id: "sections", label: "Sections", icon: "lucide:layout-list" },
   { id: "content", label: "Content", icon: "lucide:layout-template" },
   { id: "widgets", label: "Widgets", icon: "lucide:layout-grid" },
   { id: "listings", label: "Listings", icon: "lucide:home" },
+  { id: "faq", label: "FAQ", icon: "lucide:circle-help" },
   { id: "inquiries", label: "Inquiries", icon: "lucide:mail" },
   { id: "domain", label: "Domain", icon: "lucide:globe" },
 ];
@@ -521,6 +610,170 @@ useSeoMeta({ title: "Public site" });
             {{ t.label }}
           </TabsTrigger>
         </TabsList>
+
+        <!-- ============================ SECTIONS ============================ -->
+        <TabsContent value="sections" class="space-y-6">
+          <div class="ios-card p-6 space-y-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <h2 class="font-semibold t-text">Page sections</h2>
+                <p class="text-sm t-text-muted mt-0.5">
+                  Add, reorder, and show/hide every section of your landing page. Custom sections let
+                  you write your own copy and add imagery.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" @click="addContentBlock">
+                <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add custom section
+              </Button>
+            </div>
+
+            <div v-if="missingBuiltins.length" class="flex flex-wrap items-center gap-2">
+              <span class="text-xs t-text-muted">Re-add built-in:</span>
+              <button
+                v-for="t in missingBuiltins"
+                :key="t"
+                type="button"
+                class="text-xs rounded-full border t-border px-3 py-1 t-text-secondary hover:t-bg-subtle transition-colors"
+                @click="addBuiltinBlock(t)"
+              >
+                + {{ BLOCK_META[t].label }}
+              </button>
+            </div>
+
+            <div v-if="!landing.blocks.length" class="text-sm t-text-muted">No sections yet.</div>
+
+            <div v-for="(b, i) in landing.blocks" :key="b.id" class="rounded-xl border t-border overflow-hidden">
+              <!-- Row header -->
+              <div class="flex items-center gap-3 p-3">
+                <div class="flex flex-col">
+                  <button class="t-text-muted hover:t-text disabled:opacity-30" :disabled="i === 0" @click="moveBlock(i, -1)">
+                    <Icon name="lucide:chevron-up" class="w-4 h-4" />
+                  </button>
+                  <button class="t-text-muted hover:t-text disabled:opacity-30" :disabled="i === landing.blocks.length - 1" @click="moveBlock(i, 1)">
+                    <Icon name="lucide:chevron-down" class="w-4 h-4" />
+                  </button>
+                </div>
+                <Icon :name="BLOCK_META[b.type].icon" class="w-5 h-5 t-text-accent shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium t-text truncate">{{ blockTitle(b) }}</div>
+                  <div class="text-xs t-text-muted truncate">{{ blockSubtitle(b) }}</div>
+                </div>
+                <Switch v-model="b.enabled" />
+                <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeBlock(i)">
+                  <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                </Button>
+              </div>
+
+              <!-- Custom content editor -->
+              <div v-if="b.type === 'content'" class="border-t t-border p-4 space-y-3 t-bg-subtle">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div class="space-y-1.5">
+                    <Label>Layout</Label>
+                    <select
+                      v-model="b.layout"
+                      class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option v-for="l in CONTENT_LAYOUTS" :key="l" :value="l">{{ LAYOUT_LABELS[l] }}</option>
+                    </select>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label>Number</Label>
+                      <Input v-model="b.number_label" placeholder="01" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Category</Label>
+                      <Input v-model="b.category" placeholder="Philosophy" />
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Eyebrow</Label>
+                  <Input v-model="b.eyebrow" placeholder="Fully renovated — turnkey" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Title</Label>
+                  <Input v-model="b.title" placeholder="The Anti-High-Rise" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Body</Label>
+                  <textarea
+                    v-model="b.body"
+                    rows="4"
+                    placeholder="Write the section copy…"
+                    class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Tagline</Label>
+                  <Input v-model="b.tagline" placeholder="Boutique scale. Big beach lifestyle." />
+                </div>
+
+                <!-- Images (every layout except the stat band) -->
+                <div v-if="b.layout !== 'stats'" class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <Label>Images</Label>
+                    <label class="text-sm t-link cursor-pointer">
+                      <input type="file" accept="image/*" class="hidden" @change="(e) => onBlockImage(b, e)" />
+                      Add image
+                    </label>
+                  </div>
+                  <div v-if="!b.images?.length" class="text-xs t-text-muted">No images yet.</div>
+                  <div v-for="(img, j) in b.images" :key="j" class="flex items-start gap-3 rounded-lg border t-border p-3">
+                    <img v-if="img.file" :src="fileUrl(img.file) || ''" class="h-16 w-24 object-cover rounded shrink-0" />
+                    <div class="flex-1 space-y-2 min-w-0">
+                      <Input v-model="img.caption_title" placeholder="Caption title (optional)" />
+                      <Input v-model="img.caption_body" placeholder="Caption description (optional)" />
+                      <label class="text-xs t-text-muted inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          :checked="img.fit === 'contain'"
+                          @change="img.fit = ($event.target as HTMLInputElement).checked ? 'contain' : 'cover'"
+                        />
+                        Fit whole image (contain) instead of fill
+                      </label>
+                    </div>
+                    <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeBlockImage(b, j)">
+                      <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+
+                <!-- Stats (stat-band layout only) -->
+                <div v-if="b.layout === 'stats'" class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <Label>Stats</Label>
+                    <Button variant="outline" size="sm" @click="addStat(b)">
+                      <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add stat
+                    </Button>
+                  </div>
+                  <div v-if="!b.stats?.length" class="text-xs t-text-muted">No stats yet.</div>
+                  <div v-for="(s, k) in b.stats" :key="k" class="flex items-center gap-2">
+                    <Input v-model="s.value" placeholder="6" class="w-20" />
+                    <Input v-model="s.unit" placeholder="min" class="w-24" />
+                    <Input v-model="s.label" placeholder="Beach" class="flex-1" />
+                    <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(b, k)">
+                      <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Built-in hint -->
+              <div v-else-if="BLOCK_META[b.type].hint" class="border-t t-border px-4 py-2 text-xs t-text-muted">
+                {{ BLOCK_META[b.type].hint }}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <Button class="rounded-full" :disabled="savingLanding" @click="saveLanding">
+              <Icon v-if="savingLanding" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
+              <Icon v-else name="lucide:check" class="w-4 h-4 mr-2" />
+              Save sections
+            </Button>
+          </div>
+        </TabsContent>
 
         <!-- ============================ CONTENT ============================ -->
         <TabsContent value="content" class="space-y-6">
@@ -881,6 +1134,58 @@ useSeoMeta({ title: "Public site" });
               <Icon v-if="savingLanding" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
               <Icon v-else name="lucide:check" class="w-4 h-4 mr-2" />
               Save listings
+            </Button>
+          </div>
+        </TabsContent>
+
+        <!-- ============================ FAQ ============================ -->
+        <TabsContent value="faq" class="space-y-6">
+          <div class="ios-card p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold t-text">Frequently asked questions</h2>
+                <p class="text-sm t-text-muted mt-0.5">
+                  Answer common questions from prospective residents. They appear as an accordion
+                  section on your landing page.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" @click="addFaq">
+                <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add question
+              </Button>
+            </div>
+            <div v-if="!landing.faq.length" class="text-sm t-text-muted">No questions yet.</div>
+            <div v-for="(f, i) in landing.faq" :key="i" class="rounded-xl border t-border p-4 space-y-3">
+              <div class="flex items-start gap-2">
+                <span class="mt-2 text-sm font-medium t-text-muted w-5 text-right">{{ i + 1 }}.</span>
+                <div class="flex-1 space-y-3">
+                  <Input v-model="f.question" placeholder="How do I reserve the rooftop?" />
+                  <textarea
+                    v-model="f.answer"
+                    rows="3"
+                    placeholder="Answer…"
+                    class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === 0" @click="moveFaq(i, -1)">
+                    <Icon name="lucide:chevron-up" class="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === landing.faq.length - 1" @click="moveFaq(i, 1)">
+                    <Icon name="lucide:chevron-down" class="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeFaq(i)">
+                    <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <Button class="rounded-full" :disabled="savingLanding" @click="saveLanding">
+              <Icon v-if="savingLanding" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
+              <Icon v-else name="lucide:check" class="w-4 h-4 mr-2" />
+              Save FAQ
             </Button>
           </div>
         </TabsContent>

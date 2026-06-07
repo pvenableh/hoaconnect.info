@@ -101,6 +101,7 @@ const props = defineProps<{
   user?: any;
   hasAmenities?: boolean;
   hasListings?: boolean;
+  hasFaq?: boolean;
 }>();
 
 const config = useRuntimeConfig();
@@ -121,6 +122,7 @@ const {
   user: () => props.user,
   hasAmenities: () => props.hasAmenities,
   hasListings: () => props.hasListings,
+  hasFaq: () => props.hasFaq,
 });
 
 const logoUrl = computed(() => {

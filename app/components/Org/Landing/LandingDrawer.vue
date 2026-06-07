@@ -136,6 +136,7 @@ const props = defineProps<{
   user?: any;
   hasAmenities?: boolean;
   hasListings?: boolean;
+  hasFaq?: boolean;
 }>();
 
 const open = ref(false);
@@ -147,6 +148,7 @@ const { memberNoun, lockHref, exploreLinks: links, portalLinks } = useLandingNav
   user: () => props.user,
   hasAmenities: () => props.hasAmenities,
   hasListings: () => props.hasListings,
+  hasFaq: () => props.hasFaq,
 });
 
 // Close on Escape.

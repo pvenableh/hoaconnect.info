@@ -19,6 +19,7 @@
       :user="user"
       :has-amenities="hasAmenities"
       :has-listings="hasListings"
+      :has-faq="hasFaq"
     />
 
     <!-- Maintenance Mode Banner for Admins -->
@@ -187,138 +188,18 @@
       </Transition>
     </section>
 
-    <!-- Content Sections -->
+    <!-- Content Sections — admin-ordered, dynamic block list (see LandingBlocks) -->
     <template v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired">
-      <!-- About -->
-      <section
-        v-if="aboutText"
-        class="landing-section py-24 sm:py-36 t-bg"
-      >
-        <div class="container mx-auto px-6">
-          <div class="reveal max-w-3xl mx-auto text-center">
-            <p class="landing-eyebrow mb-5">The Community</p>
-            <h2 class="landing-heading text-4xl sm:text-5xl mb-8">About {{ organization.name }}</h2>
-            <div class="landing-rule mx-auto mb-9" />
-            <p class="landing-dropcap landing-lede text-lg sm:text-xl leading-relaxed text-left sm:text-center">
-              {{ aboutText }}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Amenities -->
-      <section
-        v-if="hasAmenities"
-        id="amenities"
-        class="landing-section py-24 sm:py-36 t-bg-elevated border-t t-border"
-      >
-        <div class="container mx-auto px-6">
-          <div class="max-w-6xl mx-auto">
-            <div class="reveal text-center mb-16">
-              <p class="landing-eyebrow mb-5">Amenities</p>
-              <h2 class="landing-heading text-4xl sm:text-5xl">Life at {{ organization.name }}</h2>
-              <div class="landing-rule mx-auto mt-8" />
-            </div>
-            <div class="reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
-              <div
-                v-for="amenity in organization.amenities"
-                :key="amenity.id"
-                class="text-center"
-              >
-                <Icon
-                  :name="iconName(amenity.icon)"
-                  class="w-7 h-7 mx-auto mb-5"
-                  style="color: var(--theme-accent-primary)"
-                />
-                <h3 class="landing-heading text-2xl mb-2">{{ amenity.title }}</h3>
-                <p class="landing-lede leading-relaxed">{{ amenity.description }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Listings -->
-      <OrgLandingListings :listings="cfg.listings" />
+      <OrgLandingBlocks
+        :organization="organization"
+        :slug="slug"
+        :user="user"
+        :cfg="cfg"
+        @inquire="openInquiry"
+      />
 
       <!-- Community news (opt-in; self-hides) -->
       <OrgLandingAnnouncements :slug="slug" />
-
-      <!-- Board -->
-      <section v-if="organization?.show_board !== false" class="landing-section py-24 sm:py-36 t-bg border-t t-border">
-        <div class="container mx-auto px-6">
-          <div class="reveal max-w-2xl mx-auto text-center">
-            <p class="landing-eyebrow mb-5">Governance</p>
-            <h2 class="landing-heading text-4xl sm:text-5xl">Board of Directors</h2>
-            <div class="landing-rule mx-auto my-8" />
-            <p class="landing-lede text-lg leading-relaxed mb-10">
-              A dedicated group of residents who volunteer their time to guide our community.
-            </p>
-            <NuxtLink
-              :to="`/${slug}/board`"
-              class="inline-flex items-center gap-2 text-[11px] uppercase tracking-ultra-wide t-text hover:opacity-60 transition-opacity"
-            >
-              Meet the board
-              <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
-            </NuxtLink>
-          </div>
-        </div>
-      </section>
-
-      <!-- Contact -->
-      <section id="contact" class="landing-section py-24 sm:py-36 t-bg-elevated border-t t-border">
-        <div class="container mx-auto px-6">
-          <div class="reveal max-w-3xl mx-auto text-center">
-            <p class="landing-eyebrow mb-5">Contact</p>
-            <h2 class="landing-heading text-4xl sm:text-5xl">Get in Touch</h2>
-            <div class="landing-rule mx-auto my-8" />
-            <p class="landing-lede text-lg mb-14">
-              Questions or need assistance? Our community management team is here to help.
-            </p>
-
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-12 sm:gap-20 mb-14">
-              <div v-if="organization?.phone">
-                <p class="landing-eyebrow mb-2">Call</p>
-                <a :href="`tel:${organization.phone}`" class="landing-heading text-2xl hover:t-text-accent transition-colors">
-                  {{ organization.phone }}
-                </a>
-              </div>
-              <div
-                v-if="organization?.phone && organization?.email"
-                class="hidden sm:block w-px h-10"
-                style="background: var(--theme-border-secondary)"
-              />
-              <div v-if="organization?.email">
-                <p class="landing-eyebrow mb-2">Email</p>
-                <a :href="`mailto:${organization.email}`" class="landing-heading text-2xl hover:t-text-accent transition-colors break-all">
-                  {{ organization.email }}
-                </a>
-              </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button v-if="inquiryEnabled" type="button" class="landing-btn" @click="openInquiry('general')">
-                Send an inquiry
-              </button>
-              <NuxtLink v-if="!user" :to="`/${slug}/signup`" class="landing-btn-outline">
-                Become a {{ memberNoun.singular }}
-              </NuxtLink>
-            </div>
-
-            <!-- Map (no API key; shown once coordinates are known) -->
-            <div v-if="osmUrl" class="mt-14 overflow-hidden rounded-2xl border t-border t-shadow-sm">
-              <iframe
-                :src="osmUrl"
-                class="w-full h-72 sm:h-80"
-                style="border: 0"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-                :title="`Map of ${organization?.name || 'the community'}`"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
     </template>
 
     <!-- Inquiry dialog -->
@@ -337,7 +218,7 @@ import { normalizeLandingConfig } from "~~/shared/utils/landing";
 import { orgMemberNoun } from "~~/shared/utils/terminology";
 import OrgLandingNav from "./Landing/LandingNav.vue";
 import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
-import OrgLandingListings from "./Landing/LandingListings.vue";
+import OrgLandingBlocks from "./Landing/LandingBlocks.vue";
 import OrgLandingInquiryForm from "./Landing/LandingInquiryForm.vue";
 import OrgLandingAnnouncements from "./Landing/LandingAnnouncements.vue";
 
@@ -359,29 +240,13 @@ const navVariant = computed(() => (themeStyle.value === "modern" ? "dock" : "edi
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 
-// OpenStreetMap embed for the contact section (no API key), using the geo cached
-// by the weather route. Hidden when we have no coordinates yet.
-const osmUrl = computed(() => {
-  const g = cfg.value.geo;
-  if (!g) return "";
-  const d = 0.008;
-  const bbox = [g.lon - d, g.lat - d, g.lon + d, g.lat + d].join("%2C");
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${g.lat}%2C${g.lon}`;
-});
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
+// Nav anchor gating (the section bodies themselves live in LandingBlocks).
 const hasAmenities = computed(
   () => Array.isArray(props.organization?.amenities) && props.organization.amenities.length > 0
 );
 const hasListings = computed(() => cfg.value.listings.length > 0);
-const aboutText = computed(
-  () => props.organization?.settings?.description || props.organization?.settings?.about || ""
-);
-
-// Tolerate icon names stored without a collection prefix (e.g. "wine" → "lucide:wine").
-const iconName = (name) => {
-  if (!name) return "lucide:sparkles";
-  return name.includes(":") ? name : `lucide:${name}`;
-};
+const hasFaq = computed(() => cfg.value.faq.length > 0);
 
 // Inquiry dialog state
 const inquiryOpen = ref(false);
@@ -391,18 +256,9 @@ const openInquiry = (cat) => {
   inquiryOpen.value = true;
 };
 
+// Hero brand block ref (kept for layout; the 3D mouse-rotation effect was
+// removed at the owner's request for a calmer, print-like hero).
 const heroTitle = ref(null);
-use3DMouseRotation(heroTitle, {
-  orbitalMode: true,
-  intensity: 0.18,
-  maxRotation: 5,
-  ease: 0.12,
-  perspective: 320,
-  enableTranslation: true,
-  orbitalDepth: 50,
-  hoverScale: 1.03,
-  resetOnLeave: true,
-});
 
 const getFileUrl = (file) => {
   if (!file) return "";

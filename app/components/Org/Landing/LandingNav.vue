@@ -19,6 +19,7 @@
         :user="user"
         :has-amenities="hasAmenities"
         :has-listings="hasListings"
+        :has-faq="hasFaq"
       />
     </template>
 
@@ -31,6 +32,7 @@
         :user="user"
         :has-amenities="hasAmenities"
         :has-listings="hasListings"
+        :has-faq="hasFaq"
       />
 
       <!-- Mobile: avatar + hamburger drawer, top-right -->
@@ -42,6 +44,7 @@
           :user="user"
           :has-amenities="hasAmenities"
           :has-listings="hasListings"
+          :has-faq="hasFaq"
         />
       </div>
     </template>
@@ -60,6 +63,7 @@ defineProps<{
   user?: any;
   hasAmenities?: boolean;
   hasListings?: boolean;
+  hasFaq?: boolean;
 }>();
 
 // Drive the variant off the active landing theme. themeStyle is the value that

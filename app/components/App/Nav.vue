@@ -253,6 +253,11 @@ const adminNavItems = computed(() => [
     icon: "contact",
   },
   {
+    label: "Public site",
+    path: buildPath("/admin/settings/domains"),
+    icon: "globe",
+  },
+  {
     label: "Settings",
     path: buildPath("/admin/settings/organization"),
     icon: "settings",
