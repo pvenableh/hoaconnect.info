@@ -10,50 +10,23 @@ const {
   showLabels,
   glassChrome,
   appsFor,
-  CHANNELS_APP,
   accentsForApps,
   activeKeyFor,
   go,
   applyDocumentAccent,
 } = useAppNav();
 
-// Channels is chat — open it as a slide-over panel over the current page rather
-// than navigating to a full-page destination.
-const channelsPanel = useChannelsPanel();
-const onAppClick = (app: AppDef) => {
-  if (app.key === "channels") {
-    channelsPanel.toggle();
-    return;
-  }
-  go(app);
-};
+const onAppClick = (app: AppDef) => go(app);
 
 // Role detection (mirrors App/Nav.vue)
 const { isAdmin } = user.value ? await useSelectedOrg() : { isAdmin: ref(false) };
-const { isAdminOfCurrentDomain, isBoardMemberOfCurrentDomain } = useCurrentDomainAccess();
+const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const isOnOrgPage = computed(() => !!route.params.slug);
 const showAdminUI = computed(() =>
   isOnOrgPage.value ? isAdminOfCurrentDomain.value : isAdmin.value
 );
 
-// Channels is an internal admin/board tool. Admins get it via ADMIN_APPS; board
-// members + channel-invited members otherwise see MEMBER_APPS, so inject it for
-// them (when the org has the module enabled).
-const { isEnabled } = useModules();
-const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
-onMounted(refreshChannelAccess);
-watch(() => route.params.slug, refreshChannelAccess);
-
-const apps = computed(() => {
-  const base = appsFor(showAdminUI.value);
-  const wantChannels =
-    isEnabled("channels") &&
-    (isBoardMemberOfCurrentDomain.value || hasChannelMembership.value);
-  if (wantChannels && !base.some((a) => a.key === "channels")) {
-    return [...base, CHANNELS_APP];
-  }
-  return base;
-});
+const apps = computed(() => appsFor(showAdminUI.value));
 const accents = computed(() => accentsForApps(apps.value, palette.value));
 const activeKey = computed(() => activeKeyFor(apps.value));
 const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeKey.value));
@@ -67,21 +40,22 @@ const badges = computed<Record<string, number>>(() => {
   const counts: Record<string, number> = {};
   for (const n of notifications.value || []) {
     if (n.isRead) continue;
+    // Map notification types onto the consolidated dock keys.
     const key =
       n.type === "announcement"
-        ? "announcements"
+        ? "email"
         : n.type === "email"
         ? "email"
         : n.type === "meeting"
-        ? "meetings"
+        ? "reporting"
         : n.type === "payment"
         ? "payments"
         : n.type === "document"
-        ? "documents"
+        ? "reporting"
         : n.type === "membership"
-        ? "directory"
+        ? "people"
         : n.type === "request"
-        ? "requests"
+        ? "dashboard"
         : null;
     if (key) counts[key] = (counts[key] || 0) + 1;
   }

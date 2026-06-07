@@ -74,7 +74,7 @@ const GROUPS: {
     description: "Documents and resident record-keeping.",
     modules: [
       { key: "documents", label: "Documents", description: "Shared files and document library." },
-      { key: "files", label: "Files", description: "Dropbox-style storage manager for the org's folders and files." },
+      { key: "files", label: "Storage", description: "Dropbox-style file manager for the org's raw folders and files (Documents is the curated, published library)." },
       { key: "rules", label: "Rules", description: "By-laws, CC&Rs, and searchable governance." },
       { key: "directory", label: "Directory", description: "Members, units, and teams." },
       { key: "vendors", label: "Vendors", description: "Service-provider directory (management, attorney, elevator, …), member-visible per vendor." },

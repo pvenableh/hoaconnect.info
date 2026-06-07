@@ -5,6 +5,18 @@ import type { HoaChannel } from "~~/types/directus";
 // full-page destination. Opened from the dock's "Channels" button. Single-column:
 // a channel list that swaps to the thread when you pick one.
 const { isOpen, activeChannelSlug, close, setChannel } = useChannelsPanel();
+const { buildOrgPath } = useOrgNavigation();
+
+// The panel is the quick-peek surface; the full /admin/channels workspace is the
+// expanded view. "Open full view" routes there (deep-linking the active channel)
+// and closes the overlay so the two Channels entry points stay consistent.
+const openFullView = () => {
+  const target = activeChannelSlug.value
+    ? `/admin/channels/${activeChannelSlug.value}`
+    : "/admin/channels";
+  close();
+  navigateTo(buildOrgPath(target));
+};
 
 // Read the shared selected-org state directly (synchronous; same source the
 // dashboard/email pages use) so the panel works without an async org load.
@@ -67,13 +79,23 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 <Icon name="lucide:messages-square" class="w-5 h-5 text-stone-500 shrink-0" />
                 <span class="font-semibold truncate">Channels</span>
               </div>
-              <button
-                class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80"
-                title="Close"
-                @click="close"
-              >
-                <Icon name="lucide:x" class="w-4 h-4" />
-              </button>
+              <div class="flex items-center gap-1.5">
+                <button
+                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full t-bg-subtle hover:opacity-80 text-xs font-medium"
+                  title="Open the full Channels workspace"
+                  @click="openFullView"
+                >
+                  <Icon name="lucide:maximize-2" class="w-3.5 h-3.5" />
+                  <span class="hidden sm:inline">Open full view</span>
+                </button>
+                <button
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80"
+                  title="Close"
+                  @click="close"
+                >
+                  <Icon name="lucide:x" class="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <!-- Body -->

@@ -158,7 +158,30 @@ const tabs = computed(() => {
   return allTabs;
 });
 
-const activeTab = ref("general");
+// Tab state, deep-linkable via ?tab= (the Settings hub links straight to a tab)
+const route = useRoute();
+const router = useRouter();
+// Validate against the static tab list (not the `tabs` computed, which reads
+// `organization` declared further down — touching it here would be a TDZ error).
+const validTabIds = new Set(allTabs.map((t) => t.id));
+const normalizeTab = (t: unknown): string => {
+  const id = typeof t === "string" ? t : "general";
+  return validTabIds.has(id) ? id : "general";
+};
+const activeTab = ref(normalizeTab(route.query.tab));
+watch(
+  () => route.query.tab,
+  (t) => {
+    const id = normalizeTab(t);
+    if (id !== activeTab.value) activeTab.value = id;
+  }
+);
+watch(activeTab, (t) => {
+  const q = t === "general" ? undefined : t;
+  if ((route.query.tab as string | undefined) !== q) {
+    router.replace({ query: { ...route.query, tab: q } });
+  }
+});
 
 // Organization data
 const organization = ref<HoaOrganization | null>(null);
