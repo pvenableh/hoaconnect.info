@@ -131,5 +131,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Landing insights: count the inquiry (best-effort).
+  await bumpLandingStat(org.id, "inquiries", directus);
+
   return { success: true };
 });

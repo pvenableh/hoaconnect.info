@@ -65,6 +65,9 @@ export interface LandingConfig {
   listings: LandingListing[];
   inquiry: LandingInquiryConfig;
   geo?: LandingGeo | null;
+  /** Opt-in: surface recent sent announcements on the public landing. Off by
+   *  default so internal resident comms are never exposed without intent. */
+  show_announcements?: boolean;
 }
 
 /** Registry of every widget the landing knows how to render, in default order. */
@@ -138,6 +141,7 @@ export function defaultLandingConfig(): LandingConfig {
     listings: [],
     inquiry: { enabled: true, recipient_type: "email", email: null, user: null },
     geo: null,
+    show_announcements: false,
   };
 }
 
@@ -206,7 +210,7 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
       ? { lat: Number(r.geo.lat), lon: Number(r.geo.lon) }
       : null;
 
-  return { widgets, places, listings, inquiry, geo };
+  return { widgets, places, listings, inquiry, geo, show_announcements: r.show_announcements === true };
 }
 
 /** The enabled widget keys, in display order. */

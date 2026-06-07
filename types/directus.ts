@@ -791,6 +791,8 @@ export interface HoaOrganization {
 	inquiry_routing?: Record<string, any> | null;
 	/** @description Optional agency billing account. When set, the org's own subscription_* fields are advisory and entitlement resolves up to this account. Null = self-billed (default). */
 	billing_account?: BillingAccount | string | null;
+	/** @description Public landing insights counter ({ views, inquiries }). Maintained by the app. */
+	landing_stats?: Record<string, any> | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

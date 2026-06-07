@@ -58,6 +58,16 @@
 	}
 }
 
+/* Hero scroll-down cue fade. */
+.cue-fade-enter-active,
+.cue-fade-leave-active {
+	transition: opacity 0.4s ease;
+}
+.cue-fade-enter-from,
+.cue-fade-leave-to {
+	opacity: 0;
+}
+
 /* Reveal-on-scroll (toggled by an IntersectionObserver in PublicLanding). */
 .reveal {
 	opacity: 0;
