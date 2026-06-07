@@ -2,13 +2,16 @@
 import { toast } from "vue-sonner";
 
 definePageMeta({
-  middleware: ["auth"],
+  // No hard auth gate: a brand-new visitor can land here from the public site's
+  // "Request access" CTA. Logged-out visitors are guided to create an account
+  // (or sign in) first; the submit endpoint still requires a session.
   layout: "auth",
 });
 
 const route = useRoute();
 const router = useRouter();
 const config = useRuntimeConfig();
+const { loggedIn } = useUserSession();
 
 // Get slug from route params
 const slug = computed(() => route.params.slug as string);
@@ -131,6 +134,35 @@ useSeoMeta({
           <Button @click="router.push('/')" variant="outline">
             Go Home
           </Button>
+        </div>
+
+        <!-- Not signed in — need an account to request access -->
+        <div v-else-if="!loggedIn">
+          <div class="text-center mb-8">
+            <div v-if="organization?.logo" class="mb-4">
+              <img :src="getFileUrl(organization.logo)" :alt="organization.name" class="h-16 mx-auto object-contain" />
+            </div>
+            <h1 class="text-2xl font-bold mb-2">Request to Join</h1>
+            <p class="t-text-secondary">{{ organization.name }}</p>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Create an account to continue</CardTitle>
+              <CardDescription>
+                Membership is verified by an administrator. Create your account (or sign in), then
+                submit your request to join.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+              <Button class="w-full" @click="router.push(`/${slug}/signup`)">
+                <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
+                Create account
+              </Button>
+              <Button variant="outline" class="w-full" @click="router.push('/auth/login')">
+                I already have an account
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <!-- Already a member -->

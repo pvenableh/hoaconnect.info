@@ -1,4 +1,88 @@
-import { createItem, readItems, readItem } from "@directus/sdk";
+import { createItem, readItems, readItem, readUser, createNotification } from "@directus/sdk";
+
+const esc = (s: string) =>
+  String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+  );
+
+/**
+ * Notify an org's admins that a join request is awaiting review. Emails active
+ * admin members (+ the org contact email) and drops an in-app notification.
+ */
+async function notifyAdminsOfJoinRequest(
+  directus: ReturnType<typeof getTypedDirectus>,
+  opts: {
+    organization: { id: string; name?: string | null; slug?: string | null; email?: string | null };
+    joinRequestId: string;
+    applicantId: string;
+    unitNumber?: string | null;
+    memberType: string;
+  }
+) {
+  const config = useRuntimeConfig();
+  const { organization: org, joinRequestId, applicantId, unitNumber, memberType } = opts;
+
+  const applicant = (await directus
+    .request(readUser(applicantId, { fields: ["first_name", "last_name", "email"] }))
+    .catch(() => null)) as any;
+  const applicantName =
+    [applicant?.first_name, applicant?.last_name].filter(Boolean).join(" ") || applicant?.email || "Someone";
+
+  const adminRoles = [
+    config.public.directusRoleHoaAdmin,
+    config.public.directusRoleAppAdmin,
+  ].filter(Boolean) as string[];
+
+  const admins = adminRoles.length
+    ? ((await directus
+        .request(
+          readItems("hoa_members", {
+            filter: {
+              organization: { _eq: org.id },
+              status: { _eq: "active" },
+              role: { _in: adminRoles },
+            },
+            fields: ["email", { user: ["id"] }],
+            limit: 50,
+          })
+        )
+        .catch(() => [])) as any[])
+    : [];
+
+  const emails = [...new Set(admins.map((a) => a.email).concat(org.email || []).filter(Boolean))];
+  const userIds = [...new Set(admins.map((a) => a?.user?.id).filter(Boolean))];
+
+  const appUrl = ((config.public.appUrl as string) || "").replace(/\/$/, "");
+  const reviewUrl = org.slug ? `${appUrl}/${org.slug}/admin/users` : "";
+  const detail = `${memberType}${unitNumber ? ` · unit ${unitNumber}` : ""}`;
+  const subject = `New membership request — ${org.name || "your community"}`;
+  const text = `${applicantName} requested to join ${org.name || "your community"} (${detail}).${
+    reviewUrl ? `\n\nReview: ${reviewUrl}` : ""
+  }`;
+  const html =
+    `<p><strong>${esc(applicantName)}</strong> requested to join <strong>${esc(org.name || "your community")}</strong>.</p>` +
+    `<p>${esc(detail)}${applicant?.email ? ` · <a href="mailto:${esc(applicant.email)}">${esc(applicant.email)}</a>` : ""}</p>` +
+    (reviewUrl ? `<p><a href="${reviewUrl}">Review the request →</a></p>` : "");
+
+  for (const uid of userIds) {
+    await directus
+      .request(
+        createNotification({
+          recipient: uid,
+          subject,
+          message: `${applicantName} requested to join (${detail}).`,
+          collection: "hoa_join_requests",
+          item: joinRequestId,
+        })
+      )
+      .catch((e) => console.warn("[request-join] in-app notify failed", e));
+  }
+  for (const to of emails) {
+    await sendEmail({ to, subject, text, html }).catch((e) =>
+      console.warn("[request-join] email failed", e)
+    );
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -19,7 +103,7 @@ export default defineEventHandler(async (event) => {
     // Verify the organization exists
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "status"],
+        fields: ["id", "name", "status", "slug", "email"],
       })
     );
 
@@ -86,6 +170,19 @@ export default defineEventHandler(async (event) => {
         status: "pending",
       })
     );
+
+    // Notify the org's admins that a request is awaiting review (best-effort).
+    try {
+      await notifyAdminsOfJoinRequest(directus, {
+        organization,
+        joinRequestId: joinRequest.id,
+        applicantId: session.user.id,
+        unitNumber,
+        memberType: memberType || "owner",
+      });
+    } catch (e) {
+      console.warn("[request-join] admin notification failed:", e);
+    }
 
     return {
       success: true,

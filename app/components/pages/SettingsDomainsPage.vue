@@ -45,6 +45,7 @@ const content = reactive({
   heroTitle: "",
   heroSubtitle: "",
   theme: "classic" as "classic" | "modern" | "luxury",
+  type: "" as "" | "residential" | "commercial",
   description: "",
   phone: "",
   email: "",
@@ -109,6 +110,7 @@ const load = async () => {
     content.heroTitle = o.hero?.title || "";
     content.heroSubtitle = o.hero?.subtitle || "";
     content.theme = (o.settings?.theme as any) || "classic";
+    content.type = (o.type as any) || "";
     content.description = o.settings?.description || "";
     content.phone = o.phone || "";
     content.email = o.email || "";
@@ -235,6 +237,7 @@ const saveContent = async () => {
     } as any);
 
     await orgItems.update(orgId.value, {
+      type: content.type || null,
       phone: content.phone || null,
       email: content.email || null,
       show_board: content.show_board,
@@ -654,6 +657,22 @@ useSeoMeta({ title: "Public site" });
           <!-- Contact -->
           <div class="ios-card p-6 space-y-4">
             <h2 class="font-semibold t-text">Contact &amp; visibility</h2>
+            <div class="space-y-1.5">
+              <Label for="org-type">Community type</Label>
+              <select
+                id="org-type"
+                v-model="content.type"
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Residential (default)</option>
+                <option value="residential">Residential</option>
+                <option value="commercial">Commercial</option>
+              </select>
+              <p class="text-xs t-text-muted">
+                Sets the wording across your public site — residential says
+                "Residents" / "Households"; commercial says "Members".
+              </p>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <Label for="c-phone">Phone</Label>

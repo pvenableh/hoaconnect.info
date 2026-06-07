@@ -22,11 +22,12 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const adminClient = getTypedDirectus();
 
-    // Find the default member role
-    // You can either:
-    // 1. Hardcode your default role UUID here
-    // 2. Or query Directus for the role by name
-    const DEFAULT_MEMBER_ROLE_ID = "38494e81-9b49-4c64-a197-fcb8097cd433"; // TODO: Update this!
+    // Self-signups get the regular Member role (front-facing access only). They
+    // are NOT an org member until an admin approves their join request, so org
+    // access stays gated by hoa_members regardless. (Previously this hardcoded
+    // the HOA Admin role id — a privilege-escalation bug.)
+    const DEFAULT_MEMBER_ROLE_ID =
+      (config.public.directusRoleMember as string) || "558b04ed-fdcc-48c2-9cd0-977cccf988b9";
 
     // Create the user
     const newUser = await adminClient.request(

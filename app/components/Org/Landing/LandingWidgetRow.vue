@@ -10,7 +10,11 @@
       <LandingWidgetGreeting v-if="key === 'greeting'" :name="firstName" />
       <LandingWidgetWeather v-else-if="key === 'weather'" :slug="slug" />
       <LandingWidgetLocation v-else-if="key === 'location'" :places="cfg.places" />
-      <LandingWidgetBuilding v-else-if="key === 'building'" :count="organization?.member_count" />
+      <LandingWidgetBuilding
+        v-else-if="key === 'building'"
+        :count="organization?.member_count"
+        :type="organization?.type"
+      />
       <LandingWidgetBoard v-else-if="key === 'board'" :slug="slug" />
       <LandingWidgetAmenities v-else-if="key === 'amenities'" :count="amenityCount" />
     </template>

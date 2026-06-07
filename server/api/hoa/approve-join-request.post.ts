@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
         fields: [
           "*",
           { user: ["id", "email", "first_name", "last_name"] },
-          { organization: ["id", "name"] },
+          { organization: ["id", "name", "slug"] },
         ],
       })
     );
@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const user = joinRequest.user as { id: string; email: string; first_name: string; last_name: string };
-    const organization = joinRequest.organization as { id: string; name: string };
+    const organization = joinRequest.organization as { id: string; name: string; slug?: string };
 
     // Verify admin access to this organization
     await requireAdminAccess(event, organization.id);
@@ -100,6 +100,23 @@ export default defineEventHandler(async (event) => {
         processed_at: new Date().toISOString(),
       })
     );
+
+    // Welcome the approved member (best-effort).
+    if (user.email) {
+      try {
+        const appUrl = ((config.public.appUrl as string) || "").replace(/\/$/, "");
+        const portalUrl = organization.slug ? `${appUrl}/${organization.slug}/dashboard` : `${appUrl}/auth/login`;
+        const subject = `You're approved — welcome to ${organization.name}`;
+        const text = `Hi ${user.first_name || "there"},\n\nYour request to join ${organization.name} has been approved. You now have access to the resident portal.\n\nOpen the portal: ${portalUrl}`;
+        const html =
+          `<p>Hi ${user.first_name || "there"},</p>` +
+          `<p>Your request to join <strong>${organization.name}</strong> has been approved — you now have access to the portal.</p>` +
+          `<p><a href="${portalUrl}">Open the portal →</a></p>`;
+        await sendEmail({ to: user.email, subject, text, html });
+      } catch (e) {
+        console.warn("[approve-join-request] welcome email failed:", e);
+      }
+    }
 
     return {
       success: true,
