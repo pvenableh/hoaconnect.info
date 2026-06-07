@@ -11,7 +11,12 @@
    - app/pages/index.vue         (a verified custom domain's clean root)
 -->
 <template>
-  <div id="top" ref="rootEl" :class="{ 'lg:pl-60': navVariant === 'editorial' }">
+  <div
+    id="top"
+    ref="rootEl"
+    class="transition-[padding] duration-300 ease-out"
+    :class="navVariant === 'editorial' ? (landingNavCollapsed ? 'lg:pl-14' : 'lg:pl-60') : ''"
+  >
     <!-- Theme-aware navigation (editorial sidebar+drawer, or modern dock) -->
     <OrgLandingNav
       :organization="organization"
@@ -71,14 +76,22 @@
         ref="heroTitle"
         class="relative z-10 flex items-center justify-center flex-col px-6 sm:px-12 max-w-4xl w-full pb-40 sm:pb-36"
       >
-        <div v-if="organization?.hero?.foreground_image" class="hero-fade mb-8">
+        <!-- Eyebrow: neighborhood · city (1033lenox style) -->
+        <p
+          v-if="heroEyebrow"
+          class="hero-fade text-[11px] sm:text-xs text-white/75 uppercase tracking-[0.3em] sm:tracking-[0.45em] mb-7 sm:mb-10"
+        >
+          {{ heroEyebrow }}
+        </p>
+
+        <div v-if="organization?.hero?.foreground_image" class="hero-fade">
           <img
             :src="getFileUrl(organization.hero.foreground_image)"
             :alt="organization.name"
             class="mx-auto object-contain w-full h-auto max-h-[42vh] sm:max-h-[46vh] drop-shadow-2xl"
           />
         </div>
-        <div v-else-if="organization?.logo" class="hero-fade mb-8">
+        <div v-else-if="organization?.logo" class="hero-fade">
           <img
             :src="getFileUrl(organization.logo)"
             :alt="organization.name"
@@ -87,24 +100,24 @@
         </div>
         <h1
           v-else
-          class="hero-fade text-5xl sm:text-6xl text-white font-light tracking-ultra-wide uppercase mb-6"
+          class="hero-fade text-5xl sm:text-6xl text-white font-light tracking-ultra-wide uppercase"
         >
           {{ organization?.hero?.title || organization?.name }}
         </h1>
 
-        <h5
+        <!-- Gold hairline divider -->
+        <div
+          class="hero-fade w-16 h-px mx-auto mt-7 mb-5"
+          style="background: var(--theme-accent-primary)"
+        />
+
+        <!-- Tagline: italic serif (1033lenox style) -->
+        <p
           v-if="organization?.hero?.subtitle"
-          class="hero-fade text-xs sm:text-sm text-white/80 mb-2 uppercase tracking-ultra-wide"
+          class="hero-fade font-serif italic font-light text-white/85 text-[clamp(1.125rem,2.5vw,2rem)] leading-tight"
         >
           {{ organization.hero.subtitle }}
-        </h5>
-        <h5
-          v-else-if="organization?.street_address"
-          class="hero-fade text-xs sm:text-sm text-white/80 mb-2 uppercase tracking-ultra-wide"
-        >
-          {{ organization?.street_address }} {{ organization?.city }},
-          {{ organization?.state }} {{ organization?.zip }}
-        </h5>
+        </p>
 
         <!-- Under Construction -->
         <p
@@ -241,6 +254,20 @@ const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
+
+// Hero eyebrow — "City · Neighborhood" (1033lenox style); falls back to the
+// street address when no neighborhood is curated.
+const heroEyebrow = computed(() => {
+  const o = props.organization;
+  const neighborhood = cfg.value.places?.neighborhood;
+  const parts = [o?.city, neighborhood].filter(Boolean);
+  return parts.length ? parts.join(" · ") : o?.street_address || "";
+});
+
+// Editorial sidebar collapse state, shared with LandingSidebar (default slim so
+// the landing reads full-bleed like 1033). Drives the desktop content offset.
+const landingNavCollapsed = useState("landingNavCollapsed", () => true);
+
 // Nav anchor gating (the section bodies themselves live in LandingBlocks).
 const hasAmenities = computed(
   () => Array.isArray(props.organization?.amenities) && props.organization.amenities.length > 0
