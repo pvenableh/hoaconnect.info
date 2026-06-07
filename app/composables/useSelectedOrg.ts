@@ -14,6 +14,7 @@ import type { HoaBoardMemberTerm } from "~~/types/directus";
 export const useSelectedOrg = async () => {
   // Capture Nuxt context IMMEDIATELY at the top, before any awaits
   const nuxtApp = useNuxtApp();
+  const route = useRoute();
 
   const { user } = useDirectusAuth();
   const { list: listMembers } = useDirectusItems("hoa_members");
@@ -187,6 +188,30 @@ export const useSelectedOrg = async () => {
               syncToSession(firstOrg);
               if (import.meta.client) {
                 localStorage.setItem("selectedOrgId", firstOrg);
+              }
+            });
+          }
+        }
+
+        // STEP 3.5: When viewing an org by slug, the org you're LOOKING AT is
+        // authoritative. If the user is a member of the slug org, make it the
+        // selected org so the dashboard hero/data follow the dock (which already
+        // gates on the slug org) — no more "1033's content with 605's dock".
+        // Guarded on membership so browsing another org's public page never
+        // hijacks the user's selection. (Client-side org navigation is kept in
+        // sync by plugins/org-slug-sync.client.ts.)
+        const slugParam = route.params.slug as string | undefined;
+        if (slugParam && Array.isArray(result)) {
+          const slugMembership = result.find(
+            (m: any) => m?.organization?.slug === slugParam
+          );
+          const slugOrgId = slugMembership?.organization?.id;
+          if (slugOrgId && selectedOrgId.value !== slugOrgId) {
+            nuxtApp.runWithContext(() => {
+              selectedOrgId.value = slugOrgId;
+              syncToSession(slugOrgId);
+              if (import.meta.client) {
+                localStorage.setItem("selectedOrgId", slugOrgId);
               }
             });
           }

@@ -7,11 +7,11 @@ definePageMeta({
 });
 
 const { buildOrgPath } = useOrgNavigation();
-const { isAdmin } = await useSelectedOrg();
 const { isEnabled } = useModules();
 
-// Admins land on /[slug]/dashboard, members on the org home (/[slug]).
-const base = buildOrgPath(isAdmin.value ? "/dashboard" : "/");
+// The clean org root is the dashboard for everyone (role-aware), so the feed
+// tab deep-links there for admins and members alike.
+const base = buildOrgPath("/");
 
 // If the feed module is enabled, deep-link straight to the Building tab.
 // If it's disabled, module.global middleware already blocks /feed; this is a

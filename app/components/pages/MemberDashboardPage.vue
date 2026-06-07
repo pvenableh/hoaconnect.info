@@ -374,7 +374,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <Icon name="heroicons:document-text" class="h-4 w-4 mr-2" />
                 View All Documents
               </Button>
-              <Button v-if="isAdmin" @click="navigateToOrg('/dashboard')" variant="outline" class="w-full justify-start">
+              <Button v-if="isAdmin" @click="navigateToOrg('/')" variant="outline" class="w-full justify-start">
                 <Icon name="heroicons:chart-bar" class="h-4 w-4 mr-2" />
                 Admin Dashboard
               </Button>
@@ -537,7 +537,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <!-- Admin Link (only for admins) -->
         <div v-if="isAdmin" class="text-center">
-          <Button variant="outline" @click="navigateToOrg('/dashboard')">
+          <Button variant="outline" @click="navigateToOrg('/')">
             <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
             Go to Admin Dashboard
           </Button>

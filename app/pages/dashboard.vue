@@ -11,8 +11,8 @@ const { currentOrg, isLoading } = await useSelectedOrg();
 // Track if we've already initiated a redirect to prevent multiple navigations
 const hasRedirected = ref(false);
 
-// Redirect to org-specific dashboard when org is available
-// On main domain, redirect to /{slug}/dashboard
+// This non-slug `/dashboard` is just a slug-agnostic entry point — resolve the
+// user's org and send them to its clean root (the org root IS the dashboard).
 watch(
   [isLoading, () => currentOrg.value?.organization?.slug],
   ([loading, slug]) => {
@@ -21,10 +21,10 @@ watch(
       return;
     }
 
-    // Redirect to org-specific dashboard if we have a slug
+    // Redirect to the org's clean root if we have a slug
     if (slug) {
       hasRedirected.value = true;
-      navigateTo(`/${slug}/dashboard`, { replace: true });
+      navigateTo(`/${slug}`, { replace: true });
     }
   },
   { immediate: true }

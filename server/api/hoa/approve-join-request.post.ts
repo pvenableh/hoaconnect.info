@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
     if (user.email) {
       try {
         const appUrl = ((config.public.appUrl as string) || "").replace(/\/$/, "");
-        const portalUrl = organization.slug ? `${appUrl}/${organization.slug}/dashboard` : `${appUrl}/auth/login`;
+        const portalUrl = organization.slug ? `${appUrl}/${organization.slug}` : `${appUrl}/auth/login`;
         const subject = `You're approved — welcome to ${organization.name}`;
         const text = `Hi ${user.first_name || "there"},\n\nYour request to join ${organization.name} has been approved. You now have access to the resident portal.\n\nOpen the portal: ${portalUrl}`;
         const html =

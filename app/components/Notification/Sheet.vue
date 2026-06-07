@@ -110,7 +110,7 @@ const goToCommentTarget = () => {
     hoa_announcements: "/announcements",
     payment_requests: "/payments",
   };
-  router.push(buildOrgPath(routes[commentTargetCollection || ""] || "/dashboard"));
+  router.push(buildOrgPath(routes[commentTargetCollection || ""] || "/"));
 };
 
 // Format a currency amount

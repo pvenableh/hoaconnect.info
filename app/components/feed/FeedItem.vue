@@ -43,7 +43,7 @@ const link = computed(() => {
     hoa_documents: `/documents/${props.item.sourceId}`,
     hoa_requests: `/requests/${props.item.sourceId}`,
   };
-  return buildOrgPath(routes[props.item.sourceCollection] || "/dashboard");
+  return buildOrgPath(routes[props.item.sourceCollection] || "/");
 });
 
 // Requests have their own detail view + thread, so feed cards link out rather

@@ -421,6 +421,20 @@ watch(
                 </NuxtLink>
               </DropdownMenuItem>
 
+              <!-- Any logged-in user can view their org's public landing without
+                   leaving their workspace (opens the chromeless site in a new tab) -->
+              <DropdownMenuItem v-if="isOnOrgPage" as-child>
+                <a
+                  :href="`/${route.params.slug}?preview`"
+                  target="_blank"
+                  rel="noopener"
+                  class="cursor-pointer"
+                >
+                  <Icon name="i-lucide-external-link" class="size-4" />
+                  View public site
+                </a>
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
 
               <!-- Appearance: theme style + dark mode (reuses ThemeSelector) -->
@@ -619,6 +633,16 @@ watch(
                   <Icon name="i-lucide-user" class="w-5 h-5 t-text-secondary" />
                   <span>My Profile</span>
                 </NuxtLink>
+                <a
+                  v-if="isOnOrgPage"
+                  :href="`/${route.params.slug}?preview`"
+                  target="_blank"
+                  rel="noopener"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                >
+                  <Icon name="i-lucide-external-link" class="w-5 h-5 t-text-secondary" />
+                  <span>View public site</span>
+                </a>
                 <button
                   @click="handleLogout"
                   class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors w-full text-left text-red-600"
