@@ -85,13 +85,15 @@
 	scroll-snap-align: start;
 }
 
-/* Glass side drawer (logged-out nav) + its toggle + scrim. */
+/* Glass side drawer (logged-out nav) + its toggle + scrim. Always a dark
+   frosted tint (independent of theme) so the white nav text stays legible —
+   the drawer overlays the photographic landing, not the themed content. */
 .landing-drawer {
-	background: var(--theme-drawer-bg, rgba(20, 20, 22, 0.85));
-	backdrop-filter: blur(18px) saturate(160%);
-	-webkit-backdrop-filter: blur(18px) saturate(160%);
-	border-left: 1px solid var(--theme-border-light, rgba(255, 255, 255, 0.12));
-	box-shadow: -16px 0 48px rgba(0, 0, 0, 0.25);
+	background: rgba(16, 16, 20, 0.82);
+	backdrop-filter: blur(20px) saturate(150%);
+	-webkit-backdrop-filter: blur(20px) saturate(150%);
+	border-left: 1px solid rgba(255, 255, 255, 0.12);
+	box-shadow: -16px 0 48px rgba(0, 0, 0, 0.4);
 }
 .landing-glass-btn {
 	display: inline-flex;

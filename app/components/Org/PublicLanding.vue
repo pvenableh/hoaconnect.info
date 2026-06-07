@@ -130,7 +130,7 @@
           <!-- Signed-in resident -->
           <a v-if="user" href="/dashboard" class="landing-cta">
             <Icon name="lucide:layout-dashboard" class="w-4 h-4" />
-            Resident Portal
+            {{ memberNoun.singular }} Portal
           </a>
 
           <!-- Public visitor: log in, request access, or create an account -->
@@ -138,7 +138,7 @@
             <div class="flex flex-col sm:flex-row gap-3 justify-center">
               <a href="/auth/login" class="landing-cta">
                 <Icon name="lucide:log-in" class="w-4 h-4" />
-                Resident Login
+                {{ memberNoun.singular }} Login
               </a>
               <NuxtLink :to="`/${slug}/request-join`" class="landing-cta">
                 <Icon name="lucide:key-round" class="w-4 h-4" />
@@ -290,7 +290,7 @@
                 Send an inquiry
               </button>
               <NuxtLink v-if="!user" :to="`/${slug}/signup`" class="landing-btn-outline">
-                Become a Resident
+                Become a {{ memberNoun.singular }}
               </NuxtLink>
             </div>
           </div>
@@ -311,6 +311,7 @@
 
 <script setup>
 import { normalizeLandingConfig } from "~~/shared/utils/landing";
+import { orgMemberNoun } from "~~/shared/utils/terminology";
 import OrgLandingAvatar from "./Landing/LandingAvatar.vue";
 import OrgLandingDrawer from "./Landing/LandingDrawer.vue";
 import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
@@ -328,6 +329,7 @@ const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
 
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
+const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
 const hasAmenities = computed(
   () => Array.isArray(props.organization?.amenities) && props.organization.amenities.length > 0
