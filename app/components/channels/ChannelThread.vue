@@ -148,6 +148,7 @@ const deleteChannel = async () => {
 };
 
 const newMessage = ref("");
+const messageAttachments = ref<string[]>([]);
 const messagesContainer = ref<HTMLElement | null>(null);
 const editorRef = ref<any>(null);
 
@@ -187,6 +188,7 @@ const messageFields = [
   "id",
   "status",
   "content",
+  "attachments",
   "date_created",
   "is_edited",
   "parent_message",
@@ -224,12 +226,14 @@ const handleMention = (user: { id: string; label: string }) => {
 
 const sendMessage = async () => {
   const messageText = newMessage.value?.replace(/<[^>]*>/g, "").trim();
-  if (!messageText || !currentChannel.value?.id || messagesLoading.value) return;
+  const hasAttachments = messageAttachments.value.length > 0;
+  if ((!messageText && !hasAttachments) || !currentChannel.value?.id || messagesLoading.value) return;
 
   try {
     const createdMessage = await createMessage({
       content: newMessage.value,
       channel: currentChannel.value.id,
+      attachments: hasAttachments ? [...messageAttachments.value] : [],
       status: "published",
     });
 
@@ -250,6 +254,7 @@ const sendMessage = async () => {
     }
 
     newMessage.value = "";
+    messageAttachments.value = [];
     pendingMentions.value = [];
     editorRef.value?.clear();
     scrollToBottom();
@@ -280,6 +285,7 @@ onMounted(() => scrollToBottom());
 // Reset transient state when switching channels
 watch(channelSlug, () => {
   newMessage.value = "";
+  messageAttachments.value = [];
   pendingMentions.value = [];
   searchQuery.value = "";
   searchResults.value = [];
@@ -492,18 +498,30 @@ watch(
             <ChannelsChannelEditor
               ref="editorRef"
               v-model="newMessage"
+              v-model:attachments="messageAttachments"
               :placeholder="`Message #${currentChannel.name}`"
               :disabled="!currentChannel"
               :organization-id="orgId || undefined"
               :channel-id="currentChannel.id"
+              allow-file-attachments
               upload-source="message"
               @submit="sendMessage"
               @mention="handleMention"
             />
+            <!-- Pending attachments -->
+            <div v-if="messageAttachments.length" class="mt-2">
+              <ChannelsChannelAttachments :ids="messageAttachments" />
+              <button
+                class="mt-1 text-xs text-stone-500 hover:text-stone-700"
+                @click="messageAttachments = []"
+              >
+                Clear {{ messageAttachments.length }} attachment{{ messageAttachments.length === 1 ? "" : "s" }}
+              </button>
+            </div>
           </div>
           <Button
             class="shrink-0 self-end"
-            :disabled="!newMessage?.replace(/<[^>]*>/g, '').trim() || !currentChannel"
+            :disabled="(!newMessage?.replace(/<[^>]*>/g, '').trim() && !messageAttachments.length) || !currentChannel"
             @click="sendMessage"
           >
             <Icon name="lucide:send" class="w-4 h-4" />
