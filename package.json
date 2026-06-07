@@ -40,6 +40,7 @@
     "add:landing-stats": "dotenv -- tsx scripts/add-landing-stats-field.ts",
     "create:member-count-flow": "dotenv -- tsx scripts/create-member-count-flow.ts",
     "migrate:1033": "dotenv -- tsx scripts/migrate-1033.ts",
+    "backfill:storage": "dotenv -- tsx scripts/backfill-org-storage.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },

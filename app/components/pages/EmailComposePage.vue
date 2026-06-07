@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import type { HoaMember, DirectusFile, DirectusFolder } from "~~/types/directus";
+import type { PickedFile } from "~/composables/useOrgStorage";
 
 const props = defineProps<{
   emailId?: string;
@@ -20,6 +21,7 @@ const emailTemplates = useEmailTemplates();
 const { list: listMembers } = useDirectusItems("hoa_members");
 const filesComposable = useDirectusFiles();
 const foldersComposable = useDirectusFolders();
+const orgStorage = useOrgStorage();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
@@ -597,6 +599,21 @@ const removeAttachment = (id: string) => {
   }
 };
 
+// Attach files chosen from the universal (org-scoped) library picker.
+const onLibraryPicked = (files: PickedFile[]) => {
+  for (const f of files) {
+    if (form.attachmentIds.includes(f.id)) continue;
+    form.attachmentIds.push(f.id);
+    selectedAttachments.value.push({
+      id: f.id,
+      filename: f.filename_download || f.title || "attachment",
+      type: f.type || "application/octet-stream",
+      size: f.filesize || 0,
+    });
+  }
+  if (files.length) toast.success("Attachment added");
+};
+
 const triggerAttachmentUpload = () => {
   attachmentFileInput.value?.click();
 };
@@ -610,9 +627,10 @@ const handleAttachmentUpload = async (event: Event) => {
   isUploadingAttachment.value = true;
 
   try {
-    const result = await filesComposable.upload(file, {
+    // Route new email uploads into the org's Uploads/Emails subfolder.
+    const result = await orgStorage.upload(file, {
       title: file.name,
-      folder: orgFolderId.value || undefined,
+      source: "email",
     });
 
     if (result && typeof result === "object" && "id" in result) {
@@ -1049,6 +1067,15 @@ useSeoMeta({
                     <Icon name="lucide:folder-open" class="w-4 h-4 mr-2" />
                     Browse Files
                   </Button>
+                  <StorageFilePickerButton
+                    source="email"
+                    multiple
+                    label="Library"
+                    icon="lucide:library"
+                    variant="outline"
+                    title="Attach from the organization library"
+                    @select="onLibraryPicked"
+                  />
                   <Button
                     variant="outline"
                     size="sm"

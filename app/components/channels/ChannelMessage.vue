@@ -279,6 +279,7 @@ const authorName = computed(() => {
           placeholder="Write a reply..."
           :organization-id="organizationId"
           :channel-id="channelId"
+          upload-source="message"
           @submit="sendReply"
         />
         <div class="flex items-center justify-between">

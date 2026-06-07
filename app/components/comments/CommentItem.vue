@@ -154,6 +154,7 @@ const onDelete = async () => {
             v-model="editBody"
             :organization-id="organizationId"
             :show-toolbar="false"
+            upload-source="comment"
             @submit="saveEdit"
           />
           <div class="flex gap-2">
