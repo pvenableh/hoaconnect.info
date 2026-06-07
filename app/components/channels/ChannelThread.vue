@@ -496,6 +496,7 @@ watch(
               :disabled="!currentChannel"
               :organization-id="orgId || undefined"
               :channel-id="currentChannel.id"
+              upload-source="message"
               @submit="sendMessage"
               @mention="handleMention"
             />

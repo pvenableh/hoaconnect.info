@@ -9,6 +9,7 @@ import { Mention } from "@tiptap/extension-mention";
 import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import type { DirectusUser } from "~~/types/directus";
+import type { PickedFile, StorageSource } from "~/composables/useOrgStorage";
 
 const props = withDefaults(
   defineProps<{
@@ -25,6 +26,10 @@ const props = withDefaults(
     allowFileAttachments?: boolean;
     accept?: string;
     attachments?: string[];
+    // When set, uploads are routed into the org's matching Uploads subfolder
+    // (comment → Uploads/Comments, message → Uploads/Messages, …) and the
+    // "attach from library" picker is offered.
+    uploadSource?: StorageSource | null;
   }>(),
   {
     modelValue: "",
@@ -36,6 +41,7 @@ const props = withDefaults(
     allowFileAttachments: false,
     accept: "",
     attachments: () => [],
+    uploadSource: null,
   }
 );
 
@@ -64,6 +70,22 @@ const config = useRuntimeConfig();
 const { user: currentUser } = useDirectusAuth();
 const { list: listMembers } = useDirectusItems("hoa_members");
 const filesComposable = useDirectusFiles();
+const orgStorage = useOrgStorage();
+
+// Upload a single file, routing to the org's Uploads subfolder when a
+// uploadSource is set, else falling back to a plain upload.
+const uploadOne = async (file: File) => {
+  if (props.uploadSource) {
+    return await orgStorage.upload(file, { source: props.uploadSource, title: file.name });
+  }
+  return await filesComposable.upload(file, { title: file.name });
+};
+
+// Append picked library files to the attachments array.
+const onLibraryPicked = (files: PickedFile[]) => {
+  const ids = files.map((f) => f.id);
+  if (ids.length) emit("update:attachments", [...props.attachments, ...ids]);
+};
 
 const editor = ref<Editor | null>(null);
 const mentionsPortal = ref<HTMLElement | null>(null);
@@ -340,9 +362,7 @@ const handleFiles = async (files: File[]) => {
     const newAttachmentIds: string[] = [];
     for (const file of files) {
       if (file.type.startsWith("image/")) {
-        const result = await filesComposable.upload(file, {
-          title: file.name,
-        });
+        const result = await uploadOne(file);
 
         if (result && typeof result === "object" && "id" in result) {
           const fileUrl = filesComposable.getUrl(result.id as string);
@@ -353,7 +373,7 @@ const handleFiles = async (files: File[]) => {
       } else if (props.allowFileAttachments) {
         // Non-image file (PDF, docx, …): upload and collect its id for the
         // attachments array rather than inlining it into the HTML.
-        const result = await filesComposable.upload(file, { title: file.name });
+        const result = await uploadOne(file);
         if (result && typeof result === "object" && "id" in result) {
           newAttachmentIds.push(result.id as string);
         }
@@ -546,6 +566,18 @@ defineExpose({
           class="hidden"
           @change="handleFileUpload"
         />
+
+        <StorageFilePickerButton
+          v-if="allowFileAttachments && uploadSource"
+          :source="uploadSource"
+          multiple
+          label=""
+          icon-only
+          icon="lucide:folder-open"
+          title="Attach from library"
+          class="inline-flex"
+          @select="onLibraryPicked"
+        />
       </div>
 
       <!-- Editor Content -->
@@ -579,6 +611,18 @@ defineExpose({
           multiple
           class="hidden"
           @change="handleFileUpload"
+        />
+
+        <StorageFilePickerButton
+          v-if="allowFileAttachments && uploadSource"
+          :source="uploadSource"
+          multiple
+          label=""
+          icon-only
+          icon="lucide:folder-open"
+          title="Attach from library"
+          class="inline-flex opacity-50 hover:opacity-100"
+          @select="onLibraryPicked"
         />
       </div>
     </div>

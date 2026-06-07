@@ -74,6 +74,7 @@ const submit = async () => {
       :placeholder="placeholder"
       :show-toolbar="!compact"
       allow-file-attachments
+      upload-source="comment"
       @mention="onMention"
       @submit="submit"
     />
