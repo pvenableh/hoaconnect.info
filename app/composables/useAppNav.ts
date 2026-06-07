@@ -138,23 +138,19 @@ export function useAppNav() {
 
   loadPrefs();
 
-  // Channels is an internal admin/board comms tool. It lives in ADMIN_APPS, but
-  // is ALSO injected into the dock for board members + channel-invited members
-  // (who otherwise get MEMBER_APPS) — see App/Dock.vue. Exported for that.
-  const CHANNELS_APP: AppDef = { key: "channels", label: "Channels", shortName: "Chat", icon: "messages-square", path: "/admin/channels", match: ["/admin/channels"] };
-
+  // Lean admin dock: a few stable "places", each a section hub that holds related
+  // features (People = members/units/board/teams/vendors; Reporting =
+  // meetings/documents/files/rules). Lower-frequency or cross-cutting tools
+  // (Requests, Moderation) are reached via dashboard launcher widgets instead of
+  // their own icon; Channels is reached via the top-nav chat button + its peek
+  // panel. `key` doubles as the module-gate key; people/reporting aren't modules
+  // so they're always shown (their hub cards gate the individual features).
   const ADMIN_APPS: AppDef[] = [
-    { key: "dashboard", label: "Dashboard", shortName: "Dash", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
-    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
-    { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
-    { key: "files", label: "Storage", shortName: "Files", icon: "folder", path: "/admin/files", match: ["/admin/files"] },
-    { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
-    { key: "directory", label: "Directory", shortName: "People", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/units"] },
-    { key: "requests", label: "Requests", shortName: "Tickets", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests", "/requests"] },
-    CHANNELS_APP,
-    { key: "payments", label: "Finances", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
-    { key: "moderation", label: "Moderation", shortName: "Mod", icon: "shield-alert", path: "/admin/moderation", match: ["/admin/moderation"] },
-    { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email"] },
+    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/dashboard", match: ["/dashboard"] },
+    { key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people", match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams"] },
+    { key: "reporting", label: "Reporting", shortName: "Reports", icon: "book-open", path: "/admin/reporting", match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules"] },
+    { key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
+    { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email", "/admin/announcements"] },
     // Settings is a core app (never module-toggled) — keep it last so the dock
     // always ends with a way into org configuration / public site / billing.
     { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },
@@ -239,7 +235,6 @@ export function useAppNav() {
     showLabels,
     glassChrome,
     appsFor,
-    CHANNELS_APP,
     accentsForApps,
     swatchesFor,
     activeKeyFor,

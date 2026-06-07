@@ -299,6 +299,21 @@ const activityData = computed(() => {
 const topChannels = computed(() => (channels.value || []).slice(0, 6));
 const channelsPanel = useChannelsPanel();
 
+// Launcher shortcuts (the "Shortcuts" widget) — fast lanes into nested routes so
+// the lean dock doesn't bury anything. Gated by each area's module toggle.
+const shortcuts = computed(() =>
+  [
+    { label: "Requests", icon: "clipboard-list", to: "/admin/requests", show: isEnabled("requests") },
+    { label: "Moderation", icon: "shield-alert", to: "/admin/moderation", show: isEnabled("moderation") },
+    { label: "Meetings", icon: "calendar-days", to: "/admin/meetings", show: isEnabled("meetings") },
+    { label: "Documents", icon: "file-text", to: "/admin/documents", show: isEnabled("documents") },
+    { label: "Storage", icon: "folder", to: "/admin/files", show: isEnabled("files") },
+    { label: "Members", icon: "users-round", to: "/admin/members", show: isEnabled("directory") },
+    { label: "Expenses", icon: "receipt", to: "/admin/expenses", show: isEnabled("expenses") },
+    { label: "Teams", icon: "users", to: "/admin/teams", show: true },
+  ].filter((s) => s.show)
+);
+
 // ---- Customizable widget grid (iOS-home-screen style) ----
 // This page is admin-only (admin middleware), so admins see admin+board widgets.
 const {
@@ -391,6 +406,22 @@ const {
                         <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
                         Settings
                       </Button>
+                    </div>
+                  </div>
+
+                  <!-- Shortcuts launcher -->
+                  <div v-else-if="w.key === 'shortcuts'" class="ios-card p-5">
+                    <h3 class="font-semibold t-text mb-3">Shortcuts</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      <NuxtLink
+                        v-for="s in shortcuts"
+                        :key="s.to"
+                        :to="buildOrgPath(s.to)"
+                        class="flex items-center gap-2 px-3 py-2.5 rounded-xl t-bg-subtle hover:opacity-80 transition-opacity"
+                      >
+                        <Icon :name="'i-lucide-' + s.icon" class="w-4 h-4 t-text-secondary shrink-0" />
+                        <span class="text-sm font-medium t-text truncate">{{ s.label }}</span>
+                      </NuxtLink>
                     </div>
                   </div>
 

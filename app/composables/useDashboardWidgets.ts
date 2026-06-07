@@ -32,6 +32,7 @@ interface LayoutEntry {
 // content is rendered by DashboardPage via a switch on `key`.
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "quick-actions", title: "Quick Actions", description: "Shortcuts to the things admins do most.", icon: "zap", span: "full", defaultVisible: true },
+  { key: "shortcuts", title: "Shortcuts", description: "Jump straight to any area — including ones not on the dock (Requests, Moderation, Expenses…).", icon: "compass", span: "full", defaultVisible: true },
   { key: "stats", title: "Key Stats", description: "Documents, units, members, and emails at a glance.", icon: "layout-dashboard", span: "full", defaultVisible: true },
   { key: "members-donut", title: "Owners vs Tenants", description: "Membership split for your community.", icon: "pie-chart", span: "sm", defaultVisible: true },
   { key: "activity-timeline", title: "Activity Timeline", description: "Recent community activity over time.", icon: "activity", span: "sm", defaultVisible: true },

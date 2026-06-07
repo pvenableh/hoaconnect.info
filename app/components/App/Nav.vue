@@ -75,6 +75,23 @@ const {
 // Per-org module toggles (gate optional member-facing nav links).
 const { isEnabled: isModuleEnabled } = useModules();
 
+// Channels moved off the dock into a top-nav chat button: it's chat, popped open
+// as a slide-over (useChannelsPanel) over the current page. Shown to admins,
+// active board members, and any member invited into at least one channel.
+const channelsPanel = useChannelsPanel();
+const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
+onMounted(refreshChannelAccess);
+watch(() => route.params.slug, refreshChannelAccess);
+const showChat = computed(
+  () =>
+    !!user.value &&
+    isOnOrgPage.value &&
+    isModuleEnabled("channels") &&
+    (isAdminOfCurrentDomain.value ||
+      isBoardMemberOfCurrentDomain.value ||
+      hasChannelMembership.value)
+);
+
 // Determine if admin UI should be shown
 // On org context (slug route): only show if admin of THAT org
 // On main domain: show based on selected org admin status
@@ -234,6 +251,16 @@ const adminNavItems = computed(() =>
   }))
 );
 
+// Lower-frequency admin destinations that aren't dock icons (reached on desktop
+// via dashboard launcher widgets / hub cards). Listed here so the mobile sheet
+// still has a stable, complete path to them.
+const adminExtraItems = computed(() =>
+  [
+    { label: "Requests", path: buildPath("/admin/requests"), icon: "clipboard-list", show: isModuleEnabled("requests") },
+    { label: "Moderation", path: buildPath("/admin/moderation"), icon: "shield-alert", show: isModuleEnabled("moderation") },
+  ].filter((i) => i.show)
+);
+
 // Legacy userStatusBadge - kept for backwards compatibility but prefer contextAwareStatusBadge
 const userStatusBadge = computed(() => {
   // Use context-aware badge which properly checks current domain membership
@@ -325,6 +352,17 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-4">
+          <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
+          <button
+            v-if="showChat"
+            type="button"
+            class="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-full hover:t-bg-subtle transition"
+            title="Channels"
+            aria-label="Open channels"
+            @click="channelsPanel.toggle()"
+          >
+            <Icon name="i-lucide-messages-square" class="w-5 h-5 t-text-secondary" />
+          </button>
           <!-- Notification Bell - show on org pages/custom domains -->
           <NotificationBell
             v-if="!isMainMarketingDomain"
@@ -426,9 +464,18 @@ watch(
               <!-- Notifications Quick Access in Mobile Menu -->
               <div
                 v-if="!isMainMarketingDomain"
-                class="py-3 border-b t-border"
+                class="py-3 border-b t-border flex items-center gap-2"
               >
                 <NotificationBell />
+                <button
+                  v-if="showChat"
+                  type="button"
+                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                  @click="channelsPanel.open(); mobileMenuOpen = false"
+                >
+                  <Icon name="i-lucide-messages-square" class="w-5 h-5 t-text-secondary" />
+                  <span class="text-sm">Channels</span>
+                </button>
               </div>
 
               <!-- User Info in Mobile Menu -->
@@ -513,6 +560,19 @@ watch(
                 <nav class="space-y-1">
                   <NuxtLink
                     v-for="item in adminNavItems"
+                    :key="item.path"
+                    :to="item.path"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                    active-class="t-bg-subtle font-medium"
+                  >
+                    <Icon
+                      :name="'i-lucide-' + item.icon"
+                      class="w-5 h-5 t-text-secondary hidden"
+                    />
+                    <span>{{ item.label }}</span>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-for="item in adminExtraItems"
                     :key="item.path"
                     :to="item.path"
                     class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
