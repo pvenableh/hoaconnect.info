@@ -69,9 +69,9 @@ const visibleThread = computed(() =>
 <template>
   <section class="space-y-4">
     <div class="flex items-center gap-2">
-      <Icon name="lucide:message-circle" class="w-4 h-4 text-stone-500" />
-      <h3 class="font-semibold text-stone-900">{{ title }}</h3>
-      <span v-if="commentCount" class="text-sm text-stone-400">{{ commentCount }}</span>
+      <Icon name="lucide:message-circle" class="w-4 h-4 t-text-muted" />
+      <h3 class="font-semibold t-text">{{ title }}</h3>
+      <span v-if="commentCount" class="text-sm t-text-muted">{{ commentCount }}</span>
     </div>
 
     <!-- Composer -->
@@ -82,7 +82,7 @@ const visibleThread = computed(() =>
       :organization-id="organizationId"
       :can-post-internal="canPostInternal"
     />
-    <p v-else class="text-sm text-stone-400 italic">
+    <p v-else class="text-sm t-text-muted italic">
       Comments are read-only for your role on this item.
     </p>
 
@@ -107,7 +107,7 @@ const visibleThread = computed(() =>
       />
     </div>
 
-    <p v-else class="text-sm text-stone-400 py-4 text-center">
+    <p v-else class="text-sm t-text-muted py-4 text-center">
       No comments yet. Start the conversation.
     </p>
   </section>

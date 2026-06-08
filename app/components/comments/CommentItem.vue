@@ -120,11 +120,11 @@ const onDelete = async () => {
             ? 'bg-red-50/60 ring-1 ring-red-200'
             : comment.is_internal
             ? 'bg-amber-50 ring-1 ring-amber-200'
-            : 'bg-stone-50'
+            : 't-bg-subtle'
         "
       >
         <div class="flex items-center gap-2 mb-0.5">
-          <span class="text-sm font-medium text-stone-900">{{ authorName }}</span>
+          <span class="text-sm font-medium t-text">{{ authorName }}</span>
           <span
             v-if="comment.is_internal"
             class="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-700"
@@ -137,8 +137,8 @@ const onDelete = async () => {
           >
             <Icon name="lucide:eye-off" class="w-2.5 h-2.5" /> Hidden
           </span>
-          <span class="text-xs text-stone-400">{{ formatDate(comment.date_created) }}</span>
-          <span v-if="comment.is_edited" class="text-xs text-stone-400">(edited)</span>
+          <span class="text-xs t-text-muted">{{ formatDate(comment.date_created) }}</span>
+          <span v-if="comment.is_edited" class="text-xs t-text-muted">(edited)</span>
           <span
             v-if="canModerate && (comment.report_count || 0) > 0"
             class="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-600"
@@ -177,13 +177,13 @@ const onDelete = async () => {
         <!-- Body (greyed when hidden) -->
         <div
           v-if="!isEditing && showBody"
-          class="prose prose-sm prose-stone max-w-none text-sm text-stone-700"
+          class="prose prose-sm prose-stone max-w-none text-sm t-text-secondary"
           :class="{ 'opacity-50': comment.is_hidden }"
           v-html="comment.body"
         />
         <div
           v-else-if="!isEditing"
-          class="text-sm text-stone-400 italic"
+          class="text-sm t-text-muted italic"
         >
           This comment was hidden by a moderator.
         </div>
@@ -196,7 +196,7 @@ const onDelete = async () => {
             :href="getUrl(id)"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white ring-1 ring-stone-200 text-xs text-stone-600 hover:bg-stone-50"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md t-bg-elevated ring-1 ring-[var(--theme-border-primary)] text-xs t-text-secondary hover:t-bg-subtle"
           >
             <Icon name="lucide:paperclip" class="w-3 h-3" />
             Attachment
@@ -214,7 +214,7 @@ const onDelete = async () => {
         <button
           v-if="canReply"
           type="button"
-          class="text-xs text-stone-500 hover:text-stone-800"
+          class="text-xs t-text-muted hover:t-text"
           @click="showReply = !showReply"
         >
           Reply
@@ -222,7 +222,7 @@ const onDelete = async () => {
         <button
           v-if="mine"
           type="button"
-          class="text-xs text-stone-500 hover:text-stone-800"
+          class="text-xs t-text-muted hover:t-text"
           @click="startEdit"
         >
           Edit
@@ -230,7 +230,7 @@ const onDelete = async () => {
         <button
           v-if="mine"
           type="button"
-          class="text-xs text-stone-500 hover:text-red-600"
+          class="text-xs t-text-muted hover:text-red-600"
           @click="onDelete"
         >
           Delete
@@ -238,7 +238,7 @@ const onDelete = async () => {
         <button
           v-if="!mine && user?.id"
           type="button"
-          class="text-xs text-stone-400 hover:text-red-600"
+          class="text-xs t-text-muted hover:text-red-600"
           @click="showReportDialog = true"
         >
           Report
@@ -246,7 +246,7 @@ const onDelete = async () => {
         <button
           v-if="canModerate && !comment.is_hidden"
           type="button"
-          class="text-xs text-stone-400 hover:text-red-600 inline-flex items-center gap-0.5"
+          class="text-xs t-text-muted hover:text-red-600 inline-flex items-center gap-0.5"
           @click="hideComment(comment.id)"
         >
           <Icon name="lucide:eye-off" class="w-3 h-3" /> Hide
@@ -283,7 +283,7 @@ const onDelete = async () => {
       </div>
 
       <!-- Nested replies -->
-      <div v-if="comment.replies?.length" class="mt-3 space-y-3 pl-2 border-l border-stone-100">
+      <div v-if="comment.replies?.length" class="mt-3 space-y-3 pl-2 border-l t-border">
         <CommentsCommentItem
           v-for="reply in comment.replies"
           :key="reply.id"

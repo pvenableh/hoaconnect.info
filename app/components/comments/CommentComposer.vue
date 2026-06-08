@@ -84,13 +84,13 @@ const submit = async () => {
       <span
         v-for="id in attachments"
         :key="id"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 text-xs text-stone-600"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md t-bg-subtle text-xs t-text-secondary"
       >
         <Icon name="lucide:paperclip" class="w-3 h-3" />
         Attachment
         <button
           type="button"
-          class="text-stone-400 hover:text-stone-700"
+          class="t-text-muted hover:t-text"
           @click="attachments = attachments.filter((a) => a !== id)"
         >
           <Icon name="lucide:x" class="w-3 h-3" />
@@ -101,9 +101,9 @@ const submit = async () => {
     <div class="flex items-center justify-between">
       <label
         v-if="canPostInternal"
-        class="inline-flex items-center gap-1.5 text-xs text-stone-500 cursor-pointer select-none"
+        class="inline-flex items-center gap-1.5 text-xs t-text-muted cursor-pointer select-none"
       >
-        <input type="checkbox" v-model="isInternal" class="rounded border-stone-300" />
+        <input type="checkbox" v-model="isInternal" class="rounded t-border" />
         <Icon name="lucide:lock" class="w-3 h-3" />
         Internal (board only)
       </label>

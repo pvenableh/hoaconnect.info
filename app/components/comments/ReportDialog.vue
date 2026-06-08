@@ -28,40 +28,40 @@ const submit = () => {
       class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
       @click.self="emit('cancel')"
     >
-      <div class="w-full max-w-md rounded-2xl bg-white shadow-xl ring-1 ring-stone-200 p-6 space-y-4">
+      <div class="w-full max-w-md rounded-2xl t-bg-elevated shadow-xl ring-1 ring-[var(--theme-border-primary)] p-6 space-y-4">
         <div class="flex items-start gap-3">
           <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
             <Icon name="lucide:flag" class="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h3 class="font-semibold text-stone-900">Report comment</h3>
-            <p class="text-sm text-stone-500">
+            <h3 class="font-semibold t-text">Report comment</h3>
+            <p class="text-sm t-text-muted">
               Tell a moderator what's wrong. Reports are private.
             </p>
           </div>
         </div>
 
         <div class="space-y-2">
-          <label class="block text-sm font-medium text-stone-700">Reason</label>
+          <label class="block text-sm font-medium t-text-secondary">Reason</label>
           <div class="grid grid-cols-1 gap-1.5">
             <label
               v-for="r in REASONS"
               :key="r.value"
               class="flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors"
-              :class="reason === r.value ? 'border-stone-900 bg-stone-50' : 'border-stone-200 hover:bg-stone-50'"
+              :class="reason === r.value ? 't-border-accent t-bg-subtle' : 't-border hover:t-bg-subtle'"
             >
-              <input type="radio" :value="r.value" v-model="reason" class="accent-stone-900" />
-              <span class="text-sm text-stone-700">{{ r.label }}</span>
+              <input type="radio" :value="r.value" v-model="reason" class="accent-[var(--theme-accent-primary)]" />
+              <span class="text-sm t-text-secondary">{{ r.label }}</span>
             </label>
           </div>
         </div>
 
         <div class="space-y-1.5">
-          <label class="block text-sm font-medium text-stone-700">Details (optional)</label>
+          <label class="block text-sm font-medium t-text-secondary">Details (optional)</label>
           <textarea
             v-model="details"
             rows="3"
-            class="w-full px-3 py-2 border border-stone-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-stone-300"
+            class="w-full px-3 py-2 border t-border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent-primary)]"
             placeholder="Add any context…"
           />
         </div>

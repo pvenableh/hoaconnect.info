@@ -642,6 +642,20 @@ html.theme-luxury-dark {
 .t-bg-accent\/15 { background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent); }
 .t-bg-accent\/10 { background-color: color-mix(in srgb, var(--theme-accent-primary) 10%, transparent); }
 
+/* Hover variants for the t-* utilities. The base t-* are plain classes (not
+   Tailwind utilities), so Tailwind never generated `hover:t-*` rules — they were
+   silent no-ops everywhere (~90 usages) and lost their intended hover feedback.
+   Defining them here makes those hovers actually theme. */
+.hover\:t-bg:hover { background-color: var(--theme-bg-primary); }
+.hover\:t-bg-alt:hover { background-color: var(--theme-bg-secondary); }
+.hover\:t-bg-subtle:hover { background-color: var(--theme-bg-tertiary); }
+.hover\:t-bg-elevated:hover { background-color: var(--theme-bg-elevated); }
+.hover\:t-text:hover { color: var(--theme-text-primary); }
+.hover\:t-text-secondary:hover { color: var(--theme-text-secondary); }
+.hover\:t-text-accent:hover { color: var(--theme-accent-primary); }
+.hover\:t-border-accent:hover { border-color: var(--theme-accent-primary); }
+.hover\:t-shadow-lg:hover { box-shadow: var(--theme-shadow-lg); }
+
 /* Header icon buttons (avatar · notifications · channels) — perfect circles with
    a very subtle theme-tinted bg and a theme-accent ring (mirrors the sidebar
    org-picker avatar). The ring is faint when idle and resolves to the full accent
