@@ -190,7 +190,9 @@ html.theme-luxury-dark .landing-eyebrow {
 	color: var(--theme-accent-primary);
 }
 
-/* Squared, hairline, print-style buttons. */
+/* Squared, hairline, print-style buttons. Classic body copy is serif, but the
+   buttons stay sans-serif (Proxima) — uppercase + tracked — for a crisp UI
+   contrast against the editorial Bodoni headings. */
 html.theme-classic-light .landing-cta,
 html.theme-classic-dark .landing-cta,
 html.theme-luxury-light .landing-cta,
@@ -200,6 +202,8 @@ html.theme-classic-dark .landing-cta--ghost,
 html.theme-luxury-light .landing-cta--ghost,
 html.theme-luxury-dark .landing-cta--ghost {
 	border-radius: 0;
+	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.22em;
 }
@@ -212,6 +216,17 @@ html.theme-classic-dark .landing-btn-outline,
 html.theme-luxury-light .landing-btn-outline,
 html.theme-luxury-dark .landing-btn-outline {
 	border-radius: 0;
+	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.2em;
+}
+html.theme-classic-light .landing-sidebar__cta,
+html.theme-classic-dark .landing-sidebar__cta,
+html.theme-luxury-light .landing-sidebar__cta,
+html.theme-luxury-dark .landing-sidebar__cta {
+	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+	font-weight: 600;
 }
 html.theme-classic-light .landing-card,
 html.theme-classic-dark .landing-card,

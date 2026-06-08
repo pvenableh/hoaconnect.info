@@ -71,6 +71,9 @@ export default defineNuxtConfig({
       // Legacy - can be removed after migration
       directusUrl: process.env.DIRECTUS_URL,
       mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || "app.hoaconnect.info",
+      // Mapbox public token (pk.*) for static location maps on org landing pages.
+      // Set NUXT_PUBLIC_MAPBOX_TOKEN in the environment (kept out of the repo).
+      mapboxToken: process.env.NUXT_PUBLIC_MAPBOX_TOKEN || "",
       appUrl: process.env.APP_URL || "http://localhost:3000",
       fromEmail: process.env.FROM_EMAIL,
       siteTitle: "Property Flow - Premier Property Management App",

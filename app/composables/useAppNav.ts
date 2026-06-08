@@ -138,19 +138,24 @@ export function useAppNav() {
 
   loadPrefs();
 
-  // Lean admin dock: a few stable "places", each a section hub that holds related
-  // features (People = members/units/board/teams/vendors; Reporting =
-  // meetings/documents/files/rules). Lower-frequency or cross-cutting tools
-  // (Requests, Moderation) are reached via dashboard launcher widgets instead of
-  // their own icon; Channels is reached via the top-nav chat button + its peek
-  // panel. `key` doubles as the module-gate key; people/reporting aren't modules
-  // so they're always shown (their hub cards gate the individual features).
+  // Admin dock: the high-frequency apps get their own slot for one-tap access
+  // (Members, Meetings, Documents, Requests) alongside Money + Comms. The long
+  // tail (Units, Board, Teams, Vendors, Rules, Storage, Moderation) lives in the
+  // "More" hub so the dock stays focused. Channels is reached via the top-nav
+  // chat button + its peek panel. `key` doubles as the module-gate key — an app
+  // hides when its module is off; keys not in any module map (dashboard, more,
+  // settings) are always shown.
   const ADMIN_APPS: AppDef[] = [
     { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__"] },
-    { key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people", match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams"] },
-    { key: "reporting", label: "Reporting", shortName: "Reports", icon: "book-open", path: "/admin/reporting", match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules"] },
+    { key: "directory", label: "Members", shortName: "Members", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/people"] },
+    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
+    { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
+    { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests"] },
     { key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
     { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email", "/admin/announcements"] },
+    // "More" holds the lower-frequency tools (units/board/teams/vendors/rules/
+    // storage/moderation) so they're one tap away without crowding the dock.
+    { key: "more", label: "More", shortName: "More", icon: "layout-grid", path: "/admin/more", match: ["/admin/more", "/admin/reporting", "/admin/units", "/admin/teams", "/board", "/rules", "/admin/files", "/admin/moderation"] },
     // Settings is a core app (never module-toggled) — keep it last so the dock
     // always ends with a way into org configuration / public site / billing.
     { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },

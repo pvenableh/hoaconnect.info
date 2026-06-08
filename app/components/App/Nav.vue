@@ -42,6 +42,17 @@ const isMainMarketingDomain = computed(
   () => !isOnOrgPage.value
 );
 
+// On a verified custom domain (an org's own domain, e.g. 605lincolnroad.com) the
+// account/profile page belongs to the shared HOA Connect app — opening it inline
+// is confusing because it swaps in the app chrome. When on a custom domain we
+// send "My profile" to the main app domain in a new tab, so it's unmistakably
+// "your HOA Connect account" rather than part of the org's branded site.
+const isMainDomain = useState<boolean>("isMainDomain", () => true);
+const isCustomDomain = computed(
+  () => isMainDomain.value === false && isOnOrgPage.value
+);
+const accountUrl = computed(() => `${config.public.appUrl}/account`);
+
 // Get current organization, role, and member details for logged-in users
 const {
   currentOrg,
@@ -338,6 +349,16 @@ watch(
           </template>
         </NuxtLink>
 
+        <!-- Org switcher — Earnest-style avatar + dropdown, top-left. Shows for
+             authenticated users off the marketing domain (which uses the left
+             rail for marketing links). -->
+        <div
+          v-if="user && !isMainMarketingDomain"
+          class="col-start-1 row-start-1 justify-self-start hidden sm:flex"
+        >
+          <OrgSelector />
+        </div>
+
         <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->
         <div v-if="isMainMarketingDomain" class="col-start-1 row-start-1 justify-self-start hidden md:flex gap-6">
           <a
@@ -368,7 +389,6 @@ watch(
             v-if="!isMainMarketingDomain"
             class="hidden sm:block"
           />
-          <OrgSelector class="hidden sm:flex" />
           <!-- Avatar dropdown (desktop) -->
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -415,9 +435,32 @@ watch(
               <DropdownMenuSeparator />
 
               <DropdownMenuItem as-child>
-                <NuxtLink to="/account" class="cursor-pointer">
+                <a
+                  v-if="isCustomDomain"
+                  :href="accountUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="cursor-pointer"
+                >
+                  <Icon name="i-lucide-user" class="size-4" />
+                  My HOA Connect profile
+                  <Icon
+                    name="i-lucide-external-link"
+                    class="size-3.5 ml-auto opacity-60"
+                  />
+                </a>
+                <NuxtLink v-else to="/account" class="cursor-pointer">
                   <Icon name="i-lucide-user" class="size-4" />
                   My Profile
+                </NuxtLink>
+              </DropdownMenuItem>
+
+              <!-- Resident self-service: edit your own contact, mailing address,
+                   vehicles, and pets (submitted for review). Org-scoped. -->
+              <DropdownMenuItem v-if="isOnOrgPage" as-child>
+                <NuxtLink :to="`/${route.params.slug}/profile`" class="cursor-pointer">
+                  <Icon name="i-lucide-home" class="size-4" />
+                  My household
                 </NuxtLink>
               </DropdownMenuItem>
 
