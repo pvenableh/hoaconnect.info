@@ -318,7 +318,9 @@ html.theme-modern-dark .glass-widget {
 	align-items: center;
 	gap: 0.625rem;
 	padding: 0.5rem 0;
-	font-family: var(--theme-body-font);
+	/* Sans-serif (Proxima) like the CTAs — nav links read as crisp UI, not body
+	   serif, across every theme. */
+	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 	font-size: 0.6875rem;
 	text-transform: uppercase;
 	letter-spacing: 0.18em;

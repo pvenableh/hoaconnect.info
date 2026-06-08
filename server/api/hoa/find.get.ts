@@ -45,7 +45,33 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    return organizations[0];
+    const org = organizations[0] as Record<string, any>;
+
+    // Attach the primary management company (first active `management` vendor) so
+    // the public landing can feature it when the admin opts in. Public-safe
+    // fields only — never notes / internal flags. Best-effort: failures don't
+    // block the landing.
+    try {
+      const vendors = await directus.request(
+        readItems("hoa_vendors", {
+          filter: {
+            _and: [
+              { organization: { _eq: org.id } },
+              { category: { _eq: "management" } },
+              { status: { _eq: "active" } },
+            ],
+          },
+          fields: ["company", "name", "email", "phone", "website", "address", "management_role"],
+          sort: ["sort", "company"],
+          limit: 1,
+        })
+      );
+      org.property_manager = vendors?.[0] || null;
+    } catch {
+      org.property_manager = null;
+    }
+
+    return org;
   } catch (error: any) {
     // If it's already a createError, rethrow it
     if (error.statusCode) {

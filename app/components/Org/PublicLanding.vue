@@ -146,35 +146,27 @@
             {{ memberNoun.singular }} Portal
           </a>
 
-          <!-- Public visitor: log in, request access, or create an account -->
+          <!-- Public visitor: one primary CTA (login), the rest as quiet,
+               tracked-out text links to cut button clutter. -->
           <template v-else>
-            <div class="flex flex-col sm:flex-row gap-3 justify-center">
-              <a href="/auth/login" class="landing-cta">
-                <Icon name="lucide:log-in" class="w-4 h-4" />
-                {{ memberNoun.singular }} Login
-              </a>
-              <NuxtLink :to="`/${slug}/request-join`" class="landing-cta">
-                <Icon name="lucide:key-round" class="w-4 h-4" />
-                Request Access
-              </NuxtLink>
-            </div>
-            <div class="flex items-center gap-5 text-[11px] uppercase tracking-[0.18em] text-white/80">
-              <NuxtLink :to="`/${slug}/signup`" class="inline-flex items-center gap-1.5 hover:text-white transition-colors">
-                <Icon name="lucide:user-plus" class="w-3.5 h-3.5" />
-                Create account
+            <a href="/auth/login" class="landing-cta">
+              <Icon name="lucide:log-in" class="w-4 h-4" />
+              {{ memberNoun.singular }} Login
+            </a>
+            <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] uppercase tracking-[0.22em] text-white/80">
+              <NuxtLink :to="`/${slug}/request-join`" class="hover:text-white transition-colors">
+                Request access
               </NuxtLink>
               <span class="opacity-40">·</span>
               <button
                 v-if="inquiryEnabled"
                 type="button"
-                class="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                class="uppercase tracking-[0.22em] hover:text-white transition-colors"
                 @click="openInquiry('general')"
               >
-                <Icon name="lucide:mail" class="w-3.5 h-3.5" />
                 Inquire
               </button>
-              <a v-else href="#contact" class="inline-flex items-center gap-1.5 hover:text-white transition-colors">
-                <Icon name="lucide:mail" class="w-3.5 h-3.5" />
+              <a v-else href="#contact" class="hover:text-white transition-colors">
                 Contact
               </a>
             </div>
@@ -213,6 +205,49 @@
 
       <!-- Community news (opt-in; self-hides) -->
       <OrgLandingAnnouncements :slug="slug" />
+
+      <!-- Property-management callout (opt-in; needs a management vendor) -->
+      <section v-if="featurePm" class="landing-section py-20 sm:py-28 t-bg border-t t-border">
+        <div class="container mx-auto px-6">
+          <div class="reveal max-w-2xl mx-auto text-center">
+            <p class="landing-eyebrow mb-5">Management</p>
+            <h2 class="landing-heading text-3xl sm:text-4xl">Professionally Managed</h2>
+            <div class="landing-rule mx-auto my-7" />
+            <p class="landing-lede text-lg">
+              {{ organization.name }} is professionally managed by
+              <span class="t-text font-medium">{{ pmName }}</span>.
+            </p>
+            <div class="mt-7 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
+              <a
+                v-if="propertyManager.phone"
+                :href="`tel:${propertyManager.phone}`"
+                class="t-text-muted hover:t-text-accent transition-colors"
+              >
+                {{ propertyManager.phone }}
+              </a>
+              <a
+                v-if="propertyManager.email"
+                :href="`mailto:${propertyManager.email}`"
+                class="t-text-muted hover:t-text-accent transition-colors break-all"
+              >
+                {{ propertyManager.email }}
+              </a>
+            </div>
+            <a
+              v-if="pmWebsite"
+              :href="pmWebsite"
+              target="_blank"
+              rel="noopener"
+              class="landing-btn-outline mt-8 inline-flex"
+            >
+              Visit website
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Themed page footer (org + optional management info) -->
+      <OrgLandingFooter :organization="organization" :pm="featurePm ? propertyManager : null" />
     </template>
 
     <!-- Inquiry dialog -->
@@ -234,6 +269,7 @@ import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
 import OrgLandingBlocks from "./Landing/LandingBlocks.vue";
 import OrgLandingInquiryForm from "./Landing/LandingInquiryForm.vue";
 import OrgLandingAnnouncements from "./Landing/LandingAnnouncements.vue";
+import OrgLandingFooter from "./Landing/LandingFooter.vue";
 
 const props = defineProps({
   organization: { type: Object, required: true },
@@ -254,6 +290,19 @@ const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
+
+// Property manager — the primary active management vendor (attached by /api/hoa/find).
+// Featured only when the admin opted in AND a management vendor exists.
+const propertyManager = computed(() => props.organization?.property_manager || null);
+const featurePm = computed(() => cfg.value.feature_pm === true && !!propertyManager.value);
+const pmName = computed(
+  () => propertyManager.value?.company || propertyManager.value?.name || ""
+);
+const pmWebsite = computed(() => {
+  const w = propertyManager.value?.website?.trim();
+  if (!w) return "";
+  return /^https?:\/\//i.test(w) ? w : `https://${w}`;
+});
 
 // Hero eyebrow — "City · Neighborhood" (1033lenox style); falls back to the
 // street address when no neighborhood is curated.

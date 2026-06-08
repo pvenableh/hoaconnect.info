@@ -36,7 +36,11 @@ const orgItems = useDirectusItems("hoa_organizations");
 const settingsItems = useDirectusItems("block_settings");
 const heroItems = useDirectusItems("block_hero");
 const amenityItems = useDirectusItems("hoa_amenities");
+const vendorItems = useDirectusItems("hoa_vendors");
 const { upload: uploadFile } = useDirectusFiles();
+
+// Whether the org has an active management vendor (gates the PM landing options).
+const hasManagementVendor = ref(false);
 
 const org = ref<any>(null);
 const loading = ref(true);
@@ -151,6 +155,22 @@ const load = async () => {
     externalUrlInput.value = o.external_url || "";
     externalMode.value = !!o.external_url;
 
+    // Does the org have an active management vendor? Gates the PM landing options.
+    try {
+      const mgmt = await vendorItems.list({
+        filter: {
+          organization: { _eq: orgId.value },
+          category: { _eq: "management" },
+          status: { _eq: "active" },
+        },
+        fields: ["id"],
+        limit: 1,
+      });
+      hasManagementVendor.value = (mgmt?.length || 0) > 0;
+    } catch {
+      hasManagementVendor.value = false;
+    }
+
     // Board members for the inquiry recipient picker (best-effort).
     try {
       const res: any = await $fetch("/api/hoa/board-members", { query: { slug: slug.value } });
@@ -249,7 +269,10 @@ const saveContent = async () => {
     await settingsItems.update(settingsId, {
       theme: content.theme,
       description: content.description || null,
+      // Persist the property-manager landing flags (they live in landing config).
+      landing: landing.value,
     } as any);
+    org.value.settings = { ...(org.value.settings || { id: settingsId }), landing: landing.value };
 
     await orgItems.update(orgId.value, {
       type: content.type || null,
@@ -974,6 +997,37 @@ useSeoMeta({ title: "Public site" });
                 <p class="text-sm t-text-muted">Display the "Meet the board" section.</p>
               </div>
               <Switch v-model="content.show_board" />
+            </div>
+          </div>
+
+          <!-- Property management (needs a management vendor in Settings → Vendors) -->
+          <div class="ios-card p-6 space-y-4">
+            <div>
+              <h2 class="font-semibold t-text">Property management</h2>
+              <p class="text-sm t-text-muted mt-1">
+                Surface your management company on the public landing. Pulls from the primary active
+                <strong>Management</strong> vendor in
+                <NuxtLink :to="`/${slug}/admin/settings/property-management`" class="t-text-accent hover:underline">
+                  Settings → Vendors
+                </NuxtLink>.
+              </p>
+            </div>
+            <div v-if="!hasManagementVendor" class="rounded-lg border t-border bg-amber-50 text-amber-800 text-sm px-3 py-2">
+              No active management vendor found yet. Add one under Vendors to use these options.
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium t-text">Feature on landing</p>
+                <p class="text-sm t-text-muted">Adds a "Professionally managed by…" callout and a footer line.</p>
+              </div>
+              <Switch v-model="landing.feature_pm" :disabled="!hasManagementVendor" />
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium t-text">Use manager's contact in "Get in Touch"</p>
+                <p class="text-sm t-text-muted">Shows the manager's phone/email in the contact section instead of the org's.</p>
+              </div>
+              <Switch v-model="landing.pm_contact" :disabled="!hasManagementVendor" />
             </div>
           </div>
 

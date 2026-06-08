@@ -15,24 +15,28 @@
         </p>
 
         <div class="flex flex-col sm:flex-row items-center justify-center gap-12 sm:gap-20 mb-14">
-          <div v-if="organization?.phone">
+          <div v-if="contactPhone">
             <p class="landing-eyebrow mb-2">Call</p>
-            <a :href="`tel:${organization.phone}`" class="landing-heading text-2xl hover:t-text-accent transition-colors">
-              {{ organization.phone }}
+            <a :href="`tel:${contactPhone}`" class="landing-heading text-2xl hover:t-text-accent transition-colors">
+              {{ contactPhone }}
             </a>
           </div>
           <div
-            v-if="organization?.phone && organization?.email"
+            v-if="contactPhone && contactEmail"
             class="hidden sm:block w-px h-10"
             style="background: var(--theme-border-secondary)"
           />
-          <div v-if="organization?.email">
+          <div v-if="contactEmail">
             <p class="landing-eyebrow mb-2">Email</p>
-            <a :href="`mailto:${organization.email}`" class="landing-heading text-2xl hover:t-text-accent transition-colors break-all">
-              {{ organization.email }}
+            <a :href="`mailto:${contactEmail}`" class="landing-heading text-2xl hover:t-text-accent transition-colors break-all">
+              {{ contactEmail }}
             </a>
           </div>
         </div>
+
+        <p v-if="usingPmContact" class="landing-eyebrow -mt-8 mb-14">
+          Managed by {{ pmName }}
+        </p>
 
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button v-if="inquiryEnabled" type="button" class="landing-btn" @click="$emit('inquire', 'general')">
@@ -71,6 +75,19 @@ defineEmits(["inquire"]);
 
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 const inquiryEnabled = computed(() => props.cfg?.inquiry?.enabled);
+
+// Optionally route the public "Get in Touch" contact to the property manager
+// (the primary management vendor) instead of the org's own phone/email. Only
+// when the admin opted in AND a management vendor is present.
+const pm = computed(() => props.organization?.property_manager || null);
+const usingPmContact = computed(() => props.cfg?.pm_contact === true && !!pm.value);
+const pmName = computed(() => pm.value?.company || pm.value?.name || "");
+const contactPhone = computed(() =>
+  usingPmContact.value ? pm.value?.phone || props.organization?.phone : props.organization?.phone
+);
+const contactEmail = computed(() =>
+  usingPmContact.value ? pm.value?.email || props.organization?.email : props.organization?.email
+);
 
 // Cached {lat, lon} resolved by the weather route on first landing render.
 const geo = computed(() => {

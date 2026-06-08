@@ -150,6 +150,12 @@ export interface LandingConfig {
   /** Opt-in: surface recent sent announcements on the public landing. Off by
    *  default so internal resident comms are never exposed without intent. */
   show_announcements?: boolean;
+  /** Opt-in: feature the org's management company (the primary active
+   *  `management` vendor) on the landing — a callout band + a footer line. */
+  feature_pm?: boolean;
+  /** Opt-in: use the property manager's phone/email in the "Get in Touch"
+   *  section instead of the org's own. Requires feature_pm + a management vendor. */
+  pm_contact?: boolean;
 }
 
 /** Registry of every widget the landing knows how to render, in default order. */
@@ -243,6 +249,8 @@ export function defaultLandingConfig(): LandingConfig {
     inquiry: { enabled: true, recipient_type: "email", email: null, user: null },
     geo: null,
     show_announcements: false,
+    feature_pm: false,
+    pm_contact: false,
   };
 }
 
@@ -325,7 +333,18 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
       ? { lat: Number(r.geo.lat), lon: Number(r.geo.lon) }
       : null;
 
-  return { widgets, places, listings, faq, blocks, inquiry, geo, show_announcements: r.show_announcements === true };
+  return {
+    widgets,
+    places,
+    listings,
+    faq,
+    blocks,
+    inquiry,
+    geo,
+    show_announcements: r.show_announcements === true,
+    feature_pm: r.feature_pm === true,
+    pm_contact: r.pm_contact === true,
+  };
 }
 
 const ALL_BLOCK_TYPES: LandingBlockType[] = [

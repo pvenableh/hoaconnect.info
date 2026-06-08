@@ -7,28 +7,41 @@
   hero + scrolling sections carry the page. Desktop only; the caller hides it
   < lg and falls back to LandingDrawer on mobile.
 
-  Shares its nav model with the dock + drawer via useLandingNav.
+  Both bodies (expanded + collapsed icon rail) stay PERMANENTLY MOUNTED — the
+  expand/collapse is one GSAP timeline that animates the rail width together with
+  each body's opacity/x. Nothing remounts, so the brand title never reflows or
+  "drops" mid-transition. Shares its nav model with the dock + drawer via
+  useLandingNav.
 -->
 <template>
   <aside
-    class="landing-sidebar fixed inset-y-0 left-0 z-40 flex flex-col t-bg border-r t-border transition-[width] duration-300 ease-out"
+    ref="asideEl"
+    class="landing-sidebar fixed inset-y-0 left-0 z-40 flex flex-col t-bg border-r t-border overflow-hidden"
     :class="collapsed ? 'w-14' : 'w-60'"
   >
-    <!-- Collapse / expand toggle -->
-    <div class="flex items-center pt-4 pb-2" :class="collapsed ? 'justify-center px-0' : 'justify-end px-4'">
+    <!-- Collapse / expand toggle (right-anchored so it glides with the width) -->
+    <div class="flex items-center justify-end px-3 pt-4 pb-2 shrink-0">
       <button
         type="button"
         class="landing-sidebar__toggle"
         :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
         @click="toggle"
       >
-        <Icon :name="collapsed ? 'lucide:chevron-right' : 'lucide:chevron-left'" class="w-4 h-4" />
+        <Icon
+          name="lucide:chevron-right"
+          class="w-4 h-4 transition-transform duration-[450ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+          :class="collapsed ? '' : 'rotate-180'"
+        />
       </button>
     </div>
 
     <!-- Expanded body -->
-    <template v-if="!collapsed">
-      <div class="px-7 pb-5">
+    <div
+      ref="expandedEl"
+      class="flex flex-col flex-1 min-h-0 will-change-[transform,opacity]"
+      :style="ssrInitialStyle.expanded"
+    >
+      <div class="px-7 pb-5 shrink-0">
         <a href="#top" class="block group">
           <img
             v-if="logoUrl"
@@ -36,19 +49,17 @@
             :alt="organization?.name"
             class="h-9 w-auto object-contain mb-3"
           />
-          <h2 class="font-serif t-text text-2xl leading-tight tracking-tight group-hover:opacity-70 transition-opacity">
+          <h2 class="font-serif t-text text-2xl leading-tight tracking-tight group-hover:opacity-70 transition-opacity whitespace-nowrap">
             {{ organization?.name }}
           </h2>
         </a>
-        <p v-if="addressLine" class="landing-eyebrow mt-3 leading-relaxed">{{ addressLine }}</p>
       </div>
 
-      <div class="landing-rule mx-7 mb-2" />
+      <div class="landing-rule mx-7 mb-2 shrink-0" />
 
       <!-- Locked resident-portal teaser -->
       <nav class="flex-1 overflow-y-auto px-7 py-4">
         <template v-if="portalLinks.length">
-          <p class="landing-eyebrow mb-3">{{ memberNoun.singular }} portal</p>
           <ul class="space-y-0.5">
             <li v-for="p in portalLinks" :key="p.key">
               <a :href="lockHref" class="landing-sidebar__link landing-sidebar__link--locked">
@@ -63,7 +74,7 @@
       </nav>
 
       <!-- Access actions -->
-      <div class="px-7 py-6 border-t t-border space-y-3">
+      <div class="px-7 py-6 border-t t-border space-y-3 shrink-0">
         <a :href="primaryAction.href" class="landing-sidebar__cta">
           <Icon :name="primaryAction.icon" class="w-4 h-4" />
           {{ primaryAction.label }}
@@ -83,18 +94,20 @@
           <OrgLandingAvatar :user="user" />
         </div>
       </div>
-    </template>
+    </div>
 
-    <!-- Collapsed body: icon-only login + avatar, pinned to the bottom -->
-    <template v-else>
-      <div class="flex-1" />
-      <div class="flex flex-col items-center gap-3 pb-6">
-        <a :href="primaryAction.href" class="landing-sidebar__icon-cta" :title="primaryAction.label">
-          <Icon :name="primaryAction.icon" class="w-4 h-4" />
-        </a>
-        <OrgLandingAvatar v-if="user" :user="user" />
-      </div>
-    </template>
+    <!-- Collapsed body: icon-only login + avatar, pinned to the bottom. Absolute
+         so it overlays the (faded-out) expanded actions without affecting flow. -->
+    <div
+      ref="collapsedEl"
+      class="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 pb-6 will-change-[opacity]"
+      :style="ssrInitialStyle.collapsed"
+    >
+      <a :href="primaryAction.href" class="landing-sidebar__icon-cta" :title="primaryAction.label">
+        <Icon :name="primaryAction.icon" class="w-4 h-4" />
+      </a>
+      <OrgLandingAvatar v-if="user" :user="user" />
+    </div>
   </aside>
 </template>
 
@@ -112,11 +125,11 @@ const props = defineProps<{
 }>();
 
 const config = useRuntimeConfig();
+const { $gsap } = useNuxtApp() as any;
 
 const {
   user,
   isSignedIn,
-  memberNoun,
   lockHref,
   portalLinks,
   portalIntro,
@@ -138,23 +151,77 @@ const toggle = () => {
   collapsed.value = !collapsed.value;
   if (import.meta.client) localStorage.setItem("landingNavCollapsed", collapsed.value ? "1" : "0");
 };
+
+// ── Smooth expand/collapse (GSAP) ──────────────────────────────────────────
+const RAIL_W = 240; // w-60
+const RAIL_W_COLLAPSED = 56; // w-14
+const asideEl = ref<HTMLElement | null>(null);
+const expandedEl = ref<HTMLElement | null>(null);
+const collapsedEl = ref<HTMLElement | null>(null);
+let tl: any = null;
+
+// First-paint opacity (captured once, non-reactive so it never fights GSAP).
+// Avoids a flash of the clipped expanded body before onMounted runs applyState.
+const ssrCollapsed = collapsed.value;
+const ssrInitialStyle = {
+  expanded: { opacity: ssrCollapsed ? 0 : 1 },
+  collapsed: { opacity: ssrCollapsed ? 1 : 0 },
+};
+
+// Drive the rail to a state. `instant` skips the tween (initial paint / reduced
+// motion). The width and both bodies move on ONE timeline so they stay locked
+// together — the expanded content slides in horizontally with the panel rather
+// than popping into a settled layout.
+const applyState = (isCollapsed: boolean, instant = false) => {
+  if (!import.meta.client || !$gsap || !asideEl.value) return;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  tl?.kill();
+
+  if (instant || reduce) {
+    $gsap.set(asideEl.value, { width: isCollapsed ? RAIL_W_COLLAPSED : RAIL_W });
+    $gsap.set(expandedEl.value, {
+      opacity: isCollapsed ? 0 : 1,
+      x: isCollapsed ? -12 : 0,
+      pointerEvents: isCollapsed ? "none" : "auto",
+    });
+    $gsap.set(collapsedEl.value, { opacity: isCollapsed ? 1 : 0, pointerEvents: isCollapsed ? "auto" : "none" });
+    return;
+  }
+
+  tl = $gsap.timeline({ defaults: { ease: "power3.inOut" } });
+  if (isCollapsed) {
+    tl.to(expandedEl.value, { opacity: 0, x: -12, duration: 0.28, ease: "power2.in", pointerEvents: "none" }, 0)
+      .to(asideEl.value, { width: RAIL_W_COLLAPSED, duration: 0.46 }, 0)
+      .to(collapsedEl.value, { opacity: 1, pointerEvents: "auto", duration: 0.3 }, 0.18);
+  } else {
+    tl.to(collapsedEl.value, { opacity: 0, pointerEvents: "none", duration: 0.2, ease: "power2.in" }, 0)
+      .to(asideEl.value, { width: RAIL_W, duration: 0.46 }, 0)
+      .fromTo(
+        expandedEl.value,
+        { opacity: 0, x: -12 },
+        { opacity: 1, x: 0, pointerEvents: "auto", duration: 0.42, ease: "power3.out" },
+        0.1
+      );
+  }
+};
+
+let ready = false;
 onMounted(() => {
   const stored = localStorage.getItem("landingNavCollapsed");
   if (stored != null) collapsed.value = stored === "1";
+  // Lock in the starting state with no animation, then enable animated toggles.
+  applyState(collapsed.value, true);
+  ready = true;
 });
+watch(collapsed, (v) => {
+  if (ready) applyState(v, false);
+});
+onBeforeUnmount(() => tl?.kill());
 
 const logoUrl = computed(() => {
   const logo = props.organization?.logo;
   if (!logo) return "";
   const id = typeof logo === "object" ? logo.id : logo;
   return `${config.public.directus.url}/assets/${id}`;
-});
-
-const addressLine = computed(() => {
-  const o = props.organization;
-  if (!o?.street_address && !o?.city) return "";
-  return [o.street_address, [o.city, o.state].filter(Boolean).join(", "), o.zip]
-    .filter(Boolean)
-    .join("  ·  ");
 });
 </script>

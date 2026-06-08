@@ -37,10 +37,16 @@ const AMENITIES = [
       "Ground-floor retail opening directly onto the historic open-air pedestrian mall — street-level shops and cafés at the front door.",
   },
   {
-    title: "Rooftop Terrace",
-    icon: "sun",
+    title: "VIP Access",
+    icon: "crown",
     description:
-      "A landmark rooftop with sweeping views across South Beach and the Atlantic — one of Lincoln Road's most distinctive gathering spaces.",
+      "Secured, VIP building access for owners, tenants, and their invited guests.",
+  },
+  {
+    title: "Professionally Managed",
+    icon: "shield-check",
+    description:
+      "Overseen by a resident board of directors and a professional property-management company — full-service building operations and on-site support.",
   },
   {
     title: "Art Deco Landmark",
