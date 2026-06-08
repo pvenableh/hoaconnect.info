@@ -303,6 +303,7 @@ const channelsPanel = useChannelsPanel();
 // the lean dock doesn't bury anything. Gated by each area's module toggle.
 const shortcuts = computed(() =>
   [
+    { label: "Approvals", icon: "clipboard-check", to: "/admin/approvals", show: true },
     { label: "Requests", icon: "clipboard-list", to: "/admin/requests", show: isEnabled("requests") },
     { label: "Moderation", icon: "shield-alert", to: "/admin/moderation", show: isEnabled("moderation") },
     { label: "Meetings", icon: "calendar-days", to: "/admin/meetings", show: isEnabled("meetings") },
@@ -313,6 +314,19 @@ const shortcuts = computed(() =>
     { label: "Teams", icon: "users", to: "/admin/teams", show: true },
   ].filter((s) => s.show)
 );
+
+// Live count of pending resident change requests, shown as a badge on the
+// Approvals shortcut so reviewers notice waiting work without opening it.
+const { listRequests: listChangeRequests } = useChangeRequests();
+const pendingApprovals = ref(0);
+onMounted(async () => {
+  try {
+    const r = await listChangeRequests("pending");
+    pendingApprovals.value = r.requests?.length || 0;
+  } catch {
+    /* non-reviewer or no org — leave at 0 */
+  }
+});
 
 // ---- Customizable widget grid (iOS-home-screen style) ----
 // This page is admin-only (admin middleware), so admins see admin+board widgets.
@@ -421,6 +435,11 @@ const {
                       >
                         <Icon :name="'i-lucide-' + s.icon" class="w-4 h-4 t-text-secondary shrink-0" />
                         <span class="text-sm font-medium t-text truncate">{{ s.label }}</span>
+                        <span
+                          v-if="s.to === '/admin/approvals' && pendingApprovals > 0"
+                          class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold"
+                          >{{ pendingApprovals }}</span
+                        >
                       </NuxtLink>
                     </div>
                   </div>

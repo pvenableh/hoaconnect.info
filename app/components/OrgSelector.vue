@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const router = useRouter();
 const config = useRuntimeConfig();
 
-const { currentOrg, memberships, setOrganization, hasMultipleOrgs } =
-  useSelectedOrg();
+const { currentOrg, memberships, setOrganization, hasMultipleOrgs, isAdmin } =
+  await useSelectedOrg();
 
 // Agency / multi-property billing: surface the user's billing account(s) so a
 // property manager can jump to the agency dashboard ("All properties").
@@ -19,13 +20,17 @@ const { accounts: billingAccounts, hasBillingAccounts } = useBillingMemberships(
 
 const open = ref(false);
 
-// The user can actually switch context only with more than one org (or an
-// agency account). With a single org we render a static identity chip.
-const canSwitch = computed(
-  () => hasMultipleOrgs.value || hasBillingAccounts.value
+const currentOrgId = computed(() => currentOrg.value?.organization?.id ?? null);
+const currentSlug = computed(
+  () => currentOrg.value?.organization?.slug ?? null
 );
 
-const currentOrgId = computed(() => currentOrg.value?.organization?.id ?? null);
+// Other organizations the user belongs to (everything except the active one).
+const otherOrgs = computed(() =>
+  (memberships.value as any[])?.filter(
+    (m) => m?.organization?.id !== currentOrgId.value
+  ) ?? []
+);
 
 // ── Display helpers ───────────────────────────────────────────────────────
 const logoUrl = (org: any): string | null => {
@@ -91,12 +96,40 @@ const statusColor = (status: string | null | undefined) => {
   }
 };
 
-const trialDaysRemaining = (trialEndsAt: string | null | undefined) => {
-  if (!trialEndsAt) return null;
-  const diff = new Date(trialEndsAt).getTime() - Date.now();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  return days > 0 ? days : 0;
-};
+// ── Org-aware management links (built off the *selected* org's slug so they
+// work from the main domain, a slug route, or a custom domain alike). ───────
+const orgPath = (suffix: string) =>
+  currentSlug.value ? `/${currentSlug.value}${suffix}` : suffix;
+
+const manageLinks = computed(() => {
+  if (!currentSlug.value) return [];
+  return [
+    {
+      label: "Organization settings",
+      icon: "i-lucide-settings",
+      to: orgPath("/admin/settings/organization"),
+      adminOnly: true,
+    },
+    {
+      label: "Landing page & domains",
+      icon: "i-lucide-globe",
+      to: orgPath("/admin/settings/domains"),
+      adminOnly: true,
+    },
+    {
+      label: "People & members",
+      icon: "i-lucide-users-round",
+      to: orgPath("/admin/people"),
+      adminOnly: true,
+    },
+    {
+      label: "View public site",
+      icon: "i-lucide-external-link",
+      to: orgPath(""),
+      adminOnly: false,
+    },
+  ].filter((l) => !l.adminOnly || isAdmin.value);
+});
 
 // ── Actions ───────────────────────────────────────────────────────────────
 const handleSelect = async (orgId: string) => {
@@ -116,6 +149,11 @@ const handleSelect = async (orgId: string) => {
   else window.location.reload();
 };
 
+const goTo = async (to: string) => {
+  open.value = false;
+  await router.push(to);
+};
+
 const goToAgency = async (accountId: string) => {
   open.value = false;
   await router.push(`/billing/${accountId}`);
@@ -123,51 +161,43 @@ const goToAgency = async (accountId: string) => {
 </script>
 
 <template>
-  <div>
-    <!-- Single org: static identity chip (nothing to switch to) -->
-    <div
-      v-if="!canSwitch && currentOrg"
-      class="flex items-center gap-2 px-3 py-2 text-sm"
+  <DropdownMenu v-if="currentOrg" v-model:open="open">
+    <!-- Trigger: org avatar (logo / initials) with subscription dot. -->
+    <DropdownMenuTrigger
+      class="group flex items-center gap-2 rounded-full pl-0.5 pr-2 py-0.5 hover:t-bg-subtle transition-colors focus:outline-none"
+      :title="currentOrg?.organization?.name || 'Organization'"
+      aria-label="Switch organization"
     >
-      <div class="relative">
-        <Icon name="i-lucide-building-2" class="w-4 h-4" />
+      <span
+        class="relative grid place-items-center w-8 h-8 rounded-lg overflow-hidden bg-cyan-500/15 text-[11px] font-semibold text-cyan-700 shrink-0"
+      >
+        <img
+          v-if="logoUrl(currentOrg?.organization)"
+          :src="logoUrl(currentOrg?.organization)!"
+          :alt="currentOrg?.organization?.name || ''"
+          class="w-full h-full object-cover"
+        />
+        <template v-else>{{
+          initials(currentOrg?.organization?.name) || "·"
+        }}</template>
         <span
           :class="[
-            'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white',
+            'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white',
             statusColor(currentOrg?.organization?.subscription_status),
           ]"
         />
-      </div>
-      <span class="font-medium truncate">{{
-        currentOrg?.organization?.name
-      }}</span>
-      <span
-        v-if="
-          currentOrg?.organization?.subscription_status === 'trial' &&
-          trialDaysRemaining(currentOrg?.organization?.trial_ends_at) !== null
-        "
-        class="text-xs text-blue-600 font-medium"
-      >
-        ({{ trialDaysRemaining(currentOrg?.organization?.trial_ends_at) }}d left)
       </span>
-      <span
-        v-else-if="currentOrg?.organization?.subscription_status === 'expired'"
-        class="text-xs text-red-600 font-medium"
-      >
-        (Expired)
-      </span>
-    </div>
+      <Icon
+        name="i-lucide-chevrons-up-down"
+        class="hidden md:block w-3.5 h-3.5 t-text-muted shrink-0"
+      />
+    </DropdownMenuTrigger>
 
-    <!-- Multiple orgs / agency: a tappable chip that opens the switcher -->
-    <template v-else-if="canSwitch">
-      <button
-        type="button"
-        class="flex w-full items-center gap-2.5 px-3 py-2 text-sm border t-border rounded-full hover:t-bg-subtle transition-colors"
-        @click="open = true"
-      >
-        <!-- Current org avatar -->
+    <DropdownMenuContent align="start" class="w-72">
+      <!-- Active org identity -->
+      <DropdownMenuLabel class="flex items-center gap-2.5 py-2">
         <span
-          class="relative grid place-items-center w-6 h-6 rounded-md overflow-hidden bg-cyan-500/15 text-[10px] font-semibold text-cyan-700 shrink-0"
+          class="relative grid place-items-center w-9 h-9 rounded-lg overflow-hidden bg-cyan-500/15 text-xs font-semibold text-cyan-700 shrink-0"
         >
           <img
             v-if="logoUrl(currentOrg?.organization)"
@@ -176,146 +206,109 @@ const goToAgency = async (accountId: string) => {
             class="w-full h-full object-cover"
           />
           <template v-else>{{
-            initials(currentOrg?.organization?.name) || "·"
+            initials(currentOrg?.organization?.name)
           }}</template>
-          <span
-            :class="[
-              'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white',
-              statusColor(currentOrg?.organization?.subscription_status),
-            ]"
-          />
         </span>
-        <span class="font-medium truncate flex-1 text-left">{{
-          currentOrg?.organization?.name ||
-          billingAccounts[0]?.name ||
-          "Select organization"
-        }}</span>
-        <Icon
-          name="i-lucide-chevrons-up-down"
-          class="w-4 h-4 t-text-muted shrink-0"
-        />
-      </button>
+        <span class="flex-1 min-w-0">
+          <span class="block font-semibold truncate t-text">{{
+            currentOrg?.organization?.name
+          }}</span>
+          <span class="block text-xs font-normal t-text-muted">{{
+            roleLabel(currentOrg)
+          }}</span>
+        </span>
+      </DropdownMenuLabel>
 
-      <Dialog v-model:open="open">
-        <DialogContent class="sm:max-w-md p-0 gap-0 overflow-hidden">
-          <DialogHeader class="px-5 pt-5 pb-2 text-left">
-            <DialogTitle class="flex items-center gap-2">
-              <Icon name="i-lucide-building-2" class="w-5 h-5 t-text-secondary" />
-              Switch organization
-            </DialogTitle>
-            <DialogDescription>
-              Jump between the communities you belong to.
-            </DialogDescription>
-          </DialogHeader>
+      <!-- Switch to another org -->
+      <template v-if="hasMultipleOrgs">
+        <DropdownMenuSeparator />
+        <div
+          class="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wider t-text-muted"
+        >
+          Switch organization
+        </div>
+        <DropdownMenuItem
+          v-for="m in otherOrgs"
+          :key="m.id"
+          class="cursor-pointer gap-2.5"
+          @click="handleSelect(m.organization.id)"
+        >
+          <span
+            class="relative grid place-items-center w-6 h-6 rounded-md overflow-hidden bg-cyan-500/15 text-[10px] font-semibold text-cyan-700 shrink-0"
+          >
+            <img
+              v-if="logoUrl(m.organization)"
+              :src="logoUrl(m.organization)!"
+              :alt="m.organization.name"
+              class="w-full h-full object-cover"
+            />
+            <template v-else>{{ initials(m.organization.name) }}</template>
+            <span
+              :class="[
+                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white',
+                statusColor(m.organization?.subscription_status),
+              ]"
+            />
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="block truncate">{{ m.organization.name }}</span>
+            <span class="block text-xs t-text-muted">{{ roleLabel(m) }}</span>
+          </span>
+        </DropdownMenuItem>
+      </template>
 
-          <div class="max-h-[60vh] overflow-y-auto px-3 py-2 space-y-1">
-            <!-- Organizations -->
-            <button
-              v-for="m in memberships"
-              :key="m.id"
-              type="button"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors"
-              :class="
-                m.organization.id === currentOrgId
-                  ? 'bg-cyan-500/10 ring-1 ring-cyan-500/40'
-                  : 'hover:t-bg-subtle'
-              "
-              @click="handleSelect(m.organization.id)"
+      <!-- Agency: jump to the agency dashboard (all properties) -->
+      <template v-if="hasBillingAccounts">
+        <DropdownMenuSeparator />
+        <div
+          class="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wider t-text-muted"
+        >
+          Agency
+        </div>
+        <DropdownMenuItem
+          v-for="acct in billingAccounts"
+          :key="acct.id"
+          class="cursor-pointer gap-2.5"
+          @click="goToAgency(acct.id)"
+        >
+          <span
+            class="grid place-items-center w-6 h-6 rounded-md bg-violet-500/15 text-violet-700 shrink-0"
+          >
+            <Icon name="i-lucide-layout-grid" class="w-3.5 h-3.5" />
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="block truncate">{{ acct.name }}</span>
+            <span class="block text-xs t-text-muted"
+              >All properties · {{ acct.role }}</span
             >
-              <span
-                class="relative grid place-items-center w-9 h-9 rounded-lg overflow-hidden bg-cyan-500/15 text-xs font-semibold text-cyan-700 shrink-0"
-              >
-                <img
-                  v-if="logoUrl(m.organization)"
-                  :src="logoUrl(m.organization)!"
-                  :alt="m.organization.name"
-                  class="w-full h-full object-cover"
-                />
-                <template v-else>{{ initials(m.organization.name) }}</template>
-                <span
-                  :class="[
-                    'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white',
-                    statusColor(m.organization?.subscription_status),
-                  ]"
-                  :title="m.organization?.subscription_status || 'Unknown'"
-                />
-              </span>
+          </span>
+          <Icon
+            name="i-lucide-arrow-up-right"
+            class="w-3.5 h-3.5 t-text-muted shrink-0"
+          />
+        </DropdownMenuItem>
+      </template>
 
-              <span class="flex-1 min-w-0">
-                <span class="block font-medium t-text truncate">{{
-                  m.organization.name
-                }}</span>
-                <span class="flex items-center gap-1.5 mt-0.5">
-                  <span class="text-xs t-text-muted">{{ roleLabel(m) }}</span>
-                  <span
-                    v-if="m.organization?.subscription_status === 'trial'"
-                    class="text-xs text-blue-600"
-                    >· {{ trialDaysRemaining(m.organization?.trial_ends_at) }}d
-                    trial</span
-                  >
-                  <span
-                    v-else-if="m.organization?.subscription_status === 'expired'"
-                    class="text-xs text-red-600"
-                    >· Expired</span
-                  >
-                </span>
-              </span>
+      <!-- Org management / functions -->
+      <template v-if="manageLinks.length">
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          v-for="link in manageLinks"
+          :key="link.to"
+          class="cursor-pointer"
+          @click="goTo(link.to)"
+        >
+          <Icon :name="link.icon" class="size-4" />
+          {{ link.label }}
+        </DropdownMenuItem>
+      </template>
 
-              <Icon
-                v-if="m.organization.id === currentOrgId"
-                name="i-lucide-check"
-                class="w-5 h-5 text-cyan-600 shrink-0"
-              />
-            </button>
-
-            <!-- Agency billing: jump to the agency dashboard (all properties) -->
-            <template v-if="hasBillingAccounts">
-              <div class="flex items-center gap-2 px-3 pt-3 pb-1">
-                <span class="text-xs uppercase tracking-wider t-text-muted"
-                  >Agency</span
-                >
-                <span class="flex-1 border-t t-border" />
-              </div>
-              <button
-                v-for="acct in billingAccounts"
-                :key="acct.id"
-                type="button"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:t-bg-subtle transition-colors"
-                @click="goToAgency(acct.id)"
-              >
-                <span
-                  class="grid place-items-center w-9 h-9 rounded-lg bg-violet-500/15 text-violet-700 shrink-0"
-                >
-                  <Icon name="i-lucide-layout-grid" class="w-4 h-4" />
-                </span>
-                <span class="flex-1 min-w-0">
-                  <span class="block font-medium t-text truncate">{{
-                    acct.name
-                  }}</span>
-                  <span class="block text-xs t-text-muted mt-0.5"
-                    >All properties · {{ acct.role }}</span
-                  >
-                </span>
-                <Icon
-                  name="i-lucide-arrow-up-right"
-                  class="w-4 h-4 t-text-muted shrink-0"
-                />
-              </button>
-            </template>
-          </div>
-
-          <div class="border-t t-border px-5 py-3">
-            <NuxtLink
-              to="/organizations"
-              class="inline-flex items-center gap-1.5 text-sm t-text-secondary hover:t-text transition-colors"
-              @click="open = false"
-            >
-              <Icon name="i-lucide-settings-2" class="w-4 h-4" />
-              Manage all organizations
-            </NuxtLink>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </template>
-  </div>
+      <!-- Manage all organizations -->
+      <DropdownMenuSeparator />
+      <DropdownMenuItem class="cursor-pointer" @click="goTo('/organizations')">
+        <Icon name="i-lucide-settings-2" class="size-4" />
+        Manage all organizations
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

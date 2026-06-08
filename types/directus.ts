@@ -693,6 +693,38 @@ export interface HoaMeetingsFile {
 	directus_files_id?: DirectusFile | string | null;
 }
 
+export interface HoaMemberChangeRequest {
+	/** @primaryKey */
+	id: string;
+	/** @description Review state */
+	status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
+	/** @description What the resident is changing */
+	kind?: 'contact' | 'mailing_address' | 'vehicle' | 'pet' | null;
+	/** @description Add / update / remove */
+	action?: 'create' | 'update' | 'delete' | null;
+	/** @description Owning organization (tenant scope) @required */
+	organization: HoaOrganization | string;
+	/** @description The member this change belongs to @required */
+	member: HoaMember | string;
+	/** @description User who submitted the request */
+	submitted_by?: DirectusUser | string | null;
+	/** @description Admin / PM who decided */
+	reviewed_by?: DirectusUser | string | null;
+	/** @description hoa_members | hoa_vehicles | hoa_pets */
+	target_collection?: string | null;
+	/** @description Existing record id (null for new) */
+	target_id?: string | null;
+	/** @description Proposed field values */
+	payload?: Record<string, any> | null;
+	/** @description Resident's note to the reviewer */
+	note?: string | null;
+	/** @description Reviewer's note (esp. on reject) */
+	review_note?: string | null;
+	reviewed_at?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaMember {
 	/** @primaryKey */
 	id: string;
@@ -718,6 +750,8 @@ export interface HoaMember {
 	company?: string | null;
 	/** @description Per-manager grant flags for Property Manager members (inquiries, violations, directory, documents, communications). Enforced app-side + in server routes. */
 	manager_permissions?: Record<string, any> | null;
+	/** @description Separate mailing address { line1, line2, city, state, zip } (off-site owners). */
+	mailing_address?: Record<string, any> | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
@@ -1641,6 +1675,7 @@ export interface Schema {
 	hoa_meeting_attendees: HoaMeetingAttendee[];
 	hoa_meetings: HoaMeeting[];
 	hoa_meetings_files: HoaMeetingsFile[];
+	hoa_member_change_requests: HoaMemberChangeRequest[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
 	hoa_organizations: HoaOrganization[];
@@ -1720,6 +1755,7 @@ export enum CollectionNames {
 	hoa_meeting_attendees = 'hoa_meeting_attendees',
 	hoa_meetings = 'hoa_meetings',
 	hoa_meetings_files = 'hoa_meetings_files',
+	hoa_member_change_requests = 'hoa_member_change_requests',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
 	hoa_organizations = 'hoa_organizations',

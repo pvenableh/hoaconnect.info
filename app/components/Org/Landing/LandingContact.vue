@@ -42,25 +42,23 @@
             Become a {{ memberNoun.singular }}
           </NuxtLink>
         </div>
-
-        <!-- Map (no API key; shown once coordinates are known) -->
-        <div v-if="osmUrl" class="mt-14 overflow-hidden rounded-2xl border t-border t-shadow-sm">
-          <iframe
-            :src="osmUrl"
-            class="w-full h-72 sm:h-80"
-            style="border: 0"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            :title="`Map of ${organization?.name || 'the community'}`"
-          />
-        </div>
       </div>
     </div>
+
+    <!-- Full-bleed grayscale Mapbox map (shown once coordinates are cached). -->
+    <LandingMap
+      v-if="geo"
+      :lat="geo.lat"
+      :lon="geo.lon"
+      :label="organization?.name || 'the community'"
+      class="mt-16 sm:mt-24"
+    />
   </section>
 </template>
 
 <script setup>
 import { orgMemberNoun } from "~~/shared/utils/terminology";
+import LandingMap from "./LandingMap.vue";
 
 const props = defineProps({
   organization: { type: Object, required: true },
@@ -74,11 +72,9 @@ defineEmits(["inquire"]);
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 const inquiryEnabled = computed(() => props.cfg?.inquiry?.enabled);
 
-const osmUrl = computed(() => {
+// Cached {lat, lon} resolved by the weather route on first landing render.
+const geo = computed(() => {
   const g = props.cfg?.geo;
-  if (!g) return "";
-  const d = 0.008;
-  const bbox = [g.lon - d, g.lat - d, g.lon + d, g.lat + d].join("%2C");
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${g.lat}%2C${g.lon}`;
+  return g && typeof g.lat === "number" && typeof g.lon === "number" ? g : null;
 });
 </script>
