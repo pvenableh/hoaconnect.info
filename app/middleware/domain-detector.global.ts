@@ -48,5 +48,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
     isMainDomainState.value = true;
   } else {
     isMainDomainState.value = false;
+    // Custom domain on a non-root, non-slug route (e.g. 605lincolnroad.com/auth/login).
+    // The root would have been rewritten to /{slug} (handled above), but auth
+    // pages aren't — so resolve the org by host to give branding (the auth
+    // shell, etc.) the tenant's identity instead of the generic HOA Connect mark.
+    if (!activeHoa.value) {
+      try {
+        const resolved = await $fetch<{ slug?: string } | null>(
+          "/api/hoa/by-domain",
+          { query: { host } }
+        );
+        if (resolved?.slug) await fetchActiveHoa(resolved.slug);
+      } catch {
+        // Unmatched/unverified host — leave activeHoa null; branding falls back.
+      }
+    }
   }
 });

@@ -38,14 +38,29 @@
       </div>
     </div>
 
-    <!-- Admin workspace at the clean root (role-aware home) -->
-    <PagesDashboardPage v-else-if="isWorkspaceUser && isAdminOfCurrentDomain" />
+    <!-- Loaded org -->
+    <template v-else>
+      <!-- Admin "view as member" preview banner -->
+      <div
+        v-if="previewAsMember"
+        class="sticky top-0 z-50 flex items-center justify-center gap-3 bg-cyan-600 px-4 py-2 text-center text-sm font-medium text-white"
+      >
+        <Icon name="i-lucide-eye" class="size-4 shrink-0" />
+        Previewing the member view
+        <NuxtLink :to="`/${slug}`" class="underline underline-offset-2">Exit</NuxtLink>
+      </div>
 
-    <!-- Member workspace at the clean root -->
-    <PagesMemberDashboardPage v-else-if="isWorkspaceUser" />
+      <!-- Admin workspace at the clean root (role-aware home) -->
+      <PagesDashboardPage
+        v-if="isWorkspaceUser && isAdminOfCurrentDomain && !previewAsMember"
+      />
 
-    <!-- Public landing — visitors, and any logged-in user via ?preview -->
-    <OrgPublicLanding v-else :organization="organization" :slug="slug" />
+      <!-- Member workspace at the clean root (also the admin "view as member" preview) -->
+      <PagesMemberDashboardPage v-else-if="isWorkspaceUser" />
+
+      <!-- Public landing — visitors, and any logged-in user via ?preview -->
+      <OrgPublicLanding v-else :organization="organization" :slug="slug" />
+    </template>
   </div>
 </template>
 
@@ -68,6 +83,12 @@ const { isMemberOfCurrentDomain, isAdminOfCurrentDomain } =
 // "?preview" lets any logged-in user view the public landing (the org's front
 // door) even though their clean root normally renders their own workspace.
 const forcePublic = computed(() => route.query.preview !== undefined);
+
+// "?as=member" lets an admin of this org see exactly what a logged-in resident
+// sees (the member dashboard) without leaving their own account.
+const previewAsMember = computed(
+  () => route.query.as === "member" && isAdminOfCurrentDomain.value
+);
 
 // A logged-in member/admin of THIS org gets their workspace at the clean root —
 // no "/dashboard" suffix, which keeps APEX custom-domain URLs pristine
@@ -110,10 +131,15 @@ const { data: organization, pending } = await useAsyncData(
 // (settings → set external_url), HOA Connect's built-in landing is disabled and
 // HOA Connect acts as the resident portal only. Public visitors go to the
 // resident login; logged-in members fall through to their dashboard below.
-if (organization.value?.external_url && !isWorkspaceUser.value) {
+if (
+  organization.value?.external_url &&
+  !isWorkspaceUser.value &&
+  !forcePublic.value
+) {
   // Built-in landing disabled for this org. Workspace users render their
   // dashboard inline (above); a logged-in non-member is sent to the slug-agnostic
   // `/dashboard` entry (resolves to THEIR org's clean root), visitors to login.
+  // `?preview` opts out so an admin can still inspect the built-in landing.
   await navigateTo(user.value ? "/dashboard" : "/auth/login", { replace: true });
 }
 

@@ -1,7 +1,10 @@
 <script setup lang="ts">
-// Shared chrome for the auth pages: ambient accent glows, the HOAConnect brand
-// mark, the centered slot for a glass form card, and a "back" link. Mirrors the
-// reference pattern established by pages/auth/login.vue.
+// Shared chrome for the auth pages: ambient accent glows, the brand mark, the
+// centered slot for a glass form card, and a "back" link. On a tenant's custom
+// domain the mark becomes that org's logo/name (so a resident signing in at
+// 605lincolnroad.com sees their community, not a generic HOA Connect header);
+// on the main app host it stays the HOAConnect wordmark. Mirrors the reference
+// pattern established by pages/auth/login.vue.
 withDefaults(
   defineProps<{
     backTo?: string;
@@ -12,6 +15,20 @@ withDefaults(
     backLabel: "Back to home",
   }
 );
+
+const config = useRuntimeConfig();
+const { activeHoa, isMainDomain } = useActiveHoa();
+
+// Only co-brand when we're on a tenant's domain with a resolved org.
+const showOrgBrand = computed(() => !isMainDomain.value && !!activeHoa.value);
+
+const orgLogoUrl = computed(() => {
+  const org = activeHoa.value as any;
+  const logo = org?.settings?.logo || org?.logo;
+  if (!logo) return "";
+  const id = typeof logo === "object" ? logo.id : logo;
+  return `${config.public.directus.url}/assets/${id}?key=small-contain`;
+});
 </script>
 
 <template>
@@ -25,9 +42,23 @@ withDefaults(
     </div>
 
     <div class="relative w-full max-w-md">
-      <!-- Brand mark -->
+      <!-- Brand mark — the tenant's org on a custom domain, else HOAConnect -->
       <div class="mb-8 flex flex-col items-center gap-2 text-center">
-        <NuxtLink to="/" class="transition hover:opacity-80">
+        <template v-if="showOrgBrand">
+          <NuxtLink to="/" class="flex flex-col items-center gap-2 transition hover:opacity-80">
+            <img
+              v-if="orgLogoUrl"
+              :src="orgLogoUrl"
+              :alt="(activeHoa as any)?.name || ''"
+              class="h-12 w-auto max-w-[14rem] object-contain"
+            />
+            <span v-else class="font-serif text-2xl t-text">{{ (activeHoa as any)?.name }}</span>
+          </NuxtLink>
+          <span class="text-[11px] uppercase tracking-extra-wide t-text-muted">
+            Resident portal
+          </span>
+        </template>
+        <NuxtLink v-else to="/" class="transition hover:opacity-80">
           <span class="text-2xl font-semibold uppercase tracking-extra-wide t-text">
             <span class="font-light">HOA</span>Connect
           </span>

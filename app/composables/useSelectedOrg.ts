@@ -146,6 +146,8 @@ export const useSelectedOrg = async () => {
             "organization.name",
             "organization.folder",
             "organization.slug",
+            "organization.custom_domain",
+            "organization.domain_verified",
             "organization.settings.logo",
             // Entitlement (own fields + parent billing_account, resolved up)
             ...entitlementFields("organization"),

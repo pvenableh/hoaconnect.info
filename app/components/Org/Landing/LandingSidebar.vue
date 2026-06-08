@@ -16,7 +16,7 @@
 <template>
   <aside
     ref="asideEl"
-    class="landing-sidebar fixed inset-y-0 left-0 z-40 flex flex-col t-bg border-r t-border overflow-hidden"
+    class="landing-sidebar fixed inset-y-0 left-0 z-40 flex flex-col t-bg border-r t-border overflow-hidden will-change-[width]"
     :class="collapsed ? 'w-14' : 'w-60'"
   >
     <!-- Collapse / expand toggle (right-anchored so it glides with the width) -->

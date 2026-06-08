@@ -22,6 +22,20 @@ definePageMeta({
 const { selectedOrgId } = await useSelectedOrg();
 const { fetchHousehold, submitChange } = useChangeRequests();
 
+// Vehicles / pets are optional org modules — hide their sections when the admin
+// has switched them off (Settings → Modules).
+const { isEnabled } = useModules();
+const vehiclesEnabled = computed(() => isEnabled("vehicles"));
+const petsEnabled = computed(() => isEnabled("pets"));
+
+const householdBlurb = computed(() => {
+  const parts = ["contact details", "mailing address"];
+  if (vehiclesEnabled.value) parts.push("vehicles");
+  if (petsEnabled.value) parts.push("pets");
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+});
+
 const { data, pending, refresh } = await useAsyncData(
   () => `my-household-${selectedOrgId.value}`,
   () => fetchHousehold(),
@@ -124,7 +138,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
       <header class="space-y-1">
         <h1 class="text-2xl font-semibold t-text">My household</h1>
         <p class="t-text-muted text-sm">
-          Keep your contact details, mailing address, vehicles, and pets up to date.
+          Keep your {{ householdBlurb }} up to date.
           Changes are sent to your community manager for review.
         </p>
       </header>
@@ -173,7 +187,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </section>
 
         <!-- Vehicles -->
-        <section class="rounded-xl border t-border t-bg-elevated p-5">
+        <section v-if="vehiclesEnabled" class="rounded-xl border t-border t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Vehicles</h2>
             <Button variant="outline" size="sm" @click="openAddVehicle">
@@ -197,7 +211,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </section>
 
         <!-- Pets -->
-        <section class="rounded-xl border t-border t-bg-elevated p-5">
+        <section v-if="petsEnabled" class="rounded-xl border t-border t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Pets</h2>
             <Button variant="outline" size="sm" @click="openAddPet">

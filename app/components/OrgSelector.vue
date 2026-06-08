@@ -123,9 +123,19 @@ const manageLinks = computed(() => {
       adminOnly: true,
     },
     {
+      label: "Preview member view",
+      icon: "i-lucide-eye",
+      // `?as=member` makes the clean root render the resident dashboard so an
+      // admin can see exactly what a logged-in member sees. Admin-only.
+      to: orgPath("?as=member"),
+      adminOnly: true,
+    },
+    {
       label: "View public site",
       icon: "i-lucide-external-link",
-      to: orgPath(""),
+      // `?preview` forces the public landing even for a logged-in user (whose
+      // clean root would otherwise render their workspace).
+      to: orgPath("?preview"),
       adminOnly: false,
     },
   ].filter((l) => !l.adminOnly || isAdmin.value);
@@ -143,8 +153,28 @@ const handleSelect = async (orgId: string) => {
 
   await setOrganization(orgId);
 
-  // Navigate to the new org. The slug becomes authoritative on arrival
-  // (useSelectedOrg STEP 3.5 / org-slug-sync), so the dock and hero agree.
+  const targetOrg = membership?.organization as any;
+  const isMainDomain = useState<boolean>("isMainDomain", () => true);
+
+  // If the target org has its OWN verified custom domain, send the browser
+  // there — switching into 605 Lincoln Road lands on 605lincolnroad.com, not
+  // app.hoaconnect.info/605-lincoln (and never the old tenant's domain).
+  if (targetOrg?.custom_domain && targetOrg?.domain_verified) {
+    window.location.href = `https://${targetOrg.custom_domain}`;
+    return;
+  }
+
+  // Otherwise, if we're currently on a custom domain, that domain belongs to a
+  // DIFFERENT tenant — an in-app router.push would land us at
+  // 605lincolnroad.com/1033-lenox. Leave it for the main app host instead.
+  if (!isMainDomain.value && newSlug) {
+    window.location.href = `https://${config.public.mainDomain}/${newSlug}`;
+    return;
+  }
+
+  // Same main host on both sides — fast in-app nav. The slug becomes
+  // authoritative on arrival (useSelectedOrg STEP 3.5 / org-slug-sync), so the
+  // dock and hero agree.
   if (newSlug) await router.push(`/${newSlug}`);
   else window.location.reload();
 };
@@ -169,7 +199,7 @@ const goToAgency = async (accountId: string) => {
       aria-label="Switch organization"
     >
       <span
-        class="relative grid place-items-center w-8 h-8 rounded-lg overflow-hidden bg-cyan-500/15 text-[11px] font-semibold text-cyan-700 shrink-0"
+        class="relative grid place-items-center w-8 h-8 rounded-full overflow-hidden bg-cyan-500/15 text-[11px] font-semibold text-cyan-700 shrink-0"
       >
         <img
           v-if="logoUrl(currentOrg?.organization)"
@@ -197,7 +227,7 @@ const goToAgency = async (accountId: string) => {
       <!-- Active org identity -->
       <DropdownMenuLabel class="flex items-center gap-2.5 py-2">
         <span
-          class="relative grid place-items-center w-9 h-9 rounded-lg overflow-hidden bg-cyan-500/15 text-xs font-semibold text-cyan-700 shrink-0"
+          class="relative grid place-items-center w-9 h-9 rounded-full overflow-hidden bg-cyan-500/15 text-xs font-semibold text-cyan-700 shrink-0"
         >
           <img
             v-if="logoUrl(currentOrg?.organization)"
@@ -234,7 +264,7 @@ const goToAgency = async (accountId: string) => {
           @click="handleSelect(m.organization.id)"
         >
           <span
-            class="relative grid place-items-center w-6 h-6 rounded-md overflow-hidden bg-cyan-500/15 text-[10px] font-semibold text-cyan-700 shrink-0"
+            class="relative grid place-items-center w-6 h-6 rounded-full overflow-hidden bg-cyan-500/15 text-[10px] font-semibold text-cyan-700 shrink-0"
           >
             <img
               v-if="logoUrl(m.organization)"

@@ -14,7 +14,7 @@
   <div
     id="top"
     ref="rootEl"
-    class="transition-[padding] duration-300 ease-out"
+    class="transition-[padding] duration-[460ms] ease-[cubic-bezier(0.65,0,0.35,1)] will-change-[padding]"
     :class="navVariant === 'editorial' ? (landingNavCollapsed ? 'lg:pl-14' : 'lg:pl-60') : ''"
   >
     <!-- Theme-aware navigation (editorial sidebar+drawer, or modern dock) -->
