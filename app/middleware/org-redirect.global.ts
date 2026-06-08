@@ -10,6 +10,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // Skip if not logged in
   if (!loggedIn.value) return;
 
+  // Skip on custom domains. The host dictates the tenant there; redirecting to
+  // the user's SELECTED org slug would render a different tenant's content on
+  // this domain (e.g. 605lincolnroad.com/1033-lenox). domain-detector.global
+  // sets isMainDomain=false before this middleware runs.
+  const isMainDomain = useState<boolean>("isMainDomain", () => true);
+  if (!isMainDomain.value) return;
+
   // Skip redirect for auth pages, setup pages, account page, and other public routes
   // Account page lives on main domain since user accounts are user-specific, not org-specific
   const skipPaths = [

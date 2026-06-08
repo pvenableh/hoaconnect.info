@@ -91,6 +91,11 @@ onMounted(() => {
       <AppChannelsPanel />
     </ClientOnly>
 
+    <!-- Admin "view as" switcher (workspace · member · public landing) -->
+    <ClientOnly>
+      <OrgViewSwitcher />
+    </ClientOnly>
+
     <!-- Global Notification Components -->
     <ClientOnly>
       <NotificationSheet />

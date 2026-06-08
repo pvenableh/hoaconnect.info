@@ -1,6 +1,11 @@
 <template>
   <div class="t-bg t-text t-transition min-h-screen">
     <slot />
+    <!-- Admin "view as" switcher — also rides the chromeless public landing so an
+         admin previewing /{slug}?preview can flip back to their workspace. -->
+    <ClientOnly>
+      <OrgViewSwitcher />
+    </ClientOnly>
   </div>
 </template>
 

@@ -155,6 +155,9 @@ const toggle = () => {
 // ── Smooth expand/collapse (GSAP) ──────────────────────────────────────────
 const RAIL_W = 240; // w-60
 const RAIL_W_COLLAPSED = 56; // w-14
+// The expanded body slides its FULL width so it reads as a panel sliding off /
+// in (not a fade). Matching the rail width's distance keeps the two locked.
+const SLIDE = RAIL_W;
 const asideEl = ref<HTMLElement | null>(null);
 const expandedEl = ref<HTMLElement | null>(null);
 const collapsedEl = ref<HTMLElement | null>(null);
@@ -181,26 +184,35 @@ const applyState = (isCollapsed: boolean, instant = false) => {
     $gsap.set(asideEl.value, { width: isCollapsed ? RAIL_W_COLLAPSED : RAIL_W });
     $gsap.set(expandedEl.value, {
       opacity: isCollapsed ? 0 : 1,
-      x: isCollapsed ? -12 : 0,
+      x: isCollapsed ? -SLIDE : 0,
       pointerEvents: isCollapsed ? "none" : "auto",
     });
     $gsap.set(collapsedEl.value, { opacity: isCollapsed ? 1 : 0, pointerEvents: isCollapsed ? "auto" : "none" });
     return;
   }
 
-  tl = $gsap.timeline({ defaults: { ease: "power3.inOut" } });
+  // Everything rides ONE curve (power3.inOut ≈ the page's pl-* CSS transition,
+  // cubic-bezier(0.65,0,0.35,1)) over the SAME 0.46s, starting together at 0 —
+  // so the rail width, the page content, and the panel body move in lockstep.
+  tl = $gsap.timeline({ defaults: { ease: "power3.inOut", duration: 0.46 } });
   if (isCollapsed) {
-    tl.to(expandedEl.value, { opacity: 0, x: -12, duration: 0.28, ease: "power2.in", pointerEvents: "none" }, 0)
-      .to(asideEl.value, { width: RAIL_W_COLLAPSED, duration: 0.46 }, 0)
-      .to(collapsedEl.value, { opacity: 1, pointerEvents: "auto", duration: 0.3 }, 0.18);
+    // Panel slides its full width off to the left in step with the closing rail;
+    // it stays opaque WHILE it travels (so you see it slide, not fade) and only
+    // fades over the final stretch to clean up the tail.
+    tl.to(asideEl.value, { width: RAIL_W_COLLAPSED }, 0)
+      .to(expandedEl.value, { x: -SLIDE, pointerEvents: "none" }, 0)
+      .to(expandedEl.value, { opacity: 0, duration: 0.18, ease: "power1.out" }, 0.28)
+      .to(collapsedEl.value, { opacity: 1, pointerEvents: "auto", duration: 0.26, ease: "power2.out" }, 0.22);
   } else {
-    tl.to(collapsedEl.value, { opacity: 0, pointerEvents: "none", duration: 0.2, ease: "power2.in" }, 0)
-      .to(asideEl.value, { width: RAIL_W, duration: 0.46 }, 0)
+    // Reverse: panel slides in from off-left, opaque the whole way (clipped while
+    // still off-screen), perfectly tracking the opening rail and shrinking page.
+    tl.to(collapsedEl.value, { opacity: 0, pointerEvents: "none", duration: 0.16, ease: "power1.in" }, 0)
+      .to(asideEl.value, { width: RAIL_W }, 0)
       .fromTo(
         expandedEl.value,
-        { opacity: 0, x: -12 },
-        { opacity: 1, x: 0, pointerEvents: "auto", duration: 0.42, ease: "power3.out" },
-        0.1
+        { x: -SLIDE, opacity: 1 },
+        { x: 0, pointerEvents: "auto" },
+        0
       );
   }
 };

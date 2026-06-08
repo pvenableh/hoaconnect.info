@@ -5,6 +5,9 @@ definePageMeta({ layout: "auth-blank" });
 
 const router = useRouter();
 const { login } = useDirectusAuth();
+// On a custom domain the bound tenant is dictated by the host (resolved into
+// activeHoa by domain-detector.global), NOT by the user's default org.
+const { activeHoa, isMainDomain } = useActiveHoa();
 const isLoading = ref(false);
 
 // Ref to the login form component for setting errors
@@ -51,15 +54,20 @@ const handleSubmit = async (values: { email: string; password: string }) => {
       duration: 10000, // Long duration since page will navigate away
     });
 
-    // Redirect to organization URL if available
-    const org = response?.user?.organization;
-
-    if (org?.slug) {
-      // Redirect to organization slug path using navigateTo for smooth client-side navigation
-      await navigateTo(`/${org.slug}`, { replace: true });
+    // Redirect after login. On a CUSTOM DOMAIN, the tenant is fixed by the host —
+    // land on that org (resolved into activeHoa by host), never the user's default
+    // org, which could belong to a different tenant and would render its content
+    // on the wrong domain (e.g. 605lincolnroad.com/1033-lenox).
+    if (!isMainDomain.value) {
+      const domainSlug = activeHoa.value?.slug;
+      await navigateTo(domainSlug ? `/${domainSlug}` : "/", { replace: true });
     } else {
-      // No organization, redirect to dashboard
-      await navigateTo("/dashboard", { replace: true });
+      // Main app host: route to the user's default org slug, or the slug-agnostic
+      // /dashboard entry when they have none.
+      const org = response?.user?.organization;
+      await navigateTo(org?.slug ? `/${org.slug}` : "/dashboard", {
+        replace: true,
+      });
     }
   } catch (error: any) {
     console.error('[login] Login failed:', error);
