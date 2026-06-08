@@ -39,6 +39,18 @@
 	position: relative;
 }
 
+/* Editorial numbered label (01 / Category) — pins beside the long copy column on
+   desktop and travels the section as you scroll, à la 1033lenox.com. align-self
+   keeps the box its natural height so sticky has room to move within the grid row. */
+@media (min-width: 1024px) {
+	.landing-num-label {
+		position: sticky;
+		top: 8rem;
+		align-self: start;
+		height: fit-content;
+	}
+}
+
 /* Hero entrance — pure CSS so there's no flash and no JS dependency. */
 .hero-fade {
 	opacity: 0;

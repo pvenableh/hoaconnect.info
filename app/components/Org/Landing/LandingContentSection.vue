@@ -15,12 +15,13 @@
   >
     <div class="max-w-6xl mx-auto">
       <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
-        <!-- Numbered label column (1033 style); empty spacer keeps copy aligned -->
-        <div v-if="hasLabel" class="reveal flex flex-col gap-2">
+        <!-- Numbered label column (1033 style) — sticks beside the long copy column
+             on desktop as you scroll. Empty spacer keeps copy aligned when absent. -->
+        <div v-if="hasLabel" class="landing-num-label reveal flex flex-col gap-2">
           <span v-if="block.number_label" class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">
             {{ block.number_label }}
           </span>
-          <span v-if="block.category" class="text-xs lg:text-sm tracking-wider uppercase t-text-tertiary">
+          <span v-if="block.category" class="text-xs lg:text-sm lg:leading-3 tracking-wider uppercase t-text-tertiary">
             {{ block.category }}
           </span>
         </div>
