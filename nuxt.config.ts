@@ -22,7 +22,10 @@ export default defineNuxtConfig({
     "shadcn-nuxt",
   ],
 
-  css: ["~/assets/css/main.css"],
+  // vue-sonner ships its own stylesheet (toast positioning/animation/structure);
+  // without it toasts render unstyled at the page bottom. Load it before our CSS
+  // so our theme tokens (--normal-bg etc. in ui/sonner) can override on top.
+  css: ["vue-sonner/style.css", "~/assets/css/main.css"],
 
   runtimeConfig: {
     // Server-only keys (never exposed to client-side)

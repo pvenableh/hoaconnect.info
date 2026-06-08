@@ -192,8 +192,14 @@ const goToAgency = async (accountId: string) => {
 
 <template>
   <DropdownMenu v-if="currentOrg" v-model:open="open">
-    <!-- Trigger: org avatar (logo / initials) with subscription dot. -->
+    <!-- Caller-supplied trigger (e.g. the sidebar's brand row) — the dropdown
+         logic stays here, only the trigger chrome differs. -->
+    <DropdownMenuTrigger v-if="$slots.trigger" as-child>
+      <slot name="trigger" />
+    </DropdownMenuTrigger>
+    <!-- Default trigger: org avatar (logo / initials) with subscription dot. -->
     <DropdownMenuTrigger
+      v-else
       class="group flex items-center gap-2 rounded-full pl-0.5 pr-2 py-0.5 hover:t-bg-subtle transition-colors focus:outline-none"
       :title="currentOrg?.organization?.name || 'Organization'"
       aria-label="Switch organization"

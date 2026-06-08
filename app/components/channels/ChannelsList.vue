@@ -125,7 +125,7 @@ const selectChannel = (channel: HoaChannel) => {
   <div class="channels-list">
     <!-- Header -->
     <div class="flex items-center justify-between px-3 py-2">
-      <h2 class="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+      <h2 class="text-sm font-semibold t-text-muted uppercase tracking-wide">
         Channels
       </h2>
       <Button
@@ -144,14 +144,14 @@ const selectChannel = (channel: HoaChannel) => {
       <div
         v-for="n in 4"
         :key="n"
-        class="h-8 bg-stone-100 dark:bg-stone-800 rounded animate-pulse"
+        class="h-8 t-bg-subtle rounded animate-pulse"
       />
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="px-3 py-4 text-center">
       <p class="text-sm text-red-500 mb-2">Failed to load channels</p>
-      <p class="text-xs text-stone-500 mb-3">{{ error }}</p>
+      <p class="text-xs t-text-muted mb-3">{{ error }}</p>
       <Button variant="outline" size="sm" @click="refresh">
         <Icon name="lucide:refresh-cw" class="w-4 h-4 mr-1" />
         Retry
@@ -162,7 +162,7 @@ const selectChannel = (channel: HoaChannel) => {
     <div v-else class="space-y-4">
       <!-- Pinned Channels -->
       <div v-if="pinnedChannels.length">
-        <div class="flex items-center gap-2 px-3 py-1 text-xs font-medium text-stone-500 uppercase">
+        <div class="flex items-center gap-2 px-3 py-1 text-xs font-medium t-text-muted uppercase">
           <Icon name="lucide:pin" class="w-3 h-3" />
           Pinned
         </div>
@@ -174,7 +174,7 @@ const selectChannel = (channel: HoaChannel) => {
             :class="[
               selectedChannelSlug === channel.slug
                 ? 'bg-primary/10 text-primary font-medium'
-                : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
+                : 't-text-secondary hover:t-bg-subtle',
             ]"
             @click="selectChannel(channel)"
           >
@@ -197,7 +197,7 @@ const selectChannel = (channel: HoaChannel) => {
           :class="[
             selectedChannelSlug === channel.slug
               ? 'bg-primary/10 text-primary font-medium'
-              : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
+              : 't-text-secondary hover:t-bg-subtle',
           ]"
           @click="selectChannel(channel)"
         >
@@ -215,7 +215,7 @@ const selectChannel = (channel: HoaChannel) => {
 
       <!-- Private Channels -->
       <div v-if="privateChannels.length">
-        <div class="flex items-center gap-2 px-3 py-1 text-xs font-medium text-stone-500 uppercase">
+        <div class="flex items-center gap-2 px-3 py-1 text-xs font-medium t-text-muted uppercase">
           <Icon name="lucide:lock" class="w-3 h-3" />
           Private
         </div>
@@ -227,7 +227,7 @@ const selectChannel = (channel: HoaChannel) => {
             :class="[
               selectedChannelSlug === channel.slug
                 ? 'bg-primary/10 text-primary font-medium'
-                : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
+                : 't-text-secondary hover:t-bg-subtle',
             ]"
             @click="selectChannel(channel)"
           >
@@ -244,9 +244,9 @@ const selectChannel = (channel: HoaChannel) => {
       >
         <Icon
           name="lucide:message-square-plus"
-          class="w-10 h-10 mx-auto mb-3 text-stone-300 dark:text-stone-600"
+          class="w-10 h-10 mx-auto mb-3 t-text-muted"
         />
-        <p class="text-sm text-stone-500 mb-3">No channels yet</p>
+        <p class="text-sm t-text-muted mb-3">No channels yet</p>
         <Button
           v-if="props.isAdmin"
           variant="outline"
@@ -261,7 +261,7 @@ const selectChannel = (channel: HoaChannel) => {
       <!-- Archived (collapsible) -->
       <div class="pt-1">
         <button
-          class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-stone-500 uppercase hover:text-stone-700 dark:hover:text-stone-300"
+          class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium t-text-muted uppercase hover:t-text"
           @click="showArchived = !showArchived"
         >
           <Icon
@@ -275,7 +275,7 @@ const selectChannel = (channel: HoaChannel) => {
           <button
             v-for="channel in archived"
             :key="channel.id"
-            class="w-full flex items-center gap-2 px-3 py-1.5 text-left rounded-md transition-colors text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+            class="w-full flex items-center gap-2 px-3 py-1.5 text-left rounded-md transition-colors t-text-muted hover:t-bg-subtle"
             :class="selectedChannelSlug === channel.slug ? 'bg-primary/10 text-primary font-medium' : ''"
             @click="selectChannel(channel)"
           >
@@ -284,7 +284,7 @@ const selectChannel = (channel: HoaChannel) => {
           </button>
           <p
             v-if="archivedLoaded && !archived.length"
-            class="px-3 py-2 text-xs text-stone-400"
+            class="px-3 py-2 text-xs t-text-muted"
           >
             No archived channels.
           </p>

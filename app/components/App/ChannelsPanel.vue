@@ -63,10 +63,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         >
           <aside
             v-if="isOpen"
-            class="absolute top-0 right-0 h-full w-full sm:w-[440px] md:w-[640px] bg-white dark:bg-stone-950 shadow-2xl flex flex-col"
+            class="absolute top-0 right-0 h-full w-full sm:w-[440px] md:w-[640px] t-bg-elevated shadow-2xl flex flex-col"
           >
             <!-- Panel header -->
-            <div class="flex items-center justify-between px-4 h-14 border-b border-stone-200 dark:border-stone-800 shrink-0">
+            <div class="flex items-center justify-between px-4 h-14 border-b t-border shrink-0">
               <div class="flex items-center gap-2 min-w-0">
                 <button
                   v-if="activeChannelSlug"
@@ -76,7 +76,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 >
                   <Icon name="lucide:chevron-left" class="w-4 h-4" />
                 </button>
-                <Icon name="lucide:messages-square" class="w-5 h-5 text-stone-500 shrink-0" />
+                <Icon name="lucide:messages-square" class="w-5 h-5 t-text-muted shrink-0" />
                 <span class="font-semibold truncate">Channels</span>
               </div>
               <div class="flex items-center gap-1.5">

@@ -40,15 +40,8 @@
 
     <!-- Loaded org -->
     <template v-else>
-      <!-- Admin "view as member" preview banner -->
-      <div
-        v-if="previewAsMember"
-        class="sticky top-0 z-50 flex items-center justify-center gap-3 bg-cyan-600 px-4 py-2 text-center text-sm font-medium text-white"
-      >
-        <Icon name="i-lucide-eye" class="size-4 shrink-0" />
-        Previewing the member view
-        <NuxtLink :to="`/${slug}`" class="underline underline-offset-2">Exit</NuxtLink>
-      </div>
+      <!-- The "previewing member view" banner now lives in the auth layout so it
+           persists across every workspace page (see app/layouts/auth.vue). -->
 
       <!-- Admin workspace at the clean root (role-aware home) -->
       <PagesDashboardPage
@@ -84,10 +77,14 @@ const { isMemberOfCurrentDomain, isAdminOfCurrentDomain } =
 // door) even though their clean root normally renders their own workspace.
 const forcePublic = computed(() => route.query.preview !== undefined);
 
-// "?as=member" lets an admin of this org see exactly what a logged-in resident
-// sees (the member dashboard) without leaving their own account.
+// "View as member" lets an admin of this org see exactly what a logged-in resident
+// sees (the member dashboard). It's a sticky mode (useViewAs) so it persists as the
+// admin navigates — `?as=member` is just the entry point that flips it on.
+const { isPreviewingMember } = useViewAs();
 const previewAsMember = computed(
-  () => route.query.as === "member" && isAdminOfCurrentDomain.value
+  () =>
+    isAdminOfCurrentDomain.value &&
+    (isPreviewingMember.value || route.query.as === "member")
 );
 
 // A logged-in member/admin of THIS org gets their workspace at the clean root —
@@ -149,6 +146,11 @@ if (
 const { forceThemeStyle } = useTheme();
 const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
 watchEffect(() => {
+  // Only force the theme for the PUBLIC LANDING. When a workspace user renders
+  // here (the clean-root dashboard / member preview, in the `auth` layout), that
+  // layout owns the <html> theme — forcing it here would register a second,
+  // competing class and reset the light/dark mode to its default.
+  if (isWorkspaceUser.value) return;
   const style = organization.value?.settings?.theme;
   if (style && VALID_LANDING_STYLES.includes(style)) {
     forceThemeStyle(style);

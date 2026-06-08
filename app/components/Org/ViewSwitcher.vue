@@ -23,9 +23,9 @@
           <Icon name="i-lucide-eye" class="size-3" />
           View
         </span>
-        <NuxtLink :to="base" :class="segClass(mode === 'admin')">Admin</NuxtLink>
-        <NuxtLink :to="`${base}?as=member`" :class="segClass(mode === 'member')">Member</NuxtLink>
-        <NuxtLink :to="`${base}?preview`" :class="segClass(mode === 'public')">Public</NuxtLink>
+        <button type="button" :class="segClass(mode === 'admin')" @click="goAdmin">Admin</button>
+        <button type="button" :class="segClass(mode === 'member')" @click="goMember">Member</button>
+        <button type="button" :class="segClass(mode === 'public')" @click="goPublic">Public</button>
       </div>
     </div>
   </Teleport>
@@ -34,19 +34,38 @@
 <script setup lang="ts">
 const route = useRoute();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { viewAs, setViewAs } = useViewAs();
 
 const slug = computed(() => route.params.slug as string | undefined);
 const base = computed(() => (slug.value ? `/${slug.value}` : "/"));
 
-// Which view the page is currently rendering, from the query flags index.vue reads.
+// Which view is active: public is query-driven (`?preview` landing); member is the
+// sticky cookie mode (persists across navigation); else admin.
 const mode = computed<"admin" | "member" | "public">(() => {
   if (route.query.preview !== undefined) return "public";
-  if (route.query.as === "member") return "member";
+  if (viewAs.value === "member") return "member";
   return "admin";
 });
 
-// Admin-only tool, scoped to an org context on the app domain.
-const visible = computed(() => !!slug.value && isAdminOfCurrentDomain.value);
+// Admin-only tool, scoped to an org context on the app domain. Hidden while
+// previewing the MEMBER view — that mode shows a persistent top "Previewing the
+// member view · Exit" banner on every page (see auth.vue), so the floating bar
+// would be redundant. Kept in admin (the entry point) and public.
+const visible = computed(
+  () => !!slug.value && isAdminOfCurrentDomain.value && mode.value !== "member"
+);
+
+const goAdmin = () => {
+  setViewAs("admin");
+  navigateTo(base.value);
+};
+const goMember = () => {
+  setViewAs("member");
+  navigateTo(base.value);
+};
+const goPublic = () => {
+  navigateTo(`${base.value}?preview`);
+};
 
 const segClass = (active: boolean) =>
   [

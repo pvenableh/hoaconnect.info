@@ -304,16 +304,16 @@ watch(
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col min-h-0 bg-white dark:bg-stone-900">
+  <main class="flex-1 flex flex-col min-h-0 t-bg-elevated">
     <!-- Channel Header -->
     <header
-      class="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900"
+      class="flex items-center justify-between px-4 py-3 border-b t-border t-bg-elevated"
     >
       <div class="flex items-center gap-3 min-w-0">
         <!-- Back button (always in the panel; mobile-only on the full page) -->
         <button
           :class="embedded ? '' : 'md:hidden'"
-          class="text-stone-500 hover:text-stone-700 shrink-0"
+          class="t-text-muted hover:t-text shrink-0"
           title="Back to channels"
           @click="emit('back')"
         >
@@ -321,13 +321,13 @@ watch(
         </button>
 
         <div v-if="channelLoading" class="space-y-1">
-          <div class="h-5 w-32 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-          <div class="h-4 w-48 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+          <div class="h-5 w-32 t-bg-subtle rounded animate-pulse" />
+          <div class="h-4 w-48 t-bg-subtle rounded animate-pulse" />
         </div>
 
         <div v-else-if="currentChannel" class="min-w-0">
           <div class="flex items-center gap-2">
-            <Icon :name="currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'" class="w-5 h-5 text-stone-500 shrink-0" />
+            <Icon :name="currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'" class="w-5 h-5 t-text-muted shrink-0" />
             <h1 class="font-semibold text-lg truncate">{{ currentChannel.name }}</h1>
             <span
               v-if="currentChannel.is_private"
@@ -341,9 +341,9 @@ watch(
             >
               <Icon name="lucide:archive" class="w-3 h-3" /> Archived
             </span>
-            <Icon v-if="isPinned" name="lucide:pin" class="w-4 h-4 text-stone-400 shrink-0" title="Pinned" />
+            <Icon v-if="isPinned" name="lucide:pin" class="w-4 h-4 t-text-muted shrink-0" title="Pinned" />
           </div>
-          <p v-if="currentChannel.description" class="text-sm text-stone-500 truncate max-w-md">
+          <p v-if="currentChannel.description" class="text-sm t-text-muted truncate max-w-md">
             {{ currentChannel.description }}
           </p>
         </div>
@@ -376,7 +376,7 @@ watch(
           </button>
           <div
             v-if="showSearch"
-            class="absolute right-0 top-11 z-20 w-80 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-stone-900 shadow-lg p-3"
+            class="absolute right-0 top-11 z-20 w-80 rounded-xl border t-border t-bg-elevated shadow-lg p-3"
           >
             <Input v-model="searchQuery" placeholder="Search messages…" autofocus />
             <div class="mt-2 max-h-72 overflow-y-auto">
@@ -453,11 +453,11 @@ watch(
     <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
       <div v-if="messagesLoading && !messages?.length" class="space-y-4">
         <div v-for="n in 5" :key="n" class="flex items-start gap-3 p-2">
-          <div class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse" />
+          <div class="w-8 h-8 rounded-full t-bg-subtle animate-pulse" />
           <div class="flex-1 space-y-2">
-            <div class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-            <div class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
-            <div class="h-4 w-2/3 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+            <div class="h-4 w-24 t-bg-subtle rounded animate-pulse" />
+            <div class="h-4 w-full t-bg-subtle rounded animate-pulse" />
+            <div class="h-4 w-2/3 t-bg-subtle rounded animate-pulse" />
           </div>
         </div>
       </div>
@@ -472,15 +472,15 @@ watch(
         />
       </template>
 
-      <div v-else-if="!messagesLoading && currentChannel" class="flex flex-col items-center justify-center h-full text-stone-500">
-        <div class="w-16 h-16 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center mb-4">
+      <div v-else-if="!messagesLoading && currentChannel" class="flex flex-col items-center justify-center h-full t-text-muted">
+        <div class="w-16 h-16 rounded-full t-bg-subtle flex items-center justify-center mb-4">
           <Icon name="lucide:message-square" class="w-8 h-8" />
         </div>
         <p class="font-medium mb-1">No messages yet</p>
         <p class="text-sm">Be the first to send a message in #{{ currentChannel.name }}!</p>
       </div>
 
-      <div v-else-if="!channelLoading && !currentChannel" class="flex flex-col items-center justify-center h-full text-stone-500">
+      <div v-else-if="!channelLoading && !currentChannel" class="flex flex-col items-center justify-center h-full t-text-muted">
         <Icon name="lucide:search-x" class="w-12 h-12 mb-4" />
         <p class="font-medium mb-1">Channel not found</p>
         <p class="text-sm mb-4">This channel may have been deleted or you don't have access.</p>
@@ -491,7 +491,7 @@ watch(
     </div>
 
     <!-- Message Input -->
-    <div v-if="currentChannel" class="border-t border-stone-200 dark:border-stone-800 p-4 bg-stone-50 dark:bg-stone-900">
+    <div v-if="currentChannel" class="border-t t-border p-4 t-bg-subtle">
       <div class="max-w-4xl mx-auto">
         <div class="flex gap-3">
           <div class="flex-1">
@@ -512,7 +512,7 @@ watch(
             <div v-if="messageAttachments.length" class="mt-2">
               <ChannelsChannelAttachments :ids="messageAttachments" />
               <button
-                class="mt-1 text-xs text-stone-500 hover:text-stone-700"
+                class="mt-1 text-xs t-text-muted hover:t-text"
                 @click="messageAttachments = []"
               >
                 Clear {{ messageAttachments.length }} attachment{{ messageAttachments.length === 1 ? "" : "s" }}
@@ -528,10 +528,10 @@ watch(
             <span class="sr-only">Send</span>
           </Button>
         </div>
-        <p class="text-xs text-stone-500 mt-2">
-          Press <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">Enter</kbd> to send,
-          <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">Shift+Enter</kbd> for new line,
-          <kbd class="px-1 py-0.5 bg-stone-200 dark:bg-stone-700 rounded text-xs">@</kbd> to mention
+        <p class="text-xs t-text-muted mt-2">
+          Press <kbd class="px-1 py-0.5 t-bg-subtle rounded text-xs">Enter</kbd> to send,
+          <kbd class="px-1 py-0.5 t-bg-subtle rounded text-xs">Shift+Enter</kbd> for new line,
+          <kbd class="px-1 py-0.5 t-bg-subtle rounded text-xs">@</kbd> to mention
         </p>
       </div>
     </div>
@@ -579,9 +579,10 @@ watch(
   background: transparent;
 }
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  @apply bg-stone-200 dark:bg-stone-700 rounded;
+  background: var(--theme-border-secondary);
+  border-radius: 4px;
 }
 .overflow-y-auto:hover::-webkit-scrollbar-thumb {
-  @apply bg-stone-300 dark:bg-stone-600;
+  background: var(--theme-text-muted);
 }
 </style>

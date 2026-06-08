@@ -103,12 +103,19 @@ const showChat = computed(
       hasChannelMembership.value)
 );
 
+// Persistent "view as member" preview — an admin previewing the resident view
+// sees the member UI everywhere (not just the clean root).
+const { isPreviewingMember } = useViewAs();
+
 // Determine if admin UI should be shown
 // On org context (slug route): only show if admin of THAT org
 // On main domain: show based on selected org admin status
 const showAdminUI = computed(() => {
   // If not logged in, never show admin UI
   if (!user.value) return false;
+
+  // Previewing as a member — present the member UI even though we're an admin.
+  if (isPreviewingMember.value) return false;
 
   // If on org context (slug route), check current domain access
   if (isOnOrgPage.value) {
@@ -306,6 +313,29 @@ function handlePremiumRequired() {
   router.push("/settings/subscription");
 }
 
+// The org forces the workspace theme (see auth.vue), so the per-user STYLE picker
+// is hidden — only the light/dark MODE toggle remains. The dock-appearance
+// settings only apply to the modern dock; classic/luxury use the left sidebar.
+const orgThemeStyle = computed(() => {
+  const t = currentOrg.value?.organization?.settings?.theme;
+  return t && ["classic", "modern", "luxury"].includes(t) ? t : "modern";
+});
+const orgForcesTheme = computed(
+  () => isOnOrgPage.value && !!currentOrg.value?.organization
+);
+const showDockSettings = computed(
+  () => isOnOrgPage.value && orgThemeStyle.value === "modern"
+);
+
+// Classic/luxury orgs render the left AppSidebar (lg+), which hosts the org
+// PICKER at its top. So on lg+ we drop the header's left org picker (the
+// adjacent duplicate) — the centered brand logo stays. Below lg the rail is
+// hidden, so the header keeps the picker too (via `lg:hidden`, not v-if).
+const navIsSidebar = computed(
+  () =>
+    !!user.value && isOnOrgPage.value && orgThemeStyle.value !== "modern"
+);
+
 // Close mobile menu on route change
 watch(
   () => route.path,
@@ -328,10 +358,13 @@ watch(
         >
           <!-- Show org logo when on org page or logged in with org logo -->
           <template v-if="showOrgBranding && orgLogoUrl">
+            <!-- object-contain + a height bound makes square logos render at the
+                 height and wide/horizontal logos render larger (up to the width
+                 cap) without distortion. Bigger on desktop; bounded on mobile. -->
             <img
               :src="orgLogoUrl"
               :alt="orgName || 'Organization logo'"
-              class="h-8 max-w-[150px] object-contain"
+              class="h-10 sm:h-12 max-h-12 w-auto max-w-[200px] sm:max-w-[280px] object-contain"
             />
           </template>
           <!-- Show org name when on org page or logged in but no logo -->
@@ -355,6 +388,7 @@ watch(
         <div
           v-if="user && !isMainMarketingDomain"
           class="col-start-1 row-start-1 justify-self-start hidden sm:flex"
+          :class="navIsSidebar ? 'lg:hidden' : ''"
         >
           <OrgSelector />
         </div>
@@ -374,15 +408,18 @@ watch(
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-4">
           <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
+          <!-- Channels is a quick action (pops a slide-over); it doesn't carry a
+               persistent open-state we can rely on, so it stays a plain pill —
+               accent ring on hover/focus only, never a stuck "active" ring. -->
           <button
             v-if="showChat"
             type="button"
-            class="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-full hover:t-bg-subtle transition"
+            class="hidden sm:inline-flex items-center justify-center header-pill"
             title="Channels"
             aria-label="Open channels"
             @click="channelsPanel.toggle()"
           >
-            <Icon name="i-lucide-messages-square" class="w-5 h-5 t-text-secondary" />
+            <Icon name="i-lucide-messages-square" class="w-5 h-5" />
           </button>
           <!-- Notification Bell - show on org pages/custom domains -->
           <NotificationBell
@@ -392,10 +429,10 @@ watch(
           <!-- Avatar dropdown (desktop) -->
           <DropdownMenu>
             <DropdownMenuTrigger
-              class="hidden sm:block rounded-full transition hover:opacity-80 focus:outline-none"
+              class="hidden sm:inline-flex items-center justify-center header-pill"
               title="Account menu"
             >
-              <Avatar>
+              <Avatar class="size-10">
                 <AvatarImage
                   v-if="userAvatarUrl"
                   :src="userAvatarUrl"
@@ -480,22 +517,31 @@ watch(
 
               <DropdownMenuSeparator />
 
-              <!-- Appearance: theme style + dark mode (reuses ThemeSelector) -->
-              <div class="px-2 pb-1">
+              <!-- Appearance: theme style + dark mode (reuses ThemeSelector).
+                   The org forces the style in the workspace, so only the
+                   light/dark mode toggle shows there (style picker hidden).
+                   @click/@keydown.stop so its controls work inside the dropdown
+                   without the menu intercepting the interaction (matches the dock
+                   appearance block below). -->
+              <div class="px-2 pb-1" @click.stop @keydown.stop>
                 <ThemeSelector
                   :has-premium="hasPremiumTheme"
+                  :hide-styles="orgForcesTheme"
                   @premium-required="handlePremiumRequired"
                 />
               </div>
 
               <DropdownMenuSeparator />
 
-              <!-- App dock appearance: palette, labels, glass chrome, position -->
-              <div class="px-2 pb-1" @click.stop @keydown.stop>
-                <AppAppearanceSettings />
-              </div>
+              <!-- App dock appearance (palette, labels, glass, position) — only
+                   relevant for modern orgs that render the dock. -->
+              <template v-if="showDockSettings">
+                <div class="px-2 pb-1" @click.stop @keydown.stop>
+                  <AppAppearanceSettings />
+                </div>
 
-              <DropdownMenuSeparator />
+                <DropdownMenuSeparator />
+              </template>
 
               <DropdownMenuItem
                 variant="destructive"

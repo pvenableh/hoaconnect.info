@@ -109,7 +109,7 @@ watch(isOpen, (open) => {
           <FieldLabel>Channel Name</FieldLabel>
           <FieldContent>
             <div class="flex items-center">
-              <span class="text-stone-500 mr-1">#</span>
+              <span class="t-text-muted mr-1">#</span>
               <Input
                 v-bind="field"
                 placeholder="general"

@@ -21,7 +21,6 @@ export const useOrgBranding = () => {
   const { activeHoa, isMainDomain } = useActiveHoa();
   const config = useRuntimeConfig();
   const route = useRoute();
-  const { forceThemeStyle, themeMode } = useTheme();
 
   // Helper to extract file ID from DirectusFile relation
   const getFileId = (file: ID | DirectusFile | null | undefined): string | null => {
@@ -96,24 +95,13 @@ export const useOrgBranding = () => {
     };
   });
 
-  // Check if current route is an admin page
-  const isAdminPage = computed(() => {
-    const path = route.path;
-    return path.includes("/admin");
-  });
-
-  // Apply theme based on route and org settings
-  // Admin pages always use modern theme, other pages use org theme
-  watch(
-    [() => branding.value.theme, isAdminPage, () => route.path],
-    ([orgTheme, isAdmin]) => {
-      if (import.meta.client) {
-        const themeToApply = isAdmin ? "modern" : orgTheme;
-        forceThemeStyle(themeToApply, themeMode.value);
-      }
-    },
-    { immediate: true }
-  );
+  // NOTE: theme application lives elsewhere now — the workspace owns it in
+  // app/layouts/auth.vue (a single reactive useHead), and the public landing
+  // forces the org theme in app/pages/[slug]/index.vue + app/pages/index.vue;
+  // other surfaces use their layout's initTheme(). useOrgBranding used to ALSO
+  // forceThemeStyle here, but as a global (app.vue) composable its useHead never
+  // unmounted, so it left a stale theme class that fought the workspace's class
+  // (e.g. broke the light/dark toggle). Branding here is now meta/favicon only.
 
   // Apply dynamic head tags
   useHead(() => {

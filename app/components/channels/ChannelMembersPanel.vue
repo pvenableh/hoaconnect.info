@@ -201,7 +201,7 @@ watch(isOpen, (open) => {
       </div>
 
       <!-- Invite picker -->
-      <div v-if="canManage" class="border-t border-black/[0.06] dark:border-white/[0.08] pt-3 space-y-2">
+      <div v-if="canManage" class="border-t t-border pt-3 space-y-2">
         <Input v-model="query" placeholder="Search members to add…" />
         <div class="space-y-1 max-h-48 overflow-y-auto">
           <button

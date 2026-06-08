@@ -35,7 +35,7 @@ const visibleGroups = computed(() =>
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="ui-kit min-h-screen t-bg">
     <PageContainer class="space-y-8">
       <WidgetGlass strong>
         <p v-if="eyebrow" class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">{{ eyebrow }}</p>
@@ -61,8 +61,8 @@ const visibleGroups = computed(() =>
             <span
               class="flex items-center justify-center w-11 h-11 rounded-full shrink-0"
               :style="{
-                backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l) / 0.12)',
-                color: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))',
+                backgroundColor: 'color-mix(in srgb, var(--theme-accent-primary) 12%, transparent)',
+                color: 'var(--theme-accent-primary)',
               }"
             >
               <Icon :name="iconName(item.icon)" class="w-5 h-5" />

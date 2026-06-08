@@ -21,9 +21,14 @@ const onAppClick = (app: AppDef) => go(app);
 // Role detection (mirrors App/Nav.vue)
 const { isAdmin } = user.value ? await useSelectedOrg() : { isAdmin: ref(false) };
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { isPreviewingMember } = useViewAs();
 const isOnOrgPage = computed(() => !!route.params.slug);
 const showAdminUI = computed(() =>
-  isOnOrgPage.value ? isAdminOfCurrentDomain.value : isAdmin.value
+  isPreviewingMember.value
+    ? false
+    : isOnOrgPage.value
+    ? isAdminOfCurrentDomain.value
+    : isAdmin.value
 );
 
 const apps = computed(() => appsFor(showAdminUI.value));

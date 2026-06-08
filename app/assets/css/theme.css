@@ -569,6 +569,41 @@ html.theme-luxury-dark {
 }
 
 /* =============================================================================
+   SHADCN TOKEN REMAP — make shadcn-ui components (Card, Button, Tabs, inputs,
+   dropdowns) follow the active THEME instead of the static stone/neutral palette
+   defined in tailwind.css. Without this, classic/luxury orgs show themed `t-*`
+   chrome but neutral cards/buttons (the "admin pages don't match the theme" bug).
+
+   Only classic + luxury are remapped: they never rendered in-app before, so this
+   is pure gain with no regression risk. Modern keeps tailwind.css's defaults (its
+   long-standing look). Each var points at a `--theme-*` token, which resolves to
+   the active theme block's value — so one rule covers all four classes.
+============================================================================= */
+html.theme-classic-light,
+html.theme-classic-dark,
+html.theme-luxury-light,
+html.theme-luxury-dark {
+	--background: var(--theme-bg-primary);
+	--foreground: var(--theme-text-primary);
+	--card: var(--theme-card-bg);
+	--card-foreground: var(--theme-text-primary);
+	--popover: var(--theme-bg-elevated);
+	--popover-foreground: var(--theme-text-primary);
+	--primary: var(--theme-accent-primary);
+	--primary-foreground: var(--theme-text-inverse);
+	--secondary: var(--theme-bg-secondary);
+	--secondary-foreground: var(--theme-text-primary);
+	--muted: var(--theme-bg-secondary);
+	--muted-foreground: var(--theme-text-muted);
+	--accent: var(--theme-bg-tertiary);
+	--accent-foreground: var(--theme-text-primary);
+	--border: var(--theme-border-primary);
+	--input: var(--theme-border-primary);
+	--ring: var(--theme-accent-primary);
+	/* --destructive stays the shared red (delete/danger reads consistently). */
+}
+
+/* =============================================================================
    THEME-AWARE UTILITY CLASSES
    Use these instead of hard-coded Tailwind colors
 ============================================================================= */
@@ -595,6 +630,49 @@ html.theme-luxury-dark {
 .t-border-secondary { border-color: var(--theme-border-secondary); }
 .t-border-light { border-color: var(--theme-border-light); }
 .t-border-divider { border-color: var(--theme-divider); }
+.t-border-accent { border-color: var(--theme-accent-primary); }
+
+/* Accent backgrounds — the themed accent (brass/cyan/brass) as a fill or tint.
+   These were referenced across the app (badges, active states, icon chips) but
+   never defined, so accent tints rendered transparent. Explicit opacity variants
+   match the usages in the codebase (Tailwind's `/NN` modifier doesn't apply to
+   custom utilities, so the tints are hand-defined via color-mix). */
+.t-bg-accent { background-color: var(--theme-accent-primary); }
+.t-bg-accent\/20 { background-color: color-mix(in srgb, var(--theme-accent-primary) 20%, transparent); }
+.t-bg-accent\/15 { background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent); }
+.t-bg-accent\/10 { background-color: color-mix(in srgb, var(--theme-accent-primary) 10%, transparent); }
+
+/* Header icon buttons (avatar · notifications · channels) — perfect circles with
+   a very subtle theme-tinted bg and a theme-accent ring (mirrors the sidebar
+   org-picker avatar). The ring is faint when idle and resolves to the full accent
+   on hover / focus / when the control is open ("active"). The 2px gap is filled in
+   the header surface color so the ring reads as a deliberate halo. */
+.header-pill {
+  /* Visual only — consumers set display/centering via Tailwind so responsive
+     `hidden sm:inline-flex` keeps working (this class loads after Tailwind). */
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  color: var(--theme-text-secondary);
+  background: color-mix(in srgb, var(--theme-accent-primary) 7%, var(--theme-bg-elevated));
+  box-shadow:
+    0 0 0 2px var(--theme-bg-elevated),
+    0 0 0 3px color-mix(in srgb, var(--theme-accent-primary) 22%, transparent);
+  transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+.header-pill:hover {
+  color: var(--theme-text-primary);
+  background: color-mix(in srgb, var(--theme-accent-primary) 13%, var(--theme-bg-elevated));
+}
+.header-pill:hover,
+.header-pill:focus-visible,
+.header-pill[data-state="open"],
+.header-pill.is-active {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--theme-bg-elevated),
+    0 0 0 3px var(--theme-accent-primary);
+}
 
 /* Typography */
 .t-heading { font-family: var(--theme-heading-font); }

@@ -8,6 +8,7 @@ const { list: listMembers } = useDirectusItems("hoa_members");
 const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { getUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
+const { fetchHousehold } = useChangeRequests();
 
 // Get organization context including member type and board member status
 const {
@@ -25,7 +26,6 @@ const {
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed<HoaOrganization | null>(() => currentOrg.value?.organization || null);
-const memberInfo = computed(() => currentOrg.value);
 
 // ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
 const route = useRoute();
@@ -62,6 +62,85 @@ const orgLogoUrl = computed(() => {
   if (!fileId) return null;
   return `${config.public.directus.url}/assets/${fileId}?key=medium-contain`;
 });
+
+// ── Portal sections — the resident hub. One card per member-facing area, gated
+// by the org's module toggles (and show_board). This is the "everything in one
+// place" map: communications, documents, money, meetings, and the resident's own
+// household record, all a tap away. Mirrors the member dock/nav set.
+const showBoard = computed(() => organization.value?.show_board !== false);
+const portalSections = computed(() =>
+  [
+    {
+      key: "household",
+      label: "My Household",
+      description: "Your contact info, vehicles, pets & parking",
+      icon: "i-lucide-home",
+      path: "/profile",
+      show: true,
+    },
+    {
+      key: "documents",
+      label: "Documents",
+      description: "Bylaws, minutes, notices & forms",
+      icon: "i-lucide-file-text",
+      path: "/documents",
+      show: isEnabled("documents"),
+    },
+    {
+      key: "payments",
+      label: "Payments",
+      description: "Dues, assessments & statements",
+      icon: "i-lucide-credit-card",
+      path: "/payments",
+      show: isEnabled("payments"),
+    },
+    {
+      key: "meetings",
+      label: "Meetings",
+      description: "Agendas, schedules & minutes",
+      icon: "i-lucide-calendar-days",
+      path: "/meetings",
+      show: isEnabled("meetings"),
+    },
+    {
+      key: "announcements",
+      label: "Announcements",
+      description: "Community news & past emails",
+      icon: "i-lucide-megaphone",
+      path: "/announcements",
+      // Matches module.global.ts: the /announcements route is gated by the
+      // `announcements` module, so only surface the card when it's reachable.
+      show: isEnabled("announcements"),
+    },
+    {
+      key: "requests",
+      label: "Requests",
+      description: "Submit & track your requests",
+      icon: "i-lucide-clipboard-list",
+      path: "/requests",
+      show: isEnabled("requests"),
+    },
+    {
+      key: "rules",
+      label: "Rules & Bylaws",
+      description: "Community rules & governing docs",
+      icon: "i-lucide-scale",
+      path: "/rules",
+      show: isEnabled("rules"),
+    },
+    {
+      key: "board",
+      label: "Board",
+      description: "Meet your board members",
+      icon: "i-lucide-award",
+      path: "/board",
+      // /board is gated by the `board` module (module.global.ts); also respect the
+      // admin's "show board" preference. Hidden otherwise so the card never leads
+      // to a redirect-back-to-dashboard.
+      show: isEnabled("board") && showBoard.value,
+    },
+  ].filter((s) => s.show)
+);
 
 // Fetch recent documents (last 5 published)
 const { data: recentDocuments } = await useAsyncData(
@@ -124,7 +203,7 @@ const { data: memberStats } = await useAsyncData(
   }
 );
 
-// Fetch announcements
+// Fetch announcements (audience-aware)
 const { data: announcements } = await useAsyncData(
   `member-announcements-${orgId.value}`,
   async () => {
@@ -165,7 +244,7 @@ const { data: announcements } = await useAsyncData(
           ],
         },
         sort: ["-is_pinned", "-publish_date", "-date_created"],
-        limit: 5,
+        limit: 4,
       });
       return (result || []) as HoaAnnouncement[];
     } catch (e) {
@@ -177,6 +256,30 @@ const { data: announcements } = await useAsyncData(
     server: false,
   }
 );
+
+// Fetch the resident's own household summary (vehicles, pets, pending changes).
+// The full editor lives at /profile; here we just surface counts as a teaser.
+const { data: household } = await useAsyncData(
+  `my-household-summary-${orgId.value}`,
+  async () => {
+    if (!orgId.value) return null;
+    try {
+      return await fetchHousehold();
+    } catch (e) {
+      return null;
+    }
+  },
+  { watch: [orgId], server: false }
+);
+const vehiclesEnabled = computed(() => isEnabled("vehicles"));
+const petsEnabled = computed(() => isEnabled("pets"));
+const householdStats = computed(() => ({
+  vehicles: household.value?.vehicles?.length || 0,
+  pets: household.value?.pets?.length || 0,
+  pending: household.value?.pendingRequests?.length || 0,
+  parkingSpots:
+    household.value?.vehicles?.filter((v: any) => v?.parking_spot)?.length || 0,
+}));
 
 // Format date for display
 function formatDate(dateString: string | null | undefined): string {
@@ -197,6 +300,13 @@ function getCategoryName(doc: HoaDocument): string {
       : doc.document_category.name || "Document";
   }
   return "Document";
+}
+
+// Strip HTML from announcement content for a one-line preview.
+function plainText(html: string | null | undefined, max = 140): string {
+  if (!html) return "";
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
 // Download document
@@ -226,16 +336,6 @@ const downloadDocument = async (doc: HoaDocument) => {
   }
 };
 
-// Quick action cards for members
-const quickActions = computed(() => [
-  {
-    title: "View Documents",
-    description: "Access community bylaws, meeting minutes, and notices",
-    icon: "heroicons:document-text",
-    action: () => navigateToOrg("/documents"),
-  },
-]);
-
 // Welcome message based on time of day
 const welcomeMessage = computed(() => {
   const hour = new Date().getHours();
@@ -255,16 +355,6 @@ const memberTypeDisplay = computed(() => {
   return "Member";
 });
 
-// Get member status description
-const memberStatusDescription = computed(() => {
-  const parts: string[] = [];
-  parts.push(memberTypeDisplay.value);
-  if (isBoardMember.value && boardTitleDisplay.value) {
-    parts.push(`Board ${boardTitleDisplay.value}`);
-  }
-  return parts.join(" · ");
-});
-
 // Format date for board term display
 function formatBoardTermDate(dateString: string | null | undefined): string {
   if (!dateString) return "";
@@ -277,7 +367,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 </script>
 
 <template>
-  <div class="ui-kit accent-blue min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-8">
         <!-- Welcome Header -->
         <WidgetGlass strong class="text-center py-8">
@@ -300,15 +390,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           <!-- Member Status Badge -->
           <div class="flex items-center justify-center gap-2 mt-4">
             <span
-              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full"
-              :class="{
-                'bg-emerald-100 text-emerald-800': isOwner,
-                't-bg-accent/20 t-text-accent': isTenant,
-                't-bg-subtle t-text-secondary': !isOwner && !isTenant,
-              }"
+              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full t-bg-subtle t-text-secondary"
             >
               <Icon
-                :name="isOwner ? 'heroicons:home' : 'heroicons:user'"
+                :name="isOwner ? 'i-lucide-home' : 'i-lucide-user'"
                 class="w-4 h-4 mr-1.5"
               />
               {{ memberTypeDisplay }}
@@ -317,7 +402,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               v-if="isBoardMember && boardTitleDisplay"
               class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full t-bg-accent/20 t-text-accent"
             >
-              <Icon name="heroicons:star" class="w-4 h-4 mr-1.5" />
+              <Icon name="i-lucide-star" class="w-4 h-4 mr-1.5" />
               Board {{ boardTitleDisplay }}
             </span>
           </div>
@@ -326,99 +411,209 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
         <Tabs v-model="activeTab" class="space-y-8">
           <TabsList class="flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">
-              <Icon name="lucide:layout-dashboard" class="w-4 h-4 mr-1.5" />
+              <Icon name="i-lucide-layout-dashboard" class="w-4 h-4 mr-1.5" />
               Overview
             </TabsTrigger>
             <TabsTrigger v-if="feedEnabled" value="building">
-              <Icon name="lucide:building-2" class="w-4 h-4 mr-1.5" />
+              <Icon name="i-lucide-building-2" class="w-4 h-4 mr-1.5" />
               Building
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" class="space-y-8 mt-0">
+        <!-- Portal sections — the resident hub -->
+        <section>
+          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-muted mb-3">
+            Your portal
+          </h2>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <button
+              v-for="section in portalSections"
+              :key="section.key"
+              type="button"
+              class="group flex flex-col items-start gap-3 rounded-xl border t-border t-bg-elevated p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5"
+              @click="navigateToOrg(section.path)"
+            >
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg t-bg-accent/15 t-text-accent">
+                <Icon :name="section.icon" class="h-5 w-5" />
+              </span>
+              <span class="min-w-0">
+                <span class="block font-medium t-text">{{ section.label }}</span>
+                <span class="block text-xs t-text-muted leading-snug mt-0.5">{{ section.description }}</span>
+              </span>
+            </button>
+          </div>
+        </section>
+
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <DashboardStatsCard
             title="Total Members"
             :value="memberStats?.total || 0"
             description="Active community members"
-            icon="heroicons:users"
+            icon="i-lucide-users"
           />
           <DashboardStatsCard
             title="Owners"
             :value="memberStats?.owners || 0"
             description="Property owners"
-            icon="heroicons:home"
+            icon="i-lucide-home"
           />
           <DashboardStatsCard
-            title="Tenants"
+            title="Residents"
             :value="memberStats?.tenants || 0"
-            description="Residents"
-            icon="heroicons:user-group"
+            description="Tenants"
+            icon="i-lucide-users-round"
           />
         </div>
 
-        <!-- Board Member Charts (only for board members) -->
-        <div v-if="isBoardMember && memberStats" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DashboardMembershipDonutChart
-            :owners="memberStats.owners || 0"
-            :tenants="memberStats.tenants || 0"
-          />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Recent Announcements -->
           <Card>
-            <CardHeader class="pb-2">
-              <CardTitle class="text-base">Board Member Resources</CardTitle>
-              <CardDescription>Tools and information for board members</CardDescription>
+            <CardHeader>
+              <div class="flex items-center justify-between">
+                <div>
+                  <CardTitle>Announcements</CardTitle>
+                  <CardDescription>Latest community news</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" @click="navigateToOrg('/announcements')">
+                  View All
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent class="space-y-3">
-              <Button @click="navigateToOrg('/documents')" variant="outline" class="w-full justify-start">
-                <Icon name="heroicons:document-text" class="h-4 w-4 mr-2" />
-                View All Documents
-              </Button>
-              <Button v-if="isAdmin" @click="navigateToOrg('/')" variant="outline" class="w-full justify-start">
-                <Icon name="heroicons:chart-bar" class="h-4 w-4 mr-2" />
-                Admin Dashboard
-              </Button>
-              <div class="p-3 t-bg-subtle rounded-lg t-border">
-                <p class="text-sm t-text-secondary">
-                  <Icon name="heroicons:light-bulb" class="h-4 w-4 inline mr-1" />
-                  As a board member, you have access to community statistics and additional resources.
-                </p>
+            <CardContent>
+              <div v-if="announcements && announcements.length > 0" class="space-y-3">
+                <button
+                  v-for="a in announcements"
+                  :key="a.id"
+                  class="w-full flex items-start gap-3 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left"
+                  @click="navigateToOrg('/announcements')"
+                >
+                  <div class="w-9 h-9 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0">
+                    <Icon
+                      :name="a.is_pinned ? 'i-lucide-pin' : 'i-lucide-megaphone'"
+                      class="h-4 w-4 t-text-secondary"
+                    />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-medium t-text truncate">{{ a.title }}</h4>
+                      <span
+                        v-if="a.is_pinned"
+                        class="text-[10px] uppercase tracking-wide t-text-accent font-semibold"
+                        >Pinned</span
+                      >
+                    </div>
+                    <p class="text-sm t-text-muted truncate">{{ plainText(a.content, 90) }}</p>
+                    <p class="text-xs t-text-muted mt-0.5">
+                      {{ formatDate(a.publish_date || a.date_created) }}
+                    </p>
+                  </div>
+                </button>
+              </div>
+              <div v-else class="py-8 text-center t-text-muted">
+                <Icon name="i-lucide-megaphone" class="h-10 w-10 mx-auto mb-2 opacity-40" />
+                <p class="text-sm">No announcements yet.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Recent Documents -->
+          <Card>
+            <CardHeader>
+              <div class="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Documents</CardTitle>
+                  <CardDescription>Latest community documents</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" @click="navigateToOrg('/documents')">
+                  View All
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div v-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
+                <button
+                  v-for="doc in recentDocuments"
+                  :key="doc.id"
+                  @click="downloadDocument(doc)"
+                  class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
+                >
+                  <div class="w-9 h-9 rounded-lg t-bg-subtle group-hover:t-bg transition-colors flex items-center justify-center flex-shrink-0">
+                    <Icon name="i-lucide-file-text" class="h-4 w-4 t-text-secondary" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
+                    <div class="flex items-center gap-2 text-sm t-text-muted">
+                      <span>{{ getCategoryName(doc) }}</span>
+                      <span v-if="doc.date_published || doc.date_created">
+                        &middot; {{ formatDate(doc.date_published || doc.date_created) }}
+                      </span>
+                    </div>
+                  </div>
+                  <Icon
+                    name="i-lucide-download"
+                    class="h-4 w-4 t-text-muted group-hover:t-text-accent transition-colors"
+                  />
+                </button>
+              </div>
+              <div v-else class="py-8 text-center t-text-muted">
+                <Icon name="i-lucide-file" class="h-10 w-10 mx-auto mb-2 opacity-40" />
+                <p class="text-sm">No documents published yet.</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card
-            v-for="action in quickActions"
-            :key="action.title"
-            class="cursor-pointer hover:shadow-lg transition-shadow"
-            @click="action.action"
-          >
-            <CardContent class="p-6 flex items-center gap-4">
-              <div class="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Icon :name="action.icon" class="h-7 w-7 text-primary" />
-              </div>
+        <!-- My Household summary -->
+        <Card>
+          <CardHeader>
+            <div class="flex items-center justify-between">
               <div>
-                <h3 class="font-semibold t-text">{{ action.title }}</h3>
-                <p class="text-sm t-text-muted">{{ action.description }}</p>
+                <CardTitle>My Household</CardTitle>
+                <CardDescription>Your unit record on file</CardDescription>
               </div>
-              <Icon name="heroicons:chevron-right" class="h-5 w-5 t-text-muted ml-auto" />
-            </CardContent>
-          </Card>
-        </div>
+              <Button variant="outline" size="sm" @click="navigateToOrg('/profile')">
+                Manage
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="rounded-lg t-bg-subtle p-4 text-center">
+                <p class="text-2xl font-semibold t-text">{{ householdStats.parkingSpots }}</p>
+                <p class="text-xs t-text-muted mt-0.5">Parking spots</p>
+              </div>
+              <div v-if="vehiclesEnabled" class="rounded-lg t-bg-subtle p-4 text-center">
+                <p class="text-2xl font-semibold t-text">{{ householdStats.vehicles }}</p>
+                <p class="text-xs t-text-muted mt-0.5">Vehicles</p>
+              </div>
+              <div v-if="petsEnabled" class="rounded-lg t-bg-subtle p-4 text-center">
+                <p class="text-2xl font-semibold t-text">{{ householdStats.pets }}</p>
+                <p class="text-xs t-text-muted mt-0.5">Pets</p>
+              </div>
+              <div class="rounded-lg t-bg-subtle p-4 text-center">
+                <p class="text-2xl font-semibold t-text">{{ householdStats.pending }}</p>
+                <p class="text-xs t-text-muted mt-0.5">Pending changes</p>
+              </div>
+            </div>
+            <p class="text-sm t-text-muted mt-4">
+              Keep your contact info, mailing address, vehicles and pets up to date —
+              changes are sent to your community manager for review.
+            </p>
+          </CardContent>
+        </Card>
 
         <!-- Board Member Status (only shown if user is a board member) -->
-        <Card v-if="isBoardMember && activeBoardTerms.length > 0" class="t-border t-bg-subtle">
+        <Card v-if="isBoardMember && activeBoardTerms.length > 0">
           <CardHeader>
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full t-bg-accent/20 flex items-center justify-center">
-                <Icon name="heroicons:star" class="h-5 w-5 t-text-accent" />
+                <Icon name="i-lucide-star" class="h-5 w-5 t-text-accent" />
               </div>
               <div>
-                <CardTitle class="t-text">Board Member Status</CardTitle>
-                <CardDescription class="t-text-secondary">Your current board position(s)</CardDescription>
+                <CardTitle>Board Member Status</CardTitle>
+                <CardDescription>Your current board position(s)</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -427,10 +622,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               <div
                 v-for="term in activeBoardTerms"
                 :key="term.id"
-                class="flex items-center justify-between p-3 t-bg-elevated rounded-lg t-border"
+                class="flex items-center justify-between p-3 t-bg-subtle rounded-lg t-border"
               >
                 <div class="flex items-center gap-3">
-                  <Icon name="heroicons:identification" class="h-5 w-5 t-text-accent" />
+                  <Icon name="i-lucide-badge-check" class="h-5 w-5 t-text-accent" />
                   <div>
                     <p class="font-medium t-text capitalize">
                       {{ term.title?.replace('_', ' ') || 'Board Member' }}
@@ -443,56 +638,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     </p>
                   </div>
                 </div>
-                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800">
                   Active
                 </span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- Recent Documents -->
-        <Card>
-          <CardHeader>
-            <div class="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Documents</CardTitle>
-                <CardDescription>Latest community documents</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" @click="navigateToOrg('/documents')">
-                View All
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div v-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
-              <button
-                v-for="doc in recentDocuments"
-                :key="doc.id"
-                @click="downloadDocument(doc)"
-                class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
-              >
-                <div class="w-10 h-10 rounded-lg t-bg-subtle group-hover:t-bg transition-colors flex items-center justify-center flex-shrink-0">
-                  <Icon name="heroicons:document-text" class="h-5 w-5 t-text-secondary" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
-                  <div class="flex items-center gap-2 text-sm t-text-muted">
-                    <span>{{ getCategoryName(doc) }}</span>
-                    <span v-if="doc.date_published || doc.date_created">
-                      &middot; {{ formatDate(doc.date_published || doc.date_created) }}
-                    </span>
-                  </div>
-                </div>
-                <Icon
-                  name="heroicons:arrow-down-tray"
-                  class="h-5 w-5 t-text-muted group-hover:text-primary transition-colors"
-                />
-              </button>
-            </div>
-            <div v-else class="py-8 text-center t-text-muted">
-              <Icon name="heroicons:document" class="h-12 w-12 mx-auto mb-3 t-text-muted opacity-50" />
-              <p>No documents have been published yet.</p>
             </div>
           </CardContent>
         </Card>
@@ -510,8 +659,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 :href="`tel:${organization.phone}`"
                 class="flex items-center gap-3 p-4 rounded-lg t-bg-subtle hover:t-bg transition-colors"
               >
-                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Icon name="heroicons:phone" class="h-5 w-5 text-primary" />
+                <div class="w-10 h-10 rounded-full t-bg-accent/15 flex items-center justify-center">
+                  <Icon name="i-lucide-phone" class="h-5 w-5 t-text-accent" />
                 </div>
                 <div>
                   <p class="text-sm t-text-muted">Phone</p>
@@ -523,8 +672,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 :href="`mailto:${organization.email}`"
                 class="flex items-center gap-3 p-4 rounded-lg t-bg-subtle hover:t-bg transition-colors"
               >
-                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Icon name="heroicons:envelope" class="h-5 w-5 text-primary" />
+                <div class="w-10 h-10 rounded-full t-bg-accent/15 flex items-center justify-center">
+                  <Icon name="i-lucide-mail" class="h-5 w-5 t-text-accent" />
                 </div>
                 <div>
                   <p class="text-sm t-text-muted">Email</p>
@@ -535,10 +684,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </CardContent>
         </Card>
 
-        <!-- Admin Link (only for admins) -->
+        <!-- Admin Link (only for admins previewing the member view) -->
         <div v-if="isAdmin" class="text-center">
           <Button variant="outline" @click="navigateToOrg('/')">
-            <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
+            <Icon name="i-lucide-layout-dashboard" class="h-4 w-4 mr-2" />
             Go to Admin Dashboard
           </Button>
         </div>
@@ -555,7 +704,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
               <NuxtLink :to="buildOrgPath('/polls')">
                 <Button variant="outline" class="rounded-full">
-                  <Icon name="lucide:bar-chart-3" class="w-4 h-4 mr-1.5" />
+                  <Icon name="i-lucide-bar-chart-3" class="w-4 h-4 mr-1.5" />
                   Polls
                 </Button>
               </NuxtLink>

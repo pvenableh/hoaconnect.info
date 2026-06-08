@@ -177,7 +177,7 @@ const mentionSuggestion = {
 
       if (items.length === 0) {
         popup.innerHTML = `
-          <div class="p-3 text-sm text-stone-500 bg-white dark:bg-stone-800 rounded-lg shadow-lg border dark:border-stone-700">
+          <div class="p-3 text-sm t-text-muted t-bg-elevated rounded-lg shadow-lg border t-border">
             No users found
           </div>
         `;
@@ -185,12 +185,12 @@ const mentionSuggestion = {
       }
 
       popup.innerHTML = `
-        <div class="max-h-48 overflow-y-auto py-1 bg-white dark:bg-stone-800 rounded-lg shadow-lg border dark:border-stone-700">
+        <div class="max-h-48 overflow-y-auto py-1 t-bg-elevated rounded-lg shadow-lg border t-border">
           ${items
             .map(
               (item, index) => `
-            <div class="px-3 py-2 hover:bg-stone-100 dark:hover:bg-stone-700 cursor-pointer flex items-center gap-2 ${
-              index === selectedIndex ? "bg-stone-100 dark:bg-stone-700" : ""
+            <div class="px-3 py-2 hover:t-bg-subtle cursor-pointer flex items-center gap-2 ${
+              index === selectedIndex ? "t-bg-subtle" : ""
             }" data-index="${index}">
               <img src="${
                 item.avatar ||
@@ -203,7 +203,7 @@ const mentionSuggestion = {
                 <div class="font-medium text-sm truncate">${item.label}</div>
                 ${
                   item.email
-                    ? `<div class="text-xs text-stone-500 truncate">${item.email}</div>`
+                    ? `<div class="text-xs t-text-muted truncate">${item.email}</div>`
                     : ""
                 }
               </div>
@@ -514,18 +514,18 @@ defineExpose({
   <div class="channel-editor relative">
     <div
       v-if="editor"
-      class="border rounded-lg overflow-hidden bg-white dark:bg-stone-900 transition-all"
+      class="border rounded-lg overflow-hidden t-bg-elevated transition-all"
       :class="[
         editor.isFocused
           ? 'border-primary ring-1 ring-primary/20'
-          : 'border-stone-200 dark:border-stone-700',
+          : 't-border',
         disabled ? 'opacity-50 cursor-not-allowed' : '',
       ]"
     >
       <!-- Toolbar (optional) -->
       <div
         v-if="showToolbar"
-        class="flex items-center gap-0.5 p-1.5 border-b border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800"
+        class="flex items-center gap-0.5 p-1.5 border-b t-border t-bg-subtle"
       >
         <Button
           v-for="button in toolbarButtons"
@@ -534,7 +534,7 @@ defineExpose({
           variant="ghost"
           size="sm"
           class="h-7 w-7 p-0"
-          :class="{ 'bg-stone-200 dark:bg-stone-600': editor.isActive(button.command) }"
+          :class="{ 't-bg-subtle': editor.isActive(button.command) }"
           @click="button.action"
         >
           <Icon :name="button.icon" class="w-4 h-4" />
@@ -648,7 +648,8 @@ defineExpose({
 }
 
 .channel-editor-content .tiptap p.is-editor-empty:first-child::before {
-  @apply text-stone-400 float-left h-0 pointer-events-none;
+  @apply float-left h-0 pointer-events-none;
+  color: var(--theme-text-muted);
   content: attr(data-placeholder);
 }
 

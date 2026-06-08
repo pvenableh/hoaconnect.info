@@ -159,12 +159,12 @@ const authorName = computed(() => {
     :id="`msg-${message.id}`"
     :class="[
       'group flex flex-col gap-2 scroll-mt-20 rounded-lg transition-colors',
-      isReply ? 'pl-8 border-l-2 border-stone-100 dark:border-stone-800' : '',
+      isReply ? 'pl-8 border-l-2 t-border' : '',
     ]"
   >
     <!-- Message Content -->
     <div
-      class="flex items-start gap-3 p-2 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors"
+      class="flex items-start gap-3 p-2 rounded-lg hover:t-bg-subtle transition-colors"
     >
       <!-- Avatar -->
       <Avatar class="h-8 w-8 shrink-0">
@@ -184,7 +184,7 @@ const authorName = computed(() => {
         <!-- Author & Time -->
         <div class="flex items-center gap-2 mb-0.5">
           <span class="font-medium text-sm">{{ authorName }}</span>
-          <span class="text-xs text-stone-500">
+          <span class="text-xs t-text-muted">
             {{ getRelativeTime(message.date_created) }}
           </span>
           <Badge
@@ -198,7 +198,7 @@ const authorName = computed(() => {
 
         <!-- Message Content -->
         <div
-          class="prose prose-sm dark:prose-invert max-w-none text-stone-700 dark:text-stone-300"
+          class="prose prose-sm dark:prose-invert max-w-none t-text-secondary"
           v-html="message.content"
         />
 
@@ -226,7 +226,7 @@ const authorName = computed(() => {
             variant="ghost"
             size="sm"
             class="h-7 px-2 text-xs"
-            :class="showReplies ? 'text-primary' : 'text-stone-500'"
+            :class="showReplies ? 'text-primary' : 't-text-muted'"
             @click="toggleReplies"
           >
             <Icon name="lucide:message-square" class="w-3.5 h-3.5 mr-1" />
@@ -237,7 +237,7 @@ const authorName = computed(() => {
           <Button
             variant="ghost"
             size="sm"
-            class="h-7 px-2 text-xs text-stone-500"
+            class="h-7 px-2 text-xs t-text-muted"
             @click="toggleReplyInput"
           >
             <Icon name="lucide:corner-down-right" class="w-3.5 h-3.5 mr-1" />
@@ -249,7 +249,7 @@ const authorName = computed(() => {
             v-if="isAuthor"
             variant="ghost"
             size="sm"
-            class="h-7 px-2 text-xs text-stone-500 hover:text-red-500"
+            class="h-7 px-2 text-xs t-text-muted hover:text-red-500"
             :disabled="isDeleting"
             @click="handleDelete"
           >
@@ -269,7 +269,7 @@ const authorName = computed(() => {
             v-if="isAuthor"
             variant="ghost"
             size="sm"
-            class="h-6 px-2 text-xs text-stone-500 hover:text-red-500"
+            class="h-6 px-2 text-xs t-text-muted hover:text-red-500"
             :disabled="isDeleting"
             @click="handleDelete"
           >
@@ -297,7 +297,7 @@ const authorName = computed(() => {
         />
         <ChannelsChannelAttachments v-if="replyAttachments.length" :ids="replyAttachments" />
         <div class="flex items-center justify-between">
-          <span class="text-xs text-stone-500">Press Enter to send</span>
+          <span class="text-xs t-text-muted">Press Enter to send</span>
           <div class="flex gap-2">
             <Button
               variant="ghost"
@@ -326,14 +326,14 @@ const authorName = computed(() => {
         <div v-if="repliesLoading" class="pl-11 space-y-2">
           <div v-for="n in 2" :key="n" class="flex items-start gap-3 p-2">
             <div
-              class="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse"
+              class="w-8 h-8 rounded-full t-bg-subtle animate-pulse"
             />
             <div class="flex-1 space-y-2">
               <div
-                class="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+                class="h-4 w-24 t-bg-subtle rounded animate-pulse"
               />
               <div
-                class="h-4 w-full bg-stone-200 dark:bg-stone-700 rounded animate-pulse"
+                class="h-4 w-full t-bg-subtle rounded animate-pulse"
               />
             </div>
           </div>

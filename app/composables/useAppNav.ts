@@ -155,7 +155,7 @@ export function useAppNav() {
     { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email", "/admin/announcements"] },
     // "More" holds the lower-frequency tools (units/board/teams/vendors/rules/
     // storage/moderation) so they're one tap away without crowding the dock.
-    { key: "more", label: "More", shortName: "More", icon: "layout-grid", path: "/admin/more", match: ["/admin/more", "/admin/reporting", "/admin/units", "/admin/teams", "/board", "/rules", "/admin/files", "/admin/moderation"] },
+    { key: "more", label: "More", shortName: "More", icon: "grip", path: "/admin/more", match: ["/admin/more", "/admin/reporting", "/admin/units", "/admin/teams", "/board", "/rules", "/admin/files", "/admin/moderation"] },
     // Settings is a core app (never module-toggled) — keep it last so the dock
     // always ends with a way into org configuration / public site / billing.
     { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },

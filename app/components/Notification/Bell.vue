@@ -130,8 +130,8 @@ const getTypeLabel = (type: string) => {
     <button
       ref="buttonRef"
       @click="toggleDropdown"
-      class="relative inline-flex items-center justify-center w-10 h-10 rounded-full t-bg-subtle t-text-secondary hover:t-text transition-colors focus:outline-none focus:ring-2 focus:ring-stone-300"
-      :class="{ 'animate-bell-ring': shouldAnimate }"
+      class="header-pill relative inline-flex items-center justify-center"
+      :class="{ 'animate-bell-ring': shouldAnimate, 'is-active': isOpen }"
       :aria-label="`Notifications${getUnseenCount > 0 ? ` (${getUnseenCount} unread)` : ''}`"
     >
       <Icon name="lucide:bell" class="w-5 h-5" />

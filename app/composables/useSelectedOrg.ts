@@ -149,6 +149,9 @@ export const useSelectedOrg = async () => {
             "organization.custom_domain",
             "organization.domain_verified",
             "organization.settings.logo",
+            // The org's forced workspace theme (classic | modern | luxury) — drives
+            // the in-app nav surface + palette (see auth.vue / App/Sidebar.vue).
+            "organization.settings.theme",
             // Entitlement (own fields + parent billing_account, resolved up)
             ...entitlementFields("organization"),
             "role",

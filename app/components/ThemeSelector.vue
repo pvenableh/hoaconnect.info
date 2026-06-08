@@ -3,6 +3,9 @@ import type { ThemeStyle } from '~/composables/useTheme';
 
 const props = defineProps<{
 	hasPremium?: boolean;
+	/** When the org forces a theme (the workspace), hide the STYLE picker and keep
+	 *  only the light/dark MODE toggle. */
+	hideStyles?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -23,10 +26,10 @@ function handleThemeSelect(themeId: ThemeStyle) {
 
 <template>
 	<div class="theme-selector">
-		<div class="theme-selector__label">Theme Style</div>
+		<div v-if="!hideStyles" class="theme-selector__label">Theme Style</div>
 
-		<!-- Theme Style Buttons -->
-		<div class="theme-selector__options">
+		<!-- Theme Style Buttons (hidden when the org forces a theme) -->
+		<div v-if="!hideStyles" class="theme-selector__options">
 			<button
 				v-for="theme in THEME_OPTIONS"
 				:key="theme.id"
