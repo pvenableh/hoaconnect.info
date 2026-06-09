@@ -145,9 +145,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
       <div
         v-if="data?.pendingRequests?.length"
-        class="rounded-xl border t-border bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-2"
+        class="rounded-xl border t-border-warning t-bg-warning px-4 py-3 text-sm flex items-center gap-2"
       >
-        <Icon name="i-lucide-clock" class="size-4 text-amber-600 shrink-0" />
+        <Icon name="i-lucide-clock" class="size-4 t-warning shrink-0" />
         You have {{ data.pendingRequests.length }} change{{ data.pendingRequests.length > 1 ? "s" : "" }} awaiting review.
       </div>
 
@@ -160,7 +160,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             <div>
               <h2 class="font-medium flex items-center gap-2">
                 Contact
-                <span v-if="pendingKinds.has('contact')" class="text-[11px] uppercase tracking-wide text-amber-600">· pending review</span>
+                <span v-if="pendingKinds.has('contact')" class="text-[11px] uppercase tracking-wide t-warning">· pending review</span>
               </h2>
               <p class="t-text-muted text-sm mt-1">
                 {{ data?.member?.email }}<span v-if="data?.member?.phone"> · {{ data.member.phone }}</span>
@@ -176,7 +176,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             <div>
               <h2 class="font-medium flex items-center gap-2">
                 Mailing address
-                <span v-if="pendingKinds.has('mailing_address')" class="text-[11px] uppercase tracking-wide text-amber-600">· pending review</span>
+                <span v-if="pendingKinds.has('mailing_address')" class="text-[11px] uppercase tracking-wide t-warning">· pending review</span>
               </h2>
               <p class="t-text-muted text-sm mt-1">
                 {{ fmtAddress(data?.member?.mailing_address) || "No separate mailing address on file." }}
@@ -202,7 +202,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                   ><template v-if="v.license_plate"> · {{ v.license_plate }}</template
                   ><template v-if="v.parking_spot"> · spot {{ v.parking_spot }}</template></span
                 >
-                <span v-if="pendingTargetIds.has(v.id)" class="text-[11px] uppercase tracking-wide text-amber-600"> · pending</span>
+                <span v-if="pendingTargetIds.has(v.id)" class="text-[11px] uppercase tracking-wide t-warning"> · pending</span>
               </div>
               <Button variant="ghost" size="sm" @click="requestRemoval('vehicle', v.id, [v.make, v.model].filter(Boolean).join(' ') || 'this vehicle')">Remove</Button>
             </li>
@@ -226,7 +226,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                   ><template v-if="p.type"> · {{ p.type }}</template
                   ><template v-if="p.breed"> · {{ p.breed }}</template></span
                 >
-                <span v-if="pendingTargetIds.has(p.id)" class="text-[11px] uppercase tracking-wide text-amber-600"> · pending</span>
+                <span v-if="pendingTargetIds.has(p.id)" class="text-[11px] uppercase tracking-wide t-warning"> · pending</span>
               </div>
               <Button variant="ghost" size="sm" @click="requestRemoval('pet', p.id, p.name || 'this pet')">Remove</Button>
             </li>

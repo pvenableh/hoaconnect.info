@@ -604,6 +604,33 @@ html.theme-luxury-dark {
 }
 
 /* =============================================================================
+   SEMANTIC STATUS TOKENS — success / warning / danger / info
+   The accent token carries the org's BRAND; these carry MEANING (paid vs
+   overdue, urgent vs event, pending review). They adapt per light/dark so chips
+   stay legible on every theme's background. Compose like the accent tints:
+   `t-bg-danger t-danger` for a chip, `t-fill-warning` for a solid bar/dot.
+   Light values lean darker (text on a pale tint); dark values lean brighter
+   (text/icon on a dark surface). One hue var per mode powers text + tint + border.
+============================================================================= */
+:root,
+.theme-classic-light,
+.theme-modern-light,
+.theme-luxury-light {
+	--theme-success: #16a34a;
+	--theme-warning: #b45309;
+	--theme-danger: #dc2626;
+	--theme-info: #2563eb;
+}
+.theme-classic-dark,
+.theme-modern-dark,
+.theme-luxury-dark {
+	--theme-success: #4ade80;
+	--theme-warning: #fbbf24;
+	--theme-danger: #f87171;
+	--theme-info: #60a5fa;
+}
+
+/* =============================================================================
    THEME-AWARE UTILITY CLASSES
    Use these instead of hard-coded Tailwind colors
 ============================================================================= */
@@ -641,6 +668,31 @@ html.theme-luxury-dark {
 .t-bg-accent\/20 { background-color: color-mix(in srgb, var(--theme-accent-primary) 20%, transparent); }
 .t-bg-accent\/15 { background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent); }
 .t-bg-accent\/10 { background-color: color-mix(in srgb, var(--theme-accent-primary) 10%, transparent); }
+
+/* Semantic status colors — text, tinted background, border, and solid fill.
+   `t-{name}` = text color · `t-bg-{name}` = pale tint (chips) · `t-fill-{name}`
+   = solid (bars/dots) · `t-border-{name}` = mid-opacity edge. */
+.t-success { color: var(--theme-success); }
+.t-warning { color: var(--theme-warning); }
+.t-danger { color: var(--theme-danger); }
+.t-info { color: var(--theme-info); }
+.t-bg-success { background-color: color-mix(in srgb, var(--theme-success) 15%, transparent); }
+.t-bg-warning { background-color: color-mix(in srgb, var(--theme-warning) 15%, transparent); }
+.t-bg-danger { background-color: color-mix(in srgb, var(--theme-danger) 15%, transparent); }
+.t-bg-info { background-color: color-mix(in srgb, var(--theme-info) 15%, transparent); }
+.t-fill-success { background-color: var(--theme-success); }
+.t-fill-warning { background-color: var(--theme-warning); }
+.t-fill-danger { background-color: var(--theme-danger); }
+.t-fill-info { background-color: var(--theme-info); }
+.t-border-success { border-color: color-mix(in srgb, var(--theme-success) 45%, transparent); }
+.t-border-warning { border-color: color-mix(in srgb, var(--theme-warning) 45%, transparent); }
+.t-border-danger { border-color: color-mix(in srgb, var(--theme-danger) 45%, transparent); }
+.t-border-info { border-color: color-mix(in srgb, var(--theme-info) 45%, transparent); }
+.hover\:t-danger:hover { color: var(--theme-danger); }
+
+/* Search-result highlight — a warm warning tint that reads on every theme,
+   replacing hard-coded bg-yellow-200. */
+.t-mark { background-color: color-mix(in srgb, var(--theme-warning) 30%, transparent); color: inherit; }
 
 /* Hover variants for the t-* utilities. The base t-* are plain classes (not
    Tailwind utilities), so Tailwind never generated `hover:t-*` rules — they were

@@ -38,13 +38,17 @@ const workflow = computed(() => getWorkflow(local.value.type));
 const state = computed(() => currentState(local.value));
 const stateMeta = computed(() => getStateMeta(local.value.type, state.value));
 
+// Workflow accents map onto the themed semantic palette so each stage chip
+// adapts to the org's theme + dark mode (orange has no token of its own —
+// it shares warning, the nearest match).
 const accentClass: Record<string, string> = {
-  amber: "bg-amber-50 text-amber-700 ring-amber-200",
-  violet: "bg-violet-50 text-violet-700 ring-violet-200",
-  red: "bg-red-50 text-red-700 ring-red-200",
-  orange: "bg-orange-50 text-orange-700 ring-orange-200",
-  sky: "bg-sky-50 text-sky-700 ring-sky-200",
+  amber: "t-bg-warning t-warning t-border-warning",
+  violet: "t-bg-accent/20 t-text-accent t-border-accent",
+  red: "t-bg-danger t-danger t-border-danger",
+  orange: "t-bg-warning t-warning t-border-warning",
+  sky: "t-bg-info t-info t-border-info",
 };
+const accentFallback = "t-bg-subtle t-text-secondary t-border";
 
 const transitions = computed(() =>
   availableTransitions(local.value.type, state.value, {
@@ -189,30 +193,30 @@ const spawnTask = async () => {
     <div class="ios-card p-6">
       <div class="flex items-start gap-4">
         <div
-          class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ring-1"
-          :class="accentClass[workflow.accent] || 'bg-stone-50 text-stone-600 ring-stone-200'"
+          class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border"
+          :class="accentClass[workflow.accent] || accentFallback"
         >
           <Icon :name="workflow.icon" class="w-6 h-6" />
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-medium text-stone-500 uppercase tracking-wide">
+            <span class="text-xs font-medium t-text-muted uppercase tracking-wide">
               {{ workflow.label }}
             </span>
             <span
-              class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1"
-              :class="accentClass[workflow.accent] || 'bg-stone-50 text-stone-600 ring-stone-200'"
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border"
+              :class="accentClass[workflow.accent] || accentFallback"
             >
               {{ stateMeta.label }}
             </span>
             <span
               v-if="local.priority === 'urgent'"
-              class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700"
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium t-bg-danger t-danger"
             >Urgent</span>
           </div>
-          <h1 class="text-xl font-semibold text-stone-900 mt-1">{{ local.title }}</h1>
+          <h1 class="text-xl font-semibold t-text mt-1">{{ local.title }}</h1>
 
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-stone-500">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm t-text-muted">
             <span v-if="personName(local.submitted_by)">
               By {{ personName(local.submitted_by) }}
             </span>
@@ -225,12 +229,12 @@ const spawnTask = async () => {
       <!-- Description -->
       <div
         v-if="local.description"
-        class="prose prose-sm prose-stone max-w-none mt-4 pt-4 border-t border-stone-100"
+        class="prose prose-sm prose-stone max-w-none mt-4 pt-4 border-t t-border"
         v-html="local.description"
       />
 
       <!-- Transitions -->
-      <div v-if="transitions.length" class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-stone-100">
+      <div v-if="transitions.length" class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border">
         <Button
           v-for="t in transitions"
           :key="t.to"
@@ -247,7 +251,7 @@ const spawnTask = async () => {
       <!-- Spawn channel / task (board + admin) -->
       <div
         v-if="isBoard && channelsEnabled"
-        class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-stone-100"
+        class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border"
       >
         <NuxtLink
           v-if="linkedChannel"
@@ -321,12 +325,12 @@ const spawnTask = async () => {
 
     <!-- Metadata -->
     <div v-if="metaFields.length" class="ios-card p-6">
-      <h3 class="font-semibold text-stone-900 mb-3">Details</h3>
+      <h3 class="font-semibold t-text mb-3">Details</h3>
       <div class="grid grid-cols-2 gap-4">
         <div v-for="field in metaFields" :key="field.key">
-          <label class="block text-xs font-medium text-stone-500 mb-1">
+          <label class="block text-xs font-medium t-text-muted mb-1">
             {{ field.label }}
-            <span v-if="field.internal" class="text-amber-600">· internal</span>
+            <span v-if="field.internal" class="t-warning">· internal</span>
           </label>
           <template v-if="isBoard">
             <textarea
@@ -341,7 +345,7 @@ const spawnTask = async () => {
               :type="field.type === 'date' ? 'date' : field.type === 'number' || field.type === 'currency' ? 'number' : 'text'"
             />
           </template>
-          <p v-else class="text-sm text-stone-700">
+          <p v-else class="text-sm t-text-secondary">
             {{ request.metadata?.[field.key] || "—" }}
           </p>
         </div>

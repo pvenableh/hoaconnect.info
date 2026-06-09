@@ -76,12 +76,12 @@ const { data: announcements, pending } = await useAsyncData(
 
 // Type options for display
 const getTypeInfo = (type: string | null | undefined) => {
-  const types: Record<string, { icon: string; color: string; label: string }> = {
-    urgent: { icon: "alert-triangle", color: "text-red-600 bg-red-50 border-red-200", label: "Urgent" },
-    maintenance: { icon: "wrench", color: "text-amber-600 bg-amber-50 border-amber-200", label: "Maintenance" },
-    event: { icon: "calendar", color: "text-blue-600 bg-blue-50 border-blue-200", label: "Event" },
-    reminder: { icon: "bell", color: "text-purple-600 bg-purple-50 border-purple-200", label: "Reminder" },
-    general: { icon: "megaphone", color: "t-text-secondary t-bg-subtle t-border", label: "General" },
+  const types: Record<string, { icon: string; color: string; bar: string; label: string }> = {
+    urgent: { icon: "alert-triangle", color: "t-danger t-bg-danger", bar: "t-fill-danger", label: "Urgent" },
+    maintenance: { icon: "wrench", color: "t-warning t-bg-warning", bar: "t-fill-warning", label: "Maintenance" },
+    event: { icon: "calendar", color: "t-info t-bg-info", bar: "t-fill-info", label: "Event" },
+    reminder: { icon: "bell", color: "t-text-accent t-bg-accent/20", bar: "t-bg-accent", label: "Reminder" },
+    general: { icon: "megaphone", color: "t-text-secondary t-bg-subtle", bar: "t-bg-accent", label: "General" },
   };
   return types[type || "general"] || types.general;
 };
@@ -178,16 +178,7 @@ useSeoMeta({
               class="t-bg-elevated rounded-xl border-2 t-border-accent overflow-hidden shadow-sm hover:shadow-md transition-shadow"
             >
               <!-- Type indicator bar -->
-              <div
-                class="h-1"
-                :class="{
-                  'bg-red-500': announcement.announcement_type === 'urgent',
-                  'bg-amber-500': announcement.announcement_type === 'maintenance',
-                  'bg-blue-500': announcement.announcement_type === 'event',
-                  'bg-purple-500': announcement.announcement_type === 'reminder',
-                  't-bg-accent': announcement.announcement_type === 'general' || !announcement.announcement_type,
-                }"
-              />
+              <div class="h-1" :class="getTypeInfo(announcement.announcement_type).bar" />
               <div class="p-6">
                 <!-- Header -->
                 <div class="flex items-start gap-4 mb-4">
@@ -239,21 +230,12 @@ useSeoMeta({
               :key="announcement.id"
               class="t-bg-elevated rounded-xl border t-border overflow-hidden hover:shadow-sm transition-shadow"
               :class="{
-                'border-red-300': announcement.announcement_type === 'urgent',
+                't-border-danger': announcement.announcement_type === 'urgent',
               }"
             >
               <div class="flex">
                 <!-- Type indicator sidebar -->
-                <div
-                  class="w-1.5 flex-shrink-0"
-                  :class="{
-                    'bg-red-500': announcement.announcement_type === 'urgent',
-                    'bg-amber-500': announcement.announcement_type === 'maintenance',
-                    'bg-blue-500': announcement.announcement_type === 'event',
-                    'bg-purple-500': announcement.announcement_type === 'reminder',
-                    't-bg-accent': announcement.announcement_type === 'general' || !announcement.announcement_type,
-                  }"
-                />
+                <div class="w-1.5 flex-shrink-0" :class="getTypeInfo(announcement.announcement_type).bar" />
 
                 <div class="flex-1 p-6">
                   <!-- Header -->

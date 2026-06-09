@@ -57,12 +57,12 @@ const submit = async () => {
 <template>
   <div class="space-y-4">
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-1.5">Question</label>
+      <label class="block text-sm font-medium t-text-secondary mb-1.5">Question</label>
       <Input v-model="title" placeholder="e.g. Should we repaint the lobby?" />
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-1.5">Description (optional)</label>
+      <label class="block text-sm font-medium t-text-secondary mb-1.5">Description (optional)</label>
       <textarea
         v-model="description"
         rows="2"
@@ -72,13 +72,13 @@ const submit = async () => {
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-1.5">Options</label>
+      <label class="block text-sm font-medium t-text-secondary mb-1.5">Options</label>
       <div class="space-y-2">
         <div v-for="(opt, idx) in options" :key="opt.id" class="flex items-center gap-2">
           <Input v-model="opt.label" :placeholder="`Option ${idx + 1}`" class="flex-1" />
           <button
             type="button"
-            class="text-stone-400 hover:text-red-600 disabled:opacity-30"
+            class="t-text-muted hover:t-danger disabled:opacity-30"
             :disabled="options.length <= 2"
             @click="removeOption(idx)"
           >
@@ -86,18 +86,18 @@ const submit = async () => {
           </button>
         </div>
       </div>
-      <button type="button" class="mt-2 text-sm text-stone-500 hover:text-stone-800 inline-flex items-center gap-1" @click="addOption">
+      <button type="button" class="mt-2 text-sm t-text-tertiary hover:t-text inline-flex items-center gap-1" @click="addOption">
         <Icon name="lucide:plus" class="w-4 h-4" /> Add option
       </button>
     </div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-stone-700 mb-1.5">Closes (optional)</label>
+        <label class="block text-sm font-medium t-text-secondary mb-1.5">Closes (optional)</label>
         <Input v-model="closesAt" type="date" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-stone-700 mb-1.5">Audience</label>
+        <label class="block text-sm font-medium t-text-secondary mb-1.5">Audience</label>
         <select v-model="audience" class="w-full px-3 py-2 border rounded-md bg-background text-sm">
           <option value="all">Everyone</option>
           <option value="owners">Owners</option>
@@ -108,12 +108,12 @@ const submit = async () => {
     </div>
 
     <div class="flex flex-wrap gap-4">
-      <label class="inline-flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
-        <input type="checkbox" v-model="allowMultiple" class="rounded border-stone-300" />
+      <label class="inline-flex items-center gap-2 text-sm t-text-secondary cursor-pointer">
+        <input type="checkbox" v-model="allowMultiple" class="rounded t-border" />
         Allow multiple choices
       </label>
-      <label class="inline-flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
-        <input type="checkbox" v-model="isAnonymous" class="rounded border-stone-300" />
+      <label class="inline-flex items-center gap-2 text-sm t-text-secondary cursor-pointer">
+        <input type="checkbox" v-model="isAnonymous" class="rounded t-border" />
         Anonymous results
       </label>
     </div>

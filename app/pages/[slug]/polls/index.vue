@@ -69,10 +69,10 @@ const onCreated = async () => {
         </div>
 
         <div v-if="!openPolls.length && !closedPolls.length" class="py-20 text-center">
-          <div class="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
-            <Icon name="lucide:bar-chart-3" class="w-7 h-7 text-stone-400" />
+          <div class="w-14 h-14 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-3">
+            <Icon name="lucide:bar-chart-3" class="w-7 h-7 t-text-muted" />
           </div>
-          <p class="text-stone-500">No polls yet.</p>
+          <p class="t-text-muted">No polls yet.</p>
         </div>
       </template>
     </PageContainer>

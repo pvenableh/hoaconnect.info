@@ -142,9 +142,9 @@ const TYPE_LABEL: Record<string, string> = {
             :key="request.id"
             class="ios-card p-5 border-l-4"
             :class="{
-              'border-red-500': request.status === 'overdue',
-              'border-amber-500': request.status === 'active',
-              'border-blue-500': request.status === 'partially_paid',
+              't-border-danger': request.status === 'overdue',
+              't-border-warning': request.status === 'active',
+              't-border-info': request.status === 'partially_paid',
             }"
           >
             <div class="flex items-start justify-between gap-4">
@@ -154,9 +154,9 @@ const TYPE_LABEL: Record<string, string> = {
                   <span
                     class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium"
                     :class="{
-                      'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200': request.status === 'overdue',
-                      'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200': request.status === 'active',
-                      'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200': request.status === 'partially_paid',
+                      't-bg-danger t-danger': request.status === 'overdue',
+                      't-bg-warning t-warning': request.status === 'active',
+                      't-bg-info t-info': request.status === 'partially_paid',
                     }"
                   >{{ STATUS_LABEL[request.status as string] || request.status }}</span>
                 </div>
@@ -184,7 +184,7 @@ const TYPE_LABEL: Record<string, string> = {
             <div v-if="request.status === 'partially_paid' && request.amount" class="mt-4">
               <div class="w-full bg-black/[0.06] dark:bg-white/[0.08] rounded-full h-2">
                 <div
-                  class="bg-blue-600 h-2 rounded-full"
+                  class="t-fill-info h-2 rounded-full"
                   :style="{ width: `${Math.min(100, ((request.amount_paid || 0) / request.amount) * 100)}%` }"
                 />
               </div>

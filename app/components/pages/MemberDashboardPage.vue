@@ -638,7 +638,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     </p>
                   </div>
                 </div>
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800">
+                <span class="px-2 py-1 text-xs font-medium rounded-full t-bg-success t-success">
                   Active
                 </span>
               </div>

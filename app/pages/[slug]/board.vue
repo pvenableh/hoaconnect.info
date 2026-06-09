@@ -60,14 +60,14 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="ui-kit accent-violet min-h-screen bg-stone-50">
+  <div class="ui-kit accent-violet min-h-screen t-bg">
     <!-- Loading State -->
     <div v-if="pending" class="flex items-center justify-center min-h-[400px]">
       <div class="text-center">
         <span class="spinner-ios spinner-ios--lg" role="status">
           <span class="sr-only">Loading...</span>
         </span>
-        <p class="mt-4 text-gray-600">Loading board members...</p>
+        <p class="mt-4 t-text-secondary">Loading board members...</p>
       </div>
     </div>
 
@@ -77,15 +77,15 @@ useSeoMeta({
       class="flex items-center justify-center min-h-[400px]"
     >
       <div class="text-center">
-        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+        <h1 class="text-4xl font-bold t-text mb-4">
           Organization Not Found
         </h1>
-        <p class="text-xl text-gray-600 mb-8">
+        <p class="text-xl t-text-secondary mb-8">
           The organization you're looking for doesn't exist.
         </p>
         <NuxtLink
           to="/"
-          class="inline-block bg-primary text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-primary/90 transition"
+          class="inline-block t-bg-accent t-text-inverse px-8 py-3 rounded-lg text-lg font-semibold hover:opacity-90 transition"
         >
           Go Home
         </NuxtLink>
@@ -108,10 +108,10 @@ useSeoMeta({
             </NuxtLink>
           </div>
 
-          <h1 class="text-4xl font-bold text-stone-900 mb-4">
+          <h1 class="text-4xl font-bold t-text t-heading mb-4">
             Board of Directors
           </h1>
-          <p class="text-lg text-stone-600 max-w-2xl mx-auto">
+          <p class="text-lg t-text-secondary max-w-2xl mx-auto">
             Meet the dedicated volunteers who serve on our board and help guide our community.
           </p>
         </div>

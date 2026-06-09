@@ -63,7 +63,7 @@ const highlight = (text: string) => {
   const safe = escapeHtml(text);
   const q = debouncedQuery.value.trim();
   if (!q) return safe;
-  return safe.replace(new RegExp(`(${escapeReg(escapeHtml(q))})`, "ig"), '<mark class="bg-yellow-200 rounded px-0.5">$1</mark>');
+  return safe.replace(new RegExp(`(${escapeReg(escapeHtml(q))})`, "ig"), '<mark class="t-mark rounded px-0.5">$1</mark>');
 };
 
 const snippet = (item: GovernanceItem) => {
@@ -186,7 +186,7 @@ const fmtDate = (v?: string | null) =>
           v-model="query"
           type="search"
           placeholder="Search rules…"
-          class="w-full pl-9 pr-3 py-2.5 rounded-full border t-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+          class="w-full pl-9 pr-3 py-2.5 rounded-full border t-border bg-background text-sm t-focus-ring"
         />
       </div>
 
@@ -194,7 +194,7 @@ const fmtDate = (v?: string | null) =>
       <div class="flex flex-wrap gap-2">
         <button
           class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
-          :class="activeCategory === null ? 'bg-violet-600 text-white border-violet-600' : 't-border t-text-secondary hover:t-bg-subtle'"
+          :class="activeCategory === null ? 't-bg-accent t-text-inverse t-border-accent' : 't-border t-text-secondary hover:t-bg-subtle'"
           @click="activeCategory = null"
         >
           All
@@ -203,7 +203,7 @@ const fmtDate = (v?: string | null) =>
           v-for="c in GOVERNANCE_CATEGORIES"
           :key="c.value"
           class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
-          :class="activeCategory === c.value ? 'bg-violet-600 text-white border-violet-600' : 't-border t-text-secondary hover:t-bg-subtle'"
+          :class="activeCategory === c.value ? 't-bg-accent t-text-inverse t-border-accent' : 't-border t-text-secondary hover:t-bg-subtle'"
           @click="activeCategory = c.value"
         >
           {{ c.label }}
@@ -242,12 +242,12 @@ const fmtDate = (v?: string | null) =>
                 <div class="flex flex-wrap items-center gap-3 py-2 text-xs t-text-muted">
                   <span class="px-2 py-0.5 rounded-full t-bg-subtle">{{ categoryLabel(item.category) }}</span>
                   <span v-if="item.effective_date">Effective {{ fmtDate(item.effective_date) }}</span>
-                  <span v-for="tag in (detailCache[item.id]?.tags || item.tags || [])" :key="tag" class="text-violet-600">#{{ tag }}</span>
+                  <span v-for="tag in (detailCache[item.id]?.tags || item.tags || [])" :key="tag" class="t-text-accent">#{{ tag }}</span>
                   <span v-if="canManage" class="ml-auto flex items-center gap-2">
                     <button class="hover:t-text inline-flex items-center gap-1" @click.stop="openEdit(item)">
                       <Icon name="lucide:pencil" class="w-3.5 h-3.5" /> Edit
                     </button>
-                    <button class="hover:text-red-600 inline-flex items-center gap-1" @click.stop="onDelete(item)">
+                    <button class="hover:t-danger inline-flex items-center gap-1" @click.stop="onDelete(item)">
                       <Icon name="lucide:trash-2" class="w-3.5 h-3.5" /> Delete
                     </button>
                   </span>
@@ -339,7 +339,7 @@ const fmtDate = (v?: string | null) =>
 .tiptap-content :deep(p) { margin: 0.5rem 0; }
 .tiptap-content :deep(ul) { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
 .tiptap-content :deep(ol) { list-style: decimal; padding-left: 1.25rem; margin: 0.5rem 0; }
-.tiptap-content :deep(a) { color: var(--color-violet-600, #7c3aed); text-decoration: underline; }
+.tiptap-content :deep(a) { color: var(--theme-accent-primary, #7c3aed); text-decoration: underline; }
 .tiptap-content :deep(table) { border-collapse: collapse; margin: 0.5rem 0; }
-.tiptap-content :deep(td), .tiptap-content :deep(th) { border: 1px solid var(--t-border, #e5e7eb); padding: 0.25rem 0.5rem; }
+.tiptap-content :deep(td), .tiptap-content :deep(th) { border: 1px solid var(--theme-border-primary, #e5e7eb); padding: 0.25rem 0.5rem; }
 </style>
