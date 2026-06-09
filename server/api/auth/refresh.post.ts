@@ -68,9 +68,10 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.error("[refresh] Token refresh error:", error.message || error);
 
-    // Clear session on refresh failure
-    await clearUserSession(event);
-
+    // Do NOT clear the session here. This endpoint is hit on a timer (and on tab
+    // focus), so a transient error or a refresh-token rotation race would otherwise
+    // log the user out unnecessarily. Return 401 for this attempt; the client retries
+    // once, and a still-valid session survives.
     throw createError({
       statusCode: 401,
       statusMessage: error.message || "Failed to refresh token",

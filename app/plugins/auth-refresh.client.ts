@@ -35,20 +35,27 @@ export default defineNuxtPlugin(() => {
       isRefreshing = true;
       console.log('[auth-refresh] Refreshing token...');
 
-      const response = await $fetch('/api/auth/refresh', {
-        method: 'POST',
-      });
-
-      if (response.success) {
-        console.log('[auth-refresh] Token refreshed successfully');
-        await fetchSession(); // Fetch updated session
-      } else {
-        throw new Error('Token refresh failed');
+      try {
+        const response = await $fetch('/api/auth/refresh', { method: 'POST' });
+        if (!(response as any)?.success) throw new Error('Token refresh failed');
+      } catch (firstErr) {
+        // Transient failure or a refresh-token ROTATION RACE (a background refresh,
+        // a concurrent request, or another tab may have just rotated the token).
+        // Wait briefly and retry ONCE — by then the session cookie holds the winning
+        // token — before giving up and logging the user out.
+        console.warn('[auth-refresh] Refresh failed once, retrying…', firstErr);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const retry = await $fetch('/api/auth/refresh', { method: 'POST' });
+        if (!(retry as any)?.success) throw new Error('Token refresh failed');
       }
-    } catch (error) {
-      console.error('[auth-refresh] Failed to refresh token:', error);
 
-      // If refresh fails, clear session and redirect to login
+      console.log('[auth-refresh] Token refreshed successfully');
+      await fetchSession(); // Fetch updated session
+    } catch (error) {
+      console.error('[auth-refresh] Failed to refresh token (after retry):', error);
+
+      // Both attempts failed — treat the session as dead: clear and (on a protected
+      // route) redirect to login.
       await clear();
 
       // Only force a redirect to login when on a PROTECTED route. On public pages

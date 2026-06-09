@@ -172,10 +172,14 @@ export async function getUserDirectus(
 
       accessToken = authResult.access_token;
     } catch (error) {
-      await clearUserSession(event);
+      // Non-destructive: a refresh-token ROTATION RACE (a concurrent request just
+      // rotated the token, invalidating ours) or a transient error must NOT clear
+      // the session — that would log the user out over a recoverable hiccup. Surface
+      // 401 for this one request; a retry, or the request that won the race (and
+      // updated the session cookie), keeps the user logged in.
       throw createError({
         statusCode: 401,
-        statusMessage: "Session expired - please log in again",
+        statusMessage: "Could not refresh session",
       });
     }
   }

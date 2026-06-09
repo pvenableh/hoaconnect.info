@@ -1,33 +1,15 @@
-import { createDirectus, rest, authentication, readMe } from "@directus/sdk";
+import { readMe } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   try {
-    const session = await getUserSession(event);
-    const accessToken = getSessionAccessToken(session);
+    // getUserDirectus transparently refreshes an expired/near-expiry access token
+    // (and persists the rotated tokens to the session), so this never 401s just
+    // because the short-lived Directus access token lapsed.
+    const directus = await getUserDirectus(event);
 
-    if (!session || !accessToken) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Not authenticated",
-      });
-    }
-
-    const config = useRuntimeConfig();
-
-    // Create authenticated client
-    const directus = createDirectus(config.directus.url)
-      .with(rest())
-      .with(authentication("json"));
-
-    // Set the token
-    await directus.setToken(accessToken);
-
-    // Fetch fresh user data (only role ID, not nested role fields due to core collection restrictions)
-    const user = await directus.request(
-      readMe({
-        fields: ["*", "role"],
-      })
-    );
+    // Fetch fresh user data (only role ID, not nested role fields due to core
+    // collection restrictions)
+    const user = await directus.request(readMe({ fields: ["*", "role"] }));
 
     return {
       success: true,
@@ -40,8 +22,9 @@ export default defineEventHandler(async (event) => {
       },
     };
   } catch (error: any) {
+    // Preserve the helper's 401 (no usable session); otherwise surface a generic 401.
+    if (error?.statusCode) throw error;
     console.error("Fetch user error:", error);
-
     throw createError({
       statusCode: 401,
       statusMessage: "Failed to fetch user data",
