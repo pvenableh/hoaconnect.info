@@ -5,12 +5,31 @@ const config = useRuntimeConfig();
 // Get active HOA context
 const { activeHoa } = useActiveHoa();
 
+// Shape of /api/hoa/board-members (matches PagesBoardMembersSection's prop)
+interface BoardMemberTerm {
+  id: string;
+  title: string | null;
+  term_start: string | null;
+  term_end: string | null;
+  icon: string | null;
+  message: string | null;
+  hoa_member: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+}
+
 // Fetch board members using activeHoa slug
 const { data: boardData, pending: boardPending } = await useAsyncData(
   `board-members-custom-domain`,
   async () => {
     if (!activeHoa.value?.slug) return null;
-    const response = await $fetch(`/api/hoa/board-members?slug=${activeHoa.value.slug}`);
+    const response = await $fetch<{
+      organizationId: string;
+      boardMembers: BoardMemberTerm[];
+    }>(`/api/hoa/board-members?slug=${activeHoa.value.slug}`);
     return response;
   },
   { watch: [activeHoa] }

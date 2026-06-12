@@ -139,7 +139,7 @@ export default defineEventHandler(async (event) => {
           },
           fields: ["id", "filename_download", "type", "filesize", "title"],
         })
-      ) as DirectusFile[];
+      ) as unknown as DirectusFile[];
 
       attachments = files.map((file) => ({
         id: file.id,

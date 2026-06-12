@@ -56,7 +56,9 @@ watch(activeTab, (t) => {
 
 // Get org logo URL
 const orgLogoUrl = computed(() => {
-  const logoId = organization.value?.settings?.logo;
+  const settings = organization.value?.settings;
+  const logoId =
+    typeof settings === "object" && settings ? settings.logo : null;
   if (!logoId) return null;
   const fileId = typeof logoId === "string" ? logoId : logoId?.id;
   if (!fileId) return null;

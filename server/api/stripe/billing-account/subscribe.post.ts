@@ -7,6 +7,7 @@
 import { z } from "zod";
 import Stripe from "stripe";
 import { updateItem } from "@directus/sdk";
+import type { AcaciaInvoice } from "~~/server/utils/stripe";
 
 const schema = z.object({
   accountId: z.string().min(1),
@@ -111,7 +112,7 @@ export default defineEventHandler(async (event) => {
     clientSecret = (subscription.pending_setup_intent as Stripe.SetupIntent).client_secret;
     type = "setup_intent";
   } else if (subscription.latest_invoice) {
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
+    const invoice = subscription.latest_invoice as AcaciaInvoice;
     const pi = invoice.payment_intent as Stripe.PaymentIntent | null;
     if (pi) {
       clientSecret = pi.client_secret;

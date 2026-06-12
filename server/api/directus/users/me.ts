@@ -4,7 +4,8 @@
  * PATCH: updateMe() - Update current user profile
  */
 
-import { readMe, updateMe } from "@directus/sdk";
+import { readMe, updateMe, type Query, type DirectusUser } from "@directus/sdk";
+import type { Schema } from "~~/types/directus";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,9 +15,9 @@ export default defineEventHandler(async (event) => {
     if (method === "GET") {
       // Get query parameters for fields
       const query = getQuery(event);
-      const fields = query.fields
+      const fields = (query.fields
         ? (query.fields as string).split(",")
-        : ["*", "role.*"];
+        : ["*", "role.*"]) as unknown as Query<Schema, DirectusUser<Schema>>["fields"];
 
       const user = await directus.request(readMe({ fields }));
 

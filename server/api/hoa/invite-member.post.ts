@@ -38,8 +38,8 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (existingMembers && existingMembers.length > 0) {
-      const existingMember = existingMembers[0];
+    const existingMember = existingMembers?.[0];
+    if (existingMember) {
       throw createError({
         statusCode: 409,
         message: existingMember.user
@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
           email: { _eq: normalizedEmail },
           organization: { _eq: organizationId },
           invitation_status: { _eq: "pending" },
-          expires_at: { _gt: new Date().toISOString() },
+          expires_at: { _gt: new Date().toISOString() } as any,
         },
         fields: ["id", "expires_at"],
         limit: 1,
@@ -72,11 +72,18 @@ export default defineEventHandler(async (event) => {
     // Check if user already exists in the system (has an account)
     let existingUser = null;
     try {
-      const existingUsers = await $fetch(
+      const existingUsers = await $fetch<{
+        data?: {
+          id: string;
+          email: string | null;
+          first_name: string | null;
+          last_name: string | null;
+        }[];
+      }>(
         `${config.directus.url}/users`,
         {
           headers: {
-            Authorization: `Bearer ${config.directus.token}`,
+            Authorization: `Bearer ${config.directus.staticToken}`,
           },
           query: {
             filter: JSON.stringify({
@@ -114,7 +121,7 @@ export default defineEventHandler(async (event) => {
           "city",
           "state",
           "zip",
-          "settings.logo",
+          { settings: ["logo"] },
         ],
       })
     );
@@ -146,7 +153,7 @@ export default defineEventHandler(async (event) => {
     // Get role details for email via REST API (core collections can't use readItem)
     let roleName = "Member";
     try {
-      const roleResponse = await $fetch(`${config.directusUrl}/roles/${roleId}`, {
+      const roleResponse = await $fetch<{ data?: { name?: string } }>(`${config.directusUrl}/roles/${roleId}`, {
         headers: {
           Authorization: `Bearer ${config.directusToken}`,
         },

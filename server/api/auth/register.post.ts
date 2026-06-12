@@ -30,17 +30,19 @@ export default defineEventHandler(async (event) => {
       (config.public.directusRoleMember as string) || "558b04ed-fdcc-48c2-9cd0-977cccf988b9";
 
     // Create the user
-    const newUser = await adminClient.request(
-      createUser({
-        email,
-        password,
-        first_name,
-        last_name,
-        phone: phone || null,
-        role: DEFAULT_MEMBER_ROLE_ID,
-        status: "active",
-      })
-    );
+    // `phone` is a custom field on directus_users not present in the generated
+    // DirectusUser type; passing a non-literal payload sidesteps the excess
+    // property check without changing the request.
+    const newUserPayload = {
+      email,
+      password,
+      first_name,
+      last_name,
+      phone: phone || null,
+      role: DEFAULT_MEMBER_ROLE_ID,
+      status: "active" as const,
+    };
+    const newUser = await adminClient.request(createUser(newUserPayload));
 
     // Auto-login after registration
     const authClient = createDirectus(config.directus.url).with(rest());
@@ -77,7 +79,7 @@ export default defineEventHandler(async (event) => {
       expiresAt: Date.now() + (authResult.expires || 900) * 1000, // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token,
+        directusRefreshToken: authResult.refresh_token!,
       },
     });
 

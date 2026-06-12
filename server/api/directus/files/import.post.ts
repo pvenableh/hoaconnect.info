@@ -19,14 +19,14 @@ export default defineEventHandler(async (event) => {
     
     const directus = await getUserDirectus(event)
     
-    // Build import data
-    const importData: Record<string, any> = { url }
-    if (title) importData.title = title
-    if (description) importData.description = description
-    if (folder) importData.folder = folder
-    
+    // Build file metadata
+    const metadata: Record<string, any> = {}
+    if (title) metadata.title = title
+    if (description) metadata.description = description
+    if (folder) metadata.folder = folder
+
     const result = await directus.request(
-      importFile(importData)
+      importFile(url, metadata)
     )
     
     return result

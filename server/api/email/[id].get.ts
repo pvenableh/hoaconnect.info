@@ -43,10 +43,10 @@ export default defineEventHandler(async (event) => {
           },
           {
             user_created: ["id", "first_name", "last_name"],
-          },
+          } as any,
         ],
       })
-    );
+    ) as Record<string, any> | null;
 
     if (!email) {
       throw createError({
@@ -72,11 +72,11 @@ export default defineEventHandler(async (event) => {
             "error_message",
             {
               member: ["id", "first_name", "last_name"],
-            },
+            } as any,
           ],
           sort: ["recipient_name"],
         })
-      );
+      ) as any[];
     }
 
     return {

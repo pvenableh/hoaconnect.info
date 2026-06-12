@@ -27,6 +27,7 @@ export interface RequestRow {
   due_date?: string | null;
   attachments?: string[] | null;
   metadata?: Record<string, any> | null;
+  parent_request?: string | RequestRow | null;
   organization?: string | null;
   date_created?: string | null;
   date_updated?: string | null;
@@ -98,7 +99,7 @@ export const useRequests = () => {
       metadata: { ...(input.metadata || {}), workflow_state: wf.initialState },
       organization: selectedOrgId.value,
       ...(input.parent_request ? { parent_request: input.parent_request } : {}),
-    } as RequestRow);
+    } as Partial<RequestRow>);
 
     // Fire-and-forget: notify the routed management contacts + the board.
     // Never block (or fail) request creation on the notification step.

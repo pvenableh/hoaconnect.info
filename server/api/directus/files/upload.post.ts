@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     const metadata: Record<string, any> = {}
     
     formData.forEach(part => {
-      if (part.name !== 'file' && part.data) {
+      if (part.name && part.name !== 'file' && part.data) {
         const value = part.data.toString()
         try {
           // Try to parse as JSON (for arrays like tags)

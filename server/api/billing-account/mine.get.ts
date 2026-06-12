@@ -16,10 +16,7 @@ export default defineEventHandler(async (event) => {
         filter: { user: { _eq: session.user.id } },
         fields: [
           "role",
-          "billing_account.id",
-          "billing_account.name",
-          "billing_account.status",
-          "billing_account.subscription_status",
+          { billing_account: ["id", "name", "status", "subscription_status"] },
         ],
         limit: -1,
       })

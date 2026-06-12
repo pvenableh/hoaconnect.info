@@ -9,6 +9,7 @@ import {
   staticToken,
   readMe,
 } from "@directus/sdk";
+import type { User } from "#auth-utils";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -49,7 +50,9 @@ export default defineEventHandler(async (event) => {
         role: user.role,
         organization: user.organization,
         provider: session.user?.provider || "local",
-      },
+        // The session stores the full organization object; the augmented User
+        // type only models organizationId.
+      } as User,
       loggedInAt: session.loggedInAt,
       expiresAt: session.expiresAt,
       selectedOrgId: session.selectedOrgId,

@@ -384,7 +384,7 @@ onMounted(async () => {
           throw setupErr;
         }
       }
-    } else if (paymentIntent.status === 'requires_payment_method') {
+    } else if (intentStatus === 'requires_payment_method') {
       setupStatus.value = 'failed';
       errorMessage.value = 'Payment was not completed. Please try again.';
     } else {

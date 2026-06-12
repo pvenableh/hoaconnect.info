@@ -5,11 +5,33 @@ const config = useRuntimeConfig();
 // Get slug from route params
 const slug = computed(() => route.params.slug as string);
 
+// Minimal shape of /api/hoa/find used by this page
+interface BoardPageOrganization {
+  name: string;
+  settings?: { logo?: string | { id: string } | null } | null;
+}
+
+// Shape of /api/hoa/board-members (matches PagesBoardMembersSection's prop)
+interface BoardMemberTerm {
+  id: string;
+  title: string | null;
+  term_start: string | null;
+  term_end: string | null;
+  icon: string | null;
+  message: string | null;
+  hoa_member: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+}
+
 // Fetch organization info for header/branding
 const { data: organization, pending: orgPending } = await useAsyncData(
   `organization-${slug.value}`,
   async () => {
-    const response = await $fetch(`/api/hoa/find?slug=${slug.value}`);
+    const response = await $fetch<BoardPageOrganization>(`/api/hoa/find?slug=${slug.value}`);
     return response;
   }
 );
@@ -18,7 +40,10 @@ const { data: organization, pending: orgPending } = await useAsyncData(
 const { data: boardData, pending: boardPending } = await useAsyncData(
   `board-members-${slug.value}`,
   async () => {
-    const response = await $fetch(`/api/hoa/board-members?slug=${slug.value}`);
+    const response = await $fetch<{
+      organizationId: string;
+      boardMembers: BoardMemberTerm[];
+    }>(`/api/hoa/board-members?slug=${slug.value}`);
     return response;
   }
 );

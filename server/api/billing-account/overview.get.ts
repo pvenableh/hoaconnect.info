@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   const members = await directus.request(
     readItems("billing_account_members", {
       filter: { billing_account: { _eq: accountId } },
-      fields: ["id", "role", "user.id", "user.email", "user.first_name", "user.last_name"],
+      fields: ["id", "role", { user: ["id", "email", "first_name", "last_name"] }],
       limit: -1,
     })
   );

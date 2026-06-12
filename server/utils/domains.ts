@@ -17,7 +17,7 @@ export function normalizeDomain(input?: string | null): string {
   if (!input) return "";
   let d = input.trim().toLowerCase();
   d = d.replace(/^https?:\/\//, "");
-  d = d.split("/")[0];
+  d = d.split("/")[0] ?? "";
   d = d.replace(/:\d+$/, "");
   d = d.replace(/\.$/, "");
   return d;

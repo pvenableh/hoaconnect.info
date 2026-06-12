@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { HoaEmailsFile } from "~~/types/directus";
 
 const props = defineProps<{
   emailId: string;
@@ -220,6 +221,14 @@ const getRecipientStatusBadgeClass = (status: string) => {
   return classes[status] || classes.pending;
 };
 
+const attachmentKey = (a: string | HoaEmailsFile) =>
+  typeof a === "string" ? a : a.id;
+
+const attachmentFile = (a: string | HoaEmailsFile) =>
+  typeof a === "object" && a && typeof a.directus_files_id === "object"
+    ? a.directus_files_id
+    : null;
+
 const formatFileSize = (bytes: number) => {
   if (!bytes || bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -399,15 +408,15 @@ useSeoMeta({
                 <div class="space-y-1">
                   <div
                     v-for="attachment in email.attachments"
-                    :key="attachment.id"
+                    :key="attachmentKey(attachment)"
                     class="flex items-center gap-2 p-2 bg-stone-50 rounded text-sm"
                   >
                     <Icon name="lucide:file" class="w-4 h-4 text-stone-500" />
                     <span class="truncate flex-1">
-                      {{ attachment.directus_files_id?.filename_download || 'Attachment' }}
+                      {{ attachmentFile(attachment)?.filename_download || 'Attachment' }}
                     </span>
                     <span class="text-xs text-stone-400">
-                      {{ formatFileSize(attachment.directus_files_id?.filesize) }}
+                      {{ formatFileSize(attachmentFile(attachment)?.filesize) }}
                     </span>
                   </div>
                 </div>

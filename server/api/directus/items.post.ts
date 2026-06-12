@@ -14,7 +14,9 @@ import {
   deleteItem,
   deleteItems,
   aggregate as directusAggregate,
+  type RegularCollections,
 } from "@directus/sdk";
+import type { Schema } from "~~/types/directus";
 
 /**
  * Execute a Directus operation with automatic token refresh on expiration
@@ -29,7 +31,10 @@ async function executeOperation(
   retryCount: number = 0
 ): Promise<any> {
   const session = await getUserSession(event);
-  let directus;
+  // Single concrete client type: a union of the user/public client shapes breaks
+  // the SDK's contextual Schema inference inside request(), collapsing collection
+  // names to never. The user client is structurally assignable to the public one.
+  let directus: ReturnType<typeof getPublicDirectus>;
 
   if (session?.user) {
     // User is authenticated, use their token
@@ -42,34 +47,42 @@ async function executeOperation(
   try {
     switch (operation) {
       case "list":
-        return await directus.request(readItems(collection, query || {}));
+        return await directus.request(
+          readItems(collection as RegularCollections<Schema>, query || {})
+        );
 
       case "get":
         if (!id) throw new Error("ID required for get operation");
-        return await directus.request(readItem(collection, id, query || {}));
+        return await directus.request(
+          readItem(collection as RegularCollections<Schema>, id as string | number, query || {})
+        );
 
       case "create":
         if (!data) throw new Error("Data required for create operation");
-        return await directus.request(createItem(collection, data, query));
+        return await directus.request(
+          createItem(collection as RegularCollections<Schema>, data, query)
+        );
 
       case "update":
         if (!id) throw new Error("ID required for update operation");
         if (!data) throw new Error("Data required for update operation");
-        return await directus.request(updateItem(collection, id, data, query));
+        return await directus.request(
+          updateItem(collection as RegularCollections<Schema>, id as string | number, data, query)
+        );
 
       case "delete":
         if (!id) throw new Error("ID required for delete operation");
         if (Array.isArray(id)) {
-          await directus.request(deleteItems(collection, id));
+          await directus.request(deleteItems(collection as RegularCollections<Schema>, id as string[]));
           return { deleted: id.length };
         } else {
-          await directus.request(deleteItem(collection, id));
+          await directus.request(deleteItem(collection as RegularCollections<Schema>, id as string | number));
           return { deleted: 1 };
         }
 
       case "aggregate":
         return await directus.request(
-          directusAggregate(collection, {
+          directusAggregate(collection as RegularCollections<Schema>, {
             aggregate: query?.aggregate,
             groupBy: query?.groupBy,
             query: {

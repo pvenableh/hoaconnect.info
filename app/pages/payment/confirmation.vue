@@ -125,7 +125,13 @@
 </template>
 
 <script setup lang="ts">
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type PaymentIntent } from '@stripe/stripe-js';
+
+// The server pins a newer Stripe API version whose PaymentIntent carries
+// `latest_charge`, which this @stripe/stripe-js PaymentIntent type doesn't model.
+type PaymentIntentWithCharge = PaymentIntent & {
+	latest_charge?: string | { id: string } | null;
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -178,10 +184,11 @@ onMounted(async () => {
 			paymentStatus.value = pi.status as any;
 
 			// Get receipt URL if available
-			if (pi.latest_charge) {
+			const latestCharge = (pi as PaymentIntentWithCharge).latest_charge;
+			if (latestCharge) {
 				try {
 					// Fetch charge details to get receipt URL
-					const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge.id;
+					const chargeId = typeof latestCharge === 'string' ? latestCharge : latestCharge.id;
 					receiptUrl.value = `https://pay.stripe.com/receipts/${chargeId}`;
 				} catch (err) {
 					console.error('Error fetching receipt:', err);

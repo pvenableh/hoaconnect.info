@@ -61,8 +61,8 @@ export async function checkAdminAccess(
       })
     );
 
-    if (members && members.length > 0) {
-      const member = members[0];
+    const member = members?.[0];
+    if (member) {
       const memberRoleId = typeof member.role === "string" ? member.role : member.role?.id;
       const isHoaAdmin = memberRoleId === config.public.directusRoleHoaAdmin;
 
@@ -149,8 +149,8 @@ export async function checkMembership(
       })
     );
 
-    if (members && members.length > 0) {
-      const member = members[0];
+    const member = members?.[0];
+    if (member) {
       const memberRole = typeof member.role === "string" ? member.role : member.role?.id;
 
       return {

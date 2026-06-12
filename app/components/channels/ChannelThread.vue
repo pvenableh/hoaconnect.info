@@ -218,6 +218,19 @@ const {
   "-date_created"
 );
 
+type ThreadMessage = HoaChannelMessage & {
+  user_created?: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    avatar?: string;
+  };
+};
+
+const messageList = computed(
+  () => ((messages.value || []) as unknown) as ThreadMessage[]
+);
+
 // Pending mentions to be saved after message creation
 const pendingMentions = ref<Array<{ id: string; label: string }>>([]);
 const handleMention = (user: { id: string; label: string }) => {
@@ -464,7 +477,7 @@ watch(
 
       <template v-else-if="messages?.length">
         <ChannelsChannelMessage
-          v-for="message in messages"
+          v-for="message in messageList"
           :key="message.id"
           :message="message"
           :channel-id="currentChannel?.id"

@@ -1,6 +1,7 @@
 import { readItem, updateItem, readItems } from "@directus/sdk";
 import { sendHoaInvitationEmail } from "../../utils/sendgrid";
 import { randomBytes } from "crypto";
+import type { HoaOrganization, DirectusRole } from "~~/types/directus";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -28,8 +29,7 @@ export default defineEventHandler(async (event) => {
           "invitation_status",
           "organization",
           "role",
-          "invited_by.first_name",
-          "invited_by.last_name",
+          { invited_by: ["first_name", "last_name"] },
         ],
       })
     );
@@ -57,7 +57,14 @@ export default defineEventHandler(async (event) => {
     // Get organization details for email
     const organizationId = typeof invitation.organization === "string"
       ? invitation.organization
-      : invitation.organization?.id;
+      : (invitation.organization as HoaOrganization | null)?.id;
+
+    if (!organizationId) {
+      throw createError({
+        statusCode: 400,
+        message: "Invitation has no associated organization",
+      });
+    }
 
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
@@ -71,7 +78,7 @@ export default defineEventHandler(async (event) => {
           "city",
           "state",
           "zip",
-          "settings.logo",
+          { settings: ["logo"] },
         ],
       })
     );
@@ -101,11 +108,11 @@ export default defineEventHandler(async (event) => {
       : config.public.appUrl;
 
     // Get role name
-    const roleId = typeof invitation.role === "string" ? invitation.role : invitation.role?.id;
+    const roleId = typeof invitation.role === "string" ? invitation.role : (invitation.role as DirectusRole | null)?.id;
     let roleName = "Member";
     if (roleId) {
       try {
-        const roleResponse = await $fetch(`${config.directusUrl}/roles/${roleId}`, {
+        const roleResponse = await $fetch<{ data?: { name?: string } }>(`${config.directusUrl}/roles/${roleId}`, {
           headers: {
             Authorization: `Bearer ${config.directusToken}`,
           },

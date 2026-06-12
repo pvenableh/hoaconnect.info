@@ -8,8 +8,19 @@ const currentYear = new Date().getFullYear();
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
 
+interface FooterLink {
+  label: string;
+  path: string;
+  external?: boolean;
+}
+
+interface FooterSection {
+  title: string;
+  links: FooterLink[];
+}
+
 // Footer links for authenticated users
-const authenticatedLinks = [
+const authenticatedLinks: FooterSection[] = [
   {
     title: "Platform",
     links: [
@@ -43,7 +54,7 @@ const isGetStartedExternal = computed(
 );
 
 // Footer links for public users
-const publicLinks = computed(() => [
+const publicLinks = computed<FooterSection[]>(() => [
   {
     title: "Product",
     links: [

@@ -74,19 +74,23 @@ const byActivityDesc = (a: HoaChannel, b: HoaChannel) =>
 
 // Pinned channels float to the top (sorted among themselves by latest activity).
 const pinnedChannels = computed(() =>
-  (channels.value?.filter((c) => (c as any).is_pinned) || []).slice().sort(byActivityDesc)
+  ((channels.value?.filter((c) => (c as any).is_pinned) || []) as HoaChannel[])
+    .slice()
+    .sort(byActivityDesc)
 );
 
 // Group the rest by type, each ordered by latest activity. Pinned are excluded
 // here so they only appear once (in the Pinned section).
 const publicChannels = computed(() =>
-  (channels.value?.filter((c) => !c.is_private && !(c as any).is_pinned) || [])
+  ((channels.value?.filter((c) => !c.is_private && !(c as any).is_pinned) ||
+    []) as HoaChannel[])
     .slice()
     .sort(byActivityDesc)
 );
 
 const privateChannels = computed(() =>
-  (channels.value?.filter((c) => c.is_private && !(c as any).is_pinned) || [])
+  ((channels.value?.filter((c) => c.is_private && !(c as any).is_pinned) ||
+    []) as HoaChannel[])
     .slice()
     .sort(byActivityDesc)
 );

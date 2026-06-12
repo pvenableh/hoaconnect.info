@@ -54,9 +54,9 @@ export async function getOrgChannelEnrollees(
       filter: {
         status: { _eq: "published" },
         hoa_member: { organization: { _eq: orgId } },
-        _or: [{ term_start: { _null: true } }, { term_start: { _lte: nowIso } }],
+        _or: [{ term_start: { _null: true } }, { term_start: { _lte: nowIso } as any }],
       },
-      fields: ["id", "term_end", "hoa_member.id", "hoa_member.user"],
+      fields: ["id", "term_end", { hoa_member: ["id", "user"] }],
       limit: -1,
     })
   );

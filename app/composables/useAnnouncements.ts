@@ -222,7 +222,7 @@ export const useAnnouncements = () => {
   /**
    * Check if announcement expires soon (within 3 days)
    */
-  const expiresSoon = (announcement: HoaAnnouncement): boolean => {
+  const expiresSoon = (announcement: Pick<HoaAnnouncement, "expiry_date">): boolean => {
     if (!announcement.expiry_date) return false;
     const expiryDate = new Date(announcement.expiry_date);
     const now = new Date();

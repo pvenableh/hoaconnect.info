@@ -65,7 +65,7 @@ export const useCoupons = () => {
     validationError.value = null
 
     try {
-      const result = await $fetch('/api/coupons/validate', {
+      const result = await $fetch<CouponValidationResult>('/api/coupons/validate', {
         method: 'POST',
         body: {
           code: code.trim().toUpperCase(),

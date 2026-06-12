@@ -389,7 +389,7 @@ function contentToMjml(content: string, emailType: EmailType = "basic"): string 
       // Image src - flush text buffer first, then add image
       flushTextBuffer();
 
-      const src = parts[i];
+      const src = parts[i] ?? "";
       const alt = parts[i + 1] || "";
       console.log(`[MJML] Adding image section: src="${src.substring(0, 50)}...", alt="${alt}"`);
       mjmlContent += `
@@ -628,7 +628,7 @@ export function buildEmailHtml(
   const { html, errors } = mjml2html(mjmlTemplate, {
     validationLevel: "soft",
     minify: false,
-  });
+  }) as unknown as Awaited<ReturnType<typeof mjml2html>>;
 
   console.log(`[MJML] Compilation complete. HTML length: ${html.length}`);
 
@@ -643,9 +643,10 @@ export function buildEmailHtml(
   if (forPreview) {
     // Extract content between <body> tags and wrap in a styled div
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-    if (bodyMatch) {
-      console.log(`[MJML] Preview mode: extracted body content (${bodyMatch[1].length} chars)`);
-      return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">${bodyMatch[1]}</div>`;
+    const bodyContent = bodyMatch?.[1];
+    if (bodyContent !== undefined) {
+      console.log(`[MJML] Preview mode: extracted body content (${bodyContent.length} chars)`);
+      return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">${bodyContent}</div>`;
     } else {
       console.warn(`[MJML] Preview mode: could not extract body content, returning full HTML`);
     }
@@ -665,7 +666,7 @@ export function buildRawEmailHtml(content: string): string {
     const { html, errors } = mjml2html(content, {
       validationLevel: "soft",
       minify: false,
-    });
+    }) as unknown as Awaited<ReturnType<typeof mjml2html>>;
     if (errors && errors.length > 0) {
       console.warn("[MJML raw] compile warnings:", JSON.stringify(errors));
     }
@@ -1177,7 +1178,7 @@ export function extractImageUrls(content: string): string[] {
   let match;
 
   while ((match = imgRegex.exec(content)) !== null) {
-    urls.push(match[1]);
+    if (match[1]) urls.push(match[1]);
   }
 
   return urls;

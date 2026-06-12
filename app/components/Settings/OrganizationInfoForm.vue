@@ -285,7 +285,7 @@ const saveChanges = async () => {
     const updated = await updateOrganization(props.organization.id, {
       name: form.name,
       legal_name: form.legal_name,
-      type: form.type || null,
+      type: (form.type || null) as "residential" | "commercial" | null,
       email: form.email,
       phone: form.phone,
       street_address: form.street_address,

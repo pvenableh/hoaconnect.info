@@ -32,7 +32,7 @@ const FILE_FIELDS = [
   "uploaded_by",
   "modified_on",
   "folder",
-];
+] as const;
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);

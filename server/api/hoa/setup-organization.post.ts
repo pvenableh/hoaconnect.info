@@ -154,7 +154,8 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (!roles || roles.length === 0) {
+    const hoaAdminRole = roles?.[0];
+    if (!hoaAdminRole) {
       throw createError({
         statusCode: 500,
         message:
@@ -162,7 +163,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const hoaAdminRoleId = roles[0].id;
+    const hoaAdminRoleId = hoaAdminRole.id;
 
     let userId: string;
     let userEmail: string;

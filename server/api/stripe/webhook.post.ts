@@ -1,5 +1,7 @@
 import Stripe from 'stripe';
 import { createItem, updateItem, readItems, readItem } from '@directus/sdk';
+import type { AcaciaInvoice } from '~~/server/utils/stripe';
+import type { PaymentTransaction } from '~~/types/directus';
 // Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
 		}
 
 		stripe = new Stripe(stripeSecretKey, {
-			apiVersion: '2024-11-20.acacia',
+			apiVersion: STRIPE_API_VERSION,
 			typescript: true,
 		});
 
@@ -149,7 +151,7 @@ export default defineEventHandler(async (event) => {
 });
 
 // Handler functions
-async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Succeeded:', paymentIntent.id);
 
 	const metadata = paymentIntent.metadata || {};
@@ -170,7 +172,7 @@ async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe
 			stripe_payment_intent_id: paymentIntent.id,
 			stripe_customer_id: (paymentIntent.customer as string) || null,
 			receipt_email: paymentIntent.receipt_email,
-			metadata: paymentIntent.metadata,
+			metadata: paymentIntent.metadata as unknown as PaymentTransaction['metadata'],
 		};
 
 		await directus.request(createItem('payment_transactions', transactionData));
@@ -186,7 +188,7 @@ async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe
 	}
 }
 
-async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentFailed(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Failed:', paymentIntent.id);
 
 	const metadata = paymentIntent.metadata || {};
@@ -204,7 +206,7 @@ async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.Pa
 				amount: paymentIntent.amount / 100,
 				currency: paymentIntent.currency,
 				stripe_payment_intent_id: paymentIntent.id,
-				metadata: paymentIntent.metadata,
+				metadata: paymentIntent.metadata as unknown as PaymentTransaction['metadata'],
 			})
 		);
 	} catch (err) {
@@ -212,28 +214,30 @@ async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.Pa
 	}
 }
 
-async function handlePaymentIntentCanceled(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentCanceled(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Canceled:', paymentIntent.id);
 	// Similar handling as failed payment
 	await handlePaymentIntentFailed(directus, paymentIntent);
 }
 
-async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
+async function handleChargeSucceeded(directus: ReturnType<typeof getTypedDirectus>, charge: Stripe.Charge) {
 	console.log('Charge Succeeded:', charge.id);
 
 	// Update transaction with charge details
 	try {
 		// Find transaction by payment intent ID
+		const paymentIntentId =
+			typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
 		const transactions = await directus.request(
 			readItems('payment_transactions', {
 				filter: {
-					stripe_payment_intent_id: { _eq: charge.payment_intent },
+					stripe_payment_intent_id: { _eq: paymentIntentId },
 				},
 			})
 		);
 
-		if (transactions && transactions.length > 0) {
-			const transaction = transactions[0];
+		const transaction = transactions?.[0];
+		if (transaction) {
 			await directus.request(
 				updateItem('payment_transactions', transaction.id, {
 					stripe_charge_id: charge.id,
@@ -253,7 +257,7 @@ async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
 	}
 }
 
-async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
+async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus>, charge: Stripe.Charge) {
 	console.log('Charge Refunded:', charge.id);
 
 	try {
@@ -265,8 +269,8 @@ async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
 			})
 		);
 
-		if (transactions && transactions.length > 0) {
-			const transaction = transactions[0];
+		const transaction = transactions?.[0];
+		if (transaction) {
 			await directus.request(
 				updateItem('payment_transactions', transaction.id, {
 					status: 'refunded',
@@ -275,7 +279,7 @@ async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
 
 			// Update payment request if linked
 			if (transaction.payment_request) {
-				await updatePaymentRequest(directus, transaction.payment_request, -transaction.amount);
+				await updatePaymentRequest(directus, transaction.payment_request, -(transaction.amount ?? 0));
 			}
 		}
 	} catch (err) {
@@ -283,7 +287,7 @@ async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
 	}
 }
 
-async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subscription, eventType: string) {
+async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirectus>, subscription: Stripe.Subscription, eventType: string) {
 	console.log('Subscription Event:', eventType, subscription.id);
 
 	const customerId = subscription.customer as string;
@@ -306,9 +310,8 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 			})
 		);
 
-		if (organizations && organizations.length > 0) {
-			const org = organizations[0];
-
+		const org = organizations?.[0];
+		if (org) {
 			// Map Stripe subscription status to our subscription status
 			let orgStatus: 'active' | 'trial' | 'canceled' | 'expired' = 'active';
 			switch (subscription.status) {
@@ -363,7 +366,7 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 }
 
 // Handler for invoice events (important for subscription renewals)
-async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventType: string) {
+async function handleInvoiceEvent(directus: ReturnType<typeof getTypedDirectus>, invoice: AcaciaInvoice, eventType: string) {
 	console.log('Invoice Event:', eventType, invoice.id);
 
 	const customerId = invoice.customer as string;
@@ -384,9 +387,8 @@ async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventT
 			})
 		);
 
-		if (organizations && organizations.length > 0) {
-			const org = organizations[0];
-
+		const org = organizations?.[0];
+		if (org) {
 			if (eventType === 'invoice.paid') {
 				// Subscription renewal successful
 				await directus.request(
@@ -409,7 +411,7 @@ async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventT
 // --- Stripe Connect handlers ---
 
 // Sync an org's onboarding state whenever its Express account changes.
-async function handleConnectAccountUpdated(directus: any, account: Stripe.Account) {
+async function handleConnectAccountUpdated(directus: ReturnType<typeof getTypedDirectus>, account: Stripe.Account) {
 	console.log('Connect Account Updated:', account.id, {
 		charges_enabled: account.charges_enabled,
 		payouts_enabled: account.payouts_enabled,
@@ -434,8 +436,8 @@ async function handleConnectAccountUpdated(directus: any, account: Stripe.Accoun
 			})
 		);
 
-		if (organizations && organizations.length > 0) {
-			const org = organizations[0];
+		const org = organizations?.[0];
+		if (org) {
 			await directus.request(
 				updateItem('hoa_organizations', org.id, {
 					connect_onboarding_status: onboardingStatus,
@@ -475,7 +477,7 @@ async function handleConnectPayoutEvent(
 // return true (caller skips the per-org branch). Match by subscription id
 // first, then customer id. (docs/plan-agency-multi-property-billing.md §7)
 async function routeBillingAccountSubscription(
-	directus: any,
+	directus: ReturnType<typeof getTypedDirectus>,
 	subscription: Stripe.Subscription,
 	eventType: string
 ): Promise<boolean> {
@@ -495,9 +497,9 @@ async function routeBillingAccountSubscription(
 				})
 			);
 		}
-		if (!accounts?.length) return false;
+		const account = accounts?.[0];
+		if (!account) return false;
 
-		const account = accounts[0];
 		const mapped = mapStripeStatus(subscription.status);
 		const updateData: Record<string, any> = {
 			stripe_subscription_id: subscription.id,
@@ -530,7 +532,7 @@ async function routeBillingAccountSubscription(
 }
 
 async function routeBillingAccountInvoice(
-	directus: any,
+	directus: ReturnType<typeof getTypedDirectus>,
 	invoice: Stripe.Invoice,
 	eventType: string
 ): Promise<boolean> {
@@ -542,9 +544,9 @@ async function routeBillingAccountInvoice(
 				limit: 1,
 			})
 		);
-		if (!accounts?.length) return false;
+		const account = accounts?.[0];
+		if (!account) return false;
 
-		const account = accounts[0];
 		if (eventType === 'invoice.paid') {
 			await directus.request(
 				updateItem('billing_accounts', account.id, {
@@ -569,7 +571,7 @@ async function routeBillingAccountInvoice(
 	}
 }
 
-async function updatePaymentRequest(directus: any, paymentRequestId: string, amount: number) {
+async function updatePaymentRequest(directus: ReturnType<typeof getTypedDirectus>, paymentRequestId: string, amount: number) {
 	try {
 		// Get current payment request
 		const request = await directus.request(readItem('payment_requests', paymentRequestId));
@@ -577,7 +579,7 @@ async function updatePaymentRequest(directus: any, paymentRequestId: string, amo
 		if (request) {
 			const currentPaid = request.amount_paid || 0;
 			const newPaid = currentPaid + amount;
-			const totalAmount = request.amount;
+			const totalAmount = request.amount ?? 0;
 			const remaining = totalAmount - newPaid;
 
 			let newStatus: 'partially_paid' | 'paid' = 'partially_paid';

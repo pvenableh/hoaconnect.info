@@ -98,12 +98,14 @@ export const useComments = (
   // the caller (detail view) — but we also filter defensively here when asked.
   const visibleComments = (includeInternal: boolean) =>
     computed<Comment[]>(() =>
-      (comments.value || []).filter((c) => includeInternal || !c.is_internal)
+      ((comments.value || []) as Comment[]).filter(
+        (c) => includeInternal || !c.is_internal
+      )
     );
 
   // Build a threaded tree from the flat list.
   const buildTree = (includeInternal = true): CommentNode[] => {
-    const flat = (comments.value || []).filter(
+    const flat = ((comments.value || []) as Comment[]).filter(
       (c) => includeInternal || !c.is_internal
     );
     const byId = new Map<string, CommentNode>();

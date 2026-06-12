@@ -19,11 +19,14 @@ const checkData = async () => {
     // Store the full user object to see all fields
     debugData.value.fullUser = user.value;
 
+    const rawUser = user.value as
+      | (typeof user.value & { first_name?: string; last_name?: string })
+      | null;
     debugData.value.user = {
       id: user.value?.id,
       email: user.value?.email,
-      first_name: user.value?.first_name,
-      last_name: user.value?.last_name,
+      first_name: rawUser?.first_name,
+      last_name: rawUser?.last_name,
       firstName: user.value?.firstName,
       lastName: user.value?.lastName,
     };

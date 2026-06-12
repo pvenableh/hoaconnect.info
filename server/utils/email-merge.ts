@@ -129,7 +129,7 @@ export function applyMergeFields(input: string, values: Resolved): string {
   if (!input) return input;
   return input.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (match, token: string) => {
     const key = token.toLowerCase();
-    return key in values ? values[key] : match;
+    return values[key] ?? match;
   });
 }
 

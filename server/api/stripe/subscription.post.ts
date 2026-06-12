@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { z } from 'zod';
+import type { AcaciaInvoice } from '~~/server/utils/stripe';
 
 // Validation schema for subscription creation
 const subscriptionSchema = z.object({
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
 	}
 
 	const stripe = new Stripe(stripeSecretKey, {
-		apiVersion: '2024-11-20.acacia',
+		apiVersion: STRIPE_API_VERSION,
 		typescript: true,
 	});
 
@@ -49,13 +50,16 @@ export default defineEventHandler(async (event) => {
 
 		if (customerId) {
 			// Use existing customer
-			customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-			if (customer.deleted) {
+			const retrieved = (await stripe.customers.retrieve(customerId)) as
+				| Stripe.Customer
+				| Stripe.DeletedCustomer;
+			if (retrieved.deleted) {
 				throw createError({
 					statusCode: 400,
 					message: 'Customer has been deleted',
 				});
 			}
+			customer = retrieved as Stripe.Customer;
 		} else {
 			// Check if customer already exists with this email
 			const existingCustomers = await stripe.customers.list({
@@ -63,8 +67,9 @@ export default defineEventHandler(async (event) => {
 				limit: 1,
 			});
 
-			if (existingCustomers.data.length > 0) {
-				customer = existingCustomers.data[0];
+			const existingCustomer = existingCustomers.data[0];
+			if (existingCustomer) {
+				customer = existingCustomer;
 			} else {
 				// Create new customer
 				customer = await stripe.customers.create({
@@ -108,7 +113,7 @@ export default defineEventHandler(async (event) => {
 			type = 'setup_intent';
 		} else if (subscription.latest_invoice) {
 			// No trial - use PaymentIntent from invoice
-			const invoice = subscription.latest_invoice as Stripe.Invoice;
+			const invoice = subscription.latest_invoice as AcaciaInvoice;
 			const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
 			if (paymentIntent) {
 				clientSecret = paymentIntent.client_secret;

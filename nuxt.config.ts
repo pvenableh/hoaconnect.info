@@ -104,7 +104,9 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()],
+    // Cast: @tailwindcss/vite types against vite 7 while @nuxt/schema bundles
+    // its own vite type identities — structurally identical, nominally not.
+    plugins: [tailwindcss() as never],
   },
 
   build: {

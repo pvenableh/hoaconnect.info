@@ -72,9 +72,7 @@ export async function routeInquiryNotifications(requestId: string): Promise<Rout
         "title",
         "priority",
         "organization",
-        "submitted_by.id",
-        "submitted_by.first_name",
-        "submitted_by.last_name",
+        { submitted_by: ["id", "first_name", "last_name"] },
       ],
     })
   );
@@ -128,9 +126,9 @@ export async function routeInquiryNotifications(requestId: string): Promise<Rout
         filter: {
           status: { _eq: "published" },
           hoa_member: { organization: { _eq: orgId }, status: { _eq: "active" } },
-          _or: [{ term_start: { _null: true } }, { term_start: { _lte: nowIso } }],
+          _or: [{ term_start: { _null: true } }, { term_start: { _lte: nowIso } as any }],
         },
-        fields: ["id", "term_end", "hoa_member.user", "hoa_member.email"],
+        fields: ["id", "term_end", { hoa_member: ["user", "email"] }],
         limit: -1,
       })
     );

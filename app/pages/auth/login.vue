@@ -13,6 +13,12 @@ const isLoading = ref(false);
 // Ref to the login form component for setting errors
 const loginFormRef = ref<{ setFormError: (message: string | null, fieldErrors?: { email?: string; password?: string }) => void } | null>(null);
 
+// Shape of the user returned by /api/auth/login (only the fields this page reads)
+interface LoginResponseUser {
+  email?: string;
+  organization?: { id?: string; slug?: string | null; name?: string | null } | null;
+}
+
 const handleSubmit = async (values: { email: string; password: string }) => {
   isLoading.value = true;
   console.log('[login] Starting login attempt for:', values.email);
@@ -23,7 +29,8 @@ const handleSubmit = async (values: { email: string; password: string }) => {
   try {
     console.log('[login] Calling login API...');
     const response = await login(values.email, values.password);
-    console.log('[login] Login successful for:', response?.user?.email);
+    const loginUser = response?.user as LoginResponseUser | undefined;
+    console.log('[login] Login successful for:', loginUser?.email);
 
     // Check subscription status from response
     const subscriptionInfo = response?.subscriptionInfo;
@@ -64,7 +71,7 @@ const handleSubmit = async (values: { email: string; password: string }) => {
     } else {
       // Main app host: route to the user's default org slug, or the slug-agnostic
       // /dashboard entry when they have none.
-      const org = response?.user?.organization;
+      const org = loginUser?.organization;
       await navigateTo(org?.slug ? `/${org.slug}` : "/dashboard", {
         replace: true,
       });

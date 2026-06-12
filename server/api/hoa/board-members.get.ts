@@ -1,5 +1,7 @@
 // server/api/hoa/board-members.get.ts
 import { readItems } from "@directus/sdk";
+import type { QueryFilter } from "@directus/sdk";
+import type { Schema, HoaBoardMember, HoaOrganization } from "~~/types/directus";
 
 /**
  * Public API endpoint to fetch current board members for an organization
@@ -26,21 +28,22 @@ export default defineEventHandler(async (event) => {
         readItems("hoa_organizations", {
           filter: {
             slug: { _eq: slug as string },
-            status: { _in: ["active", "published"] },
+            status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] },
           },
           fields: ["id"],
           limit: 1,
         })
       );
 
-      if (!orgs || orgs.length === 0) {
+      const org = orgs?.[0];
+      if (!org) {
         throw createError({
           statusCode: 404,
           message: "Organization not found",
         });
       }
 
-      organizationId = orgs[0].id;
+      organizationId = org.id;
     }
 
     // Get current date for filtering active terms
@@ -61,14 +64,14 @@ export default defineEventHandler(async (event) => {
             // Term has started (or no start date)
             {
               _or: [
-                { term_start: { _lte: now } },
+                { term_start: { _lte: now } } as QueryFilter<Schema, HoaBoardMember>,
                 { term_start: { _null: true } },
               ],
             },
             // Term hasn't ended (or no end date)
             {
               _or: [
-                { term_end: { _gte: now } },
+                { term_end: { _gte: now } } as QueryFilter<Schema, HoaBoardMember>,
                 { term_end: { _null: true } },
               ],
             },
@@ -81,10 +84,7 @@ export default defineEventHandler(async (event) => {
           "term_end",
           "icon",
           "message",
-          "hoa_member.id",
-          "hoa_member.first_name",
-          "hoa_member.last_name",
-          "hoa_member.email",
+          { hoa_member: ["id", "first_name", "last_name", "email"] },
         ],
         sort: ["sort"],
       })

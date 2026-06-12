@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_emails", {
         filter: {
           organization: { _eq: organizationId },
-          date_created: { _gte: sevenDaysAgo.toISOString() },
+          date_created: { _gte: sevenDaysAgo.toISOString() } as any,
         },
         fields: ["id", "status", "recipient_count", "delivered_count", "sent_at", "date_created"],
         limit: -1,
@@ -72,14 +72,14 @@ export default defineEventHandler(async (event) => {
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const dateKey = date.toISOString().split("T")[0];
+      const dateKey = date.toISOString().split("T")[0]!;
       dailyData[dateKey] = { sent: 0, delivered: 0, opened: 0 };
     }
 
     // Count sent emails by date
     for (const recipient of recipients) {
       if (recipient.sent_at) {
-        const dateKey = recipient.sent_at.split("T")[0];
+        const dateKey = recipient.sent_at.split("T")[0]!;
         if (dailyData[dateKey]) {
           dailyData[dateKey].sent++;
           if (recipient.status === "delivered" || recipient.status === "sent") {
@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
           (activity.event_timestamp ? new Date(activity.event_timestamp * 1000).toISOString() : null);
 
         if (activityDate) {
-          const dateKey = activityDate.split("T")[0];
+          const dateKey = activityDate.split("T")[0]!;
           // Track unique opens per recipient per day
           const recipientKey = `${activity.email_recipient}-${dateKey}`;
           if (!uniqueOpens.has(recipientKey) && dailyData[dateKey]) {

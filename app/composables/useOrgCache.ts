@@ -27,12 +27,12 @@ const pendingRequests = new Map<string, Promise<any>>()
 const DEFAULT_TTL = 5 * 60 * 1000
 
 export function useOrgCache() {
-  const { selectedOrg } = useSelectedOrg()
+  const selectedOrgId = useState<string | null>("selectedOrgId", () => null)
 
   /**
    * Get current organization ID
    */
-  const currentOrgId = computed(() => selectedOrg.value?.id)
+  const currentOrgId = computed(() => selectedOrgId.value)
 
   /**
    * Generate cache key with org scope

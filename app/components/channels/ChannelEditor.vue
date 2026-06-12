@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount, onMounted } from "vue";
-import { Editor, EditorContent } from "@tiptap/vue-3";
+import { Editor, EditorContent, Extension } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import { Mention } from "@tiptap/extension-mention";
-import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import type { DirectusUser } from "~~/types/directus";
 import type { PickedFile, StorageSource } from "~/composables/useOrgStorage";
@@ -88,6 +87,7 @@ const onLibraryPicked = (files: PickedFile[]) => {
 };
 
 const editor = ref<Editor | null>(null);
+const editorInstance = computed(() => editor.value as unknown as Editor);
 const mentionsPortal = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const isUploading = ref(false);
@@ -486,7 +486,7 @@ watch(
   () => props.modelValue,
   (newValue) => {
     if (editor.value && newValue !== editor.value.getHTML()) {
-      editor.value.commands.setContent(newValue, false);
+      editor.value.commands.setContent(newValue);
     }
   }
 );
@@ -581,7 +581,7 @@ defineExpose({
       </div>
 
       <!-- Editor Content -->
-      <EditorContent :editor="editor" class="channel-editor-content" />
+      <EditorContent :editor="editorInstance" class="channel-editor-content" />
 
       <!-- Attachment button (when no toolbar) -->
       <div

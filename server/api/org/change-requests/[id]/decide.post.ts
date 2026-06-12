@@ -28,7 +28,8 @@ export default defineEventHandler(async (event) => {
     })
   );
 
-  const crOrg = typeof cr.organization === "string" ? cr.organization : cr.organization?.id;
+  const crOrgRef = cr.organization as string | { id?: string } | null;
+  const crOrg = typeof crOrgRef === "string" ? crOrgRef : crOrgRef?.id;
   if (!cr || crOrg !== orgId) throw createError({ statusCode: 404, message: "Request not found" });
   if (cr.status !== "pending") throw createError({ statusCode: 409, message: "Request already decided" });
 

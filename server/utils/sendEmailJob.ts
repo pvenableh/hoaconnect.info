@@ -20,6 +20,7 @@ import {
 import { resolveMergeFields, applyMergeFields } from "./email-merge";
 import type {
   HoaBoardMember,
+  HoaEmailRecipient,
   HoaMember,
   HoaOrganization,
   BlockSetting,
@@ -36,7 +37,7 @@ export interface SendJobResult {
  * Resolve the recipient members for an email based on its stored targeting.
  */
 async function resolveRecipients(
-  directus: any,
+  directus: ReturnType<typeof getTypedDirectus>,
   organizationId: string,
   recipientFilter: string,
   recipientIds: string[] | null
@@ -210,7 +211,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
           email: email.id, member: member.id, recipient_email: member.email,
           recipient_name: recipientName || null, status: "sent",
           sent_at: new Date().toISOString(), sg_message_id: result.messageId || null,
-        })
+        } as Partial<HoaEmailRecipient> & { member: string })
       );
     } catch (err: any) {
       failed++;
@@ -219,7 +220,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
           email: email.id, member: member.id, recipient_email: member.email,
           recipient_name: recipientName || null, status: "failed",
           error_message: err.message || "Failed to send",
-        })
+        } as Partial<HoaEmailRecipient> & { member: string })
       );
     }
   }

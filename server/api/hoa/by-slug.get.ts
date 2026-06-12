@@ -1,5 +1,7 @@
 // server/api/hoa/by-slug.get.ts
 import { readItems } from "@directus/sdk";
+import type { QueryFields } from "@directus/sdk";
+import type { Schema, HoaOrganization } from "~~/types/directus";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_organizations", {
         filter: {
           slug: { _eq: slug },
-          status: { _in: ["active", "published"] },
+          status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] },
         },
         fields: [
           "*",
@@ -32,7 +34,7 @@ export default defineEventHandler(async (event) => {
             settings: ["*", { logo: ["*"], icon: ["*"] }],
             hero: ["*", { background_image: ["*"], foreground_image: ["*"] }],
           },
-        ],
+        ] as QueryFields<Schema, HoaOrganization>,
         limit: 1,
       })
     );

@@ -31,14 +31,14 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (!invitations || invitations.length === 0) {
+    const invitation = invitations?.[0];
+
+    if (!invitation) {
       throw createError({
         statusCode: 400,
         message: "Invalid invitation token",
       });
     }
-
-    const invitation = invitations[0];
 
     // Check if expired
     const now = new Date();

@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
           filter: {
             _and: [
               { slug: { _eq: potentialSlug } },
-              { status: { _in: ["active", "published"] } },
+              { status: { _in: ["active", "published"] as unknown as ["active"] } },
             ],
           },
           fields: [
@@ -66,8 +66,8 @@ export default defineEventHandler(async (event) => {
         })
       );
 
-      if (organizations && organizations.length > 0) {
-        const org = organizations[0];
+      const org = organizations?.[0];
+      if (org) {
         const settings = org.settings as any;
 
         orgBranding = {

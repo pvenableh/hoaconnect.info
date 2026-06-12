@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
 
   console.log("[test-simple-send] Compiling MJML...");
 
-  const { html, errors } = mjml2html(simpleMjml, {
+  const { html, errors } = await mjml2html(simpleMjml, {
     validationLevel: "soft",
     minify: false,
   });

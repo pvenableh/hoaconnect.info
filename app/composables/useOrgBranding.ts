@@ -26,6 +26,7 @@ export const useOrgBranding = () => {
   const getFileId = (file: ID | DirectusFile | null | undefined): string | null => {
     if (!file) return null;
     if (typeof file === "string") return file;
+    if (typeof file === "number") return file.toString();
     return file.id?.toString() || null;
   };
 
@@ -57,7 +58,10 @@ export const useOrgBranding = () => {
       getFileId(settings?.icon) || config.public.defaultIconId || null;
     const logoFileId =
       getFileId(settings?.logo) ||
-      getFileId(org?.logo) ||
+      getFileId(
+        (org as (HoaOrganization & { logo?: ID | DirectusFile | null }) | null)
+          ?.logo
+      ) ||
       config.public.defaultLogoId ||
       null;
 

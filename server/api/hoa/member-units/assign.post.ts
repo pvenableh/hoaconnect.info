@@ -1,4 +1,5 @@
 import { readItem, createItem } from "@directus/sdk";
+import type { HoaOrganization } from "~~/types/directus";
 
 /**
  * Assign a unit to a member - Admin only
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
 
     const organizationId = typeof member.organization === "string"
       ? member.organization
-      : member.organization?.id;
+      : (member.organization as HoaOrganization | null)?.id;
 
     if (!organizationId) {
       throw createError({
@@ -61,7 +62,7 @@ export default defineEventHandler(async (event) => {
 
     const unitOrgId = typeof unit.organization === "string"
       ? unit.organization
-      : unit.organization?.id;
+      : (unit.organization as HoaOrganization | null)?.id;
 
     if (unitOrgId !== organizationId) {
       throw createError({

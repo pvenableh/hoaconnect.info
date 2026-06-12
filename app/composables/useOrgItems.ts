@@ -40,11 +40,11 @@ export function useOrgItems<T = any>(
   } = options
 
   const items = useDirectusItems<T>(collection)
-  const { selectedOrg } = useSelectedOrg()
+  const selectedOrgId = useState<string | null>("selectedOrgId", () => null)
   const cache = useOrgCache()
 
   // Current organization ID
-  const orgId = computed(() => selectedOrg.value?.id)
+  const orgId = computed(() => selectedOrgId.value)
 
   /**
    * Add org filter to query

@@ -219,8 +219,9 @@ export function useTheme() {
 			// If user is logged in, check if they have a saved preference
 			if (user.value) {
 				// Get theme style from user's theme_light field
-				const userStyle = user.value.theme_light as ThemeStyle | undefined;
-				const userMode = user.value.appearance as ThemeMode | undefined;
+				const profile = user.value as typeof user.value & { theme_light?: string; appearance?: string };
+				const userStyle = profile.theme_light as ThemeStyle | undefined;
+				const userMode = profile.appearance as ThemeMode | undefined;
 
 				if (userStyle) {
 					themeState.style = normalizeStyle(userStyle);
@@ -239,8 +240,9 @@ export function useTheme() {
 	// Load user theme from profile (call after login)
 	async function loadUserTheme() {
 		if (user.value) {
-			const userStyle = user.value.theme_light as ThemeStyle | undefined;
-			const userMode = user.value.appearance as ThemeMode | undefined;
+			const profile = user.value as typeof user.value & { theme_light?: string; appearance?: string };
+			const userStyle = profile.theme_light as ThemeStyle | undefined;
+			const userMode = profile.appearance as ThemeMode | undefined;
 
 			if (userStyle) {
 				themeState.style = normalizeStyle(userStyle);

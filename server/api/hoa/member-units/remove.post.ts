@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     // Get the assignment to find the member and verify organization
     const assignment = await directus.request(
       readItem("hoa_member_units", assignmentId, {
-        fields: ["id", "member_id.id", "member_id.organization"],
+        fields: ["id", { member_id: ["id", "organization"] }],
       })
     );
 

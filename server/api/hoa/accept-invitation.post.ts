@@ -9,6 +9,7 @@ import {
   readUsers,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
+import type { User } from "#auth-utils";
 import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
 
 export default defineEventHandler(async (event) => {
@@ -39,14 +40,14 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (!invitations || invitations.length === 0) {
+    const invitation = invitations?.[0];
+
+    if (!invitation) {
       throw createError({
         statusCode: 400,
         message: "Invalid or expired invitation token",
       });
     }
-
-    const invitation = invitations[0];
 
     // Validate that relational fields are populated
     if (
@@ -86,6 +87,13 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         message: "Inviter data is incomplete",
+      });
+    }
+
+    if (!invitation.email) {
+      throw createError({
+        statusCode: 500,
+        message: "Invitation data is incomplete",
       });
     }
 
@@ -218,7 +226,7 @@ export default defineEventHandler(async (event) => {
           status: "active",
         },
         member: null,
-      },
+      } as unknown as User,
       loggedInAt: Date.now(),
       expiresAt: Date.now() + authResult.expires * 1000,
       secure: {

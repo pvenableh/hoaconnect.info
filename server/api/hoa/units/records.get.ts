@@ -111,7 +111,7 @@ export default defineEventHandler(async (event) => {
     directus.request(
       readItems("hoa_member_units", {
         filter: { unit_id: { _eq: unitId }, member_id: { organization: { _eq: orgId } } },
-        fields: ["id", "is_primary_unit", "ownership_percentage", "start_date", "end_date", "member_id.id", "member_id.first_name", "member_id.last_name", "member_id.member_type", "member_id.email"],
+        fields: ["id", "is_primary_unit", "ownership_percentage", "start_date", "end_date", { member_id: ["id", "first_name", "last_name", "member_type", "email"] }],
         sort: ["-is_primary_unit", "end_date", "-start_date"],
         limit: -1,
       })
@@ -119,7 +119,7 @@ export default defineEventHandler(async (event) => {
     directus.request(
       readItems("hoa_pets", {
         filter: { unit_id: { _eq: unitId }, organization: { _eq: orgId } },
-        fields: ["id", "name", "type", "breed", "weight", "image", "status", "start_date", "end_date", "member_id.id", "member_id.first_name", "member_id.last_name"],
+        fields: ["id", "name", "type", "breed", "weight", "image", "status", "start_date", "end_date", { member_id: ["id", "first_name", "last_name"] }],
         sort: ["end_date", "name"],
         limit: -1,
       })
@@ -127,7 +127,7 @@ export default defineEventHandler(async (event) => {
     directus.request(
       readItems("hoa_vehicles", {
         filter: { unit_id: { _eq: unitId }, organization: { _eq: orgId } },
-        fields: ["id", "make", "model", "year", "license_plate", "parking_spot", "image", "status", "start_date", "end_date", "member_id.id", "member_id.first_name", "member_id.last_name"],
+        fields: ["id", "make", "model", "year", "license_plate", "parking_spot", "image", "status", "start_date", "end_date", { member_id: ["id", "first_name", "last_name"] }],
         sort: ["end_date", "make"],
         limit: -1,
       })
@@ -135,7 +135,7 @@ export default defineEventHandler(async (event) => {
     directus.request(
       readItems("hoa_leases", {
         filter: { unit: { _eq: unitId }, organization: { _eq: orgId } },
-        fields: ["id", "status", "start_date", "end_date", "rent_amount", "deposit_amount", "document", "notes", "tenant.id", "tenant.first_name", "tenant.last_name", "owner.id", "owner.first_name", "owner.last_name"],
+        fields: ["id", "status", "start_date", "end_date", "rent_amount", "deposit_amount", "document", "notes", { tenant: ["id", "first_name", "last_name"], owner: ["id", "first_name", "last_name"] }],
         sort: ["end_date", "-start_date"],
         limit: -1,
       })

@@ -6,6 +6,7 @@ import {
   readMe,
   readItems,
 } from "@directus/sdk";
+import type { User } from "#auth-utils";
 
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBody(event);
@@ -56,14 +57,30 @@ export default defineEventHandler(async (event) => {
           },
           fields: [
             "id",
-            "organization.id",
-            "organization.name",
-            "organization.slug",
-            // Entitlement (own fields + parent billing_account, resolved up)
-            ...entitlementFields("organization"),
+            {
+              organization: [
+                "id",
+                "name",
+                "slug",
+                // Entitlement (own fields + parent billing_account, resolved up)
+                "subscription_status",
+                "trial_ends_at",
+                "is_free_account",
+                {
+                  billing_account: [
+                    "id",
+                    "subscription_status",
+                    "trial_ends_at",
+                    "is_free_account",
+                    "status",
+                  ],
+                },
+              ],
+            },
             "role",
           ],
-          sort: ["organization.name"],
+          // Dotted sort keys are runtime-valid in Directus but rejected by the SDK types
+          sort: ["organization.name"] as unknown as ["organization"],
         })
       );
     } catch (memberError) {
@@ -88,12 +105,14 @@ export default defineEventHandler(async (event) => {
         role: user.role,
         organization: user.organization,
         provider: "local",
-      },
+        // The session stores the full organization object; the augmented User
+        // type only models organizationId.
+      } as User,
       loggedInAt: Date.now(),
       expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token,
+        directusRefreshToken: authResult.refresh_token!,
       },
     });
 
@@ -115,9 +134,10 @@ export default defineEventHandler(async (event) => {
         memberships: memberships.map((m, i) => ({
           organizationId: m.organization?.id,
           organizationName: m.organization?.name,
-          subscriptionStatus: entitlements[i].subscription_status,
-          trialEndsAt: entitlements[i].trial_ends_at,
-          isFreeAccount: entitlements[i].is_free_account,
+          // entitlements is mapped 1:1 from memberships, so index i always exists
+          subscriptionStatus: entitlements[i]!.subscription_status,
+          trialEndsAt: entitlements[i]!.trial_ends_at,
+          isFreeAccount: entitlements[i]!.is_free_account,
         })),
       },
     };

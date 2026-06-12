@@ -10,7 +10,7 @@ const emit = defineEmits<{
   "update:billingCycle": [cycle: "monthly" | "yearly"];
 }>();
 
-const { data: plansData, pending } = await list({
+const plansData = await list({
   fields: [
     "id",
     "name",
@@ -23,8 +23,9 @@ const { data: plansData, pending } = await list({
     status: { _eq: "published" },
   },
 });
+const pending = false;
 
-const plans = computed(() => plansData.value?.plans || []);
+const plans = computed(() => plansData || []);
 
 const localSelectedPlan = ref(props.selectedPlan || "");
 const localBillingCycle = ref<"monthly" | "yearly">(

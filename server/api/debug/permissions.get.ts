@@ -4,7 +4,10 @@ import {
   readRoles,
   readUsers,
   readPermissions,
+  type Query,
+  type DirectusPermission,
 } from "@directus/sdk";
+import type { Schema } from "~~/types/directus";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -30,22 +33,22 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (!user || user.length === 0) {
+    const userData = user?.[0];
+
+    if (!userData) {
       throw createError({
         statusCode: 404,
         message: "User not found",
       });
     }
 
-    const userData = user[0];
-
     // Get role details
     const role = await directus.request(
       readRoles({
         filter: {
-          id: { _eq: userData.role },
+          id: { _eq: userData.role as string },
         },
-        fields: ["id", "name", "admin_access", "app_access"],
+        fields: ["id", "name", "admin_access", "app_access"] as unknown as ["id", "name"],
         limit: 1,
       })
     );
@@ -55,7 +58,7 @@ export default defineEventHandler(async (event) => {
       readPermissions({
         filter: {
           role: { _eq: userData.role },
-        },
+        } as unknown as Query<Schema, DirectusPermission<Schema>>["filter"],
         fields: [
           "id",
           "collection",

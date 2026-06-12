@@ -60,6 +60,10 @@ export interface EmailSaveData {
   recipientFilter?: "all" | "owners" | "tenants" | "custom";
   recipientIds?: string[];
   attachmentIds?: string[];
+  /** Per-send override of the org's default header line ("Official Communication of …"). */
+  headerText?: string | null;
+  /** Per-send override of the org's default footer building photo (Directus file id). */
+  footerImageId?: string | null;
 }
 
 export interface EmailSendData extends EmailFormData {
@@ -131,6 +135,8 @@ export interface EmailTestData {
   salutation?: string;
   includeBoardFooter?: boolean;
   attachmentIds?: string[]; // File IDs from Directus to attach
+  /** Per-send override of the org's default header line ("Official Communication of …"). */
+  headerText?: string | null;
 }
 
 export interface EmailTestResult {

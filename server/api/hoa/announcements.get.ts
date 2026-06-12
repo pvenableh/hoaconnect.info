@@ -4,6 +4,7 @@
 // internal resident comms are never exposed by default. Only "sent" emails that
 // have a public web_slug and an announcement-style type are returned.
 import { readItems } from "@directus/sdk";
+import type { HoaOrganization } from "~~/types/directus";
 import { normalizeLandingConfig } from "~~/shared/utils/landing";
 
 export default defineEventHandler(async (event) => {
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const directus = getTypedDirectus();
   const orgs = await directus.request(
     readItems("hoa_organizations", {
-      filter: { slug: { _eq: slug as string }, status: { _in: ["active", "published"] } },
+      filter: { slug: { _eq: slug as string }, status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] } },
       fields: ["id", { settings: ["landing"] }],
       limit: 1,
     })

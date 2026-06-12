@@ -2,7 +2,7 @@ import { readItem, readItems, readFiles, createItem, updateItem } from "@directu
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
 import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
+import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile, HoaEmailRecipient } from "~~/types/directus";
 
 interface CidImage {
   cid: string;
@@ -28,7 +28,8 @@ async function extractImagesAsCid(
   console.log(`[extractImagesAsCid] Processing ${matches.length} image(s) in content`);
 
   for (const match of matches) {
-    const [fullMatch, beforeSrc, src, afterSrc] = match;
+    const [fullMatch, beforeSrc, src, afterSrc = ""] = match;
+    if (!src) continue;
     const isSelfClosing = fullMatch.endsWith('/>');
 
     // Check if this is a Directus asset URL
@@ -491,7 +492,7 @@ export default defineEventHandler(async (event) => {
             // Organization info
             org_name: organization.name || 'Your HOA',
             org_legal_name: organization.legal_name || '',
-            org_type: organization.type || '',
+            org_type: organization.type || undefined,
             org_logo_url: orgLogoUrl || '',
             org_url: orgUrl,
             org_address: orgAddress || undefined,
@@ -596,7 +597,7 @@ export default defineEventHandler(async (event) => {
             status: "sent",
             sent_at: new Date().toISOString(),
             sg_message_id: sendResult.messageId || null,
-          })
+          } as Partial<HoaEmailRecipient>)
         );
       } catch (sendError: any) {
         failedCount++;
@@ -616,7 +617,7 @@ export default defineEventHandler(async (event) => {
             recipient_name: recipientName || null,
             status: "failed",
             error_message: sendError.message || "Failed to send",
-          })
+          } as Partial<HoaEmailRecipient>)
         );
       }
     }

@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
   </mj-body>
 </mjml>`;
 
-  const { html, errors } = mjml2html(simpleMjml, {
+  const { html, errors } = await mjml2html(simpleMjml, {
     validationLevel: "soft",
     minify: false,
   });

@@ -12,10 +12,15 @@ import type { HoaDocumentCategory } from "~~/types/directus";
 
 interface SelectedDocument {
   id: string;
-  title: string;
-  document_category?: { id: string; name: string } | null;
+  title?: string | null;
+  document_category?: HoaDocumentCategory | string | null;
   date_published?: string | null;
 }
+
+const categoryIdOf = (doc: SelectedDocument): string =>
+  typeof doc.document_category === "object" && doc.document_category
+    ? doc.document_category.id
+    : "";
 
 interface Props {
   open: boolean;
@@ -90,7 +95,7 @@ watch(
         // Single document - populate with existing values
         const doc = docs[0];
         title.value = doc.title || "";
-        selectedCategory.value = doc.document_category?.id || "";
+        selectedCategory.value = categoryIdOf(doc);
         datePublished.value = doc.date_published
           ? doc.date_published.split("T")[0]
           : "";
@@ -99,7 +104,7 @@ watch(
         title.value = "";
 
         // Check if all docs have the same category
-        const categories = docs.map((d) => d.document_category?.id || "");
+        const categories = docs.map((d) => categoryIdOf(d));
         const uniqueCategories = [...new Set(categories)];
         selectedCategory.value =
           uniqueCategories.length === 1 ? uniqueCategories[0] : "";

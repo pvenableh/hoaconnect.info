@@ -64,7 +64,9 @@ import {
   passwordReset,
   inviteUser,
   acceptUserInvite,
+  logout,
 } from "@directus/sdk";
+import type { Query, DirectusUser as SdkDirectusUser } from "@directus/sdk";
 import type { H3Event } from "h3";
 import type { Schema } from "~~/types/directus";
 
@@ -222,7 +224,7 @@ export async function directusLogin(
     .with(authentication("json"))
     .with(rest());
 
-  const result = await client.login(email, password);
+  const result = await client.login({ email, password });
   return result as DirectusTokens;
 }
 
@@ -252,7 +254,7 @@ export async function directusLogout(refreshToken: string): Promise<void> {
     .with(authentication("json"))
     .with(rest());
 
-  await client.logout(refreshToken);
+  await client.request(logout({ refresh_token: refreshToken, mode: "json" }));
 }
 
 /**
@@ -260,7 +262,7 @@ export async function directusLogout(refreshToken: string): Promise<void> {
  */
 export async function directusGetMe(
   accessToken: string,
-  fields?: string[]
+  fields?: Query<Schema, SdkDirectusUser<Schema>>["fields"]
 ) {
   const config = useRuntimeConfig();
   const client = createDirectus<Schema>(config.directus.url)

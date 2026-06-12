@@ -190,6 +190,14 @@ export interface HoaAnnouncement {
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
 	is_pinned?: boolean | null;
+	/** @description Optional CTA button label shown on the announcement. */
+	button_text?: string | null;
+	/** @description CTA button destination — an internal path (/docs) or a full URL. */
+	button_link?: string | null;
+	/** @description Open the CTA link in a new tab even if it looks internal. */
+	external_link?: boolean | null;
+	/** @description Surface this announcement as a toast for members. Off = sheet/feed only. */
+	show_toast?: boolean | null;
 }
 
 export interface HoaBoardMember {
@@ -827,6 +835,14 @@ export interface HoaOrganization {
 	billing_account?: BillingAccount | string | null;
 	/** @description Public landing insights counter ({ views, inquiries }). Maintained by the app. */
 	landing_stats?: Record<string, any> | null;
+	/** @description Stripe Connect (Express) account id — acct_... */
+	stripe_connect_account_id?: string | null;
+	/** @description Synced from Stripe via the account.updated webhook */
+	connect_onboarding_status?: 'none' | 'pending' | 'restricted' | 'active' | null;
+	/** @description Mirror of Stripe account.charges_enabled */
+	connect_charges_enabled?: boolean | null;
+	/** @description Mirror of Stripe account.payouts_enabled */
+	connect_payouts_enabled?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -888,6 +904,112 @@ export interface HoaPollVote {
 	date_created?: string | null;
 }
 
+export interface HoaProjectEvent {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	status?: 'draft' | 'scheduled' | 'active' | 'completed' | 'archived' | null;
+	/** @required */
+	project: HoaProject | string;
+	/** @required */
+	title: string;
+	description?: string | null;
+	type?: 'phase' | 'milestone' | 'meeting' | 'inspection' | 'payment' | 'other' | null;
+	event_date?: string | null;
+	/** @description Business days; end_date is computed app-side */
+	duration_days?: number | null;
+	end_date?: string | null;
+	is_milestone?: boolean | null;
+	/** @description Upstream event this one waits on */
+	depends_on?: HoaProjectEvent | string | null;
+	assigned_to?: DirectusUser | string | null;
+	approval?: 'none_needed' | 'needs_approval' | 'approved' | null;
+	approved_by?: DirectusUser | string | null;
+	approved_at?: string | null;
+	/** @description Single-purpose shareable approval link token */
+	approval_token?: string | null;
+	/** @description Optional per-phase cost (board-only) */
+	cost_amount?: number | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	tasks?: HoaTask[] | string[];
+	spawned_projects?: HoaProject[] | string[];
+	files?: HoaProjectEventsFile[] | string[];
+}
+
+export interface HoaProjectEventsFile {
+	/** @primaryKey */
+	id: string;
+	hoa_project_events_id?: HoaProjectEvent | string | null;
+	directus_files_id?: DirectusFile | string | null;
+}
+
+export interface HoaProject {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived' | null;
+	/** @required */
+	title: string;
+	description?: string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Committee/team that owns this project */
+	team?: HoaTeam | string | null;
+	/** @description Parent project (sub-project nesting) */
+	parent_project?: HoaProject | string | null;
+	start_date?: string | null;
+	due_date?: string | null;
+	completion_date?: string | null;
+	/** @description Timeline line color */
+	color?: string | null;
+	icon?: string | null;
+	/** @description Residents can see this project (read-only) */
+	member_visible?: boolean | null;
+	/** @description Planned budget (board-only) */
+	budget_amount?: number | null;
+	/** @description Actual spend (manual; expense rollup comes later) */
+	actual_spend?: number | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	/** @description Milestone this project was spawned from */
+	parent_event?: HoaProjectEvent | string | null;
+	children?: HoaProject[] | string[];
+	events?: HoaProjectEvent[] | string[];
+	tasks?: HoaTask[] | string[];
+	requests?: HoaRequest[] | string[];
+	assigned_to?: HoaProjectsUser[] | string[];
+	files?: HoaProjectsFile[] | string[];
+	vendors?: HoaProjectsVendor[] | string[];
+}
+
+export interface HoaProjectsFile {
+	/** @primaryKey */
+	id: string;
+	hoa_projects_id?: HoaProject | string | null;
+	directus_files_id?: DirectusFile | string | null;
+}
+
+export interface HoaProjectsUser {
+	/** @primaryKey */
+	id: string;
+	hoa_projects_id?: HoaProject | string | null;
+	directus_users_id?: DirectusUser | string | null;
+}
+
+export interface HoaProjectsVendor {
+	/** @primaryKey */
+	id: string;
+	hoa_projects_id?: HoaProject | string | null;
+	hoa_vendors_id?: HoaVendor | string | null;
+	/** @description What this vendor does on the project */
+	role?: string | null;
+}
+
 export interface HoaReaction {
 	/** @primaryKey */
 	id: string;
@@ -937,6 +1059,45 @@ export interface HoaRequest {
 	date_updated?: string | null;
 	/** @description Parent ticket this request/task was spawned from. */
 	parent_request?: HoaRequest | string | null;
+	/** @description Project this request is attached to */
+	project?: HoaProject | string | null;
+	tasks?: HoaTask[] | string[];
+}
+
+export interface HoaTask {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	status?: 'new' | 'approved' | 'in_progress' | 'completed' | null;
+	/** @required */
+	title: string;
+	description?: string | null;
+	priority?: 'low' | 'medium' | 'high' | 'urgent' | null;
+	schedule?: 'today' | 'this_week' | 'later' | 'unscheduled' | null;
+	due_date?: string | null;
+	date_completed?: string | null;
+	/** @description Parent task (subtask nesting) */
+	parent_task?: HoaTask | string | null;
+	/** @description Denormalized discriminator for where this task lives */
+	category?: 'quick' | 'project' | 'event' | 'request' | 'team' | null;
+	project?: HoaProject | string | null;
+	project_event?: HoaProjectEvent | string | null;
+	request?: HoaRequest | string | null;
+	team?: HoaTeam | string | null;
+	/** @required */
+	organization: HoaOrganization | string;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	subtasks?: HoaTask[] | string[];
+	assigned_to?: HoaTasksUser[] | string[];
+}
+
+export interface HoaTasksUser {
+	/** @primaryKey */
+	id: string;
+	hoa_tasks_id?: HoaTask | string | null;
+	directus_users_id?: DirectusUser | string | null;
 }
 
 export interface HoaTeamMember {
@@ -1682,8 +1843,16 @@ export interface Schema {
 	hoa_pets: HoaPet[];
 	hoa_polls: HoaPoll[];
 	hoa_poll_votes: HoaPollVote[];
+	hoa_project_events: HoaProjectEvent[];
+	hoa_project_events_files: HoaProjectEventsFile[];
+	hoa_projects: HoaProject[];
+	hoa_projects_files: HoaProjectsFile[];
+	hoa_projects_users: HoaProjectsUser[];
+	hoa_projects_vendors: HoaProjectsVendor[];
 	hoa_reactions: HoaReaction[];
 	hoa_requests: HoaRequest[];
+	hoa_tasks: HoaTask[];
+	hoa_tasks_users: HoaTasksUser[];
 	hoa_team_members: HoaTeamMember[];
 	hoa_teams: HoaTeam[];
 	hoa_units: HoaUnit[];
@@ -1762,8 +1931,16 @@ export enum CollectionNames {
 	hoa_pets = 'hoa_pets',
 	hoa_polls = 'hoa_polls',
 	hoa_poll_votes = 'hoa_poll_votes',
+	hoa_project_events = 'hoa_project_events',
+	hoa_project_events_files = 'hoa_project_events_files',
+	hoa_projects = 'hoa_projects',
+	hoa_projects_files = 'hoa_projects_files',
+	hoa_projects_users = 'hoa_projects_users',
+	hoa_projects_vendors = 'hoa_projects_vendors',
 	hoa_reactions = 'hoa_reactions',
 	hoa_requests = 'hoa_requests',
+	hoa_tasks = 'hoa_tasks',
+	hoa_tasks_users = 'hoa_tasks_users',
 	hoa_team_members = 'hoa_team_members',
 	hoa_teams = 'hoa_teams',
 	hoa_units = 'hoa_units',

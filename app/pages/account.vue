@@ -51,7 +51,7 @@
                 @change="handleAvatarUpload"
               />
               <Button
-                @click="$refs.avatarInput.click()"
+                @click="avatarInput?.click()"
                 :disabled="isUploadingAvatar"
                 variant="outline"
               >
@@ -141,7 +141,7 @@
               </div>
 
               <!-- Success/Error Messages -->
-              <Alert v-if="updateSuccess" variant="success">
+              <Alert v-if="updateSuccess" :variant="successVariant">
                 <Icon name="lucide:check-circle" class="h-4 w-4" />
                 <div class="ml-2">Profile updated successfully!</div>
               </Alert>
@@ -184,7 +184,7 @@
                 <strong>{{ user?.email }}</strong>
               </p>
 
-              <Alert v-if="resetRequestSuccess" variant="success">
+              <Alert v-if="resetRequestSuccess" :variant="successVariant">
                 <Icon name="lucide:check-circle" class="h-4 w-4" />
                 <div class="ml-2">
                   Password reset link sent! Check your email.
@@ -397,6 +397,11 @@ const resetRequestError = ref<string | null>(null);
 
 // Avatar state
 const currentAvatarId = ref<string | null>(null);
+const avatarInput = ref<HTMLInputElement | null>(null);
+
+// Alert's cva typing only knows "default" | "destructive"; keep the existing
+// runtime value ("success") while satisfying the prop type.
+const successVariant = "success" as unknown as "default";
 
 // Avatar URL computed
 const avatarUrl = computed(() => {

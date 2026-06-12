@@ -125,12 +125,8 @@ export async function getBillingAccount(accountId: string): Promise<any> {
           "included_properties",
           "stripe_customer_id",
           "stripe_subscription_id",
-          "owner.id",
-          "owner.email",
-          "owner.first_name",
-          "owner.last_name",
-          "subscription_plan.id",
-          "subscription_plan.name",
+          { owner: ["id", "email", "first_name", "last_name"] },
+          { subscription_plan: ["id", "name"] },
         ],
       })
     );

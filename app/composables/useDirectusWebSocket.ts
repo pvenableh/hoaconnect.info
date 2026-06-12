@@ -11,7 +11,21 @@
  */
 
 import { createDirectus, realtime, rest, authentication } from "@directus/sdk"
+import type {
+  AuthenticationClient,
+  DirectusClient,
+  RestClient,
+  WebSocketClient,
+} from "@directus/sdk"
 import type { Schema } from "~~/types/directus"
+
+// The composed client type matching the .with(realtime()).with(rest())
+// .with(authentication()) construction below. The schema generic is `any`
+// because this composable subscribes to arbitrary collection names (string).
+type WsClient = DirectusClient<any> &
+  WebSocketClient<any> &
+  RestClient<any> &
+  AuthenticationClient<any>
 
 interface SubscriptionOptions {
   collection: string
@@ -41,7 +55,7 @@ export function useDirectusWebSocket() {
   const maxReconnectAttempts = 10
 
   // Client and subscriptions
-  let client: ReturnType<typeof createDirectus> | null = null
+  let client: WsClient | null = null
   const subscriptions = new Map<string, { unsubscribe: () => void }>()
 
   /**
@@ -166,7 +180,7 @@ export function useDirectusWebSocket() {
       ;(async () => {
         try {
           for await (const event of subscription) {
-            callback(event as SubscriptionEvent<T>)
+            callback(event as unknown as SubscriptionEvent<T>)
           }
         } catch (err) {
           console.log(`Subscription ${uid} ended`)

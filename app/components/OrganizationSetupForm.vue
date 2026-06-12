@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { toast } from "vue-sonner";
 import { useDirectusItems } from "#imports";
-import type { SubscriptionPlan } from "~/types/directus";
+import type { SubscriptionPlan } from "~~/types/directus";
 
 interface Props {
   title?: string;
@@ -857,7 +857,7 @@ const finalStep = computed(() => {
 
             <ul class="space-y-1">
               <li
-                v-for="(feature, idx) in (plan.features as string[] || [])"
+                v-for="(feature, idx) in ((plan.features as unknown as string[]) || [])"
                 :key="idx"
                 class="text-sm flex items-center gap-2"
               >

@@ -25,11 +25,18 @@ const form = reactive({
   message: "",
 });
 
+// Minimal shape of /api/hoa/find used by this page
+interface JoinOrganization {
+  id: string;
+  name: string;
+  logo?: string | { id: string } | null;
+}
+
 // Fetch organization by slug
 const { data: organization, pending, error } = await useAsyncData(
   `join-request-org-${slug.value}`,
   async () => {
-    const response = await $fetch(`/api/hoa/find?slug=${slug.value}`);
+    const response = await $fetch<JoinOrganization>(`/api/hoa/find?slug=${slug.value}`);
     return response;
   }
 );

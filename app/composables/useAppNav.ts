@@ -26,7 +26,7 @@ export interface AppDef {
 }
 
 export type DockPosition = "bottom" | "top";
-export type PaletteId = "fresh" | "aurora" | "neutral";
+export type PaletteId = "fresh" | "aurora" | "neutral" | "vivid";
 
 interface Palette {
   label: string;

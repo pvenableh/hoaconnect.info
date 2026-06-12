@@ -17,17 +17,16 @@ const props = defineProps<{
   class?: HTMLAttributes["class"];
 }>();
 
+type RegisterSubmitValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  coupon?: AppliedCoupon;
+};
+
 const emit = defineEmits<{
-  (
-    e: "submit",
-    values: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      password: string;
-      coupon?: AppliedCoupon;
-    }
-  ): void;
+  (e: "submit", values: RegisterSubmitValues): void;
   (e: "login"): void;
 }>();
 
@@ -103,8 +102,8 @@ const onSubmit = handleSubmit(async (values) => {
     const { confirmPassword, ...submitValues } = values;
     emit("submit", {
       ...submitValues,
-      coupon: appliedCoupon.value || undefined,
-    });
+      coupon: (appliedCoupon.value as AppliedCoupon | null) || undefined,
+    } as RegisterSubmitValues);
   } catch (error) {
     toast.error("Registration failed", {
       description: "Please try again later.",

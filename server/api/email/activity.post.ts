@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
         }
 
         // Clean up the message ID (remove any angle brackets and trailing parts)
-        const cleanMessageId = sgEvent.sg_message_id.split(".")[0].replace(/[<>]/g, "");
+        const cleanMessageId = sgEvent.sg_message_id.split(".")[0]!.replace(/[<>]/g, "");
 
         // Find the recipient record by sg_message_id
         const recipients = await directus.request(
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
             ) as HoaMember[];
 
             if (members && members.length > 0) {
-              memberId = members[0].id;
+              memberId = members[0]?.id ?? null;
             }
           } catch (memberError) {
             console.error(`Error looking up member by email ${sgEvent.email}:`, memberError);

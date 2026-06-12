@@ -61,14 +61,14 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    if (!users || users.length === 0) {
+    const user = users?.[0];
+
+    if (!user) {
       throw createError({
         statusCode: 404,
         message: "User not found",
       });
     }
-
-    const user = users[0];
 
     // Update the member record to link to the user
     await directus.request(

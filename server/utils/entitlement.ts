@@ -12,6 +12,7 @@
  * exactly the org's own subscription fields, so existing behaviour is unchanged.
  */
 import { readItem } from "@directus/sdk";
+import type { HoaOrganization } from "~~/types/directus";
 
 export async function getEffectiveEntitlement(
   orgId: string,
@@ -20,7 +21,7 @@ export async function getEffectiveEntitlement(
 
   const org: any = await directus.request(
     readItem("hoa_organizations", orgId, {
-      fields: ["id", ...entitlementFields()],
+      fields: ["id", ...(entitlementFields() as (keyof HoaOrganization)[])],
     }),
   );
 

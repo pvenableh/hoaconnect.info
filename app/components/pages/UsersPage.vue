@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { HoaMember, HoaJoinRequest, DirectusUser, HoaUnit } from "~~/types/directus";
+import type { HoaMember, DirectusUser, HoaUnit } from "~~/types/directus";
 
 const { list: listMembers, update: updateMember } = useDirectusItems("hoa_members");
 const { list: listJoinRequests } = useDirectusItems("hoa_join_requests");

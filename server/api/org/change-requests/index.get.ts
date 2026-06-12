@@ -1,4 +1,5 @@
-import { readItems } from "@directus/sdk";
+import { readItems, type QueryFields } from "@directus/sdk";
+import type { HoaMemberChangeRequest, Schema } from "~~/types/directus";
 
 /**
  * List change requests for an org.
@@ -17,7 +18,7 @@ export default defineEventHandler(async (event) => {
   const { memberId } = await requireMembership(event, orgId);
   const admin = getTypedDirectus();
 
-  const baseFields = [
+  const baseFields: QueryFields<Schema, HoaMemberChangeRequest> = [
     "id",
     "status",
     "kind",
@@ -29,14 +30,11 @@ export default defineEventHandler(async (event) => {
     "review_note",
     "reviewed_at",
     "date_created",
-    "member.id",
-    "member.first_name",
-    "member.last_name",
-    "submitted_by.id",
-    "submitted_by.first_name",
-    "submitted_by.last_name",
-    "reviewed_by.first_name",
-    "reviewed_by.last_name",
+    {
+      member: ["id", "first_name", "last_name"],
+      submitted_by: ["id", "first_name", "last_name"],
+      reviewed_by: ["first_name", "last_name"],
+    },
   ];
 
   if (scope === "pending" || scope === "all") {

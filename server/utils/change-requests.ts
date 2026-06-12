@@ -15,12 +15,12 @@ export type ChangeKind = (typeof CHANGE_KINDS)[number];
 export type ChangeAction = (typeof CHANGE_ACTIONS)[number];
 
 // kind → the collection the approved change writes to.
-export const KIND_TARGET: Record<ChangeKind, string> = {
+export const KIND_TARGET = {
   contact: "hoa_members",
   mailing_address: "hoa_members",
   vehicle: "hoa_vehicles",
   pet: "hoa_pets",
-};
+} as const satisfies Record<ChangeKind, string>;
 
 // Whitelisted, resident-editable fields per kind.
 const VEHICLE_FIELDS = ["make", "model", "year", "license_plate", "parking_spot", "image"];
@@ -97,7 +97,7 @@ export function buildSafeChange(input: {
  * `cr` is the stored change-request row. `nowIso` is passed in (no Date.now in
  * shared code that must stay deterministic for tests).
  */
-export async function applyChangeRequest(admin: any, cr: any, nowIso: string): Promise<void> {
+export async function applyChangeRequest(admin: ReturnType<typeof getTypedDirectus>, cr: any, nowIso: string): Promise<void> {
   const kind = cr.kind as ChangeKind;
   const action = cr.action as ChangeAction;
   const payload = cr.payload || {};
@@ -142,8 +142,8 @@ export async function applyChangeRequest(admin: any, cr: any, nowIso: string): P
  * resident propose an update/delete on it. Throws 403 otherwise.
  */
 export async function assertTargetOwnedByMember(
-  admin: any,
-  collection: string,
+  admin: ReturnType<typeof getTypedDirectus>,
+  collection: "hoa_vehicles" | "hoa_pets",
   targetId: string,
   memberId: string
 ): Promise<void> {

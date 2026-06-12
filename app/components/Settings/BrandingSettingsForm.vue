@@ -529,7 +529,7 @@ const saveChanges = async () => {
           accent: form.value.accentColor,
         },
       ],
-      theme: form.value.theme,
+      theme: form.value.theme as BlockSetting["theme"],
       logo: logoId,
       icon: iconId,
       header_text: form.value.headerText || null,

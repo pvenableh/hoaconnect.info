@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
   );
 
   // Build the enrollment set. user id → { hoa_member, role }.
-  const rows = new Map<string, { hoa_member: string | null; role: string }>();
+  const rows = new Map<string, { hoa_member: string | null; role: "admin" | "member" }>();
 
   if (!is_private) {
     const enrollees = await getOrgChannelEnrollees(directus, organization);

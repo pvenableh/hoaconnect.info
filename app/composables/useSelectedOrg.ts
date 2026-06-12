@@ -1,5 +1,5 @@
 // composables/useSelectedOrg.ts
-import type { HoaBoardMemberTerm } from "~~/types/directus";
+import type { HoaBoardMember } from "~~/types/directus";
 
 /**
  * Composable to manage the currently selected organization
@@ -308,7 +308,7 @@ export const useSelectedOrg = async () => {
   });
 
   // Get active board member terms (published and within date range)
-  const activeBoardTerms = computed<HoaBoardMemberTerm[]>(() => {
+  const activeBoardTerms = computed<HoaBoardMember[]>(() => {
     const terms = currentOrg.value?.board_member_terms;
     if (!terms || !Array.isArray(terms)) return [];
 
@@ -328,7 +328,7 @@ export const useSelectedOrg = async () => {
       if (endDate && now > endDate) return false;
 
       return true;
-    }) as HoaBoardMemberTerm[];
+    }) as HoaBoardMember[];
   });
 
   // Check if member is currently a board member

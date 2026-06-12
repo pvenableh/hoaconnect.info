@@ -15,7 +15,7 @@ const KIND_LABEL: Record<string, string> = {
 const idOf = (v: any) => (typeof v === "string" ? v : v?.id) || null;
 
 /** Resolve the user ids of an org's reviewers (admins + PM-with-directory). */
-async function reviewerUserIds(admin: any, orgId: string): Promise<string[]> {
+async function reviewerUserIds(admin: ReturnType<typeof getTypedDirectus>, orgId: string): Promise<string[]> {
   const config = useRuntimeConfig();
   const hoaAdmin = config.public.directusRoleHoaAdmin;
   const pmRole = config.public.directusRolePropertyManager;

@@ -1,4 +1,5 @@
 import { readItem, deleteItem } from "@directus/sdk";
+import type { HoaOrganization } from "~~/types/directus";
 
 /**
  * Delete a unit - Admin only
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
 
     const organizationId = typeof unit.organization === "string"
       ? unit.organization
-      : unit.organization?.id;
+      : (unit.organization as HoaOrganization | null)?.id;
 
     if (!organizationId) {
       throw createError({

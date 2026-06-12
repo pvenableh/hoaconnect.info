@@ -15,7 +15,7 @@
  */
 
 export interface ItemsQuery {
-  fields?: string[];
+  fields?: (string | Record<string, any>)[];
   filter?: Record<string, any>;
   sort?: string[];
   limit?: number;

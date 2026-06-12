@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
       limit: 1,
     })
   )) as Array<{ id: string }>;
-  if (existing.length && existing[0].id !== organizationId) {
+  if (existing[0] && existing[0].id !== organizationId) {
     throw createError({ statusCode: 409, message: "That domain is already connected to another community" });
   }
 

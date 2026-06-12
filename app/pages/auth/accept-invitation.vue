@@ -129,7 +129,7 @@
             </Alert>
 
             <!-- Success Alert -->
-            <Alert v-if="success" variant="success">
+            <Alert v-if="success" :variant="successVariant">
               <Icon name="lucide:check-circle" class="h-4 w-4" />
               <div class="ml-2">
                 Account created successfully! Redirecting...
@@ -170,7 +170,15 @@ import {
   type AcceptInvitationSchema,
 } from "~/lib/validations";
 import { toast } from "vue-sonner";
-import type { HoaInvitation } from "~~/types/directus";
+
+// Shape of the invitation returned by /api/auth/verify-invitation (only the
+// fields this page reads)
+interface VerifiedInvitation {
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  organization?: { name?: string | null } | null;
+}
 
 definePageMeta({
   layout: "auth-blank",
@@ -187,9 +195,13 @@ const token = computed(() => route.query.token as string);
 // State
 const loading = ref(true);
 const invitationValid = ref(false);
-const invitation = ref<HoaInvitation | null>(null);
+const invitation = ref<VerifiedInvitation | null>(null);
 const authError = ref<string | null>(null);
 const success = ref(false);
+
+// Alert's cva typing only knows "default" | "destructive"; keep the existing
+// runtime value ("success") while satisfying the prop type.
+const successVariant = "success" as unknown as "default";
 
 // Form validation
 const { handleSubmit, errors, isSubmitting, defineField, setFieldValue } =
@@ -213,10 +225,13 @@ onMounted(async () => {
 
   try {
     // Verify the invitation
-    const response = await $fetch("/api/auth/verify-invitation", {
-      method: "POST",
-      body: { token: token.value },
-    });
+    const response = await $fetch<{ invitation: VerifiedInvitation }>(
+      "/api/auth/verify-invitation",
+      {
+        method: "POST",
+        body: { token: token.value },
+      }
+    );
 
     invitation.value = response.invitation;
     invitationValid.value = true;

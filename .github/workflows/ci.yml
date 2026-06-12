@@ -31,9 +31,8 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: Typecheck (non-blocking)
-        run: pnpm exec nuxt typecheck || echo "::warning::typecheck failed (non-blocking for now)"
-        continue-on-error: true
+      - name: Typecheck
+        run: pnpm exec nuxt typecheck
 
       - name: Build
         run: pnpm build

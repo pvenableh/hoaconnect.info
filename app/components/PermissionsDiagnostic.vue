@@ -6,6 +6,11 @@ const hasIssues = computed(() => {
   const analysis = diagnostics.value.analysis;
   return !analysis.canCreateUnits || !analysis.canReadUnits;
 });
+
+const roleAdminAccess = computed(() => {
+  const role = diagnostics.value?.role;
+  return !!(role && (role as Record<string, unknown>).admin_access);
+});
 </script>
 
 <template>
@@ -31,7 +36,7 @@ const hasIssues = computed(() => {
 
       <div>
         <strong>Role:</strong> {{ diagnostics.role?.name || 'Unknown' }}
-        <span v-if="diagnostics.role?.admin_access" class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Admin</span>
+        <span v-if="roleAdminAccess" class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Admin</span>
       </div>
 
       <div class="space-y-2">
@@ -75,7 +80,7 @@ const hasIssues = computed(() => {
       </div>
 
       <button
-        @click="refresh"
+        @click="() => refresh()"
         class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
       >
         Refresh Permissions

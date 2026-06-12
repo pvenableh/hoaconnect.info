@@ -363,8 +363,7 @@ export async function resolveStorageContext(
       fields: [
         "id",
         "role",
-        "board_member_terms.term_start",
-        "board_member_terms.term_end",
+        { board_member_terms: ["term_start", "term_end"] },
       ],
       limit: 1,
     })

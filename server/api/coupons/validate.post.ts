@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
           "is_first_purchase_only",
           "status",
           // Include applicable plans if configured
-          "applicable_plans.subscription_plans_id",
+          { applicable_plans: ["subscription_plans_id"] },
         ],
         limit: 1,
       })
@@ -110,7 +110,7 @@ export default defineEventHandler(async (event) => {
     if (coupon.max_uses) {
       const usageCount = await directus.request(
         aggregate("coupon_usage", {
-          aggregate: { count: ["*"] },
+          aggregate: { count: "*" },
           query: {
             filter: {
               coupon: { _eq: coupon.id },

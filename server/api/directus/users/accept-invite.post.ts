@@ -3,7 +3,7 @@
  * POST: Accept invitation and set password
  */
 
-import { acceptUserInvite } from '@directus/sdk'
+import { acceptUserInvite, createDirectus, rest } from '@directus/sdk'
 
 export default defineEventHandler(async (event) => {
   try {

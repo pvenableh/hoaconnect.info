@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
     readItems("hoa_emails", {
       filter: {
         status: { _eq: "scheduled" },
-        scheduled_at: { _lte: nowIso },
+        scheduled_at: { _lte: nowIso } as any,
       },
       fields: ["id", "scheduled_at", "recurrence_rule"],
       sort: ["scheduled_at"],

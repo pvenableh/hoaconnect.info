@@ -12,6 +12,11 @@ const accent = ref<Accent>('cyan');
 
 const demoLoading = ref(true);
 
+const replayLoad = () => {
+	demoLoading.value = true;
+	setTimeout(() => (demoLoading.value = false), 2600);
+};
+
 onMounted(() => {
 	// Show the modern (sans-serif, glassy) look for the showcase.
 	theme.forceThemeStyle('modern', theme.themeMode.value);
@@ -53,7 +58,7 @@ const settingsRows = [
 						<Icon :name="theme.isDark.value ? 'lucide:sun' : 'lucide:moon'" class="w-4 h-4" />
 						{{ theme.isDark.value ? 'Light' : 'Dark' }}
 					</button>
-					<button class="ios-card px-3 py-2 text-sm flex items-center gap-2" @click="demoLoading = true; setTimeout(() => (demoLoading = false), 2600)">
+					<button class="ios-card px-3 py-2 text-sm flex items-center gap-2" @click="replayLoad">
 						<span class="spinner-ios spinner-ios--sm" />
 						Replay load
 					</button>

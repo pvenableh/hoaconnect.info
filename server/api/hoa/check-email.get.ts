@@ -29,11 +29,19 @@ export default defineEventHandler(async (event) => {
     const directus = getTypedDirectus();
 
     // Check if email exists in directus_users (has an account)
-    const existingUsers = await $fetch(
+    const existingUsers = await $fetch<{
+      data?: {
+        id: string;
+        email: string | null;
+        first_name: string | null;
+        last_name: string | null;
+        status: string;
+      }[];
+    }>(
       `${config.directus.url}/users`,
       {
         headers: {
-          Authorization: `Bearer ${config.directus.token}`,
+          Authorization: `Bearer ${config.directus.staticToken}`,
         },
         query: {
           filter: JSON.stringify({
@@ -46,7 +54,7 @@ export default defineEventHandler(async (event) => {
     );
 
     const userExists = existingUsers?.data && existingUsers.data.length > 0;
-    const existingUser = userExists ? existingUsers.data[0] : null;
+    const existingUser = existingUsers?.data?.[0] ?? null;
 
     // Check if email exists in hoa_members (might be invited but not yet have account)
     const existingMembers = await directus.request(
@@ -60,8 +68,7 @@ export default defineEventHandler(async (event) => {
           "first_name",
           "last_name",
           "status",
-          "organization.id",
-          "organization.name",
+          { organization: ["id", "name"] },
           "user",
         ],
         limit: 10,
@@ -76,13 +83,12 @@ export default defineEventHandler(async (event) => {
         filter: {
           email: { _eq: email.toLowerCase() },
           invitation_status: { _eq: "pending" },
-          expires_at: { _gt: new Date().toISOString() },
+          expires_at: { _gt: new Date().toISOString() } as any,
         },
         fields: [
           "id",
           "email",
-          "organization.id",
-          "organization.name",
+          { organization: ["id", "name"] },
           "expires_at",
         ],
         limit: 10,

@@ -80,7 +80,7 @@ function syncRendered() {
         : null;
     })
     .filter(
-      (p): p is { type: string; id: string; mode?: string; component: PanelComponent; key: string } =>
+      (p): p is { type: string; id: string; mode: string | undefined; component: PanelComponent; key: string } =>
         p !== null
     );
 

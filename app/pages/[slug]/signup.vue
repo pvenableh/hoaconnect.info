@@ -12,11 +12,17 @@ const isLoading = ref(false);
 // Get slug from route params
 const slug = computed(() => route.params.slug as string);
 
+// Minimal shape of /api/hoa/find used by this page
+interface SignupOrganization {
+  name: string;
+  logo?: string | { id: string } | null;
+}
+
 // Fetch organization by slug for context
 const { data: organization, pending } = await useAsyncData(
   `signup-org-${slug.value}`,
   async () => {
-    const response = await $fetch(`/api/hoa/find?slug=${slug.value}`);
+    const response = await $fetch<SignupOrganization>(`/api/hoa/find?slug=${slug.value}`);
     return response;
   }
 );
