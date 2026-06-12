@@ -433,6 +433,8 @@ export interface HoaEmailRecipient {
 	/** @description SendGrid message ID for tracking */
 	sg_message_id?: string | null;
 	email?: HoaEmail | string | null;
+	/** @description The hoa_member this recipient row belongs to. */
+	member?: HoaMember | string | null;
 }
 
 export interface HoaEmail {
@@ -577,6 +579,29 @@ export interface HoaInvitation {
 	/** @required */
 	expires_at: string;
 	accepted_at?: string | null;
+}
+
+export interface HoaJoinRequest {
+	/** @primaryKey */
+	id: string;
+	date_created?: string | null;
+	date_updated?: string | null;
+	/** @description Review state of this join request. */
+	status?: 'pending' | 'approved' | 'rejected' | null;
+	/** @description The user asking to join. @required */
+	user: DirectusUser | string;
+	/** @description The org they want to join. @required */
+	organization: HoaOrganization | string;
+	/** @description Unit the applicant says they live in. */
+	unit_number?: string | null;
+	/** @description Owner or tenant, as claimed by the applicant. */
+	member_type?: 'owner' | 'tenant' | null;
+	/** @description Optional note from the applicant. */
+	message?: string | null;
+	/** @description Admin who approved/rejected. */
+	processed_by?: DirectusUser | string | null;
+	processed_at?: string | null;
+	rejection_reason?: string | null;
 }
 
 export interface HoaLease {
@@ -1830,6 +1855,7 @@ export interface Schema {
 	hoa_email_templates: HoaEmailTemplate[];
 	hoa_governance: HoaGovernance[];
 	hoa_invitations: HoaInvitation[];
+	hoa_join_requests: HoaJoinRequest[];
 	hoa_leases: HoaLease[];
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
@@ -1918,6 +1944,7 @@ export enum CollectionNames {
 	hoa_email_templates = 'hoa_email_templates',
 	hoa_governance = 'hoa_governance',
 	hoa_invitations = 'hoa_invitations',
+	hoa_join_requests = 'hoa_join_requests',
 	hoa_leases = 'hoa_leases',
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
