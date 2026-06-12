@@ -6,17 +6,7 @@ import Stripe from "stripe";
 
 // Keep in lockstep with the existing routes (subscription.post.ts,
 // webhook.post.ts) so a single account/customer graph is spoken to consistently.
-// stripe-node v20 types assume its own pinned version ("…clover"), but we
-// deliberately stay on the acacia wire format until the basil invoice migration
-// (invoice.payment_intent/subscription moved) is done — hence the cast.
-export const STRIPE_API_VERSION = "2024-11-20.acacia" as unknown as Stripe.LatestApiVersion;
-
-// Acacia response shapes for fields the v20 (clover) types dropped. With the
-// pinned STRIPE_API_VERSION above these fields ARE present at runtime.
-export type AcaciaInvoice = Stripe.Invoice & {
-  payment_intent?: string | Stripe.PaymentIntent | null;
-  subscription?: string | Stripe.Subscription | null;
-};
+export const STRIPE_API_VERSION = "2024-11-20.acacia" as const;
 
 export function getStripeSecretKey(): string {
   const config = useRuntimeConfig();

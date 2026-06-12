@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
 		}
 
 		stripe = new Stripe(stripeSecretKey, {
-			apiVersion: STRIPE_API_VERSION,
+			apiVersion: '2024-11-20.acacia',
 			typescript: true,
 		});
 
