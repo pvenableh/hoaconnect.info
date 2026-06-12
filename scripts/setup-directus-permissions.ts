@@ -635,6 +635,26 @@ async function getExistingPermissions(
   }
 }
 
+/**
+ * Whether an existing permission already matches the desired one. Compares the
+ * permissions + validation filters (deep) and the field list (order-insensitive
+ * — Directus may store ["*"] or arbitrary order). Used by both audit and apply
+ * so the two agree and apply is a true no-op when nothing changed.
+ */
+function permissionMatches(
+  existing: ExistingPermission,
+  desired: Permission
+): boolean {
+  const sameJson = (a: unknown, b: unknown) =>
+    JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const sortFields = (f: string[] | null | undefined) => [...(f || [])].sort();
+  return (
+    sameJson(existing.permissions, desired.permissions) &&
+    sameJson(existing.validation, desired.validation) &&
+    sameJson(sortFields(existing.fields), sortFields(desired.fields))
+  );
+}
+
 async function createOrUpdatePermission(
   permission: Permission,
   existingPermissions: ExistingPermission[],
@@ -644,22 +664,18 @@ async function createOrUpdatePermission(
     (p) => p.action === permission.action
   );
 
+  // Already in the desired state — never touch it (keeps apply idempotent and
+  // its "updated" count honest).
+  if (existing && permissionMatches(existing, permission)) {
+    return { created: false, updated: false, skipped: true };
+  }
+
   if (auditMode) {
     if (existing) {
-      const hasChanges =
-        JSON.stringify(existing.permissions) !==
-          JSON.stringify(permission.permissions) ||
-        JSON.stringify(existing.validation) !==
-          JSON.stringify(permission.validation);
-
-      if (hasChanges) {
-        console.log(
-          `   📋 Would update ${permission.action}: permissions/validation differ`
-        );
-        return { created: false, updated: true, skipped: false };
-      } else {
-        return { created: false, updated: false, skipped: true };
-      }
+      console.log(
+        `   📋 Would update ${permission.action}: permissions/validation/fields differ`
+      );
+      return { created: false, updated: true, skipped: false };
     } else {
       console.log(`   📋 Would create ${permission.action} permission`);
       return { created: true, updated: false, skipped: false };
@@ -1304,6 +1320,26 @@ async function main() {
       console.log(`🎯 Role filter active — processing: ${rolesToProcess.map((r) => r.name).join(", ") || "(none matched)"}\n`);
     }
 
+    // Optional collection filter: `--collections=hoa_projects,hoa_tasks` narrows
+    // the reconcile to specific collections. Surgical — lets you apply ONE
+    // collection's permissions for a role without re-reconciling (and risking
+    // drift on) every other collection. Also skips the file/user self-access
+    // steps, which aren't collection-scoped.
+    const collectionsArg = process.argv
+      .filter((a) => a.startsWith("--collections="))
+      .flatMap((a) => a.slice("--collections=".length).split(","))
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const configsToProcess = collectionsArg.length
+      ? COLLECTION_CONFIGS.filter((c) => collectionsArg.includes(c.collection))
+      : COLLECTION_CONFIGS;
+
+    if (collectionsArg.length) {
+      console.log(`🎯 Collection filter active — processing: ${configsToProcess.map((c) => c.collection).join(", ") || "(none matched)"}`);
+      console.log(`   (file + user self-access steps skipped)\n`);
+    }
+
     for (const role of rolesToProcess) {
       console.log("\n" + "═".repeat(60));
       console.log(`🎭 Processing role: ${role.name}`);
@@ -1314,7 +1350,7 @@ async function main() {
       const policyId = role.policyId;
 
       // Setup collection permissions
-      for (const config of COLLECTION_CONFIGS) {
+      for (const config of configsToProcess) {
         try {
           const stats = await setupCollectionPermissions(
             policyId,
@@ -1330,6 +1366,10 @@ async function main() {
           totalStats.errors++;
         }
       }
+
+      // File + user self-access aren't collection-scoped — skip when a
+      // collection filter is narrowing the run.
+      if (collectionsArg.length) continue;
 
       // Setup file permissions
       try {
