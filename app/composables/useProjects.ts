@@ -34,10 +34,18 @@ export interface ProjectRow {
   tasks?: any[] | null;
   children?: any[] | null;
   requests?: any[] | null;
-  vendors?: any[] | null;
+  vendors?: ProjectVendor[] | null;
   files?: any[] | null;
+  /** Σ of payment_expenses.project rolled up server-side (elevated only). */
+  expense_total?: number | null;
   date_created?: string | null;
   date_updated?: string | null;
+}
+
+export interface ProjectVendor {
+  id: string;
+  role?: string | null;
+  hoa_vendors_id?: { id: string; name?: string; category?: string | null } | string | null;
 }
 
 export const PROJECT_STATUS_META: Record<string, { label: string; tone: string }> = {
@@ -69,6 +77,23 @@ export const useProjects = () => {
 
   const getOne = (id: string) =>
     $fetch<ProjectRow>(`/api/org/projects/${id}`, { query: { orgId: orgId() } });
+
+  /** All projects + their events, compact, for the org-wide timeline view. */
+  const timeline = () =>
+    $fetch<ProjectRow[]>("/api/org/projects-timeline", { query: { orgId: orgId() } });
+
+  /** Replace a project's vendor set (M2M). Each entry: { vendor, role? }. */
+  const setVendors = async (id: string, vendors: { vendor: string; role?: string | null }[]) => {
+    try {
+      return await $fetch<ProjectRow>(`/api/org/projects/${id}`, {
+        method: "PATCH",
+        body: { orgId: orgId(), vendors },
+      });
+    } catch (e: any) {
+      toast.error(e?.statusMessage || e?.message || "Could not update vendors");
+      throw e;
+    }
+  };
 
   const create = async (input: Partial<ProjectRow> & { title: string; assigned_to?: string[] }) => {
     try {
@@ -139,5 +164,8 @@ export const useProjects = () => {
     return cols;
   };
 
-  return { list, getOne, create, update, setStatus, archive, remove, promoteRequest, groupByStatus };
+  return {
+    list, getOne, timeline, create, update, setStatus, archive, remove,
+    setVendors, promoteRequest, groupByStatus,
+  };
 };

@@ -57,5 +57,20 @@ export default defineEventHandler(async (event) => {
     if (!project.member_visible) throw createError({ statusCode: 403, message: "Not authorized" });
     return stripBudgetFields(project, PROJECT_BUDGET_FIELDS);
   }
+
+  // Budget rollup: Σ of expenses tagged to this project (elevated/board only).
+  try {
+    const expenses = await directus.request(
+      readItems("payment_expenses", {
+        filter: { project: { _eq: id }, organization: { _eq: orgId } },
+        fields: ["amount"],
+        limit: 1000,
+      })
+    );
+    project.expense_total = (expenses || []).reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
+  } catch {
+    project.expense_total = null;
+  }
+
   return project;
 });

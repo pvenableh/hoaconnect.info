@@ -53,5 +53,19 @@ export default defineEventHandler(async (event) => {
   }
 
   const updated = await directus.request(updateItem("hoa_tasks", id, patch as any));
+
+  // Ping only the NEWLY added assignees (best-effort).
+  if (Array.isArray(body.assigned_to)) {
+    const existing = new Set(
+      (task.assigned_to || []).map((a: any) =>
+        typeof a.directus_users_id === "string" ? a.directus_users_id : a.directus_users_id?.id
+      )
+    );
+    const added = body.assigned_to.filter((u: string) => !existing.has(u));
+    if (added.length) {
+      await notifyTaskAssigned(added, { id, title: (updated as any)?.title || task.title }, access.userId).catch(() => {});
+    }
+  }
+
   return updated;
 });

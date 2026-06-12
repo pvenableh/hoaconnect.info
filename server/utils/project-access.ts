@@ -18,6 +18,7 @@
  */
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
+import { randomBytes } from "node:crypto";
 
 export interface ProjectAccess {
   userId: string;
@@ -127,4 +128,46 @@ export async function getProjectMeta(projectId: string): Promise<{ id: string; o
     team: typeof p.team === "string" ? p.team : p.team?.id ?? null,
     member_visible: !!p.member_visible,
   };
+}
+
+export interface EventMeta {
+  id: string;
+  organization: string;
+  title: string | null;
+  projectId: string | null;
+  projectTitle: string | null;
+  projectTeam: string | null;
+  approval: string | null;
+}
+
+/**
+ * Look up an event's org + owning project (id, title, team) for write checks
+ * and notifications on the approval/spawn routes. Throws 404 when missing.
+ */
+export async function getEventMeta(eventId: string): Promise<EventMeta> {
+  const directus = getTypedDirectus();
+  const rows = await directus.request(
+    readItems("hoa_project_events", {
+      filter: { id: { _eq: eventId } },
+      fields: ["id", "organization", "title", "approval", { project: ["id", "title", "team", "member_visible"] }],
+      limit: 1,
+    })
+  );
+  const ev = rows?.[0] as any;
+  if (!ev) throw createError({ statusCode: 404, message: "Event not found" });
+  const project = ev.project && typeof ev.project === "object" ? ev.project : null;
+  return {
+    id: ev.id,
+    organization: typeof ev.organization === "string" ? ev.organization : ev.organization?.id,
+    title: ev.title ?? null,
+    projectId: project ? project.id : typeof ev.project === "string" ? ev.project : null,
+    projectTitle: project?.title ?? null,
+    projectTeam: project ? (typeof project.team === "string" ? project.team : project.team?.id ?? null) : null,
+    approval: ev.approval ?? null,
+  };
+}
+
+/** Unguessable token for a public approval link (URL-safe, ~32 chars). */
+export function generateApprovalToken(): string {
+  return randomBytes(24).toString("base64url");
 }

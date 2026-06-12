@@ -38,7 +38,8 @@ export type NotificationType =
   | "document"
   | "membership"
   | "comment"
-  | "request";
+  | "request"
+  | "task";
 
 // Unified notification interface
 export interface UnifiedNotification {
@@ -89,6 +90,11 @@ export interface UnifiedNotification {
     requestId?: string;
     requestType?: string;
     requestStatus?: string;
+    // Task specific
+    taskId?: string;
+    taskStatus?: string;
+    taskPriority?: string;
+    projectId?: string;
   };
   // Original data for detail view
   originalData:
@@ -125,6 +131,7 @@ export const useNotifications = () => {
   const { list: listMembers } = useDirectusItems("hoa_members");
   const { list: listComments } = useDirectusItems("hoa_comments");
   const { list: listRequests } = useDirectusItems("hoa_requests");
+  const { list: listTasks } = useDirectusItems("hoa_tasks");
 
   // Access shared state from useSelectedOrg
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -416,6 +423,30 @@ export const useNotifications = () => {
         requestStatus: request.status || undefined,
       },
       originalData: request,
+    };
+  };
+
+  // Transform a project task into a notification (assigned, not yet done)
+  const transformTask = (task: any): UnifiedNotification => {
+    const isRead = isSeen(task.id, "task");
+    const projectId = typeof task.project === "object" ? task.project?.id : task.project;
+    const projectTitle = typeof task.project === "object" ? task.project?.title : undefined;
+    return {
+      id: task.id,
+      type: "task",
+      title: task.title || "Task",
+      subtitle: projectTitle ? `in ${projectTitle}` : "Assigned to you",
+      content: task.description ? stripHtml(task.description).substring(0, 120) : undefined,
+      date: task.date_updated || task.date_created || "",
+      isRead,
+      priority: task.priority === "urgent" ? "urgent" : task.priority === "high" ? "high" : "normal",
+      metadata: {
+        taskId: task.id,
+        taskStatus: task.status || undefined,
+        taskPriority: task.priority || undefined,
+        projectId: projectId || undefined,
+      },
+      originalData: task,
     };
   };
 
@@ -723,6 +754,34 @@ export const useNotifications = () => {
         console.warn("Failed to fetch request notifications:", e);
       }
 
+      // Fetch open tasks assigned to the current user (project module).
+      // Isolated — hoa_tasks may not exist on older orgs.
+      try {
+        const tasks = (await listTasks({
+          fields: [
+            "id",
+            "title",
+            "description",
+            "status",
+            "priority",
+            "date_created",
+            "date_updated",
+            "project.id",
+            "project.title",
+          ],
+          filter: {
+            organization: { _eq: selectedOrgId.value },
+            status: { _nin: ["completed"] },
+            assigned_to: { directus_users_id: { _eq: user.value.id } },
+          },
+          sort: ["-date_updated"],
+          limit: 30,
+        })) as any[];
+        allNotifications.push(...tasks.map(transformTask));
+      } catch (e) {
+        console.warn("Failed to fetch task notifications:", e);
+      }
+
       // Fetch comments on threads the user participates in (authored a comment
       // on the same target), by others, excluding @mentions (those surface as
       // mentions). Isolated — hoa_comments may not exist until Phase 5.
@@ -844,6 +903,7 @@ export const useNotifications = () => {
     localStorage.removeItem(getStorageKey("membership"));
     localStorage.removeItem(getStorageKey("comment"));
     localStorage.removeItem(getStorageKey("request"));
+    localStorage.removeItem(getStorageKey("task"));
   };
 
   // Helper functions
@@ -933,6 +993,12 @@ export const useNotifications = () => {
       return notification.priority === "urgent"
         ? { bg: "bg-red-50", text: "text-red-700", icon: "clipboard-list" }
         : { bg: "bg-amber-50", text: "text-amber-700", icon: "clipboard-list" };
+    }
+
+    if (notification.type === "task") {
+      return notification.priority === "urgent"
+        ? { bg: "bg-red-50", text: "text-red-700", icon: "check-circle" }
+        : { bg: "bg-violet-50", text: "text-violet-700", icon: "check-circle" };
     }
 
     return { bg: "bg-stone-50", text: "text-stone-700", icon: "bell" };

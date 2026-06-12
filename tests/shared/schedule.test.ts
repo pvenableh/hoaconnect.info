@@ -5,6 +5,9 @@ import {
   isWeekend,
   computeEndDate,
   spanDays,
+  nextBusinessDay,
+  computeDependencyShifts,
+  type ScheduleEvent,
 } from "~~/shared/projects/schedule";
 
 describe("parseDateOnly / toDateOnly", () => {
@@ -81,5 +84,66 @@ describe("spanDays", () => {
   it("defaults to 1 on missing input", () => {
     expect(spanDays(null, "2026-06-15")).toBe(1);
     expect(spanDays("2026-06-11", null)).toBe(1);
+  });
+});
+
+describe("nextBusinessDay", () => {
+  it("returns the following weekday", () => {
+    expect(nextBusinessDay("2026-06-11")).toBe("2026-06-12"); // Thu → Fri
+  });
+  it("jumps the weekend", () => {
+    expect(nextBusinessDay("2026-06-12")).toBe("2026-06-15"); // Fri → Mon
+  });
+  it("returns null for garbage", () => {
+    expect(nextBusinessDay(null)).toBeNull();
+  });
+});
+
+describe("computeDependencyShifts", () => {
+  // A(Mon 8th, 2d → Tue 9th) → B(Wed 10th, 2d → Thu 11th) → C(Fri 12th, 1d)
+  const chain = (): ScheduleEvent[] => [
+    { id: "A", title: "A", event_date: "2026-06-08", duration_days: 2, end_date: "2026-06-09" },
+    { id: "B", title: "B", event_date: "2026-06-10", duration_days: 2, end_date: "2026-06-11", depends_on: "A" },
+    { id: "C", title: "C", event_date: "2026-06-12", duration_days: 1, end_date: "2026-06-12", depends_on: "B" },
+  ];
+
+  it("is empty when nothing actually moves", () => {
+    // Re-assert A's current dates → no movement anywhere.
+    expect(computeDependencyShifts(chain(), "A", "2026-06-08", 2)).toEqual([]);
+  });
+
+  it("cascades a forward shift through the whole chain", () => {
+    // Push A out by a week: Mon 15th, 2d → Tue 16th.
+    const shifts = computeDependencyShifts(chain(), "A", "2026-06-15", 2);
+    expect(shifts.map((s) => s.id)).toEqual(["A", "B", "C"]);
+    const byId = Object.fromEntries(shifts.map((s) => [s.id, s]));
+    expect(byId.A.newEnd).toBe("2026-06-16");
+    expect(byId.B.newStart).toBe("2026-06-17"); // next business day after A's end
+    expect(byId.B.newEnd).toBe("2026-06-18");
+    expect(byId.C.newStart).toBe("2026-06-19"); // next business day after B's end (Fri)
+  });
+
+  it("only pushes forward — slack downstream absorbs an early move", () => {
+    // Move A earlier; B already starts after A's new end, so B/C don't move.
+    const shifts = computeDependencyShifts(chain(), "A", "2026-06-01", 2);
+    expect(shifts.map((s) => s.id)).toEqual(["A"]);
+  });
+
+  it("stops the cascade when a dependent still has room", () => {
+    // C sits far in the future; shifting B by a day shouldn't reach C.
+    const events: ScheduleEvent[] = [
+      { id: "B", title: "B", event_date: "2026-06-10", duration_days: 2, end_date: "2026-06-11" },
+      { id: "C", title: "C", event_date: "2026-07-01", duration_days: 1, end_date: "2026-07-01", depends_on: "B" },
+    ];
+    const shifts = computeDependencyShifts(events, "B", "2026-06-11", 2);
+    expect(shifts.map((s) => s.id)).toEqual(["B"]);
+  });
+
+  it("is cycle-safe", () => {
+    const events: ScheduleEvent[] = [
+      { id: "X", event_date: "2026-06-08", duration_days: 1, end_date: "2026-06-08", depends_on: "Y" },
+      { id: "Y", event_date: "2026-06-09", duration_days: 1, end_date: "2026-06-09", depends_on: "X" },
+    ];
+    expect(() => computeDependencyShifts(events, "X", "2026-06-15", 1)).not.toThrow();
   });
 });

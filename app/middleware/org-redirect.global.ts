@@ -25,6 +25,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     '/api/',
     '/account',
     '/ui-kit', // design system showcase (main-domain, no org context)
+    '/approve', // public tokenized milestone-approval link
   ];
 
   if (skipPaths.some(path => to.path.startsWith(path))) {

@@ -67,11 +67,22 @@ const fmt = (s: string | null | undefined) =>
               >
                 <Icon v-if="ev.status === 'completed'" name="lucide:check" class="w-2 h-2 text-white" />
               </span>
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
                 <Icon :name="EVENT_TYPE_META[(ev.type as string) || 'phase']?.icon" class="w-3.5 h-3.5 t-text-muted" />
                 <span class="text-sm font-medium t-text">{{ ev.title }}</span>
+                <span v-if="ev.is_milestone" class="text-[9px] uppercase font-semibold t-text-accent">Milestone</span>
+                <span
+                  v-if="ev.approval === 'approved'"
+                  class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                >Approved</span>
+                <span
+                  v-else-if="ev.approval === 'needs_approval'"
+                  class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold t-bg-accent t-text-accent"
+                >Pending approval</span>
               </div>
-              <p v-if="fmt(ev.event_date)" class="text-xs t-text-muted">{{ fmt(ev.event_date) }}</p>
+              <p v-if="fmt(ev.event_date)" class="text-xs t-text-muted">
+                {{ fmt(ev.event_date) }}<template v-if="fmt(ev.end_date) && ev.end_date !== ev.event_date"> → {{ fmt(ev.end_date) }}</template>
+              </p>
             </li>
           </ol>
         </div>

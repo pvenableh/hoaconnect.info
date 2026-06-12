@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
       fields: [
         "id", "status", "title", "description", "type", "event_date",
         "duration_days", "end_date", "is_milestone", "approval",
+        "approved_at", "approval_note", "approval_token_expires",
         "cost_amount", "sort", "date_created",
         { assigned_to: ["id", "first_name", "last_name", "avatar"] },
         { depends_on: ["id", "title"] },
@@ -35,5 +36,6 @@ export default defineEventHandler(async (event) => {
 
   const list = (rows || []) as Record<string, any>[];
   if (access.elevated) return list;
-  return list.map((r) => stripBudgetFields(r, EVENT_BUDGET_FIELDS));
+  // Members never see cost, the approver's note, or the live link expiry.
+  return list.map((r) => stripBudgetFields(r, [...EVENT_BUDGET_FIELDS, "approval_note", "approval_token_expires"]));
 });

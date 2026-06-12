@@ -23,7 +23,7 @@ export const EXPENSE_STATUSES = [
 const EXPENSE_FIELDS = [
   "id", "status", "category", "title", "vendor", "amount",
   "expense_date", "paid_date", "description", "notes",
-  "receipt", "organization", "date_created",
+  "receipt", "organization", "project", "date_created",
 ];
 
 export function useExpenses() {

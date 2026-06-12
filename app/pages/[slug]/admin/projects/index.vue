@@ -11,7 +11,7 @@ const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
 const { list } = useProjects();
 
-const view = ref<"board" | "list">("board");
+const view = ref<"board" | "list" | "timeline">("board");
 const statusFilter = ref<string>("active-set");
 const showNew = ref(false);
 
@@ -67,17 +67,17 @@ useHead({ bodyAttrs: { class: "" } });
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <div class="inline-flex rounded-full t-bg-alt p-0.5">
           <button
-            v-for="opt in [{ k: 'board', i: 'lucide:columns-3', l: 'Board' }, { k: 'list', i: 'lucide:list', l: 'List' }]"
+            v-for="opt in [{ k: 'board', i: 'lucide:columns-3', l: 'Board' }, { k: 'list', i: 'lucide:list', l: 'List' }, { k: 'timeline', i: 'lucide:gantt-chart', l: 'Timeline' }]"
             :key="opt.k"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors"
             :class="view === opt.k ? 't-bg-elevated t-text shadow-sm' : 't-text-muted'"
-            @click="view = opt.k as 'board' | 'list'"
+            @click="view = opt.k as 'board' | 'list' | 'timeline'"
           >
             <Icon :name="opt.i" class="w-4 h-4" />{{ opt.l }}
           </button>
         </div>
 
-        <div class="inline-flex gap-1.5">
+        <div v-if="view !== 'timeline'" class="inline-flex gap-1.5">
           <button
             v-for="opt in [{ k: 'active-set', l: 'Active' }, { k: 'all', l: 'All' }, { k: 'archived', l: 'Archived' }]"
             :key="opt.k"
@@ -88,7 +88,10 @@ useHead({ bodyAttrs: { class: "" } });
         </div>
       </div>
 
-      <div v-if="pending" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
+      <!-- Org-wide timeline fetches all projects itself -->
+      <ProjectsOrgTimeline v-if="view === 'timeline'" @open="navigateToOrg(`/admin/projects/${$event}`)" />
+
+      <div v-else-if="pending" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
 
       <template v-else>
         <div v-if="!filtered.length" class="ios-card p-12 text-center">

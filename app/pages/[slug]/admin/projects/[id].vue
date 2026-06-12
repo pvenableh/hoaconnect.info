@@ -32,6 +32,23 @@ const teamName = computed(() =>
 const money = (v: number | string | null | undefined) =>
   v != null && v !== "" ? `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : "—";
 
+// Rolled-up spend: prefer the tagged-expense total, fall back to the manual
+// actual_spend field when no expenses are linked.
+const rolledSpend = computed(() => {
+  const exp = project.value?.expense_total;
+  if (exp != null && exp > 0) return exp;
+  return Number(project.value?.actual_spend) || 0;
+});
+const budgetPct = computed(() => {
+  const b = Number(project.value?.budget_amount) || 0;
+  if (!b) return 0;
+  return Math.min(999, Math.round((rolledSpend.value / b) * 100));
+});
+const overBudget = computed(() => {
+  const b = Number(project.value?.budget_amount) || 0;
+  return b > 0 && rolledSpend.value > b;
+});
+
 const STATUS_OPTS = ["planning", "active", "on_hold", "completed", "archived"];
 
 async function changeStatus(s: string) {
@@ -134,7 +151,22 @@ const TABS = [
           <div class="ios-card p-5">
             <p class="text-xs uppercase tracking-wide t-text-tertiary mb-1">Budget</p>
             <p class="text-2xl font-semibold t-text">{{ money(project.budget_amount) }}</p>
-            <p class="text-sm t-text-muted mt-0.5">Spent {{ money(project.actual_spend) }}</p>
+            <p class="text-sm t-text-muted mt-0.5">
+              Spent {{ money(rolledSpend) }}
+              <span v-if="project.expense_total != null" class="t-text-tertiary">· {{ project.expense_total ? 'from expenses' : 'no expenses tagged' }}</span>
+            </p>
+            <div v-if="Number(project.budget_amount)" class="mt-3">
+              <div class="h-1.5 rounded-full t-bg-subtle overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all"
+                  :class="overBudget ? 'bg-red-500' : ''"
+                  :style="{ width: budgetPct + '%', background: overBudget ? undefined : 'var(--theme-accent-primary)' }"
+                />
+              </div>
+              <p class="text-xs mt-1" :class="overBudget ? 'text-red-600' : 't-text-muted'">
+                {{ budgetPct }}% of budget<span v-if="overBudget"> · over by {{ money(rolledSpend - Number(project.budget_amount)) }}</span>
+              </p>
+            </div>
           </div>
           <div class="ios-card p-5">
             <p class="text-xs uppercase tracking-wide t-text-tertiary mb-1">Milestones</p>
@@ -143,6 +175,15 @@ const TABS = [
           <div class="ios-card p-5">
             <p class="text-xs uppercase tracking-wide t-text-tertiary mb-1">Tasks</p>
             <p class="text-2xl font-semibold t-text">{{ project.tasks?.length || 0 }}</p>
+          </div>
+
+          <div class="ios-card p-5 lg:col-span-3">
+            <ProjectsVendorChips
+              :project-id="projectId"
+              :vendors="project.vendors"
+              :can-write="true"
+              @changed="refresh"
+            />
           </div>
 
           <div v-if="project.children?.length" class="ios-card p-5 lg:col-span-3">
@@ -179,9 +220,9 @@ const TABS = [
           <ProjectsTaskList :project="projectId" />
         </div>
 
-        <!-- Timeline (Phase 3 brings the Gantt; for now, the milestone list) -->
-        <div v-else-if="tab === 'timeline'" class="ios-card p-4">
-          <ProjectsProjectTimeline :project-id="projectId" @changed="refresh" />
+        <!-- Timeline — subway-map Gantt with dependency scheduling + approvals -->
+        <div v-else-if="tab === 'timeline'">
+          <ProjectsProjectGantt :project-id="projectId" :can-write="true" @changed="refresh" />
         </div>
 
         <!-- Files -->

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PaymentExpense } from "~~/types/directus";
+import type { ProjectRow } from "~/composables/useProjects";
 import { toast } from "vue-sonner";
 
 definePageMeta({
@@ -10,6 +11,16 @@ definePageMeta({
 const { selectedOrgId } = await useSelectedOrg();
 const { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
 const { getUrl } = useDirectusFiles();
+const { list: listProjects } = useProjects();
+
+// Projects available to tag an expense against (for the budget rollup).
+const { data: projectOptions } = await useAsyncData(
+  `expense-projects-${selectedOrgId.value}`,
+  () => listProjects().catch(() => [] as ProjectRow[]),
+  { watch: [selectedOrgId], server: false, default: () => [] as ProjectRow[] }
+);
+const projectName = (id: string | null | undefined) =>
+  projectOptions.value?.find((p) => p.id === id)?.title || null;
 
 const { data: expenses, pending, refresh } = await useAsyncData(
   `admin-expenses-${selectedOrgId.value}`,
@@ -37,7 +48,7 @@ const blank = () => ({
   title: "", vendor: "", category: "other" as PaymentExpense["category"],
   status: "draft" as PaymentExpense["status"], amount: null as number | null,
   expense_date: "", paid_date: "", description: "", notes: "",
-  receipt: null as string | null,
+  receipt: null as string | null, project: "" as string,
 });
 const form = ref(blank());
 
@@ -51,6 +62,7 @@ const openEdit = (e: PaymentExpense) => {
     paid_date: e.paid_date ? e.paid_date.slice(0, 10) : "",
     description: e.description || "", notes: e.notes || "",
     receipt: typeof e.receipt === "object" ? (e.receipt as any)?.id : (e.receipt as string) || null,
+    project: (typeof e.project === "object" ? (e.project as any)?.id : (e.project as string)) || "",
   };
   receiptFile.value = null;
   showForm.value = true;
@@ -77,6 +89,7 @@ const save = async () => {
       description: form.value.description || null,
       notes: form.value.notes || null,
       receipt: receiptId || null,
+      project: form.value.project || null,
     };
     if (editingId.value) {
       await update(editingId.value, payload);
@@ -184,6 +197,13 @@ const STATUS_CLASS: Record<string, string> = {
             <Label>Paid date</Label>
             <Input v-model="form.paid_date" type="date" />
           </div>
+          <div v-if="projectOptions?.length" class="space-y-1.5 md:col-span-2">
+            <Label>Project <span class="t-text-muted font-normal">(optional — rolls into the project's budget)</span></Label>
+            <select v-model="form.project" class="w-full px-3 py-2 border rounded-md bg-background">
+              <option value="">No project</option>
+              <option v-for="p in projectOptions" :key="p.id" :value="p.id">{{ p.title }}</option>
+            </select>
+          </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label>Description</Label>
             <Input v-model="form.description" placeholder="What was this for?" />
@@ -242,6 +262,12 @@ const STATUS_CLASS: Record<string, string> = {
               <td class="py-2.5 px-4">
                 <span class="t-text">{{ e.title }}</span>
                 <span v-if="e.vendor" class="t-text-muted text-xs ml-2">{{ e.vendor }}</span>
+                <span
+                  v-if="projectName(typeof e.project === 'object' ? (e.project as any)?.id : (e.project as string))"
+                  class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 text-[10px] t-text-accent ml-2 align-middle"
+                >
+                  <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(typeof e.project === 'object' ? (e.project as any)?.id : (e.project as string)) }}
+                </span>
               </td>
               <td class="py-2.5 px-4 t-text-muted">{{ CAT_LABEL[e.category as string] }}</td>
               <td class="py-2.5 px-4 t-text-muted">{{ fdate(e.expense_date) }}</td>

@@ -960,6 +960,10 @@ export interface HoaProjectEvent {
 	date_created?: string | null;
 	date_updated?: string | null;
 	user_created?: DirectusUser | string | null;
+	/** @description Public approval link expiry */
+	approval_token_expires?: string | null;
+	/** @description Note left by the approver/rejecter */
+	approval_note?: string | null;
 	tasks?: HoaTask[] | string[];
 	spawned_projects?: HoaProject[] | string[];
 	files?: HoaProjectEventsFile[] | string[];
@@ -1010,6 +1014,7 @@ export interface HoaProject {
 	assigned_to?: HoaProjectsUser[] | string[];
 	files?: HoaProjectsFile[] | string[];
 	vendors?: HoaProjectsVendor[] | string[];
+	expenses?: PaymentExpense[] | string[];
 }
 
 export interface HoaProjectsFile {
@@ -1267,6 +1272,8 @@ export interface PaymentExpense {
 	user_created?: DirectusUser | string | null;
 	date_updated?: string | null;
 	user_updated?: DirectusUser | string | null;
+	/** @description Roll this expense up into a project's budget */
+	project?: HoaProject | string | null;
 }
 
 export interface PaymentRequest {

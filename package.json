@@ -38,6 +38,7 @@
     "create:governance": "dotenv -- tsx scripts/create-governance-collection.ts",
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
     "create:expenses": "dotenv -- tsx scripts/create-expenses-collection.ts",
+    "add:project-phase3": "dotenv -- tsx scripts/add-project-phase3-fields.ts",
     "create:property-mgmt": "dotenv -- tsx scripts/create-property-management.ts",
     "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
     "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
