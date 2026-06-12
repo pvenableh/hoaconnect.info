@@ -65,6 +65,52 @@ export interface LandingGeo {
 }
 
 // ---------------------------------------------------------------------------
+// Location section (the editorial "Neighborhood / Location" block).
+//
+// Distinct from the hero `places` widget config (which still feeds the modern
+// glass Location widget): this drives the full-width editorial Location SECTION
+// — a grayscale map, walk/bike/transit stats, and curated nearby highlights.
+// When unset, `resolveLocationConfig` falls back to the legacy `places` data so
+// existing orgs light up the new section without re-entering anything.
+// ---------------------------------------------------------------------------
+
+export interface LandingLocationStat {
+  value: string;
+  unit?: string;
+  label: string;
+}
+
+export interface LandingLocationConfig {
+  heading?: string;
+  intro?: string;
+  walk_score?: number | null;
+  bike_score?: number | null;
+  transit_score?: number | null;
+  /** Curated nearby places (name + walk time + distance). */
+  highlights: LandingPlaceItem[];
+  /** Extra editorial stats shown alongside the scores (e.g. "12 — minutes to the beach"). */
+  stats: LandingLocationStat[];
+}
+
+// ---------------------------------------------------------------------------
+// Gallery section — a full-bleed editorial image gallery (swiper). Images come
+// either from a hand-picked list of Directus file ids ("manual") or live from
+// one of the org's storage folders ("folder", resolved by /api/landing/gallery).
+// ---------------------------------------------------------------------------
+
+export type LandingGallerySource = "manual" | "folder";
+
+export interface LandingGalleryConfig {
+  source: LandingGallerySource;
+  /** Directus folder id to pull from when source === "folder" (defaults to the org root folder). */
+  folder?: string | null;
+  /** Hand-picked Directus file ids when source === "manual". */
+  images: string[];
+  /** Optional editorial eyebrow/caption shown above the gallery. */
+  caption?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Unified content blocks — the admin-orderable list of landing sections.
 //
 // Each block is either a BUILT-IN (positions/toggles a feature whose data lives
@@ -81,7 +127,9 @@ export type LandingBlockType =
   | "listings"
   | "faq"
   | "board"
-  | "contact";
+  | "contact"
+  | "location"
+  | "gallery";
 
 /** Built-in block types carry no data of their own (data lives elsewhere). */
 export const BUILTIN_BLOCK_TYPES: LandingBlockType[] = [
@@ -91,7 +139,17 @@ export const BUILTIN_BLOCK_TYPES: LandingBlockType[] = [
   "faq",
   "board",
   "contact",
+  "location",
+  "gallery",
 ];
+
+/**
+ * Section types that participate in the classic/luxury numbered editorial
+ * narrative ("01 — The Residence"). The remaining built-ins (about/amenities/
+ * board/contact/listings) already carry their own editorial chrome, so they
+ * interleave without a number. See `narrativeSections`.
+ */
+export const NARRATIVE_BLOCK_TYPES: LandingBlockType[] = ["content", "location", "gallery"];
 
 export type ContentLayout =
   | "text-image"
@@ -147,6 +205,10 @@ export interface LandingConfig {
   blocks: LandingBlock[];
   inquiry: LandingInquiryConfig;
   geo?: LandingGeo | null;
+  /** Editorial Location section config (map + scores + highlights). */
+  location?: LandingLocationConfig | null;
+  /** Editorial Gallery section config (full-bleed swiper). */
+  gallery?: LandingGalleryConfig | null;
   /** Opt-in: surface recent sent announcements on the public landing. Off by
    *  default so internal resident comms are never exposed without intent. */
   show_announcements?: boolean;
@@ -248,6 +310,8 @@ export function defaultLandingConfig(): LandingConfig {
     blocks: defaultLandingBlocks(),
     inquiry: { enabled: true, recipient_type: "email", email: null, user: null },
     geo: null,
+    location: null,
+    gallery: null,
     show_announcements: false,
     feature_pm: false,
     pm_contact: false,
@@ -333,6 +397,9 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
       ? { lat: Number(r.geo.lat), lon: Number(r.geo.lon) }
       : null;
 
+  const location = normalizeLocation(r.location);
+  const gallery = normalizeGallery(r.gallery);
+
   return {
     widgets,
     places,
@@ -341,6 +408,8 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
     blocks,
     inquiry,
     geo,
+    location,
+    gallery,
     show_announcements: r.show_announcements === true,
     feature_pm: r.feature_pm === true,
     pm_contact: r.pm_contact === true,
@@ -396,6 +465,84 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   return block;
 }
 
+/** Coerce a stored Location blob into a complete config (or null when absent). */
+function normalizeLocation(raw: any): LandingLocationConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    heading: raw.heading ? String(raw.heading) : undefined,
+    intro: raw.intro ? String(raw.intro) : undefined,
+    walk_score: numOrNull(raw.walk_score),
+    bike_score: numOrNull(raw.bike_score),
+    transit_score: numOrNull(raw.transit_score),
+    highlights: Array.isArray(raw.highlights)
+      ? raw.highlights
+          .filter((i: any) => i && i.name)
+          .map((i: any) => ({
+            name: String(i.name),
+            walk_time: i.walk_time ? String(i.walk_time) : undefined,
+            distance: i.distance ? String(i.distance) : undefined,
+          }))
+      : [],
+    stats: Array.isArray(raw.stats)
+      ? raw.stats
+          .filter((s: any) => s && (s.value || s.label))
+          .map((s: any) => ({
+            value: String(s.value ?? ""),
+            unit: s.unit ? String(s.unit) : undefined,
+            label: String(s.label ?? ""),
+          }))
+      : [],
+  };
+}
+
+/** Coerce a stored Gallery blob into a complete config (or null when absent). */
+function normalizeGallery(raw: any): LandingGalleryConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    source: raw.source === "folder" ? "folder" : "manual",
+    folder: raw.folder ? String(raw.folder) : null,
+    images: Array.isArray(raw.images)
+      ? raw.images.filter((id: any) => typeof id === "string" && id).map((id: any) => String(id))
+      : [],
+    caption: raw.caption ? String(raw.caption) : undefined,
+  };
+}
+
+/**
+ * The effective Location section config — the admin-authored `location`, with
+ * any unset score/highlights falling back to the legacy `places` data so an org
+ * that only ever filled the Neighborhood widget still gets a rich Location
+ * section. Pure; safe to call on a normalized config.
+ */
+export function resolveLocationConfig(cfg: LandingConfig): LandingLocationConfig {
+  const loc = cfg.location;
+  const places = cfg.places || { neighborhood: "", walk_score: null, bike_score: null, items: [] };
+  const highlights =
+    loc && loc.highlights.length ? loc.highlights : Array.isArray(places.items) ? places.items : [];
+  return {
+    heading: loc?.heading || (places.neighborhood ? `The ${places.neighborhood} Neighborhood` : ""),
+    intro: loc?.intro || "",
+    walk_score: loc?.walk_score ?? numOrNull(places.walk_score),
+    bike_score: loc?.bike_score ?? numOrNull(places.bike_score),
+    transit_score: loc?.transit_score ?? null,
+    highlights,
+    stats: loc?.stats || [],
+  };
+}
+
+/** Whether the Location section has anything worth rendering. */
+export function hasLocationContent(loc: LandingLocationConfig, hasGeo: boolean): boolean {
+  return (
+    hasGeo ||
+    loc.walk_score != null ||
+    loc.bike_score != null ||
+    loc.transit_score != null ||
+    !!loc.intro ||
+    loc.highlights.length > 0 ||
+    loc.stats.length > 0
+  );
+}
+
 /** The enabled widget keys, in display order. */
 export function enabledLandingWidgets(cfg: LandingConfig): LandingWidgetKey[] {
   return cfg.widgets.filter((w) => w.enabled).map((w) => w.key);
@@ -404,6 +551,37 @@ export function enabledLandingWidgets(cfg: LandingConfig): LandingWidgetKey[] {
 /** The enabled blocks, in display order. */
 export function enabledLandingBlocks(cfg: LandingConfig): LandingBlock[] {
   return (cfg.blocks || []).filter((b) => b.enabled);
+}
+
+/** One rendered entry in the landing flow — the block plus its display metadata. */
+export interface LandingRenderBlock {
+  block: LandingBlock;
+  /** Alternate background among content sections (editorial rhythm). */
+  alt: boolean;
+  /** Two-digit narrative number ("01") for narrative-capable sections, else "". */
+  number: string;
+}
+
+/**
+ * Walk the enabled blocks in order, assigning the editorial rhythm: content
+ * sections alternate background, and the narrative-capable sections
+ * (content/location/gallery) receive a sequential two-digit number for the
+ * classic/luxury numbered narrative. A content block's own `number_label`, when
+ * set, wins over the sequential number. The other built-ins keep `number: ""`.
+ */
+export function narrativeSections(cfg: LandingConfig): LandingRenderBlock[] {
+  let contentIdx = 0;
+  let narrIdx = 0;
+  return enabledLandingBlocks(cfg).map((block) => {
+    const alt = block.type === "content" ? contentIdx++ % 2 === 1 : false;
+    let number = "";
+    if (NARRATIVE_BLOCK_TYPES.includes(block.type)) {
+      narrIdx += 1;
+      const own = block.number_label?.trim();
+      number = own || String(narrIdx).padStart(2, "0");
+    }
+    return { block, alt, number };
+  });
 }
 
 function numOrNull(v: any): number | null {

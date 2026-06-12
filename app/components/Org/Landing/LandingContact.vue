@@ -49,9 +49,10 @@
       </div>
     </div>
 
-    <!-- Full-bleed grayscale Mapbox map (shown once coordinates are cached). -->
+    <!-- Full-bleed grayscale Mapbox map (shown once coordinates are cached).
+         Suppressed when a dedicated Location section already owns the map. -->
     <LandingMap
-      v-if="geo"
+      v-if="geo && !hideMap"
       :lat="geo.lat"
       :lon="geo.lon"
       :label="organization?.name || 'the community'"
@@ -69,6 +70,8 @@ const props = defineProps({
   slug: { type: String, required: true },
   user: { type: Object, default: null },
   cfg: { type: Object, required: true },
+  // Hide the embedded map when a dedicated Location section already renders one.
+  hideMap: { type: Boolean, default: false },
 });
 
 defineEmits(["inquire"]);

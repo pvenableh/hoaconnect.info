@@ -151,6 +151,10 @@ const load = async () => {
     removedAmenityIds.value = [];
 
     landing.value = normalizeLandingConfig(o.settings?.landing);
+    // Materialize the single-instance section configs so their editors bind
+    // (normalize leaves them null when the org hasn't configured them yet).
+    if (landing.value.blocks.some((b) => b.type === "location")) ensureLocation();
+    if (landing.value.blocks.some((b) => b.type === "gallery")) ensureGallery();
 
     externalUrlInput.value = o.external_url || "";
     externalMode.value = !!o.external_url;
@@ -388,6 +392,8 @@ const BLOCK_META: Record<LandingBlockType, { label: string; icon: string; hint: 
   faq: { label: "FAQ", icon: "lucide:circle-help", hint: "Questions are edited in the FAQ tab." },
   board: { label: "Board", icon: "lucide:users", hint: "Roster lives under Members; toggle visibility here." },
   contact: { label: "Contact", icon: "lucide:mail", hint: "Phone/email are edited in the Content tab." },
+  location: { label: "Location", icon: "lucide:map-pin", hint: "" },
+  gallery: { label: "Gallery", icon: "lucide:images", hint: "" },
 };
 const LAYOUT_LABELS: Record<string, string> = {
   "text-image": "Text + image (image right)",
@@ -421,8 +427,51 @@ const addContentBlock = () =>
     images: [],
     stats: [],
   });
-const addBuiltinBlock = (type: LandingBlockType) =>
+const addBuiltinBlock = (type: LandingBlockType) => {
+  if (type === "location") ensureLocation();
+  if (type === "gallery") ensureGallery();
   landing.value.blocks.push({ id: `b_${type}`, type, enabled: true });
+};
+
+// ---- Location section config (single instance; lives on landing.location) ----
+const ensureLocation = () => {
+  if (!landing.value.location)
+    landing.value.location = {
+      heading: "",
+      intro: "",
+      walk_score: null,
+      bike_score: null,
+      transit_score: null,
+      highlights: [],
+      stats: [],
+    };
+  return landing.value.location;
+};
+const addLocationHighlight = () =>
+  ensureLocation().highlights.push({ name: "", walk_time: "", distance: "" });
+const removeLocationHighlight = (i: number) => landing.value.location?.highlights.splice(i, 1);
+const addLocationStat = () => ensureLocation().stats.push({ value: "", unit: "", label: "" });
+const removeLocationStat = (i: number) => landing.value.location?.stats.splice(i, 1);
+
+// ---- Gallery section config (single instance; lives on landing.gallery) ----
+const ensureGallery = () => {
+  if (!landing.value.gallery)
+    landing.value.gallery = { source: "manual", folder: null, images: [], caption: "" };
+  return landing.value.gallery;
+};
+const onGalleryImage = async (e: Event) => {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  if (!f) return;
+  try {
+    const folderId =
+      typeof org.value?.folder === "object" ? org.value?.folder?.id : org.value?.folder;
+    const up: any = await uploadFile(f, { title: "Gallery image", folder: folderId || undefined });
+    if (up?.id) ensureGallery().images.push(up.id);
+  } catch {
+    toast.error("Image upload failed");
+  }
+};
+const removeGalleryImage = (i: number) => landing.value.gallery?.images.splice(i, 1);
 const removeBlock = (i: number) => landing.value.blocks.splice(i, 1);
 const moveBlock = (i: number, dir: -1 | 1) => {
   const j = i + dir;
@@ -780,6 +829,132 @@ useSeoMeta({ title: "Public site" });
                     </Button>
                   </div>
                 </div>
+              </div>
+
+              <!-- Location section editor -->
+              <div v-else-if="b.type === 'location' && landing.location" class="border-t t-border p-4 space-y-4 t-bg-subtle">
+                <p class="text-xs t-text-muted">
+                  Map, walk/bike/transit scores, and curated nearby places. Scores and places left
+                  blank fall back to your Neighborhood widget settings. The map appears once your
+                  address has been geocoded.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div class="space-y-1.5">
+                    <Label>Heading</Label>
+                    <Input v-model="landing.location.heading" placeholder="The Flamingo Park Neighborhood" />
+                  </div>
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="space-y-1.5">
+                      <Label>Walk</Label>
+                      <Input v-model.number="landing.location.walk_score" type="number" min="0" max="100" placeholder="94" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Bike</Label>
+                      <Input v-model.number="landing.location.bike_score" type="number" min="0" max="100" placeholder="89" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Transit</Label>
+                      <Input v-model.number="landing.location.transit_score" type="number" min="0" max="100" placeholder="72" />
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Intro</Label>
+                  <textarea
+                    v-model="landing.location.intro"
+                    rows="2"
+                    placeholder="A short editorial line about the location…"
+                    class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <Label>Nearby places</Label>
+                  <Button variant="outline" size="sm" @click="addLocationHighlight">
+                    <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add place
+                  </Button>
+                </div>
+                <div v-for="(p, j) in landing.location.highlights" :key="j" class="flex items-center gap-2">
+                  <Input v-model="p.name" placeholder="The Beach" class="flex-1" />
+                  <Input v-model="p.walk_time" placeholder="6 min" class="w-24" />
+                  <Input v-model="p.distance" placeholder="0.5 mi" class="w-24" />
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLocationHighlight(j)">
+                    <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+                <div class="flex items-center justify-between">
+                  <Label>Editorial stats</Label>
+                  <Button variant="outline" size="sm" @click="addLocationStat">
+                    <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add stat
+                  </Button>
+                </div>
+                <div v-for="(s, k) in landing.location.stats" :key="k" class="flex items-center gap-2">
+                  <Input v-model="s.value" placeholder="12" class="w-20" />
+                  <Input v-model="s.unit" placeholder="min" class="w-24" />
+                  <Input v-model="s.label" placeholder="to the beach" class="flex-1" />
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLocationStat(k)">
+                    <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+              </div>
+
+              <!-- Gallery section editor -->
+              <div v-else-if="b.type === 'gallery' && landing.gallery" class="border-t t-border p-4 space-y-4 t-bg-subtle">
+                <div class="space-y-1.5">
+                  <Label>Caption</Label>
+                  <Input v-model="landing.gallery.caption" placeholder="A Closer Look" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Image source</Label>
+                  <div class="inline-flex rounded-lg border t-border p-0.5">
+                    <button
+                      v-for="src in (['manual', 'folder'] as const)"
+                      :key="src"
+                      type="button"
+                      class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                      :class="landing.gallery.source === src ? 'bg-primary text-primary-foreground' : 't-text-muted hover:t-text'"
+                      @click="landing.gallery.source = src"
+                    >
+                      {{ src === "manual" ? "Hand-picked" : "From a folder" }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Manual: upload + manage image list -->
+                <template v-if="landing.gallery.source === 'manual'">
+                  <div class="flex items-center justify-between">
+                    <Label>Images</Label>
+                    <label class="text-sm t-link cursor-pointer">
+                      <input type="file" accept="image/*" class="hidden" @change="onGalleryImage" />
+                      Add image
+                    </label>
+                  </div>
+                  <div v-if="!landing.gallery.images.length" class="text-xs t-text-muted">No images yet.</div>
+                  <div class="flex flex-wrap gap-3">
+                    <div v-for="(id, j) in landing.gallery.images" :key="id" class="relative">
+                      <img :src="fileUrl(id) || ''" class="h-20 w-28 object-cover rounded border t-border" />
+                      <button
+                        type="button"
+                        class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow"
+                        @click="removeGalleryImage(j)"
+                      >
+                        <Icon name="lucide:x" class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Folder: pull live from a storage folder -->
+                <template v-else>
+                  <div class="space-y-1.5">
+                    <Label>Folder ID (optional)</Label>
+                    <Input v-model="landing.gallery.folder" placeholder="Leave blank for your main folder" class="font-mono text-xs" />
+                    <p class="text-xs t-text-muted">
+                      Pulls images live from this folder in your file library (and its subfolders).
+                      Leave blank to use your organization's main folder. Find a folder's ID under
+                      Settings → Files.
+                    </p>
+                  </div>
+                </template>
               </div>
 
               <!-- Built-in hint -->
