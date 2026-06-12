@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 		}
 
 		stripe = new Stripe(stripeSecretKey, {
-			apiVersion: '2024-11-20.acacia',
+			apiVersion: STRIPE_API_VERSION,
 			typescript: true,
 		});
 
@@ -149,7 +149,7 @@ export default defineEventHandler(async (event) => {
 });
 
 // Handler functions
-async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Succeeded:', paymentIntent.id);
 
 	const metadata = paymentIntent.metadata || {};
@@ -186,7 +186,7 @@ async function handlePaymentIntentSucceeded(directus: any, paymentIntent: Stripe
 	}
 }
 
-async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentFailed(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Failed:', paymentIntent.id);
 
 	const metadata = paymentIntent.metadata || {};
@@ -212,13 +212,13 @@ async function handlePaymentIntentFailed(directus: any, paymentIntent: Stripe.Pa
 	}
 }
 
-async function handlePaymentIntentCanceled(directus: any, paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentCanceled(directus: ReturnType<typeof getTypedDirectus>, paymentIntent: Stripe.PaymentIntent) {
 	console.log('Payment Intent Canceled:', paymentIntent.id);
 	// Similar handling as failed payment
 	await handlePaymentIntentFailed(directus, paymentIntent);
 }
 
-async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
+async function handleChargeSucceeded(directus: ReturnType<typeof getTypedDirectus>, charge: Stripe.Charge) {
 	console.log('Charge Succeeded:', charge.id);
 
 	// Update transaction with charge details
@@ -253,7 +253,7 @@ async function handleChargeSucceeded(directus: any, charge: Stripe.Charge) {
 	}
 }
 
-async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
+async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus>, charge: Stripe.Charge) {
 	console.log('Charge Refunded:', charge.id);
 
 	try {
@@ -283,7 +283,7 @@ async function handleChargeRefunded(directus: any, charge: Stripe.Charge) {
 	}
 }
 
-async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subscription, eventType: string) {
+async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirectus>, subscription: Stripe.Subscription, eventType: string) {
 	console.log('Subscription Event:', eventType, subscription.id);
 
 	const customerId = subscription.customer as string;
@@ -363,7 +363,7 @@ async function handleSubscriptionEvent(directus: any, subscription: Stripe.Subsc
 }
 
 // Handler for invoice events (important for subscription renewals)
-async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventType: string) {
+async function handleInvoiceEvent(directus: ReturnType<typeof getTypedDirectus>, invoice: Stripe.Invoice, eventType: string) {
 	console.log('Invoice Event:', eventType, invoice.id);
 
 	const customerId = invoice.customer as string;
@@ -409,7 +409,7 @@ async function handleInvoiceEvent(directus: any, invoice: Stripe.Invoice, eventT
 // --- Stripe Connect handlers ---
 
 // Sync an org's onboarding state whenever its Express account changes.
-async function handleConnectAccountUpdated(directus: any, account: Stripe.Account) {
+async function handleConnectAccountUpdated(directus: ReturnType<typeof getTypedDirectus>, account: Stripe.Account) {
 	console.log('Connect Account Updated:', account.id, {
 		charges_enabled: account.charges_enabled,
 		payouts_enabled: account.payouts_enabled,
@@ -475,7 +475,7 @@ async function handleConnectPayoutEvent(
 // return true (caller skips the per-org branch). Match by subscription id
 // first, then customer id. (docs/plan-agency-multi-property-billing.md §7)
 async function routeBillingAccountSubscription(
-	directus: any,
+	directus: ReturnType<typeof getTypedDirectus>,
 	subscription: Stripe.Subscription,
 	eventType: string
 ): Promise<boolean> {
@@ -530,7 +530,7 @@ async function routeBillingAccountSubscription(
 }
 
 async function routeBillingAccountInvoice(
-	directus: any,
+	directus: ReturnType<typeof getTypedDirectus>,
 	invoice: Stripe.Invoice,
 	eventType: string
 ): Promise<boolean> {
@@ -569,7 +569,7 @@ async function routeBillingAccountInvoice(
 	}
 }
 
-async function updatePaymentRequest(directus: any, paymentRequestId: string, amount: number) {
+async function updatePaymentRequest(directus: ReturnType<typeof getTypedDirectus>, paymentRequestId: string, amount: number) {
 	try {
 		// Get current payment request
 		const request = await directus.request(readItem('payment_requests', paymentRequestId));

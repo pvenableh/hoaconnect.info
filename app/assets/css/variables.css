@@ -40,4 +40,20 @@
   --hoverEasing: cubic-bezier(0.23, 1, 0.32, 1);
   --returnEasing: cubic-bezier(0.445, 0.05, 0.55, 0.95);
   --border-radius-button: 30px;
+
+  /* ── Motion scale ─────────────────────────────────────────────────────────
+     The shared duration/easing vocabulary for native-like motion. Surfaces
+     read these instead of hardcoding ms values so the whole app accelerates
+     or relaxes together (luxury theme overrides --theme-transition-* on top).
+       fast  — hovers, presses, small reveals
+       base  — card/list entrances, dropdowns
+       page  — route transitions
+       panel — sidebar collapse, slide-over push/pop                       */
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-page: 300ms;
+  --motion-panel: 460ms;
+  /* iOS view-controller push curve (Framework7's spring) + sheet settle. */
+  --spring: cubic-bezier(0.36, 0.66, 0.04, 1);
+  --spring-out: cubic-bezier(0.32, 0.72, 0, 1);
 }

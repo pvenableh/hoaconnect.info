@@ -2,11 +2,30 @@
 import type { RequestRow } from "~/composables/useRequests";
 import { getWorkflow, getStateMeta } from "~/config/requestWorkflows";
 
-defineProps<{
+const props = defineProps<{
   requests: RequestRow[];
   basePath: string;
   loading?: boolean;
+  /**
+   * Open rows in the slide-over panel stack (?slide=request:id) instead of
+   * navigating to the full page. The full page stays reachable by URL.
+   * `panelMode: "board"` lights the board affordances inside the panel.
+   */
+  panel?: boolean;
+  panelMode?: string;
 }>();
+
+const slide = useAppSlideOver("request");
+
+function openRow(r: RequestRow, ev: MouseEvent) {
+  if (!props.panel) return;
+  ev.preventDefault();
+  const row = (ev.currentTarget as HTMLElement) ?? undefined;
+  slide.open(r.id, {
+    mode: props.panelMode,
+    flipFrom: flipPayloadFrom(row),
+  });
+}
 
 const accentClass: Record<string, string> = {
   amber: "bg-amber-50 text-amber-700",
@@ -46,6 +65,7 @@ const formatDate = (s: string | null | undefined) =>
         <NuxtLink
           :to="`${basePath}/${r.id}`"
           class="flex items-center gap-3 px-3 py-3 hover:bg-stone-50 rounded-xl transition-colors"
+          @click="openRow(r, $event)"
         >
           <div
             class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"

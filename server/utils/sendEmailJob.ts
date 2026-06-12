@@ -36,7 +36,7 @@ export interface SendJobResult {
  * Resolve the recipient members for an email based on its stored targeting.
  */
 async function resolveRecipients(
-  directus: any,
+  directus: ReturnType<typeof getTypedDirectus>,
   organizationId: string,
   recipientFilter: string,
   recipientIds: string[] | null

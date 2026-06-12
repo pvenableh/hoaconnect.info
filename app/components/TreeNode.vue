@@ -139,20 +139,20 @@ const displayDate = computed(() => {
       @dragleave="emit('dragLeave')"
       @drop="node.type === 'folder' ? emit('drop', node.id, $event) : null"
       :style="indentStyle"
-      class="group flex items-center gap-2 px-3 py-2 rounded hover:bg-stone-100 cursor-pointer transition-colors"
+      class="group flex items-center gap-2 px-3 py-2 rounded hover:t-bg-subtle cursor-pointer transition-colors"
       :class="{
         'bg-blue-50 border border-blue-300':
           isDragOver && node.type === 'folder',
         'bg-blue-100 border border-blue-200':
           isSelected && node.type === 'file',
-        'bg-stone-50': !isDragOver && !isSelected,
+        't-bg-alt': !isDragOver && !isSelected,
       }"
     >
       <!-- Expand/Collapse Button (only for folders with children) -->
       <button
         v-if="node.type === 'folder' && hasChildren"
         @click.stop="emit('toggle', node.id)"
-        class="w-4 h-4 flex items-center justify-center text-stone-500 hover:text-stone-700"
+        class="w-4 h-4 flex items-center justify-center t-text-muted hover:t-text"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -205,7 +205,7 @@ const displayDate = computed(() => {
         <svg
           v-else
           xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4 text-stone-400"
+          class="h-4 w-4 t-text-muted"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -243,10 +243,10 @@ const displayDate = computed(() => {
 
       <!-- Document metadata -->
       <div v-if="node.type === 'file'" class="flex items-center gap-2">
-        <span class="text-xs px-2 py-0.5 bg-stone-200 rounded">
+        <span class="text-xs px-2 py-0.5 t-bg-subtle rounded">
           {{ node.data.document_category?.name }}
         </span>
-        <span class="text-xs text-stone-500">
+        <span class="text-xs t-text-muted">
           {{ displayDate }}
         </span>
       </div>
@@ -266,12 +266,12 @@ const displayDate = computed(() => {
           </button>
           <button
             @click.stop="emit('createSubfolder', node.id)"
-            class="p-1 hover:bg-stone-200 rounded"
+            class="p-1 hover:t-bg-subtle rounded"
             title="Create subfolder"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4 text-stone-600"
+              class="h-4 w-4 t-text-secondary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -317,10 +317,10 @@ const displayDate = computed(() => {
           </button>
           <button
             @click.stop="emit('viewDocument', node.data)"
-            class="p-1 hover:bg-stone-200 rounded"
+            class="p-1 hover:t-bg-subtle rounded"
             title="Download document"
           >
-            <Icon name="i-lucide-download" class="h-4 w-4 text-stone-600" />
+            <Icon name="i-lucide-download" class="h-4 w-4 t-text-secondary" />
           </button>
           <button
             @click.stop="emit('deleteDocument', node.data.id)"

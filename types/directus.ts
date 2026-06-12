@@ -190,6 +190,14 @@ export interface HoaAnnouncement {
 	target_audience?: 'all' | 'owners' | 'tenants' | `board members` | null;
 	organization?: HoaOrganization | string | null;
 	is_pinned?: boolean | null;
+	/** @description Optional CTA button label shown on the announcement. */
+	button_text?: string | null;
+	/** @description CTA button destination — an internal path (/docs) or a full URL. */
+	button_link?: string | null;
+	/** @description Open the CTA link in a new tab even if it looks internal. */
+	external_link?: boolean | null;
+	/** @description Surface this announcement as a toast for members. Off = sheet/feed only. */
+	show_toast?: boolean | null;
 }
 
 export interface HoaBoardMember {
@@ -827,6 +835,14 @@ export interface HoaOrganization {
 	billing_account?: BillingAccount | string | null;
 	/** @description Public landing insights counter ({ views, inquiries }). Maintained by the app. */
 	landing_stats?: Record<string, any> | null;
+	/** @description Stripe Connect (Express) account id — acct_... */
+	stripe_connect_account_id?: string | null;
+	/** @description Synced from Stripe via the account.updated webhook */
+	connect_onboarding_status?: 'none' | 'pending' | 'restricted' | 'active' | null;
+	/** @description Mirror of Stripe account.charges_enabled */
+	connect_charges_enabled?: boolean | null;
+	/** @description Mirror of Stripe account.payouts_enabled */
+	connect_payouts_enabled?: boolean | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

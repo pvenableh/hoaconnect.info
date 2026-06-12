@@ -388,6 +388,13 @@ const {
                 <DashboardWidgetCard
                   v-for="(w, i) in visibleWidgets"
                   :key="w.key"
+                  v-motion
+                  :initial="{ opacity: 0, y: 16 }"
+                  :enter="{
+                    opacity: 1,
+                    y: 0,
+                    transition: { type: 'spring', stiffness: 220, damping: 28, delay: i * 40 },
+                  }"
                   :widget="w"
                   :editing="isEditing"
                   :is-first="i === 0"

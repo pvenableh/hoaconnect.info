@@ -19,6 +19,7 @@
     "add:email-type-alert": "dotenv -- tsx scripts/add-email-type-alert.ts",
     "add:email-scheduling": "dotenv -- tsx scripts/add-email-scheduling-fields.ts",
     "add:external-url": "dotenv -- tsx scripts/add-external-url-field.ts",
+    "add:announcement-cta": "dotenv -- tsx scripts/add-announcement-cta-fields.ts",
     "add:email-branding": "dotenv -- tsx scripts/add-email-branding-fields.ts",
     "create:scheduled-flow": "dotenv -- tsx scripts/create-scheduled-email-flow.ts",
     "restrict:channels": "dotenv -- tsx scripts/restrict-channel-access.ts",
@@ -112,6 +113,7 @@
   },
   "devDependencies": {
     "@sendgrid/mail": "^8.1.5",
+    "@types/mjml": "^5.0.0",
     "@types/node": "^24.10.1",
     "@vite-pwa/nuxt": "^1.0.7",
     "@vitejs/plugin-vue": "^6.0.7",

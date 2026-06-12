@@ -328,7 +328,7 @@ const getFileIcon = (file: DirectusFile): string => {
     <!-- Toolbar -->
     <div
       v-if="editor"
-      class="tiptap-toolbar flex flex-wrap items-center gap-0.5 p-2 border-b bg-stone-50"
+      class="tiptap-toolbar flex flex-wrap items-center gap-0.5 p-2 border-b t-bg-alt"
     >
       <!-- Text Formatting -->
       <div class="flex items-center gap-0.5">
@@ -336,7 +336,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('bold') }"
+          :class="{ 't-bg-subtle': editor.isActive('bold') }"
           @click="editor.chain().focus().toggleBold().run()"
           title="Bold"
         >
@@ -346,7 +346,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('italic') }"
+          :class="{ 't-bg-subtle': editor.isActive('italic') }"
           @click="editor.chain().focus().toggleItalic().run()"
           title="Italic"
         >
@@ -356,7 +356,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('underline') }"
+          :class="{ 't-bg-subtle': editor.isActive('underline') }"
           @click="editor.chain().focus().toggleUnderline().run()"
           title="Underline"
         >
@@ -366,7 +366,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('strike') }"
+          :class="{ 't-bg-subtle': editor.isActive('strike') }"
           @click="editor.chain().focus().toggleStrike().run()"
           title="Strikethrough"
         >
@@ -382,7 +382,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('heading', { level: 1 }) }"
+          :class="{ 't-bg-subtle': editor.isActive('heading', { level: 1 }) }"
           @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
           title="Heading 1"
         >
@@ -392,7 +392,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('heading', { level: 2 }) }"
+          :class="{ 't-bg-subtle': editor.isActive('heading', { level: 2 }) }"
           @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
           title="Heading 2"
         >
@@ -402,7 +402,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('heading', { level: 3 }) }"
+          :class="{ 't-bg-subtle': editor.isActive('heading', { level: 3 }) }"
           @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
           title="Heading 3"
         >
@@ -418,7 +418,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('bulletList') }"
+          :class="{ 't-bg-subtle': editor.isActive('bulletList') }"
           @click="editor.chain().focus().toggleBulletList().run()"
           title="Bullet List"
         >
@@ -428,7 +428,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('orderedList') }"
+          :class="{ 't-bg-subtle': editor.isActive('orderedList') }"
           @click="editor.chain().focus().toggleOrderedList().run()"
           title="Numbered List"
         >
@@ -444,7 +444,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive({ textAlign: 'left' }) }"
+          :class="{ 't-bg-subtle': editor.isActive({ textAlign: 'left' }) }"
           @click="editor.chain().focus().setTextAlign('left').run()"
           title="Align Left"
         >
@@ -454,7 +454,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive({ textAlign: 'center' }) }"
+          :class="{ 't-bg-subtle': editor.isActive({ textAlign: 'center' }) }"
           @click="editor.chain().focus().setTextAlign('center').run()"
           title="Align Center"
         >
@@ -464,7 +464,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive({ textAlign: 'right' }) }"
+          :class="{ 't-bg-subtle': editor.isActive({ textAlign: 'right' }) }"
           @click="editor.chain().focus().setTextAlign('right').run()"
           title="Align Right"
         >
@@ -480,7 +480,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('link') }"
+          :class="{ 't-bg-subtle': editor.isActive('link') }"
           @click="openLinkDialog"
           title="Add Link"
         >
@@ -490,7 +490,7 @@ const getFileIcon = (file: DirectusFile): string => {
           type="button"
           variant="ghost"
           size="sm"
-          :class="{ 'bg-stone-200': editor.isActive('blockquote') }"
+          :class="{ 't-bg-subtle': editor.isActive('blockquote') }"
           @click="editor.chain().focus().toggleBlockquote().run()"
           title="Quote"
         >
@@ -673,7 +673,7 @@ const getFileIcon = (file: DirectusFile): string => {
             <Icon
               v-if="index < folderPath.length - 1"
               name="lucide:chevron-right"
-              class="w-4 h-4 text-stone-400"
+              class="w-4 h-4 t-text-muted"
             />
           </template>
         </div>
@@ -682,7 +682,7 @@ const getFileIcon = (file: DirectusFile): string => {
         <div class="relative">
           <Icon
             name="lucide:search"
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
           />
           <Input
             v-model="fileSearchQuery"
@@ -699,13 +699,13 @@ const getFileIcon = (file: DirectusFile): string => {
           >
             <Icon
               name="lucide:loader-2"
-              class="w-8 h-8 animate-spin text-stone-400"
+              class="w-8 h-8 animate-spin t-text-muted"
             />
           </div>
 
           <div
             v-else-if="browseFolders.length === 0 && filteredFiles.length === 0"
-            class="flex flex-col items-center justify-center h-full text-stone-500"
+            class="flex flex-col items-center justify-center h-full t-text-muted"
           >
             <Icon name="lucide:folder-x" class="w-12 h-12 mb-2" />
             <p>No files found in this folder</p>
@@ -720,7 +720,7 @@ const getFileIcon = (file: DirectusFile): string => {
               v-for="folder in browseFolders"
               :key="folder.id"
               type="button"
-              class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-alt hover:t-border-accent transition-colors"
               @click="navigateToFolder(folder.id, folder.name || 'Folder')"
             >
               <Icon
@@ -737,12 +737,12 @@ const getFileIcon = (file: DirectusFile): string => {
               v-for="file in filteredFiles"
               :key="file.id"
               type="button"
-              class="flex flex-col items-center p-3 rounded-lg border hover:bg-stone-50 hover:border-primary transition-colors group"
+              class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-alt hover:border-primary transition-colors group"
               @click="selectFile(file)"
             >
               <!-- Thumbnail or Icon -->
               <div
-                class="w-16 h-16 mb-2 flex items-center justify-center rounded overflow-hidden bg-stone-100"
+                class="w-16 h-16 mb-2 flex items-center justify-center rounded overflow-hidden t-bg-subtle"
               >
                 <img
                   v-if="getFileThumbnail(file)"
@@ -753,7 +753,7 @@ const getFileIcon = (file: DirectusFile): string => {
                 <Icon
                   v-else
                   :name="getFileIcon(file)"
-                  class="w-8 h-8 text-stone-400"
+                  class="w-8 h-8 t-text-muted"
                 />
               </div>
               <span
@@ -761,7 +761,7 @@ const getFileIcon = (file: DirectusFile): string => {
               >
                 {{ file.title || file.filename_download || "File" }}
               </span>
-              <span class="text-xs text-stone-400">
+              <span class="text-xs t-text-muted">
                 {{ formatFileSize(file.filesize) }}
               </span>
             </button>
@@ -785,7 +785,8 @@ const getFileIcon = (file: DirectusFile): string => {
 }
 
 .tiptap-content .tiptap p.is-editor-empty:first-child::before {
-  @apply text-stone-400 float-left h-0 pointer-events-none;
+  @apply float-left h-0 pointer-events-none;
+  color: var(--theme-text-muted);
   content: attr(data-placeholder);
 }
 
@@ -814,11 +815,14 @@ const getFileIcon = (file: DirectusFile): string => {
 }
 
 .tiptap-content .tiptap blockquote {
-  @apply border-l-4 border-stone-300 pl-4 italic text-stone-600 my-4;
+  @apply border-l-4 pl-4 italic my-4;
+  border-color: var(--theme-border-secondary);
+  color: var(--theme-text-secondary);
 }
 
 .tiptap-content .tiptap hr {
-  @apply my-4 border-stone-200;
+  @apply my-4;
+  border-color: var(--theme-border-primary);
 }
 
 .tiptap-content .tiptap a {
@@ -858,15 +862,17 @@ const getFileIcon = (file: DirectusFile): string => {
 
 .tiptap-content .tiptap table td,
 .tiptap-content .tiptap table th {
-  @apply border border-stone-300 p-2 min-w-[100px];
+  @apply border p-2 min-w-[100px];
+  border-color: var(--theme-border-secondary);
 }
 
 .tiptap-content .tiptap table th {
-  @apply bg-stone-100 font-semibold text-left;
+  @apply font-semibold text-left;
+  background-color: var(--theme-bg-tertiary);
 }
 
 .tiptap-content .tiptap table .selectedCell {
-  @apply bg-stone-100;
+  background-color: var(--theme-bg-tertiary);
 }
 
 .tiptap-content .tiptap .tableWrapper {
@@ -875,7 +881,8 @@ const getFileIcon = (file: DirectusFile): string => {
 
 /* Column resize handle */
 .tiptap-content .tiptap .column-resize-handle {
-  @apply absolute top-0 w-1 bg-stone-400 cursor-col-resize;
+  @apply absolute top-0 w-1 cursor-col-resize;
+  background-color: var(--theme-text-muted);
   right: -2px;
   bottom: -2px;
 }
