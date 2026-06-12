@@ -16,6 +16,7 @@ export type ModuleKey =
   | "meetings"
   | "polls"
   | "requests"
+  | "projects"
   | "moderation"
   | "documents"
   | "rules"

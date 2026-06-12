@@ -31,6 +31,7 @@
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",
     "create:teams": "dotenv -- tsx scripts/create-teams-collections.ts",
+    "create:projects": "dotenv -- tsx scripts/create-projects-collections.ts",
     "create:polls": "dotenv -- tsx scripts/create-polls-collections.ts",
     "extend:pets-vehicles": "dotenv -- tsx scripts/extend-pets-vehicles-units.ts",
     "create:leases": "dotenv -- tsx scripts/create-leases-collection.ts",

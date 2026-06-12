@@ -151,6 +151,7 @@ export function useAppNav() {
     { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
     { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests"] },
+    { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", match: ["/admin/projects"] },
     { key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
     { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email", "/admin/announcements"] },
     // "More" holds the lower-frequency tools (units/board/teams/vendors/rules/
@@ -169,6 +170,7 @@ export function useAppNav() {
     { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
     { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
     { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
+    { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },
   ];
 
   // Hide apps whose org module is toggled off (Track B). An app's `key` doubles

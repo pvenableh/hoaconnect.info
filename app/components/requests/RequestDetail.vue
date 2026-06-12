@@ -181,6 +181,28 @@ const spawnTask = async () => {
     spawningTask.value = false;
   }
 };
+
+// ── Promote to project ────────────────────────────────────────────────────────
+const { promoteRequest } = useProjects();
+const { isEnabled: moduleEnabled } = useModules();
+const projectsEnabled = computed(() => moduleEnabled("projects"));
+const linkedProject = computed(() =>
+  props.request.project && typeof props.request.project === "object" ? props.request.project : null
+);
+const promoting = ref(false);
+const doPromote = async () => {
+  if (promoting.value) return;
+  promoting.value = true;
+  try {
+    const { projectId } = await promoteRequest(props.request.id, {});
+    emit("updated");
+    await navigateTo(buildOrgPath(`/admin/projects/${projectId}`));
+  } catch {
+    /* toast surfaced in composable */
+  } finally {
+    promoting.value = false;
+  }
+};
 </script>
 
 <template>
@@ -278,6 +300,30 @@ const spawnTask = async () => {
         >
           <Icon name="lucide:list-plus" class="w-3.5 h-3.5 mr-1" />
           Spawn task
+        </Button>
+      </div>
+
+      <!-- Promote to / view linked project (board + admin, projects module on) -->
+      <div
+        v-if="isBoard && projectsEnabled"
+        class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-stone-100"
+      >
+        <NuxtLink v-if="linkedProject" :to="buildOrgPath(`/admin/projects/${linkedProject.id}`)">
+          <Button size="sm" variant="outline" class="rounded-full">
+            <Icon name="lucide:kanban-square" class="w-3.5 h-3.5 mr-1" />
+            {{ linkedProject.title || "View project" }}
+          </Button>
+        </NuxtLink>
+        <Button
+          v-else
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :disabled="promoting"
+          @click="doPromote"
+        >
+          <Icon name="lucide:rocket" class="w-3.5 h-3.5 mr-1" />
+          Promote to project
         </Button>
       </div>
     </div>

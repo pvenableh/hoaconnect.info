@@ -28,6 +28,7 @@ export interface RequestRow {
   attachments?: string[] | null;
   metadata?: Record<string, any> | null;
   parent_request?: string | RequestRow | null;
+  project?: { id: string; title?: string } | string | null;
   organization?: string | null;
   date_created?: string | null;
   date_updated?: string | null;
@@ -57,6 +58,8 @@ const REQUEST_FIELDS = [
   "member.id",
   "member.first_name",
   "member.last_name",
+  "project.id",
+  "project.title",
 ];
 
 export const useRequests = () => {

@@ -20,7 +20,7 @@ type PanelLoader = () => Promise<{ default: Component }>;
 
 const REGISTRY: Record<string, PanelLoader> = {
   request: () => import("./RequestPanel.vue"),
-  // Registered by the PM module (Phase 2): project, project-event, task.
+  task: () => import("./TaskPanel.vue"),
 };
 
 const componentCache = new Map<string, Component>();
