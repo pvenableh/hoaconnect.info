@@ -8,6 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js",
     "seed:605-content": "dotenv -- tsx scripts/seed-605-content.ts",
@@ -112,8 +114,11 @@
     "@sendgrid/mail": "^8.1.5",
     "@types/node": "^24.10.1",
     "@vite-pwa/nuxt": "^1.0.7",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.11",
     "directus-sdk-typegen": "^0.2.1",
     "dotenv-cli": "^8.0.0",
+    "happy-dom": "^17.6.3",
     "postcss": "^8.5.5",
     "postcss-nested": "^7.0.2",
     "prettier": "^3.5.3",
@@ -121,7 +126,8 @@
     "sharp": "^0.34.4",
     "tailwindcss-safe-area": "^1.1.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.6"
   },
   "packageManager": "pnpm@9.4.0+sha512.f549b8a52c9d2b8536762f99c0722205efc5af913e77835dbccc3b0b0b2ca9e7dc8022b78062c17291c48e88749c70ce88eb5a74f1fa8c4bf5e18bb46c8bd83a"
 }
