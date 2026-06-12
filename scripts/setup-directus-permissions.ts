@@ -51,6 +51,10 @@ type PermissionLevel =
   | "full"
   | "read_create_update"
   | "read_only"
+  // Read-only scoped to member_visible projects, budget/cost fields stripped.
+  // Project-management collections only (hoa_projects/events/tasks). Members
+  // otherwise reach these through the elevated /api/org/* routes.
+  | "member_visible_read"
   | "member_specific"
   | "none";
 
@@ -271,6 +275,69 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     memberLevel: "read_only", // Members can see their transactions
     filterType: "organization",
     description: "Payment transactions",
+  },
+
+  // ========== Project Management (Phase 2–3) ==========
+  // Members & Property Managers reach projects/events/tasks ONLY through the
+  // elevated /api/org/* routes (static token, member_visible + grant scoping
+  // enforced server-side), so their Directus-level access here is "none". Admin
+  // gets full CRUD, org-scoped.
+  {
+    collection: "hoa_projects",
+    adminLevel: "full",
+    memberLevel: "member_visible_read",
+    filterType: "organization",
+    description: "Projects (PM module)",
+  },
+  {
+    collection: "hoa_project_events",
+    adminLevel: "full",
+    memberLevel: "member_visible_read",
+    filterType: "organization",
+    description: "Project events / milestones",
+  },
+  {
+    collection: "hoa_tasks",
+    adminLevel: "full",
+    memberLevel: "member_visible_read",
+    filterType: "organization",
+    description: "Tasks (polymorphic)",
+  },
+  // M2M junctions — org-scoped through their parent (special filters below).
+  {
+    collection: "hoa_projects_users",
+    adminLevel: "full",
+    memberLevel: "none",
+    filterType: "none",
+    description: "Project assignee junction",
+  },
+  {
+    collection: "hoa_projects_files",
+    adminLevel: "full",
+    memberLevel: "none",
+    filterType: "none",
+    description: "Project files junction",
+  },
+  {
+    collection: "hoa_projects_vendors",
+    adminLevel: "full",
+    memberLevel: "none",
+    filterType: "none",
+    description: "Project vendors junction",
+  },
+  {
+    collection: "hoa_project_events_files",
+    adminLevel: "full",
+    memberLevel: "none",
+    filterType: "none",
+    description: "Project-event files junction",
+  },
+  {
+    collection: "hoa_tasks_users",
+    adminLevel: "full",
+    memberLevel: "none",
+    filterType: "none",
+    description: "Task assignee junction",
   },
 
   // ========== Settings & Branding ==========
@@ -737,6 +804,20 @@ function buildPermissionsForLevel(
         }
       : null;
 
+  // Special handling for PM junction collections — org-scoped through the
+  // parent project/event so an HOA Admin only touches their own org's rows.
+  const currentUserOrgs = "$CURRENT_USER.hoa_members.organization";
+  const junctionParent: Record<string, string> = {
+    hoa_projects_users: "hoa_projects_id",
+    hoa_projects_files: "hoa_projects_id",
+    hoa_projects_vendors: "hoa_projects_id",
+    hoa_project_events_files: "hoa_project_events_id",
+    hoa_tasks_users: "hoa_tasks_id",
+  };
+  const junctionFilter = junctionParent[collection]
+    ? { [junctionParent[collection]]: { organization: { _in: currentUserOrgs } } }
+    : null;
+
   // Determine the filter to use
   const filter =
     boardMemberFilter ||
@@ -744,6 +825,7 @@ function buildPermissionsForLevel(
     mailingListMemberFilter ||
     emailActivityFilter ||
     memberUnitsFilter ||
+    junctionFilter ||
     effectiveFilter;
 
   switch (level) {
@@ -757,6 +839,45 @@ function buildPermissionsForLevel(
         fields: ["*"],
       });
       break;
+
+    case "member_visible_read": {
+      // Residents read only member_visible projects (and events/tasks under
+      // them), never budget/cost fields. Mirrors the hand-built Phase-2 grant
+      // in create-projects-collections.ts, on the canonical org-resolution
+      // form ($CURRENT_USER.hoa_members.organization).
+      const orgScope = { organization: { _in: currentUserOrgs } };
+      const VISIBLE_FILTERS: Record<string, any> = {
+        hoa_projects: { _and: [orgScope, { member_visible: { _eq: true } }] },
+        hoa_project_events: { _and: [orgScope, { project: { member_visible: { _eq: true } } }] },
+        hoa_tasks: { _and: [orgScope, { project: { member_visible: { _eq: true } } }] },
+      };
+      const VISIBLE_FIELDS: Record<string, string[]> = {
+        hoa_projects: [
+          "id", "status", "title", "description", "organization", "team",
+          "parent_project", "parent_event", "children", "start_date", "due_date",
+          "completion_date", "color", "icon", "member_visible", "events", "tasks",
+          "date_created", "date_updated",
+        ],
+        hoa_project_events: [
+          "id", "status", "project", "title", "description", "type", "event_date",
+          "duration_days", "end_date", "is_milestone", "depends_on", "approval",
+          "organization", "tasks", "date_created", "date_updated", "sort",
+        ],
+        hoa_tasks: [
+          "id", "status", "title", "priority", "due_date", "parent_task",
+          "subtasks", "project", "project_event", "organization", "sort",
+        ],
+      };
+      permissions.push({
+        policy: policyId,
+        collection,
+        action: "read",
+        permissions: VISIBLE_FILTERS[collection] || filter || {},
+        validation: null,
+        fields: VISIBLE_FIELDS[collection] || ["*"],
+      });
+      break;
+    }
 
     case "read_create_update":
       // Like "full" but without delete — the safe ceiling for operational

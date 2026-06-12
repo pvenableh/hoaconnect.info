@@ -19,6 +19,7 @@
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { randomBytes } from "node:crypto";
+import { boardTitleToActor, hasCapability } from "~~/shared/permissions";
 
 export interface ProjectAccess {
   userId: string;
@@ -95,6 +96,30 @@ export async function requireProjectsWrite(
   if (access.canWriteAll) return access;
   if (projectTeamId && access.leadTeamIds.includes(projectTeamId)) return access;
   throw createError({ statusCode: 403, message: "Not authorized to manage projects" });
+}
+
+/**
+ * Authorize a milestone APPROVE/REJECT. Broader than a plain project write:
+ * project owners (admin / PM-with-projects-grant / the project's team lead) may
+ * decide, AND so may the executive board offices (president / VP) via the
+ * `milestone:approve` capability — board oversight that doesn't require project
+ * write rights. Throws 403 otherwise.
+ */
+export async function requireMilestoneApprove(
+  event: H3Event,
+  organizationId: string,
+  projectTeamId?: string | null
+): Promise<{ userId: string; via: "project" | "board" }> {
+  const access = await getProjectAccess(event, organizationId);
+  if (access.canWriteAll || (projectTeamId && access.leadTeamIds.includes(projectTeamId))) {
+    return { userId: access.userId, via: "project" };
+  }
+  const office = await getBoardPosition(event, organizationId);
+  const actor = boardTitleToActor(office);
+  if (actor && hasCapability([actor], "milestone:approve")) {
+    return { userId: access.userId, via: "board" };
+  }
+  throw createError({ statusCode: 403, message: "Not authorized to approve milestones" });
 }
 
 /** Budget fields stripped from non-elevated (member) responses. */

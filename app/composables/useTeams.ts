@@ -55,7 +55,7 @@ export const useTeams = () => {
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
   const { list: listTeams, create: createTeam, update: updateTeam, remove: removeTeam } =
     useDirectusItems<Team>("hoa_teams");
-  const { list: listMembers, create: createMember, remove: removeMember } =
+  const { list: listMembers, create: createMember, update: updateMember, remove: removeMember } =
     useDirectusItems<TeamMember>("hoa_team_members");
 
   const teamId = (m: TeamMember) => (typeof m.team === "string" ? m.team : m.team?.id);
@@ -114,6 +114,36 @@ export const useTeams = () => {
   };
   const removeTeamMember = (id: string) => removeMember(id);
 
+  /** Promote/demote a team member between lead and plain member. */
+  const setLead = (memberRowId: string, isLead: boolean) =>
+    updateMember(memberRowId, { role: isLead ? "lead" : "member" } as Partial<TeamMember>);
+
+  /** Fetch one team by id (org-scoped). */
+  const getTeam = async (id: string): Promise<Team | null> => {
+    const rows = (await listTeams({
+      fields: ["id", "name", "domain", "color", "icon", "description", "status", "organization"],
+      filter: { id: { _eq: id }, organization: { _eq: selectedOrgId.value } },
+      limit: 1,
+    })) as Team[];
+    return rows?.[0] ?? null;
+  };
+
+  /** Members of a single team. */
+  const listTeamMembers = (tid: string) =>
+    listMembers({
+      fields: [
+        "id", "role", "organization",
+        "user.id", "user.first_name", "user.last_name", "user.email",
+        "member.id", "member.first_name", "member.last_name",
+      ],
+      filter: { organization: { _eq: selectedOrgId.value }, team: { _eq: tid } },
+      sort: ["role", "user.first_name"],
+      limit: 200,
+    });
+
+  /** Projects owned by a team (via the elevated projects route). */
+  const teamProjects = (tid: string) => useProjects().list({ team: tid });
+
   const canManageRequestType = (myDomains: Set<TeamDomain>, type: string | null | undefined): boolean => {
     const d = TYPE_TO_DOMAIN[(type as RequestType) || "task"];
     return d ? myDomains.has(d) : false;
@@ -129,6 +159,10 @@ export const useTeams = () => {
     deleteTeam,
     addTeamMember,
     removeTeamMember,
+    setLead,
+    getTeam,
+    listTeamMembers,
+    teamProjects,
     canManageRequestType,
     teamId,
     memberUserId,

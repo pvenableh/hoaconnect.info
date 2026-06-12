@@ -1,7 +1,9 @@
 import { readItems, updateItem } from "@directus/sdk";
 
 /**
- * In-app approve / reject a milestone (admin / PM-projects / team lead).
+ * In-app approve / reject a milestone. Authorized for project owners (admin /
+ * PM-projects / the project's team lead) AND the executive board offices
+ * (president / VP) via the `milestone:approve` capability.
  * Body: { orgId, decision: "approved" | "rejected", note? }. Approving stamps
  * approved_by/at and invalidates the public link; rejecting records the note
  * and clears the link. Notifies whoever requested approval (best-effort).
@@ -16,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const meta = await getEventMeta(id);
   if (meta.organization !== orgId) throw createError({ statusCode: 404, message: "Event not found" });
-  const access = await requireProjectsWrite(event, orgId, meta.projectTeam);
+  const access = await requireMilestoneApprove(event, orgId, meta.projectTeam);
 
   const directus = getTypedDirectus();
 

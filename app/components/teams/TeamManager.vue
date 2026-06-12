@@ -18,6 +18,7 @@ const {
   memberUserId,
 } = useTeams();
 const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+const { buildOrgPath } = useOrgNavigation();
 const { list: listOrgMembers } = useDirectusItems("hoa_members");
 
 const teams = ref<Team[]>([]);
@@ -161,7 +162,13 @@ const onDeleteTeam = async (t: Team) => {
       <div v-for="t in teams" :key="t.id" class="ios-card p-5">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h3 class="font-semibold text-stone-900">{{ t.name }}</h3>
+            <NuxtLink
+              :to="buildOrgPath(`/admin/teams/${t.id}`)"
+              class="font-semibold text-stone-900 hover:underline inline-flex items-center gap-1"
+            >
+              {{ t.name }}
+              <Icon name="lucide:arrow-up-right" class="w-3.5 h-3.5 text-stone-400" />
+            </NuxtLink>
             <div class="flex items-center gap-2 mt-1">
               <span class="text-xs text-stone-400">Domain:</span>
               <select

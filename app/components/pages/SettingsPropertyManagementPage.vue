@@ -63,6 +63,7 @@ const GRANTS = [
   { key: "directory", label: "View directory", desc: "See the member directory (names, units, contact)." },
   { key: "documents", label: "View documents", desc: "Access the community's documents." },
   { key: "communications", label: "Send communications", desc: "Send emails to members. Higher-trust." },
+  { key: "projects", label: "Manage projects", desc: "Create and manage projects, milestones, and tasks." },
 ] as const;
 
 const categoryLabel = (v: HoaVendor) =>
