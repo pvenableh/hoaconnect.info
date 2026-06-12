@@ -104,12 +104,13 @@ img {
   transform: scale(0.95);
 }
 
-/* Page Transitions */
+/* Page Transitions — durations/easing ride the motion-token scale so the
+   whole app's pacing is tuned in one place (variables.css). */
 .page-enter-active,
 .page-leave-active {
   transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
+    opacity var(--motion-page, 300ms) var(--spring-out, ease),
+    transform var(--motion-page, 300ms) var(--spring-out, ease);
 }
 
 .page-enter-from {
@@ -125,7 +126,7 @@ img {
 /* Layout Transitions */
 .layout-enter-active,
 .layout-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--motion-page, 300ms) ease;
 }
 
 .layout-enter-from,

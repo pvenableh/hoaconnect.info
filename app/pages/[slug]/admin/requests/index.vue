@@ -35,6 +35,16 @@ const onCreated = async (id: string) => {
   await refresh();
   navigateTo(`${basePath.value}/${id}`);
 };
+
+// Rows open in the slide-over panel; re-fetch when it closes so any status
+// transitions made inside the panel land back in the list.
+const route = useRoute();
+watch(
+  () => route.query.slide,
+  (now, was) => {
+    if (was && !now) refresh();
+  }
+);
 </script>
 
 <template>
@@ -95,7 +105,13 @@ const onCreated = async (id: string) => {
       </div>
 
       <div class="ios-card p-2">
-        <RequestsRequestList :requests="filtered" :base-path="basePath" :loading="pending" />
+        <RequestsRequestList
+          :requests="filtered"
+          :base-path="basePath"
+          :loading="pending"
+          panel
+          panel-mode="board"
+        />
       </div>
     </PageContainer>
   </div>

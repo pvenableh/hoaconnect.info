@@ -53,8 +53,15 @@ const visibleGroups = computed(() =>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <NuxtLink
-            v-for="item in group.items"
+            v-for="(item, ii) in group.items"
             :key="item.label"
+            v-motion
+            :initial="{ opacity: 0, y: 14 }"
+            :enter="{
+              opacity: 1,
+              y: 0,
+              transition: { type: 'spring', stiffness: 220, damping: 28, delay: gi * 80 + ii * 40 },
+            }"
             :to="item.to"
             class="ios-card p-5 flex items-start gap-4 hover:shadow-lg transition-shadow group"
           >

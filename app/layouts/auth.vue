@@ -192,6 +192,12 @@ onMounted(() => {
       <AppChannelsPanel />
     </ClientOnly>
 
+    <!-- Global slide-over detail-panel stack (?slide=type:id) — the single
+         mount; pages open panels via useAppSlideOver(type).open(id). -->
+    <ClientOnly>
+      <AppSlideOverStack />
+    </ClientOnly>
+
     <!-- Admin "view as" switcher (workspace · member · public landing) -->
     <ClientOnly>
       <OrgViewSwitcher />
