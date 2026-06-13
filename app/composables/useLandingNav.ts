@@ -1,10 +1,9 @@
 /**
  * Shared nav model for the public landing.
  *
- * One source of truth consumed by all three theme-specific nav surfaces:
- *   • LandingSidebar — classic/luxury editorial rail (desktop)
- *   • LandingDock    — modern iOS dock (all viewports)
- *   • LandingDrawer  — the dark-glass mobile drawer (editorial mobile fallback)
+ * One source of truth consumed by the theme-specific nav surfaces:
+ *   • LandingDock   — modern iOS dock (all viewports)
+ *   • LandingDrawer — classic/luxury dark-glass slide-in side menu (all viewports)
  *
  * The model: public "explore" anchors, the LOCKED member-portal sections (so a
  * logged-out visitor senses a full portal behind the page), Resident/Member

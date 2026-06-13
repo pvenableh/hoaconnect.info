@@ -11,12 +11,7 @@
    - app/pages/index.vue         (a verified custom domain's clean root)
 -->
 <template>
-  <div
-    id="top"
-    ref="rootEl"
-    class="transition-[padding] duration-[460ms] ease-[cubic-bezier(0.65,0,0.35,1)] will-change-[padding]"
-    :class="navVariant === 'editorial' ? (landingNavCollapsed ? 'lg:pl-14' : 'lg:pl-60') : ''"
-  >
+  <div id="top" ref="rootEl">
     <!-- Theme-aware navigation (editorial sidebar+drawer, or modern dock) -->
     <OrgLandingNav
       :organization="organization"
@@ -279,12 +274,7 @@ const props = defineProps({
 const { user } = useDirectusAuth();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const { navigateToOrg } = useOrgNavigation();
-const { themeStyle } = useTheme();
 const config = useRuntimeConfig();
-
-// Editorial themes (classic/luxury) get the persistent left sidebar, so the page
-// is offset on desktop to make room for it; modern uses a floating dock (no offset).
-const navVariant = computed(() => (themeStyle.value === "modern" ? "dock" : "editorial"));
 
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
@@ -312,10 +302,6 @@ const heroEyebrow = computed(() => {
   const parts = [o?.city, neighborhood].filter(Boolean);
   return parts.length ? parts.join(" · ") : o?.street_address || "";
 });
-
-// Editorial sidebar collapse state, shared with LandingSidebar (default slim so
-// the landing reads full-bleed like 1033). Drives the desktop content offset.
-const landingNavCollapsed = useState("landingNavCollapsed", () => true);
 
 // Nav anchor gating (the section bodies themselves live in LandingBlocks).
 const hasAmenities = computed(

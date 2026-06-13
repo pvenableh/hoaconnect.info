@@ -27,8 +27,8 @@
 
       <!-- Panel -->
       <aside
-        class="landing-drawer fixed top-0 right-0 z-[61] h-full w-[82%] max-w-xs flex flex-col text-white transition-transform duration-300 ease-out"
-        :class="open ? 'translate-x-0' : 'translate-x-full'"
+        class="landing-drawer fixed top-0 right-0 z-[61] h-full w-[88%] max-w-sm sm:max-w-md flex flex-col text-white transition-transform duration-300 ease-out"
+        :class="open ? 'translate-x-0 is-open' : 'translate-x-full'"
         role="dialog"
         aria-modal="true"
       >
@@ -42,12 +42,12 @@
         <nav class="flex-1 overflow-y-auto px-5 py-6">
           <!-- Explore (public sections) -->
           <p class="px-3 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">Explore</p>
-          <ul class="space-y-1">
+          <ul class="landing-drawer__list space-y-0.5">
             <li v-for="link in links" :key="link.label">
               <component
                 :is="link.to ? NuxtLink : 'a'"
                 v-bind="link.to ? { to: link.to } : { href: link.href }"
-                class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm uppercase tracking-wide text-white/85 hover:bg-white/10 transition-colors"
+                class="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] uppercase tracking-[0.28em] text-white/85 hover:bg-white/10 transition-colors"
                 @click="open = false"
               >
                 <Icon :name="link.icon" class="w-4 h-4 opacity-80" />
@@ -63,11 +63,11 @@
             <p class="px-3 mt-7 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">
               {{ memberNoun.singular }} portal
             </p>
-            <ul class="space-y-1">
+            <ul class="landing-drawer__list space-y-0.5">
               <li v-for="p in portalLinks" :key="p.key">
                 <a
                   :href="lockHref"
-                  class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm uppercase tracking-wide text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
+                  class="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] uppercase tracking-[0.28em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
                   @click="open = false"
                 >
                   <Icon :name="p.icon" class="w-4 h-4 opacity-60" />
@@ -167,5 +167,36 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .landing-fade-enter-from,
 .landing-fade-leave-to {
   opacity: 0;
+}
+
+/* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items
+   start nudged right + faded, then settle one after another once the panel
+   is open. */
+.landing-drawer__list > li {
+  opacity: 0;
+  transform: translateX(36px);
+  transition:
+    opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-drawer.is-open .landing-drawer__list > li {
+  opacity: 1;
+  transform: translateX(0);
+}
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(1) { transition-delay: 0.05s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(2) { transition-delay: 0.08s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(3) { transition-delay: 0.11s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(4) { transition-delay: 0.14s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(5) { transition-delay: 0.17s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(6) { transition-delay: 0.20s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(7) { transition-delay: 0.23s; }
+.landing-drawer.is-open .landing-drawer__list > li:nth-child(8) { transition-delay: 0.26s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-drawer__list > li {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 </style>
