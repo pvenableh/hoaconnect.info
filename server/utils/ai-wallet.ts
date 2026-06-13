@@ -11,6 +11,7 @@
 
 import { createItem, readItems, updateItem } from "@directus/sdk";
 import { creditsForUsage, type TokenUsage } from "~~/shared/ai/credits";
+import { shouldResetAllowance, nextResetISO } from "~~/shared/ai/allowance";
 import type { AiWallet } from "~~/types/directus";
 
 /** Read the org's wallet, creating an empty one on first use. */
@@ -36,6 +37,72 @@ export async function getOrCreateWallet(orgId: string): Promise<AiWallet> {
   )) as AiWallet;
 }
 
+/** Resolve the org's monthly AI-credit allowance from its subscription plan. */
+async function resolvePlanIncludedCredits(orgId: string): Promise<number> {
+  try {
+    const rows = (await getTypedDirectus().request(
+      readItems("hoa_organizations", {
+        filter: { id: { _eq: orgId } },
+        // Typed client needs the nested-object field form (no dotted strings).
+        fields: [{ subscription_plan: ["included_credits"] }],
+        limit: 1,
+      })
+    )) as { subscription_plan?: { included_credits?: number } | null }[];
+    return rows?.[0]?.subscription_plan?.included_credits ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Provision/refresh the plan allowance. On a wallet that's never been funded or
+ * whose period has elapsed, the allowance pool is RESET to the plan's monthly
+ * `included_credits` (leftover allowance does not roll over), the next reset
+ * date is stamped, and a `grant` ledger row records the entitlement. The
+ * permanent purchased pool is never touched. Returns the current wallet.
+ *
+ * NOTE: agency-billed orgs (billing_account set, own subscription_plan often
+ * null) get 0 here for now — entitlement up to the agency account is a Phase-2
+ * follow-up; those orgs can still buy packs.
+ */
+export async function ensurePlanAllowance(orgId: string): Promise<AiWallet> {
+  const wallet = await getOrCreateWallet(orgId);
+  const now = new Date();
+  if (!shouldResetAllowance(wallet.period_resets_at ?? null, now)) return wallet;
+
+  const included = await resolvePlanIncludedCredits(orgId);
+  const purchased = wallet.purchased_credits ?? 0;
+  const newBalance = included + purchased;
+  const periodResetsAt = nextResetISO(now);
+
+  const directus = getTypedDirectus();
+  await directus.request(
+    updateItem("ai_wallets", wallet.id, {
+      allowance_credits: included,
+      included_credits: included,
+      period_resets_at: periodResetsAt,
+      balance_credits: newBalance,
+    } as any)
+  );
+  if (included > 0) {
+    await directus.request(
+      createItem("ai_transactions", {
+        organization: orgId,
+        type: "grant",
+        credits: included,
+      } as any)
+    );
+  }
+
+  return {
+    ...wallet,
+    allowance_credits: included,
+    included_credits: included,
+    period_resets_at: periodResetsAt,
+    balance_credits: newBalance,
+  };
+}
+
 export interface WalletSummary {
   walletId: string;
   balanceCredits: number;
@@ -46,7 +113,9 @@ export interface WalletSummary {
 }
 
 export async function getWalletSummary(orgId: string): Promise<WalletSummary> {
-  const w = await getOrCreateWallet(orgId);
+  // Provision/refresh the plan allowance on read so wallets self-fund on first
+  // use and at each period boundary without a separate cron.
+  const w = await ensurePlanAllowance(orgId);
   const allowance = w.allowance_credits ?? 0;
   const purchased = w.purchased_credits ?? 0;
   return {
