@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "nuxt typecheck",
     "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js",
     "seed:605-content": "dotenv -- tsx scripts/seed-605-content.ts",
@@ -54,6 +55,7 @@
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@directus/sdk": "^20.2.0",
     "@directus/visual-editing": "^1.1.0",
     "@iconify-icons/wi": "^1.2.3",

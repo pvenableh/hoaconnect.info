@@ -12,6 +12,52 @@ export interface ExtensionSeoMetadata {
     no_follow?: boolean;
 }
 
+export interface AiTransaction {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	type: 'debit' | 'purchase' | 'grant' | 'refund';
+	/** @description Positive magnitude of credits. @required */
+	credits: number;
+	feature?: 'draft' | 'rewrite' | 'summarize' | 'ask' | 'chat' | null;
+	/** @description Anthropic model id used (for debits). */
+	model?: string | null;
+	input_tokens?: number | null;
+	output_tokens?: number | null;
+	cache_read_tokens?: number | null;
+	cache_write_tokens?: number | null;
+	/** @description Stripe payment_intent id — idempotency key for purchases. */
+	stripe_id?: string | null;
+	/** @description Acting user (for debits). */
+	user?: DirectusUser | string | null;
+	date_created?: string | null;
+}
+
+export interface AiWallet {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Cached total balance (allowance + purchased). */
+	balance_credits?: number;
+	/** @description Plan-funded credits remaining this period (resets). */
+	allowance_credits?: number;
+	/** @description Purchased credits remaining (never expire). */
+	purchased_credits?: number;
+	/** @description This plan's monthly allowance grant. */
+	included_credits?: number;
+	/** @description When the allowance pool next resets. */
+	period_resets_at?: string | null;
+	auto_refill_enabled?: boolean | null;
+	/** @description Balance below which auto-refill triggers. */
+	auto_refill_threshold?: number | null;
+	auto_refill_pack?: 'small' | 'medium' | 'large' | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
 export interface BillingAccountMember {
 	/** @primaryKey */
 	id: string;
@@ -1387,6 +1433,8 @@ export interface SubscriptionPlan {
 	is_active?: boolean | null;
 	is_featured?: boolean | null;
 	trial_days?: number | null;
+	/** @description Monthly AI-credit allowance for this plan tier. */
+	included_credits?: number;
 }
 
 export interface DirectusAccess {
@@ -1837,6 +1885,8 @@ export interface DirectusExtension {
 }
 
 export interface Schema {
+	ai_transactions: AiTransaction[];
+	ai_wallets: AiWallet[];
 	billing_account_members: BillingAccountMember[];
 	billing_accounts: BillingAccount[];
 	block_hero: BlockHero[];
@@ -1926,6 +1976,8 @@ export interface Schema {
 }
 
 export enum CollectionNames {
+	ai_transactions = 'ai_transactions',
+	ai_wallets = 'ai_wallets',
 	billing_account_members = 'billing_account_members',
 	billing_accounts = 'billing_accounts',
 	block_hero = 'block_hero',

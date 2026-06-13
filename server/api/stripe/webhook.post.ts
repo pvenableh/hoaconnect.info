@@ -155,6 +155,32 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 	console.log('Payment Intent Succeeded:', paymentIntent.id);
 
 	const metadata = paymentIntent.metadata || {};
+
+	// AI credit-pack top-up — credit the org wallet (idempotent on the PI id) and
+	// stop; this is platform revenue, not a resident dues transaction.
+	if (metadata.kind === 'ai_credits') {
+		try {
+			const orgId = metadata.org_id;
+			const credits = Number(metadata.credits || 0);
+			if (orgId && credits > 0) {
+				const res = await creditWallet({
+					orgId,
+					kind: 'purchase',
+					credits,
+					stripeId: paymentIntent.id,
+				});
+				console.log(
+					res.credited
+						? `Credited ${credits} AI credits to org ${orgId} (balance ${res.balanceCredits})`
+						: `AI credit purchase ${paymentIntent.id} already applied — skipped`,
+				);
+			}
+		} catch (err) {
+			console.error('Error crediting AI wallet:', err);
+		}
+		return;
+	}
+
 	const organizationId = metadata.organization_id;
 	const memberId = metadata.member_id;
 	const paymentRequestId = metadata.payment_request_id;

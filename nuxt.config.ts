@@ -39,6 +39,10 @@ export default defineNuxtConfig({
     // /api/landing/weather. One platform key covers all tenants; if unset the
     // weather widget hides gracefully.
     openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
+    // Anthropic (Claude) key for the metered AI assistant ("Draft with AI" +
+    // credit economy). Server-only; if unset the AI routes return 503 and the
+    // composer's Draft-with-AI button hides.
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY,
     // Universal invite email template (handles invitation, welcome, and accepted notification emails)

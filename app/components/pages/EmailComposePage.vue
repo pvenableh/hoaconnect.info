@@ -903,6 +903,15 @@ useSeoMeta({
                 </div>
               </CardHeader>
               <CardContent class="space-y-4">
+                <!-- AI assistant: draft/rewrite into subject + body, with a
+                     credit meter and one-tap top-up. Hides if AI is unconfigured
+                     or the caller can't spend the org wallet. -->
+                <AiDraftWithAi
+                  :org-id="orgId"
+                  v-model:subject="form.subject"
+                  v-model:content="form.content"
+                />
+
                 <div class="space-y-2">
                   <Label for="subject">Subject *</Label>
                   <Input

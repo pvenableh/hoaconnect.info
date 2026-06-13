@@ -1,0 +1,91 @@
+// Anthropic (Claude) client factory + the "Draft with AI" prompt. Server-only —
+// the API key never reaches the client. Drafting uses the cheap DRAFT_MODEL
+// (Haiku) tier; the system prompt is marked cacheable so it can share a cache
+// prefix once org context grows (Haiku's cache minimum means it's a no-op for
+// today's short prompt — harmless, and it pays off as context expands).
+
+import Anthropic from "@anthropic-ai/sdk";
+import type { H3Event } from "h3";
+
+// Actor hats allowed to spend the org wallet on AI (the composer is an
+// admin/board/PM surface — a plain member never reaches it). resolveActors is
+// auto-imported from server/utils/board-access.ts.
+const COMPOSE_ACTORS = new Set([
+  "admin",
+  "board_president",
+  "board_vp",
+  "board_treasurer",
+  "board_secretary",
+  "board_member",
+  "property_manager",
+]);
+
+/** Require the caller to be a comms-capable actor in `orgId`; returns the actor set. */
+export async function requireOrgComposeAccess(event: H3Event, orgId: string): Promise<string[]> {
+  const actors = await resolveActors(event, orgId);
+  if (!actors.some((a) => COMPOSE_ACTORS.has(a))) {
+    throw createError({ statusCode: 403, message: "Not authorized for this organization" });
+  }
+  return actors;
+}
+
+/** Resolve the key from runtimeConfig (preferred) or the raw env. */
+export function getAnthropicKey(): string | null {
+  const fromConfig = (useRuntimeConfig().anthropicApiKey as string) || "";
+  return fromConfig || process.env.ANTHROPIC_API_KEY || null;
+}
+
+export function isAiConfigured(): boolean {
+  return !!getAnthropicKey();
+}
+
+export function getAnthropic(): Anthropic {
+  const apiKey = getAnthropicKey();
+  if (!apiKey) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: "AI assistant is not configured (missing ANTHROPIC_API_KEY).",
+    });
+  }
+  return new Anthropic({ apiKey });
+}
+
+/** System prompt for composing association communications. */
+export function draftSystemPrompt(orgName?: string | null): string {
+  const org = orgName ? ` for ${orgName}` : "";
+  return [
+    `You are an assistant that drafts clear, warm, professional email communications${org} — a homeowners / community association.`,
+    "",
+    "Rules:",
+    "- Return the SUBJECT on the very first line, prefixed exactly with 'Subject: ', then a blank line, then the email body.",
+    "- The body is clean semantic HTML only: <p>, <ul>/<li>, <strong>, <em>, <a>. No <html>/<head>/<body> wrapper, no markdown, no code fences.",
+    "- Keep it concise and ready for a human to review and send.",
+    "- Never invent specific facts (dates, dollar amounts, names, deadlines) that were not provided. Where a specific value is needed but unknown, use a {{merge_field}} placeholder.",
+    "- Match a courteous, neighborly tone appropriate for residents.",
+  ].join("\n");
+}
+
+/**
+ * Build the user turn for a draft/rewrite. When `existing` is supplied the
+ * model rewrites it according to `instruction`; otherwise it drafts fresh.
+ */
+export function draftUserPrompt(opts: {
+  instruction: string;
+  existingSubject?: string | null;
+  existingBody?: string | null;
+}): string {
+  const { instruction, existingSubject, existingBody } = opts;
+  const hasExisting = !!(existingSubject || existingBody);
+  if (hasExisting) {
+    return [
+      "Rewrite the following draft according to this instruction:",
+      instruction.trim(),
+      "",
+      "--- CURRENT SUBJECT ---",
+      existingSubject || "(none)",
+      "--- CURRENT BODY (HTML) ---",
+      existingBody || "(none)",
+    ].join("\n");
+  }
+  return `Write the email described here:\n${instruction.trim()}`;
+}
