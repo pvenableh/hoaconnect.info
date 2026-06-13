@@ -1,383 +1,165 @@
-# Property Flow - HOA/Property Management Platform
+# HOA Connect (Property Flow)
 
-A modern property management platform built with Nuxt 4, Directus CMS, and shadcn-vue. This application provides comprehensive HOA/property management features including authentication, payment processing, member management, and document handling.
+A multi-tenant HOA / property-management SaaS built with **Nuxt 4**, **Directus**, and **shadcn-vue**. One app serves many associations — each with its own members, board, documents, payments, communications, public landing page, and (optionally) a custom domain.
+
+The codebase is organized around a few big systems: a resident **portal**, an admin **workspace**, a **Communications** engine (branded email + internal channels), **payments** (resident dues via Stripe Connect + agency subscriptions), a lightweight **project-management** module, **roles & capabilities**, and an in-progress **AI assistant + credit economy**.
+
+---
 
 ## Features
 
-- **Authentication**: Complete auth flows with login, registration, password reset, and member invitations
-- **Multi-Organization Support**: Users can belong to multiple HOAs/organizations
-- **Payment Processing**: Integrated Stripe payments for dues and assessments
-- **Member Management**: Invite and manage HOA members with role-based access
-- **Document Management**: Upload and organize documents with Directus file handling
-- **Real-time Updates**: WebSocket subscriptions for live data updates
-- **Multi-tenant**: Subdomain-based organization routing (`[org].hoaconnect.com`). Custom domain (APEX) setups are available as a separate agency engagement.
+- **Multi-tenant** — every org is reached at `/{slug}` (e.g. `/605-lincoln`) and, optionally, its own **custom apex domain** (Caddy on-demand TLS → `server/utils/domains.ts`). Strict per-org tenant isolation throughout.
+- **Auth** — login, registration, password reset, member invitations, and a hardened session layer (`nuxt-auth-utils` + Directus token refresh).
+- **Roles & capabilities** — code-first capability matrix (`shared/permissions.ts`): admin, board officers, property manager, team lead, member. `RoleGate` / `useCapabilities` gate the UI; server routes enforce.
+- **Resident portal** — module-gated dashboard hub (household, documents, payments, meetings, announcements, requests, rules, board, projects) with motion-aware entrances and a unified notification center.
+- **Admin workspace** — theme-driven nav (collapsible sidebar for classic/luxury orgs, floating dock for modern), consolidated section hubs, customizable dashboard widgets.
+- **Communications** — branded transactional + bulk email (SendGrid/MJML, templates, merge fields, scheduled & recurring sends) plus **Channels**, a Slack-style internal admin/board chat (slide-over panel, mentions, reactions, realtime).
+- **Payments** — resident dues & assessments via **Stripe Connect**, simple expense/budget tracking, and **agency** (multi-property) subscription billing.
+- **Project management** — projects with nested milestones (business-day scheduling, dependencies, approvals), polymorphic tasks, budgets, vendor assignment, and a Gantt/timeline view.
+- **Public site** — per-org editorial landing page (built-in) or redirect to a bespoke external site, theme-swappable (classic / luxury / modern).
+- **Documents, meetings, vendors, teams, polls, governance, file storage** — each a module that can be toggled per org.
+- **AI assistant + token economy** *(in progress)* — a metered "Draft with AI" composer monetized with purchasable AI credits. See `docs/plan-anthropic-ai-assistant-tokens.md`.
+
+---
 
 ## Tech Stack
 
-- **Framework**: [Nuxt 4](https://nuxt.com/) with Vue 3
-- **CMS/Backend**: [Directus](https://directus.io/) SDK v20+
-- **UI Components**: [shadcn-vue](https://www.shadcn-vue.com/) with Tailwind CSS v4
-- **Authentication**: [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) for session management
-- **Forms**: [vee-validate](https://vee-validate.logaretm.com/) with [zod](https://zod.dev/) schemas
-- **Payments**: [Stripe](https://stripe.com/) for payment processing
-- **Icons**: [Nuxt Icon](https://nuxt.com/modules/icon) with Heroicons and Lucide
-- **Animations**: [GSAP](https://greensock.com/gsap/) for smooth animations
-- **Notifications**: [vue-sonner](https://vue-sonner.vercel.app/) for toast notifications
+- **Framework** — [Nuxt 4](https://nuxt.com/) (Vue 3, Nitro server)
+- **Backend / CMS** — [Directus](https://directus.io/) (Postgres), accessed via the Directus SDK
+- **UI** — [shadcn-vue](https://www.shadcn-vue.com/) + [Tailwind CSS v4](https://tailwindcss.com/); theme tokens drive per-org classic/luxury/modern styling
+- **Auth** — [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) sessions over Directus auth
+- **Forms** — [vee-validate](https://vee-validate.logaretm.com/) + [zod](https://zod.dev/)
+- **Payments** — [Stripe](https://stripe.com/) (Connect for dues, subscriptions for agencies)
+- **Email** — [SendGrid](https://sendgrid.com/) + MJML render path
+- **Motion** — `@vueuse/motion` presets (`shared/motion/`) + [GSAP](https://greensock.com/gsap/)
+- **Charts / maps** — [unovis](https://unovis.dev/) (client-only), Mapbox, OpenWeather
+- **Testing** — [Vitest](https://vitest.dev/) + happy-dom
+- **AI** *(upcoming)* — [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) (Claude)
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm (recommended) or npm
-- A Directus instance with proper collections configured
+- **Node.js 22** (CI pins 22; [`fnm`](https://github.com/Schniz/fnm) recommended)
+- **pnpm 9** (the repo pins a version via `packageManager`)
+- A **Directus** instance with the project's collections (provisioned by the `scripts/` migrations)
 
-### Installation
+### Install & run
 
 ```bash
-# Clone the repository
-git clone https://github.com/pvenableh/605-Lincoln.git
-cd 605-Lincoln
+git clone https://github.com/pvenableh/hoaconnect.info.git
+cd hoaconnect.info
 
-# Install dependencies
 pnpm install
 
-# Copy environment file
+# Configure environment (see below)
 cp .env.example .env
 
-# Configure your environment variables (see below)
-
-# Start development server
-pnpm dev
+pnpm dev          # http://localhost:3000
 ```
 
-## Environment Configuration
+> The dev server talks to whatever `DIRECTUS_URL` points at — typically the **production** Directus. Don't create throwaway test data against prod.
 
-Create a `.env` file with the following variables:
+---
+
+## Environment
+
+All variables live in **`.env`** (git-ignored). Start from `.env.example`, which documents every variable grouped by feature. The only blocks strictly required to boot are **Directus** (`DIRECTUS_URL`, `DIRECTUS_WEBSOCKET_URL`, `DIRECTUS_STATIC_TOKEN`) and **Session** (`NUXT_SESSION_PASSWORD`, ≥ 32 chars). Email, Stripe, maps, scheduled flows, and AI each have their own optional block.
+
+Config is wired into `runtimeConfig` in `nuxt.config.ts` — most `NUXT_PUBLIC_*` role/branding ids have sensible baked-in defaults.
+
+---
+
+## Scripts
 
 ```bash
-# ===========================================
-# DIRECTUS CMS CONFIGURATION
-# ===========================================
-DIRECTUS_URL=https://your-directus-instance.com
-DIRECTUS_WEBSOCKET_URL=wss://your-directus-instance.com/websocket
-DIRECTUS_STATIC_TOKEN=your-static-admin-token
-
-# ===========================================
-# SESSION CONFIGURATION
-# ===========================================
-# Must be at least 32 characters
-NUXT_SESSION_PASSWORD=your-session-password-min-32-chars
-
-# ===========================================
-# DIRECTUS ROLES (UUIDs from your Directus instance)
-# ===========================================
-NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN=your-admin-role-uuid
-NUXT_PUBLIC_DIRECTUS_ROLE_USER=your-default-user-role-uuid
-
-# ===========================================
-# APPLICATION CONFIGURATION
-# ===========================================
-APP_URL=http://localhost:3000
-FROM_EMAIL=noreply@your-domain.com
-NUXT_PUBLIC_MAIN_DOMAIN=your-domain.com
-
-# ===========================================
-# SENDGRID EMAIL SERVICE (Optional)
-# ===========================================
-SENDGRID_API_KEY=SG.xxxxx
-# Universal invite email template (handles invitation, welcome, and accepted notification emails)
-SENDGRID_INVITE_EMAIL_TEMPLATE_ID=d-c4e7e8c3c0684cc281b313583453f530
-
-# ===========================================
-# STRIPE PAYMENT CONFIGURATION (Optional)
-# ===========================================
-STRIPE_PUBLIC_KEY_TEST=pk_test_xxxxx
-STRIPE_SECRET_KEY_TEST=sk_test_xxxxx
-STRIPE_PUBLIC_KEY_LIVE=pk_live_xxxxx
-STRIPE_SECRET_KEY_LIVE=sk_live_xxxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxxx
-
+pnpm dev                 # dev server
+pnpm build               # production build (nuxt build)
+pnpm preview             # preview the production build
+pnpm test                # run the Vitest unit suite
+pnpm exec nuxt typecheck # type-check (vue-tsc) — there is no `pnpm typecheck` alias
+pnpm generate:types      # regenerate types/directus.ts from the live Directus schema
 ```
 
-## Project Structure
+### Schema migrations (Directus-as-code)
+
+Directus collections/fields are provisioned by **idempotent** scripts under `scripts/` (≈ 40 of them), exposed as `create:*` / `add:*` / `setup:*` pnpm scripts (see `package.json`). They read `DIRECTUS_URL` + `DIRECTUS_STATIC_TOKEN`, skip anything that already exists, and are safe to re-run. The standard flow when adding schema:
+
+```bash
+pnpm create:<thing>     # e.g. create:projects, create:meetings, create:ai-wallets
+pnpm generate:types     # refresh the typed Directus client
+pnpm setup:permissions  # reconcile role permissions (diff-aware; supports --only / --collections)
+```
+
+---
+
+## Multi-tenancy & domains
+
+- **Slug routing** — each org renders under `/{slug}`; the workspace lives at `/{slug}/admin/*`, the resident portal at `/{slug}/*`.
+- **Custom domains** — an org can bind an apex domain. `app/middleware/domain-detector.global.ts` resolves the host → org and enforces isolation (a foreign slug on a bound domain redirects home). TLS is issued on demand via Caddy — see `docs/custom-domains-setup.md`.
+- **External site mode** — an org with a bespoke marketing site can redirect public visitors there while keeping the portal at `…/{slug}/dashboard`.
+
+Platform marketing lives in a **separate** Nuxt project; this app is the product only.
+
+---
+
+## Project structure
 
 ```
 /
-├── app/                          # Nuxt application code
-│   ├── pages/                    # Route pages
-│   ├── components/               # Vue components
-│   │   ├── Auth/                 # Authentication forms
-│   │   ├── Payment/              # Payment components
-│   │   └── ui/                   # shadcn-vue components
-│   ├── composables/              # Vue composables
-│   ├── layouts/                  # Page layouts
-│   ├── middleware/               # Route middleware
-│   ├── plugins/                  # Nuxt plugins
-│   ├── lib/                      # Client-side utilities
-│   └── assets/                   # CSS and static assets
-├── server/                       # Server-side code
-│   ├── api/                      # API endpoints
-│   │   ├── auth/                 # Authentication APIs
-│   │   ├── directus/             # Directus proxy APIs
-│   │   ├── hoa/                  # HOA management APIs
-│   │   ├── stripe/               # Payment APIs
-│   │   └── vercel/               # Domain management APIs
-│   ├── middleware/               # Server middleware
-│   └── utils/                    # Server utilities
-├── types/                        # TypeScript definitions
-├── providers/                    # Custom providers (Directus image)
-└── nuxt.config.ts               # Nuxt configuration
+├── app/                    # Nuxt app (pages, components, composables, layouts, middleware)
+│   ├── components/         #   shadcn-vue ui/, plus feature components (channels/, feed/, …)
+│   ├── composables/        #   useDirectus*, useModules, useCapabilities, useAppNav, …
+│   ├── layouts/            #   auth (workspace), channels, auth-blank, default
+│   └── middleware/         #   module/domain/org global guards
+├── server/                 # Nitro server
+│   ├── api/                #   auth/, org/, hoa/, stripe/, domains/, ai/ (upcoming) …
+│   └── utils/              #   getTypedDirectus / getUserDirectus / getPublicDirectus, domains, email
+├── shared/                 # framework-free, unit-tested logic shared by app + server
+│   ├── ai/                 #   credit economics (token→cost→credits, wallet/ledger math)
+│   ├── motion/ notifications/ projects/ permissions.ts
+├── scripts/                # idempotent Directus schema migrations + ops scripts
+├── tests/                  # Vitest unit tests (mirrors shared/, composables/, server/)
+├── docs/                   # setup guides + design/plan docs
+├── types/directus.ts       # generated Directus schema types
+└── nuxt.config.ts
 ```
 
-## Authentication Components
+---
 
-The following authentication components are available in `app/components/Auth/`:
+## Server Directus clients
 
-| Component | Description |
-|-----------|-------------|
-| `LoginForm.vue` | Email/password login with OAuth options |
-| `RegisterForm.vue` | New user registration |
-| `PasswordResetRequestForm.vue` | Request password reset email |
-| `PasswordResetForm.vue` | Reset password with token |
-| `AcceptInviteForm.vue` | Accept member invitation |
-
-### Usage Example
-
-```vue
-<template>
-  <LoginForm @success="handleLoginSuccess" />
-</template>
-
-<script setup>
-const router = useRouter()
-
-const handleLoginSuccess = (user) => {
-  router.push('/dashboard')
-}
-</script>
-```
-
-## Composables
-
-### Authentication
+Three server-side client factories, picked by access level:
 
 ```typescript
-// useDirectusAuth - Handle login, logout, register
-const { login, logout, register, user, loggedIn } = useDirectusAuth()
-
-// Login
-await login({ email: 'user@example.com', password: 'password' })
-
-// Check authentication
-if (loggedIn.value) {
-  console.log('User:', user.value)
-}
+const directus = getTypedDirectus()          // admin (static token), fully typed
+const directus = await getUserDirectus(event) // acting user, auto token refresh
+const directus = getPublicDirectus()          // unauthenticated / public reads
 ```
 
-### User Operations
+> **SDK convention:** the typed client rejects dotted field strings — use the nested object form, e.g. `fields: [{ team: ["id", "name"] }]`. Client-side `useDirectusItems` composables tolerate dotted strings.
 
-```typescript
-// useDirectusUser - User profile and management
-const { me, updateProfile, inviteUser, acceptInvite, requestPasswordReset, resetPassword } = useDirectusUser()
+---
 
-// Get current user
-const currentUser = await me()
+## Testing & CI
 
-// Update profile
-await updateProfile({ first_name: 'John', last_name: 'Doe' })
-```
+- `pnpm test` runs the Vitest suite (pure logic in `shared/` is heavily covered).
+- GitHub Actions (`.github/workflows/ci.yml`) runs **unit tests → typecheck → build** on every push/PR. Typecheck is blocking.
 
-### Generic CRUD Operations
-
-```typescript
-// useDirectusItems - Generic collection operations
-const posts = useDirectusItems('posts')
-
-// List items with filtering
-const items = await posts.list({
-  filter: { status: { _eq: 'published' } },
-  sort: ['-date_created'],
-  limit: 10
-})
-
-// Get single item
-const item = await posts.get('item-id')
-
-// Create item
-const newItem = await posts.create({ title: 'Hello World' })
-
-// Update item
-await posts.update('item-id', { title: 'Updated Title' })
-
-// Delete item
-await posts.remove('item-id')
-```
-
-### Public Content Access
-
-For publicly accessible content (no authentication required):
-
-```typescript
-const articles = useDirectusItems('articles', { requireAuth: false })
-const publicContent = await articles.list()
-```
-
-### File Operations
-
-```typescript
-const { upload, getFile, deleteFile, getAssetUrl } = useDirectusFiles()
-
-// Upload file
-const file = await upload(fileBlob, { folder: 'documents' })
-
-// Get asset URL
-const url = getAssetUrl(fileId, { width: 800, quality: 80 })
-```
-
-### Real-time Subscriptions
-
-```typescript
-const { subscribe, unsubscribe } = useDirectusRealtime()
-
-// Subscribe to collection changes
-const unsubscribeFn = await subscribe('messages', {
-  event: 'create',
-  query: { filter: { room: { _eq: roomId } } }
-}, (data) => {
-  console.log('New message:', data)
-})
-
-// Cleanup
-onUnmounted(() => unsubscribeFn())
-```
-
-## Server Utilities
-
-Three Directus client types are available for server-side operations:
-
-```typescript
-// Admin access (static token)
-const directus = getTypedDirectus()
-
-// User-authenticated access (with auto token refresh)
-const directus = await getUserDirectus(event)
-
-// Public access (no authentication)
-const directus = getPublicDirectus()
-```
-
-## API Endpoints
-
-### Authentication (`/api/auth/`)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/login` | POST | Authenticate user |
-| `/api/auth/logout` | POST | End user session |
-| `/api/auth/register` | POST | Create new account |
-| `/api/auth/refresh` | POST | Refresh expired token |
-| `/api/auth/me` | GET | Get current user data |
-
-### Directus Operations (`/api/directus/`)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/directus/items` | POST | Generic CRUD operations |
-| `/api/directus/files` | POST | File operations |
-| `/api/directus/files/upload` | POST | Upload files |
-| `/api/directus/users/*` | Various | User management |
-
-### HOA Management (`/api/hoa/`)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/hoa/setup-organization` | POST | Create new organization |
-| `/api/hoa/invite-member` | POST | Invite new member |
-| `/api/hoa/accept-invitation` | POST | Accept member invite |
-| `/api/hoa/by-slug` | GET | Get org by domain slug |
-
-### Payments (`/api/stripe/`)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/stripe/paymentintent` | POST | Create payment intent |
-| `/api/stripe/webhook` | POST | Handle Stripe webhooks |
-
-## Route Middleware
-
-```typescript
-// Protect routes requiring authentication
-definePageMeta({
-  middleware: 'auth'
-})
-
-// Redirect authenticated users (for login/register pages)
-definePageMeta({
-  middleware: 'guest'
-})
-```
-
-## TypeScript Support
-
-Generate TypeScript types from your Directus schema:
-
-```bash
-# Add to package.json scripts
-"generate:types": "dotenv -e .env -- npx directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts"
-
-# Run generation
-pnpm generate:types
-```
+---
 
 ## Deployment
 
-### Vercel
+Deployed on **Vercel** (Nitro). Configure all required env vars in the Vercel dashboard. Custom apex domains are terminated by a **Caddy** reverse proxy using on-demand TLS gated by `/api/domains/ask` — full setup in `docs/custom-domains-setup.md`. Stripe setup (Connect + agency Prices + webhooks) is in `docs/stripe-setup.md`.
 
-1. Connect your repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Deploy
+---
 
-```bash
-# Optional: Include type generation in build
-"build": "pnpm generate:types && nuxt build"
-```
+## Docs
 
-### Other Platforms
-
-The application can be deployed to any platform supporting Node.js 18+. Ensure all environment variables are configured in your deployment environment.
-
-## Development
-
-```bash
-# Start dev server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview production build
-pnpm preview
-
-# Type check
-pnpm typecheck
-
-# Generate Directus types
-pnpm generate:types
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Setup guides and design/plan docs live in [`docs/`](docs/) — custom domains, Stripe, the agency-billing plan, the AI assistant + token-economy plan, the roadmap, and more.
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Credits
-
-Based on the [Nuxt Directus Auth Starter Template](https://github.com/pvenableh/nuxt-directus-auth-starter-template).
+MIT License — see `LICENSE`.
