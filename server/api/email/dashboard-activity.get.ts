@@ -17,6 +17,11 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Tenant isolation: the caller must be an admin / communications-manager OF
+  // this org. Without this, any signed-in user could read another org's email
+  // activity by passing its id. Mirrors the gate on send.post.ts.
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
+
   try {
     const directus = getTypedDirectus();
 

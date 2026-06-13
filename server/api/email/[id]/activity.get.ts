@@ -4,6 +4,7 @@ import type { HoaEmailActivity } from "~~/types/directus";
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
   const id = getRouterParam(event, "id");
+  const organizationId = String(getQuery(event).organizationId || "");
 
   if (!id) {
     throw createError({
@@ -11,6 +12,16 @@ export default defineEventHandler(async (event) => {
       message: "Email ID is required",
     });
   }
+  if (!organizationId) {
+    throw createError({
+      statusCode: 400,
+      message: "organizationId is required",
+    });
+  }
+
+  // Tenant isolation: only an admin / communications-manager of this org may
+  // read its email activity, and results are hard-scoped to the org.
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
 
   try {
     const directus = getTypedDirectus();
@@ -19,6 +30,7 @@ export default defineEventHandler(async (event) => {
     const activity = await directus.request(
       readItems("hoa_email_activity", {
         filter: {
+          organization: { _eq: organizationId },
           email_recipient: {
             email: { _eq: id },
           },

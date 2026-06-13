@@ -477,6 +477,16 @@ export const sendOrganizationEmail = async ({
     categories.push(`org:${organizationId}`);
   }
 
+  // Always stamp the org id into custom_args (not just the category) so the
+  // activity webhook attributes every event to the right tenant — even for
+  // callers (scheduled/transactional sends) that didn't pass custom_args. This
+  // is the per-org isolation key the webhook reads first.
+  const mergedCustomArgs: Record<string, string> = { ...(customArgs || {}) };
+  if (organizationId && !mergedCustomArgs.organization_id) {
+    mergedCustomArgs.organization_id = organizationId;
+  }
+  const hasCustomArgs = Object.keys(mergedCustomArgs).length > 0;
+
   // Use dynamic template if templateId is provided
   if (templateId && templateData) {
     const dynamicMsg: {
@@ -513,8 +523,8 @@ export const sendOrganizationEmail = async ({
       dynamicMsg.replyTo = replyTo;
     }
 
-    if (customArgs) {
-      dynamicMsg.customArgs = customArgs;
+    if (hasCustomArgs) {
+      dynamicMsg.customArgs = mergedCustomArgs;
     }
 
     console.log(`[SendGrid] Sending with dynamic template: ${templateId}`);
@@ -572,9 +582,9 @@ export const sendOrganizationEmail = async ({
     msg.replyTo = replyTo;
   }
 
-  // Add custom args for tracking
-  if (customArgs) {
-    msg.customArgs = customArgs;
+  // Add custom args for tracking (always includes organization_id when known)
+  if (hasCustomArgs) {
+    msg.customArgs = mergedCustomArgs;
   }
 
   // Log detailed info about the email being sent

@@ -76,7 +76,12 @@ const fetchActivity = async () => {
 
   try {
     const headers = useRequestHeaders(["cookie"]);
-    const result = await $fetch(`/api/email/${props.emailId}/activity`, { headers });
+    const org = email.value.organization as any;
+    const organizationId = typeof org === "string" ? org : org?.id;
+    const result = await $fetch(`/api/email/${props.emailId}/activity`, {
+      headers,
+      query: { organizationId },
+    });
     activityData.value = result as typeof activityData.value;
     activityFetched.value = true;
   } catch (error) {
