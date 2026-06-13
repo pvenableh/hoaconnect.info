@@ -38,7 +38,36 @@ interface SendGridEvent {
 }
 
 export default defineEventHandler(async (event) => {
-  const events = await readBody<SendGridEvent[]>(event);
+  // Read the RAW body — signature verification must run over the exact bytes.
+  const raw = (await readRawBody(event)) || "";
+
+  // Verify SendGrid's signed-webhook signature when a key is configured. If the
+  // key isn't set yet, accept but warn (lets the webhook work before signing is
+  // turned on); once SENDGRID_WEBHOOK_PUBLIC_KEY is set, unsigned/forged posts
+  // are rejected with 403.
+  const publicKey = useRuntimeConfig().sendgridWebhookPublicKey as string | undefined;
+  if (publicKey) {
+    const ok = verifySendgridEventWebhook({
+      publicKey,
+      payload: raw,
+      signature: getHeader(event, SENDGRID_SIGNATURE_HEADER),
+      timestamp: getHeader(event, SENDGRID_TIMESTAMP_HEADER),
+    });
+    if (!ok) {
+      throw createError({ statusCode: 403, message: "Invalid SendGrid signature" });
+    }
+  } else {
+    console.warn(
+      "[email/activity] SENDGRID_WEBHOOK_PUBLIC_KEY not set — webhook signature NOT verified"
+    );
+  }
+
+  let events: SendGridEvent[];
+  try {
+    events = JSON.parse(raw);
+  } catch {
+    throw createError({ statusCode: 400, message: "Invalid JSON body" });
+  }
 
   if (!Array.isArray(events) || events.length === 0) {
     return { success: true, message: "No events to process" };

@@ -49,6 +49,11 @@ export default defineNuxtConfig({
     sendgridInviteEmailTemplateId: process.env.SENDGRID_INVITE_EMAIL_TEMPLATE_ID,
     // HOA email template for organization emails (newsletters, announcements, etc.)
     sendgridEmailTemplateId: process.env.SENDGRID_EMAIL_TEMPLATE_ID,
+    // SendGrid Signed Event Webhook verification key (base64 DER public key from
+    // Settings → Mail Settings → Signed Event Webhook). When set, /api/email/
+    // activity rejects unsigned/forged posts; when unset, events are accepted
+    // unverified (with a warning) so the webhook works before signing is enabled.
+    sendgridWebhookPublicKey: process.env.SENDGRID_WEBHOOK_PUBLIC_KEY,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
