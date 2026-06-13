@@ -253,3 +253,33 @@ per-user budgets; Batch API bulk jobs.
 3. `POST /api/ai/draft` (streaming) wired into the composer's **"Draft with AI"** + rewrite menu.
 4. Credit meter pill + buy-credits modal + `/api/ai/credits` + Stripe pack checkout + webhook.
 5. Verify end-to-end on `:3000` (draft an announcement, watch credits debit, buy a pack, watch balance rise) using a test org; clean up test rows.
+
+---
+
+## Build status (Phase 1)
+
+**Started (committed to `main`):**
+- **The economic core** — `shared/ai/credits.ts`: pure, Directus-free token→cost→credits math
+  (per-model pricing incl. cache read/write, `creditsForUsage`/`estimateCredits` with the
+  `MARGIN_MULTIPLIER × CREDITS_PER_DOLLAR` anchor), the Stripe credit packs, and the
+  wallet/ledger math (allowance-first `splitDebit`, `canAfford` gating, `deriveBalance` over the
+  append-only ledger). Fully unit-tested (`tests/shared/ai-credits.test.ts`, 34 tests) — this is
+  Session-3 step 5.
+- **Schema script** — `scripts/create-ai-wallet-collections.ts` (`pnpm create:ai-wallets`):
+  idempotent, additive create of `ai_wallets` + `ai_transactions` + `subscription_plans.included_credits`.
+  **NOT yet run against prod Directus** (mutates production — awaiting confirmation).
+
+**Remaining (blocked on prod Directus + secrets — do with Peter present):**
+1. Run `pnpm create:ai-wallets` against prod → `pnpm generate:types` → `pnpm setup:permissions`
+   (org-scoped wallet/ledger access). Until types regenerate, the route/composable below can't
+   typecheck against the new collections.
+2. `server/utils/anthropic.ts` (`@anthropic-ai/sdk`, `ANTHROPIC_API_KEY`, prompt caching of
+   system+org context, `DRAFT_MODEL` cheap tier) + `chargeForCompletion(orgId, usage, model, feature)`
+   metering util that debits via `applyDebit` and appends an `ai_transactions` row. Refuse at zero
+   balance via `canAfford`.
+3. `POST /api/ai/draft` (streaming SSE) → composer "Draft with AI" + rewrite menu; wallet meter pill
+   + low-balance UI.
+4. Stripe credit-pack checkout + webhook crediting (idempotent on `stripe_id`) via the existing
+   webhook routing.
+
+Defer per Session 3 scope: RAG / Q&A / summarization (Phase 2+).
