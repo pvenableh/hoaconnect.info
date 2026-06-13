@@ -33,6 +33,7 @@
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",
     "create:ai-wallets": "dotenv -- tsx scripts/create-ai-wallet-collections.ts",
+    "create:activity": "dotenv -- tsx scripts/create-activity-collection.ts",
     "create:teams": "dotenv -- tsx scripts/create-teams-collections.ts",
     "create:projects": "dotenv -- tsx scripts/create-projects-collections.ts",
     "create:polls": "dotenv -- tsx scripts/create-polls-collections.ts",

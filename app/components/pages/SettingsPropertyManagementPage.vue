@@ -64,6 +64,7 @@ const GRANTS = [
   { key: "documents", label: "View documents", desc: "Access the community's documents." },
   { key: "communications", label: "Send communications", desc: "Send emails to members. Higher-trust." },
   { key: "projects", label: "Manage projects", desc: "Create and manage projects, milestones, and tasks." },
+  { key: "activity", label: "View activity", desc: "See resident activity (page views, downloads) across the community." },
 ] as const;
 
 const categoryLabel = (v: HoaVendor) =>

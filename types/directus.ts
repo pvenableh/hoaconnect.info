@@ -203,6 +203,28 @@ export interface CouponUsage {
 	subscription_plan?: SubscriptionPlan | string | null;
 }
 
+export interface HoaActivity {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description The acting member. */
+	member?: HoaMember | string | null;
+	/** @description The auth identity. */
+	user?: DirectusUser | string | null;
+	/** @required */
+	event_type: 'page_view' | 'download' | 'doc_view' | 'session_start' | 'login' | 'logout' | 'payment' | 'request' | 'profile_update' | 'upload' | 'search';
+	path?: string | null;
+	target_collection?: string | null;
+	target_id?: string | null;
+	label?: string | null;
+	metadata?: Record<string, any> | null;
+	session_id?: string | null;
+	ip?: string | null;
+	user_agent?: string | null;
+	date_created?: string | null;
+}
+
 export interface HoaAmenity {
 	/** @primaryKey */
 	id: string;
@@ -1896,6 +1918,7 @@ export interface Schema {
 	coupons: Coupon[];
 	coupons_subscription_plans: CouponsSubscriptionPlan[];
 	coupon_usage: CouponUsage[];
+	hoa_activity: HoaActivity[];
 	hoa_amenities: HoaAmenity[];
 	hoa_announcements: HoaAnnouncement[];
 	hoa_board_members: HoaBoardMember[];
@@ -1987,6 +2010,7 @@ export enum CollectionNames {
 	coupons = 'coupons',
 	coupons_subscription_plans = 'coupons_subscription_plans',
 	coupon_usage = 'coupon_usage',
+	hoa_activity = 'hoa_activity',
 	hoa_amenities = 'hoa_amenities',
 	hoa_announcements = 'hoa_announcements',
 	hoa_board_members = 'hoa_board_members',

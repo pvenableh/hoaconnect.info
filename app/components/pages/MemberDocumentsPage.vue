@@ -194,6 +194,8 @@ function getFileIcon(mimeType: string | undefined): string {
 }
 
 // Download document
+const { trackDownload } = useActivityTracker();
+
 const downloadDocument = async (doc: HoaDocument) => {
   try {
     const file = doc.file;
@@ -223,6 +225,8 @@ const downloadDocument = async (doc: HoaDocument) => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+
+    trackDownload({ targetId: doc.id, label: doc.title || filename || "document" });
   } catch (error) {
     console.error("Failed to download document:", error);
     toast.error("Failed to download document");

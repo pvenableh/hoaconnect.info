@@ -16,7 +16,8 @@ export type ManagerGrantKey =
   | "directory"
   | "documents"
   | "communications"
-  | "projects";
+  | "projects"
+  | "activity";
 
 /**
  * Return the calling user's Property Manager grant flags for an org, or null if
