@@ -13,6 +13,7 @@ const groups = computed<HubGroup[]>(() => [
       { label: "Documents", description: "The curated, published document library.", icon: "file-text", to: buildOrgPath("/admin/documents"), show: isEnabled("documents") },
       { label: "Storage", description: "Dropbox-style manager for raw folders and files.", icon: "folder", to: buildOrgPath("/admin/files"), show: isEnabled("files") },
       { label: "Rules", description: "By-laws, CC&Rs, and searchable governance.", icon: "scale", to: buildOrgPath("/rules"), show: isEnabled("rules") },
+      { label: "Activity", description: "Resident page views, downloads, and logins.", icon: "activity", to: buildOrgPath("/admin/activity"), show: true },
     ],
   },
 ]);
