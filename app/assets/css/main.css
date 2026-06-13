@@ -104,23 +104,84 @@ img {
   transform: scale(0.95);
 }
 
-/* Page Transitions — durations/easing ride the motion-token scale so the
-   whole app's pacing is tuned in one place (variables.css). */
+/* Page Transitions — direction-aware iOS push/pop.
+   The transition NAME is swapped per-navigation by
+   `app/middleware/page-transition.global.ts` (page-forward on a push,
+   page-back on a pop, plain `page` for same-page tab/query switches). All
+   three ride the motion-token scale + Framework7 spring curve so the whole
+   app's pacing is tuned in one place (variables.css). With the configured
+   `mode: out-in`, the leaving view animates first, then the entering one. */
+
+/* Clip the horizontal overflow the off-screen view creates during a slide.
+   `clip` (not `hidden`) so the vertical axis stays `visible` and the window —
+   not #__nuxt — remains the scroll container (keeps sticky headers working). */
+#__nuxt {
+  overflow-x: clip;
+}
+
+/* Neutral fade — same-path navigation + first paint fallback. */
 .page-enter-active,
 .page-leave-active {
-  transition:
-    opacity var(--motion-page, 300ms) var(--spring-out, ease),
-    transform var(--motion-page, 300ms) var(--spring-out, ease);
+  transition: opacity var(--motion-fast, 160ms) ease;
 }
-
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
+.page-enter-from,
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+}
+
+/* Forward (push): new view slides in from the right; old view parallaxes
+   ~20% to the left and fades as it leaves. */
+.page-forward-enter-active,
+.page-forward-leave-active {
+  transition:
+    transform var(--motion-page, 300ms) var(--spring-out, ease),
+    opacity var(--motion-page, 300ms) var(--spring-out, ease);
+  will-change: transform;
+}
+.page-forward-enter-from {
+  transform: translate3d(100%, 0, 0);
+}
+.page-forward-leave-to {
+  transform: translate3d(-20%, 0, 0);
+  opacity: 0;
+}
+
+/* Back (pop): current view slides off to the right; previous view parallaxes
+   in from ~20% on the left. */
+.page-back-enter-active,
+.page-back-leave-active {
+  transition:
+    transform var(--motion-page, 300ms) var(--spring-out, ease),
+    opacity var(--motion-page, 300ms) var(--spring-out, ease);
+  will-change: transform;
+}
+.page-back-enter-from {
+  transform: translate3d(-20%, 0, 0);
+  opacity: 0;
+}
+.page-back-leave-to {
+  transform: translate3d(100%, 0, 0);
+}
+
+/* Reduced motion → no slide, no fade: views swap instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active,
+  .page-forward-enter-active,
+  .page-forward-leave-active,
+  .page-back-enter-active,
+  .page-back-leave-active {
+    transition: none;
+  }
+  .page-enter-from,
+  .page-leave-to,
+  .page-forward-enter-from,
+  .page-forward-leave-to,
+  .page-back-enter-from,
+  .page-back-leave-to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 /* Layout Transitions */

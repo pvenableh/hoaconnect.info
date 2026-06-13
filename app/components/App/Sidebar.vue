@@ -280,11 +280,15 @@ onBeforeUnmount(() => tl?.kill());
   font-size: 14px;
   font-weight: 500;
   text-align: left;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease,
+    scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
 }
 .app-sidebar__item:hover {
   background: var(--theme-bg-secondary, rgba(0, 0, 0, 0.04));
   color: var(--theme-text-primary, #1c1a16);
+}
+.app-sidebar__item:active {
+  scale: 0.97;
 }
 
 /* Active — accent text/icon + a left accent bar + a soft accent wash. */
@@ -327,6 +331,18 @@ onBeforeUnmount(() => tl?.kill());
   line-height: 16px;
   text-align: center;
   box-shadow: 0 0 0 2px var(--theme-bg-elevated, #fff);
+  /* Spring-bounce in when an unread count appears. */
+  transform-origin: center;
+  animation: badge-pop var(--motion-base, 240ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar__item:active {
+    scale: 1;
+  }
+  .app-sidebar__badge {
+    animation: none;
+  }
 }
 
 /* Hover tooltip (collapsed only) — mirrors the dock's .dock-item__tip. */

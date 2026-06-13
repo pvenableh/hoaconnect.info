@@ -319,4 +319,79 @@ a[role='button']:not([data-no-press]):active,
 	.page-fade-up-enter-active, .page-fade-up-leave-active { transition: opacity 120ms ease; }
 	.page-fade-up-enter-from, .page-fade-up-leave-to { transform: none; }
 }
+
+/* =============================================================================
+   SHADCN DIALOG / SHEET — match the slide-over stack's feel
+   The base components (ui/dialog, ui/sheet) animate via tw-animate-css
+   (animate-in/out keyframes). These unlayered rules retime them onto the
+   Framework7 spring curve + add a blurred, accent-free frosted scrim so modals
+   read as the same "behind glass" surface as App/SlideOverStack.vue. Targets
+   the data-slot hooks the components already emit; unlayered → wins over the
+   layered utility timing without touching every call site.
+============================================================================= */
+[data-slot="dialog-overlay"],
+[data-slot="sheet-overlay"] {
+	backdrop-filter: blur(6px) saturate(140%);
+	-webkit-backdrop-filter: blur(6px) saturate(140%);
+}
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"],
+[data-slot="sheet-content"],
+[data-slot="sheet-overlay"] {
+	animation-timing-function: var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1));
+}
+[data-slot="dialog-content"] {
+	animation-duration: var(--motion-base, 240ms);
+}
+[data-slot="sheet-content"] {
+	animation-duration: var(--motion-panel, 460ms);
+}
+/* Honor reduced transparency the same way the slide-over does. */
+@media (prefers-reduced-transparency: reduce) {
+	[data-slot="dialog-overlay"],
+	[data-slot="sheet-overlay"] {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+}
+
+/* =============================================================================
+   PRESS FEEDBACK — universal iOS tap "spring-back"
+   A quick scale-down on press that springs back on release. Uses the `scale`
+   property (independent of `transform`) so it composes with elements that
+   already animate `transform` (e.g. the dock's magnification). shadcn buttons
+   carry `transition-all`, so they smooth the scale for free; the `.tappable`
+   opt-in gets its own transition for any custom interactive element. Chrome
+   buttons (dock/sidebar/bell) add their own :active scale in scoped styles.
+============================================================================= */
+.tappable {
+	transition: scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+[data-slot="button"]:not(:disabled):active,
+.tappable:active {
+	scale: 0.97;
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-slot="button"]:active,
+	.tappable:active {
+		scale: 1;
+	}
+}
+
+/* =============================================================================
+   BADGE BOUNCE — unread counters spring in
+   Global @keyframes (animation names are global even when referenced from
+   scoped component styles). App/Dock, App/Sidebar, and Notification/Bell apply
+   `animation: badge-pop …` to their unread badge.
+============================================================================= */
+@keyframes badge-pop {
+	0%   { transform: scale(0); }
+	55%  { transform: scale(1.25); }
+	100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+	/* Surfaces gate this class on reduced-motion; the no-op keyframe is a
+	   belt-and-suspenders fallback so a badge never animates. */
+	.badge-bounce { animation: none !important; }
+}
 </content>

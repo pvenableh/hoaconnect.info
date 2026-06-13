@@ -697,12 +697,15 @@ useSeoMeta({
                       <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr
-                      v-for="member in members"
-                      :key="member.id"
-                      class="border-b hover:t-bg-subtle"
-                    >
+                  <StaggerList
+                    :items="members || []"
+                    tag="tbody"
+                    item-tag="tr"
+                    item-class="border-b hover:t-bg-subtle"
+                    :stagger="25"
+                    :y="8"
+                    v-slot="{ item: member }"
+                  >
                       <td class="p-3">
                         {{ member.first_name }} {{ member.last_name }}
                       </td>
@@ -751,8 +754,7 @@ useSeoMeta({
                           </Button>
                         </div>
                       </td>
-                    </tr>
-                  </tbody>
+                  </StaggerList>
                 </table>
               </div>
 

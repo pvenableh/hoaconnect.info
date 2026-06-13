@@ -49,9 +49,7 @@ const formatDate = (s: string | null | undefined) =>
 
 <template>
   <div>
-    <div v-if="loading" class="py-16 flex justify-center">
-      <div class="spinner-ios" />
-    </div>
+    <WidgetRowSkeleton v-if="loading" :rows="5" avatar-shape="square" />
 
     <div v-else-if="!requests.length" class="py-16 text-center">
       <div class="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
@@ -60,8 +58,14 @@ const formatDate = (s: string | null | undefined) =>
       <p class="text-stone-500">No requests yet.</p>
     </div>
 
-    <ul v-else class="divide-y divide-stone-100">
-      <li v-for="r in requests" :key="r.id">
+    <StaggerList
+      v-else
+      :items="requests"
+      tag="ul"
+      item-tag="li"
+      class="divide-y divide-stone-100"
+      v-slot="{ item: r }"
+    >
         <NuxtLink
           :to="`${basePath}/${r.id}`"
           class="flex items-center gap-3 px-3 py-3 hover:bg-stone-50 rounded-xl transition-colors"
@@ -98,7 +102,6 @@ const formatDate = (s: string | null | undefined) =>
             <span class="text-xs text-stone-400">{{ formatDate(r.date_updated || r.date_created) }}</span>
           </div>
         </NuxtLink>
-      </li>
-    </ul>
+    </StaggerList>
   </div>
 </template>

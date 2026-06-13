@@ -206,7 +206,13 @@ watch(apps, reset, { immediate: true });
   padding: 0;
   cursor: pointer;
   transform-origin: bottom center;
-  transition: transform 90ms ease-out, margin 90ms ease-out;
+  transition: transform 90ms ease-out, margin 90ms ease-out,
+    scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+/* Press feedback — composes with the inline magnification transform via the
+   independent `scale` property. */
+.dock-item:active {
+  scale: 0.9;
 }
 .app-dock--top .dock-item {
   transform-origin: top center;
@@ -325,11 +331,20 @@ watch(apps, reset, { immediate: true });
   line-height: 16px;
   text-align: center;
   box-shadow: 0 0 0 2px var(--theme-card-bg, #fff);
+  /* Spring-bounce in when an unread count appears. */
+  transform-origin: center;
+  animation: badge-pop var(--motion-base, 240ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dock-item {
     transition: none;
+  }
+  .dock-item:active {
+    scale: 1;
+  }
+  .dock-item__badge {
+    animation: none;
   }
 }
 </style>

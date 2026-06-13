@@ -72,7 +72,7 @@ const { data: categories } = await useAsyncData(
 );
 
 // Fetch published documents for the organization
-const { data: documents } = await useAsyncData(
+const { data: documents, pending } = await useAsyncData(
   `member-documents-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -172,6 +172,11 @@ const documentsByCategory = computed(() => {
   return grouped;
 });
 
+// Array view of the grouped Map, for <StaggerList> (needs an array + stable id).
+const categoryList = computed(() =>
+  Array.from(documentsByCategory.value, ([id, group]) => ({ id, ...group })),
+);
+
 // Format date for display
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "";
@@ -260,8 +265,13 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
 
+        <!-- Loading — content-shaped skeleton (client-only fetch) -->
+        <div v-if="pending" class="ios-card p-2">
+          <WidgetRowSkeleton :rows="6" avatar-shape="square" />
+        </div>
+
         <!-- Modern Theme Layout -->
-        <template v-if="isModern">
+        <template v-else-if="isModern">
           <!-- Spaced Header -->
           <div class="text-center mb-12 pt-8">
             <h1 class="text-2xl tracking-[0.4em] t-text-muted font-light uppercase">
@@ -270,12 +280,16 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
           </div>
 
           <!-- Category Grid -->
-          <div v-if="documentsByCategory.size > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StaggerList
+            v-if="categoryList.length > 0"
+            :items="categoryList"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+            :stagger="50"
+            v-slot="{ item: group }"
+          >
             <button
-              v-for="[categoryId, group] in documentsByCategory"
-              :key="categoryId"
               @click="openCategoryDialog(group)"
-              class="group relative aspect-[4/3] rounded-sm border t-border bg-transparent hover:t-bg-subtle transition-all duration-300 text-left p-6 flex flex-col justify-center"
+              class="group relative aspect-[4/3] w-full rounded-sm border t-border bg-transparent hover:t-bg-subtle transition-all duration-300 text-left p-6 flex flex-col justify-center"
             >
               <h3 class="text-base font-normal t-text text-center">
                 {{ group.category?.name || 'Documents' }}
@@ -284,7 +298,7 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
                 {{ group.documents.length }} document{{ group.documents.length !== 1 ? 's' : '' }}
               </p>
             </button>
-          </div>
+          </StaggerList>
 
           <!-- Empty state -->
           <div v-else class="text-center py-24">

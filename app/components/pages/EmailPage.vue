@@ -318,11 +318,8 @@ useSeoMeta({
           <!-- Emails List -->
           <Card>
             <CardContent class="pt-6">
-              <!-- Loading -->
-              <div v-if="fetchStatus === 'pending'" class="text-center py-8">
-                <Icon name="lucide:loader-2" class="w-6 h-6 animate-spin mx-auto mb-2" />
-                <p class="text-sm t-text-muted">Loading emails...</p>
-              </div>
+              <!-- Loading — content-shaped skeleton -->
+              <WidgetRowSkeleton v-if="fetchStatus === 'pending'" :rows="6" :avatar="false" />
 
               <!-- Emails Table -->
               <div v-else-if="emails.length" class="overflow-x-auto">

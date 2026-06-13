@@ -672,7 +672,16 @@ html.theme-luxury-dark {
   box-shadow:
     0 0 0 2px var(--theme-bg-elevated),
     0 0 0 3px color-mix(in srgb, var(--theme-accent-primary) 22%, transparent);
-  transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
+  transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease,
+    scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+.header-pill:active {
+  scale: 0.92;
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-pill:active {
+    scale: 1;
+  }
 }
 .header-pill:hover {
   color: var(--theme-text-primary);

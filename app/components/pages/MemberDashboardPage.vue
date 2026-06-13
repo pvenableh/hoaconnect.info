@@ -156,7 +156,7 @@ const portalSections = computed(() =>
 );
 
 // Fetch recent documents (last 5 published)
-const { data: recentDocuments } = await useAsyncData(
+const { data: recentDocuments, pending: docsPending } = await useAsyncData(
   `recent-documents-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -217,7 +217,7 @@ const { data: memberStats } = await useAsyncData(
 );
 
 // Fetch announcements (audience-aware)
-const { data: announcements } = await useAsyncData(
+const { data: announcements, pending: annPending } = await useAsyncData(
   `member-announcements-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -497,7 +497,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
-              <div v-if="announcements && announcements.length > 0" class="space-y-3">
+              <WidgetRowSkeleton v-if="annPending" :rows="4" avatar-shape="square" :trailing="false" />
+              <div v-else-if="announcements && announcements.length > 0" class="space-y-3">
                 <button
                   v-for="(a, i) in announcements"
                   :key="a.id"
@@ -549,7 +550,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
-              <div v-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
+              <WidgetRowSkeleton v-if="docsPending" :rows="4" avatar-shape="square" :trailing="false" />
+              <div v-else-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
                 <button
                   v-for="(doc, i) in recentDocuments"
                   :key="doc.id"

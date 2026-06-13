@@ -156,7 +156,7 @@ const getTypeLabel = (type: string) => {
       <!-- Unseen Badge -->
       <span
         v-if="getUnseenCount > 0"
-        class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-medium text-white bg-red-500 rounded-full"
+        class="notif-badge absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-medium text-white bg-red-500 rounded-full"
       >
         {{ getUnseenCount > 9 ? "9+" : getUnseenCount }}
       </span>
@@ -361,8 +361,18 @@ const getTypeLabel = (type: string) => {
   animation-delay: 0.5s;
 }
 
+/* Unread badge springs in (badge-pop keyframe is global, earnest-ui.css). */
+.notif-badge {
+  transform-origin: center;
+  animation: badge-pop var(--motion-base, 240ms)
+    var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-bell-ring {
+    animation: none;
+  }
+  .notif-badge {
     animation: none;
   }
 }

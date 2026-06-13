@@ -122,9 +122,18 @@ const TYPE_LABEL: Record<string, string> = {
         </p>
       </WidgetGlass>
 
-      <!-- Loading -->
-      <div v-if="pending" class="flex justify-center items-center py-16">
-        <span class="spinner-ios spinner-ios--xl" />
+      <!-- Loading — content-shaped skeleton matching the cards below -->
+      <div v-if="pending" class="space-y-3">
+        <div v-for="i in 3" :key="i" class="ios-card p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0 space-y-2.5">
+              <div class="river-skeleton h-4 w-2/5" :style="{ animationDelay: `${(i - 1) * 90}ms` }" />
+              <div class="river-skeleton h-3 w-3/4" :style="{ animationDelay: `${(i - 1) * 90 + 40}ms` }" />
+              <div class="river-skeleton h-3 w-1/3" :style="{ animationDelay: `${(i - 1) * 90 + 70}ms` }" />
+            </div>
+            <div class="river-skeleton h-7 w-24 flex-shrink-0 rounded-lg" :style="{ animationDelay: `${(i - 1) * 90}ms` }" />
+          </div>
+        </div>
       </div>
 
       <!-- Empty -->

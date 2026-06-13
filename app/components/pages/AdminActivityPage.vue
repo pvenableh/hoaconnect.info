@@ -213,7 +213,7 @@ const fmtTime = (d?: string | null) =>
       <Card>
         <CardHeader class="pb-2"><CardTitle class="text-base">Recent activity</CardTitle></CardHeader>
         <CardContent class="p-0">
-          <div v-if="loading" class="p-6 text-sm t-text-muted">Loading…</div>
+          <WidgetRowSkeleton v-if="loading" :rows="8" :lines="1" class="p-2" />
           <div v-else-if="!rows.length" class="p-6 text-sm t-text-muted">No activity in this period.</div>
           <ul v-else class="divide-y t-border-divider">
             <li v-for="row in rows.slice(0, 100)" :key="row.id" class="flex items-center gap-3 px-4 py-2.5">
