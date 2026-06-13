@@ -13,6 +13,8 @@ import type { PickedFile } from "~/composables/useOrgStorage";
 
 const props = defineProps<{
   emailId?: string;
+  /** Recipient preset from the Audience tab deep-links. */
+  audience?: "all" | "owners" | "tenants";
 }>();
 
 const { navigateToOrg } = useOrgNavigation();
@@ -75,9 +77,12 @@ const attachmentSearchQuery = ref("");
 const attachmentFileInput = ref<HTMLInputElement | null>(null);
 const isUploadingAttachment = ref(false);
 
-// Selection mode and filter type
+// Selection mode and filter type. `audience` (from the Audience tab deep-link)
+// presets the group when not editing an existing email.
 const selectionMode = ref<"all" | "selected">("all");
-const recipientFilter = ref<"all" | "owners" | "tenants">("all");
+const recipientFilter = ref<"all" | "owners" | "tenants">(
+  !props.emailId && props.audience ? props.audience : "all",
+);
 
 // Recipient filter options
 const recipientFilterOptions = [
@@ -843,7 +848,8 @@ useSeoMeta({
               <CardHeader>
                 <CardTitle>Email Type</CardTitle>
                 <CardDescription>
-                  Select the type of email to customize its appearance
+                  Sets the tone and styling. Every type is delivered as email (with a
+                  shareable web link) — it does not post to the resident Announcements feed.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -869,8 +875,18 @@ useSeoMeta({
             <!-- Subject & Content -->
             <Card>
               <CardHeader>
-                <div class="flex items-center justify-between gap-3">
-                  <CardTitle>Email Content</CardTitle>
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-3 flex-wrap">
+                    <CardTitle>Email Content</CardTitle>
+                    <!-- Optional AI helper — drafts/rewrites subject + body. Lives
+                         here (not in the field flow) so Subject → Body stays the
+                         primary path. Self-hides when AI is unconfigured. -->
+                    <AiDraftWithAi
+                      :org-id="orgId"
+                      v-model:subject="form.subject"
+                      v-model:content="form.content"
+                    />
+                  </div>
                   <!-- Editor mode toggle: visual rich text vs raw MJML/HTML -->
                   <div class="inline-flex rounded-lg border border-stone-200 dark:border-stone-700 p-0.5">
                     <button
@@ -903,15 +919,6 @@ useSeoMeta({
                 </div>
               </CardHeader>
               <CardContent class="space-y-4">
-                <!-- AI assistant: draft/rewrite into subject + body, with a
-                     credit meter and one-tap top-up. Hides if AI is unconfigured
-                     or the caller can't spend the org wallet. -->
-                <AiDraftWithAi
-                  :org-id="orgId"
-                  v-model:subject="form.subject"
-                  v-model:content="form.content"
-                />
-
                 <div class="space-y-2">
                   <Label for="subject">Subject *</Label>
                   <Input
@@ -941,7 +948,22 @@ useSeoMeta({
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="content">Message *</Label>
+                  <div class="flex items-center justify-between gap-2">
+                    <Label for="content">Message *</Label>
+                    <!-- Surfaced at the point of writing rather than buried below. -->
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md t-bg-subtle hover:bg-primary/10 hover:text-primary transition-colors tappable"
+                      @click="showMergeFields = !showMergeFields"
+                    >
+                      <Icon name="lucide:braces" class="w-3.5 h-3.5" />
+                      Insert merge field
+                      <Icon
+                        :name="showMergeFields ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+                        class="w-3.5 h-3.5 opacity-60"
+                      />
+                    </button>
+                  </div>
                   <TiptapEditor
                     v-if="form.contentMode === 'visual'"
                     v-model="form.content"
@@ -968,23 +990,9 @@ useSeoMeta({
                     </template>
                   </p>
 
-                  <!-- Merge fields -->
-                  <div class="rounded-lg border border-stone-200 dark:border-stone-700">
-                    <button
-                      type="button"
-                      class="flex items-center justify-between w-full px-3 py-2 text-left"
-                      @click="showMergeFields = !showMergeFields"
-                    >
-                      <span class="text-xs font-medium flex items-center gap-1.5">
-                        <Icon name="lucide:braces" class="w-3.5 h-3.5" />
-                        Insert merge field
-                      </span>
-                      <Icon
-                        :name="showMergeFields ? 'lucide:chevron-up' : 'lucide:chevron-down'"
-                        class="w-4 h-4 text-stone-400"
-                      />
-                    </button>
-                    <div v-if="showMergeFields" class="px-3 pb-3 space-y-2 border-t border-stone-100 dark:border-stone-800 pt-2">
+                  <!-- Merge field panel — toggled from the Message label above. -->
+                  <div v-if="showMergeFields" class="rounded-lg border border-stone-200 dark:border-stone-700 px-3 py-3">
+                    <div class="space-y-2">
                       <div v-for="grp in emailSystem.mergeFieldGroups" :key="grp.group">
                         <p class="text-[10px] uppercase tracking-wide font-semibold text-stone-400 mb-1">{{ grp.group }}</p>
                         <div class="flex flex-wrap gap-1.5">

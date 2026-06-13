@@ -17,7 +17,7 @@ const emailSystem = useEmailSystem();
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Current tab
-const activeTab = ref<"all" | "sent" | "drafts">("all");
+const activeTab = ref<"all" | "sent" | "scheduled" | "drafts">("all");
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -32,6 +32,8 @@ const statusFilter = computed(() => {
   switch (activeTab.value) {
     case "sent":
       return "sent";
+    case "scheduled":
+      return "scheduled";
     case "drafts":
       return "draft";
     default:
@@ -158,12 +160,13 @@ useSeoMeta({
 <template>
   <div class="ui-kit accent-cyan min-h-screen t-bg">
     <PageContainer>
+        <CommunicationsTabs />
         <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
           <div>
-            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications</p>
-            <h1 class="text-3xl font-semibold tracking-tight t-text">Communications</h1>
+            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications · Email</p>
+            <h1 class="text-3xl font-semibold tracking-tight t-text">Email</h1>
             <p class="t-text-secondary mt-1">
-              Email your members — alerts, newsletters, reminders, and notices
+              Send email to your members — alerts, newsletters, reminders, and notices
             </p>
           </div>
           <div class="flex flex-wrap gap-3">
@@ -300,6 +303,17 @@ useSeoMeta({
                 ]"
               >
                 Sent
+              </button>
+              <button
+                @click="activeTab = 'scheduled'"
+                :class="[
+                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                  activeTab === 'scheduled'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
+                ]"
+              >
+                Scheduled
               </button>
               <button
                 @click="activeTab = 'drafts'"

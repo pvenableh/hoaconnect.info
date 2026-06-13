@@ -71,6 +71,7 @@ useSeoMeta({ title: "Email Templates" });
 <template>
   <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
+      <CommunicationsTabs />
       <div class="flex items-start justify-between gap-2">
         <div>
           <Button variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/communications')">
