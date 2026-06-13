@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
   // Ping the requester in-app (best-effort).
   const requestedBy =
     (typeof ev.user_created === "string" ? ev.user_created : ev.user_created?.id) || null;
-  await notifyApprovalDecided({ id: ev.id, title: ev.title }, null, decision === "approved", requestedBy).catch(() => {});
+  await notifyApprovalDecided(ev.organization, { id: ev.id, title: ev.title }, null, decision === "approved", requestedBy).catch(() => {});
 
   return { ok: true, decision };
 });

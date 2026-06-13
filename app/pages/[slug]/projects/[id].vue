@@ -10,6 +10,7 @@ const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
 const { getOne } = useProjects();
 const { list: listEvents } = useProjectEvents();
+const { rise } = useMotionPresets();
 
 const projectId = computed(() => route.params.id as string);
 
@@ -52,7 +53,13 @@ const fmt = (s: string | null | undefined) =>
         <div v-if="events.length" class="ios-card p-6">
           <h2 class="font-semibold t-text mb-4">Timeline</h2>
           <ol class="relative space-y-1 pl-2">
-            <li v-for="(ev, i) in events" :key="ev.id" class="relative pl-6 pb-3">
+            <li
+              v-for="(ev, i) in events"
+              :key="ev.id"
+              v-motion
+              v-bind="rise(i, { stagger: 35, y: 8 })"
+              class="relative pl-6 pb-3"
+            >
               <span
                 v-if="i < events.length - 1"
                 class="absolute left-[7px] top-5 bottom-0 w-px"

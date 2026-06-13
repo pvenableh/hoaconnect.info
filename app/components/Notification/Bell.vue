@@ -3,6 +3,7 @@ import type {
   UnifiedNotification,
   NotificationType,
 } from "~/composables/useNotifications";
+import { groupByDate } from "~~/shared/notifications/grouping";
 
 const {
   notifications,
@@ -13,6 +14,8 @@ const {
   getNotificationStyle,
   formatDate,
 } = useNotifications();
+
+const { rise } = useMotionPresets();
 
 type FilterKey = "all" | NotificationType;
 
@@ -38,6 +41,18 @@ const filteredNotifications = computed(() => {
   return notifications.value.filter((n) => n.type === activeFilter.value);
 });
 
+// Date-grouped sections (Today / Yesterday / Earlier this week / Older), each
+// carrying a running offset so the entrance stagger flows across the whole list.
+const groupedNotifications = computed(() => {
+  const groups = groupByDate(filteredNotifications.value as UnifiedNotification[]);
+  let offset = 0;
+  return groups.map((g) => {
+    const withOffset = { ...g, offset };
+    offset += g.items.length;
+    return withOffset;
+  });
+});
+
 // Category tabs — "all" plus one chip per notification type. Each chip shows
 // its unread count and only the categories present (or "all") are rendered.
 const TAB_DEFS: { key: FilterKey; label: string }[] = [
@@ -48,6 +63,7 @@ const TAB_DEFS: { key: FilterKey; label: string }[] = [
   { key: "document", label: "Documents" },
   { key: "membership", label: "Members" },
   { key: "request", label: "Requests" },
+  { key: "task", label: "Tasks" },
   { key: "comment", label: "Comments" },
   { key: "mention", label: "Mentions" },
   { key: "email", label: "Email" },
@@ -119,6 +135,7 @@ const getTypeLabel = (type: string) => {
     membership: "Member",
     comment: "Comment",
     request: "Request",
+    task: "Task",
   };
   return labels[type] || type;
 };
@@ -157,22 +174,22 @@ const getTypeLabel = (type: string) => {
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="absolute right-0 z-50 mt-2 w-80 sm:w-[420px] origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-stone-200 focus:outline-none"
+        class="absolute right-0 z-50 mt-2 w-80 sm:w-[420px] origin-top-right rounded-xl t-bg-elevated shadow-xl ring-1 t-border focus:outline-none overflow-hidden"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100">
-          <h3 class="font-semibold text-stone-900">Notifications</h3>
+        <div class="flex items-center justify-between px-4 py-3 border-b t-border-divider">
+          <h3 class="font-semibold t-text">Notifications</h3>
           <button
             v-if="getUnseenCount > 0"
             @click="handleMarkAllAsRead"
-            class="text-xs text-stone-500 hover:text-stone-700 transition-colors"
+            class="text-xs t-text-muted hover:t-text transition-colors"
           >
             Mark all as read
           </button>
         </div>
 
         <!-- Filter Chips (horizontally scrollable) -->
-        <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-stone-100 no-scrollbar">
+        <div class="flex gap-1.5 overflow-x-auto px-3 py-2 border-b t-border-divider no-scrollbar">
           <button
             v-for="tab in tabs"
             :key="tab.key"
@@ -180,19 +197,20 @@ const getTypeLabel = (type: string) => {
             class="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full transition-colors"
             :class="
               activeFilter === tab.key
-                ? 'bg-stone-900 text-white'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                ? 'shadow-sm'
+                : 't-bg-subtle t-text-secondary hover:t-bg'
+            "
+            :style="
+              activeFilter === tab.key
+                ? { background: 'var(--theme-accent-primary)', color: '#fff' }
+                : undefined
             "
           >
             {{ tab.label }}
             <span
               v-if="tab.count > 0"
               class="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-semibold rounded-full"
-              :class="
-                activeFilter === tab.key
-                  ? 'bg-white/20 text-white'
-                  : 'bg-stone-300/70 text-stone-700'
-              "
+              :class="activeFilter === tab.key ? 'bg-white/25 text-white' : 't-bg-accent t-text-accent'"
             >
               {{ tab.count > 9 ? "9+" : tab.count }}
             </span>
@@ -200,88 +218,103 @@ const getTypeLabel = (type: string) => {
         </div>
 
         <!-- Notifications List -->
-        <div class="max-h-[400px] overflow-y-auto">
+        <div class="max-h-[420px] overflow-y-auto">
           <div v-if="filteredNotifications.length === 0" class="px-4 py-8 text-center">
-            <Icon name="lucide:inbox" class="w-8 h-8 text-stone-300 mx-auto mb-2" />
-            <p class="text-sm text-stone-500">No notifications</p>
+            <Icon name="lucide:inbox" class="w-8 h-8 t-text-muted mx-auto mb-2 opacity-60" />
+            <p class="text-sm t-text-muted">No notifications</p>
           </div>
 
-          <div v-else class="divide-y divide-stone-100">
-            <button
-              v-for="notification in filteredNotifications"
-              :key="notification.id"
-              @click="handleNotificationClick(notification)"
-              class="w-full px-4 py-3 text-left hover:bg-stone-50 transition-colors flex gap-3"
-              :class="{
-                'bg-stone-50/50': !notification.isRead,
-              }"
-            >
-              <!-- Type Icon -->
-              <div
-                class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                :class="[
-                  getNotificationStyle(notification).bg,
-                  getNotificationStyle(notification).text,
-                ]"
+          <template v-else>
+            <section v-for="group in groupedNotifications" :key="group.key">
+              <!-- Date section header -->
+              <p
+                class="sticky top-0 z-10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider t-text-muted t-bg-subtle"
               >
-                <Icon
-                  :name="'lucide:' + getNotificationStyle(notification).icon"
-                  class="w-4 h-4"
-                />
-              </div>
-
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-2">
-                  <h4
-                    class="text-sm font-medium text-stone-900 truncate"
-                    :class="{ 'font-semibold': !notification.isRead }"
-                  >
-                    {{ notification.title }}
-                  </h4>
-                  <!-- Unseen indicator -->
-                  <span
-                    v-if="!notification.isRead"
-                    class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-500"
-                  />
-                </div>
-
-                <!-- Subtitle -->
-                <p v-if="notification.subtitle" class="text-xs text-stone-500 truncate">
-                  {{ notification.subtitle }}
-                </p>
-
-                <!-- Meta -->
-                <div class="flex items-center gap-2 mt-0.5">
-                  <span
-                    class="text-xs px-1.5 py-0.5 rounded"
+                {{ group.label }}
+              </p>
+              <div class="divide-y t-border-divider">
+                <button
+                  v-for="(notification, ii) in group.items"
+                  :key="notification.id"
+                  v-motion
+                  v-bind="rise(group.offset + ii, { stagger: 28, y: 8 })"
+                  @click="handleNotificationClick(notification)"
+                  class="w-full px-4 py-3 text-left hover:t-bg-subtle transition-colors flex gap-3"
+                  :style="
+                    !notification.isRead
+                      ? { background: 'color-mix(in srgb, var(--theme-accent-primary) 6%, transparent)' }
+                      : undefined
+                  "
+                >
+                  <!-- Type Icon -->
+                  <div
+                    class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
                     :class="[
                       getNotificationStyle(notification).bg,
                       getNotificationStyle(notification).text,
                     ]"
                   >
-                    {{ getTypeLabel(notification.type) }}
-                  </span>
-                  <span class="text-xs text-stone-400">
-                    {{ formatDate(notification.date) }}
-                  </span>
-                  <span
-                    v-if="notification.priority === 'urgent'"
-                    class="text-xs text-red-600 font-medium"
-                  >
-                    Urgent
-                  </span>
-                </div>
+                    <Icon
+                      :name="'lucide:' + getNotificationStyle(notification).icon"
+                      class="w-4 h-4"
+                    />
+                  </div>
+
+                  <!-- Content -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between gap-2">
+                      <h4
+                        class="text-sm font-medium t-text truncate"
+                        :class="{ 'font-semibold': !notification.isRead }"
+                      >
+                        {{ notification.title }}
+                      </h4>
+                      <!-- Unseen indicator -->
+                      <span
+                        v-if="!notification.isRead"
+                        class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full"
+                        style="background: var(--theme-accent-primary)"
+                      />
+                    </div>
+
+                    <!-- Subtitle -->
+                    <p v-if="notification.subtitle" class="text-xs t-text-muted truncate">
+                      {{ notification.subtitle }}
+                    </p>
+
+                    <!-- Meta -->
+                    <div class="flex items-center gap-2 mt-0.5">
+                      <span
+                        class="text-xs px-1.5 py-0.5 rounded"
+                        :class="[
+                          getNotificationStyle(notification).bg,
+                          getNotificationStyle(notification).text,
+                        ]"
+                      >
+                        {{ getTypeLabel(notification.type) }}
+                      </span>
+                      <span class="text-xs t-text-muted">
+                        {{ formatDate(notification.date) }}
+                      </span>
+                      <span
+                        v-if="notification.priority === 'urgent'"
+                        class="text-xs text-red-600 font-medium"
+                      >
+                        Urgent
+                      </span>
+                    </div>
+                  </div>
+                </button>
               </div>
-            </button>
-          </div>
+            </section>
+          </template>
         </div>
 
         <!-- Footer -->
-        <div class="px-4 py-3 border-t border-stone-100 bg-stone-50/50">
+        <div class="px-4 py-3 border-t t-border-divider t-bg-subtle">
           <NuxtLink
             :to="announcementsPath"
-            class="block text-center text-sm text-stone-600 hover:text-stone-900 transition-colors"
+            class="block text-center text-sm t-text-secondary hover:t-text transition-colors"
             @click="isOpen = false"
           >
             View all announcements
@@ -326,6 +359,12 @@ const getTypeLabel = (type: string) => {
 .animate-bell-ring {
   animation: bell-ring 1s ease-in-out;
   animation-delay: 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bell-ring {
+    animation: none;
+  }
 }
 
 /* Hide the horizontal scrollbar on the filter chip row */

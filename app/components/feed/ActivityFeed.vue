@@ -10,6 +10,7 @@ const props = withDefaults(
 );
 
 const { items, isLoading, fetchFeed } = useActivityFeed();
+const { rise } = useMotionPresets();
 
 const KIND_TABS = [
   { key: "all", label: "All" },
@@ -44,7 +45,8 @@ watch(
         :key="tab.key"
         @click="activeKind = tab.key"
         class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-        :class="activeKind === tab.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+        :class="activeKind === tab.key ? 'text-white shadow-sm' : 't-bg-subtle t-text-secondary hover:t-bg'"
+        :style="activeKind === tab.key ? { background: 'var(--theme-accent-primary)' } : undefined"
       >
         {{ tab.label }}
       </button>
@@ -53,21 +55,26 @@ watch(
     <div v-if="isLoading" class="py-16 flex justify-center"><div class="spinner-ios" /></div>
 
     <div v-else-if="filtered.length" class="space-y-4">
-      <FeedFeedItem
-        v-for="item in filtered"
+      <div
+        v-for="(item, i) in filtered"
         :key="item.id"
-        :item="item"
-        :organization-id="organizationId"
-        :is-board="isBoard"
-        :is-member="isMember"
-      />
+        v-motion
+        v-bind="rise(i, { stagger: 35 })"
+      >
+        <FeedFeedItem
+          :item="item"
+          :organization-id="organizationId"
+          :is-board="isBoard"
+          :is-member="isMember"
+        />
+      </div>
     </div>
 
     <div v-else class="py-20 text-center">
-      <div class="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
-        <Icon name="lucide:newspaper" class="w-7 h-7 text-stone-400" />
+      <div class="w-14 h-14 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-3">
+        <Icon name="lucide:newspaper" class="w-7 h-7 t-text-muted" />
       </div>
-      <p class="text-stone-500">Nothing in the feed yet.</p>
+      <p class="t-text-muted">Nothing in the feed yet.</p>
     </div>
   </div>
 </template>

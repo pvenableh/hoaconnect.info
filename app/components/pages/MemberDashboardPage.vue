@@ -9,6 +9,7 @@ const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { getUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const { fetchHousehold } = useChangeRequests();
+const { rise } = useMotionPresets();
 
 // Get organization context including member type and board member status
 const {
@@ -121,6 +122,16 @@ const portalSections = computed(() =>
       icon: "i-lucide-clipboard-list",
       path: "/requests",
       show: isEnabled("requests"),
+    },
+    {
+      key: "projects",
+      label: "Projects",
+      description: "Capital improvements & initiatives",
+      icon: "i-lucide-kanban-square",
+      path: "/projects",
+      // /projects is gated by the `projects` module (module.global.ts); read-only
+      // member view shows only member_visible projects.
+      show: isEnabled("projects"),
     },
     {
       key: "rules",
@@ -430,8 +441,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </h2>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <button
-              v-for="section in portalSections"
+              v-for="(section, i) in portalSections"
               :key="section.key"
+              v-motion
+              v-bind="rise(i, { stagger: 35 })"
               type="button"
               class="group flex flex-col items-start gap-3 rounded-xl border t-border t-bg-elevated p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5"
               @click="navigateToOrg(section.path)"
@@ -486,8 +499,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             <CardContent>
               <div v-if="announcements && announcements.length > 0" class="space-y-3">
                 <button
-                  v-for="a in announcements"
+                  v-for="(a, i) in announcements"
                   :key="a.id"
+                  v-motion
+                  v-bind="rise(i, { stagger: 35 })"
                   class="w-full flex items-start gap-3 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left"
                   @click="navigateToOrg('/announcements')"
                 >
@@ -536,8 +551,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             <CardContent>
               <div v-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
                 <button
-                  v-for="doc in recentDocuments"
+                  v-for="(doc, i) in recentDocuments"
                   :key="doc.id"
+                  v-motion
+                  v-bind="rise(i, { stagger: 35 })"
                   @click="downloadDocument(doc)"
                   class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
                 >

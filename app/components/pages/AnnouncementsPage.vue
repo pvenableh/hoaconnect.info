@@ -3,6 +3,7 @@ import type { HoaAnnouncement } from "~~/types/directus";
 
 const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { buildOrgPath } = useOrgNavigation();
+const { rise } = useMotionPresets();
 
 // Get organization and member info
 const { currentOrg, selectedOrgId, isLoading, isAdmin, isBoardMember, memberType } = await useSelectedOrg();
@@ -173,8 +174,10 @@ useSeoMeta({
           </h2>
           <div class="grid gap-6 md:grid-cols-2">
             <div
-              v-for="announcement in pinnedAnnouncements"
+              v-for="(announcement, i) in pinnedAnnouncements"
               :key="announcement.id"
+              v-motion
+              v-bind="rise(i)"
               class="t-bg-elevated rounded-xl border-2 t-border-accent overflow-hidden shadow-sm hover:shadow-md transition-shadow"
             >
               <!-- Type indicator bar -->
@@ -219,7 +222,7 @@ useSeoMeta({
                 <!-- Content -->
                 <div
                   v-if="announcement.content"
-                  class="prose prose-stone prose-sm max-w-none t-text-secondary line-clamp-3"
+                  class="prose prose-stone dark:prose-invert prose-sm max-w-none t-text-secondary line-clamp-3"
                   v-html="announcement.content"
                 />
               </div>
@@ -235,8 +238,10 @@ useSeoMeta({
           </h2>
           <div class="grid gap-4">
             <div
-              v-for="announcement in regularAnnouncements"
+              v-for="(announcement, i) in regularAnnouncements"
               :key="announcement.id"
+              v-motion
+              v-bind="rise(i)"
               class="t-bg-elevated rounded-xl border t-border overflow-hidden hover:shadow-sm transition-shadow"
               :class="{
                 'border-red-300': announcement.announcement_type === 'urgent',
@@ -287,7 +292,7 @@ useSeoMeta({
                   <!-- Content -->
                   <div
                     v-if="announcement.content"
-                    class="prose prose-stone prose-sm max-w-none t-text-secondary"
+                    class="prose prose-stone dark:prose-invert prose-sm max-w-none t-text-secondary"
                     v-html="announcement.content"
                   />
                 </div>

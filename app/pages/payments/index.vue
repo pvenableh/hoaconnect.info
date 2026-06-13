@@ -19,12 +19,12 @@
     >
       <Icon
         name="heroicons:document-text"
-        class="mx-auto h-16 w-16 text-gray-400 mb-4"
+        class="mx-auto h-16 w-16 t-text-muted mb-4"
       />
-      <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+      <h3 class="text-lg font-medium t-text mb-2">
         No Payment Requests
       </h3>
-      <p class="text-gray-600 dark:text-gray-400">
+      <p class="t-text-secondary">
         You don't have any payment requests at this time.
       </p>
     </div>
@@ -33,7 +33,7 @@
     <div v-else class="space-y-6">
       <!-- Outstanding Payments -->
       <div v-if="outstandingRequests.length > 0">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 class="text-xl font-semibold t-text mb-4">
           Outstanding Payments
         </h2>
         <div class="space-y-4">
@@ -51,7 +51,7 @@
               <div class="flex-1">
                 <div class="flex items-center space-x-3 mb-2">
                   <h3
-                    class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+                    class="text-lg font-semibold t-text"
                   >
                     {{ request.title }}
                   </h3>
@@ -71,12 +71,12 @@
                 </div>
                 <p
                   v-if="request.description"
-                  class="text-gray-600 dark:text-gray-400 text-sm mb-2"
+                  class="t-text-secondary text-sm mb-2"
                 >
                   {{ request.description }}
                 </p>
                 <div
-                  class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400"
+                  class="flex items-center space-x-4 text-sm t-text-muted"
                 >
                   <span class="flex items-center">
                     <Icon name="heroicons:calendar" class="h-4 w-4 mr-1" />
@@ -89,14 +89,14 @@
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <p class="text-2xl font-bold t-text">
                   ${{
                     formatNumber(request.amount_remaining || request.amount)
                   }}
                 </p>
                 <p
                   v-if="request.amount_paid > 0"
-                  class="text-sm text-gray-500 dark:text-gray-400"
+                  class="text-sm t-text-muted"
                 >
                   of ${{ formatNumber(request.amount) }}
                 </p>
@@ -105,7 +105,7 @@
 
             <!-- Progress Bar for Partially Paid -->
             <div v-if="request.status === 'partially_paid'" class="mb-4">
-              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div class="w-full t-bg-subtle rounded-full h-2">
                 <div
                   class="bg-blue-600 h-2 rounded-full"
                   :style="{
@@ -113,7 +113,7 @@
                   }"
                 ></div>
               </div>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p class="text-xs t-text-muted mt-1">
                 ${{ formatNumber(request.amount_paid) }} paid
               </p>
             </div>
@@ -134,7 +134,7 @@
 
       <!-- Paid Payments -->
       <div v-if="paidRequests.length > 0">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 class="text-xl font-semibold t-text mb-4">
           Payment History
         </h2>
         <div class="space-y-4">
@@ -147,7 +147,7 @@
               <div class="flex-1">
                 <div class="flex items-center space-x-3 mb-2">
                   <h3
-                    class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+                    class="text-lg font-semibold t-text"
                   >
                     {{ request.title }}
                   </h3>
@@ -158,7 +158,7 @@
                   </span>
                 </div>
                 <div
-                  class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400"
+                  class="flex items-center space-x-4 text-sm t-text-muted"
                 >
                   <span class="flex items-center">
                     <Icon name="heroicons:check-circle" class="h-4 w-4 mr-1" />
@@ -167,7 +167,7 @@
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-xl font-bold text-gray-900 dark:text-gray-100">
+                <p class="text-xl font-bold t-text">
                   ${{ formatNumber(request.amount) }}
                 </p>
               </div>

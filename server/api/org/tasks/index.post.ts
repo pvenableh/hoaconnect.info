@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
 
   // Ping the assignees (best-effort, never the creator).
   if (Array.isArray(body.assigned_to) && body.assigned_to.length) {
-    await notifyTaskAssigned(body.assigned_to, { id: (created as any)?.id, title }, access.userId).catch(() => {});
+    await notifyTaskAssigned(orgId, body.assigned_to, { id: (created as any)?.id, title }, access.userId).catch(() => {});
   }
 
   return created;

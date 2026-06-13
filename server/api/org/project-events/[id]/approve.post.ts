@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     } as any)
   );
 
-  await notifyApprovalDecided({ id, title: meta.title }, access.userId, decision === "approved", requestedBy).catch(
+  await notifyApprovalDecided(orgId, { id, title: meta.title }, access.userId, decision === "approved", requestedBy).catch(
     () => {}
   );
 

@@ -845,7 +845,9 @@ export const useNotifications = () => {
         console.warn("Failed to fetch comment notifications:", e);
       }
 
-      // Sort all notifications by date (newest first)
+      // Sort all notifications by date (newest first). Mirrors the shared
+      // sortByDateDesc helper (kept inline here to avoid tipping the $fetch
+      // route-union type recursion in this composable's module graph).
       allNotifications.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
@@ -946,8 +948,8 @@ export const useNotifications = () => {
         event: { bg: "bg-blue-50", text: "text-blue-700", icon: "calendar" },
         reminder: { bg: "bg-purple-50", text: "text-purple-700", icon: "bell" },
         general: {
-          bg: "bg-stone-50",
-          text: "text-stone-700",
+          bg: "t-bg-subtle",
+          text: "t-text-secondary",
           icon: "megaphone",
         },
       };
@@ -986,7 +988,7 @@ export const useNotifications = () => {
     }
 
     if (notification.type === "comment") {
-      return { bg: "bg-slate-50", text: "text-slate-700", icon: "message-circle" };
+      return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "message-circle" };
     }
 
     if (notification.type === "request") {
@@ -1001,7 +1003,7 @@ export const useNotifications = () => {
         : { bg: "bg-violet-50", text: "text-violet-700", icon: "check-circle" };
     }
 
-    return { bg: "bg-stone-50", text: "text-stone-700", icon: "bell" };
+    return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "bell" };
   };
 
   // Format date for display

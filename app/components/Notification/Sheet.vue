@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import type { UnifiedNotification } from "~/composables/useNotifications";
 import type { HoaAnnouncement } from "~~/types/directus";
+import { notificationTargetPath } from "~~/shared/notifications/grouping";
 
 const config = useRuntimeConfig();
 const router = useRouter();
@@ -18,7 +19,6 @@ const {
   isSheetOpen,
   closeNotification,
   getNotificationStyle,
-  formatDate,
 } = useNotifications();
 
 // Site domains for internal link detection
@@ -48,70 +48,42 @@ const isInternalLink = (url: string | null | undefined): boolean => {
   }
 };
 
-// Handle navigation to channel
-const navigateToChannel = () => {
-  if (!selectedNotification.value) return;
-  const channelId = selectedNotification.value.metadata.channelId;
-  const messageId = selectedNotification.value.metadata.messageId;
-  if (channelId) {
-    const path = buildOrgPath(`/admin/channels/${channelId}${messageId ? `#message-${messageId}` : ""}`);
-    closeNotification();
-    router.push(path);
+// Single deep-link action — the org-relative target is resolved by the shared
+// pure resolver (kept in sync with the bell's click-through), then wrapped with
+// buildOrgPath. Replaces the former per-type navigate helpers.
+const targetPath = computed(() =>
+  selectedNotification.value ? notificationTargetPath(selectedNotification.value) : null
+);
+const goToTarget = () => {
+  if (!targetPath.value) return;
+  const path = buildOrgPath(targetPath.value);
+  closeNotification();
+  router.push(path);
+};
+
+// Per-type CTA label (the action button text differs, the handler is shared).
+const ctaLabel = computed(() => {
+  switch (selectedNotification.value?.type) {
+    case "mention":
+      return "Go to channel";
+    case "meeting":
+      return "View meeting";
+    case "payment":
+      return "View payment";
+    case "document":
+      return "View document";
+    case "membership":
+      return "View directory";
+    case "request":
+      return "View request";
+    case "task":
+      return "View task";
+    case "comment":
+      return "View conversation";
+    default:
+      return "View";
   }
-};
-
-// Navigate to the meetings app
-const goToMeetings = () => {
-  closeNotification();
-  router.push(buildOrgPath("/meetings"));
-};
-
-// Navigate to the payments app
-const goToPayments = () => {
-  closeNotification();
-  router.push(buildOrgPath("/payments"));
-};
-
-// Navigate to a document detail page
-const goToDocument = () => {
-  if (!selectedNotification.value) return;
-  const documentId = selectedNotification.value.metadata.documentId;
-  closeNotification();
-  router.push(
-    buildOrgPath(documentId ? `/documents/${documentId}` : "/documents")
-  );
-};
-
-// Navigate to the member directory
-const goToDirectory = () => {
-  closeNotification();
-  router.push(buildOrgPath("/admin/members"));
-};
-
-// Navigate to a request detail
-const goToRequest = () => {
-  if (!selectedNotification.value) return;
-  const requestId = selectedNotification.value.metadata.requestId;
-  closeNotification();
-  router.push(buildOrgPath(requestId ? `/requests/${requestId}` : "/requests"));
-};
-
-// Navigate to the surface a comment was posted on. Requests deep-link to the
-// request; other targets fall back to that entity's list for now.
-const goToCommentTarget = () => {
-  if (!selectedNotification.value) return;
-  const { commentTargetCollection, commentTargetId } =
-    selectedNotification.value.metadata;
-  closeNotification();
-  const routes: Record<string, string> = {
-    hoa_requests: `/requests/${commentTargetId}`,
-    hoa_documents: `/documents/${commentTargetId}`,
-    hoa_meetings: "/meetings",
-    hoa_announcements: "/announcements",
-    payment_requests: "/payments",
-  };
-  router.push(buildOrgPath(routes[commentTargetCollection || ""] || "/"));
-};
+});
 
 // Format a currency amount
 const formatAmount = (amount: number | undefined): string => {
@@ -129,7 +101,7 @@ const handleOpenChange = (open: boolean) => {
   }
 };
 
-// Get button attrs for announcements
+// Get button attrs for announcements (external CTA link on the announcement)
 const getButtonAttrs = computed(() => {
   if (!selectedNotification.value || selectedNotification.value.type !== "announcement") {
     return null;
@@ -175,7 +147,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
 
 <template>
   <Sheet :open="isSheetOpen" @update:open="handleOpenChange">
-    <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+    <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto t-bg t-text">
       <template v-if="selectedNotification">
         <SheetHeader class="space-y-4">
           <!-- Type Badge -->
@@ -226,7 +198,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
             </span>
           </div>
 
-          <SheetTitle class="text-xl font-semibold text-left">
+          <SheetTitle class="text-xl font-semibold text-left t-text">
             {{ selectedNotification.title }}
           </SheetTitle>
 
@@ -235,7 +207,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
           </SheetDescription>
 
           <!-- Meta Info -->
-          <div class="flex flex-wrap items-center gap-3 text-sm text-stone-500">
+          <div class="flex flex-wrap items-center gap-3 text-sm t-text-muted">
             <span class="flex items-center gap-1">
               <Icon name="lucide:calendar" class="w-4 h-4" />
               {{ formatFullDate(selectedNotification.date) }}
@@ -269,19 +241,20 @@ const formatFullDate = (dateString: string | null | undefined): string => {
           <template v-if="selectedNotification.type === 'announcement'">
             <div
               v-if="selectedNotification.content"
-              class="prose prose-stone prose-sm max-w-none"
+              class="prose prose-stone dark:prose-invert prose-sm max-w-none"
               v-html="selectedNotification.content"
             />
 
-            <!-- CTA Button -->
+            <!-- CTA Button (announcement's own external/internal link) -->
             <div
               v-if="selectedNotification.metadata.buttonText && selectedNotification.metadata.buttonLink"
-              class="mt-6 pt-6 border-t border-stone-100"
+              class="mt-6 pt-6 border-t t-border-divider"
             >
               <a
                 v-if="getButtonAttrs"
                 v-bind="getButtonAttrs"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-opacity hover:opacity-90"
+                style="background: var(--theme-accent-primary)"
                 @click="closeNotification"
               >
                 {{ selectedNotification.metadata.buttonText }}
@@ -297,45 +270,32 @@ const formatFullDate = (dateString: string | null | undefined): string => {
 
           <!-- Mention Content -->
           <template v-else-if="selectedNotification.type === 'mention'">
-            <div class="p-4 bg-stone-50 rounded-lg">
-              <p class="text-sm text-stone-600 mb-2">
+            <div class="p-4 t-bg-subtle rounded-lg">
+              <p class="text-sm t-text-secondary mb-2">
                 <strong>{{ selectedNotification.metadata.mentionedBy?.name || 'Someone' }}</strong>
                 mentioned you:
               </p>
-              <p
-                v-if="selectedNotification.content"
-                class="text-stone-900"
-              >
+              <p v-if="selectedNotification.content" class="t-text">
                 "{{ selectedNotification.content }}..."
               </p>
-            </div>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="navigateToChannel"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                Go to channel
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
             </div>
           </template>
 
           <!-- Email Content -->
           <template v-else-if="selectedNotification.type === 'email'">
-            <div class="p-4 bg-stone-50 rounded-lg">
-              <p class="text-sm text-stone-600 mb-2">
+            <div class="p-4 t-bg-subtle rounded-lg">
+              <p class="text-sm t-text-secondary mb-2">
                 <strong>{{ selectedNotification.subtitle }}</strong>
               </p>
-              <p v-if="selectedNotification.content" class="text-stone-900">
+              <p v-if="selectedNotification.content" class="t-text">
                 {{ selectedNotification.content }}
               </p>
-              <p v-else class="text-stone-500 italic">
+              <p v-else class="t-text-muted italic">
                 This email was sent to your inbox.
               </p>
             </div>
 
-            <p class="mt-4 text-sm text-stone-500">
+            <p class="mt-4 text-sm t-text-muted">
               Check your email inbox for the full message.
             </p>
           </template>
@@ -344,30 +304,20 @@ const formatFullDate = (dateString: string | null | undefined): string => {
           <template v-else-if="selectedNotification.type === 'meeting'">
             <div
               v-if="selectedNotification.content"
-              class="prose prose-stone prose-sm max-w-none"
+              class="prose prose-stone dark:prose-invert prose-sm max-w-none"
               v-html="selectedNotification.content"
             />
-            <p v-else class="text-stone-500 italic">
+            <p v-else class="t-text-muted italic">
               A new meeting has been posted for your community.
             </p>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToMeetings"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View meeting
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
-            </div>
           </template>
 
           <!-- Payment Content -->
           <template v-else-if="selectedNotification.type === 'payment'">
-            <div class="p-4 bg-stone-50 rounded-lg space-y-2">
+            <div class="p-4 t-bg-subtle rounded-lg space-y-2">
               <div class="flex items-center justify-between">
-                <span class="text-sm text-stone-500">Amount due</span>
-                <span class="text-lg font-semibold text-stone-900">
+                <span class="text-sm t-text-muted">Amount due</span>
+                <span class="text-lg font-semibold t-text">
                   {{ formatAmount(selectedNotification.metadata.amount) }}
                 </span>
               </div>
@@ -375,123 +325,89 @@ const formatFullDate = (dateString: string | null | undefined): string => {
                 v-if="selectedNotification.metadata.dueDate"
                 class="flex items-center justify-between"
               >
-                <span class="text-sm text-stone-500">Due</span>
-                <span class="text-sm text-stone-700">
+                <span class="text-sm t-text-muted">Due</span>
+                <span class="text-sm t-text-secondary">
                   {{ formatFullDate(selectedNotification.metadata.dueDate) }}
                 </span>
               </div>
               <p
                 v-if="selectedNotification.content"
-                class="text-sm text-stone-600 pt-2 border-t border-stone-200"
+                class="text-sm t-text-secondary pt-2 border-t t-border-divider"
               >
                 {{ selectedNotification.content }}
               </p>
-            </div>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToPayments"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View payment
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
             </div>
           </template>
 
           <!-- Document Content -->
           <template v-else-if="selectedNotification.type === 'document'">
-            <p class="text-stone-600">
+            <p class="t-text-secondary">
               A new document is available in your community library.
             </p>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToDocument"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View document
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
-            </div>
           </template>
 
           <!-- Membership Content -->
           <template v-else-if="selectedNotification.type === 'membership'">
-            <div class="p-4 bg-stone-50 rounded-lg">
-              <p class="text-stone-900">
+            <div class="p-4 t-bg-subtle rounded-lg">
+              <p class="t-text">
                 {{ selectedNotification.title }}
               </p>
               <p
                 v-if="selectedNotification.content"
-                class="text-sm text-stone-500 mt-1"
+                class="text-sm t-text-muted mt-1"
               >
                 {{ selectedNotification.content }}
               </p>
-            </div>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToDirectory"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View directory
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
             </div>
           </template>
 
           <!-- Request Content -->
           <template v-else-if="selectedNotification.type === 'request'">
-            <div
-              v-if="selectedNotification.content"
-              class="text-stone-700"
-            >
+            <div v-if="selectedNotification.content" class="t-text-secondary">
               {{ selectedNotification.content }}
             </div>
-            <p v-else class="text-stone-500 italic">
+            <p v-else class="t-text-muted italic">
               A request needs your attention.
             </p>
+          </template>
 
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToRequest"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View request
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
+          <!-- Task Content -->
+          <template v-else-if="selectedNotification.type === 'task'">
+            <div v-if="selectedNotification.content" class="t-text-secondary">
+              {{ selectedNotification.content }}
             </div>
+            <p v-else class="t-text-muted italic">
+              A task is assigned to you.
+            </p>
           </template>
 
           <!-- Comment Content -->
           <template v-else-if="selectedNotification.type === 'comment'">
-            <div class="p-4 bg-stone-50 rounded-lg">
-              <p
-                v-if="selectedNotification.content"
-                class="text-stone-900"
-              >
+            <div class="p-4 t-bg-subtle rounded-lg">
+              <p v-if="selectedNotification.content" class="t-text">
                 "{{ selectedNotification.content }}…"
               </p>
-              <p v-else class="text-stone-500 italic">New comment on a thread you follow.</p>
-            </div>
-
-            <div class="mt-6 pt-6 border-t border-stone-100">
-              <button
-                @click="goToCommentTarget"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                View conversation
-                <Icon name="lucide:arrow-right" class="w-4 h-4" />
-              </button>
+              <p v-else class="t-text-muted italic">New comment on a thread you follow.</p>
             </div>
           </template>
+
+          <!-- Shared deep-link action (every type with a resolvable target) -->
+          <div v-if="targetPath" class="mt-6 pt-6 border-t t-border-divider">
+            <button
+              @click="goToTarget"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-opacity hover:opacity-90"
+              style="background: var(--theme-accent-primary)"
+            >
+              {{ ctaLabel }}
+              <Icon name="lucide:arrow-right" class="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <!-- Urgent Warning Banner -->
         <div
           v-if="selectedNotification.priority === 'urgent'"
-          class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+          class="mt-6 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg"
         >
           <div class="flex items-start gap-3">
             <Icon
@@ -499,8 +415,8 @@ const formatFullDate = (dateString: string | null | undefined): string => {
               class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
             />
             <div>
-              <p class="font-medium text-red-800">Urgent Notice</p>
-              <p class="text-sm text-red-700 mt-1">
+              <p class="font-medium text-red-800 dark:text-red-300">Urgent Notice</p>
+              <p class="text-sm text-red-700 dark:text-red-400 mt-1">
                 This notification requires your immediate attention.
               </p>
             </div>

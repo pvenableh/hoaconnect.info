@@ -7,6 +7,7 @@ definePageMeta({ layout: "auth" });
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
 const { list } = useProjects();
+const { rise } = useMotionPresets();
 
 // Server scopes members to member_visible projects automatically.
 const { data: projects, pending } = await useAsyncData(
@@ -38,8 +39,10 @@ const fmt = (s: string | null | undefined) =>
 
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
-            v-for="p in projects"
+            v-for="(p, i) in projects"
             :key="p.id"
+            v-motion
+            v-bind="rise(i)"
             class="ios-card p-5 text-left hover:shadow-lg transition-shadow"
             @click="navigateToOrg(`/projects/${p.id}`)"
           >

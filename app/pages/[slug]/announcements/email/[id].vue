@@ -50,5 +50,19 @@ useHead({
   width: 100%;
   height: 100%;
   border: 0;
+  animation: email-fade-in var(--motion-page, 300ms) ease both;
+}
+@keyframes email-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .email-web-view iframe {
+    animation: none;
+  }
 }
 </style>

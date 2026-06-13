@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
     );
     const added = body.assigned_to.filter((u: string) => !existing.has(u));
     if (added.length) {
-      await notifyTaskAssigned(added, { id, title: (updated as any)?.title || task.title }, access.userId).catch(() => {});
+      await notifyTaskAssigned(orgId, added, { id, title: (updated as any)?.title || task.title }, access.userId).catch(() => {});
     }
   }
 

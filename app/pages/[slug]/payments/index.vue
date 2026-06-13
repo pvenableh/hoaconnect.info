@@ -7,6 +7,7 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
+const { rise } = useMotionPresets();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const { list: listRequests } = useDirectusItems<PaymentRequest>("payment_requests");
 const { list: listTransactions } = useDirectusItems<PaymentTransaction>("payment_transactions");
@@ -138,8 +139,10 @@ const TYPE_LABEL: Record<string, string> = {
         <section v-if="outstanding.length" class="space-y-3">
           <h2 class="text-lg font-semibold t-text">Outstanding</h2>
           <div
-            v-for="request in outstanding"
+            v-for="(request, i) in outstanding"
             :key="request.id"
+            v-motion
+            v-bind="rise(i)"
             class="ios-card p-5 border-l-4"
             :class="{
               'border-red-500': request.status === 'overdue',

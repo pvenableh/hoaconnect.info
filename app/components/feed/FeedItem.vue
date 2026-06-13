@@ -25,7 +25,7 @@ const accentBg: Record<string, string> = {
   purple: "bg-purple-50 text-purple-600",
   violet: "bg-violet-50 text-violet-600",
   sky: "bg-sky-50 text-sky-600",
-  stone: "bg-stone-100 text-stone-600",
+  stone: "t-bg-subtle t-text-secondary",
 };
 
 const viewer = computed(() => ({
@@ -81,7 +81,7 @@ const formatDate = (s: string | null | undefined) => {
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-medium uppercase tracking-wide text-stone-400">
+          <span class="text-xs font-medium uppercase tracking-wide t-text-muted">
             {{ item.subtitle }}
           </span>
           <span
@@ -90,24 +90,24 @@ const formatDate = (s: string | null | undefined) => {
           >
             <Icon name="lucide:pin" class="w-2.5 h-2.5" /> Pinned
           </span>
-          <span class="text-xs text-stone-300">·</span>
-          <span class="text-xs text-stone-400">{{ formatDate(item.date) }}</span>
+          <span class="text-xs t-text-muted opacity-60">·</span>
+          <span class="text-xs t-text-muted">{{ formatDate(item.date) }}</span>
         </div>
         <NuxtLink :to="link" class="block mt-0.5">
-          <h3 class="font-semibold text-stone-900 hover:underline">{{ item.title }}</h3>
+          <h3 class="font-semibold t-text hover:underline">{{ item.title }}</h3>
         </NuxtLink>
       </div>
     </div>
 
     <!-- Excerpt -->
-    <p v-if="item.excerpt" class="mt-2 text-sm text-stone-600 line-clamp-3">
+    <p v-if="item.excerpt" class="mt-2 text-sm t-text-secondary line-clamp-3">
       {{ item.excerpt }}
     </p>
 
     <!-- Engagement bar (community content) -->
     <div
       v-if="!isRequest"
-      class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between gap-3"
+      class="mt-3 pt-3 border-t t-border-divider flex items-center justify-between gap-3"
     >
       <CommentsReactionBar
         :target-collection="item.sourceCollection"
@@ -116,7 +116,7 @@ const formatDate = (s: string | null | undefined) => {
       />
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 transition-colors"
+        class="inline-flex items-center gap-1.5 text-sm t-text-muted hover:t-text transition-colors"
         @click="showComments = !showComments"
       >
         <Icon name="lucide:message-circle" class="w-4 h-4" />
@@ -125,10 +125,10 @@ const formatDate = (s: string | null | undefined) => {
     </div>
 
     <!-- Request cards link to their detail/timeline -->
-    <div v-else class="mt-3 pt-3 border-t border-stone-100 flex justify-end">
+    <div v-else class="mt-3 pt-3 border-t t-border-divider flex justify-end">
       <NuxtLink
         :to="link"
-        class="inline-flex items-center gap-1.5 text-sm font-medium text-stone-700 hover:text-stone-900 transition-colors"
+        class="inline-flex items-center gap-1.5 text-sm font-medium t-text-secondary hover:t-text transition-colors"
       >
         View request
         <Icon name="lucide:arrow-right" class="w-4 h-4" />
@@ -136,7 +136,7 @@ const formatDate = (s: string | null | undefined) => {
     </div>
 
     <!-- Inline comment thread -->
-    <div v-if="showComments && !isRequest" class="mt-4 pt-4 border-t border-stone-100">
+    <div v-if="showComments && !isRequest" class="mt-4 pt-4 border-t t-border-divider">
       <CommentsCommentThread
         :target-collection="item.sourceCollection"
         :target-id="item.sourceId"
