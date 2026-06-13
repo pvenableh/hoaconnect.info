@@ -22,6 +22,7 @@
     "add:external-url": "dotenv -- tsx scripts/add-external-url-field.ts",
     "add:announcement-cta": "dotenv -- tsx scripts/add-announcement-cta-fields.ts",
     "add:email-branding": "dotenv -- tsx scripts/add-email-branding-fields.ts",
+    "add:email-activity-link": "dotenv -- tsx scripts/add-email-activity-link.ts",
     "create:scheduled-flow": "dotenv -- tsx scripts/create-scheduled-email-flow.ts",
     "restrict:channels": "dotenv -- tsx scripts/restrict-channel-access.ts",
     "channels:pin-softdelete": "dotenv -- tsx scripts/add-channel-pin-softdelete.ts",

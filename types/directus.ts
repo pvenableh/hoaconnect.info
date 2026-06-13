@@ -460,6 +460,8 @@ export interface HoaEmailActivity {
 	email_recipient?: HoaEmailRecipient | string | null;
 	member?: HoaMember | string | null;
 	organization?: HoaOrganization | string | null;
+	/** @description The hoa_emails record this activity event belongs to (from the email_id custom_arg). */
+	email_record?: HoaEmail | string | null;
 }
 
 export interface HoaEmailRecipient {

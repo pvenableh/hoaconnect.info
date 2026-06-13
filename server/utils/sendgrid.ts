@@ -477,13 +477,20 @@ export const sendOrganizationEmail = async ({
     categories.push(`org:${organizationId}`);
   }
 
-  // Always stamp the org id into custom_args (not just the category) so the
-  // activity webhook attributes every event to the right tenant — even for
-  // callers (scheduled/transactional sends) that didn't pass custom_args. This
-  // is the per-org isolation key the webhook reads first.
+  // Stamp the three tracking keys into custom_args so the activity webhook can
+  // tie every event to its tenant, email record, and recipient — even for
+  // callers (scheduled/transactional sends) that passed partial/no custom_args.
+  // The webhook reads custom_args first; categories are the fallback.
+  //   - organization_id : per-org isolation key
+  //   - recipient_email : who the event is about (derived from `to`)
+  //   - email_id        : which hoa_emails record (caller-supplied; absent for
+  //                       transactional twins not tied to a record)
   const mergedCustomArgs: Record<string, string> = { ...(customArgs || {}) };
   if (organizationId && !mergedCustomArgs.organization_id) {
     mergedCustomArgs.organization_id = organizationId;
+  }
+  if (!mergedCustomArgs.recipient_email) {
+    mergedCustomArgs.recipient_email = to;
   }
   const hasCustomArgs = Object.keys(mergedCustomArgs).length > 0;
 
