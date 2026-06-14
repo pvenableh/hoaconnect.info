@@ -356,6 +356,28 @@ a[role='button']:not([data-no-press]):active,
 }
 
 /* =============================================================================
+   GLASS CHROME BAR — liquid-glass material for app chrome (top nav, sidebar)
+   A translucent themed substrate + backdrop blur so page content reads through
+   the chrome (iOS "materials"). Degrades to a solid surface where backdrop
+   filters aren't supported or the user prefers reduced transparency.
+============================================================================= */
+.glass-bar {
+	background: var(--theme-nav-bg, color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent));
+	backdrop-filter: blur(18px) saturate(170%);
+	-webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+	.glass-bar { background: var(--theme-bg-elevated); }
+}
+@media (prefers-reduced-transparency: reduce) {
+	.glass-bar {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+		background: var(--theme-bg-elevated);
+	}
+}
+
+/* =============================================================================
    PRESS FEEDBACK — universal iOS tap "spring-back"
    A quick scale-down on press that springs back on release. Uses the `scale`
    property (independent of `transform`) so it composes with elements that

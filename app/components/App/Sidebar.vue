@@ -15,7 +15,7 @@
 <template>
   <aside
     ref="asideEl"
-    class="app-sidebar fixed inset-y-0 left-0 z-40 flex flex-col t-bg-elevated border-r t-border overflow-hidden will-change-[width]"
+    class="app-sidebar glass-bar fixed inset-y-0 left-0 z-40 flex flex-col border-r t-border overflow-hidden will-change-[width]"
     :class="[collapsed ? 'w-14' : 'w-60', { 'app-sidebar--collapsed': collapsed }]"
     aria-label="Primary"
   >

@@ -346,7 +346,7 @@ watch(
 </script>
 
 <template>
-  <nav class="t-bg-elevated border-b t-border px-6">
+  <nav class="glass-bar sticky top-0 z-40 border-b t-border px-6">
     <div class="max-w-7xl mx-auto py-4">
       <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         <!-- Logo / Brand — centered org identity -->
