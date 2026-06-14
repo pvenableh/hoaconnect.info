@@ -1081,19 +1081,27 @@ useSeoMeta({ title: "Public site" });
                 </label>
               </div>
               <div class="space-y-1.5">
-                <Label>Foreground logo <span class="t-text-muted">(optional)</span></Label>
-                <label class="block border-2 border-dashed t-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50">
-                  <input type="file" accept="image/*" class="hidden" @change="onHeroFg" />
+                <Label>Hero logo <span class="t-text-accent font-medium">— transparent PNG recommended</span></Label>
+                <label
+                  class="block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors"
+                  :class="heroFgPreview || getFileId(org?.hero?.foreground_image) ? 't-border hover:border-primary/50' : 't-border-accent hover:t-bg-accent/10'"
+                >
+                  <input type="file" accept="image/png,image/svg+xml,image/webp,image/*" class="hidden" @change="onHeroFg" />
                   <img
                     v-if="heroFgPreview || fileUrl(getFileId(org?.hero?.foreground_image))"
                     :src="heroFgPreview || fileUrl(getFileId(org?.hero?.foreground_image)) || ''"
                     class="max-h-28 mx-auto object-contain rounded"
                   />
-                  <div v-else class="py-4 t-text-muted text-sm">
-                    <Icon name="lucide:image" class="w-8 h-8 mx-auto mb-1" />
-                    Click to upload
+                  <div v-else class="py-4 t-text-accent text-sm">
+                    <Icon name="lucide:image-plus" class="w-8 h-8 mx-auto mb-1" />
+                    <span class="font-medium">Upload a transparent PNG</span>
                   </div>
                 </label>
+                <p class="text-xs t-text-muted leading-relaxed">
+                  Your community wordmark/logo, placed over the hero photo. A
+                  <strong class="t-text">transparent PNG</strong> (or SVG) looks sharpest — it
+                  reads cleanly on any background. Aim for ~1200px wide.
+                </p>
               </div>
             </div>
           </div>

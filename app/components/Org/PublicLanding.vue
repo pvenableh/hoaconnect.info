@@ -100,6 +100,18 @@
           {{ organization?.hero?.title || organization?.name }}
         </h1>
 
+        <!-- Admin nudge: a transparent PNG logo elevates the hero. Only the
+             org's admin sees it, only when no hero logo is set yet. -->
+        <button
+          v-if="isAdminOfCurrentDomain && !organization?.hero?.foreground_image && !organization?.logo"
+          type="button"
+          class="hero-fade landing-glass-btn mt-6 h-10 px-4 gap-2 text-xs uppercase tracking-wide mx-auto tappable"
+          @click="navigateToOrg('/admin/settings/domains')"
+        >
+          <Icon name="lucide:image-plus" class="w-4 h-4" />
+          Add a transparent PNG logo
+        </button>
+
         <!-- Gold hairline divider -->
         <div
           class="hero-fade w-16 h-px mx-auto mt-7 mb-5"
