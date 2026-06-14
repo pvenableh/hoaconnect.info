@@ -134,6 +134,13 @@ export default defineNuxtConfig({
           content:
             "width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover",
         },
+        // Installed/standalone PWA feel. `default` status bar adapts to the
+        // app's own background so light + dark both read correctly (the manifest
+        // already declares display:standalone + maskable icons). theme-color is
+        // set per-org in useOrgBranding.
+        { name: "mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       ],
       link: [
         {

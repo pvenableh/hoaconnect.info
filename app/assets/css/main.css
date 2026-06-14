@@ -54,6 +54,19 @@
 html {
   scroll-behavior: smooth;
   font-size: 15px;
+  /* Stop iOS from auto-inflating text in landscape/standalone. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Native-app feel: remove the grey/blue tap-highlight flash on touch, and
+   smooth font rendering so the UI reads like an installed app, not a webpage. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar */
