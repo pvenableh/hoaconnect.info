@@ -575,16 +575,6 @@ useSeoMeta({
 
         <!-- Main Content -->
         <div v-else class="space-y-6">
-        <!-- Organization Info -->
-        <Card>
-          <CardHeader>
-            <CardTitle>{{ organization.name }}</CardTitle>
-            <CardDescription v-if="organization.street_address">
-              {{ organization.street_address }}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
         <!-- Tabs -->
         <div class="border-b t-border">
           <nav class="flex space-x-8">
@@ -638,21 +628,21 @@ useSeoMeta({
 
         <!-- Members Tab -->
         <div v-if="activeTab === 'members'" class="space-y-4">
-          <!-- Info Box -->
-          <Card class="bg-blue-50 border-blue-200">
+          <!-- Info Box — theme-aware accent tint (adapts to light/dark + theme) -->
+          <Card class="t-bg-accent/10 t-border-accent">
             <CardContent class="pt-6">
-              <p class="text-sm text-blue-900">
+              <p class="text-sm t-text">
                 <strong>Two ways to add members:</strong>
               </p>
               <ul
-                class="text-sm text-blue-900 mt-2 space-y-1 list-disc list-inside"
+                class="text-sm t-text-secondary mt-2 space-y-1 list-disc list-inside"
               >
                 <li>
-                  <strong>Add Member:</strong> Create a record for residents who
+                  <strong class="t-text">Add Member:</strong> Create a record for residents who
                   don't need system access
                 </li>
                 <li>
-                  <strong>Invite Member:</strong> Send an email invitation for
+                  <strong class="t-text">Invite Member:</strong> Send an email invitation for
                   residents who need to log in
                 </li>
               </ul>

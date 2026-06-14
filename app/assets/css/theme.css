@@ -303,10 +303,10 @@
 	--theme-text-inverse: #121417;
 
 	/* Accent colors - cyan/turquoise */
-	--theme-accent-primary: #00D4E8;
-	--theme-accent-secondary: #00E5FA;
+	--theme-accent-primary: #22D3EE;
+	--theme-accent-secondary: #38E5FA;
 	--theme-accent-tertiary: #00BFD8;
-	--theme-accent-hover: #00E5FA;
+	--theme-accent-hover: #38E5FA;
 	--theme-accent-active: #00efd1;
 
 	/* Border colors */
@@ -325,17 +325,17 @@
 	--theme-heading-font: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 	--theme-body-font: 'Proxima Nova W01 Light', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 
-	/* Shadows */
-	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+	/* Shadows - wide, soft & deep to match the modern-light scale */
+	--theme-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.25);
+	--theme-shadow-md: 0 8px 28px -6px rgba(0, 0, 0, 0.4);
+	--theme-shadow-lg: 0 20px 56px -16px rgba(0, 0, 0, 0.55);
 
 	/* Interactive */
-	--theme-link-color: #00D4E8;
-	--theme-link-hover: #00E5FA;
-	--theme-button-bg: #00D4E8;
+	--theme-link-color: #22D3EE;
+	--theme-link-hover: #38E5FA;
+	--theme-button-bg: #22D3EE;
 	--theme-button-text: #121417;
-	--theme-button-hover-bg: #00E5FA;
+	--theme-button-hover-bg: #38E5FA;
 
 	/* Dividers */
 	--theme-divider: #2D3239;
@@ -601,6 +601,36 @@ html.theme-luxury-dark {
 	--input: var(--theme-border-primary);
 	--ring: var(--theme-accent-primary);
 	/* --destructive stays the shared red (delete/danger reads consistently). */
+}
+
+/* Modern gets its own shadcn-token map — previously it fell through to the stone
+   defaults (black buttons, grey rings, 8px corners). This makes every shadcn
+   surface (cards, inputs, popovers, dialogs) read in the modern palette with a
+   crisp high-contrast neutral primary pill (iOS/Linear style), cyan focus rings,
+   and generous iOS-native rounding. Classic/luxury keep their editorial map. */
+html.theme-modern-light,
+html.theme-modern-dark {
+	--background: var(--theme-bg-primary);
+	--foreground: var(--theme-text-primary);
+	--card: var(--theme-card-bg);
+	--card-foreground: var(--theme-text-primary);
+	--popover: var(--theme-bg-elevated);
+	--popover-foreground: var(--theme-text-primary);
+	/* Neutral high-contrast pill (dark on light, light on dark); the cyan accent
+	   stays for links, active states, and focus rings. */
+	--primary: var(--theme-text-primary);
+	--primary-foreground: var(--theme-bg-elevated);
+	--secondary: var(--theme-bg-secondary);
+	--secondary-foreground: var(--theme-text-primary);
+	--muted: var(--theme-bg-secondary);
+	--muted-foreground: var(--theme-text-muted);
+	--accent: var(--theme-bg-tertiary);
+	--accent-foreground: var(--theme-text-primary);
+	--border: var(--theme-border-primary);
+	--input: var(--theme-border-primary);
+	--ring: var(--theme-accent-primary);
+	/* Generous iOS-native rounding (shadcn rounded-xl cards → 16px). */
+	--radius: 0.75rem;
 }
 
 /* =============================================================================
