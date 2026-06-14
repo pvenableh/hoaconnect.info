@@ -64,7 +64,7 @@ const getRoleDisplay = (roleId: string | null | undefined): string => {
 // Get role badge color
 const getRoleBadgeClass = (roleId: string | null | undefined): string => {
   if (roleId === config.public.directusRoleHoaAdmin) {
-    return "bg-purple-100 text-purple-800";
+    return "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200";
   }
   return "t-bg-subtle t-text-secondary";
 };
@@ -500,10 +500,10 @@ const formatBoardTitle = (title: string | null): string => {
 
 const getBoardTitleColor = (title: string | null): string => {
   const colors: Record<string, string> = {
-    president: "bg-amber-100 text-amber-700",
-    vice_president: "bg-blue-100 text-blue-700",
-    secretary: "bg-emerald-100 text-emerald-700",
-    treasurer: "bg-purple-100 text-purple-700",
+    president: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+    vice_president: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+    secretary: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+    treasurer: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200",
     director: "t-bg-subtle t-text-secondary",
   };
   return colors[title || ""] || "t-bg-subtle t-text-secondary";
@@ -715,7 +715,7 @@ useSeoMeta({
                       <td class="p-3">
                         <span
                           v-if="member.user"
-                          class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded"
+                          class="text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200 px-2 py-1 rounded"
                         >
                           Yes
                         </span>
