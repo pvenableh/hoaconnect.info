@@ -23,6 +23,8 @@ const props = defineProps<{
   groups: HubGroup[];
 }>();
 
+const { buildOrgPath } = useOrgNavigation();
+
 const iconName = (icon: string) =>
   icon.includes(":") || icon.startsWith("i-") ? icon : `lucide:${icon}`;
 
@@ -42,6 +44,16 @@ const visibleGroups = computed(() =>
         <h1 class="text-3xl font-semibold tracking-tight t-text">{{ title }}</h1>
         <p v-if="subtitle" class="t-text-secondary mt-1">{{ subtitle }}</p>
       </WidgetGlass>
+
+      <!-- Empty state — every card in this hub is gated off for this community. -->
+      <div v-if="!visibleGroups.length" class="ios-card p-12 text-center">
+        <Icon name="lucide:layout-grid" class="mx-auto h-10 w-10 t-text-muted mb-3 opacity-60" />
+        <h3 class="text-lg font-medium t-text mb-1">Nothing here yet</h3>
+        <p class="t-text-muted">
+          The features for this section aren't enabled. Turn them on in
+          <NuxtLink :to="buildOrgPath('/admin/settings/organization?tab=modules')" class="t-text-accent underline">Settings → Features</NuxtLink>.
+        </p>
+      </div>
 
       <section v-for="(group, gi) in visibleGroups" :key="gi" class="space-y-3">
         <div v-if="group.label || group.description">

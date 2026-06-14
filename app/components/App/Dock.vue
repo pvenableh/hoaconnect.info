@@ -218,11 +218,11 @@ watch(apps, reset, { immediate: true });
   transform-origin: top center;
 }
 
-/* Perfect-circle chip */
+/* Perfect-circle chip — 44px meets the HIG/WCAG 2.5.5 touch-target minimum. */
 .dock-item__chip {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -236,8 +236,8 @@ watch(apps, reset, { immediate: true });
   transition: box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
 }
 .dock-item__icon {
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
   color: hsl(var(--c-h) var(--c-s) calc(var(--c-l) - 6%));
   filter: drop-shadow(0 1px 1px hsl(var(--c-h) 30% 30% / 0.25));
 }

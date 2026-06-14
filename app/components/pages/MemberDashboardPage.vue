@@ -71,88 +71,104 @@ const orgLogoUrl = computed(() => {
 // place" map: communications, documents, money, meetings, and the resident's own
 // household record, all a tap away. Mirrors the member dock/nav set.
 const showBoard = computed(() => organization.value?.show_board !== false);
-const portalSections = computed(() =>
+// Every section is shown so the resident sees the full shape of their portal;
+// modules the community hasn't enabled render greyed + non-navigating (a disabled
+// card mustn't link — module.global.ts would just bounce it back to the dashboard).
+// `available` drives the enabled/disabled treatment in the template.
+const portalSections = computed(() => [
+  {
+    key: "household",
+    label: "My Household",
+    description: "Your contact info, vehicles, pets & parking",
+    icon: "i-lucide-home",
+    path: "/profile",
+    available: true,
+  },
+  {
+    key: "payments",
+    label: "Payments",
+    description: "Dues, assessments & statements",
+    icon: "i-lucide-credit-card",
+    path: "/payments",
+    available: isEnabled("payments"),
+  },
+  {
+    key: "requests",
+    label: "Requests",
+    description: "Submit & track your requests",
+    icon: "i-lucide-clipboard-list",
+    path: "/requests",
+    available: isEnabled("requests"),
+  },
+  {
+    key: "documents",
+    label: "Documents",
+    description: "Bylaws, minutes, notices & forms",
+    icon: "i-lucide-file-text",
+    path: "/documents",
+    available: isEnabled("documents"),
+  },
+  {
+    key: "meetings",
+    label: "Meetings",
+    description: "Agendas, schedules & minutes",
+    icon: "i-lucide-calendar-days",
+    path: "/meetings",
+    available: isEnabled("meetings"),
+  },
+  {
+    key: "announcements",
+    label: "Announcements",
+    description: "Community news & past emails",
+    icon: "i-lucide-megaphone",
+    path: "/announcements",
+    available: isEnabled("announcements"),
+  },
+  {
+    key: "projects",
+    label: "Projects",
+    description: "Capital improvements & initiatives",
+    icon: "i-lucide-kanban-square",
+    path: "/projects",
+    available: isEnabled("projects"),
+  },
+  {
+    key: "rules",
+    label: "Rules & Bylaws",
+    description: "Community rules & governing docs",
+    icon: "i-lucide-scale",
+    path: "/rules",
+    available: isEnabled("rules"),
+  },
+  {
+    key: "board",
+    label: "Board",
+    description: "Meet your board members",
+    icon: "i-lucide-award",
+    path: "/board",
+    available: isEnabled("board") && showBoard.value,
+  },
+]);
+
+// Primary resident tasks lifted to the top of the portal (≤2 taps). Only the
+// ones the community actually enabled appear.
+const primaryActions = computed(() =>
   [
     {
-      key: "household",
-      label: "My Household",
-      description: "Your contact info, vehicles, pets & parking",
-      icon: "i-lucide-home",
-      path: "/profile",
-      show: true,
-    },
-    {
-      key: "documents",
-      label: "Documents",
-      description: "Bylaws, minutes, notices & forms",
-      icon: "i-lucide-file-text",
-      path: "/documents",
-      show: isEnabled("documents"),
-    },
-    {
-      key: "payments",
-      label: "Payments",
-      description: "Dues, assessments & statements",
+      key: "pay",
+      label: "Pay dues",
       icon: "i-lucide-credit-card",
       path: "/payments",
-      show: isEnabled("payments"),
+      available: isEnabled("payments"),
     },
     {
-      key: "meetings",
-      label: "Meetings",
-      description: "Agendas, schedules & minutes",
-      icon: "i-lucide-calendar-days",
-      path: "/meetings",
-      show: isEnabled("meetings"),
-    },
-    {
-      key: "announcements",
-      label: "Announcements",
-      description: "Community news & past emails",
-      icon: "i-lucide-megaphone",
-      path: "/announcements",
-      // Matches module.global.ts: the /announcements route is gated by the
-      // `announcements` module, so only surface the card when it's reachable.
-      show: isEnabled("announcements"),
-    },
-    {
-      key: "requests",
-      label: "Requests",
-      description: "Submit & track your requests",
-      icon: "i-lucide-clipboard-list",
+      key: "request",
+      label: "Submit a request",
+      icon: "i-lucide-plus",
       path: "/requests",
-      show: isEnabled("requests"),
+      available: isEnabled("requests"),
     },
-    {
-      key: "projects",
-      label: "Projects",
-      description: "Capital improvements & initiatives",
-      icon: "i-lucide-kanban-square",
-      path: "/projects",
-      // /projects is gated by the `projects` module (module.global.ts); read-only
-      // member view shows only member_visible projects.
-      show: isEnabled("projects"),
-    },
-    {
-      key: "rules",
-      label: "Rules & Bylaws",
-      description: "Community rules & governing docs",
-      icon: "i-lucide-scale",
-      path: "/rules",
-      show: isEnabled("rules"),
-    },
-    {
-      key: "board",
-      label: "Board",
-      description: "Meet your board members",
-      icon: "i-lucide-award",
-      path: "/board",
-      // /board is gated by the `board` module (module.global.ts); also respect the
-      // admin's "show board" preference. Hidden otherwise so the card never leads
-      // to a redirect-back-to-dashboard.
-      show: isEnabled("board") && showBoard.value,
-    },
-  ].filter((s) => s.show)
+  ].filter((a) => a.available),
 );
 
 // Fetch recent documents (last 5 published)
@@ -434,29 +450,62 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </TabsList>
 
           <TabsContent value="overview" class="space-y-8 mt-0">
-        <!-- Portal sections — the resident hub -->
+        <!-- Primary tasks — the highest-frequency resident actions, ≤2 taps. -->
+        <section v-if="primaryActions.length">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              v-for="(action, i) in primaryActions"
+              :key="action.key"
+              v-motion
+              v-bind="rise(i, { stagger: 35 })"
+              type="button"
+              class="group flex items-center gap-3 rounded-xl p-4 text-left text-white transition-all hover:shadow-lg hover:-translate-y-0.5 tappable"
+              style="background: var(--theme-accent-primary)"
+              @click="navigateToOrg(action.path)"
+            >
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <Icon :name="action.icon" class="h-5 w-5" />
+              </span>
+              <span class="font-semibold">{{ action.label }}</span>
+              <Icon name="i-lucide-arrow-right" class="h-4 w-4 ml-auto opacity-80 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </div>
+        </section>
+
+        <!-- Portal sections — the resident hub. All sections are shown; ones the
+             community hasn't enabled render greyed + non-navigating. -->
         <section>
           <h2 class="text-sm font-semibold uppercase tracking-wider t-text-muted mb-3">
             Your portal
           </h2>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <button
+            <component
+              :is="section.available ? 'button' : 'div'"
               v-for="(section, i) in portalSections"
               :key="section.key"
               v-motion
               v-bind="rise(i, { stagger: 35 })"
-              type="button"
-              class="group flex flex-col items-start gap-3 rounded-xl border t-border t-bg-elevated p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5"
-              @click="navigateToOrg(section.path)"
+              :type="section.available ? 'button' : undefined"
+              class="group flex flex-col items-start gap-3 rounded-xl border t-border t-bg-elevated p-4 text-left transition-all"
+              :class="section.available
+                ? 'hover:shadow-md hover:-translate-y-0.5 tappable cursor-pointer'
+                : 'opacity-55 cursor-default'"
+              :aria-disabled="section.available ? undefined : 'true'"
+              @click="section.available && navigateToOrg(section.path)"
             >
-              <span class="flex h-10 w-10 items-center justify-center rounded-lg t-bg-accent/15 t-text-accent">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-lg"
+                :class="section.available ? 't-bg-accent/15 t-text-accent' : 't-bg-subtle t-text-muted'"
+              >
                 <Icon :name="section.icon" class="h-5 w-5" />
               </span>
               <span class="min-w-0">
                 <span class="block font-medium t-text">{{ section.label }}</span>
-                <span class="block text-xs t-text-muted leading-snug mt-0.5">{{ section.description }}</span>
+                <span class="block text-xs t-text-muted leading-snug mt-0.5">
+                  {{ section.available ? section.description : "Not available for your community" }}
+                </span>
               </span>
-            </button>
+            </component>
           </div>
         </section>
 
