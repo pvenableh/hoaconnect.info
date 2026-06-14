@@ -1,4 +1,5 @@
 <template>
+  <NuxtLayout :name="layoutName">
   <div class="min-h-screen">
     <!-- Loading State -->
     <div v-if="pending" class="flex items-center justify-center min-h-[400px]">
@@ -55,9 +56,18 @@
       <OrgPublicLanding v-else :organization="organization" :slug="slug" />
     </template>
   </div>
+  </NuxtLayout>
 </template>
 
 <script setup>
+// The layout is data-dependent (workspace user → `auth`; visitor → `auth-blank`),
+// and that decision needs awaited membership data. Calling `setPageLayout` after
+// an await fell back to the `default` layout on cold SSR (no sidebar offset → the
+// dashboard rendered under the sidebar). Instead we own the layout via
+// `layout: false` + a reactive `<NuxtLayout :name>`, which resolves correctly on
+// SSR once setup's awaits complete.
+definePageMeta({ layout: false });
+
 const route = useRoute();
 const { user } = useDirectusAuth();
 const config = useRuntimeConfig();
@@ -99,8 +109,12 @@ const isWorkspaceUser = computed(
 
 // Workspace users get the full app shell (nav + dock + breadcrumbs + banner) via
 // the `auth` layout. Visitors and the public-site preview get the self-contained,
-// chromeless landing (its own nav drawer + CTAs).
-setPageLayout(isWorkspaceUser.value ? "auth" : "auth-blank");
+// chromeless landing (its own nav drawer + CTAs). Driven reactively through
+// `<NuxtLayout :name>` (see definePageMeta `layout: false` above) so the choice
+// survives cold SSR instead of falling back to the default layout.
+const layoutName = computed(() =>
+  isWorkspaceUser.value ? "auth" : "auth-blank"
+);
 
 const heroTitle = ref(null);
 use3DMouseRotation(heroTitle, {
