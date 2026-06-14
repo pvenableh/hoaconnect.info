@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen flex items-center justify-center t-bg-subtle py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
       <!-- Loading State -->
       <div v-if="isLoading" class="text-center">
         <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ loadingMessage }}</h2>
-        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we complete your setup.</p>
+        <h2 class="text-xl font-semibold t-text">{{ loadingMessage }}</h2>
+        <p class="mt-2 text-sm t-text-secondary">Please wait while we complete your setup.</p>
       </div>
 
       <!-- Success State -->
@@ -13,8 +13,8 @@
         <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
           <Icon name="heroicons:check-circle" class="h-10 w-10 text-green-600 dark:text-green-400" />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Welcome to Your New HOA Portal!</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
+        <h2 class="text-2xl font-bold t-text mb-2">Welcome to Your New HOA Portal!</h2>
+        <p class="t-text-secondary mb-6">
           <template v-if="paymentAmount > 0">
             Your payment of <strong>{{ formatCurrency(paymentAmount) }}</strong> has been processed and your organization is ready.
           </template>
@@ -24,24 +24,24 @@
         </p>
 
         <div v-if="organizationName" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 text-left">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-4">
+          <h3 class="text-sm font-semibold t-text uppercase tracking-wide mb-4">
             Setup Details
           </h3>
           <dl class="space-y-3">
             <div class="flex justify-between text-sm">
-              <dt class="text-gray-600 dark:text-gray-400">Organization:</dt>
-              <dd class="text-gray-900 dark:text-gray-100 font-semibold">{{ organizationName }}</dd>
+              <dt class="t-text-secondary">Organization:</dt>
+              <dd class="t-text font-semibold">{{ organizationName }}</dd>
             </div>
             <div v-if="paymentIntentId" class="flex justify-between text-sm">
-              <dt class="text-gray-600 dark:text-gray-400">Transaction ID:</dt>
-              <dd class="text-gray-900 dark:text-gray-100 font-mono text-xs">{{ paymentIntentId }}</dd>
+              <dt class="t-text-secondary">Transaction ID:</dt>
+              <dd class="t-text font-mono text-xs">{{ paymentIntentId }}</dd>
             </div>
             <div class="flex justify-between text-sm">
-              <dt class="text-gray-600 dark:text-gray-400">Amount:</dt>
-              <dd class="text-gray-900 dark:text-gray-100 font-semibold">{{ formatCurrency(paymentAmount) }}</dd>
+              <dt class="t-text-secondary">Amount:</dt>
+              <dd class="t-text font-semibold">{{ formatCurrency(paymentAmount) }}</dd>
             </div>
             <div class="flex justify-between text-sm">
-              <dt class="text-gray-600 dark:text-gray-400">Status:</dt>
+              <dt class="t-text-secondary">Status:</dt>
               <dd>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                   Complete
@@ -58,7 +58,7 @@
           </Button>
         </div>
 
-        <p class="mt-6 text-xs text-gray-500 dark:text-gray-400 text-center">
+        <p class="mt-6 text-xs t-text-muted text-center">
           A confirmation email has been sent to {{ userEmail }}
         </p>
       </div>
@@ -68,8 +68,8 @@
         <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
           <Icon name="heroicons:clock" class="h-10 w-10 text-blue-600 dark:text-blue-400" />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Processing</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
+        <h2 class="text-2xl font-bold t-text mb-2">Payment Processing</h2>
+        <p class="t-text-secondary mb-6">
           Your payment is being processed. This may take a few moments.
         </p>
         <Button @click="checkStatus" variant="outline">
@@ -83,8 +83,8 @@
         <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
           <Icon name="heroicons:x-circle" class="h-10 w-10 text-red-600 dark:text-red-400" />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Setup Failed</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
+        <h2 class="text-2xl font-bold t-text mb-2">Setup Failed</h2>
+        <p class="t-text-secondary mb-6">
           {{ errorMessage || 'We could not complete your setup. Please try again.' }}
         </p>
 
@@ -101,11 +101,11 @@
 
       <!-- Canceled State -->
       <div v-else-if="setupStatus === 'canceled'" class="text-center">
-        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-          <Icon name="heroicons:x-mark" class="h-10 w-10 text-gray-600 dark:text-gray-400" />
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full t-bg-subtle mb-4">
+          <Icon name="heroicons:x-mark" class="h-10 w-10 t-text-secondary" />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Canceled</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
+        <h2 class="text-2xl font-bold t-text mb-2">Payment Canceled</h2>
+        <p class="t-text-secondary mb-6">
           You have canceled the payment. No charges were made to your account.
         </p>
 
@@ -124,8 +124,8 @@
         <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900 mb-4">
           <Icon name="heroicons:exclamation-triangle" class="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Session Expired</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">
+        <h2 class="text-2xl font-bold t-text mb-2">Session Expired</h2>
+        <p class="t-text-secondary mb-6">
           Your setup session has expired. Please start the setup process again.
         </p>
 

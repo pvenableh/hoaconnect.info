@@ -114,10 +114,10 @@ async function onSubscribed() {
 
 <template>
   <div class="mx-auto max-w-4xl px-4 py-8">
-    <div v-if="pending" class="py-16 text-center text-stone-500">Loading…</div>
+    <div v-if="pending" class="py-16 text-center t-text-muted">Loading…</div>
 
     <div v-else-if="error || !account" class="py-16 text-center">
-      <p class="text-stone-600">You don’t have access to this billing account, or it doesn’t exist.</p>
+      <p class="t-text-secondary">You don’t have access to this billing account, or it doesn’t exist.</p>
       <NuxtLink to="/dashboard" class="mt-3 inline-block text-sm text-blue-600">← Back to dashboard</NuxtLink>
     </div>
 
@@ -125,12 +125,12 @@ async function onSubscribed() {
       <!-- Header -->
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p class="text-xs uppercase tracking-wide text-stone-400">Agency billing</p>
-          <h1 class="flex items-center gap-2 text-2xl font-semibold text-stone-900">
+          <p class="text-xs uppercase tracking-wide t-text-muted">Agency billing</p>
+          <h1 class="flex items-center gap-2 text-2xl font-semibold t-text">
             {{ account.name }}
             <span :class="['inline-block h-2.5 w-2.5 rounded-full', statusColor(account.subscription_status)]" />
           </h1>
-          <p class="mt-1 text-sm text-stone-500 capitalize">
+          <p class="mt-1 text-sm t-text-muted capitalize">
             {{ account.subscription_status }}
             <template v-if="account.subscription_status === 'trial' && account.trial_ends_at">
               · trial ends {{ fmtDate(account.trial_ends_at) }}
@@ -139,7 +139,7 @@ async function onSubscribed() {
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <span class="rounded-md bg-stone-100 px-3 py-1.5 text-sm text-stone-700">
+          <span class="rounded-md t-bg-subtle px-3 py-1.5 text-sm t-text-secondary">
             <strong>{{ seatsActive }}</strong> active /
             <strong>{{ account.seats_purchased }}</strong> seats
           </span>
@@ -174,7 +174,7 @@ async function onSubscribed() {
       <!-- Properties -->
       <section class="mt-8">
         <div class="mb-2 flex items-center justify-between">
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500">Properties</h2>
+          <h2 class="text-sm font-semibold uppercase tracking-wide t-text-muted">Properties</h2>
           <div class="flex items-center gap-2">
             <button v-if="canManage" :disabled="busy" class="text-sm text-blue-600 disabled:opacity-50" @click="syncSeats">Sync seats</button>
             <button v-if="canManage" :disabled="busy" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white hover:bg-stone-800 disabled:opacity-50" @click="showAdd = !showAdd">+ Add property</button>
@@ -182,7 +182,7 @@ async function onSubscribed() {
         </div>
 
         <!-- Add property form -->
-        <div v-if="showAdd && canManage" class="mb-3 rounded-lg border bg-stone-50 p-4">
+        <div v-if="showAdd && canManage" class="mb-3 rounded-lg border t-bg-subtle p-4">
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input v-model="newProp.name" placeholder="Property name" class="rounded-md border px-3 py-2 text-sm" />
             <input v-model="newProp.slug" placeholder="slug (lowercase-hyphenated)" class="rounded-md border px-3 py-2 text-sm" />
@@ -192,14 +192,14 @@ async function onSubscribed() {
             <input v-model="newProp.zip" placeholder="ZIP" class="rounded-md border px-3 py-2 text-sm" />
           </div>
           <div class="mt-3 flex justify-end gap-2">
-            <button class="text-sm text-stone-500" @click="showAdd = false">Cancel</button>
+            <button class="text-sm t-text-muted" @click="showAdd = false">Cancel</button>
             <button :disabled="busy || !newProp.name || !newProp.slug" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white disabled:opacity-50" @click="addProperty">Create property</button>
           </div>
         </div>
 
         <div class="overflow-hidden rounded-lg border">
           <table class="w-full text-sm">
-            <thead class="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-400">
+            <thead class="t-bg-subtle text-left text-xs uppercase tracking-wide t-text-muted">
               <tr>
                 <th class="px-4 py-2">Property</th>
                 <th class="px-4 py-2">Status</th>
@@ -210,8 +210,8 @@ async function onSubscribed() {
             <tbody class="divide-y">
               <tr v-for="p in properties" :key="p.id">
                 <td class="px-4 py-2">
-                  <NuxtLink :to="`/${p.slug}`" class="font-medium text-stone-900 hover:text-blue-600">{{ p.name }}</NuxtLink>
-                  <span class="ml-1 text-xs text-stone-400">/{{ p.slug }}</span>
+                  <NuxtLink :to="`/${p.slug}`" class="font-medium t-text hover:text-blue-600">{{ p.name }}</NuxtLink>
+                  <span class="ml-1 text-xs t-text-muted">/{{ p.slug }}</span>
                 </td>
                 <td class="px-4 py-2 capitalize">{{ p.status }}</td>
                 <td class="px-4 py-2">{{ p.member_count ?? "—" }}</td>
@@ -220,7 +220,7 @@ async function onSubscribed() {
                 </td>
               </tr>
               <tr v-if="!properties.length">
-                <td :colspan="canManage ? 4 : 3" class="px-4 py-6 text-center text-stone-400">No properties attached yet.</td>
+                <td :colspan="canManage ? 4 : 3" class="px-4 py-6 text-center t-text-muted">No properties attached yet.</td>
               </tr>
             </tbody>
           </table>
@@ -230,33 +230,33 @@ async function onSubscribed() {
       <!-- Billing -->
       <section class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div class="rounded-lg border p-4">
-          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Payment method</h2>
-          <p v-if="stripeInfo?.paymentMethod" class="text-sm text-stone-700">
+          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide t-text-muted">Payment method</h2>
+          <p v-if="stripeInfo?.paymentMethod" class="text-sm t-text-secondary">
             <span class="capitalize">{{ stripeInfo.paymentMethod.brand || stripeInfo.paymentMethod.type }}</span>
             •••• {{ stripeInfo.paymentMethod.last4 }}
-            <span v-if="stripeInfo.paymentMethod.exp_month" class="text-stone-400">
+            <span v-if="stripeInfo.paymentMethod.exp_month" class="t-text-muted">
               (exp {{ stripeInfo.paymentMethod.exp_month }}/{{ stripeInfo.paymentMethod.exp_year }})
             </span>
           </p>
-          <p v-else class="text-sm text-stone-400">No payment method on file.</p>
-          <button v-if="canManage && account.hasSubscription" :disabled="busy" class="mt-3 rounded-md border px-3 py-1.5 text-sm hover:bg-stone-50 disabled:opacity-50" @click="openPortal">
+          <p v-else class="text-sm t-text-muted">No payment method on file.</p>
+          <button v-if="canManage && account.hasSubscription" :disabled="busy" class="mt-3 rounded-md border px-3 py-1.5 text-sm hover:t-bg-subtle disabled:opacity-50" @click="openPortal">
             Manage payment &amp; invoices →
           </button>
         </div>
 
         <div class="rounded-lg border p-4">
-          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Recent invoices</h2>
+          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide t-text-muted">Recent invoices</h2>
           <ul v-if="stripeInfo?.invoices?.length" class="space-y-1.5 text-sm">
             <li v-for="inv in stripeInfo.invoices.slice(0, 6)" :key="inv.id" class="flex items-center justify-between">
               <a :href="inv.hosted_invoice_url" target="_blank" rel="noopener" class="text-blue-600 hover:underline">
                 {{ fmtDate(inv.created) }}
               </a>
-              <span class="text-stone-600">{{ fmtMoney(inv.total, inv.currency) }}</span>
-              <span class="text-xs capitalize text-stone-400">{{ inv.status }}</span>
+              <span class="t-text-secondary">{{ fmtMoney(inv.total, inv.currency) }}</span>
+              <span class="text-xs capitalize t-text-muted">{{ inv.status }}</span>
             </li>
           </ul>
-          <p v-else class="text-sm text-stone-400">No invoices yet.</p>
-          <p v-if="stripeInfo?.upcoming" class="mt-2 text-xs text-stone-500">
+          <p v-else class="text-sm t-text-muted">No invoices yet.</p>
+          <p v-if="stripeInfo?.upcoming" class="mt-2 text-xs t-text-muted">
             Next: {{ fmtMoney(stripeInfo.upcoming.total, stripeInfo.upcoming.currency) }}
             <template v-if="stripeInfo.upcoming.next_payment_attempt"> on {{ fmtDate(stripeInfo.upcoming.next_payment_attempt) }}</template>
           </p>
@@ -265,11 +265,11 @@ async function onSubscribed() {
 
       <!-- Members -->
       <section class="mt-8">
-        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Billing team</h2>
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide t-text-muted">Billing team</h2>
         <ul class="rounded-lg border divide-y text-sm">
           <li v-for="m in members" :key="m.id" class="flex items-center justify-between px-4 py-2">
             <span>{{ [m.user?.first_name, m.user?.last_name].filter(Boolean).join(" ") || m.user?.email }}</span>
-            <span class="text-xs capitalize text-stone-500">{{ m.role }}</span>
+            <span class="text-xs capitalize t-text-muted">{{ m.role }}</span>
           </li>
         </ul>
       </section>

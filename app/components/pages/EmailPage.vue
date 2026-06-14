@@ -131,10 +131,10 @@ const formatDate = (date: string | null | undefined) => {
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
     draft: "t-bg-subtle t-text-secondary",
-    scheduled: "bg-blue-100 text-blue-700",
-    sending: "bg-yellow-100 text-yellow-700",
-    sent: "bg-green-100 text-green-700",
-    failed: "bg-red-100 text-red-700",
+    scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+    sending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-200",
+    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
+    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
   };
   return classes[status] || classes.draft;
 };
@@ -142,11 +142,11 @@ const getStatusBadgeClass = (status: string) => {
 const getEmailTypeBadgeClass = (type: string) => {
   const classes: Record<string, string> = {
     basic: "t-bg-subtle t-text-secondary",
-    alert: "bg-red-100 text-red-700",
-    newsletter: "bg-sky-100 text-sky-700",
-    announcement: "bg-orange-100 text-orange-700",
-    reminder: "bg-amber-100 text-amber-700",
-    notice: "bg-emerald-100 text-emerald-700",
+    alert: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+    newsletter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
+    announcement: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+    reminder: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+    notice: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
   };
   return classes[type] || classes.basic;
 };

@@ -206,22 +206,22 @@ const formatShortDate = (date: string | null | undefined) => {
 
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
-    draft: "bg-stone-100 text-stone-700",
-    scheduled: "bg-blue-100 text-blue-700",
-    sending: "bg-yellow-100 text-yellow-700",
-    sent: "bg-green-100 text-green-700",
-    failed: "bg-red-100 text-red-700",
+    draft: "t-bg-subtle t-text-secondary",
+    scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+    sending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-200",
+    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
+    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
   };
   return classes[status] || classes.draft;
 };
 
 const getRecipientStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
-    pending: "bg-stone-100 text-stone-600",
-    sent: "bg-green-100 text-green-700",
-    delivered: "bg-green-100 text-green-700",
-    failed: "bg-red-100 text-red-700",
-    bounced: "bg-orange-100 text-orange-700",
+    pending: "t-bg-subtle t-text-secondary",
+    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
+    delivered: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
+    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+    bounced: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
   };
   return classes[status] || classes.pending;
 };
@@ -250,10 +250,10 @@ const getActivityEventInfo = (event: string) => {
     dropped: { icon: "lucide:x-circle", color: "text-red-600 bg-red-100", label: "Dropped" },
     spam_report: { icon: "lucide:shield-alert", color: "text-red-600 bg-red-100", label: "Spam Report" },
     unsubscribe: { icon: "lucide:user-minus", color: "text-amber-600 bg-amber-100", label: "Unsubscribed" },
-    processed: { icon: "lucide:send", color: "text-stone-600 bg-stone-100", label: "Processed" },
+    processed: { icon: "lucide:send", color: "t-text-secondary t-bg-subtle", label: "Processed" },
     deferred: { icon: "lucide:clock", color: "text-yellow-600 bg-yellow-100", label: "Deferred" },
   };
-  return events[event] || { icon: "lucide:mail", color: "text-stone-600 bg-stone-100", label: event };
+  return events[event] || { icon: "lucide:mail", color: "t-text-secondary t-bg-subtle", label: event };
 };
 
 useSeoMeta({
@@ -263,7 +263,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg-subtle">
     <PageContainer>
         <!-- Header -->
         <div class="mb-6">
@@ -279,7 +279,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading email...</p>
+          <p class="text-sm t-text-secondary">Loading email...</p>
         </div>
 
         <!-- Not Found State -->
@@ -312,7 +312,7 @@ useSeoMeta({
                       >
                         {{ email.status || 'draft' }}
                       </span>
-                      <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full bg-stone-100 text-stone-700 capitalize">
+                      <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full t-bg-subtle t-text-secondary capitalize">
                         {{ email.email_type }}
                       </span>
                     </div>
@@ -354,19 +354,19 @@ useSeoMeta({
               <Card class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold">{{ email.recipient_count || 0 }}</p>
-                  <p class="text-xs text-stone-500">Recipients</p>
+                  <p class="text-xs t-text-muted">Recipients</p>
                 </div>
               </Card>
               <Card class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold text-green-600">{{ email.delivered_count || 0 }}</p>
-                  <p class="text-xs text-stone-500">Delivered</p>
+                  <p class="text-xs t-text-muted">Delivered</p>
                 </div>
               </Card>
               <Card class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold text-red-600">{{ email.failed_count || 0 }}</p>
-                  <p class="text-xs text-stone-500">Failed</p>
+                  <p class="text-xs t-text-muted">Failed</p>
                 </div>
               </Card>
               <Card class="p-3">
@@ -374,7 +374,7 @@ useSeoMeta({
                   <p class="text-xl font-bold text-emerald-600">
                     {{ email.recipient_count ? Math.round(((email.delivered_count || 0) / email.recipient_count) * 100) : 0 }}%
                   </p>
-                  <p class="text-xs text-stone-500">Rate</p>
+                  <p class="text-xs t-text-muted">Rate</p>
                 </div>
               </Card>
             </div>
@@ -382,17 +382,17 @@ useSeoMeta({
             <!-- Email Content Preview -->
             <Card>
               <CardHeader class="pb-2">
-                <CardTitle class="text-sm font-medium text-stone-600">Email Preview</CardTitle>
+                <CardTitle class="text-sm font-medium t-text-secondary">Email Preview</CardTitle>
               </CardHeader>
               <CardContent class="p-0">
-                <div class="border rounded-lg overflow-hidden bg-stone-100">
+                <div class="border rounded-lg overflow-hidden t-bg-subtle">
                   <div class="max-w-[600px] mx-auto bg-white">
                     <div class="p-4">
-                      <p v-if="email.greeting" class="text-sm text-stone-600 italic mb-3">
+                      <p v-if="email.greeting" class="text-sm t-text-secondary italic mb-3">
                         {{ email.greeting }}
                       </p>
                       <div class="prose prose-sm prose-stone max-w-none email-content" v-html="email.content"></div>
-                      <p v-if="email.salutation" class="text-sm text-stone-600 mt-4">
+                      <p v-if="email.salutation" class="text-sm t-text-secondary mt-4">
                         {{ email.salutation || emailSystem.defaultSalutations[email.email_type] }},
                       </p>
                     </div>
@@ -414,13 +414,13 @@ useSeoMeta({
                   <div
                     v-for="attachment in email.attachments"
                     :key="attachmentKey(attachment)"
-                    class="flex items-center gap-2 p-2 bg-stone-50 rounded text-sm"
+                    class="flex items-center gap-2 p-2 t-bg-subtle rounded text-sm"
                   >
-                    <Icon name="lucide:file" class="w-4 h-4 text-stone-500" />
+                    <Icon name="lucide:file" class="w-4 h-4 t-text-muted" />
                     <span class="truncate flex-1">
                       {{ attachmentFile(attachment)?.filename_download || 'Attachment' }}
                     </span>
-                    <span class="text-xs text-stone-400">
+                    <span class="text-xs t-text-muted">
                       {{ formatFileSize(attachmentFile(attachment)?.filesize) }}
                     </span>
                   </div>
@@ -439,7 +439,7 @@ useSeoMeta({
                 <div class="max-h-60 overflow-y-auto">
                   <table class="w-full text-sm">
                     <thead class="sticky top-0 bg-white">
-                      <tr class="border-b text-left text-xs text-stone-500">
+                      <tr class="border-b text-left text-xs t-text-muted">
                         <th class="py-2 pr-2">Name</th>
                         <th class="py-2 pr-2">Email</th>
                         <th class="py-2">Status</th>
@@ -454,7 +454,7 @@ useSeoMeta({
                         <td class="py-2 pr-2 truncate max-w-[120px]">
                           {{ recipient.recipient_name || '—' }}
                         </td>
-                        <td class="py-2 pr-2 text-stone-600 truncate max-w-[160px]">
+                        <td class="py-2 pr-2 t-text-secondary truncate max-w-[160px]">
                           {{ recipient.recipient_email }}
                         </td>
                         <td class="py-2">
@@ -522,7 +522,7 @@ useSeoMeta({
 
                     <!-- Clicked URLs -->
                     <div v-if="clickedUrls.length > 0" class="mb-4">
-                      <h4 class="text-sm font-medium text-stone-600 mb-2 flex items-center gap-2">
+                      <h4 class="text-sm font-medium t-text-secondary mb-2 flex items-center gap-2">
                         <Icon name="lucide:link" class="w-4 h-4" />
                         Top Links
                       </h4>
@@ -530,7 +530,7 @@ useSeoMeta({
                         <div
                           v-for="link in clickedUrls.slice(0, 5)"
                           :key="link.url"
-                          class="flex items-center justify-between p-2 bg-stone-50 rounded text-sm"
+                          class="flex items-center justify-between p-2 t-bg-subtle rounded text-sm"
                         >
                           <a
                             :href="link.url"
@@ -539,19 +539,19 @@ useSeoMeta({
                           >
                             {{ link.url }}
                           </a>
-                          <span class="text-stone-500 text-xs">{{ link.count }} clicks</span>
+                          <span class="t-text-muted text-xs">{{ link.count }} clicks</span>
                         </div>
                       </div>
                     </div>
 
                     <!-- Activity Feed -->
                     <div>
-                      <h4 class="text-sm font-medium text-stone-600 mb-2">Recent Activity</h4>
+                      <h4 class="text-sm font-medium t-text-secondary mb-2">Recent Activity</h4>
                       <div v-if="recentActivity.length > 0" class="space-y-1 max-h-[400px] overflow-y-auto">
                         <div
                           v-for="activity in recentActivity"
                           :key="activity.id"
-                          class="flex items-center gap-2 p-2 hover:bg-stone-50 rounded"
+                          class="flex items-center gap-2 p-2 hover:t-bg-subtle rounded"
                         >
                           <div
                             :class="[
@@ -567,7 +567,7 @@ useSeoMeta({
                           <div class="flex-1 min-w-0">
                             <div class="text-sm">
                               <span class="font-medium">{{ getActivityEventInfo(activity.event).label }}</span>
-                              <span v-if="activity.recipientName" class="text-stone-500">
+                              <span v-if="activity.recipientName" class="t-text-muted">
                                 - {{ activity.recipientName }}
                               </span>
                             </div>
@@ -575,12 +575,12 @@ useSeoMeta({
                               {{ activity.clickedUrl }}
                             </div>
                           </div>
-                          <div class="text-xs text-stone-400 flex-shrink-0">
+                          <div class="text-xs t-text-muted flex-shrink-0">
                             {{ formatShortDate(activity.timestamp) }}
                           </div>
                         </div>
                       </div>
-                      <div v-else class="text-center py-8 text-stone-400">
+                      <div v-else class="text-center py-8 t-text-muted">
                         <Icon name="lucide:inbox" class="w-8 h-8 mx-auto mb-2" />
                         <p class="text-sm">No activity yet</p>
                       </div>
@@ -591,15 +591,15 @@ useSeoMeta({
                   <TabsContent value="charts" class="mt-0">
                     <!-- Delivery Chart -->
                     <div class="mb-6">
-                      <h4 class="text-sm font-medium text-stone-600 mb-3">Delivery Status</h4>
+                      <h4 class="text-sm font-medium t-text-secondary mb-3">Delivery Status</h4>
                       <div v-if="deliveryChartData.length > 0" class="space-y-2">
                         <div
                           v-for="item in deliveryChartData"
                           :key="item.label"
                           class="flex items-center gap-3"
                         >
-                          <div class="w-24 text-sm text-stone-600">{{ item.label }}</div>
-                          <div class="flex-1 h-6 bg-stone-100 rounded-full overflow-hidden">
+                          <div class="w-24 text-sm t-text-secondary">{{ item.label }}</div>
+                          <div class="flex-1 h-6 t-bg-subtle rounded-full overflow-hidden">
                             <div
                               class="h-full rounded-full transition-all duration-500"
                               :style="{
@@ -611,22 +611,22 @@ useSeoMeta({
                           <div class="w-12 text-sm font-medium text-right">{{ item.value }}</div>
                         </div>
                       </div>
-                      <div v-else class="text-center py-4 text-stone-400 text-sm">
+                      <div v-else class="text-center py-4 t-text-muted text-sm">
                         No delivery data available
                       </div>
                     </div>
 
                     <!-- Engagement Chart -->
                     <div class="mb-6">
-                      <h4 class="text-sm font-medium text-stone-600 mb-3">Engagement</h4>
+                      <h4 class="text-sm font-medium t-text-secondary mb-3">Engagement</h4>
                       <div v-if="engagementChartData.length > 0" class="space-y-2">
                         <div
                           v-for="item in engagementChartData"
                           :key="item.label"
                           class="flex items-center gap-3"
                         >
-                          <div class="w-24 text-sm text-stone-600">{{ item.label }}</div>
-                          <div class="flex-1 h-6 bg-stone-100 rounded-full overflow-hidden">
+                          <div class="w-24 text-sm t-text-secondary">{{ item.label }}</div>
+                          <div class="flex-1 h-6 t-bg-subtle rounded-full overflow-hidden">
                             <div
                               class="h-full rounded-full transition-all duration-500"
                               :style="{
@@ -638,22 +638,22 @@ useSeoMeta({
                           <div class="w-12 text-sm font-medium text-right">{{ item.value }}</div>
                         </div>
                       </div>
-                      <div v-else class="text-center py-4 text-stone-400 text-sm">
+                      <div v-else class="text-center py-4 t-text-muted text-sm">
                         No engagement data yet
                       </div>
                     </div>
 
                     <!-- Event Type Breakdown -->
                     <div>
-                      <h4 class="text-sm font-medium text-stone-600 mb-3">Event Breakdown</h4>
+                      <h4 class="text-sm font-medium t-text-secondary mb-3">Event Breakdown</h4>
                       <div v-if="eventTypeBreakdown.length > 0" class="space-y-2">
                         <div
                           v-for="item in eventTypeBreakdown"
                           :key="item.label"
                           class="flex items-center gap-3"
                         >
-                          <div class="w-24 text-sm text-stone-600 truncate">{{ item.label }}</div>
-                          <div class="flex-1 h-6 bg-stone-100 rounded-full overflow-hidden">
+                          <div class="w-24 text-sm t-text-secondary truncate">{{ item.label }}</div>
+                          <div class="flex-1 h-6 t-bg-subtle rounded-full overflow-hidden">
                             <div
                               class="h-full rounded-full transition-all duration-500"
                               :style="{
@@ -665,7 +665,7 @@ useSeoMeta({
                           <div class="w-12 text-sm font-medium text-right">{{ item.value }}</div>
                         </div>
                       </div>
-                      <div v-else class="text-center py-4 text-stone-400 text-sm">
+                      <div v-else class="text-center py-4 t-text-muted text-sm">
                         No events recorded
                       </div>
                     </div>

@@ -90,19 +90,19 @@ const formatPrice = (price: number | null | undefined) => {
 
 const getStatusColor = (status: string | null | undefined, isFree?: boolean) => {
   // Free accounts get a special purple badge
-  if (isFree) return "bg-purple-100 text-purple-800";
+  if (isFree) return "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200";
 
   switch (status) {
     case "active":
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200";
     case "trial":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200";
     case "expired":
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200";
     case "canceled":
-      return "bg-gray-100 text-gray-800";
+      return "t-bg-subtle t-text";
     default:
-      return "bg-gray-100 text-gray-500";
+      return "t-bg-subtle t-text-muted";
   }
 };
 
@@ -197,14 +197,14 @@ const handleManageBilling = async () => {
 
     <!-- Current Subscription Status -->
     <div class="ios-card p-6 mb-8">
-      <h2 class="text-lg font-semibold text-stone-900 mb-4">
+      <h2 class="text-lg font-semibold t-text mb-4">
         Current Subscription
       </h2>
 
       <div class="grid md:grid-cols-3 gap-6">
         <!-- Status -->
         <div>
-          <p class="text-sm text-stone-500 mb-1">Status</p>
+          <p class="text-sm t-text-muted mb-1">Status</p>
           <span
             :class="[
               'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
@@ -217,16 +217,16 @@ const handleManageBilling = async () => {
 
         <!-- Plan -->
         <div>
-          <p class="text-sm text-stone-500 mb-1">Plan</p>
-          <p class="font-medium text-stone-900">
+          <p class="text-sm t-text-muted mb-1">Plan</p>
+          <p class="font-medium t-text">
             {{ currentSubscription.plan?.name || "No plan selected" }}
           </p>
         </div>
 
         <!-- Trial/Expiry -->
         <div v-if="currentSubscription.status === 'trial'">
-          <p class="text-sm text-stone-500 mb-1">Trial Ends</p>
-          <p class="font-medium text-stone-900">
+          <p class="text-sm t-text-muted mb-1">Trial Ends</p>
+          <p class="font-medium t-text">
             {{ formatDate(currentSubscription.trialEndsAt) }}
             <span
               v-if="trialDaysRemaining !== null"
@@ -295,14 +295,14 @@ const handleManageBilling = async () => {
 
     <!-- Billing Cycle Toggle (hidden for free accounts) -->
     <div v-if="!currentSubscription.isFreeAccount" class="flex justify-center mb-8">
-      <div class="bg-stone-100 rounded-lg p-1 inline-flex">
+      <div class="t-bg-subtle rounded-lg p-1 inline-flex">
         <button
           @click="billingCycle = 'monthly'"
           :class="[
             'px-4 py-2 text-sm font-medium rounded-md transition',
             billingCycle === 'monthly'
-              ? 'bg-white text-stone-900 shadow'
-              : 'text-stone-600 hover:text-stone-900',
+              ? 'bg-white t-text shadow'
+              : 't-text-secondary hover:t-text',
           ]"
         >
           Monthly
@@ -312,8 +312,8 @@ const handleManageBilling = async () => {
           :class="[
             'px-4 py-2 text-sm font-medium rounded-md transition',
             billingCycle === 'yearly'
-              ? 'bg-white text-stone-900 shadow'
-              : 'text-stone-600 hover:text-stone-900',
+              ? 'bg-white t-text shadow'
+              : 't-text-secondary hover:t-text',
           ]"
         >
           Yearly
@@ -339,7 +339,7 @@ const handleManageBilling = async () => {
           'ios-card border-2 p-6 relative',
           plan.is_featured
             ? 'border-blue-500 shadow-lg'
-            : 'border-stone-200 hover:border-stone-300',
+            : 't-border hover:t-border',
         ]"
       >
         <!-- Featured Badge -->
@@ -355,14 +355,14 @@ const handleManageBilling = async () => {
         </div>
 
         <!-- Plan Name -->
-        <h3 class="text-xl font-semibold text-stone-900 mb-2">
+        <h3 class="text-xl font-semibold t-text mb-2">
           {{ plan.name }}
         </h3>
-        <p class="text-stone-600 text-sm mb-4">{{ plan.description }}</p>
+        <p class="t-text-secondary text-sm mb-4">{{ plan.description }}</p>
 
         <!-- Price -->
         <div class="mb-6">
-          <span class="text-3xl font-bold text-stone-900">
+          <span class="text-3xl font-bold t-text">
             {{
               formatPrice(
                 billingCycle === "yearly"
@@ -371,28 +371,28 @@ const handleManageBilling = async () => {
               )
             }}
           </span>
-          <span class="text-stone-500">/{{ billingCycle === "yearly" ? "year" : "month" }}</span>
+          <span class="t-text-muted">/{{ billingCycle === "yearly" ? "year" : "month" }}</span>
         </div>
 
         <!-- Features -->
         <ul class="space-y-3 mb-6">
           <li
             v-if="plan.max_members"
-            class="flex items-center gap-2 text-sm text-stone-600"
+            class="flex items-center gap-2 text-sm t-text-secondary"
           >
             <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
             Up to {{ plan.max_members }} members
           </li>
           <li
             v-if="plan.max_documents"
-            class="flex items-center gap-2 text-sm text-stone-600"
+            class="flex items-center gap-2 text-sm t-text-secondary"
           >
             <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
             {{ plan.max_documents }} documents
           </li>
           <li
             v-if="plan.max_storage_gb"
-            class="flex items-center gap-2 text-sm text-stone-600"
+            class="flex items-center gap-2 text-sm t-text-secondary"
           >
             <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
             {{ plan.max_storage_gb }}GB storage
@@ -401,7 +401,7 @@ const handleManageBilling = async () => {
             <li
               v-for="(feature, index) in Object.values(plan.features)"
               :key="index"
-              class="flex items-center gap-2 text-sm text-stone-600"
+              class="flex items-center gap-2 text-sm t-text-secondary"
             >
               <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
               {{ feature }}
@@ -417,7 +417,7 @@ const handleManageBilling = async () => {
             'w-full py-2.5 rounded-lg font-medium transition',
             plan.is_featured
               ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-stone-100 text-stone-900 hover:bg-stone-200',
+              : 't-bg-subtle t-text hover:t-bg-subtle',
             isProcessing && 'opacity-50 cursor-not-allowed',
           ]"
         >
@@ -439,20 +439,20 @@ const handleManageBilling = async () => {
     >
       <Icon
         name="i-lucide-package"
-        class="w-12 h-12 mx-auto text-stone-400 mb-4"
+        class="w-12 h-12 mx-auto t-text-muted mb-4"
       />
-      <h3 class="text-lg font-medium text-stone-900 mb-2">
+      <h3 class="text-lg font-medium t-text mb-2">
         No Plans Available
       </h3>
-      <p class="text-stone-600">
+      <p class="t-text-secondary">
         Please contact support for subscription options.
       </p>
     </div>
 
     <!-- Help Section -->
-    <div class="mt-8 p-6 bg-stone-50 rounded-xl">
-      <h3 class="font-medium text-stone-900 mb-2">Need Help?</h3>
-      <p class="text-sm text-stone-600 mb-3">
+    <div class="mt-8 p-6 t-bg-subtle rounded-xl">
+      <h3 class="font-medium t-text mb-2">Need Help?</h3>
+      <p class="text-sm t-text-secondary mb-3">
         Have questions about billing or need to make changes to your
         subscription?
       </p>

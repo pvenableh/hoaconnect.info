@@ -59,15 +59,15 @@ const {
 const getStatusColor = (status: string | null | undefined) => {
   switch (status) {
     case "active":
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200";
     case "trial":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200";
     case "expired":
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200";
     case "canceled":
-      return "bg-gray-100 text-gray-800";
+      return "t-bg-subtle t-text";
     default:
-      return "bg-gray-100 text-gray-500";
+      return "t-bg-subtle t-text-muted";
   }
 };
 
@@ -117,15 +117,15 @@ const handleManageSubscription = (orgId: string, slug: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg-subtle">
     <AppNav />
 
     <main class="max-w-6xl mx-auto px-6 py-8">
       <!-- Header -->
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-2xl font-semibold text-stone-900">My Organizations</h1>
-          <p class="text-stone-600 mt-1">
+          <h1 class="text-2xl font-semibold t-text">My Organizations</h1>
+          <p class="t-text-secondary mt-1">
             Manage all organizations you belong to
           </p>
         </div>
@@ -146,11 +146,11 @@ const handleManageSubscription = (orgId: string, slug: string) => {
       <!-- Empty State -->
       <div
         v-else-if="!memberships || memberships.length === 0"
-        class="text-center py-16 bg-white rounded-xl border border-stone-200"
+        class="text-center py-16 bg-white rounded-xl border t-border"
       >
-        <Icon name="i-lucide-building-2" class="w-12 h-12 mx-auto text-stone-400 mb-4" />
-        <h3 class="text-lg font-medium text-stone-900 mb-2">No Organizations</h3>
-        <p class="text-stone-600 mb-6">
+        <Icon name="i-lucide-building-2" class="w-12 h-12 mx-auto t-text-muted mb-4" />
+        <h3 class="text-lg font-medium t-text mb-2">No Organizations</h3>
+        <p class="t-text-secondary mb-6">
           You don't belong to any organizations yet.
         </p>
         <NuxtLink
@@ -167,7 +167,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
         <div
           v-for="membership in memberships"
           :key="membership.id"
-          class="bg-white rounded-xl border border-stone-200 p-6 hover:border-stone-300 transition"
+          class="bg-white rounded-xl border t-border p-6 hover:t-border transition"
           :class="{
             'ring-2 ring-blue-500 border-blue-500':
               membership.organization?.id === selectedOrgId,
@@ -178,7 +178,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
             <div class="flex items-start gap-4">
               <!-- Logo or Placeholder -->
               <div
-                class="w-14 h-14 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0"
+                class="w-14 h-14 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0"
               >
                 <img
                   v-if="membership.organization?.settings?.logo"
@@ -193,25 +193,25 @@ const handleManageSubscription = (orgId: string, slug: string) => {
                 <Icon
                   v-else
                   name="i-lucide-building-2"
-                  class="w-7 h-7 text-stone-400"
+                  class="w-7 h-7 t-text-muted"
                 />
               </div>
 
               <!-- Info -->
               <div>
                 <div class="flex items-center gap-3 mb-1">
-                  <h3 class="text-lg font-semibold text-stone-900">
+                  <h3 class="text-lg font-semibold t-text">
                     {{ membership.organization?.name || "Unknown Organization" }}
                   </h3>
                   <span
                     v-if="membership.organization?.id === selectedOrgId"
-                    class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
+                    class="text-xs bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200 px-2 py-0.5 rounded-full"
                   >
                     Current
                   </span>
                 </div>
 
-                <div class="flex items-center gap-4 text-sm text-stone-600">
+                <div class="flex items-center gap-4 text-sm t-text-secondary">
                   <span class="flex items-center gap-1">
                     <Icon name="i-lucide-shield" class="w-4 h-4" />
                     {{ membership.role?.name || "Member" }}
@@ -242,7 +242,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
 
                   <span
                     v-if="membership.organization?.subscription_plan?.name"
-                    class="text-xs text-stone-600"
+                    class="text-xs t-text-secondary"
                   >
                     {{ membership.organization.subscription_plan.name }} Plan
                   </span>
@@ -303,7 +303,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
                 "
                 :to="`/settings/organization`"
                 @click="handleSelectOrg(membership.organization?.id)"
-                class="p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition"
+                class="p-2 t-text-muted hover:text-stone-700 hover:t-bg-subtle rounded-lg transition"
                 title="Settings"
               >
                 <Icon name="i-lucide-settings" class="w-5 h-5" />

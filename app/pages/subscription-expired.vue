@@ -45,9 +45,9 @@ const statusMessage = computed(() => {
         title: 'Subscription Canceled',
         description: 'Your subscription has been canceled. Reactivate to restore access to all features.',
         icon: 'i-lucide-x-circle',
-        iconColor: 'text-gray-500',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        iconColor: 't-text-muted',
+        bgColor: 't-bg-subtle',
+        borderColor: 't-border',
       };
     case 'trial':
       return {
@@ -72,46 +72,46 @@ const statusMessage = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+  <div class="min-h-screen t-bg-subtle flex items-center justify-center p-4">
     <div class="max-w-md w-full">
       <!-- Card -->
-      <div class="bg-white rounded-2xl shadow-lg border border-stone-200 overflow-hidden">
+      <div class="bg-white rounded-2xl shadow-lg border t-border overflow-hidden">
         <!-- Header with icon -->
         <div :class="['p-8 text-center', statusMessage.bgColor, statusMessage.borderColor, 'border-b']">
           <div :class="['inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-sm mb-4']">
             <Icon :name="statusMessage.icon" :class="['w-8 h-8', statusMessage.iconColor]" />
           </div>
-          <h1 class="text-2xl font-bold text-stone-900">
+          <h1 class="text-2xl font-bold t-text">
             {{ statusMessage.title }}
           </h1>
-          <p class="text-stone-600 mt-2">
+          <p class="t-text-secondary mt-2">
             {{ organizationName }}
           </p>
         </div>
 
         <!-- Content -->
         <div class="p-8">
-          <p class="text-stone-600 text-center mb-6">
+          <p class="t-text-secondary text-center mb-6">
             {{ statusMessage.description }}
           </p>
 
           <!-- Features reminder -->
-          <div class="bg-stone-50 rounded-lg p-4 mb-6">
-            <p class="text-sm font-medium text-stone-700 mb-3">With an active subscription, you get:</p>
+          <div class="t-bg-subtle rounded-lg p-4 mb-6">
+            <p class="text-sm font-medium t-text-secondary mb-3">With an active subscription, you get:</p>
             <ul class="space-y-2">
-              <li class="flex items-center gap-2 text-sm text-stone-600">
+              <li class="flex items-center gap-2 text-sm t-text-secondary">
                 <Icon name="i-lucide-check" class="w-4 h-4 text-green-500 flex-shrink-0" />
                 Full access to document management
               </li>
-              <li class="flex items-center gap-2 text-sm text-stone-600">
+              <li class="flex items-center gap-2 text-sm t-text-secondary">
                 <Icon name="i-lucide-check" class="w-4 h-4 text-green-500 flex-shrink-0" />
                 Member and unit management
               </li>
-              <li class="flex items-center gap-2 text-sm text-stone-600">
+              <li class="flex items-center gap-2 text-sm t-text-secondary">
                 <Icon name="i-lucide-check" class="w-4 h-4 text-green-500 flex-shrink-0" />
                 Payment collection tools
               </li>
-              <li class="flex items-center gap-2 text-sm text-stone-600">
+              <li class="flex items-center gap-2 text-sm t-text-secondary">
                 <Icon name="i-lucide-check" class="w-4 h-4 text-green-500 flex-shrink-0" />
                 Custom domain support
               </li>
@@ -129,7 +129,7 @@ const statusMessage = computed(() => {
 
             <NuxtLink
               to="/auth/logout"
-              class="block w-full py-3 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 text-center font-medium rounded-lg transition"
+              class="block w-full py-3 px-4 t-bg-subtle hover:bg-stone-200 t-text-secondary text-center font-medium rounded-lg transition"
             >
               Sign Out
             </NuxtLink>
@@ -137,8 +137,8 @@ const statusMessage = computed(() => {
         </div>
 
         <!-- Footer -->
-        <div class="px-8 py-4 bg-stone-50 border-t border-stone-200">
-          <p class="text-xs text-stone-500 text-center">
+        <div class="px-8 py-4 t-bg-subtle border-t t-border">
+          <p class="text-xs t-text-muted text-center">
             Need help? Contact us at
             <a href="mailto:support@hoaconnect.com" class="text-blue-600 hover:text-blue-700">
               support@hoaconnect.com

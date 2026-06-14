@@ -35,11 +35,11 @@ watch(orgId, load, { immediate: true });
 const typeBadge = (type?: string | null) => {
   const map: Record<string, string> = {
     basic: "t-bg-subtle t-text-secondary",
-    alert: "bg-red-100 text-red-700",
-    newsletter: "bg-sky-100 text-sky-700",
-    announcement: "bg-orange-100 text-orange-700",
-    reminder: "bg-amber-100 text-amber-700",
-    notice: "bg-emerald-100 text-emerald-700",
+    alert: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+    newsletter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
+    announcement: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+    reminder: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+    notice: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
   };
   return map[type || "basic"] || map.basic;
 };
@@ -105,7 +105,7 @@ useSeoMeta({ title: "Email Templates" });
             <span class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full" :class="typeBadge(tpl.email_type)">
               {{ tpl.email_type }}
             </span>
-            <span v-if="!isOwned(tpl)" class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+            <span v-if="!isOwned(tpl)" class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
               Global
             </span>
           </div>

@@ -4,8 +4,8 @@
 			<!-- Loading State -->
 			<div v-if="isLoading" class="text-center">
 				<span class="spinner-ios spinner-ios--xl mx-auto mb-4 block" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Processing your payment...</h2>
-				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we confirm your payment.</p>
+				<h2 class="text-xl font-semibold t-text">Processing your payment...</h2>
+				<p class="mt-2 text-sm t-text-secondary">Please wait while we confirm your payment.</p>
 			</div>
 
 			<!-- Success State -->
@@ -13,26 +13,26 @@
 				<div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
 					<Icon name="heroicons:check-circle" class="h-10 w-10 text-green-600 dark:text-green-400" />
 				</div>
-				<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Successful!</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<h2 class="text-2xl font-bold t-text mb-2">Payment Successful!</h2>
+				<p class="t-text-secondary mb-6">
 					Your payment of <strong>{{ formatCurrency(paymentAmount) }}</strong> has been processed successfully.
 				</p>
 
 				<div v-if="paymentIntent" class="ios-card p-6 mb-6 text-left">
-					<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-4">
+					<h3 class="text-sm font-semibold t-text uppercase tracking-wide mb-4">
 						Payment Details
 					</h3>
 					<dl class="space-y-3">
 						<div class="flex justify-between text-sm">
-							<dt class="text-gray-600 dark:text-gray-400">Transaction ID:</dt>
-							<dd class="text-gray-900 dark:text-gray-100 font-mono text-xs">{{ paymentIntent.id }}</dd>
+							<dt class="t-text-secondary">Transaction ID:</dt>
+							<dd class="t-text font-mono text-xs">{{ paymentIntent.id }}</dd>
 						</div>
 						<div class="flex justify-between text-sm">
-							<dt class="text-gray-600 dark:text-gray-400">Amount:</dt>
-							<dd class="text-gray-900 dark:text-gray-100 font-semibold">{{ formatCurrency(paymentAmount) }}</dd>
+							<dt class="t-text-secondary">Amount:</dt>
+							<dd class="t-text font-semibold">{{ formatCurrency(paymentAmount) }}</dd>
 						</div>
 						<div class="flex justify-between text-sm">
-							<dt class="text-gray-600 dark:text-gray-400">Status:</dt>
+							<dt class="t-text-secondary">Status:</dt>
 							<dd>
 								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
 									Paid
@@ -40,7 +40,7 @@
 							</dd>
 						</div>
 						<div v-if="receiptUrl" class="flex justify-between text-sm">
-							<dt class="text-gray-600 dark:text-gray-400">Receipt:</dt>
+							<dt class="t-text-secondary">Receipt:</dt>
 							<dd>
 								<a :href="receiptUrl" target="_blank" class="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 underline">
 									View Receipt
@@ -60,7 +60,7 @@
 					</Button>
 				</div>
 
-				<p class="mt-6 text-xs text-gray-500 dark:text-gray-400 text-center">
+				<p class="mt-6 text-xs t-text-muted text-center">
 					A confirmation email has been sent to {{ paymentIntent?.receipt_email }}
 				</p>
 			</div>
@@ -70,8 +70,8 @@
 				<div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
 					<Icon name="heroicons:clock" class="h-10 w-10 text-blue-600 dark:text-blue-400" />
 				</div>
-				<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Processing</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<h2 class="text-2xl font-bold t-text mb-2">Payment Processing</h2>
+				<p class="t-text-secondary mb-6">
 					Your payment is being processed. This may take a few moments.
 				</p>
 				<Button @click="checkPaymentStatus" variant="outline">
@@ -85,8 +85,8 @@
 				<div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
 					<Icon name="heroicons:x-circle" class="h-10 w-10 text-red-600 dark:text-red-400" />
 				</div>
-				<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Failed</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<h2 class="text-2xl font-bold t-text mb-2">Payment Failed</h2>
+				<p class="t-text-secondary mb-6">
 					{{ errorMessage || 'Your payment could not be processed. Please try again.' }}
 				</p>
 
@@ -103,11 +103,11 @@
 
 			<!-- Canceled State -->
 			<div v-else-if="paymentStatus === 'canceled'" class="text-center">
-				<div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-					<Icon name="heroicons:x-mark" class="h-10 w-10 text-gray-600 dark:text-gray-400" />
+				<div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full t-bg-subtle mb-4">
+					<Icon name="heroicons:x-mark" class="h-10 w-10 t-text-secondary" />
 				</div>
-				<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Payment Canceled</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<h2 class="text-2xl font-bold t-text mb-2">Payment Canceled</h2>
+				<p class="t-text-secondary mb-6">
 					You have canceled the payment. No charges were made to your account.
 				</p>
 

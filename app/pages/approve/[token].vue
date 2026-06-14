@@ -61,45 +61,45 @@ useHead({ title: "Milestone approval" });
 <template>
   <div class="approve-page">
     <div class="approve-card">
-      <div v-if="pending" class="py-12 text-center text-stone-400">Loading…</div>
+      <div v-if="pending" class="py-12 text-center t-text-muted">Loading…</div>
 
       <div v-else-if="error" class="text-center py-8">
         <div class="icon-bubble icon-bubble--muted"><Icon name="lucide:link-2-off" class="w-6 h-6" /></div>
-        <h1 class="text-lg font-semibold text-stone-900 dark:text-stone-100 mt-3">Link no longer valid</h1>
-        <p class="text-sm text-stone-500 mt-1">This approval link has expired or was already used.</p>
+        <h1 class="text-lg font-semibold t-text mt-3">Link no longer valid</h1>
+        <p class="text-sm t-text-muted mt-1">This approval link has expired or was already used.</p>
       </div>
 
       <div v-else-if="done" class="text-center py-8">
         <div class="icon-bubble" :class="done === 'approved' ? 'icon-bubble--ok' : 'icon-bubble--warn'">
           <Icon :name="done === 'approved' ? 'lucide:check' : 'lucide:x'" class="w-7 h-7" />
         </div>
-        <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mt-3">
+        <h1 class="text-xl font-semibold t-text mt-3">
           {{ done === "approved" ? "Approved" : "Sent back" }}
         </h1>
-        <p class="text-sm text-stone-500 mt-1">
+        <p class="text-sm t-text-muted mt-1">
           Thank you — your decision on “{{ data!.title }}” was recorded. You can close this window.
         </p>
       </div>
 
       <div v-else-if="data">
-        <p v-if="data.org_name" class="text-[11px] uppercase tracking-[0.2em] text-stone-400 text-center">{{ data.org_name }}</p>
-        <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100 text-center mt-1">Approval requested</h1>
-        <p class="text-sm text-stone-500 text-center mt-1">A milestone is awaiting your decision.</p>
+        <p v-if="data.org_name" class="text-[11px] uppercase tracking-[0.2em] t-text-muted text-center">{{ data.org_name }}</p>
+        <h1 class="text-xl font-semibold t-text text-center mt-1">Approval requested</h1>
+        <p class="text-sm t-text-muted text-center mt-1">A milestone is awaiting your decision.</p>
 
         <div class="detail-box mt-5">
-          <p v-if="data.project_title" class="text-xs text-stone-400">{{ data.project_title }}</p>
-          <p class="text-base font-semibold text-stone-900 dark:text-stone-100">{{ data.title }}</p>
-          <p v-if="data.description" class="text-sm text-stone-500 mt-1 whitespace-pre-line">{{ data.description }}</p>
+          <p v-if="data.project_title" class="text-xs t-text-muted">{{ data.project_title }}</p>
+          <p class="text-base font-semibold t-text">{{ data.title }}</p>
+          <p v-if="data.description" class="text-sm t-text-muted mt-1 whitespace-pre-line">{{ data.description }}</p>
           <dl class="mt-3 grid grid-cols-2 gap-y-2 text-sm">
             <template v-if="fmt(data.event_date)">
-              <dt class="text-stone-400">Date</dt>
-              <dd class="text-stone-700 dark:text-stone-300 text-right">
+              <dt class="t-text-muted">Date</dt>
+              <dd class="t-text-secondary text-right">
                 {{ fmt(data.event_date) }}<span v-if="fmt(data.end_date) && data.end_date !== data.event_date"> – {{ fmt(data.end_date) }}</span>
               </dd>
             </template>
             <template v-if="money(data.cost_amount)">
-              <dt class="text-stone-400">Amount</dt>
-              <dd class="text-stone-700 dark:text-stone-300 text-right font-medium">{{ money(data.cost_amount) }}</dd>
+              <dt class="t-text-muted">Amount</dt>
+              <dd class="t-text-secondary text-right font-medium">{{ money(data.cost_amount) }}</dd>
             </template>
           </dl>
         </div>
@@ -117,7 +117,7 @@ useHead({ title: "Milestone approval" });
             {{ submitting ? "Saving…" : "Approve" }}
           </button>
         </div>
-        <p class="text-[11px] text-stone-400 text-center mt-4">This is a secure, single-use approval link.</p>
+        <p class="text-[11px] t-text-muted text-center mt-4">This is a secure, single-use approval link.</p>
       </div>
     </div>
   </div>
