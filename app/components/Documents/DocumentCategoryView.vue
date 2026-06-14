@@ -345,10 +345,10 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
       <div class="flex items-center gap-4">
         <!-- Status Filter -->
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-stone-600">Status:</label>
+          <label class="text-sm font-medium t-text-secondary">Status:</label>
           <select
             v-model="statusFilter"
-            class="px-3 py-1.5 border border-stone-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="px-3 py-1.5 border t-border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="published">Published</option>
             <option value="draft">Draft</option>
@@ -357,7 +357,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
         </div>
 
         <!-- Document count -->
-        <span class="text-sm text-stone-500">
+        <span class="text-sm t-text-muted">
           {{ totalDocuments }} document{{ totalDocuments !== 1 ? "s" : "" }}
         </span>
       </div>
@@ -393,7 +393,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
     <div class="flex gap-4 overflow-x-auto pb-4">
       <!-- Uncategorized Column -->
       <div
-        class="flex-shrink-0 w-80 bg-stone-100 rounded-xl border-2 transition-colors"
+        class="flex-shrink-0 w-80 t-bg-subtle rounded-xl border-2 transition-colors"
         :class="{
           'border-blue-400 bg-blue-50': dragOverCategory === 'uncategorized',
           'border-transparent': dragOverCategory !== 'uncategorized',
@@ -403,15 +403,15 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
         @drop="onDrop('uncategorized', $event)"
       >
         <!-- Column Header -->
-        <div class="p-4 border-b border-stone-200">
+        <div class="p-4 border-b t-border">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 rounded-lg bg-stone-200 flex items-center justify-center">
-                <Icon name="heroicons:inbox" class="h-4 w-4 text-stone-600" />
+                <Icon name="heroicons:inbox" class="h-4 w-4 t-text-secondary" />
               </div>
               <div>
-                <h3 class="font-semibold text-stone-900">Uncategorized</h3>
-                <p class="text-xs text-stone-500">
+                <h3 class="font-semibold t-text">Uncategorized</h3>
+                <p class="text-xs t-text-muted">
                   {{ documentsByCategory.uncategorized?.length || 0 }} documents
                 </p>
               </div>
@@ -448,7 +448,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
                   class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
                   :class="{
                     'bg-blue-500 border-blue-500': isSelected(doc.id),
-                    'border-stone-300': !isSelected(doc.id),
+                    't-border': !isSelected(doc.id),
                   }"
                 >
                   <Icon
@@ -462,10 +462,10 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
               <!-- Document info -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <Icon :name="getFileIcon(doc)" class="h-4 w-4 text-stone-400 flex-shrink-0" />
-                  <h4 class="font-medium text-stone-900 truncate">{{ doc.title }}</h4>
+                  <Icon :name="getFileIcon(doc)" class="h-4 w-4 t-text-muted flex-shrink-0" />
+                  <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
                 </div>
-                <p class="text-xs text-stone-500 mt-1">
+                <p class="text-xs t-text-muted mt-1">
                   {{ formatDate(doc.date_published || doc.date_created) }}
                 </p>
               </div>
@@ -473,10 +473,10 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
               <!-- Actions -->
               <button
                 @click.stop="downloadDocument(doc)"
-                class="p-1 rounded hover:bg-stone-100 transition-colors"
+                class="p-1 rounded hover:t-bg-subtle transition-colors"
                 title="Download"
               >
-                <Icon name="heroicons:arrow-down-tray" class="h-4 w-4 text-stone-400" />
+                <Icon name="heroicons:arrow-down-tray" class="h-4 w-4 t-text-muted" />
               </button>
             </div>
           </div>
@@ -484,7 +484,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           <!-- Empty state -->
           <div
             v-if="!documentsByCategory.uncategorized?.length"
-            class="text-center py-8 text-stone-400"
+            class="text-center py-8 t-text-muted"
           >
             <Icon name="heroicons:inbox" class="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p class="text-sm">No uncategorized documents</p>
@@ -496,7 +496,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
       <div
         v-for="category in categories"
         :key="category.id"
-        class="flex-shrink-0 w-80 bg-stone-100 rounded-xl border-2 transition-colors"
+        class="flex-shrink-0 w-80 t-bg-subtle rounded-xl border-2 transition-colors"
         :class="{
           'border-blue-400 bg-blue-50': dragOverCategory === category.id,
           'border-transparent': dragOverCategory !== category.id,
@@ -506,7 +506,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
         @drop="onDrop(category.id, $event)"
       >
         <!-- Column Header -->
-        <div class="p-4 border-b border-stone-200">
+        <div class="p-4 border-b t-border">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -516,8 +516,8 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
                 />
               </div>
               <div>
-                <h3 class="font-semibold text-stone-900">{{ category.name }}</h3>
-                <p class="text-xs text-stone-500">
+                <h3 class="font-semibold t-text">{{ category.name }}</h3>
+                <p class="text-xs t-text-muted">
                   {{ documentsByCategory[category.id]?.length || 0 }} documents
                 </p>
               </div>
@@ -554,7 +554,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
                   class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
                   :class="{
                     'bg-blue-500 border-blue-500': isSelected(doc.id),
-                    'border-stone-300': !isSelected(doc.id),
+                    't-border': !isSelected(doc.id),
                   }"
                 >
                   <Icon
@@ -568,10 +568,10 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
               <!-- Document info -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <Icon :name="getFileIcon(doc)" class="h-4 w-4 text-stone-400 flex-shrink-0" />
-                  <h4 class="font-medium text-stone-900 truncate">{{ doc.title }}</h4>
+                  <Icon :name="getFileIcon(doc)" class="h-4 w-4 t-text-muted flex-shrink-0" />
+                  <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
                 </div>
-                <p class="text-xs text-stone-500 mt-1">
+                <p class="text-xs t-text-muted mt-1">
                   {{ formatDate(doc.date_published || doc.date_created) }}
                 </p>
               </div>
@@ -579,10 +579,10 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
               <!-- Actions -->
               <button
                 @click.stop="downloadDocument(doc)"
-                class="p-1 rounded hover:bg-stone-100 transition-colors"
+                class="p-1 rounded hover:t-bg-subtle transition-colors"
                 title="Download"
               >
-                <Icon name="heroicons:arrow-down-tray" class="h-4 w-4 text-stone-400" />
+                <Icon name="heroicons:arrow-down-tray" class="h-4 w-4 t-text-muted" />
               </button>
             </div>
           </div>
@@ -590,7 +590,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           <!-- Empty state -->
           <div
             v-if="!documentsByCategory[category.id]?.length"
-            class="text-center py-8 text-stone-400"
+            class="text-center py-8 t-text-muted"
           >
             <Icon :name="category.icon || 'heroicons:folder'" class="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p class="text-sm">No documents in this category</p>
@@ -602,11 +602,11 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
       <!-- Empty state if no categories -->
       <div
         v-if="!categories?.length"
-        class="flex-shrink-0 w-80 bg-stone-100 rounded-xl border-2 border-dashed border-stone-300 p-8 text-center"
+        class="flex-shrink-0 w-80 t-bg-subtle rounded-xl border-2 border-dashed t-border p-8 text-center"
       >
-        <Icon name="heroicons:folder-plus" class="h-12 w-12 mx-auto mb-4 text-stone-400" />
-        <h3 class="font-medium text-stone-700">No categories yet</h3>
-        <p class="text-sm text-stone-500 mt-2">
+        <Icon name="heroicons:folder-plus" class="h-12 w-12 mx-auto mb-4 t-text-muted" />
+        <h3 class="font-medium t-text-secondary">No categories yet</h3>
+        <p class="text-sm t-text-muted mt-2">
           Create categories to organize your documents
         </p>
       </div>

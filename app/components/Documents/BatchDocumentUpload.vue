@@ -384,7 +384,7 @@ const allComplete = computed(
       class="relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer"
       :class="{
         'border-blue-500 bg-blue-50 scale-[1.02]': isOverDropZone,
-        'border-stone-300 bg-stone-50 hover:border-blue-400 hover:bg-blue-50/50':
+        't-border t-bg-subtle hover:border-blue-400 hover:bg-blue-50/50':
           !isOverDropZone,
       }"
       @click="triggerFileInput"
@@ -402,21 +402,21 @@ const allComplete = computed(
             class="h-10 w-10 transition-colors"
             :class="{
               'text-blue-600': isOverDropZone,
-              'text-stone-500': !isOverDropZone,
+              't-text-muted': !isOverDropZone,
             }"
           />
         </div>
 
         <div>
-          <p class="text-xl font-semibold text-stone-700">
+          <p class="text-xl font-semibold t-text-secondary">
             {{ isOverDropZone ? "Drop files here" : "Drag and drop files here" }}
           </p>
-          <p class="text-sm text-stone-500 mt-1">
+          <p class="text-sm t-text-muted mt-1">
             or <span class="text-blue-600 font-medium">click to browse</span>
           </p>
         </div>
 
-        <p class="text-xs text-stone-400">PDF, Word, Excel files accepted</p>
+        <p class="text-xs t-text-muted">PDF, Word, Excel files accepted</p>
       </div>
 
       <input
@@ -432,14 +432,14 @@ const allComplete = computed(
     <!-- Options Row -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <label class="text-sm font-medium mb-2 block text-stone-700">Category</label>
+        <label class="text-sm font-medium mb-2 block t-text-secondary">Category</label>
         <!-- Fixed height container to prevent layout jump -->
         <div class="min-h-[72px]">
           <!-- Category select mode -->
           <div v-if="!showNewCategoryInput" class="space-y-2">
             <select
               v-model="selectedCategory"
-              class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               :disabled="isUploading"
             >
               <option value="">No Category</option>
@@ -463,7 +463,7 @@ const allComplete = computed(
               v-model="newCategoryName"
               type="text"
               placeholder="Category name"
-              class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               :disabled="creatingCategory"
               @keyup.enter="handleCreateCategory"
             />
@@ -481,7 +481,7 @@ const allComplete = computed(
                 type="button"
                 @click="showNewCategoryInput = false; newCategoryName = ''"
                 :disabled="creatingCategory"
-                class="px-3 py-2 bg-stone-100 border border-stone-300 rounded-lg hover:bg-stone-200 transition-colors text-stone-600 text-sm font-medium"
+                class="px-3 py-2 t-bg-subtle border t-border rounded-lg hover:bg-stone-200 transition-colors t-text-secondary text-sm font-medium"
               >
                 Cancel
               </button>
@@ -491,10 +491,10 @@ const allComplete = computed(
       </div>
 
       <div>
-        <label class="text-sm font-medium mb-2 block text-stone-700">Folder</label>
+        <label class="text-sm font-medium mb-2 block t-text-secondary">Folder</label>
         <select
           v-model="selectedFolder"
-          class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           :disabled="isUploading"
         >
           <option :value="orgFolder">{{ organization?.name }} (Root)</option>
@@ -505,10 +505,10 @@ const allComplete = computed(
       </div>
 
       <div>
-        <label class="text-sm font-medium mb-2 block text-stone-700">Status</label>
+        <label class="text-sm font-medium mb-2 block t-text-secondary">Status</label>
         <select
           v-model="documentStatus"
-          class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           :disabled="isUploading"
         >
           <option value="draft">Draft (Review First)</option>
@@ -520,23 +520,23 @@ const allComplete = computed(
     <!-- File Queue -->
     <div v-if="fileQueue.length > 0" class="space-y-3">
       <div class="flex items-center justify-between">
-        <h3 class="font-semibold text-stone-700">
+        <h3 class="font-semibold t-text-secondary">
           Files to Upload
-          <span class="text-stone-400 font-normal">({{ fileQueue.length }})</span>
+          <span class="t-text-muted font-normal">({{ fileQueue.length }})</span>
         </h3>
         <Button
           v-if="!isUploading && pendingCount > 0"
           variant="ghost"
           size="sm"
           @click="clearQueue"
-          class="text-stone-500 hover:text-red-600"
+          class="t-text-muted hover:text-red-600"
         >
           Clear All
         </Button>
       </div>
 
       <!-- Progress Bar (when uploading) -->
-      <div v-if="isUploading" class="bg-stone-100 rounded-full h-2 overflow-hidden">
+      <div v-if="isUploading" class="t-bg-subtle rounded-full h-2 overflow-hidden">
         <div
           class="bg-blue-500 h-full transition-all duration-300 ease-out"
           :style="{
@@ -552,7 +552,7 @@ const allComplete = computed(
           :key="queuedFile.id"
           class="flex items-center gap-3 p-3 bg-white border rounded-lg transition-all duration-200"
           :class="{
-            'border-stone-200': queuedFile.status === 'pending',
+            't-border': queuedFile.status === 'pending',
             'border-blue-300 bg-blue-50': queuedFile.status === 'uploading',
             'border-green-300 bg-green-50': queuedFile.status === 'success',
             'border-red-300 bg-red-50': queuedFile.status === 'error',
@@ -562,7 +562,7 @@ const allComplete = computed(
           <div
             class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
             :class="{
-              'bg-stone-100': queuedFile.status === 'pending',
+              't-bg-subtle': queuedFile.status === 'pending',
               'bg-blue-100': queuedFile.status === 'uploading',
               'bg-green-100': queuedFile.status === 'success',
               'bg-red-100': queuedFile.status === 'error',
@@ -590,7 +590,7 @@ const allComplete = computed(
             <Icon
               v-else
               :name="getFileIcon(queuedFile.file.name)"
-              class="h-5 w-5 text-stone-500"
+              class="h-5 w-5 t-text-muted"
             />
           </div>
 
@@ -599,13 +599,13 @@ const allComplete = computed(
             <input
               v-if="queuedFile.status === 'pending'"
               v-model="queuedFile.title"
-              class="w-full font-medium text-stone-700 bg-transparent border-b border-transparent hover:border-stone-300 focus:border-blue-500 focus:outline-none transition-colors"
+              class="w-full font-medium t-text-secondary bg-transparent border-b border-transparent hover:border-stone-300 focus:border-blue-500 focus:outline-none transition-colors"
               @click.stop
             />
-            <p v-else class="font-medium text-stone-700 truncate">
+            <p v-else class="font-medium t-text-secondary truncate">
               {{ queuedFile.title }}
             </p>
-            <p class="text-xs text-stone-500 truncate">
+            <p class="text-xs t-text-muted truncate">
               {{ queuedFile.file.name }} · {{ formatSize(queuedFile.file.size) }}
             </p>
             <p v-if="queuedFile.errorMessage" class="text-xs text-red-600 mt-0.5">
@@ -617,7 +617,7 @@ const allComplete = computed(
           <button
             v-if="queuedFile.status === 'pending' || queuedFile.status === 'error'"
             @click.stop="removeFromQueue(queuedFile.id)"
-            class="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            class="p-1.5 rounded-lg t-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
             :disabled="isUploading"
           >
             <Icon name="heroicons:x-mark" class="h-5 w-5" />
@@ -628,7 +628,7 @@ const allComplete = computed(
       <!-- Summary Stats -->
       <div
         v-if="allComplete"
-        class="flex items-center gap-4 p-3 bg-stone-50 rounded-lg text-sm"
+        class="flex items-center gap-4 p-3 t-bg-subtle rounded-lg text-sm"
       >
         <span v-if="successCount > 0" class="text-green-600 font-medium">
           {{ successCount }} uploaded
@@ -642,7 +642,7 @@ const allComplete = computed(
     <!-- Empty State -->
     <div
       v-else
-      class="text-center py-8 text-stone-400"
+      class="text-center py-8 t-text-muted"
     >
       <p>No files selected yet</p>
     </div>

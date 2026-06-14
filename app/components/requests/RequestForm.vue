@@ -76,7 +76,7 @@ const submit = async () => {
   <div class="space-y-5">
     <!-- Type picker -->
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-2">Type</label>
+      <label class="block text-sm font-medium t-text-secondary mb-2">Type</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="t in types"
@@ -87,7 +87,7 @@ const submit = async () => {
           :class="
             form.type === t.type
               ? 'bg-stone-900 text-white border-stone-900'
-              : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+              : 'bg-white t-text-secondary t-border hover:t-bg-subtle'
           "
         >
           <Icon :name="t.icon" class="w-4 h-4" />
@@ -98,13 +98,13 @@ const submit = async () => {
 
     <!-- Title -->
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-1.5">Title</label>
+      <label class="block text-sm font-medium t-text-secondary mb-1.5">Title</label>
       <Input v-model="form.title" placeholder="Brief summary" />
     </div>
 
     <!-- Description -->
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-1.5">Description</label>
+      <label class="block text-sm font-medium t-text-secondary mb-1.5">Description</label>
       <ChannelsChannelEditor
         v-model="form.description"
         v-model:attachments="attachments"
@@ -117,7 +117,7 @@ const submit = async () => {
         <span
           v-for="id in attachments"
           :key="id"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 text-xs text-stone-600"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md t-bg-subtle text-xs t-text-secondary"
         >
           <Icon name="lucide:paperclip" class="w-3 h-3" /> Attachment
         </span>
@@ -127,7 +127,7 @@ const submit = async () => {
     <!-- Priority + due date -->
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-stone-700 mb-1.5">Priority</label>
+        <label class="block text-sm font-medium t-text-secondary mb-1.5">Priority</label>
         <select
           v-model="form.priority"
           class="w-full px-3 py-2 border rounded-md bg-background text-sm"
@@ -139,7 +139,7 @@ const submit = async () => {
         </select>
       </div>
       <div>
-        <label class="block text-sm font-medium text-stone-700 mb-1.5">Due date</label>
+        <label class="block text-sm font-medium t-text-secondary mb-1.5">Due date</label>
         <Input v-model="form.due_date" type="date" />
       </div>
     </div>
@@ -147,7 +147,7 @@ const submit = async () => {
     <!-- Type-specific metadata fields -->
     <div v-if="visibleFields.length" class="grid grid-cols-2 gap-4">
       <div v-for="field in visibleFields" :key="field.key">
-        <label class="block text-sm font-medium text-stone-700 mb-1.5">{{ field.label }}</label>
+        <label class="block text-sm font-medium t-text-secondary mb-1.5">{{ field.label }}</label>
         <textarea
           v-if="field.type === 'textarea'"
           v-model="metadata[field.key]"

@@ -28,11 +28,11 @@ function openRow(r: RequestRow, ev: MouseEvent) {
 }
 
 const accentClass: Record<string, string> = {
-  amber: "bg-amber-50 text-amber-700",
-  violet: "bg-violet-50 text-violet-700",
-  red: "bg-red-50 text-red-700",
-  orange: "bg-orange-50 text-orange-700",
-  sky: "bg-sky-50 text-sky-700",
+  amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+  violet: "bg-violet-50 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
+  red: "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+  orange: "bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+  sky: "bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
 };
 
 const stateLabel = (r: RequestRow) =>
@@ -52,10 +52,10 @@ const formatDate = (s: string | null | undefined) =>
     <WidgetRowSkeleton v-if="loading" :rows="5" avatar-shape="square" />
 
     <div v-else-if="!requests.length" class="py-16 text-center">
-      <div class="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
-        <Icon name="lucide:clipboard-list" class="w-7 h-7 text-stone-400" />
+      <div class="w-14 h-14 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-3">
+        <Icon name="lucide:clipboard-list" class="w-7 h-7 t-text-muted" />
       </div>
-      <p class="text-stone-500">No requests yet.</p>
+      <p class="t-text-muted">No requests yet.</p>
     </div>
 
     <StaggerList
@@ -63,30 +63,30 @@ const formatDate = (s: string | null | undefined) =>
       :items="requests"
       tag="ul"
       item-tag="li"
-      class="divide-y divide-stone-100"
+      class="divide-y divide-black/[0.06] dark:divide-white/[0.08]"
       v-slot="{ item: r }"
     >
         <NuxtLink
           :to="`${basePath}/${r.id}`"
-          class="flex items-center gap-3 px-3 py-3 hover:bg-stone-50 rounded-xl transition-colors"
+          class="flex items-center gap-3 px-3 py-3 hover:t-bg-subtle rounded-xl transition-colors"
           @click="openRow(r, $event)"
         >
           <div
             class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            :class="accentClass[getWorkflow(r.type).accent] || 'bg-stone-100 text-stone-600'"
+            :class="accentClass[getWorkflow(r.type).accent] || 't-bg-subtle t-text-secondary'"
           >
             <Icon :name="getWorkflow(r.type).icon" class="w-4.5 h-4.5" />
           </div>
 
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <p class="font-medium text-stone-900 truncate">{{ r.title }}</p>
+              <p class="font-medium t-text truncate">{{ r.title }}</p>
               <span
                 v-if="r.priority === 'urgent'"
                 class="text-[10px] font-semibold text-red-600 uppercase"
               >Urgent</span>
             </div>
-            <p class="text-xs text-stone-500 truncate">
+            <p class="text-xs t-text-muted truncate">
               {{ getWorkflow(r.type).label }}
               <template v-if="personName(r.assigned_to)"> · {{ personName(r.assigned_to) }}</template>
             </p>
@@ -95,11 +95,11 @@ const formatDate = (s: string | null | undefined) =>
           <div class="flex flex-col items-end gap-1 flex-shrink-0">
             <span
               class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-              :class="accentClass[getWorkflow(r.type).accent] || 'bg-stone-100 text-stone-600'"
+              :class="accentClass[getWorkflow(r.type).accent] || 't-bg-subtle t-text-secondary'"
             >
               {{ stateLabel(r) }}
             </span>
-            <span class="text-xs text-stone-400">{{ formatDate(r.date_updated || r.date_created) }}</span>
+            <span class="text-xs t-text-muted">{{ formatDate(r.date_updated || r.date_created) }}</span>
           </div>
         </NuxtLink>
     </StaggerList>

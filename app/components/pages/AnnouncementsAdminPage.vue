@@ -33,7 +33,7 @@ const activeTab = ref<"all" | "published" | "draft" | "archived">("all");
 
 // Announcement type options
 const typeOptions = [
-  { value: "general", label: "General", icon: "megaphone", color: "text-stone-600 bg-stone-50" },
+  { value: "general", label: "General", icon: "megaphone", color: "t-text-secondary t-bg-subtle" },
   { value: "urgent", label: "Urgent", icon: "alert-triangle", color: "text-red-600 bg-red-50" },
   { value: "maintenance", label: "Maintenance", icon: "wrench", color: "text-amber-600 bg-amber-50" },
   { value: "event", label: "Event", icon: "calendar", color: "text-blue-600 bg-blue-50" },
@@ -313,13 +313,13 @@ const isExpired = (expiryDate: string | null | undefined) => {
 const getStatusBadgeClass = (status: string | null | undefined) => {
   switch (status) {
     case "published":
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200";
     case "draft":
       return "bg-yellow-100 text-yellow-800";
     case "archived":
-      return "bg-stone-100 text-stone-600";
+      return "t-bg-subtle t-text-secondary";
     default:
-      return "bg-stone-100 text-stone-600";
+      return "t-bg-subtle t-text-secondary";
   }
 };
 
@@ -346,7 +346,7 @@ useSeoMeta({
             name="lucide:loader-2"
             class="w-8 h-8 animate-spin mx-auto mb-4"
           />
-          <p class="text-sm text-stone-600">Loading your organization...</p>
+          <p class="text-sm t-text-secondary">Loading your organization...</p>
         </div>
 
         <!-- No Organization State -->
@@ -373,7 +373,7 @@ useSeoMeta({
           </Card>
 
           <!-- Tabs -->
-          <div class="border-b border-stone-200">
+          <div class="border-b t-border">
             <nav class="flex space-x-8">
               <button
                 @click="activeTab = 'all'"
@@ -381,7 +381,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'all'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
                 ]"
               >
                 All ({{ statusCounts.all }})
@@ -392,7 +392,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'published'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
                 ]"
               >
                 <Icon name="lucide:check-circle" class="w-4 h-4 inline mr-1" />
@@ -404,7 +404,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'draft'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
                 ]"
               >
                 <Icon name="lucide:file-edit" class="w-4 h-4 inline mr-1" />
@@ -416,7 +416,7 @@ useSeoMeta({
                   'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
                   activeTab === 'archived'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300',
+                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
                 ]"
               >
                 <Icon name="lucide:archive" class="w-4 h-4 inline mr-1" />
@@ -453,7 +453,7 @@ useSeoMeta({
                     <tr
                       v-for="announcement in filteredAnnouncements"
                       :key="announcement.id"
-                      class="border-b hover:bg-stone-50"
+                      class="border-b hover:t-bg-subtle"
                       :class="{ 'bg-red-50/30': isExpired(announcement.expiry_date) && announcement.status === 'published' }"
                     >
                       <td class="p-3">
@@ -469,7 +469,7 @@ useSeoMeta({
                         </div>
                         <p
                           v-if="announcement.content"
-                          class="text-xs text-stone-500 line-clamp-1 mt-1"
+                          class="text-xs t-text-muted line-clamp-1 mt-1"
                           v-html="announcement.content"
                         />
                       </td>
@@ -560,11 +560,11 @@ useSeoMeta({
 
               <div
                 v-if="!filteredAnnouncements?.length"
-                class="text-center py-12 text-stone-500"
+                class="text-center py-12 t-text-muted"
               >
                 <Icon
                   name="lucide:megaphone"
-                  class="w-12 h-12 mx-auto mb-4 text-stone-400"
+                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
                 />
                 <p class="font-medium">No announcements found</p>
                 <p class="text-sm mt-1">
@@ -663,7 +663,7 @@ useSeoMeta({
                         :disabled="!form.publish_date"
                       />
                     </div>
-                    <p class="text-xs text-stone-500">
+                    <p class="text-xs t-text-muted">
                       Leave empty to publish immediately. Default: 5:00 PM EST
                     </p>
                   </div>
@@ -684,7 +684,7 @@ useSeoMeta({
                         :disabled="!form.expiry_date"
                       />
                     </div>
-                    <p class="text-xs text-stone-500">
+                    <p class="text-xs t-text-muted">
                       Leave empty for no expiry. Default: 5:00 PM EST
                     </p>
                   </div>
@@ -712,7 +712,7 @@ useSeoMeta({
                     id="pinned"
                     type="checkbox"
                     v-model="form.is_pinned"
-                    class="h-4 w-4 rounded border-stone-300"
+                    class="h-4 w-4 rounded t-border"
                   />
                   <Label for="pinned" class="font-normal cursor-pointer">
                     Pin this announcement (appears at the top)

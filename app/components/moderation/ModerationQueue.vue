@@ -17,10 +17,10 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  open: "bg-amber-50 text-amber-700",
-  reviewed: "bg-blue-50 text-blue-700",
-  dismissed: "bg-stone-100 text-stone-500",
-  actioned: "bg-emerald-50 text-emerald-700",
+  open: "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+  reviewed: "bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+  dismissed: "t-bg-subtle t-text-muted",
+  actioned: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
 };
 
 const load = async () => {
@@ -92,7 +92,7 @@ const formatDate = (s?: string | null) =>
         :key="opt.key"
         @click="filter = opt.key as 'open' | 'all'"
         class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-        :class="filter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+        :class="filter === opt.key ? 'bg-stone-900 text-white' : 't-bg-subtle t-text-secondary hover:bg-stone-200'"
       >{{ opt.label }}</button>
     </div>
 
@@ -102,7 +102,7 @@ const formatDate = (s?: string | null) =>
       <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
         <Icon name="lucide:shield-check" class="w-7 h-7 text-emerald-500" />
       </div>
-      <p class="text-stone-500">
+      <p class="t-text-muted">
         {{ filter === "open" ? "No open reports — all clear." : "No reports." }}
       </p>
     </div>
@@ -110,30 +110,30 @@ const formatDate = (s?: string | null) =>
     <div v-else class="space-y-3">
       <div v-for="r in reports" :key="r.id" class="ios-card p-5">
         <div class="flex items-center gap-2 mb-2 flex-wrap">
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-200">
             <Icon name="lucide:flag" class="w-3 h-3" />
             {{ REASON_LABELS[r.reason] || r.reason }}
           </span>
           <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium" :class="STATUS_STYLE[r.status]">
             {{ r.status }}
           </span>
-          <span v-if="isHidden(r)" class="inline-flex items-center gap-1 text-[11px] text-stone-500">
+          <span v-if="isHidden(r)" class="inline-flex items-center gap-1 text-[11px] t-text-muted">
             <Icon name="lucide:eye-off" class="w-3 h-3" /> comment hidden
           </span>
-          <span class="text-xs text-stone-400 ml-auto">{{ formatDate(r.date_created) }}</span>
+          <span class="text-xs t-text-muted ml-auto">{{ formatDate(r.date_created) }}</span>
         </div>
 
-        <p class="text-sm text-stone-500">
-          Reported by <span class="font-medium text-stone-700">{{ reporterName(r) }}</span>
+        <p class="text-sm t-text-muted">
+          Reported by <span class="font-medium t-text-secondary">{{ reporterName(r) }}</span>
         </p>
-        <p v-if="r.details" class="text-sm text-stone-600 mt-1 italic">"{{ r.details }}"</p>
+        <p v-if="r.details" class="text-sm t-text-secondary mt-1 italic">"{{ r.details }}"</p>
 
         <!-- Reported comment preview -->
-        <div class="mt-3 p-3 rounded-xl bg-stone-50 ring-1 ring-stone-100">
-          <p class="text-xs text-stone-400 mb-1">
-            Comment by <span class="font-medium text-stone-600">{{ authorName(r) }}</span>
+        <div class="mt-3 p-3 rounded-xl t-bg-subtle ring-1 ring-stone-100">
+          <p class="text-xs t-text-muted mb-1">
+            Comment by <span class="font-medium t-text-secondary">{{ authorName(r) }}</span>
           </p>
-          <p class="text-sm text-stone-700 line-clamp-4">{{ commentBody(r) || "(no text)" }}</p>
+          <p class="text-sm t-text-secondary line-clamp-4">{{ commentBody(r) || "(no text)" }}</p>
         </div>
 
         <!-- Actions -->

@@ -287,7 +287,7 @@ async function createAllPredefinedCategories() {
         <div
           v-for="category in categories"
           :key="category.id"
-          class="flex items-center gap-4 p-3 rounded-lg border bg-white hover:bg-stone-50 transition-colors"
+          class="flex items-center gap-4 p-3 rounded-lg border bg-white hover:t-bg-subtle transition-colors"
         >
           <!-- Icon -->
           <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -296,14 +296,14 @@ async function createAllPredefinedCategories() {
 
           <!-- Info -->
           <div class="flex-1 min-w-0">
-            <h4 class="font-medium text-stone-900">{{ category.name }}</h4>
-            <p v-if="category.description" class="text-sm text-stone-500 truncate">
+            <h4 class="font-medium t-text">{{ category.name }}</h4>
+            <p v-if="category.description" class="text-sm t-text-muted truncate">
               {{ category.description }}
             </p>
             <div class="flex items-center gap-2 mt-1">
               <span
                 v-if="category.sort_by_date"
-                class="inline-flex items-center gap-1 text-xs text-stone-500"
+                class="inline-flex items-center gap-1 text-xs t-text-muted"
               >
                 <Icon name="heroicons:calendar" class="h-3 w-3" />
                 Sorted by date
@@ -331,7 +331,7 @@ async function createAllPredefinedCategories() {
       </div>
 
       <!-- Empty state -->
-      <div v-else class="text-center py-8 text-stone-500">
+      <div v-else class="text-center py-8 t-text-muted">
         <Icon name="heroicons:folder" class="h-12 w-12 mx-auto mb-3 text-stone-300" />
         <p>No categories yet. Create one to organize your documents.</p>
       </div>
@@ -340,8 +340,8 @@ async function createAllPredefinedCategories() {
       <div v-if="availablePredefinedCategories.length > 0" class="mt-6 pt-6 border-t">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h4 class="font-medium text-stone-900">Quick Setup</h4>
-            <p class="text-sm text-stone-500">Add common HOA document categories</p>
+            <h4 class="font-medium t-text">Quick Setup</h4>
+            <p class="text-sm t-text-muted">Add common HOA document categories</p>
           </div>
           <Button
             variant="outline"
@@ -360,16 +360,16 @@ async function createAllPredefinedCategories() {
             :key="template.slug"
             @click="createPredefinedCategory(template)"
             :disabled="creatingPredefined"
-            class="flex items-center gap-3 p-3 rounded-lg border border-dashed border-stone-300 hover:border-primary hover:bg-primary/5 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-3 p-3 rounded-lg border border-dashed t-border hover:border-primary hover:bg-primary/5 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div class="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0">
-              <Icon :name="template.icon" class="h-4 w-4 text-stone-600" />
+            <div class="w-8 h-8 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0">
+              <Icon :name="template.icon" class="h-4 w-4 t-text-secondary" />
             </div>
             <div class="min-w-0">
-              <p class="text-sm font-medium text-stone-900 truncate">{{ template.name }}</p>
-              <p class="text-xs text-stone-500 truncate">{{ template.description }}</p>
+              <p class="text-sm font-medium t-text truncate">{{ template.name }}</p>
+              <p class="text-xs t-text-muted truncate">{{ template.description }}</p>
             </div>
-            <Icon name="heroicons:plus" class="h-4 w-4 text-stone-400 ml-auto flex-shrink-0" />
+            <Icon name="heroicons:plus" class="h-4 w-4 t-text-muted ml-auto flex-shrink-0" />
           </button>
         </div>
       </div>
@@ -421,7 +421,7 @@ async function createAllPredefinedCategories() {
                 'w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-colors',
                 formData.icon === icon.name
                   ? 'border-primary bg-primary/10'
-                  : 'border-stone-200 hover:border-stone-300'
+                  : 't-border hover:border-stone-300'
               ]"
               :title="icon.label"
             >
@@ -439,7 +439,7 @@ async function createAllPredefinedCategories() {
           />
           <Label for="sort-by-date" class="cursor-pointer">
             Sort documents by date
-            <span class="block text-sm font-normal text-stone-500">
+            <span class="block text-sm font-normal t-text-muted">
               Enable for categories like meeting minutes or agendas
             </span>
           </Label>

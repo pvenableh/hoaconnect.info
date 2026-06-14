@@ -129,14 +129,14 @@ const onDeleteTeam = async (t: Team) => {
   <div class="space-y-6">
     <!-- Create team -->
     <div class="ios-card p-5">
-      <h3 class="font-semibold text-stone-900 mb-3">Create a team</h3>
+      <h3 class="font-semibold t-text mb-3">Create a team</h3>
       <div class="flex flex-wrap items-end gap-3">
         <div class="flex-1 min-w-[180px]">
-          <label class="block text-xs font-medium text-stone-500 mb-1">Name</label>
+          <label class="block text-xs font-medium t-text-muted mb-1">Name</label>
           <Input v-model="newName" placeholder="e.g. Violations Committee" />
         </div>
         <div class="min-w-[160px]">
-          <label class="block text-xs font-medium text-stone-500 mb-1">Domain (optional)</label>
+          <label class="block text-xs font-medium t-text-muted mb-1">Domain (optional)</label>
           <select v-model="newDomain" class="w-full px-3 py-2 border rounded-md bg-background text-sm">
             <option v-for="d in DOMAINS" :key="d" :value="d">{{ DOMAIN_LABELS[d] }}</option>
           </select>
@@ -145,7 +145,7 @@ const onDeleteTeam = async (t: Team) => {
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Create
         </Button>
       </div>
-      <p class="text-xs text-stone-400 mt-2">
+      <p class="text-xs t-text-muted mt-2">
         Pick a domain to give this team's members board-style controls on that
         request type (e.g. Violations → manage violation tickets).
       </p>
@@ -153,7 +153,7 @@ const onDeleteTeam = async (t: Team) => {
 
     <div v-if="loading" class="py-12 flex justify-center"><div class="spinner-ios" /></div>
 
-    <div v-else-if="!teams.length" class="py-12 text-center text-stone-400">
+    <div v-else-if="!teams.length" class="py-12 text-center t-text-muted">
       No teams yet — create your first above.
     </div>
 
@@ -164,13 +164,13 @@ const onDeleteTeam = async (t: Team) => {
           <div>
             <NuxtLink
               :to="buildOrgPath(`/admin/teams/${t.id}`)"
-              class="font-semibold text-stone-900 hover:underline inline-flex items-center gap-1"
+              class="font-semibold t-text hover:underline inline-flex items-center gap-1"
             >
               {{ t.name }}
-              <Icon name="lucide:arrow-up-right" class="w-3.5 h-3.5 text-stone-400" />
+              <Icon name="lucide:arrow-up-right" class="w-3.5 h-3.5 t-text-muted" />
             </NuxtLink>
             <div class="flex items-center gap-2 mt-1">
-              <span class="text-xs text-stone-400">Domain:</span>
+              <span class="text-xs t-text-muted">Domain:</span>
               <select
                 :value="t.domain || 'none'"
                 class="text-xs px-2 py-1 border rounded-md bg-background"
@@ -180,24 +180,24 @@ const onDeleteTeam = async (t: Team) => {
               </select>
             </div>
           </div>
-          <button type="button" class="text-stone-400 hover:text-red-600" :disabled="busy" @click="onDeleteTeam(t)">
+          <button type="button" class="t-text-muted hover:text-red-600" :disabled="busy" @click="onDeleteTeam(t)">
             <Icon name="lucide:trash-2" class="w-4 h-4" />
           </button>
         </div>
 
         <!-- Members -->
         <ul v-if="membersOf(t.id).length" class="space-y-1.5 mt-3">
-          <li v-for="r in membersOf(t.id)" :key="r.id" class="flex items-center justify-between px-3 py-2 rounded-xl bg-stone-50">
-            <span class="text-sm text-stone-700">
+          <li v-for="r in membersOf(t.id)" :key="r.id" class="flex items-center justify-between px-3 py-2 rounded-xl t-bg-subtle">
+            <span class="text-sm t-text-secondary">
               {{ rowName(r) }}
               <span v-if="r.role === 'lead'" class="ml-1 text-[10px] font-medium text-amber-600 uppercase">Lead</span>
             </span>
-            <button type="button" class="text-stone-400 hover:text-red-600" :disabled="busy" @click="onRemoveMember(r)">
+            <button type="button" class="t-text-muted hover:text-red-600" :disabled="busy" @click="onRemoveMember(r)">
               <Icon name="lucide:x" class="w-4 h-4" />
             </button>
           </li>
         </ul>
-        <p v-else class="text-sm text-stone-400 italic mt-3">No members yet.</p>
+        <p v-else class="text-sm t-text-muted italic mt-3">No members yet.</p>
 
         <!-- Add member -->
         <div class="flex items-center gap-2 mt-3">

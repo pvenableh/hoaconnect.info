@@ -70,16 +70,16 @@ const onReopen = async () => {
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-medium uppercase tracking-wide text-stone-400">Poll</span>
-          <span v-if="isClosed" class="text-[10px] font-medium text-stone-400 uppercase">Closed</span>
+          <span class="text-xs font-medium uppercase tracking-wide t-text-muted">Poll</span>
+          <span v-if="isClosed" class="text-[10px] font-medium t-text-muted uppercase">Closed</span>
         </div>
-        <h3 class="font-semibold text-stone-900 mt-0.5">{{ poll.title }}</h3>
-        <p v-if="poll.description" class="text-sm text-stone-600 mt-1">{{ poll.description }}</p>
+        <h3 class="font-semibold t-text mt-0.5">{{ poll.title }}</h3>
+        <p v-if="poll.description" class="text-sm t-text-secondary mt-1">{{ poll.description }}</p>
       </div>
       <button
         v-if="canManage"
         type="button"
-        class="text-xs text-stone-400 hover:text-stone-700 flex-shrink-0"
+        class="text-xs t-text-muted hover:text-stone-700 flex-shrink-0"
         @click="isClosed ? onReopen() : onClose()"
       >
         {{ isClosed ? "Reopen" : "Close" }}
@@ -95,7 +95,7 @@ const onReopen = async () => {
         :disabled="isClosed || busy"
         class="relative w-full text-left rounded-xl border overflow-hidden transition-colors"
         :class="[
-          isMine(opt.id) ? 'border-fuchsia-400' : 'border-stone-200',
+          isMine(opt.id) ? 'border-fuchsia-400' : 't-border',
           isClosed ? 'cursor-default' : 'hover:border-stone-300',
         ]"
         @click="onVote(opt.id)"
@@ -107,7 +107,7 @@ const onReopen = async () => {
           :style="{ width: pct(opt.id) + '%' }"
         />
         <div class="relative flex items-center justify-between px-3 py-2.5">
-          <span class="text-sm font-medium text-stone-800 flex items-center gap-2">
+          <span class="text-sm font-medium t-text flex items-center gap-2">
             <Icon
               v-if="!isClosed"
               :name="isMine(opt.id) ? 'lucide:check-circle-2' : 'lucide:circle'"
@@ -116,7 +116,7 @@ const onReopen = async () => {
             />
             {{ opt.label }}
           </span>
-          <span v-if="showResults" class="text-xs font-semibold text-stone-500 tabular-nums">
+          <span v-if="showResults" class="text-xs font-semibold t-text-muted tabular-nums">
             {{ pct(opt.id) }}%
           </span>
         </div>
@@ -124,7 +124,7 @@ const onReopen = async () => {
     </div>
 
     <!-- Footer -->
-    <div class="mt-3 flex items-center justify-between text-xs text-stone-400">
+    <div class="mt-3 flex items-center justify-between text-xs t-text-muted">
       <span>{{ results.total }} vote{{ results.total === 1 ? "" : "s" }}</span>
       <span v-if="poll.allow_multiple">Multiple choice</span>
       <span v-else-if="!isClosed && hasVoted">Tap again to change your vote</span>
