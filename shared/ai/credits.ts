@@ -29,6 +29,18 @@ export const CREDITS_PER_DOLLAR = 1000;
  */
 export const DEFAULT_MARGIN_MULTIPLIER = 4;
 
+/**
+ * Margin for comped / free ("Hue") accounts: pure pass-through cost, no markup.
+ * At 1× the credit↔dollar math lines up exactly — 1,000 credits represent $1 of
+ * real Anthropic spend, and the $1-per-1,000-credit packs sell them at cost.
+ */
+export const AT_COST_MARGIN_MULTIPLIER = 1;
+
+/** The credit margin an org pays: free/comped accounts at cost, everyone else retail. */
+export function marginForAccount(isFreeAccount: boolean | null | undefined): number {
+  return isFreeAccount ? AT_COST_MARGIN_MULTIPLIER : DEFAULT_MARGIN_MULTIPLIER;
+}
+
 // ── Model pricing ────────────────────────────────────────────────────────────
 
 /** USD per 1,000,000 tokens, per channel. */

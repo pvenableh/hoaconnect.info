@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   CREDITS_PER_DOLLAR,
   DEFAULT_MARGIN_MULTIPLIER,
+  AT_COST_MARGIN_MULTIPLIER,
+  marginForAccount,
   MODEL_PRICING,
   MODEL_TIERS,
   DRAFT_MODEL,
@@ -31,6 +33,27 @@ describe("priceFor", () => {
   });
   it("uses Haiku as the cheap draft model", () => {
     expect(DRAFT_MODEL).toBe("claude-haiku-4-5");
+  });
+});
+
+describe("marginForAccount (Hue at-cost pricing)", () => {
+  it("free/comped accounts pay at cost (1×)", () => {
+    expect(AT_COST_MARGIN_MULTIPLIER).toBe(1);
+    expect(marginForAccount(true)).toBe(1);
+  });
+  it("everyone else pays retail (4×)", () => {
+    expect(marginForAccount(false)).toBe(DEFAULT_MARGIN_MULTIPLIER);
+    expect(marginForAccount(null)).toBe(DEFAULT_MARGIN_MULTIPLIER);
+    expect(marginForAccount(undefined)).toBe(DEFAULT_MARGIN_MULTIPLIER);
+  });
+  it("at cost, 1,000 credits represents exactly $1 of real spend", () => {
+    // $1 of real Anthropic cost → 1,000 credits at 1× (packs sell 1,000/$1 → at cost).
+    const usage = { input_tokens: 1_000_000, output_tokens: 0 }; // Haiku $1/MTok in = $1
+    const atCost = creditsForUsage(usage, "claude-haiku-4-5", { marginMultiplier: 1 });
+    expect(atCost).toBe(1000);
+    // Retail charges 4× the credits for the same work.
+    const retail = creditsForUsage(usage, "claude-haiku-4-5");
+    expect(retail).toBe(4000);
   });
 });
 

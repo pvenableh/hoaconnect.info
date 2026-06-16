@@ -10,7 +10,7 @@
 // getTypedDirectus (admin client) is auto-imported from server/utils/directus.ts.
 
 import { createItem, readItems, updateItem } from "@directus/sdk";
-import { creditsForUsage, type TokenUsage } from "~~/shared/ai/credits";
+import { creditsForUsage, marginForAccount, type TokenUsage } from "~~/shared/ai/credits";
 import { shouldResetAllowance, nextResetISO } from "~~/shared/ai/allowance";
 import type { AiWallet } from "~~/types/directus";
 
@@ -35,6 +35,22 @@ export async function getOrCreateWallet(orgId: string): Promise<AiWallet> {
       included_credits: 0,
     } as any)
   )) as AiWallet;
+}
+
+/** Is this org a free/comped account? Drives at-cost (1×) AI metering. */
+async function orgIsFreeAccount(orgId: string): Promise<boolean> {
+  try {
+    const rows = (await getTypedDirectus().request(
+      readItems("hoa_organizations", {
+        filter: { id: { _eq: orgId } },
+        fields: ["is_free_account"],
+        limit: 1,
+      })
+    )) as { is_free_account?: boolean | null }[];
+    return rows?.[0]?.is_free_account === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Resolve the org's monthly AI-credit allowance from its subscription plan. */
@@ -145,7 +161,9 @@ export async function chargeForCompletion(opts: {
   feature: AiFeature;
 }): Promise<{ credits: number; balanceCredits: number }> {
   const { orgId, userId, usage, model, feature } = opts;
-  const credits = creditsForUsage(usage, model);
+  // Free/comped ("Hue") accounts meter AI at cost (1× margin); everyone else retail.
+  const marginMultiplier = marginForAccount(await orgIsFreeAccount(orgId));
+  const credits = creditsForUsage(usage, model, { marginMultiplier });
   const wallet = await getOrCreateWallet(orgId);
   const allowance = wallet.allowance_credits ?? 0;
   const purchased = wallet.purchased_credits ?? 0;
