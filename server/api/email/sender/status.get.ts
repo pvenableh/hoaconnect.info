@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
       from_email?: string | null;
       email_domain?: string | null;
       email_domain_verified?: boolean | null;
-      email_domain_dns?: any[] | null;
+      email_domain_dns?: Record<string, any> | null;
     } | null;
   };
 
