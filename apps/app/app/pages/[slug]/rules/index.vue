@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { GovernanceItem } from "~/composables/useGovernance";
+import type { GovernanceItem } from "#core/app/composables/useGovernance";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

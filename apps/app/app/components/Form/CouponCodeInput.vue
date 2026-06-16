@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, X, Tag, Percent } from "lucide-vue-next";
 import { refDebounced } from "@vueuse/core";
-import type { CouponData, AppliedCoupon } from "@/composables/useCoupons";
+import type { CouponData, AppliedCoupon } from "#core/app/composables/useCoupons";
 
 export interface CouponCodeInputProps {
   id?: string;

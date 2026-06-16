@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { UnitRecordsResponse, UnitRecordMember } from "~/composables/useUnitRecords";
+import type { UnitRecordsResponse, UnitRecordMember } from "#core/app/composables/useUnitRecords";
 
 definePageMeta({
   middleware: ["admin-or-board", "subscription"],

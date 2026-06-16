@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { resolveLocationConfig, hasLocationContent } from "~~/shared/utils/landing";
+import { resolveLocationConfig, hasLocationContent } from "#core/shared/utils/landing";
 import OrgLandingNarrativeSection from "./LandingNarrativeSection.vue";
 import LandingMap from "./LandingMap.vue";
 

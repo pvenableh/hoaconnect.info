@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateKeyPairSync, createSign } from "node:crypto";
-import { verifySendgridEventWebhook } from "~~/server/utils/sendgrid-webhook";
+import { verifySendgridEventWebhook } from "#core/server/utils/sendgrid-webhook";
 
 // Generate a real P-256 keypair and sign like SendGrid does, so the test
 // exercises the actual ECDSA/SHA-256 verification path (not a mock).

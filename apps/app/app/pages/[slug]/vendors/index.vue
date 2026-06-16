@@ -5,7 +5,7 @@
  * active ones, grouped by category. Gated by the `vendors` module (global
  * middleware) + auth.
  */
-import type { HoaVendor } from "~~/types/directus";
+import type { HoaVendor } from "#core/types/directus";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

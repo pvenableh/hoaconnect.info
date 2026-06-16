@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDraftOutput } from "~~/shared/ai/draft";
+import { splitDraftOutput } from "#core/shared/ai/draft";
 
 describe("splitDraftOutput", () => {
   it("returns all-body, null subject while the first line is still arriving", () => {

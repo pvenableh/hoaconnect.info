@@ -22,7 +22,7 @@ import {
   deriveBalance,
   type Wallet,
   type LedgerEntry,
-} from "~~/shared/ai/credits";
+} from "#core/shared/ai/credits";
 
 describe("priceFor", () => {
   it("returns the row for a known model", () => {

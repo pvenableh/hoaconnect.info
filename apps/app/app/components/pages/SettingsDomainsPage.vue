@@ -22,7 +22,7 @@ import {
   type ListingType,
   type LandingBlock,
   type LandingBlockType,
-} from "~~/shared/utils/landing";
+} from "#core/shared/utils/landing";
 
 const route = useRoute();
 const { navigateToOrg } = useOrgNavigation();

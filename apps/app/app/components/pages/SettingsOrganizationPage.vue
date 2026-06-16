@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization, BlockSetting } from "~~/types/directus";
+import type { HoaOrganization, BlockSetting } from "#core/types/directus";
 import { toast } from "vue-sonner";
 import {
   Tabs,

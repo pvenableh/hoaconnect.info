@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Poll, PollVote } from "~/composables/usePolls";
+import type { Poll, PollVote } from "#core/app/composables/usePolls";
 
 const props = withDefaults(
   defineProps<{

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Poll } from "~/composables/usePolls";
+import type { Poll } from "#core/app/composables/usePolls";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

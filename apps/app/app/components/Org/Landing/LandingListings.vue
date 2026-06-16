@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import type { LandingListing } from "~~/shared/utils/landing";
+import type { LandingListing } from "#core/shared/utils/landing";
 
 const props = defineProps<{ listings: LandingListing[] }>();
 const config = useRuntimeConfig();

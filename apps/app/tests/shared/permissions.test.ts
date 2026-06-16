@@ -6,7 +6,7 @@ import {
   boardTitleToActor,
   hasCapability,
   capabilitiesFor,
-} from "~~/shared/permissions";
+} from "#core/shared/permissions";
 
 describe("boardTitleToActor", () => {
   it("maps each board office title to its actor", () => {

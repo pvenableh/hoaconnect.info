@@ -11,8 +11,8 @@
  * Emits `select` with the chosen file(s) (id + metadata + asset url).
  */
 import { toast } from "vue-sonner";
-import { useStorageFormat } from "~/composables/useStorageFormat";
-import type { StorageAccess, StorageFile, StorageFolder, StorageSource, PickedFile } from "~/composables/useOrgStorage";
+import { useStorageFormat } from "#core/app/composables/useStorageFormat";
+import type { StorageAccess, StorageFile, StorageFolder, StorageSource, PickedFile } from "#core/app/composables/useOrgStorage";
 
 const props = withDefaults(
   defineProps<{

@@ -1,226 +1,27 @@
-// nuxt.config.ts
-import tailwindcss from "@tailwindcss/vite";
+// apps/app/nuxt.config.ts
+// The multi-tenant HOA Connect app (app.hoaconnect.info). Inherits all shared
+// plumbing (modules, CSS/theme, runtimeConfig, image/icon, auth) from the core
+// layer; only app-identity overrides live here. App-specific UI (pages, layouts,
+// components, lib) and the debug API stay in this package.
 
 export default defineNuxtConfig({
-  // Nuxt 4 compatibility
+  extends: ["../../core"],
+
+  // Nuxt 4 compatibility (also declared in core; kept here as the consuming app
+  // is the authoritative place for the compatibility version).
   compatibilityDate: "2024-11-01",
   future: {
     compatibilityVersion: 4,
   },
 
-  devtools: { enabled: true },
-
-  modules: [
-    "nuxt-auth-utils",
-    "@nuxt/icon",
-    "@nuxt/image",
-    "@nuxt/fonts",
-    "@nuxtjs/seo",
-    "@vueuse/nuxt",
-    "@vueuse/motion/nuxt",
-    "@vee-validate/nuxt",
-    "shadcn-nuxt",
-  ],
-
-  // vue-sonner ships its own stylesheet (toast positioning/animation/structure);
-  // without it toasts render unstyled at the page bottom. Load it before our CSS
-  // so our theme tokens (--normal-bg etc. in ui/sonner) can override on top.
-  css: ["vue-sonner/style.css", "~/assets/css/main.css"],
-
-  runtimeConfig: {
-    // Server-only keys (never exposed to client-side)
-    directusServerToken: process.env.DIRECTUS_STATIC_TOKEN,
-    sessionPassword: process.env.NUXT_SESSION_PASSWORD,
-    directus: {
-      url: process.env.DIRECTUS_URL,
-      staticToken: process.env.DIRECTUS_STATIC_TOKEN,
-    },
-    // OpenWeatherMap key (server-only) — powers the landing Weather widget via
-    // /api/landing/weather. One platform key covers all tenants; if unset the
-    // weather widget hides gracefully.
-    openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
-    // Anthropic (Claude) key for the metered AI assistant ("Draft with AI" +
-    // credit economy). Server-only; if unset the AI routes return 503 and the
-    // composer's Draft-with-AI button hides.
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-    // SendGrid configuration
-    sendgridApiKey: process.env.SENDGRID_API_KEY,
-    // Universal invite email template (handles invitation, welcome, and accepted notification emails)
-    sendgridInviteEmailTemplateId: process.env.SENDGRID_INVITE_EMAIL_TEMPLATE_ID,
-    // HOA email template for organization emails (newsletters, announcements, etc.)
-    sendgridEmailTemplateId: process.env.SENDGRID_EMAIL_TEMPLATE_ID,
-    // SendGrid Signed Event Webhook verification key (base64 DER public key from
-    // Settings → Mail Settings → Signed Event Webhook). When set, /api/email/
-    // activity rejects unsigned/forged posts; when unset, events are accepted
-    // unverified (with a warning) so the webhook works before signing is enabled.
-    sendgridWebhookPublicKey: process.env.SENDGRID_WEBHOOK_PUBLIC_KEY,
-    // Optional downstream consumer for the raw SendGrid event batch (fan-out).
-    // When set, /api/email/activity forwards each batch verbatim here (e.g. the
-    // legacy 1033 Lenox Directus flow trigger), so a single SendGrid Event
-    // Webhook can serve both apps. The downstream applies its own category
-    // filter. Unset = no forwarding.
-    emailActivityForwardUrl: process.env.EMAIL_ACTIVITY_FORWARD_URL,
-    // Timeout (ms) for that forward. The 1033 flow trigger responds slowly when
-    // synchronous (cold start + inline ops); the request body is sent
-    // immediately, so the downstream still fires even if we stop waiting. Tune
-    // from Vercel without a redeploy. Default 15s.
-    emailActivityForwardTimeoutMs: process.env.EMAIL_ACTIVITY_FORWARD_TIMEOUT_MS,
-    // Optional category filter for the fan-out. When set, only events whose
-    // `category` array contains an entry including this substring are forwarded,
-    // and a batch with zero matches is NOT POSTed at all. This keeps a finicky
-    // downstream (the 1033 Lenox flow's `_some` condition throws "Value is
-    // required" on non-matching batches) from ever receiving a batch it can't
-    // match. Unset = forward the raw batch verbatim (downstream self-filters).
-    emailActivityForwardCategory: process.env.EMAIL_ACTIVITY_FORWARD_CATEGORY,
-    // Stripe configuration
-    stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
-    stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
-    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    // Stripe Connect: platform fee taken on resident dues routed through a
-    // connected (Express) account, as a percentage of the charge. Default 2%.
-    // Confirm the final rate with the business before going live.
-    stripeConnectFeePercent: process.env.STRIPE_CONNECT_FEE_PERCENT || "2",
-
-    public: {
-      directus: {
-        url: process.env.DIRECTUS_URL,
-        websocketUrl: process.env.DIRECTUS_WEBSOCKET_URL,
-      },
-      // Role IDs for permission checking
-      // App Administrator - full system access
-      directusRoleAppAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_APP_ADMIN || "c4903b32-db6f-4479-a627-55be7f328321",
-      // HOA Admin - organization-level admin access
-      directusRoleHoaAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_HOA_ADMIN || "38494e81-9b49-4c64-a197-fcb8097cd433",
-      // HOA Member - regular member access (front-facing only)
-      directusRoleMember: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_MEMBER || "558b04ed-fdcc-48c2-9cd0-977cccf988b9",
-      // Property Manager - external management staff with admin-granted, org-scoped access
-      directusRolePropertyManager: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_PROPERTY_MANAGER || "b3c5a96f-ca24-41f1-8c1f-5683db384844",
-      // Legacy - keeping for backwards compatibility
-      directusRoleAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN,
-      directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,
-      // Legacy - can be removed after migration
-      directusUrl: process.env.DIRECTUS_URL,
-      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || "app.hoaconnect.info",
-      // Mapbox public token (pk.*) for static location maps on org landing pages.
-      // Set NUXT_PUBLIC_MAPBOX_TOKEN in the environment (kept out of the repo).
-      mapboxToken: process.env.NUXT_PUBLIC_MAPBOX_TOKEN || "",
-      appUrl: process.env.APP_URL || "http://localhost:3000",
-      fromEmail: process.env.FROM_EMAIL,
-      siteTitle: "Property Flow - Premier Property Management App",
-      siteSubtitle: "",
-      siteDescription:
-        "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
-      // Stripe public key
-      stripePublicKey:
-        process.env.NODE_ENV === "production"
-          ? process.env.STRIPE_PUBLIC_KEY_LIVE
-          : process.env.STRIPE_PUBLIC_KEY_TEST,
-      // Agency billing: flat per-seat Price IDs for the agency plan (one Product,
-      // monthly + yearly recurring Prices). See docs/stripe-setup.md.
-      agencyPriceIdMonthly: process.env.STRIPE_AGENCY_PRICE_ID_MONTHLY || "",
-      agencyPriceIdYearly: process.env.STRIPE_AGENCY_PRICE_ID_YEARLY || "",
-      companyName: "Property Flow",
-      // Stripe Connect platform fee % (display only; the server recomputes the
-      // authoritative fee from the private stripeConnectFeePercent).
-      stripeConnectFeePercent: process.env.STRIPE_CONNECT_FEE_PERCENT || "2",
-      // Default branding assets (Directus file IDs)
-      // These are used when no organization is active or org has no custom branding
-      defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
-      defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
-    },
-  },
-
-  vite: {
-    // Cast: @tailwindcss/vite types against vite 7 while @nuxt/schema bundles
-    // its own vite type identities — structurally identical, nominally not.
-    plugins: [tailwindcss() as never],
-  },
-
-  build: {
-    transpile: ["gsap", "swiper"],
-  },
-
-  app: {
-    head: {
-      charset: "utf-8",
-      htmlAttrs: {
-        lang: "en",
-      },
-      meta: [
-        {
-          name: "viewport",
-          content:
-            "width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover",
-        },
-        // Installed/standalone PWA feel. `default` status bar adapts to the
-        // app's own background so light + dark both read correctly (the manifest
-        // already declares display:standalone + maskable icons). theme-color is
-        // set per-org in useOrgBranding.
-        { name: "mobile-web-app-capable", content: "yes" },
-        { name: "apple-mobile-web-app-capable", content: "yes" },
-        { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      ],
-      link: [
-        {
-          rel: "preconnect",
-          href: process.env.DIRECTUS_URL || "",
-        },
-        {
-          rel: "dns-prefetch",
-          href: process.env.DIRECTUS_URL || "",
-        },
-        // Note: manifest, favicon, and apple-touch-icon are set dynamically
-        // via useOrgBranding composable to support multi-tenant branding
-      ],
-    },
-    pageTransition: { name: "page", mode: "out-in" },
-    layoutTransition: { name: "layout", mode: "out-in" },
-  },
-
+  // shadcn component dir is app-local (the shadcn ui kit + feature components live
+  // in this app). The shadcn-nuxt module itself is provided by the core layer.
   shadcn: {
     prefix: "",
     componentDir: "./app/components/ui",
   },
 
-  veeValidate: {
-    autoImports: true,
-    componentNames: {
-      Form: "VeeForm",
-      Field: "VeeField",
-      FieldArray: "VeeFieldArray",
-      ErrorMessage: "VeeErrorMessage",
-    },
-  },
-
-  icon: {
-    serverBundle: "remote",
-    clientBundle: {
-      scan: true,
-    },
-    collections: ["heroicons-outline", "heroicons-solid", "lucide"],
-  },
-
-  image: {
-    quality: 80,
-    format: ["webp", "avif", "png", "jpg"],
-    screens: {
-      xs: 320,
-      sm: 640,
-      md: 768,
-      lg: 1024,
-      xl: 1280,
-      xxl: 1536,
-    },
-    providers: {
-      directus: {
-        provider: "~/providers/directus",
-        options: {
-          baseURL: process.env.DIRECTUS_URL,
-        },
-      },
-    },
-  },
-
+  // Site identity / SEO defaults for the platform app. Bespoke apps override these.
   site: {
     url: process.env.APP_URL || "http://localhost:3000",
     name: "Property Flow - Premier Property Management App",
@@ -228,20 +29,6 @@ export default defineNuxtConfig({
       "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
     defaultLocale: "en",
     ogImage: "",
-  },
-
-  seo: {
-    fallbackTitle: false,
-  },
-
-  ogImage: {
-    enabled: true,
-    defaults: {
-      component: "NuxtSeo",
-      width: 1200,
-      height: 630,
-      emojis: "noto",
-    },
   },
 
   schemaOrg: {
@@ -274,11 +61,5 @@ export default defineNuxtConfig({
         email: "contact@huestudios.com",
       },
     },
-  },
-
-  typescript: {
-    strict: false,
-    typeCheck: false,
-    shim: false,
   },
 });

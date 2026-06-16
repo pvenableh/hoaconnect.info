@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { FocusScope } from "reka-ui";
 import { useScrollLock } from "@vueuse/core";
-import type { FlipFromPayload } from "~/composables/useFlipFromRow";
+import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
 import { getPanelComponent } from "~/components/panels/registry";
 
 // This component is the stack's single owner: it also runs the URL → stack

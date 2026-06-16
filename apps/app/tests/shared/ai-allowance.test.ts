@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldResetAllowance, nextResetISO } from "~~/shared/ai/allowance";
+import { shouldResetAllowance, nextResetISO } from "#core/shared/ai/allowance";
 
 describe("shouldResetAllowance", () => {
   const now = new Date("2026-06-13T12:00:00Z");

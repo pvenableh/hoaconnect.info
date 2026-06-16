@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaChannel } from "~~/types/directus";
+import type { HoaChannel } from "#core/types/directus";
 
 // Slide-over Channels panel — chat as an overlay over the current page, not a
 // full-page destination. Opened from the dock's "Channels" button. Single-column:

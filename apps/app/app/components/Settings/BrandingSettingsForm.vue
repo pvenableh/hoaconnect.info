@@ -288,8 +288,8 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
-import { DEFAULT_CC_BCC_THRESHOLD } from "~~/shared/email/cc";
+import type { HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
+import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{

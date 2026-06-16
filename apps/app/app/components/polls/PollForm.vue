@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PollOption } from "~/composables/usePolls";
+import type { PollOption } from "#core/app/composables/usePolls";
 
 const emit = defineEmits<{ (e: "created", id: string): void; (e: "cancel"): void }>();
 

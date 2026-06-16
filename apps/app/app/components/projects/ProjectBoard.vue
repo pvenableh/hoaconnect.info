@@ -4,8 +4,8 @@
   via useProjects().setStatus. Columns: Planning · Active · On Hold · Completed.
 -->
 <script setup lang="ts">
-import type { ProjectRow, ProjectStatus } from "~/composables/useProjects";
-import { BOARD_COLUMNS, useProjects } from "~/composables/useProjects";
+import type { ProjectRow, ProjectStatus } from "#core/app/composables/useProjects";
+import { BOARD_COLUMNS, useProjects } from "#core/app/composables/useProjects";
 
 const props = defineProps<{ projects: ProjectRow[] }>();
 const emit = defineEmits<{

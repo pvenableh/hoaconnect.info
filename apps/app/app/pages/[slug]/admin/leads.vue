@@ -5,6 +5,8 @@ definePageMeta({
 });
 
 const { buildOrgPath } = useOrgNavigation();
+// Bound in setup so `navigateTo` resolves in the template (Nuxt global). Same runtime.
+const goTo = (path: string) => navigateTo(path);
 const { selectedOrgId } = await useSelectedOrg();
 const { list, updateRequest } = useRequests();
 
@@ -56,7 +58,7 @@ const setStatus = async (id: string, status: string) => {
           variant="ghost"
           size="sm"
           class="mb-2 -ml-2"
-          @click="navigateTo(buildOrgPath('/admin/requests'))"
+          @click="goTo(buildOrgPath('/admin/requests'))"
         >
           <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
           Requests

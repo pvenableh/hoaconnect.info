@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChangeKind, ChangeAction } from "~/composables/useChangeRequests";
+import type { ChangeKind, ChangeAction } from "#core/app/composables/useChangeRequests";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

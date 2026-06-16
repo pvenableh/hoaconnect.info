@@ -92,7 +92,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { InquiryCategory } from "~~/shared/utils/landing";
+import type { InquiryCategory } from "#core/shared/utils/landing";
 
 const props = defineProps<{
   open: boolean;

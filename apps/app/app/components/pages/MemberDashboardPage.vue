@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "~~/types/directus";
+import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "#core/types/directus";
 
 const config = useRuntimeConfig();
 const { user } = useDirectusAuth();

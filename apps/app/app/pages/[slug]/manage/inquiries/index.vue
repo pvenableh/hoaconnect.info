@@ -4,7 +4,7 @@
  * creating a violation is gated server-side (/api/hoa/requests/manager-create
  * checks the "violations" grant). Reuses the shared request list components.
  */
-import { requestTypeList, getWorkflow, getStateMeta } from "~/config/requestWorkflows";
+import { requestTypeList, getWorkflow, getStateMeta } from "#core/app/config/requestWorkflows";
 import { toast } from "vue-sonner";
 import {
   Dialog,

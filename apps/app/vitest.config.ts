@@ -11,6 +11,9 @@ export default defineConfig({
       "@": resolve(__dirname, "app"),
       "~~": resolve(__dirname),
       "@@": resolve(__dirname),
+      // Shared core layer (mirrors the `#core` alias defined in core/nuxt.config.ts).
+      // vitest does not read Nuxt config, so it needs the alias declared here too.
+      "#core": resolve(__dirname, "../../core"),
     },
   },
   test: {

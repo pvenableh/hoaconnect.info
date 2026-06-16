@@ -4,7 +4,7 @@ import {
   summarizeActivity,
   dailySeries,
   type ActivityRow,
-} from "~~/shared/activity/summary";
+} from "#core/shared/activity/summary";
 
 describe("memberLabel", () => {
   it("uses full name, then email, then a fallback", () => {

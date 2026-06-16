@@ -4,8 +4,8 @@
   picker; writes through useProjects.setVendors (elevated route).
 -->
 <script setup lang="ts">
-import type { ProjectVendor } from "~/composables/useProjects";
-import { useProjects } from "~/composables/useProjects";
+import type { ProjectVendor } from "#core/app/composables/useProjects";
+import { useProjects } from "#core/app/composables/useProjects";
 
 const props = defineProps<{
   projectId: string;

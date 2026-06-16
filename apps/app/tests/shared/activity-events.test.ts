@@ -4,7 +4,7 @@ import {
   ACTIVITY_BATCH_LIMIT,
   normalizeActivityEvent,
   normalizeActivityBatch,
-} from "~~/shared/activity/events";
+} from "#core/shared/activity/events";
 
 describe("normalizeActivityEvent", () => {
   it("normalizes a valid page_view", () => {

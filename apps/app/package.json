@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "nuxt typecheck",
-    "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./types/directus.ts'",
+    "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ../../core/types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js",
     "seed:605-content": "dotenv -- tsx scripts/seed-605-content.ts",
     "create:change-requests": "dotenv -- tsx scripts/create-member-change-requests.ts",
@@ -61,6 +61,7 @@
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },
   "dependencies": {
+    "@hoaconnect/core": "workspace:*",
     "@anthropic-ai/sdk": "^0.104.1",
     "@directus/sdk": "^20.2.0",
     "@directus/visual-editing": "^1.1.0",

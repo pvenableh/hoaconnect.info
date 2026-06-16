@@ -5,7 +5,7 @@
  *
  *   <FilePickerButton source="comment" multiple @select="onPicked" />
  */
-import type { PickedFile, StorageSource } from "~/composables/useOrgStorage";
+import type { PickedFile, StorageSource } from "#core/app/composables/useOrgStorage";
 
 withDefaults(
   defineProps<{

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { requestTypeList } from "~/config/requestWorkflows";
+import { requestTypeList } from "#core/app/config/requestWorkflows";
 
 definePageMeta({
   middleware: ["admin", "subscription"],

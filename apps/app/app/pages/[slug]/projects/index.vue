@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ProjectRow } from "~/composables/useProjects";
-import { useProjects, PROJECT_STATUS_META } from "~/composables/useProjects";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import { useProjects, PROJECT_STATUS_META } from "#core/app/composables/useProjects";
 
 definePageMeta({ layout: "auth" });
 

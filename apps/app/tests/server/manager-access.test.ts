@@ -3,7 +3,7 @@ import type { H3Event } from "h3";
 import {
   getManagerGrants,
   requireAdminOrManagerGrant,
-} from "~~/server/utils/manager-access";
+} from "#core/server/utils/manager-access";
 
 const PM_ROLE = "role-property-manager";
 const ORG = "org-1";

@@ -3,7 +3,7 @@
 // search, members, pin/archive/delete. Extracted from the channels [channel].vue
 // page so it can be reused both on the full-page route (fallback / deep links)
 // and inside the slide-over Channels panel. Driven by props, not the route.
-import type { HoaChannel, HoaChannelMessage } from "~~/types/directus";
+import type { HoaChannel, HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
 const props = withDefaults(
@@ -581,7 +581,7 @@ watch(
 </template>
 
 <style scoped>
-@reference "@/assets/css/tailwind.css";
+@reference "#core/app/assets/css/tailwind.css";
 .overflow-y-auto {
   scroll-behavior: smooth;
 }

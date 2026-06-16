@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaAnnouncement } from "~~/types/directus";
+import type { HoaAnnouncement } from "#core/types/directus";
 
 const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { buildOrgPath } = useOrgNavigation();

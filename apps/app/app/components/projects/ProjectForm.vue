@@ -4,8 +4,8 @@
   member-visibility are board-only fields.
 -->
 <script setup lang="ts">
-import type { ProjectRow } from "~/composables/useProjects";
-import { useProjects } from "~/composables/useProjects";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import { useProjects } from "#core/app/composables/useProjects";
 
 const props = defineProps<{
   project?: ProjectRow | null;

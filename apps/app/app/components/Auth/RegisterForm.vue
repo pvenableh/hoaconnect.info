@@ -5,7 +5,7 @@ import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
 import { refDebounced } from "@vueuse/core";
-import type { AppliedCoupon } from "@/composables/useCoupons";
+import type { AppliedCoupon } from "#core/app/composables/useCoupons";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";

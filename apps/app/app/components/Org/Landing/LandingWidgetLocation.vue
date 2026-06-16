@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import LandingWidgetShell from "./LandingWidgetShell.vue";
-import type { LandingPlaces } from "~~/shared/utils/landing";
+import type { LandingPlaces } from "#core/shared/utils/landing";
 
 const props = defineProps<{ places: LandingPlaces; maxItems?: number }>();
 

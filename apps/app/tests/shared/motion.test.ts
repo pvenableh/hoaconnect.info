@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { risePreset, fadePreset, RISE_SPRING } from "~~/shared/motion/presets";
+import { risePreset, fadePreset, RISE_SPRING } from "#core/shared/motion/presets";
 
 describe("risePreset", () => {
   it("builds a staggered spring rise when motion is allowed", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref, reactive } from "vue";
-import { useOrgNavigation } from "~/composables/useOrgNavigation";
+import { useOrgNavigation } from "#core/app/composables/useOrgNavigation";
 
 let route: { params: Record<string, string | undefined> };
 let activeHoa: ReturnType<typeof ref<{ slug?: string } | null>>;

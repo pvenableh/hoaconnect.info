@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { HoaDocument, HoaDocumentCategory } from "~~/types/directus";
+import type { HoaDocument, HoaDocumentCategory } from "#core/types/directus";
 
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listCategories } = useDirectusItems("hoa_document_categories");

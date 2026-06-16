@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaymentRequest, PaymentSchedule, PaymentTransaction, HoaMember } from "~~/types/directus";
+import type { PaymentRequest, PaymentSchedule, PaymentTransaction, HoaMember } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
 definePageMeta({

@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import LandingWidgetShell from "./LandingWidgetShell.vue";
-import { orgMemberLabel, type OrgType } from "~~/shared/utils/terminology";
+import { orgMemberLabel, type OrgType } from "#core/shared/utils/terminology";
 
 const props = defineProps<{ count?: number | null; type?: OrgType }>();
 const count = computed(() => Number(props.count) || 0);

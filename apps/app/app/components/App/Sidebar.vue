@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AppDef } from "~/composables/useAppNav";
+import type { AppDef } from "#core/app/composables/useAppNav";
 
 const { user } = useDirectusAuth();
 const route = useRoute();

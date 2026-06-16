@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import type { UnifiedNotification } from "~/composables/useNotifications";
+import type { UnifiedNotification } from "#core/app/composables/useNotifications";
 
 const props = withDefaults(
   defineProps<{

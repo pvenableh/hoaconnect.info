@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import type { HoaEmailActivity, HoaEmail } from "~~/types/directus";
+import type { HoaEmailActivity, HoaEmail } from "#core/types/directus";
 
 const { navigateToOrg } = useOrgNavigation();
 const { isAdmin, isHoaAdmin } = useRoles();

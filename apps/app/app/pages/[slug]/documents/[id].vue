@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import type { HoaDocument } from "~~/types/directus";
+import type { HoaDocument } from "#core/types/directus";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Team, TeamMember } from "~/composables/useTeams";
-import { DOMAIN_LABELS } from "~/composables/useTeams";
-import type { ProjectRow } from "~/composables/useProjects";
-import type { TaskRow } from "~/composables/useTasks";
-import type { RequestRow } from "~/composables/useRequests";
+import type { Team, TeamMember } from "#core/app/composables/useTeams";
+import { DOMAIN_LABELS } from "#core/app/composables/useTeams";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import type { TaskRow } from "#core/app/composables/useTasks";
+import type { RequestRow } from "#core/app/composables/useRequests";
 
 definePageMeta({
   middleware: ["admin", "subscription"],

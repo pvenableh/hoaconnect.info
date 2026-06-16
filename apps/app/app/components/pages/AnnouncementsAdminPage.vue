@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import type { HoaAnnouncement } from "~~/types/directus";
+import type { HoaAnnouncement } from "#core/types/directus";
 import {
   Dialog,
   DialogContent,

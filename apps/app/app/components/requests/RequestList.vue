@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { RequestRow } from "~/composables/useRequests";
-import { getWorkflow, getStateMeta } from "~/config/requestWorkflows";
+import type { RequestRow } from "#core/app/composables/useRequests";
+import { getWorkflow, getStateMeta } from "#core/app/config/requestWorkflows";
 
 const props = defineProps<{
   requests: RequestRow[];

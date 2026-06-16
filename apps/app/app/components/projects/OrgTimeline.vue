@@ -5,9 +5,9 @@
   back to the milestone it grew from. GSAP staggers the lanes in.
 -->
 <script setup lang="ts">
-import type { ProjectRow } from "~/composables/useProjects";
-import { useProjects, PROJECT_STATUS_META } from "~/composables/useProjects";
-import { parseDateOnly } from "~~/shared/projects/schedule";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import { useProjects, PROJECT_STATUS_META } from "#core/app/composables/useProjects";
+import { parseDateOnly } from "#core/shared/projects/schedule";
 
 const emit = defineEmits<{ (e: "open", id: string): void }>();
 

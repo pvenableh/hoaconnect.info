@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import type { LandingFaqItem } from "~~/shared/utils/landing";
+import type { LandingFaqItem } from "#core/shared/utils/landing";
 
 defineProps<{ items: LandingFaqItem[] }>();
 </script>

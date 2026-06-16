@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaChannelMessage } from "~~/types/directus";
+import type { HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
@@ -355,7 +355,7 @@ const authorName = computed(() => {
 </template>
 
 <style scoped>
-@reference "@/assets/css/tailwind.css";
+@reference "#core/app/assets/css/tailwind.css";
 .prose :deep(p) {
   @apply mb-1;
 }

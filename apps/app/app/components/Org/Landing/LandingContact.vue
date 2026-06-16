@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { orgMemberNoun } from "~~/shared/utils/terminology";
+import { orgMemberNoun } from "#core/shared/utils/terminology";
 import LandingMap from "./LandingMap.vue";
 
 const props = defineProps({

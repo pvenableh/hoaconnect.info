@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { useDropZone } from "@vueuse/core";
-import type { HoaDocumentCategory } from "~~/types/directus";
+import type { HoaDocumentCategory } from "#core/types/directus";
 
 interface QueuedFile {
   id: string;

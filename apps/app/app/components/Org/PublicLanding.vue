@@ -269,8 +269,8 @@
 </template>
 
 <script setup>
-import { normalizeLandingConfig } from "~~/shared/utils/landing";
-import { orgMemberNoun } from "~~/shared/utils/terminology";
+import { normalizeLandingConfig } from "#core/shared/utils/landing";
+import { orgMemberNoun } from "#core/shared/utils/terminology";
 import OrgLandingNav from "./Landing/LandingNav.vue";
 import OrgLandingWidgetRow from "./Landing/LandingWidgetRow.vue";
 import OrgLandingBlocks from "./Landing/LandingBlocks.vue";

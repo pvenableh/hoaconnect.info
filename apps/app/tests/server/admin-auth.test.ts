@@ -5,7 +5,7 @@ import {
   requireAdminAccess,
   checkMembership,
   requireMembership,
-} from "~~/server/utils/admin-auth";
+} from "#core/server/utils/admin-auth";
 
 const APP_ADMIN_ROLE = "role-app-admin";
 const HOA_ADMIN_ROLE = "role-hoa-admin";

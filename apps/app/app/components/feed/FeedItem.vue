@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { FeedItem } from "~/composables/useActivityFeed";
-import { getCommentCapability, can } from "~/config/commentCapabilities";
+import type { FeedItem } from "#core/app/composables/useActivityFeed";
+import { getCommentCapability, can } from "#core/app/config/commentCapabilities";
 
 const props = withDefaults(
   defineProps<{

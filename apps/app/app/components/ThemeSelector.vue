@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ThemeStyle } from '~/composables/useTheme';
+import type { ThemeStyle } from '#core/app/composables/useTheme';
 
 const props = defineProps<{
 	hasPremium?: boolean;

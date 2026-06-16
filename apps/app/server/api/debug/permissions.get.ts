@@ -7,7 +7,7 @@ import {
   type Query,
   type DirectusPermission,
 } from "@directus/sdk";
-import type { Schema } from "~~/types/directus";
+import type { Schema } from "#core/types/directus";
 
 export default defineEventHandler(async (event) => {
   try {

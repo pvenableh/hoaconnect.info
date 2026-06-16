@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { HoaEmailsFile } from "~~/types/directus";
+import type { HoaEmailsFile } from "#core/types/directus";
 
 const props = defineProps<{
   emailId: string;

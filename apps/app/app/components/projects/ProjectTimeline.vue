@@ -4,8 +4,8 @@
   GSAP "subway-map" Gantt on the same data (useProjectEvents).
 -->
 <script setup lang="ts">
-import type { ProjectEventRow } from "~/composables/useProjectEvents";
-import { useProjectEvents, EVENT_TYPE_META } from "~/composables/useProjectEvents";
+import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
+import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
 
 const props = defineProps<{ projectId: string }>();
 const emit = defineEmits<{ (e: "changed"): void }>();

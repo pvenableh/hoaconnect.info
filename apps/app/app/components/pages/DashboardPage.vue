@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaEmail, HoaAnnouncement, HoaChannel } from "~~/types/directus"
+import type { HoaEmail, HoaAnnouncement, HoaChannel } from "#core/types/directus"
 
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listMembers } = useDirectusItems("hoa_members");

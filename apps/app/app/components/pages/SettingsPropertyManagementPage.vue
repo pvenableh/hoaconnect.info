@@ -19,8 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { requestTypeList } from "~/config/requestWorkflows";
-import type { HoaVendor } from "~~/types/directus";
+import { requestTypeList } from "#core/app/config/requestWorkflows";
+import type { HoaVendor } from "#core/types/directus";
 
 const config = useRuntimeConfig();
 const { selectedOrgId } = await useSelectedOrg();

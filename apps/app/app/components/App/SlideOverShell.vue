@@ -13,7 +13,7 @@
   (teleport them to body + suspend the focus trap).
 -->
 <script setup lang="ts">
-import type { FlipFromPayload } from "~/composables/useFlipFromRow";
+import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
 
 const props = defineProps<{
   title?: string | null;

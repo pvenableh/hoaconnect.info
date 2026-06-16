@@ -4,8 +4,8 @@
   up so the parent list owns mutations.
 -->
 <script setup lang="ts">
-import type { TaskNode } from "~/composables/useTasks";
-import { TASK_PRIORITY_META } from "~/composables/useTasks";
+import type { TaskNode } from "#core/app/composables/useTasks";
+import { TASK_PRIORITY_META } from "#core/app/composables/useTasks";
 
 const props = defineProps<{ node: TaskNode }>();
 const emit = defineEmits<{

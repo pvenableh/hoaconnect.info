@@ -4,9 +4,9 @@
   title; nested subtasks are managed in the parent project's Tasks tab.
 -->
 <script setup lang="ts">
-import type { FlipFromPayload } from "~/composables/useFlipFromRow";
-import type { TaskRow } from "~/composables/useTasks";
-import { useTasks, TASK_PRIORITY_META, SCHEDULE_BUCKETS } from "~/composables/useTasks";
+import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
+import type { TaskRow } from "#core/app/composables/useTasks";
+import { useTasks, TASK_PRIORITY_META, SCHEDULE_BUCKETS } from "#core/app/composables/useTasks";
 
 const props = defineProps<{ id: string; mode?: string; flipFrom?: FlipFromPayload | null }>();
 defineEmits<{ (e: "close"): void }>();

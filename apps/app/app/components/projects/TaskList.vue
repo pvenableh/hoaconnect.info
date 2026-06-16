@@ -4,8 +4,8 @@
   reconciles after each mutation. Pass exactly one scope id.
 -->
 <script setup lang="ts">
-import type { TaskRow, TaskNode } from "~/composables/useTasks";
-import { useTasks } from "~/composables/useTasks";
+import type { TaskRow, TaskNode } from "#core/app/composables/useTasks";
+import { useTasks } from "#core/app/composables/useTasks";
 
 const props = defineProps<{
   project?: string;

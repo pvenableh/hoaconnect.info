@@ -4,7 +4,7 @@
  * Images show as thumbnails (click to open); other files as download chips.
  * Fetches metadata for the given file ids in one request.
  */
-import { useStorageFormat } from "~/composables/useStorageFormat";
+import { useStorageFormat } from "#core/app/composables/useStorageFormat";
 
 const props = defineProps<{ ids?: string[] | null }>();
 

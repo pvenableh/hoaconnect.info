@@ -79,7 +79,7 @@
               type="button"
               variant="outline"
               size="sm"
-              @click="navigateTo(`/${organization.slug}/admin/settings/domains`)"
+              @click="goTo(`/${organization.slug}/admin/settings/domains`)"
             >
               <Icon name="lucide:globe" class="h-4 w-4 mr-1" />
               Domain
@@ -202,8 +202,13 @@
 </template>
 
 <script setup lang="ts">
-import type { HoaOrganization } from "~~/types/directus";
+import type { HoaOrganization } from "#core/types/directus";
 import { toast } from "vue-sonner";
+
+// Bind the Nuxt `navigateTo` global in setup so it resolves in the template
+// under the core-layer type structure (vue-tsc treats bare template idents as
+// component-context props). Runtime behavior is identical.
+const goTo = (path: string) => navigateTo(path);
 
 const props = defineProps<{
   organization: HoaOrganization;

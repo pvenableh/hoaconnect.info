@@ -7,7 +7,7 @@ import {
   groupByDate,
   notificationTargetPath,
   type NotificationLike,
-} from "~~/shared/notifications/grouping";
+} from "#core/shared/notifications/grouping";
 
 // Fixed "now" so date bucketing is deterministic: Thu 2026-06-11 09:00 local.
 const NOW = new Date(2026, 5, 11, 9, 0, 0);

@@ -4,7 +4,7 @@ import {
   type Team,
   type TeamMember,
   type TeamDomain,
-} from "~/composables/useTeams";
+} from "#core/app/composables/useTeams";
 
 const {
   listAllTeams,

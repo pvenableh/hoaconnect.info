@@ -7,8 +7,8 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import { Mention } from "@tiptap/extension-mention";
 import { Plugin } from "@tiptap/pm/state";
-import type { DirectusUser } from "~~/types/directus";
-import type { PickedFile, StorageSource } from "~/composables/useOrgStorage";
+import type { DirectusUser } from "#core/types/directus";
+import type { PickedFile, StorageSource } from "#core/app/composables/useOrgStorage";
 
 const props = withDefaults(
   defineProps<{
@@ -633,7 +633,7 @@ defineExpose({
 </template>
 
 <style>
-@reference "@/assets/css/tailwind.css";
+@reference "#core/app/assets/css/tailwind.css";
 
 .channel-editor-content .tiptap {
   @apply p-3 min-h-[60px] max-h-[200px] overflow-y-auto focus:outline-none text-sm;

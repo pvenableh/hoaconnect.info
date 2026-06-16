@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { HoaDocument, HoaDocumentCategory } from "~~/types/directus";
+import type { HoaDocument, HoaDocumentCategory } from "#core/types/directus";
 
 const { list: listDocuments, update: updateDocument, remove: removeDocument } =
   useDirectusItems("hoa_documents");

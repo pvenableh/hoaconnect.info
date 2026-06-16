@@ -11,10 +11,10 @@
 -->
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import type { ProjectEventRow } from "~/composables/useProjectEvents";
-import { useProjectEvents, EVENT_TYPE_META } from "~/composables/useProjectEvents";
-import type { ScheduleShift } from "~~/shared/projects/schedule";
-import { parseDateOnly } from "~~/shared/projects/schedule";
+import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
+import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
+import type { ScheduleShift } from "#core/shared/projects/schedule";
+import { parseDateOnly } from "#core/shared/projects/schedule";
 
 const props = defineProps<{ projectId: string; canWrite?: boolean }>();
 const emit = defineEmits<{ (e: "changed"): void }>();

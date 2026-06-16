@@ -6,7 +6,7 @@ import {
   getStateMeta,
   availableTransitions,
   type RequestWorkflow,
-} from "~/config/requestWorkflows";
+} from "#core/app/config/requestWorkflows";
 
 const ACTOR_NONE = { isBoard: false, isSubmitter: false, isAssignee: false };
 const ACTOR_BOARD = { isBoard: true, isSubmitter: false, isAssignee: false };

@@ -3,7 +3,7 @@ import {
   requestTypeList,
   getWorkflow,
   type RequestType,
-} from "~/config/requestWorkflows";
+} from "#core/app/config/requestWorkflows";
 
 const props = withDefaults(
   defineProps<{

@@ -6,7 +6,7 @@ import {
   useAppSlideOverStackUrlSync,
   useSlideOverFocusTrapSuspend,
   useSlideOverFlips,
-} from "~/composables/useAppSlideOverStack";
+} from "#core/app/composables/useAppSlideOverStack";
 
 let route: { query: Record<string, unknown> };
 let pushes: Array<{ query: Record<string, unknown> }>;

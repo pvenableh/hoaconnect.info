@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppDef, HSL } from "~/composables/useAppNav";
+import type { AppDef, HSL } from "#core/app/composables/useAppNav";
 
 const { user } = useDirectusAuth();
 const route = useRoute();

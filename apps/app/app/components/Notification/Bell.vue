@@ -2,8 +2,8 @@
 import type {
   UnifiedNotification,
   NotificationType,
-} from "~/composables/useNotifications";
-import { groupByDate } from "~~/shared/notifications/grouping";
+} from "#core/app/composables/useNotifications";
+import { groupByDate } from "#core/shared/notifications/grouping";
 
 const {
   notifications,

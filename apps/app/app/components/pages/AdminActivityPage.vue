@@ -6,7 +6,7 @@ import {
   dailySeries,
   memberLabel,
   type ActivityRow,
-} from "~~/shared/activity/summary";
+} from "#core/shared/activity/summary";
 
 const { selectedOrgId } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);

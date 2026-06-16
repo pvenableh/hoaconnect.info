@@ -6,9 +6,9 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import type { UnifiedNotification } from "~/composables/useNotifications";
-import type { HoaAnnouncement } from "~~/types/directus";
-import { notificationTargetPath } from "~~/shared/notifications/grouping";
+import type { UnifiedNotification } from "#core/app/composables/useNotifications";
+import type { HoaAnnouncement } from "#core/types/directus";
+import { notificationTargetPath } from "#core/shared/notifications/grouping";
 
 const config = useRuntimeConfig();
 const router = useRouter();

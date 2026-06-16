@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref } from "vue";
-import { useModules, CORE_MODULE_KEYS } from "~/composables/useModules";
+import { useModules, CORE_MODULE_KEYS } from "#core/app/composables/useModules";
 
 let activeHoa: ReturnType<typeof ref<Record<string, unknown> | null>>;
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WidgetDef } from "~/composables/useDashboardWidgets";
+import type { WidgetDef } from "#core/app/composables/useDashboardWidgets";
 
 // The "Add widget" tray shown at the bottom of the dashboard while editing.
 // Lists every hidden widget as an add-able tile; empty when nothing is hidden.

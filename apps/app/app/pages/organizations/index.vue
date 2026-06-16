@@ -6,6 +6,9 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
+// `$config` is `useRuntimeConfig()` at runtime; bind it so the template resolves
+// it under the core-layer type structure. Same value, no behavior change.
+const config = useRuntimeConfig();
 const { list: listMembers } = useDirectusItems("hoa_members");
 const { setOrganization, selectedOrgId } = await useSelectedOrg();
 
@@ -182,7 +185,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
               >
                 <img
                   v-if="membership.organization?.settings?.logo"
-                  :src="`${$config.public.directus.url}/assets/${
+                  :src="`${config.public.directus.url}/assets/${
                     typeof membership.organization.settings.logo === 'string'
                       ? membership.organization.settings.logo
                       : membership.organization.settings.logo?.id

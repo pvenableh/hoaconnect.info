@@ -47,7 +47,7 @@
 </template>
 
 <script setup>
-import { narrativeSections } from "~~/shared/utils/landing";
+import { narrativeSections } from "#core/shared/utils/landing";
 import OrgLandingAbout from "./LandingAbout.vue";
 import OrgLandingAmenities from "./LandingAmenities.vue";
 import OrgLandingListings from "./LandingListings.vue";

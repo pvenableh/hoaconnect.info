@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
-import { getBoardPosition, resolveActors } from "~~/server/utils/board-access";
+import { getBoardPosition, resolveActors } from "#core/server/utils/board-access";
 
 const ORG = "org-1";
 const event = {} as H3Event;

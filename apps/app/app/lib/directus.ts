@@ -2,7 +2,7 @@
 // Client-side Directus helper for creating typed clients
 
 import { createDirectus, rest, authentication, realtime } from "@directus/sdk";
-import type { Schema } from "~~/types/directus";
+import type { Schema } from "#core/types/directus";
 
 /**
  * Create a typed Directus REST client

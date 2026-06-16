@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaEmail } from "~~/types/directus"
+import type { HoaEmail } from "#core/types/directus"
 
 const props = defineProps<{
   emails: HoaEmail[]

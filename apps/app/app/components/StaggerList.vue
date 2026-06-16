@@ -15,7 +15,7 @@
   wrapper fits flex stacks, CSS grids, or plain blocks without breaking layout.
 -->
 <script setup lang="ts" generic="T">
-import type { RiseOptions } from "~~/shared/motion/presets";
+import type { RiseOptions } from "#core/shared/motion/presets";
 
 const props = withDefaults(
   defineProps<{

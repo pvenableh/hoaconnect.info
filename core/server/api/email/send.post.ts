@@ -1,0 +1,669 @@
+import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
+import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
+import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
+import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile, HoaEmailRecipient } from "#core/types/directus";
+import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
+
+interface CidImage {
+  cid: string;
+  content: string; // base64
+  type: string;
+  filename: string;
+}
+
+/**
+ * Extract images from content and prepare them as CID attachments
+ * CID (Content-ID) embedding works better in Outlook than base64 data URIs
+ */
+async function extractImagesAsCid(
+  content: string,
+  directusUrl: string,
+  staticToken: string
+): Promise<{ processedContent: string; cidImages: CidImage[] }> {
+  const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
+  let processedContent = content;
+  const cidImages: CidImage[] = [];
+  const matches = [...content.matchAll(imgRegex)];
+
+  console.log(`[extractImagesAsCid] Processing ${matches.length} image(s) in content`);
+
+  for (const match of matches) {
+    const [fullMatch, beforeSrc, src, afterSrc = ""] = match;
+    if (!src) continue;
+    const isSelfClosing = fullMatch.endsWith('/>');
+
+    // Check if this is a Directus asset URL
+    if (src.includes(directusUrl) || src.includes('/assets/')) {
+      try {
+        // Extract asset ID from URL
+        const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
+        if (!assetMatch) {
+          console.log(`[extractImagesAsCid] Could not extract asset ID from: ${src}`);
+          continue;
+        }
+
+        const assetId = assetMatch[1];
+        const assetUrl = `${directusUrl}/assets/${assetId}`;
+
+        console.log(`[extractImagesAsCid] Downloading image: ${assetId}`);
+
+        // Download the image
+        const response = await fetch(assetUrl, {
+          headers: {
+            Authorization: `Bearer ${staticToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.error(`[extractImagesAsCid] Failed to download image ${assetId}: ${response.status}`);
+          continue;
+        }
+
+        // Get content type and determine extension
+        const contentType = response.headers.get('content-type') || 'image/png';
+        const ext = contentType.split('/')[1] || 'png';
+
+        // Convert to base64
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+        // Generate unique CID
+        const cid = `image-${assetId}@hoamail`;
+        const filename = `image-${assetId}.${ext}`;
+
+        cidImages.push({
+          cid,
+          content: base64,
+          type: contentType,
+          filename,
+        });
+
+        console.log(`[extractImagesAsCid] Prepared CID image: ${cid} (${contentType})`);
+
+        // Replace the src with cid: reference
+        const cleanAfterSrc = afterSrc.replace(/\s*\/\s*$/, '');
+        const newImgTag = isSelfClosing
+          ? `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc} />`
+          : `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc}>`;
+        processedContent = processedContent.replace(fullMatch, newImgTag);
+      } catch (error) {
+        console.error(`[extractImagesAsCid] Error processing image:`, error);
+      }
+    }
+  }
+
+  return { processedContent, cidImages };
+}
+
+interface SendEmailBody {
+  organizationId: string;
+  subject: string;
+  subtitle?: string;
+  content: string;
+  emailType: EmailType;
+  contentMode?: "visual" | "mjml";
+  recipientIds: string[];
+  greeting?: string;
+  salutation?: string;
+  includeBoardFooter?: boolean;
+  emailId?: string; // If updating existing draft
+  attachmentIds?: string[]; // File IDs from Directus to attach
+  urgent?: boolean;
+  headerText?: string | null; // Per-send override of the org's default header line
+  footerImageId?: string | null; // Per-send override of the org's default footer photo
+  cc?: string[]; // CC entries: emails and/or group tokens (@board, @property_manager)
+  bcc?: string[]; // BCC entries: emails and/or group tokens
+}
+
+export default defineEventHandler(async (event) => {
+  const session = await requireUserSession(event);
+  const body = await readBody<SendEmailBody>(event);
+
+  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId, cc, bcc } = body;
+
+  // Validation
+  if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
+    throw createError({
+      statusCode: 400,
+      message: "Missing required fields: organizationId, subject, content, emailType, recipientIds",
+    });
+  }
+
+  // Authorize: must be an org admin, or a property manager with the
+  // "communications" grant. (Previously this route only required a session.)
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
+
+  try {
+    const config = useRuntimeConfig();
+    const directus = getTypedDirectus();
+
+    // Get organization with settings
+    const organization = await directus.request(
+      readItem("hoa_organizations", organizationId, {
+        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url", {
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "cc_bcc_threshold", "from_name", "from_email", "email_domain_verified"],
+        }],
+      })
+    ) as HoaOrganization & { settings: BlockSetting | null };
+
+    if (!organization) {
+      throw createError({
+        statusCode: 404,
+        message: "Organization not found",
+      });
+    }
+
+    // Get board members if needed
+    let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
+    if (includeBoardFooter) {
+      const boardMemberRecords = await directus.request(
+        readItems("hoa_board_members", {
+          filter: {
+            hoa_member: {
+              organization: { _eq: organizationId },
+              status: { _eq: "active" },
+            },
+            status: { _eq: "published" },
+          },
+          fields: ["id", "title", "icon", {
+            hoa_member: ["id", "first_name", "last_name"],
+          }],
+          sort: ["sort"],
+        })
+      ) as Array<HoaBoardMember & { hoa_member: HoaMember }>;
+
+      boardMembers = boardMemberRecords
+        .filter((bm) => bm.hoa_member)
+        .map((bm) => ({
+          name: `${bm.hoa_member.first_name || ""} ${bm.hoa_member.last_name || ""}`.trim() || "Board Member",
+          title: bm.title || "Board Member",
+          icon: bm.icon || '',
+        }));
+    }
+
+    // Get recipients (members) with their unit information
+    const members = await directus.request(
+      readItems("hoa_members", {
+        filter: {
+          id: { _in: recipientIds },
+          organization: { _eq: organizationId },
+          status: { _eq: "active" },
+        },
+        fields: ["id", "first_name", "last_name", "email", "phone", "member_type", "company",
+          "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date", {
+          units: ["id", "is_primary_unit", {
+            unit_id: ["id", "unit_number"],
+          }],
+          vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"],
+          pets: ["id", "name", "type", "breed"],
+        }],
+      })
+    ) as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }>; vehicles?: any[]; pets?: any[] }>;
+
+    if (!members.length) {
+      throw createError({
+        statusCode: 400,
+        message: "No valid recipients found",
+      });
+    }
+
+    // Process attachments if provided
+    let emailAttachments: EmailAttachment[] = [];
+    if (attachmentIds && attachmentIds.length > 0) {
+      // Fetch file metadata from Directus (use readFiles for core collection)
+      const files = await directus.request(
+        readFiles({
+          filter: {
+            id: { _in: attachmentIds },
+          },
+          fields: ["id", "filename_download", "type", "title"],
+        })
+      ) as DirectusFile[];
+
+      // Download each file and convert to base64
+      for (const file of files) {
+        try {
+          const fileUrl = `${config.directus.url}/assets/${file.id}`;
+          const response = await fetch(fileUrl, {
+            headers: {
+              Authorization: `Bearer ${config.directus.staticToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to download attachment ${file.id}: ${response.status}`);
+            continue;
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const base64Content = Buffer.from(arrayBuffer).toString("base64");
+
+          emailAttachments.push({
+            content: base64Content,
+            filename: file.filename_download || file.title || "attachment",
+            type: file.type || "application/octet-stream",
+            disposition: "attachment",
+          });
+        } catch (attachError) {
+          console.error(`Error processing attachment ${file.id}:`, attachError);
+        }
+      }
+    }
+
+    // Format attachments for M2M relationship
+    const attachmentsData = attachmentIds && attachmentIds.length > 0
+      ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
+      : [];
+
+    // Resolve a friendly web_slug for the public view page. Reuse an existing
+    // one when re-sending a draft; otherwise derive it from the subject and make
+    // it unique within the org.
+    let webSlug: string | null = null;
+    if (emailId) {
+      const existing = (await directus.request(
+        readItem("hoa_emails", emailId, { fields: ["web_slug"] })
+      )) as { web_slug?: string | null };
+      webSlug = existing?.web_slug || null;
+    }
+    if (!webSlug) {
+      const slugRows = (await directus.request(
+        readItems("hoa_emails", {
+          filter: {
+            organization: { _eq: organizationId },
+            web_slug: { _nnull: true },
+            ...(emailId ? { id: { _neq: emailId } } : {}),
+          },
+          fields: ["web_slug"],
+          limit: -1,
+        })
+      )) as Array<{ web_slug?: string | null }>;
+      const taken = new Set(slugRows.map((r) => r.web_slug).filter(Boolean) as string[]);
+      webSlug = buildUniqueWebSlug(subject, taken);
+    }
+
+    // Create or update email record
+    let email;
+    if (emailId) {
+      email = await directus.request(
+        updateItem("hoa_emails", emailId, {
+          subject,
+          subtitle: subtitle || null,
+          content,
+          email_type: emailType,
+          content_mode: contentMode,
+          urgent: urgent || false,
+          greeting: greeting || null,
+          salutation: salutation || null,
+          include_board_footer: includeBoardFooter,
+          status: "sending",
+          recipient_count: members.length,
+          attachments: attachmentsData,
+          web_slug: webSlug,
+          header_text: headerText || null,
+          footer_image: footerImageId || null,
+          cc: cc?.length ? cc : null,
+          bcc: bcc?.length ? bcc : null,
+        })
+      );
+    } else {
+      email = await directus.request(
+        createItem("hoa_emails", {
+          organization: organizationId,
+          subject,
+          subtitle: subtitle || null,
+          content,
+          email_type: emailType,
+          content_mode: contentMode,
+          urgent: urgent || false,
+          greeting: greeting || null,
+          salutation: salutation || null,
+          include_board_footer: includeBoardFooter,
+          status: "sending",
+          recipient_count: members.length,
+          attachments: attachmentsData,
+          web_slug: webSlug,
+          header_text: headerText || null,
+          footer_image: footerImageId || null,
+          cc: cc?.length ? cc : null,
+          bcc: bcc?.length ? bcc : null,
+        })
+      );
+    }
+
+    // Process content to extract images as CID attachments (works better in Outlook)
+    const { processedContent, cidImages } = await extractImagesAsCid(
+      content,
+      config.directus.url,
+      config.directus.staticToken
+    );
+
+    // Convert CID images to email attachments with inline disposition
+    const inlineAttachments: EmailAttachment[] = cidImages.map((img) => ({
+      content: img.content,
+      filename: img.filename,
+      type: img.type,
+      disposition: "inline" as const,
+      contentId: img.cid,
+    }));
+
+    // Log content for debugging
+    console.log(`[send.post] Original content length: ${content.length}, Processed content length: ${processedContent.length}`);
+    console.log(`[send.post] CID images extracted: ${cidImages.length}`);
+    console.log(`[send.post] Content preview: ${content.substring(0, 200)}...`);
+
+    // Send emails to each recipient
+    let deliveredCount = 0;
+    let failedCount = 0;
+    const recipientResults: Array<{
+      memberId: string;
+      email: string;
+      status: "sent" | "failed";
+      error?: string;
+    }> = [];
+
+    // Check if we should use dynamic templates
+    const templateId = config.sendgridEmailTemplateId;
+    const useDynamicTemplate = !!templateId;
+    console.log(`[send.post] Using dynamic template: ${useDynamicTemplate} (templateId: ${templateId || 'none'})`);
+
+    // Build org logo URL if available
+    let orgLogoUrl: string | undefined;
+    if (organization.settings?.logo) {
+      orgLogoUrl = `${config.directus.url}/assets/${organization.settings.logo}`;
+    }
+
+    // Build org address string
+    const orgAddress = [
+      organization.street_address,
+      organization.city,
+      organization.state,
+      organization.zip,
+    ].filter(Boolean).join(', ');
+
+    // Build org website URL (slug-based)
+    const orgUrl = organization.slug
+      ? `${config.public.appUrl}/${organization.slug}`
+      : `${config.public.appUrl}`;
+
+    // Resolve branding (custom header line, footer photo, homepage link) with
+    // per-send overrides winning over the org defaults.
+    const branding = resolveEmailBranding(organization, null, {
+      appUrl: config.public.appUrl as string,
+      overrides: { headerText: headerText ?? null, footerImage: footerImageId ?? null },
+    });
+    const footerImageUrl = branding.footerImage
+      ? `${config.directus.url}/assets/${branding.footerImage}`
+      : "";
+
+    // Friendly public web-view URL (/{slug}/announcements/email/{web_slug}).
+    const webViewUrl = organization.slug
+      ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || (email as any).id}`
+      : `${config.public.appUrl}/api/email/view/${(email as any).id}`;
+
+    // Resolve CC/BCC group tokens (@board / @property_manager) + free-form
+    // emails into live addresses.
+    const ccEmails = await resolveCcBccEmails(organizationId, cc);
+    const bccEmails = await resolveCcBccEmails(organizationId, bcc);
+    const ccBccThreshold =
+      Number((organization.settings as any)?.cc_bcc_threshold) || DEFAULT_CC_BCC_THRESHOLD;
+    const memberEmailSet = new Set(
+      members.map((m) => (m.email || "").toLowerCase()).filter(Boolean)
+    );
+    // Small/targeted send: attach CC/BCC to every personalized email, so the
+    // copied parties see themselves as real CC/BCC recipients. Large send: keep
+    // per-recipient privacy and give each CC/BCC contact a single copy instead.
+    const attachCopiesPerRecipient = members.length <= ccBccThreshold;
+    const ccArg = ccEmails.length ? ccEmails.map((addr) => ({ email: addr })) : undefined;
+    const bccArg = bccEmails.length ? bccEmails.map((addr) => ({ email: addr })) : undefined;
+
+    // White-label sender: the display name applies always; the custom from-address
+    // only once the org's sending domain is verified (else SendGrid would flag it).
+    const senderName = (organization.settings as any)?.from_name?.trim() || organization.name || undefined;
+    const senderFrom =
+      (organization.settings as any)?.email_domain_verified && (organization.settings as any)?.from_email
+        ? String((organization.settings as any).from_email).trim()
+        : undefined;
+
+    // Send one personalized email to a target — a member, or (member: null) a
+    // standalone CC/BCC copy. Centralizes the mjml / dynamic-template / fallback
+    // branches that were previously inlined per recipient.
+    const deliverTo = async (opts: {
+      toEmail: string;
+      toName?: string;
+      member?: (typeof members)[number] | null;
+      cc?: Array<{ email: string }>;
+      bcc?: Array<{ email: string }>;
+    }): Promise<{ messageId: string | null }> => {
+      const { toEmail, toName, member = null, cc: ccCopies, bcc: bccCopies } = opts;
+      const recipientFirstName = member?.first_name || undefined;
+      const primaryUnit = member?.units?.find((u) => u.is_primary_unit) || member?.units?.[0];
+      const unitNumber = primaryUnit?.unit_id?.unit_number || undefined;
+
+      const mergeValues = member ? resolveMergeFields(member, organization) : {};
+      const recipientContent = applyMergeFields(processedContent, mergeValues);
+      const recipientSubject = applyMergeFields(subject, mergeValues) || subject;
+      const processedHtmlContent = processHtmlForEmail(recipientContent);
+
+      let personalizedContent = processedHtmlContent;
+      if (greeting) {
+        const greetingWithName = recipientFirstName
+          ? `${greeting} ${recipientFirstName},`
+          : `${greeting},`;
+        personalizedContent = `<p>${greetingWithName}</p>${processedHtmlContent}`;
+      }
+      if (salutation) {
+        personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
+      }
+
+      const text = buildEmailText({
+        organization,
+        subject: recipientSubject,
+        content: recipientContent,
+        emailType,
+        greeting,
+        salutation,
+        boardMembers: includeBoardFooter ? boardMembers : undefined,
+        recipientFirstName,
+        directusUrl: config.directus.url,
+      });
+
+      const allAttachments = [...emailAttachments, ...inlineAttachments];
+      const common = {
+        to: toEmail,
+        toName: toName || undefined,
+        subject: recipientSubject,
+        text,
+        fromName: senderName,
+        fromAddress: senderFrom,
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+        replyTo: organization.email
+          ? { email: organization.email, name: organization.name || undefined }
+          : undefined,
+        customArgs: {
+          email_id: String((email as any).id),
+          recipient_email: toEmail,
+          organization_id: organizationId,
+        },
+        organizationId,
+        cc: ccCopies,
+        bcc: bccCopies,
+      };
+
+      if (contentMode === "mjml") {
+        // Raw MJML/HTML mode: the author controls the whole email.
+        return sendOrganizationEmail({ ...common, html: buildRawEmailHtml(recipientContent) });
+      }
+
+      if (useDynamicTemplate) {
+        const templateData: EmailTemplateData = {
+          first_name: recipientFirstName || "Resident",
+          unit: unitNumber || "",
+          subject: recipientSubject,
+          subtitle: subtitle || "",
+          content: personalizedContent,
+          salutation: salutation || undefined,
+          urgent: urgent || false,
+          category: emailType,
+          org_name: organization.name || "Your HOA",
+          org_legal_name: organization.legal_name || "",
+          org_type: organization.type || undefined,
+          org_logo_url: orgLogoUrl || "",
+          org_url: orgUrl,
+          org_address: orgAddress || undefined,
+          org_email: organization.email || undefined,
+          org_phone_number: organization.phone || "",
+          org_header_text:
+            applyHeaderTextTokens(branding.headerText, organization.name || "Your HOA", organization.legal_name) ||
+            undefined,
+          org_homepage_url: branding.homepageUrl || undefined,
+          footer_image_url: footerImageUrl || undefined,
+          board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
+          Weblink: webViewUrl,
+          year: new Date().getFullYear().toString(),
+        };
+        return sendOrganizationEmail({ ...common, html: personalizedContent, templateId, templateData });
+      }
+
+      const html = buildEmailHtml({
+        organization,
+        subject: recipientSubject,
+        content: recipientContent,
+        emailType,
+        greeting,
+        salutation,
+        boardMembers: includeBoardFooter ? boardMembers : undefined,
+        recipientFirstName,
+        directusUrl: config.directus.url,
+        emailId: (email as any).id,
+        appUrl: config.public.appUrl as string,
+        headerText: branding.headerText,
+        footerImage: branding.footerImage,
+        homepageUrl: branding.homepageUrl,
+        webViewUrl,
+      });
+      return sendOrganizationEmail({ ...common, html });
+    };
+
+    for (const member of members) {
+      if (!member.email) {
+        failedCount++;
+        recipientResults.push({
+          memberId: member.id,
+          email: "",
+          status: "failed",
+          error: "No email address",
+        });
+        continue;
+      }
+
+      const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
+      try {
+        const sendResult = await deliverTo({
+          toEmail: member.email,
+          toName: recipientName || undefined,
+          member,
+          cc: attachCopiesPerRecipient ? ccArg : undefined,
+          bcc: attachCopiesPerRecipient ? bccArg : undefined,
+        });
+
+        deliveredCount++;
+        recipientResults.push({
+          memberId: member.id,
+          email: member.email,
+          status: "sent",
+        });
+
+        // Create recipient record with SendGrid message ID for tracking
+        await directus.request(
+          createItem("hoa_email_recipients", {
+            email: email.id,
+            member: member.id,
+            recipient_email: member.email,
+            recipient_name: recipientName || null,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            sg_message_id: sendResult.messageId || null,
+          } as Partial<HoaEmailRecipient>)
+        );
+      } catch (sendError: any) {
+        failedCount++;
+        recipientResults.push({
+          memberId: member.id,
+          email: member.email,
+          status: "failed",
+          error: sendError.message || "Failed to send",
+        });
+
+        // Create failed recipient record
+        await directus.request(
+          createItem("hoa_email_recipients", {
+            email: email.id,
+            member: member.id,
+            recipient_email: member.email,
+            recipient_name: recipientName || null,
+            status: "failed",
+            error_message: sendError.message || "Failed to send",
+          } as Partial<HoaEmailRecipient>)
+        );
+      }
+    }
+
+    // Large send: the CC/BCC contacts weren't attached per-recipient (privacy),
+    // so give each one a single standalone copy — but skip any who are already
+    // members in this send (they got their own personalized email).
+    if (!attachCopiesPerRecipient) {
+      const copyTargets = [...new Set([...ccEmails, ...bccEmails])].filter(
+        (addr) => !memberEmailSet.has(addr)
+      );
+      for (const addr of copyTargets) {
+        try {
+          const copyResult = await deliverTo({ toEmail: addr, member: null });
+          await directus.request(
+            createItem("hoa_email_recipients", {
+              email: email.id,
+              member: null,
+              recipient_email: addr,
+              recipient_name: null,
+              status: "sent",
+              sent_at: new Date().toISOString(),
+              sg_message_id: copyResult.messageId || null,
+            } as Partial<HoaEmailRecipient>)
+          );
+        } catch (copyError: any) {
+          console.error(`[send.post] CC/BCC copy to ${addr} failed:`, copyError?.message || copyError);
+        }
+      }
+    }
+
+    // Update email with final counts and status
+    await directus.request(
+      updateItem("hoa_emails", email.id, {
+        status: failedCount === members.length ? "failed" : "sent",
+        sent_at: new Date().toISOString(),
+        delivered_count: deliveredCount,
+        failed_count: failedCount,
+      })
+    );
+
+    return {
+      success: true,
+      emailId: email.id,
+      stats: {
+        total: members.length,
+        delivered: deliveredCount,
+        failed: failedCount,
+      },
+      recipients: recipientResults,
+    };
+  } catch (error: any) {
+    console.error("Email send error:", error);
+    if (error.statusCode) {
+      throw error;
+    }
+    throw createError({
+      statusCode: 500,
+      message: error.message || "Failed to send emails",
+    });
+  }
+});

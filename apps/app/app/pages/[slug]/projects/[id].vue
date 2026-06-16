@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useProjects, PROJECT_STATUS_META } from "~/composables/useProjects";
-import { useProjectEvents, EVENT_TYPE_META } from "~/composables/useProjectEvents";
-import type { ProjectEventRow } from "~/composables/useProjectEvents";
+import { useProjects, PROJECT_STATUS_META } from "#core/app/composables/useProjects";
+import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
+import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
 
 definePageMeta({ layout: "auth" });
 

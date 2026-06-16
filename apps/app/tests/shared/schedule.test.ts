@@ -8,7 +8,7 @@ import {
   nextBusinessDay,
   computeDependencyShifts,
   type ScheduleEvent,
-} from "~~/shared/projects/schedule";
+} from "#core/shared/projects/schedule";
 
 describe("parseDateOnly / toDateOnly", () => {
   it("round-trips a YYYY-MM-DD string", () => {

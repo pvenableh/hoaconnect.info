@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaMember } from "~~/types/directus";
+import type { HoaMember } from "#core/types/directus";
 
 // Audience overview — who receives your communications, grouped the same way the
 // composer targets them (All / Owners / Tenants). Each group deep-links into the

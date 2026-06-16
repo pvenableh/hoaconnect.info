@@ -8,7 +8,7 @@ import {
   NARRATIVE_BLOCK_TYPES,
   BUILTIN_BLOCK_TYPES,
   type LandingConfig,
-} from "~~/shared/utils/landing";
+} from "#core/shared/utils/landing";
 
 describe("normalizeLandingConfig — location & gallery", () => {
   it("defaults location and gallery to null when absent", () => {

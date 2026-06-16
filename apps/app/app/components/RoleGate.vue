@@ -28,7 +28,7 @@
  * Role and capability constraints AND together when both are supplied. While
  * capabilities are still loading the gate is closed (fail-closed).
  */
-import type { Capability } from "~~/shared/permissions"
+import type { Capability } from "#core/shared/permissions"
 
 const props = defineProps<{
   /** Array of role names or IDs that can access */

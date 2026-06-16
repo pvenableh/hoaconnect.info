@@ -4,8 +4,8 @@
   opens the project workspace (or a slide-over when `panel` is set).
 -->
 <script setup lang="ts">
-import type { ProjectRow } from "~/composables/useProjects";
-import { PROJECT_STATUS_META } from "~/composables/useProjects";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import { PROJECT_STATUS_META } from "#core/app/composables/useProjects";
 
 const props = defineProps<{
   project: ProjectRow;

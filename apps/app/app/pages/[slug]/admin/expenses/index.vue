@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PaymentExpense } from "~~/types/directus";
-import type { ProjectRow } from "~/composables/useProjects";
+import type { PaymentExpense } from "#core/types/directus";
+import type { ProjectRow } from "#core/app/composables/useProjects";
 import { toast } from "vue-sonner";
 
 definePageMeta({

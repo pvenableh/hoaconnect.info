@@ -8,15 +8,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { HoaMember, DirectusFile, DirectusFolder, BlockSetting } from "~~/types/directus";
-import type { PickedFile } from "~/composables/useOrgStorage";
+import type { HoaMember, DirectusFile, DirectusFolder, BlockSetting } from "#core/types/directus";
+import type { PickedFile } from "#core/app/composables/useOrgStorage";
 import {
   CC_TOKEN_BOARD,
   CC_TOKEN_PROPERTY_MANAGER,
   DEFAULT_CC_BCC_THRESHOLD,
   ccEntryLabel,
   isValidEmail,
-} from "~~/shared/email/cc";
+} from "#core/shared/email/cc";
 
 const props = defineProps<{
   emailId?: string;
@@ -231,7 +231,7 @@ watch(
 );
 
 // ---- Template library (Phase 9 Stage B) ----
-import type { HoaEmailTemplate } from "~~/types/directus";
+import type { HoaEmailTemplate } from "#core/types/directus";
 
 const showTemplatePicker = ref(false);
 const availableTemplates = ref<HoaEmailTemplate[]>([]);

@@ -28,7 +28,7 @@ import LandingWidgetLocation from "./LandingWidgetLocation.vue";
 import LandingWidgetBuilding from "./LandingWidgetBuilding.vue";
 import LandingWidgetBoard from "./LandingWidgetBoard.vue";
 import LandingWidgetAmenities from "./LandingWidgetAmenities.vue";
-import { normalizeLandingConfig, enabledLandingWidgets } from "~~/shared/utils/landing";
+import { normalizeLandingConfig, enabledLandingWidgets } from "#core/shared/utils/landing";
 
 const props = defineProps<{ organization: any; slug: string }>();
 

@@ -5,7 +5,7 @@ import {
   selectBandSlug,
   isContactOnly,
   type PlanBand,
-} from "~~/shared/billing/bands";
+} from "#core/shared/billing/bands";
 
 // Mirrors the seeded flat-per-building tiers (scripts/add-subscription-tier-fields.ts).
 const BANDS: PlanBand[] = [

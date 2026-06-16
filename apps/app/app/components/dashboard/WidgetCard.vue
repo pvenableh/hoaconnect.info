@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WidgetDef } from "~/composables/useDashboardWidgets";
+import type { WidgetDef } from "#core/app/composables/useDashboardWidgets";
 
 // Chrome around a single dashboard widget. In normal mode it's an invisible
 // layout wrapper (just the grid column span) so the inner content keeps its own

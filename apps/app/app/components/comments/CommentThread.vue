@@ -3,7 +3,7 @@ import {
   getCommentCapability,
   can,
   type CommentViewerContext,
-} from "~/config/commentCapabilities";
+} from "#core/app/config/commentCapabilities";
 
 /**
  * Drop-in conversation for any entity. Provide the target and a viewer context

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaymentRequest, PaymentTransaction } from "~~/types/directus";
+import type { PaymentRequest, PaymentTransaction } from "#core/types/directus";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentReport } from "~/composables/useModeration";
+import type { CommentReport } from "#core/app/composables/useModeration";
 
 const { listReports, dismiss, actionHide } = useModeration();
 

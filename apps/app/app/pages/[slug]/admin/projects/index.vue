@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ProjectRow } from "~/composables/useProjects";
-import { useProjects } from "~/composables/useProjects";
+import type { ProjectRow } from "#core/app/composables/useProjects";
+import { useProjects } from "#core/app/composables/useProjects";
 
 definePageMeta({
   middleware: ["admin", "subscription"],

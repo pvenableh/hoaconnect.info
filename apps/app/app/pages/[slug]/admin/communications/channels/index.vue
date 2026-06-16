@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaChannel } from "~~/types/directus";
+import type { HoaChannel } from "#core/types/directus";
 
 // First-class Channels destination inside the Communications hub (auth layout +
 // the Email·Channels·Audience tab strip). Reuses the channels list + search +

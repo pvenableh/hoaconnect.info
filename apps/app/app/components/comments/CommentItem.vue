@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentNode } from "~/composables/useComments";
+import type { CommentNode } from "#core/app/composables/useComments";
 
 const props = withDefaults(
   defineProps<{

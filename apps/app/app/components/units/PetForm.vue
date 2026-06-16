@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PetRecord, UnitRecordMember } from "~/composables/useUnitRecords";
+import type { PetRecord, UnitRecordMember } from "#core/app/composables/useUnitRecords";
 
 const props = defineProps<{
   members: UnitRecordMember[];

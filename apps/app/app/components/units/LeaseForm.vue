@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LeaseRecord, UnitRecordMember } from "~/composables/useUnitRecords";
+import type { LeaseRecord, UnitRecordMember } from "#core/app/composables/useUnitRecords";
 
 const props = defineProps<{
   members: UnitRecordMember[];

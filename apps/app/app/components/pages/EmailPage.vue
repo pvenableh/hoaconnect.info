@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { HoaEmail } from "~~/types/directus";
+import type { HoaEmail } from "#core/types/directus";
 
 const { navigateToOrg } = useOrgNavigation();
 const emailSystem = useEmailSystem();

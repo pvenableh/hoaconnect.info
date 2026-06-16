@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HoaChannel } from "~~/types/directus";
+import type { HoaChannel } from "#core/types/directus";
 
 const props = defineProps<{
   organizationId: string;

@@ -11,8 +11,8 @@
  * /api/org/storage/* routes (never the raw global file routes).
  */
 import { toast } from "vue-sonner";
-import { useStorageFormat } from "~/composables/useStorageFormat";
-import type { StorageAccess, StorageFile, StorageFolder } from "~/composables/useOrgStorage";
+import { useStorageFormat } from "#core/app/composables/useStorageFormat";
+import type { StorageAccess, StorageFile, StorageFolder } from "#core/app/composables/useOrgStorage";
 
 type ViewMode = "grid" | "list";
 

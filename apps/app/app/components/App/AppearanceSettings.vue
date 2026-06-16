@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Switch } from "@/components/ui/switch";
-import type { PaletteId } from "~/composables/useAppNav";
+import type { PaletteId } from "#core/app/composables/useAppNav";
 
 const {
   palette,

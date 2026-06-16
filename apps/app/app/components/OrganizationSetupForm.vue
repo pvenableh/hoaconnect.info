@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { toast } from "vue-sonner";
 import { useDirectusItems } from "#imports";
-import type { SubscriptionPlan } from "~~/types/directus";
+import type { SubscriptionPlan } from "#core/types/directus";
 
 interface Props {
   title?: string;

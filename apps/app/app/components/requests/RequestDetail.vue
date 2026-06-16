@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { RequestRow } from "~/composables/useRequests";
+import type { RequestRow } from "#core/app/composables/useRequests";
 import { toast } from "vue-sonner";
 import {
   getWorkflow,
   getStateMeta,
   availableTransitions,
-} from "~/config/requestWorkflows";
+} from "#core/app/config/requestWorkflows";
 
 const props = withDefaults(
   defineProps<{

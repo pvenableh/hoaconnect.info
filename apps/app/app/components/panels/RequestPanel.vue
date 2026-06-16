@@ -7,8 +7,8 @@
   still enforced server/Directus-side, the flag only shapes the UI.
 -->
 <script setup lang="ts">
-import type { FlipFromPayload } from "~/composables/useFlipFromRow";
-import { getWorkflow } from "~/config/requestWorkflows";
+import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
+import { getWorkflow } from "#core/app/config/requestWorkflows";
 
 const props = defineProps<{
   id: string;
