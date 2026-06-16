@@ -127,10 +127,10 @@ export default defineEventHandler(async (event) => {
         stripe_subscription_id: stripeSubscriptionId || null,
         subscription_status: orgSubscriptionStatus,
         trial_ends_at: trialEndsAt || null,
-        // New orgs are comped/free for now (no paying customers yet) — this
-        // also routes their AI metering to at-cost ("Hue") pricing. Flip to
-        // false once paid signups begin.
-        is_free_account: true,
+        // New orgs default to the paid/trial track. Mark an org is_free_account
+        // manually (in Directus) to comp it — that also flips its AI metering to
+        // at-cost ("Hue") pricing via marginForAccount() in chargeForCompletion.
+        is_free_account: false,
       })
     );
 
