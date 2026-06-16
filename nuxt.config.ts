@@ -60,6 +60,11 @@ export default defineNuxtConfig({
     // Webhook can serve both apps. The downstream applies its own category
     // filter. Unset = no forwarding.
     emailActivityForwardUrl: process.env.EMAIL_ACTIVITY_FORWARD_URL,
+    // Timeout (ms) for that forward. The 1033 flow trigger responds slowly when
+    // synchronous (cold start + inline ops); the request body is sent
+    // immediately, so the downstream still fires even if we stop waiting. Tune
+    // from Vercel without a redeploy. Default 15s.
+    emailActivityForwardTimeoutMs: process.env.EMAIL_ACTIVITY_FORWARD_TIMEOUT_MS,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,

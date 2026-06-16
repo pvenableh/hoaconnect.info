@@ -78,18 +78,28 @@ export default defineEventHandler(async (event) => {
   // Webhook can serve both apps. Fire-and-forget — a slow/failed downstream must
   // never make SendGrid retry or break our 200. The downstream applies its own
   // category filter, so we forward everything (1033 Lenox events included).
-  const forwardUrl = useRuntimeConfig().emailActivityForwardUrl as string | undefined;
+  const cfg = useRuntimeConfig();
+  const forwardUrl = cfg.emailActivityForwardUrl as string | undefined;
   if (forwardUrl) {
+    const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
     const forward = fetch(forwardUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: raw,
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
       .then((r) => {
         if (!r.ok) console.warn(`[email/activity] forward → ${forwardUrl} responded ${r.status}`);
       })
-      .catch((e) => console.warn(`[email/activity] forward → ${forwardUrl} failed:`, e));
+      .catch((e) => {
+        // The body is sent immediately, so the downstream flow fires even when
+        // we stop waiting for its (slow, synchronous) response — log a timeout as
+        // best-effort info, not a failure.
+        const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+        console.warn(
+          `[email/activity] forward → ${forwardUrl} ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed: " + e}`
+        );
+      });
     // Keep the worker alive for the forward without blocking the SendGrid 200.
     if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
   }
