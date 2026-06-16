@@ -54,6 +54,12 @@ export default defineNuxtConfig({
     // activity rejects unsigned/forged posts; when unset, events are accepted
     // unverified (with a warning) so the webhook works before signing is enabled.
     sendgridWebhookPublicKey: process.env.SENDGRID_WEBHOOK_PUBLIC_KEY,
+    // Optional downstream consumer for the raw SendGrid event batch (fan-out).
+    // When set, /api/email/activity forwards each batch verbatim here (e.g. the
+    // legacy 1033 Lenox Directus flow trigger), so a single SendGrid Event
+    // Webhook can serve both apps. The downstream applies its own category
+    // filter. Unset = no forwarding.
+    emailActivityForwardUrl: process.env.EMAIL_ACTIVITY_FORWARD_URL,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,

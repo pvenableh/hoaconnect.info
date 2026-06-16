@@ -73,6 +73,27 @@ export default defineEventHandler(async (event) => {
     return { success: true, message: "No events to process" };
   }
 
+  // Fan-out: forward the raw batch verbatim to a downstream consumer (e.g. the
+  // legacy 1033 Lenox Directus flow) when configured, so one SendGrid Event
+  // Webhook can serve both apps. Fire-and-forget — a slow/failed downstream must
+  // never make SendGrid retry or break our 200. The downstream applies its own
+  // category filter, so we forward everything (1033 Lenox events included).
+  const forwardUrl = useRuntimeConfig().emailActivityForwardUrl as string | undefined;
+  if (forwardUrl) {
+    const forward = fetch(forwardUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: raw,
+      signal: AbortSignal.timeout(5000),
+    })
+      .then((r) => {
+        if (!r.ok) console.warn(`[email/activity] forward → ${forwardUrl} responded ${r.status}`);
+      })
+      .catch((e) => console.warn(`[email/activity] forward → ${forwardUrl} failed:`, e));
+    // Keep the worker alive for the forward without blocking the SendGrid 200.
+    if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
+  }
+
   // Only this app's events: either the "HOA Connect" category or an org custom_arg.
   const appEvents = events.filter(
     (e) => e.category?.includes("HOA Connect") || !!e.organization_id
