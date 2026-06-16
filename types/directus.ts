@@ -1459,6 +1459,18 @@ export interface SubscriptionPlan {
 	trial_days?: number | null;
 	/** @description Monthly AI-credit allowance for this plan tier. */
 	included_credits?: number;
+	/** @description Band lower bound (units). */
+	min_units?: number | null;
+	/** @description Band upper bound (units). Null = no cap (Enterprise). */
+	max_units?: number | null;
+	/** @description Standard one-time setup fee (USD). */
+	onboarding_fee?: number | null;
+	/** @description Stripe one-time Price id for standard onboarding. */
+	stripe_price_id_onboarding?: string | null;
+	/** @description Display billing unit. Always 'building' — never 'unit'. */
+	billing_unit?: string;
+	/** @description Hide price, show 'Contact us' (Enterprise / Signature). */
+	is_contact_only?: boolean;
 }
 
 export interface DirectusAccess {
