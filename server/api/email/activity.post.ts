@@ -91,32 +91,61 @@ export default defineEventHandler(async (event) => {
     // Default: forward the raw batch verbatim. With a category configured, send
     // only the matching events — and null means "this batch has none, don't POST".
     let forwardBody: string | null = raw;
+    let forwardedCount = events.length;
     if (forwardCategory) {
       const matching = events.filter((e) =>
         e.category?.some((c) => typeof c === "string" && c.includes(forwardCategory))
       );
+      forwardedCount = matching.length;
       forwardBody = matching.length ? JSON.stringify(matching) : null;
     }
     if (forwardBody !== null) {
+      const body = forwardBody;
       const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
-      const forward = fetch(forwardUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: forwardBody,
-        signal: AbortSignal.timeout(timeoutMs),
-      })
-        .then((r) => {
-          if (!r.ok) console.warn(`[email/activity] forward → ${forwardUrl} responded ${r.status}`);
-        })
-        .catch((e) => {
-          // The body is sent immediately, so the downstream flow fires even when
-          // we stop waiting for its (slow, synchronous) response — log a timeout as
-          // best-effort info, not a failure.
-          const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
-          console.warn(
-            `[email/activity] forward → ${forwardUrl} ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed: " + e}`
-          );
-        });
+      const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+      const tag = `received ${events.length} · forwarded ${forwardedCount} → ${forwardUrl}`;
+
+      // One retry on a transient failure. We've already 200'd SendGrid, so it
+      // won't retry for us — a brief downstream blip would otherwise lose the
+      // batch. We retry ONLY on a clean failure (network error or 5xx), never on
+      // a timeout: a timeout means the body was already sent, so retrying would
+      // risk a duplicate row downstream.
+      const maxAttempts = 2;
+      const forward = (async () => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const last = attempt === maxAttempts;
+          try {
+            const r = await fetch(forwardUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              signal: AbortSignal.timeout(timeoutMs),
+            });
+            if (r.ok) {
+              console.info(`[email/activity] forward ${tag} · ${r.status} (attempt ${attempt})`);
+              return;
+            }
+            // 4xx won't improve on retry; 5xx might. Give up on the last attempt.
+            if (r.status < 500 || last) {
+              console.warn(`[email/activity] forward ${tag} · responded ${r.status}${last && r.status >= 500 ? " (gave up)" : ""}`);
+              return;
+            }
+            console.warn(`[email/activity] forward ${tag} · responded ${r.status}, retrying`);
+          } catch (e: any) {
+            const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+            // Timeout: body already sent, downstream likely still processing —
+            // don't retry (would duplicate). Otherwise retry unless we're out.
+            if (timedOut || last) {
+              console.warn(
+                `[email/activity] forward ${tag} · ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed after " + attempt + " attempt(s): " + e}`
+              );
+              return;
+            }
+            console.warn(`[email/activity] forward ${tag} · network error, retrying: ${e}`);
+          }
+          await sleep(1000);
+        }
+      })();
       // Keep the worker alive for the forward without blocking the SendGrid 200.
       if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
     }
