@@ -63,6 +63,7 @@
               :settings="settings"
               @updated="handleSettingsUpdate"
             />
+            <SettingsEmailSenderForm :organization="organization" />
           </TabsContent>
 
           <!-- SEO Tab -->

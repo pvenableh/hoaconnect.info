@@ -149,6 +149,20 @@ export interface BlockSetting {
 	footer_image?: DirectusFile | string | null;
 	/** @description Public landing config (widgets, neighborhood/walk-score, listings, inquiry routing, cached geo). Edited via Settings → Public site. */
 	landing?: Record<string, any> | null;
+	/** @description Recipient count at/below which CC/BCC are attached to each email (everyone sees the CC). Above it, CC/BCC contacts each get one copy. Default 5. */
+	cc_bcc_threshold?: number | null;
+	/** @description Display name on outgoing email (defaults to the org name) */
+	from_name?: string | null;
+	/** @description From address — only used once the sending domain is verified */
+	from_email?: string | null;
+	/** @description Authenticated sending domain (SendGrid) */
+	email_domain?: string | null;
+	/** @description SendGrid domain-authentication id */
+	email_domain_id?: string | null;
+	/** @description Sending domain DNS validated in SendGrid */
+	email_domain_verified?: boolean | null;
+	/** @description CNAME records the org must add to DNS */
+	email_domain_dns?: Record<string, any> | null;
 }
 
 export interface Coupon {
@@ -562,6 +576,10 @@ export interface HoaEmail {
 	header_text?: string | null;
 	/** @description Optional override of the org's default footer building photo for this send. */
 	footer_image?: DirectusFile | string | null;
+	/** @description CC recipients — emails and/or group tokens (@board, @property_manager) */
+	cc?: string[] | null;
+	/** @description BCC recipients — emails and/or group tokens (@board, @property_manager) */
+	bcc?: string[] | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];

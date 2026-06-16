@@ -19,6 +19,8 @@ interface SaveEmailBody {
   attachmentIds?: string[];
   headerText?: string | null;
   footerImageId?: string | null;
+  cc?: string[];
+  bcc?: string[];
 }
 
 export default defineEventHandler(async (event) => {
@@ -43,6 +45,8 @@ export default defineEventHandler(async (event) => {
     attachmentIds,
     headerText,
     footerImageId,
+    cc,
+    bcc,
   } = body;
 
   // Validation
@@ -104,6 +108,8 @@ export default defineEventHandler(async (event) => {
       attachments: attachmentsData,
       header_text: headerText || null,
       footer_image: footerImageId || null,
+      cc: cc?.length ? cc : null,
+      bcc: bcc?.length ? bcc : null,
       web_slug: webSlug,
     };
 

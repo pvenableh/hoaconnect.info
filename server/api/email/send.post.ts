@@ -3,6 +3,7 @@ import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } f
 import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile, HoaEmailRecipient } from "~~/types/directus";
+import { DEFAULT_CC_BCC_THRESHOLD } from "~~/shared/email/cc";
 
 interface CidImage {
   cid: string;
@@ -111,13 +112,15 @@ interface SendEmailBody {
   urgent?: boolean;
   headerText?: string | null; // Per-send override of the org's default header line
   footerImageId?: string | null; // Per-send override of the org's default footer photo
+  cc?: string[]; // CC entries: emails and/or group tokens (@board, @property_manager)
+  bcc?: string[]; // BCC entries: emails and/or group tokens
 }
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId } = body;
+  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId, cc, bcc } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -139,7 +142,7 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url", {
-          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "cc_bcc_threshold", "from_name", "from_email", "email_domain_verified"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -299,6 +302,8 @@ export default defineEventHandler(async (event) => {
           web_slug: webSlug,
           header_text: headerText || null,
           footer_image: footerImageId || null,
+          cc: cc?.length ? cc : null,
+          bcc: bcc?.length ? bcc : null,
         })
       );
     } else {
@@ -320,6 +325,8 @@ export default defineEventHandler(async (event) => {
           web_slug: webSlug,
           header_text: headerText || null,
           footer_image: footerImageId || null,
+          cc: cc?.length ? cc : null,
+          bcc: bcc?.length ? bcc : null,
         })
       );
     }
@@ -394,6 +401,150 @@ export default defineEventHandler(async (event) => {
       ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || (email as any).id}`
       : `${config.public.appUrl}/api/email/view/${(email as any).id}`;
 
+    // Resolve CC/BCC group tokens (@board / @property_manager) + free-form
+    // emails into live addresses.
+    const ccEmails = await resolveCcBccEmails(organizationId, cc);
+    const bccEmails = await resolveCcBccEmails(organizationId, bcc);
+    const ccBccThreshold =
+      Number((organization.settings as any)?.cc_bcc_threshold) || DEFAULT_CC_BCC_THRESHOLD;
+    const memberEmailSet = new Set(
+      members.map((m) => (m.email || "").toLowerCase()).filter(Boolean)
+    );
+    // Small/targeted send: attach CC/BCC to every personalized email, so the
+    // copied parties see themselves as real CC/BCC recipients. Large send: keep
+    // per-recipient privacy and give each CC/BCC contact a single copy instead.
+    const attachCopiesPerRecipient = members.length <= ccBccThreshold;
+    const ccArg = ccEmails.length ? ccEmails.map((addr) => ({ email: addr })) : undefined;
+    const bccArg = bccEmails.length ? bccEmails.map((addr) => ({ email: addr })) : undefined;
+
+    // White-label sender: the display name applies always; the custom from-address
+    // only once the org's sending domain is verified (else SendGrid would flag it).
+    const senderName = (organization.settings as any)?.from_name?.trim() || organization.name || undefined;
+    const senderFrom =
+      (organization.settings as any)?.email_domain_verified && (organization.settings as any)?.from_email
+        ? String((organization.settings as any).from_email).trim()
+        : undefined;
+
+    // Send one personalized email to a target — a member, or (member: null) a
+    // standalone CC/BCC copy. Centralizes the mjml / dynamic-template / fallback
+    // branches that were previously inlined per recipient.
+    const deliverTo = async (opts: {
+      toEmail: string;
+      toName?: string;
+      member?: (typeof members)[number] | null;
+      cc?: Array<{ email: string }>;
+      bcc?: Array<{ email: string }>;
+    }): Promise<{ messageId: string | null }> => {
+      const { toEmail, toName, member = null, cc: ccCopies, bcc: bccCopies } = opts;
+      const recipientFirstName = member?.first_name || undefined;
+      const primaryUnit = member?.units?.find((u) => u.is_primary_unit) || member?.units?.[0];
+      const unitNumber = primaryUnit?.unit_id?.unit_number || undefined;
+
+      const mergeValues = member ? resolveMergeFields(member, organization) : {};
+      const recipientContent = applyMergeFields(processedContent, mergeValues);
+      const recipientSubject = applyMergeFields(subject, mergeValues) || subject;
+      const processedHtmlContent = processHtmlForEmail(recipientContent);
+
+      let personalizedContent = processedHtmlContent;
+      if (greeting) {
+        const greetingWithName = recipientFirstName
+          ? `${greeting} ${recipientFirstName},`
+          : `${greeting},`;
+        personalizedContent = `<p>${greetingWithName}</p>${processedHtmlContent}`;
+      }
+      if (salutation) {
+        personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
+      }
+
+      const text = buildEmailText({
+        organization,
+        subject: recipientSubject,
+        content: recipientContent,
+        emailType,
+        greeting,
+        salutation,
+        boardMembers: includeBoardFooter ? boardMembers : undefined,
+        recipientFirstName,
+        directusUrl: config.directus.url,
+      });
+
+      const allAttachments = [...emailAttachments, ...inlineAttachments];
+      const common = {
+        to: toEmail,
+        toName: toName || undefined,
+        subject: recipientSubject,
+        text,
+        fromName: senderName,
+        fromAddress: senderFrom,
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+        replyTo: organization.email
+          ? { email: organization.email, name: organization.name || undefined }
+          : undefined,
+        customArgs: {
+          email_id: String((email as any).id),
+          recipient_email: toEmail,
+          organization_id: organizationId,
+        },
+        organizationId,
+        cc: ccCopies,
+        bcc: bccCopies,
+      };
+
+      if (contentMode === "mjml") {
+        // Raw MJML/HTML mode: the author controls the whole email.
+        return sendOrganizationEmail({ ...common, html: buildRawEmailHtml(recipientContent) });
+      }
+
+      if (useDynamicTemplate) {
+        const templateData: EmailTemplateData = {
+          first_name: recipientFirstName || "Resident",
+          unit: unitNumber || "",
+          subject: recipientSubject,
+          subtitle: subtitle || "",
+          content: personalizedContent,
+          salutation: salutation || undefined,
+          urgent: urgent || false,
+          category: emailType,
+          org_name: organization.name || "Your HOA",
+          org_legal_name: organization.legal_name || "",
+          org_type: organization.type || undefined,
+          org_logo_url: orgLogoUrl || "",
+          org_url: orgUrl,
+          org_address: orgAddress || undefined,
+          org_email: organization.email || undefined,
+          org_phone_number: organization.phone || "",
+          org_header_text:
+            applyHeaderTextTokens(branding.headerText, organization.name || "Your HOA", organization.legal_name) ||
+            undefined,
+          org_homepage_url: branding.homepageUrl || undefined,
+          footer_image_url: footerImageUrl || undefined,
+          board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
+          Weblink: webViewUrl,
+          year: new Date().getFullYear().toString(),
+        };
+        return sendOrganizationEmail({ ...common, html: personalizedContent, templateId, templateData });
+      }
+
+      const html = buildEmailHtml({
+        organization,
+        subject: recipientSubject,
+        content: recipientContent,
+        emailType,
+        greeting,
+        salutation,
+        boardMembers: includeBoardFooter ? boardMembers : undefined,
+        recipientFirstName,
+        directusUrl: config.directus.url,
+        emailId: (email as any).id,
+        appUrl: config.public.appUrl as string,
+        headerText: branding.headerText,
+        footerImage: branding.footerImage,
+        homepageUrl: branding.homepageUrl,
+        webViewUrl,
+      });
+      return sendOrganizationEmail({ ...common, html });
+    };
+
     for (const member of members) {
       if (!member.email) {
         failedCount++;
@@ -407,178 +558,14 @@ export default defineEventHandler(async (event) => {
       }
 
       const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
-      const recipientFirstName = member.first_name || undefined;
-
-      // Get member's primary unit number
-      const primaryUnit = member.units?.find(u => u.is_primary_unit) || member.units?.[0];
-      const unitNumber = primaryUnit?.unit_id?.unit_number || undefined;
-
-      // Per-recipient merge fields ({{first_name}}, {{unit}}, {{parking_spot}}, ...)
-      const mergeValues = resolveMergeFields(member, organization);
-      const recipientContent = applyMergeFields(processedContent, mergeValues);
-      const recipientSubject = applyMergeFields(subject, mergeValues) || subject;
-
-      // Process the HTML content for email (inline styles, etc.)
-      const processedHtmlContent = processHtmlForEmail(recipientContent);
-
-      // Build personalized greeting
-      let personalizedContent = processedHtmlContent;
-      if (greeting) {
-        const greetingWithName = recipientFirstName
-          ? `${greeting} ${recipientFirstName},`
-          : `${greeting},`;
-        personalizedContent = `<p>${greetingWithName}</p>${processedHtmlContent}`;
-      }
-      if (salutation) {
-        personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
-      }
-
-      // Build plain text version
-      const text = buildEmailText({
-        organization,
-        subject: recipientSubject,
-        content: recipientContent,
-        emailType,
-        greeting,
-        salutation,
-        boardMembers: includeBoardFooter ? boardMembers : undefined,
-        recipientFirstName,
-        directusUrl: config.directus.url,
-      });
-
       try {
-        // Combine regular attachments with inline CID images
-        const allAttachments = [...emailAttachments, ...inlineAttachments];
-
-        let sendResult;
-
-        if (contentMode === "mjml") {
-          // Raw MJML/HTML mode: the author controls the whole email. Compile
-          // their (merge-applied) content directly and send it — no chrome,
-          // no greeting/salutation/board-footer injection, no dynamic template.
-          const html = buildRawEmailHtml(recipientContent);
-
-          sendResult = await sendOrganizationEmail({
-            to: member.email,
-            toName: recipientName || undefined,
-            subject: recipientSubject,
-            html,
-            text,
-            fromName: organization.name || undefined,
-            attachments: allAttachments.length > 0 ? allAttachments : undefined,
-            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
-            customArgs: {
-              email_id: String((email as any).id),
-              recipient_email: member.email,
-              organization_id: organizationId,
-            },
-            organizationId,
-          });
-        } else if (useDynamicTemplate) {
-          // Use SendGrid dynamic template
-          const templateData: EmailTemplateData = {
-            // Recipient info
-            first_name: recipientFirstName || 'Resident',
-            unit: unitNumber || '',
-
-            // Email content
-            subject: recipientSubject,
-            subtitle: subtitle || '',
-            content: personalizedContent,
-            salutation: salutation || undefined,
-            urgent: urgent || false,
-            category: emailType, // For preview text
-
-            // Organization info
-            org_name: organization.name || 'Your HOA',
-            org_legal_name: organization.legal_name || '',
-            org_type: organization.type || undefined,
-            org_logo_url: orgLogoUrl || '',
-            org_url: orgUrl,
-            org_address: orgAddress || undefined,
-            org_email: organization.email || undefined,
-            org_phone_number: organization.phone || '',
-            org_header_text: applyHeaderTextTokens(branding.headerText, organization.name || 'Your HOA', organization.legal_name) || undefined,
-            org_homepage_url: branding.homepageUrl || undefined,
-            footer_image_url: footerImageUrl || undefined,
-
-            // Board members
-            board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
-
-            // Links
-            Weblink: webViewUrl,
-
-            // Meta
-            year: new Date().getFullYear().toString(),
-          };
-
-          // Log template data for first recipient only (for debugging)
-          if (deliveredCount === 0 && failedCount === 0) {
-            console.log(`[send.post] Template data:`, JSON.stringify(templateData, null, 2));
-          }
-
-          sendResult = await sendOrganizationEmail({
-            to: member.email,
-            toName: recipientName || undefined,
-            subject: recipientSubject,
-            html: personalizedContent, // Fallback if template fails
-            text,
-            fromName: organization.name || undefined,
-            attachments: allAttachments.length > 0 ? allAttachments : undefined,
-            templateId,
-            templateData,
-            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
-            customArgs: {
-              email_id: String((email as any).id),
-              recipient_email: member.email,
-              organization_id: organizationId,
-            },
-            organizationId,
-          });
-        } else {
-          // Fall back to MJML-generated HTML
-          const html = buildEmailHtml({
-            organization,
-            subject: recipientSubject,
-            content: recipientContent,
-            emailType,
-            greeting,
-            salutation,
-            boardMembers: includeBoardFooter ? boardMembers : undefined,
-            recipientFirstName,
-            directusUrl: config.directus.url,
-            emailId: (email as any).id,
-            appUrl: config.public.appUrl as string,
-            headerText: branding.headerText,
-            footerImage: branding.footerImage,
-            homepageUrl: branding.homepageUrl,
-            webViewUrl,
-          });
-
-          // Log HTML for first recipient only (for debugging)
-          if (deliveredCount === 0 && failedCount === 0) {
-            console.log(`[send.post] Built HTML length: ${html.length}`);
-            console.log(`[send.post] HTML contains DOCTYPE: ${html.includes('<!DOCTYPE')}`);
-            console.log(`[send.post] HTML body preview: ${html.substring(0, 500)}...`);
-          }
-
-          sendResult = await sendOrganizationEmail({
-            to: member.email,
-            toName: recipientName || undefined,
-            subject: recipientSubject,
-            html,
-            text,
-            fromName: organization.name || undefined,
-            attachments: allAttachments.length > 0 ? allAttachments : undefined,
-            replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
-            customArgs: {
-              email_id: String((email as any).id),
-              recipient_email: member.email,
-              organization_id: organizationId,
-            },
-            organizationId,
-          });
-        }
+        const sendResult = await deliverTo({
+          toEmail: member.email,
+          toName: recipientName || undefined,
+          member,
+          cc: attachCopiesPerRecipient ? ccArg : undefined,
+          bcc: attachCopiesPerRecipient ? bccArg : undefined,
+        });
 
         deliveredCount++;
         recipientResults.push({
@@ -619,6 +606,33 @@ export default defineEventHandler(async (event) => {
             error_message: sendError.message || "Failed to send",
           } as Partial<HoaEmailRecipient>)
         );
+      }
+    }
+
+    // Large send: the CC/BCC contacts weren't attached per-recipient (privacy),
+    // so give each one a single standalone copy — but skip any who are already
+    // members in this send (they got their own personalized email).
+    if (!attachCopiesPerRecipient) {
+      const copyTargets = [...new Set([...ccEmails, ...bccEmails])].filter(
+        (addr) => !memberEmailSet.has(addr)
+      );
+      for (const addr of copyTargets) {
+        try {
+          const copyResult = await deliverTo({ toEmail: addr, member: null });
+          await directus.request(
+            createItem("hoa_email_recipients", {
+              email: email.id,
+              member: null,
+              recipient_email: addr,
+              recipient_name: null,
+              status: "sent",
+              sent_at: new Date().toISOString(),
+              sg_message_id: copyResult.messageId || null,
+            } as Partial<HoaEmailRecipient>)
+          );
+        } catch (copyError: any) {
+          console.error(`[send.post] CC/BCC copy to ${addr} failed:`, copyError?.message || copyError);
+        }
       }
     }
 

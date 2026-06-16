@@ -452,6 +452,9 @@ export const sendOrganizationEmail = async ({
   replyTo,
   customArgs,
   organizationId,
+  cc,
+  bcc,
+  fromAddress,
 }: {
   to: string;
   toName?: string;
@@ -459,17 +462,23 @@ export const sendOrganizationEmail = async ({
   html: string;
   text: string;
   fromName?: string;
+  /** Per-org white-label from-address (only when the domain is verified). */
+  fromAddress?: string;
   attachments?: EmailAttachment[];
   templateId?: string;
   templateData?: EmailTemplateData;
   replyTo?: { email: string; name?: string };
   customArgs?: Record<string, string>;
   organizationId?: string;
+  /** Visible carbon-copy recipients (added to this single message). */
+  cc?: Array<{ email: string; name?: string }>;
+  /** Hidden blind-carbon-copy recipients. */
+  bcc?: Array<{ email: string; name?: string }>;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
-  const fromEmail = config.public.fromEmail || "noreply@hoaconnect.info";
+  const fromEmail = fromAddress || config.public.fromEmail || "noreply@hoaconnect.info";
 
   // Build categories array - include organization ID if provided
   const categories = ["HOA Connect"];
@@ -494,6 +503,24 @@ export const sendOrganizationEmail = async ({
   }
   const hasCustomArgs = Object.keys(mergedCustomArgs).length > 0;
 
+  // SendGrid rejects a personalization where an address appears in both `to`
+  // and cc/bcc — drop the primary recipient (and dupes) from the copy lists.
+  const sanitizeCopies = (
+    list?: Array<{ email: string; name?: string }>
+  ): Array<{ email: string; name?: string }> | undefined => {
+    if (!list?.length) return undefined;
+    const seen = new Set([to.toLowerCase()]);
+    const cleaned = list.filter((r) => {
+      const e = (r.email || "").trim().toLowerCase();
+      if (!e || seen.has(e)) return false;
+      seen.add(e);
+      return true;
+    });
+    return cleaned.length ? cleaned : undefined;
+  };
+  const ccList = sanitizeCopies(cc);
+  const bccList = sanitizeCopies(bcc);
+
   // Use dynamic template if templateId is provided
   if (templateId && templateData) {
     const dynamicMsg: {
@@ -506,6 +533,8 @@ export const sendOrganizationEmail = async ({
       attachments?: EmailAttachment[];
       replyTo?: { email: string; name?: string };
       customArgs?: Record<string, string>;
+      cc?: Array<{ email: string; name?: string }>;
+      bcc?: Array<{ email: string; name?: string }>;
     } = {
       to: { email: to, name: toName },
       from: { email: fromEmail, name: fromName },
@@ -514,6 +543,9 @@ export const sendOrganizationEmail = async ({
       dynamicTemplateData: templateData,
       categories,
     };
+
+    if (ccList) dynamicMsg.cc = ccList;
+    if (bccList) dynamicMsg.bcc = bccList;
 
     if (attachments && attachments.length > 0) {
       dynamicMsg.attachments = attachments;
@@ -563,6 +595,8 @@ export const sendOrganizationEmail = async ({
     attachments?: EmailAttachment[];
     replyTo?: { email: string; name?: string };
     customArgs?: Record<string, string>;
+    cc?: Array<{ email: string; name?: string }>;
+    bcc?: Array<{ email: string; name?: string }>;
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
@@ -571,6 +605,9 @@ export const sendOrganizationEmail = async ({
     text,
     categories,
   };
+
+  if (ccList) msg.cc = ccList;
+  if (bccList) msg.bcc = bccList;
 
   // Add attachments if provided
   if (attachments && attachments.length > 0) {

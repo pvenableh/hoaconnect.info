@@ -42,6 +42,10 @@ export interface EmailFormData {
   headerText?: string | null;
   /** Per-send override of the org's default footer building photo (Directus file id). */
   footerImageId?: string | null;
+  /** CC entries — emails and/or group tokens (@board, @property_manager). */
+  cc?: string[];
+  /** BCC entries — emails and/or group tokens. */
+  bcc?: string[];
 }
 
 export interface EmailSaveData {
@@ -64,6 +68,10 @@ export interface EmailSaveData {
   headerText?: string | null;
   /** Per-send override of the org's default footer building photo (Directus file id). */
   footerImageId?: string | null;
+  /** CC entries — emails and/or group tokens (@board, @property_manager). */
+  cc?: string[];
+  /** BCC entries — emails and/or group tokens. */
+  bcc?: string[];
 }
 
 export interface EmailSendData extends EmailFormData {

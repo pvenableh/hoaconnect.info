@@ -8,8 +8,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { HoaMember, DirectusFile, DirectusFolder } from "~~/types/directus";
+import type { HoaMember, DirectusFile, DirectusFolder, BlockSetting } from "~~/types/directus";
 import type { PickedFile } from "~/composables/useOrgStorage";
+import {
+  CC_TOKEN_BOARD,
+  CC_TOKEN_PROPERTY_MANAGER,
+  DEFAULT_CC_BCC_THRESHOLD,
+  ccEntryLabel,
+  isValidEmail,
+} from "~~/shared/email/cc";
 
 const props = defineProps<{
   emailId?: string;
@@ -57,6 +64,8 @@ const form = reactive({
   headerText: "",
   recipientIds: [] as string[],
   attachmentIds: [] as string[],
+  cc: [] as string[],
+  bcc: [] as string[],
 });
 
 // Attachment state
@@ -185,6 +194,8 @@ watch(
       form.salutation = email.salutation || "";
       form.includeBoardFooter = email.include_board_footer ?? true;
       form.headerText = (email as any).header_text || "";
+      form.cc = Array.isArray((email as any).cc) ? [...(email as any).cc] : [];
+      form.bcc = Array.isArray((email as any).bcc) ? [...(email as any).bcc] : [];
 
       // Load attachments if they exist (M2M structure from Directus)
       if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
@@ -310,6 +321,62 @@ const selectedRecipients = computed(() => {
 
 const recipientCount = computed(() => selectedRecipients.value.length);
 
+// ── CC / BCC ──────────────────────────────────────────────────────────────
+// Org's small/large cutoff (defaults to 5 until the org's setting loads).
+const ccBccThreshold = ref(DEFAULT_CC_BCC_THRESHOLD);
+const { list: listSettings } = useDirectusItems<BlockSetting>("block_settings");
+watchEffect(async () => {
+  if (!orgId.value) return;
+  try {
+    const rows = await listSettings({
+      filter: { organization: { _eq: orgId.value } },
+      fields: ["cc_bcc_threshold"],
+      limit: 1,
+    });
+    const t = Number((rows?.[0] as any)?.cc_bcc_threshold);
+    if (Number.isFinite(t) && t > 0) ccBccThreshold.value = t;
+  } catch {
+    /* keep default */
+  }
+});
+
+const ccTokenLabel = ccEntryLabel; // expose to template
+const newEmail = reactive<{ cc: string; bcc: string }>({ cc: "", bcc: "" });
+
+const hasBoard = (field: "cc" | "bcc") => form[field].includes(CC_TOKEN_BOARD);
+const hasPm = (field: "cc" | "bcc") => form[field].includes(CC_TOKEN_PROPERTY_MANAGER);
+
+const toggleGroup = (field: "cc" | "bcc", token: string) => {
+  const i = form[field].indexOf(token);
+  if (i > -1) form[field].splice(i, 1);
+  else form[field].push(token);
+};
+
+const removeEntry = (field: "cc" | "bcc", value: string) => {
+  const i = form[field].indexOf(value);
+  if (i > -1) form[field].splice(i, 1);
+};
+
+const addEmailEntry = (field: "cc" | "bcc") => {
+  const value = newEmail[field].trim().toLowerCase();
+  if (!value) return;
+  if (!isValidEmail(value)) {
+    toast.error("Enter a valid email address");
+    return;
+  }
+  if (!form[field].includes(value)) form[field].push(value);
+  newEmail[field] = "";
+};
+
+// How CC/BCC behave for the current recipient count.
+const hasCopies = computed(() => form.cc.length > 0 || form.bcc.length > 0);
+const ccBccModeHint = computed(() => {
+  if (!hasCopies.value) return "";
+  return recipientCount.value <= ccBccThreshold.value
+    ? `Small send (≤ ${ccBccThreshold.value}): each recipient's email shows the CC/BCC.`
+    : `Large send (> ${ccBccThreshold.value}): CC/BCC contacts each get a single copy.`;
+});
+
 // Toggle member selection
 const toggleMember = (id: string) => {
   const index = form.recipientIds.indexOf(id);
@@ -384,6 +451,8 @@ const handleSaveDraft = async () => {
       headerText: form.headerText || undefined,
       status: "draft",
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+      cc: form.cc.length > 0 ? form.cc : undefined,
+      bcc: form.bcc.length > 0 ? form.bcc : undefined,
     });
     toast.success("Draft saved");
     navigateToOrg("/admin/communications");
@@ -429,6 +498,8 @@ const handleSend = async () => {
         headerText: form.headerText || undefined,
         status: "draft",
         attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+        cc: form.cc.length > 0 ? form.cc : undefined,
+        bcc: form.bcc.length > 0 ? form.bcc : undefined,
       });
       emailId = saveResult.email.id;
     }
@@ -446,6 +517,8 @@ const handleSend = async () => {
       recipientIds,
       emailId,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
+      cc: form.cc.length > 0 ? form.cc : undefined,
+      bcc: form.bcc.length > 0 ? form.bcc : undefined,
     });
 
     if (result.stats.failed > 0) {
@@ -1283,6 +1356,83 @@ useSeoMeta({
                     No {{ recipientTypeLabel }} with email addresses found
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <!-- CC / BCC -->
+            <Card>
+              <CardHeader>
+                <CardTitle>Copy others</CardTitle>
+                <CardDescription>
+                  Add the Board, Property Manager, or any address as CC/BCC.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-5">
+                <template v-for="field in (['cc', 'bcc'] as const)" :key="field">
+                  <div class="space-y-2">
+                    <Label class="text-sm font-medium uppercase tracking-wide">
+                      {{ field === 'cc' ? 'CC' : 'BCC' }}
+                    </Label>
+
+                    <!-- Group quick-toggles -->
+                    <div class="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        @click="toggleGroup(field, CC_TOKEN_BOARD)"
+                        :class="[
+                          'p-2 rounded-lg border text-center transition-all text-xs font-medium',
+                          hasBoard(field) ? 'border-primary bg-primary/5 text-primary' : 't-border hover:t-border',
+                        ]"
+                      >
+                        <Icon name="lucide:users" class="w-4 h-4 mx-auto mb-1" />
+                        Board
+                      </button>
+                      <button
+                        type="button"
+                        @click="toggleGroup(field, CC_TOKEN_PROPERTY_MANAGER)"
+                        :class="[
+                          'p-2 rounded-lg border text-center transition-all text-xs font-medium',
+                          hasPm(field) ? 'border-primary bg-primary/5 text-primary' : 't-border hover:t-border',
+                        ]"
+                      >
+                        <Icon name="lucide:briefcase" class="w-4 h-4 mx-auto mb-1" />
+                        Property Manager
+                      </button>
+                    </div>
+
+                    <!-- Current entries -->
+                    <div v-if="form[field].length" class="flex flex-wrap gap-1.5">
+                      <span
+                        v-for="entry in form[field]"
+                        :key="entry"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                      >
+                        {{ ccTokenLabel(entry) }}
+                        <button type="button" @click="removeEntry(field, entry)" class="hover:opacity-70">
+                          <Icon name="lucide:x" class="w-3 h-3" />
+                        </button>
+                      </span>
+                    </div>
+
+                    <!-- Free-form email entry -->
+                    <div class="flex gap-2">
+                      <Input
+                        v-model="newEmail[field]"
+                        type="email"
+                        placeholder="name@example.com"
+                        class="text-sm"
+                        @keydown.enter.prevent="addEmailEntry(field)"
+                      />
+                      <Button type="button" variant="outline" size="sm" @click="addEmailEntry(field)">
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </template>
+
+                <p v-if="ccBccModeHint" class="text-xs t-text-muted">
+                  <Icon name="lucide:info" class="w-3 h-3 inline mr-1" />{{ ccBccModeHint }}
+                </p>
               </CardContent>
             </Card>
 

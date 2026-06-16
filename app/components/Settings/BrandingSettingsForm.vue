@@ -194,6 +194,23 @@
             </p>
           </div>
 
+          <!-- CC/BCC threshold -->
+          <div class="space-y-2">
+            <Label for="cc_bcc_threshold">CC/BCC visibility cutoff</Label>
+            <Input
+              id="cc_bcc_threshold"
+              v-model.number="form.ccBccThreshold"
+              type="number"
+              min="1"
+              class="w-32"
+              :disabled="isSaving"
+            />
+            <p class="text-xs text-muted-foreground">
+              At or below this many recipients, CC/BCC are attached to each email so everyone
+              sees the copy (e.g. a violation notice). Above it, CC/BCC contacts each get one copy.
+            </p>
+          </div>
+
           <!-- Homepage URL -->
           <div class="space-y-2">
             <Label for="homepage_url">Footer homepage link</Label>
@@ -272,6 +289,7 @@
 
 <script setup lang="ts">
 import type { HoaOrganization, BlockSetting, DirectusFile } from "~~/types/directus";
+import { DEFAULT_CC_BCC_THRESHOLD } from "~~/shared/email/cc";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
@@ -353,6 +371,7 @@ const form = ref({
   theme: (props.settings?.theme as 'classic' | 'modern' | 'luxury') || "classic",
   headerText: props.settings?.header_text || "",
   homepageUrl: props.settings?.homepage_url || "",
+  ccBccThreshold: props.settings?.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
 });
 
 // Theme descriptions for the settings form
@@ -379,6 +398,7 @@ watch(
         theme: (newSettings.theme as 'classic' | 'modern' | 'luxury') || "classic",
         headerText: newSettings.header_text || "",
         homepageUrl: newSettings.homepage_url || "",
+        ccBccThreshold: newSettings.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
       };
     }
   },
@@ -535,6 +555,7 @@ const saveChanges = async () => {
       header_text: form.value.headerText || null,
       homepage_url: form.value.homepageUrl || null,
       footer_image: footerImageId,
+      cc_bcc_threshold: Number(form.value.ccBccThreshold) || DEFAULT_CC_BCC_THRESHOLD,
       status: "published",
     };
 
