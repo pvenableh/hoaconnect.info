@@ -73,35 +73,53 @@ export default defineEventHandler(async (event) => {
     return { success: true, message: "No events to process" };
   }
 
-  // Fan-out: forward the raw batch verbatim to a downstream consumer (e.g. the
+  // Fan-out: forward the SendGrid batch to a downstream consumer (e.g. the
   // legacy 1033 Lenox Directus flow) when configured, so one SendGrid Event
   // Webhook can serve both apps. Fire-and-forget — a slow/failed downstream must
-  // never make SendGrid retry or break our 200. The downstream applies its own
-  // category filter, so we forward everything (1033 Lenox events included).
+  // never make SendGrid retry or break our 200.
+  //
+  // When EMAIL_ACTIVITY_FORWARD_CATEGORY is set we forward ONLY the events whose
+  // `category` contains that substring, and skip the POST entirely when none
+  // match. The 1033 flow's condition uses `_some` over the trigger body, which
+  // THROWS "Value is required" on any batch with no matching element — so it must
+  // never receive a non-matching (e.g. all-HOA-Connect) batch. Unset = forward
+  // the raw batch verbatim and let the downstream self-filter (original behavior).
   const cfg = useRuntimeConfig();
   const forwardUrl = cfg.emailActivityForwardUrl as string | undefined;
   if (forwardUrl) {
-    const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
-    const forward = fetch(forwardUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: raw,
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-      .then((r) => {
-        if (!r.ok) console.warn(`[email/activity] forward → ${forwardUrl} responded ${r.status}`);
+    const forwardCategory = (cfg.emailActivityForwardCategory as string | undefined)?.trim();
+    // Default: forward the raw batch verbatim. With a category configured, send
+    // only the matching events — and null means "this batch has none, don't POST".
+    let forwardBody: string | null = raw;
+    if (forwardCategory) {
+      const matching = events.filter((e) =>
+        e.category?.some((c) => typeof c === "string" && c.includes(forwardCategory))
+      );
+      forwardBody = matching.length ? JSON.stringify(matching) : null;
+    }
+    if (forwardBody !== null) {
+      const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
+      const forward = fetch(forwardUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: forwardBody,
+        signal: AbortSignal.timeout(timeoutMs),
       })
-      .catch((e) => {
-        // The body is sent immediately, so the downstream flow fires even when
-        // we stop waiting for its (slow, synchronous) response — log a timeout as
-        // best-effort info, not a failure.
-        const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
-        console.warn(
-          `[email/activity] forward → ${forwardUrl} ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed: " + e}`
-        );
-      });
-    // Keep the worker alive for the forward without blocking the SendGrid 200.
-    if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
+        .then((r) => {
+          if (!r.ok) console.warn(`[email/activity] forward → ${forwardUrl} responded ${r.status}`);
+        })
+        .catch((e) => {
+          // The body is sent immediately, so the downstream flow fires even when
+          // we stop waiting for its (slow, synchronous) response — log a timeout as
+          // best-effort info, not a failure.
+          const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+          console.warn(
+            `[email/activity] forward → ${forwardUrl} ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed: " + e}`
+          );
+        });
+      // Keep the worker alive for the forward without blocking the SendGrid 200.
+      if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
+    }
   }
 
   // Only this app's events: either the "HOA Connect" category or an org custom_arg.

@@ -65,6 +65,13 @@ export default defineNuxtConfig({
     // immediately, so the downstream still fires even if we stop waiting. Tune
     // from Vercel without a redeploy. Default 15s.
     emailActivityForwardTimeoutMs: process.env.EMAIL_ACTIVITY_FORWARD_TIMEOUT_MS,
+    // Optional category filter for the fan-out. When set, only events whose
+    // `category` array contains an entry including this substring are forwarded,
+    // and a batch with zero matches is NOT POSTed at all. This keeps a finicky
+    // downstream (the 1033 Lenox flow's `_some` condition throws "Value is
+    // required" on non-matching batches) from ever receiving a batch it can't
+    // match. Unset = forward the raw batch verbatim (downstream self-filters).
+    emailActivityForwardCategory: process.env.EMAIL_ACTIVITY_FORWARD_CATEGORY,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
