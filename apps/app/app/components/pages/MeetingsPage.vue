@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 
 const { list: listMeetings } = useDirectusItems("hoa_meetings");
+const { rise } = useMotionPresets();
 const { currentOrg, selectedOrgId } = await useSelectedOrg();
 const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
@@ -106,8 +107,10 @@ const openDetail = (m: any) => {
         <section v-if="upcoming.length" class="space-y-3">
           <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Upcoming</h2>
           <button
-            v-for="m in upcoming"
+            v-for="(m, i) in upcoming"
             :key="m.id"
+            v-motion
+            v-bind="rise(i)"
             class="ios-card p-4 w-full text-left ios-press"
             @click="openDetail(m)"
           >
@@ -126,8 +129,10 @@ const openDetail = (m: any) => {
         <section class="space-y-3">
           <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Past</h2>
           <button
-            v-for="m in past"
+            v-for="(m, i) in past"
             :key="m.id"
+            v-motion
+            v-bind="rise(i)"
             class="ios-card p-4 w-full text-left ios-press"
             @click="openDetail(m)"
           >
