@@ -40,6 +40,9 @@ declare module "nuxt/schema" {
     siteTitle: string;
     siteSubtitle: string;
     siteDescription: string;
+    // Release line + per-deploy build identity (version detection).
+    appVersion: string;
+    buildId: string;
   }
 }
 

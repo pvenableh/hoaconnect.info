@@ -203,6 +203,11 @@ onMounted(() => {
       <OrgViewSwitcher />
     </ClientOnly>
 
+    <!-- "New version available" prompt — detects a fresh deploy and offers refresh -->
+    <ClientOnly>
+      <AppUpdatePrompt />
+    </ClientOnly>
+
     <!-- Global Notification Components -->
     <ClientOnly>
       <NotificationSheet />

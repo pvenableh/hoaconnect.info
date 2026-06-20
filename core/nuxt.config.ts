@@ -6,11 +6,35 @@
 // This layer is never built or deployed on its own.
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { execSync } from "node:child_process";
 import tailwindcss from "@tailwindcss/vite";
 
 // Absolute path to this layer's root, so `#core/...` resolves to core regardless of
 // which app is consuming the layer (the consumer's `~`/`@`/`~~` point at the consumer).
 const coreDir = fileURLToPath(new URL(".", import.meta.url));
+
+// Build identity — the spine of client-side version detection (see useAppVersion +
+// /api/version). Resolved ONCE at build/boot time and baked into the client bundle as
+// runtimeConfig.public.buildId. After a redeploy the server boots with a fresh id, so a
+// still-open tab (carrying the OLD baked id) polls /api/version, sees a mismatch, and
+// can prompt the user to refresh. Must therefore be unique-per-deploy and stable within
+// a deploy. Preference order: Vercel's per-deploy id → commit SHA → git SHA → dev stamp.
+function resolveBuildId(): string {
+  if (process.env.VERCEL_DEPLOYMENT_ID) return process.env.VERCEL_DEPLOYMENT_ID;
+  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8);
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    // No git context (e.g. some CI/containers) — fall back to a boot timestamp so the
+    // value is still stable for this process and changes on the next build.
+    return `build-${Date.now()}`;
+  }
+}
+const buildId = resolveBuildId();
 
 export default defineNuxtConfig({
   // Nuxt 4 compatibility
@@ -149,6 +173,12 @@ export default defineNuxtConfig({
       // building (no org-picker) — useSelectedOrg/useActiveHoa lock to this slug.
       // Empty in the multi-tenant app (apps/app) → existing behavior unchanged.
       lockedOrgSlug: process.env.NUXT_PUBLIC_ORG_SLUG || "",
+      // Human-facing release line (shown in the update prompt / About). Bump on each
+      // major UX release. Detection itself keys off buildId, not this string.
+      appVersion: "2.0.0",
+      // Per-deploy build identity baked into the client bundle. Compared against the
+      // live value from GET /api/version to detect that a new version has shipped.
+      buildId,
     },
   },
 
