@@ -14,12 +14,12 @@
    page-by-page. Import AFTER theme.css.
 ============================================================================= */
 
-:root {
-	/* Default accent: HOA Connect "modern" cyan. Override per section. */
-	--app-accent-h: 189;
-	--app-accent-s: 90%;
-	--app-accent-l: 45%;
-}
+/* The glass accent (--app-accent-h/s/l) is owned by theme.css: every theme block
+   sets it from that theme's accent-primary (brass for classic/luxury, cyan for
+   modern), and the `:root, .theme-classic-light` block provides the global default.
+   Defining it here too would win by source order (earnest-ui loads after theme.css)
+   and pin every theme to cyan — so it is intentionally NOT set on :root here. The
+   modern dock still overrides it per active app via applyDocumentAccent (inline). */
 
 /* ---- Accent presets — set on any container to retint the glass system ---- */
 .accent-cyan    { --app-accent-h: 189; --app-accent-s: 90%; --app-accent-l: 45%; }

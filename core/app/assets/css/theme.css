@@ -59,6 +59,9 @@
 	--theme-accent-tertiary: #8b7355;
 	--theme-accent-hover: #b89a5f;
 	--theme-accent-active: var(--cyan2, #00d4aa);
+	/* Glass system accent (HSL parts of accent-primary) — drives earnest-ui.css
+	   glass tints, skeletons, spinner, scrollbars so they read brass, not cyan. */
+	--app-accent-h: 39; --app-accent-s: 46%; --app-accent-l: 61%;
 
 	/* Border colors - editorial hairline rules */
 	--theme-border-primary: #e5e0d8;
@@ -142,6 +145,8 @@
 	--theme-accent-tertiary: #E5D4B3;
 	--theme-accent-hover: #E5D4B3;
 	--theme-accent-active: #00efd1;
+	/* Glass system accent (HSL parts of accent-primary) — gold for dark classic. */
+	--app-accent-h: 39; --app-accent-s: 46%; --app-accent-l: 69%;
 
 	/* Border colors */
 	--theme-border-primary: #3D372E;
@@ -225,6 +230,9 @@
 	--theme-accent-tertiary: #0095CC;
 	--theme-accent-hover: #00A6E0;
 	--theme-accent-active: #00efd1;
+	/* Glass system accent (HSL parts of accent-primary) — the modern dock overrides
+	   this per active app via applyDocumentAccent; this is the resting default. */
+	--app-accent-h: 195; --app-accent-s: 100%; --app-accent-l: 50%;
 
 	/* Border colors */
 	--theme-border-primary: #EAECEF;
@@ -308,6 +316,8 @@
 	--theme-accent-tertiary: #00BFD8;
 	--theme-accent-hover: #38E5FA;
 	--theme-accent-active: #00efd1;
+	/* Glass system accent (HSL parts of accent-primary) — resting default; dock overrides. */
+	--app-accent-h: 188; --app-accent-s: 86%; --app-accent-l: 53%;
 
 	/* Border colors */
 	--theme-border-primary: #2D3239;
@@ -392,6 +402,8 @@
 	--theme-accent-tertiary: #8B7355;
 	--theme-accent-hover: #A6845D;
 	--theme-accent-active: var(--cyan2, #00d4aa);
+	/* Glass system accent (HSL parts of accent-primary) — antique brass for luxury. */
+	--app-accent-h: 32; --app-accent-s: 35%; --app-accent-l: 57%;
 
 	/* Border colors - warm taupe */
 	--theme-border-primary: #E8E4DC;
@@ -481,6 +493,8 @@
 	--theme-accent-tertiary: #D4BA8A;
 	--theme-accent-hover: #D4BA8A;
 	--theme-accent-active: #00efd1;
+	/* Glass system accent (HSL parts of accent-primary) — champagne gold for dark luxury. */
+	--app-accent-h: 34; --app-accent-s: 42%; --app-accent-l: 64%;
 
 	/* Border colors */
 	--theme-border-primary: #3A3632;
