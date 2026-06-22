@@ -43,7 +43,7 @@
           <!-- Explore (public sections) -->
           <p class="px-3 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">Explore</p>
           <ul class="landing-drawer__list space-y-0.5">
-            <li v-for="link in links" :key="link.label">
+            <li v-for="(link, i) in links" :key="link.label" :style="{ '--i': i }">
               <component
                 :is="link.to ? NuxtLink : 'a'"
                 v-bind="link.to ? { to: link.to } : { href: link.href }"
@@ -64,7 +64,7 @@
               {{ memberNoun.singular }} portal
             </p>
             <ul class="landing-drawer__list space-y-0.5">
-              <li v-for="p in portalLinks" :key="p.key">
+              <li v-for="(p, i) in portalLinks" :key="p.key" :style="{ '--i': links.length + i }">
                 <a
                   :href="lockHref"
                   class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
@@ -231,27 +231,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 }
 
 /* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items
-   start nudged right + faded, then settle one after another once the panel
-   is open. */
+   start nudged right + faded, then settle one after another once the panel is
+   open. The per-item index (--i, set inline and continuous across both lists)
+   drives the delay, so the cascade covers ANY number of menu items in BOTH
+   directions; capped so a very long menu still settles promptly. */
 .landing-drawer__list > li {
   opacity: 0;
   transform: translateX(36px);
   transition:
     opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1),
     transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition-delay: min(calc(var(--i, 0) * 0.04s), 0.6s);
 }
 .landing-drawer.is-open .landing-drawer__list > li {
   opacity: 1;
   transform: translateX(0);
 }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(1) { transition-delay: 0.05s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(2) { transition-delay: 0.08s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(3) { transition-delay: 0.11s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(4) { transition-delay: 0.14s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(5) { transition-delay: 0.17s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(6) { transition-delay: 0.20s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(7) { transition-delay: 0.23s; }
-.landing-drawer.is-open .landing-drawer__list > li:nth-child(8) { transition-delay: 0.26s; }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-drawer__list > li {
