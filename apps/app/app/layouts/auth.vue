@@ -149,8 +149,10 @@ onMounted(() => {
   >
     <!-- Primary nav rail for classic/luxury orgs (desktop only; mobile folds
          into AppNav's sheet). Modern orgs use the floating AppDock below. -->
+    <!-- Classic/luxury rail: a persistent left rail at lg+, an off-canvas overlay
+         drawer below lg (toggled by the top-nav hamburger). -->
     <ClientOnly>
-      <AppSidebar v-if="navStyle === 'sidebar'" class="hidden lg:flex" />
+      <AppSidebar v-if="navStyle === 'sidebar'" />
     </ClientOnly>
 
     <AppNav />

@@ -24,6 +24,9 @@ const config = useRuntimeConfig();
 
 // Mobile sheet open state
 const mobileMenuOpen = ref(false);
+// Shared open-state for the classic/luxury left rail when it's an overlay drawer
+// (below lg). The hamburger here toggles it; AppSidebar consumes the same state.
+const appNavMobileOpen = useState<boolean>("appNavMobileOpen", () => false);
 
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
@@ -403,10 +406,23 @@ watch(
              rail for marketing links). -->
         <div
           v-if="user && !isMainMarketingDomain"
-          class="col-start-1 row-start-1 justify-self-start hidden sm:flex"
-          :class="navIsSidebar ? 'lg:hidden' : ''"
+          class="col-start-1 row-start-1 justify-self-start flex items-center gap-2"
         >
-          <OrgSelector />
+          <!-- Mobile nav-drawer toggle — classic/luxury workspaces only. Opens the
+               left rail as an overlay below lg; at lg+ the rail is persistent so
+               this hides. -->
+          <button
+            v-if="navIsSidebar && isOnOrgPage"
+            type="button"
+            class="lg:hidden inline-flex items-center justify-center header-pill"
+            aria-label="Open navigation"
+            @click="appNavMobileOpen = !appNavMobileOpen"
+          >
+            <Icon name="i-lucide-panel-left" class="w-5 h-5" />
+          </button>
+          <div class="hidden sm:flex" :class="navIsSidebar ? 'lg:hidden' : ''">
+            <OrgSelector />
+          </div>
         </div>
 
         <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->

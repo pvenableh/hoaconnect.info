@@ -13,10 +13,28 @@
   lockstep. Collapsed = icon rail with hover tooltips (reuses the dock's tip).
 -->
 <template>
+  <!-- Mobile drawer backdrop (below lg only). Tapping it closes the rail. -->
+  <Transition
+    enter-active-class="transition-opacity duration-200"
+    leave-active-class="transition-opacity duration-150"
+    enter-from-class="opacity-0"
+    leave-to-class="opacity-0"
+  >
+    <div
+      v-if="mobileOpen"
+      class="fixed inset-0 z-40 bg-black/30 lg:hidden"
+      @click="mobileOpen = false"
+    />
+  </Transition>
+
   <aside
     ref="asideEl"
-    class="app-sidebar glass-bar fixed inset-y-0 left-0 z-40 flex flex-col border-r t-border overflow-hidden will-change-[width]"
-    :class="[collapsed ? 'w-14' : 'w-60', { 'app-sidebar--collapsed': collapsed }]"
+    class="app-sidebar glass-bar fixed inset-y-0 left-0 z-50 lg:z-40 flex flex-col border-r t-border overflow-hidden will-change-[width] transition-transform duration-300 ease-out"
+    :class="[
+      collapsed ? 'w-14' : 'w-60',
+      { 'app-sidebar--collapsed': collapsed },
+      mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+    ]"
     aria-label="Primary"
   >
     <!-- Brand — the org picker lives here (workspace-switcher pattern). The logo/
@@ -70,7 +88,7 @@
             class="app-sidebar__item"
             :class="{ 'app-sidebar__item--active': app.key === activeKey }"
             :aria-current="app.key === activeKey ? 'page' : undefined"
-            @click="go(app)"
+            @click="onNav(app)"
           >
             <span class="app-sidebar__tip">{{ app.label }}</span>
             <span class="app-sidebar__icon-col">
@@ -99,6 +117,7 @@
                 :to="buildOrgPath(child.path)"
                 class="app-sidebar__child"
                 :class="{ 'app-sidebar__child--active': isLinkActive(child.path) }"
+                @click="mobileOpen = false"
               >
                 <span class="app-sidebar__child-label">{{ child.label }}</span>
               </NuxtLink>
@@ -112,7 +131,7 @@
     <div class="app-sidebar__rule mx-3 shrink-0" />
     <button
       type="button"
-      class="app-sidebar__item app-sidebar__toggle shrink-0"
+      class="app-sidebar__item app-sidebar__toggle shrink-0 max-lg:hidden"
       :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
       @click="toggle"
     >
@@ -138,6 +157,15 @@ const config = useRuntimeConfig();
 const { $gsap } = useNuxtApp() as any;
 
 const { appsFor, activeKeyFor, go } = useAppNav();
+
+// Below lg the rail is an off-canvas overlay drawer; this open-state is shared
+// with the top-nav hamburger (App/Nav.vue). At lg+ it's ignored — the rail is
+// always present. Navigating, tapping the backdrop, or Esc closes it.
+const mobileOpen = useState<boolean>("appNavMobileOpen", () => false);
+const onNav = (app: AppDef) => {
+  go(app);
+  mobileOpen.value = false;
+};
 
 // Role detection (mirrors App/Dock.vue) — admin vs member item set, scoped to the
 // org actually being viewed so a foreign admin never sees admin nav.
@@ -226,16 +254,27 @@ const applyState = (isCollapsed: boolean, instant = false) => {
 };
 
 let ready = false;
+const onKey = (e: KeyboardEvent) => {
+  if (e.key === "Escape" && mobileOpen.value) mobileOpen.value = false;
+};
 onMounted(() => {
   const stored = localStorage.getItem("appNavCollapsed");
   if (stored != null) collapsed.value = stored === "1";
   applyState(collapsed.value, true);
   ready = true;
+  window.addEventListener("keydown", onKey);
 });
 watch(collapsed, (v) => {
   if (ready) applyState(v, false);
 });
-onBeforeUnmount(() => tl?.kill());
+// Close the mobile drawer on navigation.
+watch(() => route.fullPath, () => {
+  mobileOpen.value = false;
+});
+onBeforeUnmount(() => {
+  tl?.kill();
+  window.removeEventListener("keydown", onKey);
+});
 </script>
 
 <style scoped>
@@ -432,6 +471,18 @@ onBeforeUnmount(() => tl?.kill());
 @media (any-hover: none) {
   .app-sidebar__tip {
     display: none;
+  }
+}
+
+/* Below lg the rail is an overlay drawer: always full width with labels shown,
+   regardless of the desktop collapse state GSAP may have left as inline styles
+   (these !important rules override those inline width/opacity values). */
+@media (max-width: 1023px) {
+  .app-sidebar {
+    width: 15rem !important;
+  }
+  .app-sidebar__label {
+    opacity: 1 !important;
   }
 }
 </style>
