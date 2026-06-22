@@ -45,22 +45,24 @@ const badges = computed<Record<string, number>>(() => {
   const counts: Record<string, number> = {};
   for (const n of notifications.value || []) {
     if (n.isRead) continue;
-    // Map notification types onto the consolidated dock keys.
+    // Map notification types onto the consolidated dock keys. These MUST match
+    // the `key` values in useAppNav's ADMIN_APPS/MEMBER_APPS — a badge keyed to a
+    // non-existent app silently never renders (the bug this map previously had:
+    // meeting/document → "reporting", membership → "people", request →
+    // "dashboard" were all dead keys).
     const key =
-      n.type === "announcement"
-        ? "email"
-        : n.type === "email"
-        ? "email"
+      n.type === "announcement" || n.type === "email"
+        ? "email" // Communications
         : n.type === "meeting"
-        ? "reporting"
+        ? "meetings"
         : n.type === "payment"
         ? "payments"
         : n.type === "document"
-        ? "reporting"
+        ? "documents"
         : n.type === "membership"
-        ? "people"
+        ? "directory" // admin Members; dropped for members (no such app), as intended
         : n.type === "request"
-        ? "dashboard"
+        ? "requests"
         : null;
     if (key) counts[key] = (counts[key] || 0) + 1;
   }
