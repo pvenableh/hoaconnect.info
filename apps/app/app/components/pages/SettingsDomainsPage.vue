@@ -16,12 +16,14 @@ import {
   LANDING_WIDGET_REGISTRY,
   BUILTIN_BLOCK_TYPES,
   CONTENT_LAYOUTS,
+  FEATURE_STYLES,
   newBlockId,
   type LandingConfig,
   type LandingWidgetKey,
   type ListingType,
   type LandingBlock,
   type LandingBlockType,
+  type FeatureStyle,
 } from "#core/shared/utils/landing";
 
 const route = useRoute();
@@ -426,9 +428,31 @@ const addContentBlock = () =>
     tagline: "",
     images: [],
     stats: [],
+    features: [],
+    feature_style: "list",
+    feature_columns: 2,
     show_in_menu: true,
     menu_icon: "",
   });
+
+const FEATURE_STYLE_LABELS: Record<FeatureStyle, string> = {
+  list: "List (icon + text)",
+  bullets: "Bullets (dot + text)",
+  cards: "Cards (icon + title + text)",
+  tiles: "Icon tiles",
+};
+const addFeature = (b: LandingBlock) => {
+  if (!Array.isArray(b.features)) b.features = [];
+  b.features.push({ icon: "", title: "", text: "", wide: false });
+};
+const removeFeature = (b: LandingBlock, idx: number) => b.features?.splice(idx, 1);
+const moveFeature = (b: LandingBlock, idx: number, dir: -1 | 1) => {
+  const arr = b.features;
+  if (!arr) return;
+  const j = idx + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[idx], arr[j]] = [arr[j], arr[idx]];
+};
 
 // Quick-pick icons for a section's menu link (any lucide name also works).
 const MENU_ICON_SUGGESTIONS = [
@@ -878,13 +902,90 @@ useSeoMeta({ title: "Public site" });
                   </div>
                   <div v-if="!b.stats?.length" class="text-xs t-text-muted">No stats yet.</div>
                   <div v-for="(s, k) in b.stats" :key="k" class="flex items-center gap-2">
-                    <Input v-model="s.value" placeholder="6" class="w-20" />
-                    <Input v-model="s.unit" placeholder="min" class="w-24" />
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
+                      <Icon :name="s.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
+                    </span>
+                    <Input v-model="s.icon" placeholder="lucide: (optional)" class="w-32" />
+                    <Input v-model="s.value" placeholder="6" class="w-16" />
+                    <Input v-model="s.unit" placeholder="min" class="w-20" />
                     <Input v-model="s.label" placeholder="Beach" class="flex-1" />
                     <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(b, k)">
                       <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
+                </div>
+
+                <!-- Feature list — icon-able points that break into columns. -->
+                <div class="space-y-3 rounded-lg border t-border p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <Label class="block">Feature list</Label>
+                    <Button variant="outline" size="sm" @click="addFeature(b)">
+                      <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add feature
+                    </Button>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label>Style</Label>
+                      <select
+                        v-model="b.feature_style"
+                        class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option v-for="s in FEATURE_STYLES" :key="s" :value="s">{{ FEATURE_STYLE_LABELS[s] }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Columns</Label>
+                      <select
+                        v-model.number="b.feature_columns"
+                        class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option :value="1">1</option>
+                        <option :value="2">2</option>
+                        <option :value="3">3</option>
+                        <option :value="4">4</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div v-if="!b.features?.length" class="text-xs t-text-muted">No features yet.</div>
+                  <div v-for="(f, k) in b.features" :key="k" class="rounded-md border t-border p-2.5 space-y-2">
+                    <div class="flex items-center gap-2">
+                      <div class="flex flex-col">
+                        <button class="t-text-muted hover:t-text disabled:opacity-30" :disabled="k === 0" @click="moveFeature(b, k, -1)">
+                          <Icon name="lucide:chevron-up" class="w-4 h-4" />
+                        </button>
+                        <button class="t-text-muted hover:t-text disabled:opacity-30" :disabled="k === (b.features?.length || 0) - 1" @click="moveFeature(b, k, 1)">
+                          <Icon name="lucide:chevron-down" class="w-4 h-4" />
+                        </button>
+                      </div>
+                      <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
+                        <Icon :name="f.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
+                      </span>
+                      <Input v-model="f.icon" placeholder="lucide:sparkles" class="w-40" />
+                      <label class="ml-auto flex items-center gap-1.5 text-xs t-text-muted whitespace-nowrap">
+                        <input type="checkbox" :checked="f.wide" @change="f.wide = ($event.target as HTMLInputElement).checked" />
+                        Wide
+                      </label>
+                      <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeFeature(b, k)">
+                        <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                    <Input v-model="f.title" placeholder="Title (optional — used by cards & tiles)" />
+                    <Input v-model="f.text" placeholder="Feature text" />
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <span class="text-xs t-text-muted self-center mr-1">Quick icons:</span>
+                    <button
+                      v-for="ic in MENU_ICON_SUGGESTIONS"
+                      :key="ic"
+                      type="button"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded-md border t-border t-text-muted hover:t-bg-subtle"
+                      :title="ic"
+                      @click="b.features?.length ? (b.features[b.features.length - 1].icon = ic) : null"
+                    >
+                      <Icon :name="ic" class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <p class="text-xs t-text-muted">Icons use any <a href="https://lucide.dev/icons" target="_blank" rel="noopener" class="t-link">lucide</a> name. Quick-icons apply to the last feature. "Wide" spans all columns.</p>
                 </div>
               </div>
 

@@ -35,6 +35,12 @@
           >
             <div :class="layout === 'image-text' ? 'lg:order-2' : ''">
               <component :is="CopyBlock" />
+              <OrgLandingFeatureGrid
+                v-if="features.length"
+                :features="features"
+                :feature-style="featureStyle"
+                :columns="featureColumns"
+              />
               <p
                 v-if="block.tagline"
                 class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal"
@@ -83,6 +89,12 @@
                 </div>
               </div>
             </div>
+            <OrgLandingFeatureGrid
+              v-if="features.length"
+              :features="features"
+              :feature-style="featureStyle"
+              :columns="featureColumns"
+            />
             <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
               {{ block.tagline }}
             </p>
@@ -93,11 +105,18 @@
             <component :is="CopyBlock" />
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8 py-12 my-8 border-y t-border-divider">
               <div v-for="(s, i) in stats" :key="i" class="reveal text-center">
+                <Icon v-if="s.icon" :name="s.icon" class="w-6 h-6 mx-auto mb-2 t-text-accent-tertiary" />
                 <span class="t-heading text-5xl font-light leading-none block t-text">{{ s.value }}</span>
                 <span v-if="s.unit" class="text-xs tracking-wide uppercase t-text-accent-tertiary block mb-1">{{ s.unit }}</span>
                 <span class="text-sm t-text-tertiary block">{{ s.label }}</span>
               </div>
             </div>
+            <OrgLandingFeatureGrid
+              v-if="features.length"
+              :features="features"
+              :feature-style="featureStyle"
+              :columns="featureColumns"
+            />
             <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
               {{ block.tagline }}
             </p>
@@ -130,6 +149,12 @@
                 </div>
               </div>
             </div>
+            <OrgLandingFeatureGrid
+              v-if="features.length"
+              :features="features"
+              :feature-style="featureStyle"
+              :columns="featureColumns"
+            />
             <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
               {{ block.tagline }}
             </p>
@@ -153,12 +178,20 @@ const config = useRuntimeConfig();
 const layout = computed(() => props.block?.layout || "text-image");
 const images = computed(() => (Array.isArray(props.block?.images) ? props.block.images.filter((i) => i?.file) : []));
 const stats = computed(() => (Array.isArray(props.block?.stats) ? props.block.stats : []));
+const features = computed(() =>
+  Array.isArray(props.block?.features) ? props.block.features.filter((f) => f?.text || f?.title) : []
+);
+const featureStyle = computed(() => props.block?.feature_style || "list");
+const featureColumns = computed(() => props.block?.feature_columns || 2);
 const hasLabel = computed(() => !!(props.block?.number_label || props.block?.category));
 
 // Loop the gallery images so the marquee scrolls seamlessly (duplicate once).
 const galleryLoop = computed(() => [...images.value, ...images.value]);
 
-const imgUrl = (id) => `${config.public.directus.url}/assets/${id}?key=large`;
+// Request the full image resized (no preset padding) so the CSS bg-cover slots
+// crop it cleanly to each block's aspect; format/quality keep payloads small.
+// (Verified the prod Directus allows custom transform params, not just presets.)
+const imgUrl = (id) => `${config.public.directus.url}/assets/${id}?width=1400&quality=80&format=webp`;
 const bgStyle = (img) => (img?.file ? { backgroundImage: `url('${imgUrl(img.file)}')` } : {});
 
 // Shared copy sub-block (eyebrow / title / body). Render-function so the same

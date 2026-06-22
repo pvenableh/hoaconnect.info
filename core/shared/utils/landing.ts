@@ -177,7 +177,28 @@ export interface LandingStat {
   value: string;
   unit?: string;
   label: string;
+  /** Optional lucide icon shown above the value (icon stat tiles). */
+  icon?: string;
 }
+
+/**
+ * A feature item inside a content section — an icon-able point that breaks into
+ * columns (mirrors 1033lenox's design/security/amenities/community items). The
+ * `feature_style` on the block decides how it renders (list/bullets/cards/tiles).
+ */
+export interface LandingFeature {
+  /** Lucide icon name (e.g. "lucide:sparkles"). Empty = no icon. */
+  icon?: string;
+  /** Optional bold lead (used by the card + tile styles). */
+  title?: string;
+  /** The feature copy. */
+  text: string;
+  /** Span all columns (an emphasis row). */
+  wide?: boolean;
+}
+
+export type FeatureStyle = "list" | "bullets" | "cards" | "tiles";
+export const FEATURE_STYLES: FeatureStyle[] = ["list", "bullets", "cards", "tiles"];
 
 export interface LandingBlock {
   id: string; // stable key for reorder
@@ -193,6 +214,12 @@ export interface LandingBlock {
   tagline?: string;
   images?: LandingImage[];
   stats?: LandingStat[];
+  /** Icon-able feature items that break into columns (1033-style sections). */
+  features?: LandingFeature[];
+  /** How `features` render. */
+  feature_style?: FeatureStyle;
+  /** Column count for the feature grid (1–4). */
+  feature_columns?: number;
   /** Surface this content section as a link in the public nav menu (default true). */
   show_in_menu?: boolean;
   /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
@@ -466,8 +493,23 @@ function normalizeBlock(b: any, index: number): LandingBlock {
           value: String(s.value ?? ""),
           unit: s.unit ? String(s.unit) : undefined,
           label: String(s.label ?? ""),
+          icon: s.icon ? String(s.icon) : undefined,
         }))
     : [];
+  block.features = Array.isArray(b.features)
+    ? b.features
+        .filter((f: any) => f && (f.text || f.title))
+        .map((f: any) => ({
+          icon: f.icon ? String(f.icon) : undefined,
+          title: f.title ? String(f.title) : undefined,
+          text: String(f.text ?? ""),
+          wide: f.wide === true,
+        }))
+    : [];
+  block.feature_style = FEATURE_STYLES.includes(b.feature_style) ? b.feature_style : "list";
+  block.feature_columns = [1, 2, 3, 4].includes(Number(b.feature_columns))
+    ? Number(b.feature_columns)
+    : 2;
   return block;
 }
 
