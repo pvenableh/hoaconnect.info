@@ -36,6 +36,7 @@
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",
     "create:ai-wallets": "dotenv -- tsx scripts/create-ai-wallet-collections.ts",
+    "create:ai-chat": "dotenv -- tsx scripts/create-ai-chat-collections.ts",
     "create:subscription-tiers": "dotenv -- tsx scripts/add-subscription-tier-fields.ts",
     "stripe:subscription-prices": "dotenv -- tsx scripts/create-stripe-subscription-prices.ts",
     "create:activity": "dotenv -- tsx scripts/create-activity-collection.ts",

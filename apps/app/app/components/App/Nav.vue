@@ -90,6 +90,9 @@ const { isEnabled: isModuleEnabled } = useModules();
 // as a slide-over (useChannelsPanel) over the current page. Shown to admins,
 // active board members, and any member invited into at least one channel.
 const channelsPanel = useChannelsPanel();
+// Contextual AI assistant — a slide-over (useAiAssistant) over the current page,
+// like Channels. Staff-only at launch (admin / board / property manager).
+const aiAssistant = useAiAssistant();
 const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
 onMounted(refreshChannelAccess);
 watch(() => route.params.slug, refreshChannelAccess);
@@ -106,6 +109,19 @@ const showChat = computed(
 // Persistent "view as member" preview — an admin previewing the resident view
 // sees the member UI everywhere (not just the clean root).
 const { isPreviewingMember } = useViewAs();
+
+// AI assistant launcher visibility: staff (admin / board / PM) on an org page,
+// not while previewing the member view. The panel itself further hides when AI
+// isn't configured for the environment.
+const showAssistant = computed(
+  () =>
+    !!user.value &&
+    isOnOrgPage.value &&
+    !isPreviewingMember.value &&
+    (isAdminOfCurrentDomain.value ||
+      isBoardMemberOfCurrentDomain.value ||
+      isPropertyManagerOfCurrentDomain.value)
+);
 
 // Determine if admin UI should be shown
 // On org context (slug route): only show if admin of THAT org
@@ -407,6 +423,17 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-4">
+          <!-- AI assistant quick-peek — staff only; pops a slide-over like Channels. -->
+          <button
+            v-if="showAssistant"
+            type="button"
+            class="hidden sm:inline-flex items-center justify-center header-pill"
+            title="Assistant"
+            aria-label="Open AI assistant"
+            @click="aiAssistant.toggle()"
+          >
+            <Icon name="i-lucide-sparkles" class="w-5 h-5" />
+          </button>
           <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
           <!-- Channels is a quick action (pops a slide-over); it doesn't carry a
                persistent open-state we can rely on, so it stays a plain pill —
@@ -570,6 +597,15 @@ watch(
                 class="py-3 border-b t-border flex items-center gap-2"
               >
                 <NotificationBell />
+                <button
+                  v-if="showAssistant"
+                  type="button"
+                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                  @click="aiAssistant.open(); mobileMenuOpen = false"
+                >
+                  <Icon name="i-lucide-sparkles" class="w-5 h-5 t-text-secondary" />
+                  <span class="text-sm">Assistant</span>
+                </button>
                 <button
                   v-if="showChat"
                   type="button"

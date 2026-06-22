@@ -206,6 +206,11 @@ onMounted(() => {
       <AppChannelsPanel />
     </ClientOnly>
 
+    <!-- Slide-over AI assistant panel (contextual chat as an overlay) -->
+    <ClientOnly>
+      <AiAssistantPanel />
+    </ClientOnly>
+
     <!-- Global slide-over detail-panel stack (?slide=type:id) — the single
          mount; pages open panels via useAppSlideOver(type).open(id). -->
     <ClientOnly>

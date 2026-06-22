@@ -43,6 +43,7 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
     { label: "Storage", path: "/admin/files", icon: "folder", description: "Dropbox-style manager for raw folders and files.", module: "files" },
     { label: "Rules", path: "/rules", icon: "scale", description: "By-laws, CC&Rs, and searchable governance.", module: "rules" },
     { label: "Activity", path: "/admin/activity", icon: "activity", description: "Resident page views, downloads, and logins." },
+    { label: "AI spend", path: "/admin/ai-spend", icon: "sparkles", description: "How the assistant and AI features use the credit wallet." },
   ],
   payments: [
     { label: "Payments", path: "/admin/payments", icon: "wallet", description: "Dues, assessments, and statements.", module: "payments" },

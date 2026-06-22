@@ -12,6 +12,41 @@ export interface ExtensionSeoMetadata {
     no_follow?: boolean;
 }
 
+export interface AiConversation {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description The staff member who owns this conversation. */
+	user?: DirectusUser | string | null;
+	/** @description Short human label (first message or AI-derived). */
+	title?: string | null;
+	/** @description Most recent Anthropic model id used in this conversation. */
+	model?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
+export interface AiMessage {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	conversation: AiConversation | string;
+	/** @required */
+	role: 'user' | 'assistant';
+	/** @description The message text (assistant body is plain text/markdown). */
+	content?: string | null;
+	/** @description Anthropic model id used for an assistant turn. */
+	model?: string | null;
+	input_tokens?: number | null;
+	output_tokens?: number | null;
+	cache_read_tokens?: number | null;
+	cache_write_tokens?: number | null;
+	date_created?: string | null;
+}
+
 export interface AiTransaction {
 	/** @primaryKey */
 	id: string;
@@ -1939,6 +1974,8 @@ export interface DirectusExtension {
 }
 
 export interface Schema {
+	ai_conversations: AiConversation[];
+	ai_messages: AiMessage[];
 	ai_transactions: AiTransaction[];
 	ai_wallets: AiWallet[];
 	billing_account_members: BillingAccountMember[];
@@ -2031,6 +2068,8 @@ export interface Schema {
 }
 
 export enum CollectionNames {
+	ai_conversations = 'ai_conversations',
+	ai_messages = 'ai_messages',
 	ai_transactions = 'ai_transactions',
 	ai_wallets = 'ai_wallets',
 	billing_account_members = 'billing_account_members',
