@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const { rise } = useMotionPresets();
 const {
   list: listMeetings,
   create: createMeeting,
@@ -402,7 +403,7 @@ const handleDelete = async (id: string) => {
         <section v-if="upcoming.length" class="space-y-3">
           <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Upcoming</h2>
           <div class="grid gap-3">
-            <div v-for="m in upcoming" :key="m.id" class="ios-card p-4">
+            <div v-for="(m, i) in upcoming" :key="m.id" v-motion v-bind="rise(i)" class="ios-card p-4">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
@@ -439,7 +440,7 @@ const handleDelete = async (id: string) => {
         <section class="space-y-3">
           <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Past &amp; other</h2>
           <div v-if="past.length" class="grid gap-3">
-            <div v-for="m in past" :key="m.id" class="ios-card p-4">
+            <div v-for="(m, i) in past" :key="m.id" v-motion v-bind="rise(i)" class="ios-card p-4">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">

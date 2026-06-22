@@ -708,8 +708,9 @@ html.theme-modern-dark {
 .header-pill {
   /* Visual only — consumers set display/centering via Tailwind so responsive
      `hidden sm:inline-flex` keeps working (this class loads after Tailwind). */
-  width: 40px;
-  height: 40px;
+  /* 44px meets the HIG/WCAG 2.5.5 touch-target minimum (matches the dock chips). */
+  width: 44px;
+  height: 44px;
   border-radius: 9999px;
   color: var(--theme-text-secondary);
   background: color-mix(in srgb, var(--theme-accent-primary) 7%, var(--theme-bg-elevated));

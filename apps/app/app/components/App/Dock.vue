@@ -133,7 +133,10 @@ watch(apps, reset, { immediate: true });
     <nav
       v-if="user && isOnOrgPage"
       class="app-dock ui-kit"
-      :class="dockPosition === 'top' ? 'app-dock--top' : 'app-dock--bottom'"
+      :class="[
+        dockPosition === 'top' ? 'app-dock--top' : 'app-dock--bottom',
+        { 'app-dock--labels': showLabels },
+      ]"
       aria-label="App navigation"
     >
       <div
@@ -160,6 +163,11 @@ watch(apps, reset, { immediate: true });
               {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
             </span>
           </span>
+          <span
+            v-if="app.key === activeKey"
+            class="dock-item__dot"
+            aria-hidden="true"
+          />
           <span v-if="showLabels" class="dock-item__label">{{ app.shortName }}</span>
         </button>
       </div>
@@ -263,10 +271,42 @@ watch(apps, reset, { immediate: true });
   filter: drop-shadow(0 1px 1.5px hsl(0 0% 0% / 0.3));
 }
 
-/* Active state — accent ring + lift */
-.dock-item--active .dock-item__chip {
-  outline: 1.5px solid hsl(var(--c-h) var(--c-s) var(--c-l));
-  outline-offset: 2px;
+/* Active state — iOS-style running-app dot on the dock's outer edge (below the
+   chip for a bottom dock, above it for a top dock). Positioned relative to the
+   dock-item so it rides the magnification scale. When labels are shown the
+   accent-colored label is the active indicator instead, so the dot is hidden to
+   avoid colliding with it. */
+.dock-item__dot {
+  position: absolute;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--c-h) var(--c-s) var(--c-l));
+  box-shadow: 0 0 6px -1px hsl(var(--c-h) var(--c-s) var(--c-l) / 0.7);
+  transform: translateX(-50%);
+  transform-origin: center;
+  animation: dock-dot-in var(--motion-base, 240ms)
+    var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+}
+.app-dock--bottom .dock-item__dot {
+  top: calc(100% + 3px);
+}
+.app-dock--top .dock-item__dot {
+  bottom: calc(100% + 3px);
+}
+.app-dock--labels .dock-item__dot {
+  display: none;
+}
+@keyframes dock-dot-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
 }
 
 /* Hover tooltip (full app name), floats above the chip */
@@ -347,6 +387,10 @@ watch(apps, reset, { immediate: true });
   }
   .dock-item__badge {
     animation: none;
+  }
+  .dock-item__dot {
+    animation: none;
+    opacity: 1;
   }
 }
 </style>

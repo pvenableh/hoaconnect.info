@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const { rise } = useMotionPresets();
 // Use useDirectusItems for list (read) operations only
 const { list: listUnits } = useDirectusItems("hoa_units");
 
@@ -203,7 +204,7 @@ const handleDelete = async (id: string) => {
 
           <!-- Units Grid -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card v-for="unit in units" :key="unit.id" class="relative">
+            <Card v-for="(unit, i) in units" :key="unit.id" v-motion v-bind="rise(i)" class="relative">
               <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)" class="block hover:opacity-80 transition-opacity">
                 <CardHeader>
                   <CardTitle class="text-center text-2xl">{{
