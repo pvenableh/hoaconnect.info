@@ -29,6 +29,7 @@
       <aside
         class="landing-drawer fixed top-0 right-0 z-[61] h-full w-[88%] max-w-sm sm:max-w-md flex flex-col text-white transition-transform duration-300 ease-out"
         :class="open ? 'translate-x-0 is-open' : 'translate-x-full'"
+        :style="{ '--n': navCount }"
         role="dialog"
         aria-modal="true"
       >
@@ -156,6 +157,9 @@ const { memberNoun, lockHref, exploreLinks: links, portalLinks } = useLandingNav
   hasFaq: () => props.hasFaq,
 });
 
+// Total menu item count drives a count-scaled stagger (quick regardless of size).
+const navCount = computed(() => links.value.length + portalLinks.value.length);
+
 // Close on Escape.
 const onKey = (e: KeyboardEvent) => {
   if (e.key === "Escape") open.value = false;
@@ -192,8 +196,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 }
 .landing-menu-btn__lines {
   position: relative;
-  width: 30px;
-  height: 11px;
+  width: 40px;
+  height: 9px;
 }
 .landing-menu-btn__lines > span {
   position: absolute;
@@ -246,7 +250,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   transition:
     opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1),
     transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  transition-delay: min(calc(var(--i, 0) * 0.04s), 0.6s);
+  /* Count-scaled stagger: the whole cascade fits a fixed ~0.3s window, so it
+     stays snappy and sequential whether there are 4 items or 24. */
+  transition-delay: calc(var(--i, 0) / var(--n, 1) * 0.3s);
 }
 .landing-drawer.is-open .landing-drawer__list > li {
   opacity: 1;
