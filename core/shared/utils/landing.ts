@@ -80,6 +80,27 @@ export interface LandingLocationStat {
   label: string;
 }
 
+/** A walk-time number tile in the location band ("6 min — to the Ocean"). */
+export interface LandingWalkTime {
+  minutes: string;
+  label: string;
+}
+
+/** One lifestyle card in the "Active Living, Steps Away" gallery. */
+export interface LandingLifestyleItem {
+  icon?: string;
+  title: string;
+  desc?: string;
+  image?: string | null; // Directus file id
+}
+
+/** The lifestyle gallery sub-section of the Location block. */
+export interface LandingLifestyle {
+  eyebrow?: string;
+  heading?: string;
+  items: LandingLifestyleItem[];
+}
+
 export interface LandingLocationConfig {
   heading?: string;
   intro?: string;
@@ -90,6 +111,10 @@ export interface LandingLocationConfig {
   highlights: LandingPlaceItem[];
   /** Extra editorial stats shown alongside the scores (e.g. "12 — minutes to the beach"). */
   stats: LandingLocationStat[];
+  /** Walk-time number band ("6 min — to the Ocean"). */
+  walk_times: LandingWalkTime[];
+  /** "Active Living, Steps Away" lifestyle gallery. */
+  lifestyle: LandingLifestyle | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +245,8 @@ export interface LandingBlock {
   feature_style?: FeatureStyle;
   /** Column count for the feature grid (1–4). */
   feature_columns?: number;
+  /** Render edge-to-edge (drop the numbered side-label column) like 1033's intro. */
+  full_width?: boolean;
   /** Surface this content section as a link in the public nav menu (default true). */
   show_in_menu?: boolean;
   /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
@@ -510,6 +537,7 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   block.feature_columns = [1, 2, 3, 4].includes(Number(b.feature_columns))
     ? Number(b.feature_columns)
     : 2;
+  block.full_width = b.full_width === true;
   return block;
 }
 
@@ -540,6 +568,32 @@ function normalizeLocation(raw: any): LandingLocationConfig | null {
             label: String(s.label ?? ""),
           }))
       : [],
+    walk_times: Array.isArray(raw.walk_times)
+      ? raw.walk_times
+          .filter((w: any) => w && (w.minutes || w.label))
+          .map((w: any) => ({ minutes: String(w.minutes ?? ""), label: String(w.label ?? "") }))
+      : [],
+    lifestyle: normalizeLifestyle(raw.lifestyle),
+  };
+}
+
+/** Coerce the "Active Living, Steps Away" lifestyle gallery (or null). */
+function normalizeLifestyle(raw: any): LandingLifestyle | null {
+  if (!raw || typeof raw !== "object") return null;
+  const items = Array.isArray(raw.items)
+    ? raw.items
+        .filter((i: any) => i && (i.title || i.image))
+        .map((i: any) => ({
+          icon: i.icon ? String(i.icon) : undefined,
+          title: String(i.title ?? ""),
+          desc: i.desc ? String(i.desc) : undefined,
+          image: i.image ? String(i.image) : null,
+        }))
+    : [];
+  return {
+    eyebrow: raw.eyebrow ? String(raw.eyebrow) : undefined,
+    heading: raw.heading ? String(raw.heading) : undefined,
+    items,
   };
 }
 
@@ -575,6 +629,8 @@ export function resolveLocationConfig(cfg: LandingConfig): LandingLocationConfig
     transit_score: loc?.transit_score ?? null,
     highlights,
     stats: loc?.stats || [],
+    walk_times: loc?.walk_times || [],
+    lifestyle: loc?.lifestyle || null,
   };
 }
 
@@ -585,6 +641,8 @@ export function hasLocationContent(loc: LandingLocationConfig, hasGeo: boolean):
     loc.walk_score != null ||
     loc.bike_score != null ||
     loc.transit_score != null ||
+    (loc.walk_times?.length ?? 0) > 0 ||
+    (loc.lifestyle?.items?.length ?? 0) > 0 ||
     !!loc.intro ||
     loc.highlights.length > 0 ||
     loc.stats.length > 0

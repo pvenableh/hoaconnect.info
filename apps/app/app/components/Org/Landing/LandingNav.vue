@@ -7,8 +7,12 @@
     • classic / luxury → a fixed editorial HEADER (imitates 1033lenox.com): an
                          avatar on the left (→ resident portal when signed in,
                          → login otherwise), the centered org logo, and a
-                         notifications + menu cluster on the right. The header
-                         retracts on scroll-down and reveals on scroll-up.
+                         notifications + menu cluster on the right. The header is
+                         a frosted bar at all times and retracts on scroll-down.
+
+  The centered logo is dynamic: an uploaded SVG is inlined so its paths animate a
+  color-fill (like 1033's NewLogo); a raster (PNG, ideally transparent) renders
+  as an <img>.
 
   All share one model via useLandingNav, so wording/links/locks stay in sync.
   Children self-position (fixed), so this can live anywhere in the hero markup.
@@ -27,7 +31,7 @@
     </template>
 
     <template v-else>
-      <!-- Editorial (classic/luxury): fixed header, retracts on scroll-down. -->
+      <!-- Editorial (classic/luxury): frosted fixed header, retracts on scroll-down. -->
       <header
         class="landing-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 sm:px-6 h-16 transition-transform duration-300 ease-out"
         :class="[
@@ -55,8 +59,14 @@
           class="flex items-center justify-center min-w-0"
           aria-label="Home"
         >
+          <!-- eslint-disable-next-line vue/no-v-html — admin-uploaded SVG, scripts stripped -->
+          <span
+            v-if="isSvgLogo && logoSvg"
+            class="landing-header__logo landing-header__logo-svg"
+            v-html="logoSvg"
+          />
           <img
-            v-if="logoUrl"
+            v-else-if="logoUrl"
             :src="logoUrl"
             :alt="organization?.name || 'Home'"
             class="landing-header__logo h-8 sm:h-9 max-h-9 w-auto max-w-[150px] sm:max-w-[200px] object-contain"
@@ -113,29 +123,59 @@ const props = defineProps<{
 const { themeStyle } = useTheme();
 const variant = computed(() => (themeStyle.value === "modern" ? "dock" : "editorial"));
 
-// Auto-hide on scroll-down / reveal on scroll-up (+ frosted once scrolled).
+// Auto-hide on scroll-down / reveal on scroll-up (+ border/shadow once scrolled).
 const { isScrollingDown, isScrolled } = useScrollDirection();
 
-// Centered org logo (mirrors LandingFooter's logo resolution).
+// ── Centered org logo (dynamic: inline animated SVG, else <img>) ─────────────
 const config = useRuntimeConfig();
-const logoUrl = computed(() => {
-  const logo = props.organization?.settings?.logo;
-  if (!logo) return "";
-  const id = typeof logo === "object" ? logo.id : logo;
-  return `${config.public.directus.url}/assets/${id}?key=small-contain`;
+const logoFile = computed(() => props.organization?.settings?.logo);
+const logoId = computed(() => {
+  const l = logoFile.value;
+  return l ? (typeof l === "object" ? l.id : l) : "";
 });
+const isSvgLogo = computed(
+  () => typeof logoFile.value === "object" && logoFile.value?.type === "image/svg+xml"
+);
+const logoUrl = computed(() =>
+  logoId.value ? `${config.public.directus.url}/assets/${logoId.value}?key=small-contain` : ""
+);
+
+// Inline the SVG markup (SSR-fetched so it's animatable from first paint, no
+// hydration mismatch). Scripts/handlers stripped — it's admin-uploaded.
+const { data: logoSvg } = useAsyncData(
+  `landing-logo-svg-${logoId.value || "none"}`,
+  async () => {
+    if (!isSvgLogo.value || !logoId.value) return "";
+    try {
+      const raw = await $fetch<string>(`${config.public.directus.url}/assets/${logoId.value}`, {
+        responseType: "text",
+      });
+      return String(raw)
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/\son\w+="[^"]*"/gi, "");
+    } catch {
+      return "";
+    }
+  },
+  { watch: [logoId, isSvgLogo] }
+);
 </script>
 
 <style scoped>
-/* Transparent over the hero; frosted once the page scrolls under it. */
+/* Frosted theme-tinted bar at all times (like 1033's always-on header bg);
+   scrolling only adds the border + shadow. */
 .landing-header {
-  background: transparent;
-}
-.landing-header--scrolled {
   background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--theme-border-primary, rgba(0, 0, 0, 0.06));
+  border-bottom: 1px solid transparent;
+  transition:
+    transform 0.3s ease-out,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+.landing-header--scrolled {
+  border-bottom-color: var(--theme-border-primary, rgba(0, 0, 0, 0.06));
   box-shadow: var(--theme-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
 }
 .landing-header__brand {
@@ -143,17 +183,67 @@ const logoUrl = computed(() => {
   font-family: var(--theme-heading-font);
 }
 
-/* Once the frosted (light) bar fades in, flip the glass buttons + menu mark to
-   dark so the icons keep contrast against it (they're white over the hero). */
-.landing-header--scrolled :deep(.landing-glass-btn) {
+/* The bar is light at all times now, so the glass buttons + menu mark are always
+   dark for contrast. */
+.landing-header :deep(.landing-glass-btn) {
   background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 6%, transparent);
   border-color: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 14%, transparent);
   color: var(--theme-text-primary, #1c1a16);
 }
-.landing-header--scrolled :deep(.landing-glass-btn:hover) {
+.landing-header :deep(.landing-glass-btn:hover) {
   background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 12%, transparent);
 }
-.landing-header--scrolled :deep(.landing-menu-btn) {
+.landing-header :deep(.landing-menu-btn) {
   color: var(--theme-text-primary, #1c1a16);
+}
+
+/* Inline SVG logo — height-bound, paths animate a color-fill wave between the
+   theme text colour and the theme accent (mirrors 1033's NewLogo). */
+.landing-header__logo-svg {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  max-width: 200px;
+}
+@media (min-width: 640px) {
+  .landing-header__logo-svg {
+    height: 2.25rem;
+  }
+}
+.landing-header__logo-svg :deep(svg) {
+  height: 100%;
+  width: auto;
+  max-width: 200px;
+  display: block;
+}
+.landing-header__logo-svg :deep(path) {
+  fill: var(--theme-text-primary, #1c1a16);
+  animation: landing-logo-fill 6s ease-in-out infinite;
+}
+.landing-header__logo-svg :deep(path:nth-of-type(2)) { animation-delay: 0.1s; }
+.landing-header__logo-svg :deep(path:nth-of-type(3)) { animation-delay: 0.2s; }
+.landing-header__logo-svg :deep(path:nth-of-type(4)) { animation-delay: 0.3s; }
+.landing-header__logo-svg :deep(path:nth-of-type(5)) { animation-delay: 0.4s; }
+.landing-header__logo-svg :deep(path:nth-of-type(6)) { animation-delay: 0.5s; }
+.landing-header__logo-svg :deep(path:nth-of-type(7)) { animation-delay: 0.6s; }
+.landing-header__logo-svg :deep(path:nth-of-type(8)) { animation-delay: 0.7s; }
+.landing-header__logo-svg :deep(path:nth-of-type(9)) { animation-delay: 0.8s; }
+.landing-header__logo-svg :deep(path:nth-of-type(10)) { animation-delay: 0.9s; }
+.landing-header__logo-svg :deep(path:nth-of-type(n + 11)) { animation-delay: 1s; }
+
+@keyframes landing-logo-fill {
+  0%,
+  100% {
+    fill: var(--theme-text-primary, #1c1a16);
+  }
+  50% {
+    fill: var(--theme-accent-primary);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-header__logo-svg :deep(path) {
+    animation: none;
+    fill: var(--theme-text-primary, #1c1a16);
+  }
 }
 </style>

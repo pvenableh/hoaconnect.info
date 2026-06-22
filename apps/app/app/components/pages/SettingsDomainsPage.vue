@@ -431,6 +431,7 @@ const addContentBlock = () =>
     features: [],
     feature_style: "list",
     feature_columns: 2,
+    full_width: false,
     show_in_menu: true,
     menu_icon: "",
   });
@@ -486,14 +487,46 @@ const ensureLocation = () => {
       transit_score: null,
       highlights: [],
       stats: [],
+      walk_times: [],
+      lifestyle: null,
     };
-  return landing.value.location;
+  // Backfill new sub-fields on configs saved before they existed.
+  const loc = landing.value.location;
+  if (!Array.isArray(loc.walk_times)) loc.walk_times = [];
+  if (loc.lifestyle === undefined) loc.lifestyle = null;
+  return loc;
 };
 const addLocationHighlight = () =>
   ensureLocation().highlights.push({ name: "", walk_time: "", distance: "" });
 const removeLocationHighlight = (i: number) => landing.value.location?.highlights.splice(i, 1);
 const addLocationStat = () => ensureLocation().stats.push({ value: "", unit: "", label: "" });
 const removeLocationStat = (i: number) => landing.value.location?.stats.splice(i, 1);
+
+// Walk-time number band ("6 min — to the Ocean").
+const addWalkTime = () => ensureLocation().walk_times.push({ minutes: "", label: "" });
+const removeWalkTime = (i: number) => landing.value.location?.walk_times.splice(i, 1);
+
+// "Active Living, Steps Away" lifestyle gallery.
+const ensureLifestyle = () => {
+  const loc = ensureLocation();
+  if (!loc.lifestyle) loc.lifestyle = { eyebrow: "", heading: "", items: [] };
+  return loc.lifestyle;
+};
+const addLifestyleItem = () =>
+  ensureLifestyle().items.push({ icon: "", title: "", desc: "", image: null });
+const removeLifestyleItem = (i: number) => landing.value.location?.lifestyle?.items.splice(i, 1);
+const onLifestyleImage = async (it: { image?: string | null }, e: Event) => {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  if (!f) return;
+  try {
+    const folderId =
+      typeof org.value?.folder === "object" ? org.value?.folder?.id : org.value?.folder;
+    const up: any = await uploadFile(f, { title: "Lifestyle image", folder: folderId || undefined });
+    if (up?.id) it.image = up.id;
+  } catch {
+    toast.error("Image upload failed");
+  }
+};
 
 // ---- Gallery section config (single instance; lives on landing.gallery) ----
 const ensureGallery = () => {
@@ -780,6 +813,13 @@ useSeoMeta({ title: "Public site" });
 
               <!-- Custom content editor -->
               <div v-if="b.type === 'content'" class="border-t t-border p-4 space-y-3 t-bg-subtle">
+                <div class="flex items-center justify-between gap-3 rounded-lg border t-border px-3 py-2">
+                  <div>
+                    <Label class="block">Full width</Label>
+                    <p class="text-xs t-text-muted">Drop the side label column and run edge-to-edge.</p>
+                  </div>
+                  <Switch v-model="b.full_width" />
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div class="space-y-1.5">
                     <Label>Layout</Label>
@@ -1052,6 +1092,69 @@ useSeoMeta({ title: "Public site" });
                   <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLocationStat(k)">
                     <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
                   </Button>
+                </div>
+
+                <!-- Walk-time number band -->
+                <div class="flex items-center justify-between pt-2 border-t t-border">
+                  <div>
+                    <Label>Walk-time band</Label>
+                    <p class="text-xs t-text-muted">Big "N min — to X" tiles (e.g. 6 / to the Ocean).</p>
+                  </div>
+                  <Button variant="outline" size="sm" @click="addWalkTime">
+                    <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add
+                  </Button>
+                </div>
+                <div v-for="(w, k) in landing.location.walk_times" :key="`wt-${k}`" class="flex items-center gap-2">
+                  <Input v-model="w.minutes" placeholder="6" class="w-20" />
+                  <Input v-model="w.label" placeholder="to the Ocean" class="flex-1" />
+                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeWalkTime(k)">
+                    <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+
+                <!-- Lifestyle gallery ("Active Living, Steps Away") -->
+                <div class="pt-2 border-t t-border space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <Label>Lifestyle gallery</Label>
+                      <p class="text-xs t-text-muted">"Active Living, Steps Away" cards (icon · title · note · image).</p>
+                    </div>
+                    <Button variant="outline" size="sm" @click="addLifestyleItem">
+                      <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add card
+                    </Button>
+                  </div>
+                  <div v-if="landing.location.lifestyle" class="grid grid-cols-2 gap-2">
+                    <Input v-model="landing.location.lifestyle.eyebrow" placeholder="Eyebrow — The Flamingo Park Lifestyle" />
+                    <Input v-model="landing.location.lifestyle.heading" placeholder="Heading — Active Living, Steps Away" />
+                  </div>
+                  <div
+                    v-for="(it, k) in landing.location.lifestyle?.items || []"
+                    :key="`ls-${k}`"
+                    class="rounded-md border t-border p-2.5 space-y-2"
+                  >
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
+                        <Icon :name="it.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
+                      </span>
+                      <Input v-model="it.icon" placeholder="lucide:sun" class="w-36" />
+                      <Input v-model="it.title" placeholder="BEACH MORNING" class="flex-1" />
+                      <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLifestyleItem(k)">
+                        <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                    <Input v-model="it.desc" placeholder="Sunrise run on the sand" />
+                    <div class="flex items-center gap-3">
+                      <div
+                        v-if="it.image"
+                        class="w-12 h-12 rounded bg-cover bg-center shrink-0"
+                        :style="{ backgroundImage: `url('${config.public.directus.url}/assets/${it.image}?width=120&height=120&fit=cover')` }"
+                      />
+                      <label class="text-sm t-link cursor-pointer">
+                        <input type="file" accept="image/*" class="hidden" @change="(e) => onLifestyleImage(it, e)" />
+                        {{ it.image ? "Replace image" : "Upload image" }}
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 

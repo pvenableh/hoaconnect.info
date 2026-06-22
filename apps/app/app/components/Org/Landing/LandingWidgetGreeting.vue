@@ -1,29 +1,53 @@
-<!-- Time-of-day greeting (+ visitor's first name when signed in). Static. -->
+<!--
+  Two-line time-of-day greeting over the hero (mirrors 1033lenox's Greeting):
+    Good afternoon 🌴, Peter
+    It's going to be an exceptional Monday.
+  Computed on the client (onMounted) to avoid an SSR hydration mismatch on the
+  hour / weekday / random word. Standalone left-aligned text — not a glass chip.
+-->
 <template>
-  <LandingWidgetShell :value="greeting" :sub="dateStr" icon="lucide:sun">
-    <template v-if="name" #default>
-      <span class="glass-widget__sub -mt-0.5">{{ name }}</span>
-    </template>
-  </LandingWidgetShell>
+  <div class="landing-greeting flex flex-col gap-0.5 text-white">
+    <div class="flex items-center gap-1 text-base sm:text-lg font-semibold">
+      <span>{{ greeting }}</span>
+      <span v-if="name">, {{ name }}</span>
+    </div>
+    <div v-if="tagline" class="text-sm sm:text-[0.95rem] text-white/70 italic font-light">
+      {{ tagline }}
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import LandingWidgetShell from "./LandingWidgetShell.vue";
-
 defineProps<{ name?: string | null }>();
 
-// Computed on the client (onMounted) to avoid an SSR hydration mismatch on the hour.
+// Ported from 1033lenox's Greeting — a session-stable motivational adjective.
+const MOTIVATIONAL_WORDS = [
+  "productive", "beautiful", "wonderful", "amazing", "fantastic", "brilliant",
+  "inspiring", "energizing", "refreshing", "promising", "exciting", "magnificent",
+  "glorious", "spectacular", "remarkable", "incredible", "perfect", "exceptional",
+  "outstanding", "memorable",
+];
+
 const greeting = ref("Welcome");
-const dateStr = ref("");
+const tagline = ref("");
 
 onMounted(() => {
   const now = new Date();
   const h = now.getHours();
-  greeting.value = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  dateStr.value = now.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  const tod = h >= 5 && h < 12 ? "morning" : h >= 12 && h < 17 ? "afternoon" : h >= 17 && h < 21 ? "evening" : "night";
+  const emoji = { morning: "☀️", afternoon: "🌴", evening: "🌙", night: "✨" }[tod];
+  greeting.value = `Good ${tod} ${emoji}`;
+
+  const word = MOTIVATIONAL_WORDS[Math.floor(Math.random() * MOTIVATIONAL_WORDS.length)];
+  const article = /^[aeiou]/i.test(word) ? "an" : "a";
+  const day = now.toLocaleDateString("en-US", { weekday: "long" });
+  tagline.value = `It's going to be ${article} ${word} ${day}.`;
 });
 </script>
+
+<style scoped>
+/* Legible over any hero image. */
+.landing-greeting {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+}
+</style>

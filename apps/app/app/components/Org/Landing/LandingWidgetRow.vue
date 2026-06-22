@@ -5,19 +5,23 @@
   collapses. Overflows scroll like 1033lenox.com (.widget-row).
 -->
 <template>
-  <div v-if="keys.length" ref="rowEl" class="widget-row" :class="{ 'is-scrollable': isScrollable }">
-    <template v-for="key in keys" :key="key">
-      <LandingWidgetGreeting v-if="key === 'greeting'" :name="firstName" />
-      <LandingWidgetWeather v-else-if="key === 'weather'" :slug="slug" />
-      <LandingWidgetLocation v-else-if="key === 'location'" :places="cfg.places" />
-      <LandingWidgetBuilding
-        v-else-if="key === 'building'"
-        :count="organization?.member_count"
-        :type="organization?.type"
-      />
-      <LandingWidgetBoard v-else-if="key === 'board'" :slug="slug" />
-      <LandingWidgetAmenities v-else-if="key === 'amenities'" :count="amenityCount" />
-    </template>
+  <div v-if="showGreeting || chipKeys.length" class="flex flex-col gap-3">
+    <!-- Standalone two-line greeting above the chips (1033 style). -->
+    <LandingWidgetGreeting v-if="showGreeting" :name="firstName" class="pl-1" />
+
+    <div v-if="chipKeys.length" ref="rowEl" class="widget-row" :class="{ 'is-scrollable': isScrollable }">
+      <template v-for="key in chipKeys" :key="key">
+        <LandingWidgetWeather v-if="key === 'weather'" :slug="slug" />
+        <LandingWidgetLocation v-else-if="key === 'location'" :places="cfg.places" />
+        <LandingWidgetBuilding
+          v-else-if="key === 'building'"
+          :count="organization?.member_count"
+          :type="organization?.type"
+        />
+        <LandingWidgetBoard v-else-if="key === 'board'" :slug="slug" />
+        <LandingWidgetAmenities v-else-if="key === 'amenities'" :count="amenityCount" />
+      </template>
+    </div>
   </div>
 </template>
 
@@ -37,6 +41,9 @@ const firstName = computed(() => (user.value as any)?.first_name || null);
 
 const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.landing));
 const keys = computed(() => enabledLandingWidgets(cfg.value));
+// The greeting is a standalone block above the chips; the rest are glass chips.
+const showGreeting = computed(() => keys.value.includes("greeting"));
+const chipKeys = computed(() => keys.value.filter((k) => k !== "greeting"));
 const amenityCount = computed(() =>
   Array.isArray(props.organization?.amenities) ? props.organization.amenities.length : 0
 );

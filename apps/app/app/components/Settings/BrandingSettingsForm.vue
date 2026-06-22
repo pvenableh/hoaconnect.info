@@ -40,7 +40,8 @@
                 {{ logoPreview ? "Click to change" : "Click or drag to upload" }}
               </p>
               <p class="text-xs text-muted-foreground">
-                Recommended: 400x100px, PNG or SVG
+                Recommended: 400x100px. Use a transparent PNG for the public site —
+                or an SVG to enable the animated color-fill logo in the header.
               </p>
             </div>
             <Button

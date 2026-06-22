@@ -181,10 +181,11 @@
         </div>
       </div>
 
-      <!-- Glass widget row, pinned to the bottom of the hero -->
+      <!-- Greeting + glass widget row, pinned to the bottom-left of the hero
+           (left-anchored to the viewport edge like 1033lenox, not centered). -->
       <div
         v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
-        class="hero-fade hero-fade--widgets absolute bottom-14 sm:bottom-12 inset-x-0 z-10 px-4 sm:px-8 max-w-5xl mx-auto"
+        class="hero-fade hero-fade--widgets absolute bottom-14 sm:bottom-12 inset-x-0 z-10 pl-4 sm:pl-6 pr-4"
       >
         <OrgLandingWidgetRow :organization="organization" :slug="slug" />
       </div>

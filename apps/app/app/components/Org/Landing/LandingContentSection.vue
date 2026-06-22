@@ -14,10 +14,10 @@
     :class="alt ? 't-bg-alt' : 't-bg'"
   >
     <div class="max-w-6xl mx-auto">
-      <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
+      <div :class="fullWidth ? '' : 'grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16'">
         <!-- Numbered label column (1033 style) — sticks beside the long copy column
              on desktop as you scroll. Empty spacer keeps copy aligned when absent. -->
-        <div v-if="hasLabel" class="landing-num-label reveal flex flex-col gap-2">
+        <div v-if="!fullWidth && hasLabel" class="landing-num-label reveal flex flex-col gap-2">
           <span v-if="block.number_label" class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">
             {{ block.number_label }}
           </span>
@@ -25,7 +25,17 @@
             {{ block.category }}
           </span>
         </div>
-        <div v-else class="hidden lg:block" />
+        <div v-else-if="!fullWidth" class="hidden lg:block" />
+
+        <!-- Full-width: the label sits inline above the content instead of a side column. -->
+        <div v-if="fullWidth && hasLabel" class="reveal flex items-center gap-3 mb-6">
+          <span v-if="block.number_label" class="t-heading text-[26px] leading-6 t-text-accent">
+            {{ block.number_label }}
+          </span>
+          <span v-if="block.category" class="text-xs tracking-wider uppercase t-text-tertiary">
+            {{ block.category }}
+          </span>
+        </div>
 
         <div class="content-main min-w-0 overflow-x-clip">
           <!-- ============ TEXT + IMAGE (side by side, order flips) ============ -->
@@ -183,6 +193,7 @@ const features = computed(() =>
 );
 const featureStyle = computed(() => props.block?.feature_style || "list");
 const featureColumns = computed(() => props.block?.feature_columns || 2);
+const fullWidth = computed(() => props.block?.full_width === true);
 const hasLabel = computed(() => !!(props.block?.number_label || props.block?.category));
 
 // Loop the gallery images so the marquee scrolls seamlessly (duplicate once).
