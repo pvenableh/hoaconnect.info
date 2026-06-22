@@ -155,6 +155,12 @@ onMounted(() => {
 
     <AppNav />
 
+    <!-- Modern theme: secondary sub-nav bar (the section's child pages as pills).
+         Classic/luxury get their sub-nav from the grouped sidebar instead. -->
+    <ClientOnly>
+      <AppSubNav v-if="navStyle === 'dock'" />
+    </ClientOnly>
+
     <!-- Persistent "previewing member view" banner (admins only) — rides every
          workspace page while the sticky member preview is active. -->
     <div

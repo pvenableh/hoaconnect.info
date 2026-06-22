@@ -60,7 +60,8 @@
 
     <div class="app-sidebar__rule mx-3 shrink-0" />
 
-    <!-- Primary nav -->
+    <!-- Primary nav — grouped: the active hub expands to reveal its child pages
+         (Earnest-style). Children hide when the rail is collapsed (icons only). -->
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3">
       <ul class="space-y-0.5">
         <li v-for="app in apps" :key="app.key">
@@ -79,7 +80,30 @@
               </span>
             </span>
             <span class="app-sidebar__label" :style="ssrLabelStyle">{{ app.label }}</span>
+            <Icon
+              v-if="app.children && app.children.length"
+              name="i-lucide-chevron-down"
+              class="app-sidebar__chevron app-sidebar__label"
+              :class="{ 'app-sidebar__chevron--open': app.key === activeKey }"
+              :style="ssrLabelStyle"
+            />
           </button>
+
+          <!-- Active section's child pages -->
+          <ul
+            v-if="!collapsed && app.key === activeKey && childLinks.length"
+            class="app-sidebar__children"
+          >
+            <li v-for="child in childLinks" :key="child.path">
+              <NuxtLink
+                :to="buildOrgPath(child.path)"
+                class="app-sidebar__child"
+                :class="{ 'app-sidebar__child--active': isLinkActive(child.path) }"
+              >
+                <span class="app-sidebar__child-label">{{ child.label }}</span>
+              </NuxtLink>
+            </li>
+          </ul>
         </li>
       </ul>
     </nav>
@@ -133,6 +157,11 @@ const showAdminUI = computed(() =>
 
 const apps = computed<AppDef[]>(() => appsFor(showAdminUI.value));
 const activeKey = computed(() => activeKeyFor(apps.value));
+
+// Grouped sub-nav: the active section expands to show its child pages (the
+// shared source of truth — same links the modern sub-nav + hub pages read).
+const { sectionLinksFor, isLinkActive, buildOrgPath } = useSectionNav();
+const childLinks = computed(() => sectionLinksFor(activeKey.value));
 
 // Org branding
 const orgName = computed(() => currentOrg.value?.organization?.name || "");
@@ -296,6 +325,54 @@ onBeforeUnmount(() => tl?.kill());
 .app-sidebar__toggle {
   height: 40px;
   color: var(--theme-text-muted, #9a9a9a);
+}
+
+/* Expand/collapse affordance on a hub row with children. */
+.app-sidebar__chevron {
+  width: 15px;
+  height: 15px;
+  margin-right: 12px;
+  margin-left: auto;
+  color: var(--theme-text-muted, #9a9a9a);
+  transition: transform 200ms ease;
+}
+.app-sidebar__chevron--open {
+  transform: rotate(180deg);
+  color: var(--theme-accent-primary);
+}
+
+/* Active section's child pages — indented under the parent, a hairline guide
+   on the left, the current page accented. */
+.app-sidebar__children {
+  margin: 2px 0 6px;
+  padding-left: 27px; /* aligns the guide line under the parent icon centre */
+  position: relative;
+}
+.app-sidebar__child {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding-left: 17px;
+  margin-left: 0;
+  border-left: 1px solid var(--theme-border-primary);
+  color: var(--theme-text-secondary, #6c6c6c);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.app-sidebar__child:hover {
+  color: var(--theme-text-primary, #1c1a16);
+  border-left-color: var(--theme-text-muted, #9a9a9a);
+}
+.app-sidebar__child--active {
+  color: var(--theme-accent-primary);
+  font-weight: 600;
+  border-left-color: var(--theme-accent-primary);
+}
+.app-sidebar__child-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Unread badge on the icon */
