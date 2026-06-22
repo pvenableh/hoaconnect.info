@@ -615,6 +615,15 @@ html.theme-luxury-dark {
 	--input: var(--theme-border-primary);
 	--ring: var(--theme-accent-primary);
 	/* --destructive stays the shared red (delete/danger reads consistently). */
+	/* Near-square editorial surfaces (Peter's RH / quiet-luxury direction): pills
+	   are the only round thing, so cards/dialogs/widgets read crisp. This
+	   html.theme-* selector outranks the base .theme-* blocks, so it overrides
+	   --theme-radius-* for all four editorial themes at once (modern keeps its
+	   iOS rounding). --radius drives the shadcn rounded-md/lg/xl scale. */
+	--radius: 0.125rem;
+	--theme-radius-sm: 2px;
+	--theme-radius-md: 2px;
+	--theme-radius-lg: 3px;
 }
 
 /* Modern gets its own shadcn-token map — previously it fell through to the stone
@@ -887,6 +896,81 @@ html.theme-modern-dark {
 }
 .t-input::placeholder {
 	color: var(--theme-text-muted);
+}
+
+/* =============================================================================
+   SHARED CONTROL LANGUAGE (Phase 2 — Peter's RH / Apple-meets-Armani direction)
+   Underline fields, themed dialog scrim, and circle icon chips — applied across
+   ALL themes. (Pills already ship via rounded-full on button/tabs; Badge too.)
+   These are unlayered, so they win over Tailwind utility classes by default.
+============================================================================= */
+
+/* Underline form fields — every theme. Swept by tagging ui/input + ui/textarea
+   (and any field) with `.field-underline`; the shadcn box border/ring is dropped
+   in those components. Color follows the active theme automatically. */
+.field-underline {
+	border: 0;
+	border-bottom: 1px solid var(--theme-border-primary);
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	padding-left: 0;
+	padding-right: 0;
+	transition: border-color var(--theme-transition-fast, 160ms ease);
+}
+.field-underline:focus,
+.field-underline:focus-visible {
+	outline: none;
+	box-shadow: none;
+	border-bottom-color: var(--theme-accent-primary);
+}
+.field-underline:disabled {
+	opacity: 0.5;
+}
+.field-underline[aria-invalid="true"] {
+	border-bottom-color: var(--destructive, #c0392b);
+}
+.field-underline::placeholder {
+	color: var(--theme-text-muted);
+}
+
+/* Themed dialog/sheet scrim — a warm editorial dim for classic/luxury, a cool
+   one for modern, both with a faint glass blur. Replaces the hardcoded
+   bg-black/40 / bg-black/80 in ui/dialog + ui/sheet. */
+.t-scrim {
+	background-color: rgba(20, 18, 15, 0.42);
+	backdrop-filter: blur(3px) saturate(1.04);
+	-webkit-backdrop-filter: blur(3px) saturate(1.04);
+}
+.theme-modern-light .t-scrim,
+.theme-modern-dark .t-scrim {
+	background-color: rgba(15, 20, 28, 0.44);
+}
+
+/* Editorial eyebrow — uppercase, wide-tracked, accent-tinted (the RH/landing
+   signature). Heading utility maps to the theme's display face (serif for
+   classic/luxury, the modern sans otherwise). */
+.t-eyebrow {
+	font-size: 0.6875rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--theme-accent-primary);
+	font-weight: 500;
+}
+.t-heading {
+	font-family: var(--theme-heading-font);
+}
+
+/* Circle icon chip — perfect circle, subtle accent-opacity fill, accent glyph.
+   The shared treatment for section/feature/modal icons across every theme. */
+.t-icon-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	background: color-mix(in srgb, var(--theme-accent-primary) 12%, transparent);
+	color: var(--theme-accent-primary);
+	flex-shrink: 0;
 }
 
 /* =============================================================================

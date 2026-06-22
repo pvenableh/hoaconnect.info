@@ -397,45 +397,50 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
 <template>
   <div class="min-h-screen t-bg">
-    <PageContainer class="space-y-8">
-        <!-- Welcome Header -->
-        <WidgetGlass strong class="text-center py-8">
-          <!-- Organization Logo -->
-          <div v-if="orgLogoUrl" class="mb-6">
-            <img
-              :src="orgLogoUrl"
-              :alt="organization?.name || 'Organization'"
-              class="h-20 mx-auto object-contain"
-            />
-          </div>
-
-          <h1 class="text-3xl font-bold t-text">
+    <PageContainer class="space-y-10">
+        <!-- Editorial hero — left-aligned, type-led. Eyebrow + greeting carry it;
+             member status and the primary tasks ride below as pills. -->
+        <header class="pt-2">
+          <img
+            v-if="orgLogoUrl"
+            :src="orgLogoUrl"
+            :alt="organization?.name || 'Organization'"
+            class="h-10 mb-5 object-contain"
+          />
+          <p class="t-eyebrow mb-3">Resident portal</p>
+          <h1 class="t-heading text-3xl sm:text-4xl font-medium tracking-tight t-text">
             {{ welcomeMessage }}, {{ userName }}
           </h1>
-          <p class="t-text-secondary mt-2">
-            Welcome to the {{ organization?.name }} resident portal
-          </p>
 
-          <!-- Member Status Badge -->
-          <div class="flex items-center justify-center gap-2 mt-4">
-            <span
-              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full t-bg-subtle t-text-secondary"
-            >
-              <Icon
-                :name="isOwner ? 'i-lucide-home' : 'i-lucide-user'"
-                class="w-4 h-4 mr-1.5"
-              />
+          <div class="flex items-center flex-wrap gap-2 mt-4">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-full t-bg-subtle t-text-secondary">
+              <Icon :name="isOwner ? 'i-lucide-home' : 'i-lucide-user'" class="w-3.5 h-3.5" />
               {{ memberTypeDisplay }}
             </span>
             <span
               v-if="isBoardMember && boardTitleDisplay"
-              class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full t-bg-accent/20 t-text-accent"
+              class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-full t-bg-accent/15 t-text-accent"
             >
-              <Icon name="i-lucide-star" class="w-4 h-4 mr-1.5" />
+              <Icon name="i-lucide-star" class="w-3.5 h-3.5" />
               Board {{ boardTitleDisplay }}
             </span>
           </div>
-        </WidgetGlass>
+
+          <!-- Primary tasks — the highest-frequency resident actions, as pills. -->
+          <div v-if="primaryActions.length" class="flex flex-wrap gap-2.5 mt-6">
+            <Button
+              v-for="(action, i) in primaryActions"
+              :key="action.key"
+              v-motion
+              v-bind="rise(i, { stagger: 35 })"
+              :variant="i === 0 ? 'default' : 'outline'"
+              @click="navigateToOrg(action.path)"
+            >
+              <Icon :name="action.icon" class="w-4 h-4" />
+              {{ action.label }}
+            </Button>
+          </div>
+        </header>
 
         <Tabs v-model="activeTab" class="space-y-8">
           <TabsList class="flex-wrap h-auto gap-1">
@@ -449,36 +454,13 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" class="space-y-8 mt-0">
-        <!-- Primary tasks — the highest-frequency resident actions, ≤2 taps. -->
-        <section v-if="primaryActions.length">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              v-for="(action, i) in primaryActions"
-              :key="action.key"
-              v-motion
-              v-bind="rise(i, { stagger: 35 })"
-              type="button"
-              class="group flex items-center gap-3 rounded-xl p-4 text-left text-white transition-all hover:shadow-lg hover:-translate-y-0.5 tappable"
-              style="background: var(--theme-accent-primary)"
-              @click="navigateToOrg(action.path)"
-            >
-              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-                <Icon :name="action.icon" class="h-5 w-5" />
-              </span>
-              <span class="font-semibold">{{ action.label }}</span>
-              <Icon name="i-lucide-arrow-right" class="h-4 w-4 ml-auto opacity-80 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          </div>
-        </section>
-
+          <TabsContent value="overview" class="space-y-10 mt-0">
         <!-- Portal sections — the resident hub. All sections are shown; ones the
-             community hasn't enabled render greyed + non-navigating. -->
+             community hasn't enabled render greyed + non-navigating. Classic /
+             luxury render as full-width hairline rows; modern as soft cards. -->
         <section>
-          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-muted mb-3">
-            Your portal
-          </h2>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <p class="t-eyebrow mb-4">Your portal</p>
+          <div class="portal-grid">
             <component
               :is="section.available ? 'button' : 'div'"
               v-for="(section, i) in portalSections"
@@ -486,25 +468,21 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               v-motion
               v-bind="rise(i, { stagger: 35 })"
               :type="section.available ? 'button' : undefined"
-              class="group flex flex-col items-start gap-3 rounded-xl border t-border t-bg-elevated p-4 text-left transition-all"
-              :class="section.available
-                ? 'hover:shadow-md hover:-translate-y-0.5 tappable cursor-pointer'
-                : 'opacity-55 cursor-default'"
+              class="portal-item group"
+              :class="section.available ? 'portal-item--on' : 'portal-item--off'"
               :aria-disabled="section.available ? undefined : 'true'"
               @click="section.available && navigateToOrg(section.path)"
             >
-              <span
-                class="flex h-10 w-10 items-center justify-center rounded-lg"
-                :class="section.available ? 't-bg-accent/15 t-text-accent' : 't-bg-subtle t-text-muted'"
-              >
+              <span class="t-icon-chip portal-item__icon">
                 <Icon :name="section.icon" class="h-5 w-5" />
               </span>
-              <span class="min-w-0">
-                <span class="block font-medium t-text">{{ section.label }}</span>
-                <span class="block text-xs t-text-muted leading-snug mt-0.5">
+              <span class="portal-item__body">
+                <span class="portal-item__label t-heading t-text">{{ section.label }}</span>
+                <span class="portal-item__desc t-text-muted">
                   {{ section.available ? section.description : "Not available for your community" }}
                 </span>
               </span>
+              <Icon name="i-lucide-chevron-right" class="portal-item__chev" />
             </component>
           </div>
         </section>
@@ -556,10 +534,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   class="w-full flex items-start gap-3 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left"
                   @click="navigateToOrg('/announcements')"
                 >
-                  <div class="w-9 h-9 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0">
+                  <div class="t-icon-chip w-9 h-9 flex-shrink-0">
                     <Icon
                       :name="a.is_pinned ? 'i-lucide-pin' : 'i-lucide-megaphone'"
-                      class="h-4 w-4 t-text-secondary"
+                      class="h-4 w-4"
                     />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -609,8 +587,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   @click="downloadDocument(doc)"
                   class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
                 >
-                  <div class="w-9 h-9 rounded-lg t-bg-subtle group-hover:t-bg transition-colors flex items-center justify-center flex-shrink-0">
-                    <Icon name="i-lucide-file-text" class="h-4 w-4 t-text-secondary" />
+                  <div class="t-icon-chip w-9 h-9 flex-shrink-0">
+                    <Icon name="i-lucide-file-text" class="h-4 w-4" />
                   </div>
                   <div class="flex-1 min-w-0">
                     <h4 class="font-medium t-text truncate">{{ doc.title }}</h4>
@@ -708,7 +686,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     </p>
                   </div>
                 </div>
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800">
+                <span class="px-2.5 py-1 text-xs font-medium rounded-full t-bg-accent/15 t-text-accent">
                   Active
                 </span>
               </div>
@@ -789,3 +767,100 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
       </PageContainer>
   </div>
 </template>
+
+<style scoped>
+/* Portal section grid. Default (modern) = soft app cards, icon-on-top. The
+   classic/luxury overrides below strip the card chrome to full-width hairline
+   rows (icon · type · chevron) for the editorial, type-led feel. The theme class
+   sits on <html> (an ancestor), so these ancestor selectors match through the
+   scoped data-attribute on .portal-grid / .portal-item. */
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 768px) {
+  .portal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .portal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.portal-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  text-align: left;
+  background: var(--theme-bg-elevated);
+  border: 1px solid var(--theme-border-primary);
+  border-radius: var(--theme-radius-lg);
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.portal-item--on { cursor: pointer; }
+.portal-item--on:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--theme-shadow-md, 0 6px 20px rgba(0, 0, 0, 0.06));
+}
+.portal-item--off { opacity: 0.5; cursor: default; }
+
+.portal-item__icon { width: 42px; height: 42px; }
+.portal-item__body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.portal-item__label { font-size: 15px; font-weight: 500; }
+.portal-item__desc { font-size: 12.5px; line-height: 1.5; margin-top: 2px; }
+.portal-item__chev { display: none; width: 18px; height: 18px; flex-shrink: 0; color: var(--theme-text-tertiary); transition: transform 160ms ease; }
+
+/* Classic & luxury — full-width, type-led: drop the card, hairline rows. */
+:global(html.theme-classic-light) .portal-grid,
+:global(html.theme-classic-dark) .portal-grid,
+:global(html.theme-luxury-light) .portal-grid,
+:global(html.theme-luxury-dark) .portal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 44px;
+  gap: 0;
+}
+:global(html.theme-classic-light) .portal-item,
+:global(html.theme-classic-dark) .portal-item,
+:global(html.theme-luxury-light) .portal-item,
+:global(html.theme-luxury-dark) .portal-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 2px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--theme-border-light);
+  border-radius: 0;
+}
+:global(html.theme-classic-light) .portal-item--on:hover,
+:global(html.theme-classic-dark) .portal-item--on:hover,
+:global(html.theme-luxury-light) .portal-item--on:hover,
+:global(html.theme-luxury-dark) .portal-item--on:hover {
+  transform: none;
+  box-shadow: none;
+}
+:global(html.theme-classic-light) .portal-item__chev,
+:global(html.theme-classic-dark) .portal-item__chev,
+:global(html.theme-luxury-light) .portal-item__chev,
+:global(html.theme-luxury-dark) .portal-item__chev {
+  display: block;
+}
+:global(html.theme-classic-light) .portal-item--on:hover .portal-item__chev,
+:global(html.theme-classic-dark) .portal-item--on:hover .portal-item__chev,
+:global(html.theme-luxury-light) .portal-item--on:hover .portal-item__chev,
+:global(html.theme-luxury-dark) .portal-item--on:hover .portal-item__chev {
+  transform: translateX(2px);
+}
+:global(html.theme-classic-light) .portal-item__label,
+:global(html.theme-classic-dark) .portal-item__label,
+:global(html.theme-luxury-light) .portal-item__label,
+:global(html.theme-luxury-dark) .portal-item__label {
+  font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-item--on:hover { transform: none; }
+  .portal-item__chev { transition: none; }
+}
+</style>
