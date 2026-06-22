@@ -16,7 +16,8 @@ import { normalizeLandingConfig, enabledLandingBlocks } from "#core/shared/utils
 
 export interface LandingNavLink {
   label: string;
-  icon: string;
+  /** Lucide icon name; empty when the admin chose no icon for a content section. */
+  icon?: string;
   to?: string;
   href?: string;
 }
@@ -84,8 +85,8 @@ export function useLandingNav(opts: UseLandingNavOptions) {
         out.push({ label: "Board", icon: "lucide:users", to: `/${slug.value}/board` });
       else if (b.type === "contact")
         out.push({ label: "Contact", icon: "lucide:mail", href: "#contact" });
-      else if (b.type === "content" && (b.title || b.category))
-        out.push({ label: (b.category || b.title) as string, icon: "lucide:bookmark", href: `#${b.id}` });
+      else if (b.type === "content" && (b.title || b.category) && b.show_in_menu !== false)
+        out.push({ label: (b.category || b.title) as string, icon: b.menu_icon || "", href: `#${b.id}` });
     }
     return out;
   });

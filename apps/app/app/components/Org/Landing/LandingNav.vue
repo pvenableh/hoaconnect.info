@@ -142,4 +142,18 @@ const logoUrl = computed(() => {
   color: var(--theme-text-primary, #1c1a16);
   font-family: var(--theme-heading-font);
 }
+
+/* Once the frosted (light) bar fades in, flip the glass buttons + menu mark to
+   dark so the icons keep contrast against it (they're white over the hero). */
+.landing-header--scrolled :deep(.landing-glass-btn) {
+  background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 6%, transparent);
+  border-color: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 14%, transparent);
+  color: var(--theme-text-primary, #1c1a16);
+}
+.landing-header--scrolled :deep(.landing-glass-btn:hover) {
+  background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 12%, transparent);
+}
+.landing-header--scrolled :deep(.landing-menu-btn) {
+  color: var(--theme-text-primary, #1c1a16);
+}
 </style>

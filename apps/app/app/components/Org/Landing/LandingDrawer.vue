@@ -9,14 +9,14 @@
 -->
 <template>
   <div>
-    <!-- Trigger -->
+    <!-- Trigger — a wide two-line mark, no background (imitates 1033lenox). -->
     <button
       type="button"
-      class="landing-glass-btn w-10 h-10"
+      class="landing-menu-btn"
       aria-label="Open menu"
       @click="open = true"
     >
-      <Icon name="lucide:menu" class="w-5 h-5" />
+      <span class="landing-menu-btn__lines"><span /><span /></span>
     </button>
 
     <Teleport to="body">
@@ -50,7 +50,7 @@
                 class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[15px] uppercase tracking-[0.18em] text-white/85 hover:bg-white/10 transition-colors"
                 @click="open = false"
               >
-                <Icon :name="link.icon" class="w-4 h-4 opacity-80" />
+                <Icon v-if="link.icon" :name="link.icon" class="w-4 h-4 opacity-80" />
                 {{ link.label }}
               </component>
             </li>
@@ -88,7 +88,7 @@
           <a
             v-if="user"
             href="/dashboard"
-            class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full bg-white text-gray-900 text-sm uppercase tracking-wide font-medium"
+            class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm uppercase tracking-wide font-medium"
           >
             <Icon name="lucide:layout-dashboard" class="w-4 h-4" />
             {{ memberNoun.singular }} portal
@@ -96,7 +96,7 @@
           <template v-else>
             <a
               href="/auth/login"
-              class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full bg-white text-gray-900 text-sm uppercase tracking-wide font-medium"
+              class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm uppercase tracking-wide font-medium"
               @click="open = false"
             >
               <Icon name="lucide:log-in" class="w-4 h-4" />
@@ -105,7 +105,7 @@
             <div class="grid grid-cols-2 gap-2.5">
               <NuxtLink
                 :to="`/${slug}/request-join`"
-                class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full border border-white/30 text-white text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-xs uppercase tracking-wide transition-colors"
                 @click="open = false"
               >
                 <Icon name="lucide:key-round" class="w-3.5 h-3.5" />
@@ -113,7 +113,7 @@
               </NuxtLink>
               <NuxtLink
                 :to="`/${slug}/signup`"
-                class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full border border-white/30 text-white text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-xs uppercase tracking-wide transition-colors"
                 @click="open = false"
               >
                 <Icon name="lucide:user-plus" class="w-3.5 h-3.5" />
@@ -169,10 +169,58 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   opacity: 0;
 }
 
-/* Serif nav labels — the drawer only renders for classic/luxury, whose
-   --theme-heading-font is Bauer Bodoni; editorial menu type. */
-.landing-drawer__link {
-  font-family: var(--theme-heading-font);
+/* Menu links use the default sans (kept legible at small sizes); the editorial
+   serif is reserved for headings/eyebrows, not nav links. */
+
+/* Wide two-line menu mark — no background; color flips to dark via the header's
+   --scrolled rule (LandingNav) when the frosted bar fades in. */
+.landing-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  background: none;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+}
+.landing-menu-btn__lines {
+  position: relative;
+  width: 30px;
+  height: 11px;
+}
+.landing-menu-btn__lines > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.5px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 0.25s ease;
+}
+.landing-menu-btn__lines > span:nth-child(1) {
+  top: 0;
+}
+.landing-menu-btn__lines > span:nth-child(2) {
+  bottom: 0;
+}
+
+/* Footer CTAs — tinted with the org's theme accent so they match the classic
+   (and luxury) look rather than a generic white pill. */
+.landing-cta-primary {
+  background: var(--theme-accent-primary);
+  color: #fff;
+}
+.landing-cta-primary:hover {
+  filter: brightness(1.06);
+}
+.landing-cta-secondary {
+  border: 1px solid color-mix(in srgb, var(--theme-accent-primary) 55%, white 45%);
+  color: #fff;
+}
+.landing-cta-secondary:hover {
+  background: color-mix(in srgb, var(--theme-accent-primary) 22%, transparent);
 }
 
 /* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items

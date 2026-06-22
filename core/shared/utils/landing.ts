@@ -193,6 +193,10 @@ export interface LandingBlock {
   tagline?: string;
   images?: LandingImage[];
   stats?: LandingStat[];
+  /** Surface this content section as a link in the public nav menu (default true). */
+  show_in_menu?: boolean;
+  /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
+  menu_icon?: string;
 }
 
 export interface LandingConfig {
@@ -439,6 +443,8 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   block.layout = CONTENT_LAYOUTS.includes(b.layout) ? b.layout : "text-image";
   block.number_label = b.number_label ? String(b.number_label) : "";
   block.category = b.category ? String(b.category) : "";
+  block.show_in_menu = b.show_in_menu !== false; // default: surfaced in the menu
+  block.menu_icon = b.menu_icon ? String(b.menu_icon) : "";
   block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";
   block.title = b.title ? String(b.title) : "";
   block.body = b.body ? String(b.body) : "";

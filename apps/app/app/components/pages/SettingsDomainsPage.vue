@@ -426,7 +426,25 @@ const addContentBlock = () =>
     tagline: "",
     images: [],
     stats: [],
+    show_in_menu: true,
+    menu_icon: "",
   });
+
+// Quick-pick icons for a section's menu link (any lucide name also works).
+const MENU_ICON_SUGGESTIONS = [
+  "lucide:sparkles",
+  "lucide:home",
+  "lucide:building-2",
+  "lucide:image",
+  "lucide:map-pin",
+  "lucide:scroll-text",
+  "lucide:heart",
+  "lucide:star",
+  "lucide:leaf",
+  "lucide:waves",
+  "lucide:sun",
+  "lucide:key-round",
+];
 const addBuiltinBlock = (type: LandingBlockType) => {
   if (type === "location") ensureLocation();
   if (type === "gallery") ensureGallery();
@@ -779,6 +797,45 @@ useSeoMeta({ title: "Public site" });
                 <div class="space-y-1.5">
                   <Label>Tagline</Label>
                   <Input v-model="b.tagline" placeholder="Boutique scale. Big beach lifestyle." />
+                </div>
+
+                <!-- Menu link — surface this section in the public nav menu, with
+                     an optional lucide icon. -->
+                <div class="rounded-lg border t-border p-3 space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <Label class="block">Show as menu link</Label>
+                      <p class="text-xs t-text-muted">Add this section to the public navigation menu.</p>
+                    </div>
+                    <Switch v-model="b.show_in_menu" />
+                  </div>
+                  <div v-if="b.show_in_menu" class="space-y-2">
+                    <Label>Menu icon</Label>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center justify-center w-9 h-9 rounded-md border t-border shrink-0">
+                        <Icon :name="b.menu_icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
+                      </span>
+                      <Input v-model="b.menu_icon" placeholder="lucide:sparkles" />
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                      <button
+                        v-for="ic in MENU_ICON_SUGGESTIONS"
+                        :key="ic"
+                        type="button"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-md border transition-colors"
+                        :class="b.menu_icon === ic ? 't-border-accent t-text-accent' : 't-border t-text-muted hover:t-bg-subtle'"
+                        :title="ic"
+                        @click="b.menu_icon = ic"
+                      >
+                        <Icon :name="ic" class="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p class="text-xs t-text-muted">
+                      Pick one or type any
+                      <a href="https://lucide.dev/icons" target="_blank" rel="noopener" class="t-link">lucide</a>
+                      name. Leave blank for no icon.
+                    </p>
+                  </div>
                 </div>
 
                 <!-- Images (every layout except the stat band) -->

@@ -18,7 +18,7 @@
             :title="link.label"
             :aria-label="link.label"
           >
-            <Icon :name="link.icon" class="landing-dock__glyph" />
+            <Icon :name="link.icon || 'lucide:circle-dot'" class="landing-dock__glyph" />
             <span class="landing-dock__label">{{ link.label }}</span>
           </component>
         </li>
