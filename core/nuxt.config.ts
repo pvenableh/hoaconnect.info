@@ -85,6 +85,12 @@ export default defineNuxtConfig({
     // credit economy). Server-only; if unset the AI routes return 503 and the
     // composer's Draft-with-AI button hides.
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    // Voyage AI embedding key (server-only) — powers doc/bylaw RAG retrieval.
+    // A separate vendor (own key/billing; does NOT consume Anthropic tokens),
+    // metered into the same AI wallet as an `embed` feature. When unset every RAG
+    // surface auto-hides (isRagConfigured() === false) and the assistant runs
+    // exactly as before.
+    voyageApiKey: process.env.VOYAGE_API_KEY,
     // SendGrid configuration
     sendgridApiKey: process.env.SENDGRID_API_KEY,
     // Universal invite email template (handles invitation, welcome, and accepted notification emails)

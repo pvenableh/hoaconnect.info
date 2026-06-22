@@ -11,6 +11,9 @@ import {
   blendedCostUsd,
   creditsForUsage,
   estimateCredits,
+  VOYAGE_PRICING,
+  embeddingPriceFor,
+  creditsForEmbedding,
   CREDIT_PACKS,
   packById,
   walletBalance,
@@ -125,6 +128,45 @@ describe("creditsForUsage", () => {
     // tiny output → sub-credit raw cost → ceil to 1.
     const credits = creditsForUsage({ output_tokens: 3 }, "claude-haiku-4-5");
     expect(credits).toBe(1);
+  });
+});
+
+describe("embeddingPriceFor", () => {
+  it("returns the row for a known Voyage model", () => {
+    expect(embeddingPriceFor("voyage-3.5-lite")).toEqual(VOYAGE_PRICING["voyage-3.5-lite"]);
+  });
+  it("falls back to voyage-3.5-lite for unknown ids", () => {
+    expect(embeddingPriceFor("totally-made-up")).toEqual(VOYAGE_PRICING["voyage-3.5-lite"]);
+  });
+});
+
+describe("creditsForEmbedding", () => {
+  it("applies margin and the $-per-credit anchor, rounding up", () => {
+    // voyage-3.5-lite: $0.02/MTok. 1M tokens × 4 margin × 1000 cpd = 80 credits.
+    const credits = creditsForEmbedding(1_000_000, "voyage-3.5-lite");
+    expect(credits).toBe(0.02 * DEFAULT_MARGIN_MULTIPLIER * CREDITS_PER_DOLLAR);
+    expect(credits).toBe(80);
+  });
+
+  it("meters at cost (1×) for free/comped accounts", () => {
+    const credits = creditsForEmbedding(1_000_000, "voyage-3.5-lite", { marginMultiplier: 1 });
+    expect(credits).toBe(20);
+  });
+
+  it("charges at least 1 credit for any non-zero token count", () => {
+    expect(creditsForEmbedding(5, "voyage-3.5-lite")).toBe(1);
+  });
+
+  it("charges 0 for zero/negative tokens", () => {
+    expect(creditsForEmbedding(0, "voyage-3.5-lite")).toBe(0);
+    expect(creditsForEmbedding(-100, "voyage-3.5-lite")).toBe(0);
+  });
+
+  it("scales with the pricier model", () => {
+    // voyage-3.5 is 3× lite ($0.06 vs $0.02).
+    const lite = creditsForEmbedding(10_000_000, "voyage-3.5-lite");
+    const full = creditsForEmbedding(10_000_000, "voyage-3.5");
+    expect(full).toBe(lite * 3);
   });
 });
 

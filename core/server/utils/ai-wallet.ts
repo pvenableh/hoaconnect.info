@@ -10,7 +10,7 @@
 // getTypedDirectus (admin client) is auto-imported from server/utils/directus.ts.
 
 import { createItem, readItems, updateItem } from "@directus/sdk";
-import { creditsForUsage, marginForAccount, type TokenUsage } from "#core/shared/ai/credits";
+import { creditsForUsage, creditsForEmbedding, marginForAccount, type TokenUsage } from "#core/shared/ai/credits";
 import { shouldResetAllowance, nextResetISO } from "#core/shared/ai/allowance";
 import type { AiWallet } from "#core/types/directus";
 
@@ -144,7 +144,7 @@ export async function getWalletSummary(orgId: string): Promise<WalletSummary> {
   };
 }
 
-export type AiFeature = "draft" | "rewrite" | "summarize" | "ask" | "chat";
+export type AiFeature = "draft" | "rewrite" | "summarize" | "ask" | "chat" | "embed";
 
 /**
  * Meter a completion's real token usage: compute credits (cost × margin),
@@ -197,6 +197,63 @@ export async function chargeForCompletion(opts: {
       output_tokens: usage.output_tokens ?? 0,
       cache_read_tokens: usage.cache_read_input_tokens ?? 0,
       cache_write_tokens: usage.cache_creation_input_tokens ?? 0,
+      user: userId ?? null,
+    } as any)
+  );
+
+  return { credits, balanceCredits: newBalance };
+}
+
+/**
+ * Meter a Voyage embedding's token usage into the wallet, the embedding twin of
+ * chargeForCompletion. Voyage is a separate vendor billed by input tokens only,
+ * so credits come from creditsForEmbedding (not the Anthropic MODEL_PRICING
+ * path). Same allowance-first debit + append-only ledger row (feature "embed",
+ * the model carried as the Voyage model id). Best-effort and clamped at zero so
+ * a fire-and-forget ingest can't drive a pool negative. Returns what was charged.
+ */
+export async function chargeForEmbedding(opts: {
+  orgId: string;
+  userId?: string | null;
+  tokens: number;
+  model: string;
+}): Promise<{ credits: number; balanceCredits: number }> {
+  const { orgId, userId, tokens, model } = opts;
+  const marginMultiplier = marginForAccount(await orgIsFreeAccount(orgId));
+  const credits = creditsForEmbedding(tokens, model, { marginMultiplier });
+  const wallet = await getOrCreateWallet(orgId);
+  const allowance = wallet.allowance_credits ?? 0;
+  const purchased = wallet.purchased_credits ?? 0;
+
+  if (credits <= 0) {
+    return { credits: 0, balanceCredits: allowance + purchased };
+  }
+
+  const fromAllowance = Math.min(Math.max(0, allowance), credits);
+  const fromPurchased = Math.min(Math.max(0, purchased), credits - fromAllowance);
+  const newAllowance = allowance - fromAllowance;
+  const newPurchased = purchased - fromPurchased;
+  const newBalance = newAllowance + newPurchased;
+
+  const directus = getTypedDirectus();
+  await directus.request(
+    updateItem("ai_wallets", wallet.id, {
+      allowance_credits: newAllowance,
+      purchased_credits: newPurchased,
+      balance_credits: newBalance,
+    } as any)
+  );
+  await directus.request(
+    createItem("ai_transactions", {
+      organization: orgId,
+      type: "debit",
+      credits,
+      feature: "embed",
+      model,
+      input_tokens: tokens,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
       user: userId ?? null,
     } as any)
   );

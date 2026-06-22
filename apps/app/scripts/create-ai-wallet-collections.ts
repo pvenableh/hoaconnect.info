@@ -170,6 +170,7 @@ const TX_FEATURE_CHOICES = [
   { text: "Summarize", value: "summarize" },
   { text: "Q&A", value: "ask" },
   { text: "Chat", value: "chat" },
+  { text: "Embed", value: "embed" },
 ];
 
 async function main() {

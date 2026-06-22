@@ -48,10 +48,28 @@ export default defineEventHandler(async (event) => {
   // AI must be configured before we open a stream.
   const client = getAnthropic();
 
-  // Adaptive model: default fast (Haiku). Honor a client tier override; escalate
-  // to standard when heavier reasoning is requested (RAG context, set later).
+  // Adaptive model: default fast (Haiku). A client tier override always wins;
+  // otherwise we escalate to standard (Sonnet) when the turn is "heavy" — either
+  // the client asked, or doc/bylaw RAG (below) surfaced relevant governing-doc
+  // passages worth the deeper reasoning.
   const requestedTier = ["fast", "standard", "max"].includes(body?.tier) ? (body.tier as ModelTier) : null;
-  const tier: ModelTier = requestedTier ?? (body?.heavy ? "standard" : "fast");
+  let heavy = body?.heavy === true;
+
+  // Doc/bylaw RAG: embed the question, score it against the org's indexed chunks,
+  // and keep the matched passages to inject below (escalating to Sonnet). No-op
+  // unless VOYAGE_API_KEY is set; a retrieval failure degrades to a plain answer.
+  let ragBlock: string | null = null;
+  if (isRagConfigured()) {
+    try {
+      const rag = await retrieveRagContext(orgId, message, userId);
+      ragBlock = rag.block;
+      if (ragBlock) heavy = true;
+    } catch (err: any) {
+      console.warn("RAG retrieval failed (continuing without):", err?.message || err);
+    }
+  }
+
+  const tier: ModelTier = requestedTier ?? (heavy ? "standard" : "fast");
   const model = MODEL_TIERS[tier] ?? MODEL_TIERS.fast;
   const isFast = model === MODEL_TIERS.fast;
 
@@ -129,10 +147,13 @@ export default defineEventHandler(async (event) => {
   // System = stable chat prompt + cacheable org-context block (breakpoint on the
   // last block caches both across the conversation's turns; 5-min TTL).
   const orgContext = await gatherOrgContext(orgId);
-  const systemBlocks = [
-    { type: "text" as const, text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
-    { type: "text" as const, text: orgContext, cache_control: { type: "ephemeral" as const } },
+  const systemBlocks: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> = [
+    { type: "text", text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
+    { type: "text", text: orgContext, cache_control: { type: "ephemeral" } },
   ];
+  // Trailing, query-specific RAG passages — placed AFTER the cached prefix so the
+  // org-context cache breakpoint still applies; this block itself is not cached.
+  if (ragBlock) systemBlocks.push({ type: "text", text: ragBlock });
 
   const messages = [...history, { role: "user" as const, content: userText }];
 

@@ -110,6 +110,36 @@ async function executeOperation(
   }
 }
 
+/** Collections whose rows feed doc/bylaw RAG retrieval. */
+const RAG_SOURCE_COLLECTIONS = new Set(["hoa_governance", "hoa_documents"]);
+
+/**
+ * Re-index a governing-document write into ai_doc_chunks, FIRE-AND-FORGET: the
+ * Directus write + its response are already done, so embedding happens out of
+ * band and a failure can never break (or slow) the save. No-op unless RAG is
+ * configured (VOYAGE_API_KEY present) and the collection is a RAG source.
+ */
+function maybeReindexRag(
+  collection: string,
+  operation: string,
+  id: string | number | (string | number)[] | undefined,
+  result: any
+): void {
+  if (!isRagConfigured() || !RAG_SOURCE_COLLECTIONS.has(collection)) return;
+  const source = collection as "hoa_governance" | "hoa_documents";
+
+  if (operation === "delete") {
+    const ids = Array.isArray(id) ? id : id != null ? [id] : [];
+    for (const one of ids) void removeItemChunks(source, String(one)).catch(() => {});
+    return;
+  }
+
+  let ids: string[] = [];
+  if (operation === "create") ids = result?.id != null ? [String(result.id)] : [];
+  else if (operation === "update") ids = Array.isArray(id) ? id.map(String) : id != null ? [String(id)] : [];
+  for (const one of ids) void ingestItem(source, one).catch(() => {});
+}
+
 export default defineEventHandler(async (event) => {
   let collection: string | undefined;
   let operation: string | undefined;
@@ -127,7 +157,9 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    return await executeOperation(event, collection, operation, id, data, query);
+    const result = await executeOperation(event, collection, operation, id, data, query);
+    maybeReindexRag(collection, operation, id, result);
+    return result;
   } catch (error: any) {
     // Log detailed error info for debugging
     console.error("[/api/directus/items] Error:", {

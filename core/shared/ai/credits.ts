@@ -66,6 +66,48 @@ export const MODEL_PRICING: Record<string, ModelPrice> = {
   "claude-opus-4-8": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
 };
 
+// ── Embedding pricing (Voyage AI) ────────────────────────────────────────────
+
+/** USD per 1,000,000 tokens for an embedding model. Embeddings bill input only. */
+export interface EmbeddingPrice {
+  input: number;
+}
+
+/**
+ * Voyage AI embedding list prices (USD / MTok). A separate vendor from Anthropic,
+ * but cost flows through the SAME credit math (× margin × CREDITS_PER_DOLLAR) so
+ * RAG ingestion meters into the org's AI wallet as an `embed` debit. Keep
+ * VOYAGE_MODEL in server/utils/voyage.ts in sync with this table.
+ */
+export const VOYAGE_PRICING: Record<string, EmbeddingPrice> = {
+  "voyage-3.5-lite": { input: 0.02 },
+  "voyage-3.5": { input: 0.06 },
+};
+
+/** Resolve an embedding price row, falling back to voyage-3.5-lite for unknown ids. */
+export function embeddingPriceFor(model: string): EmbeddingPrice {
+  return VOYAGE_PRICING[model] ?? VOYAGE_PRICING["voyage-3.5-lite"]!;
+}
+
+/**
+ * Credits to charge for embedding `tokens` input tokens:
+ *   ceil( (tokens / 1e6 × $/MTok) × margin × creditsPerDollar )
+ * Always ≥ 1 credit for any non-zero token count (mirrors creditsForUsage), so a
+ * trivial query embedding still registers a debit.
+ */
+export function creditsForEmbedding(
+  tokens: number,
+  model: string,
+  opts: CreditOptions = {}
+): number {
+  const margin = opts.marginMultiplier ?? DEFAULT_MARGIN_MULTIPLIER;
+  const cpd = opts.creditsPerDollar ?? CREDITS_PER_DOLLAR;
+  const t = nonNeg(tokens);
+  const raw = (t / 1_000_000) * embeddingPriceFor(model).input * margin * cpd;
+  if (raw <= 0) return 0;
+  return Math.max(1, Math.ceil(raw));
+}
+
 /** Model tiers exposed as a simple Fast/Best toggle (default Standard). */
 export const MODEL_TIERS = {
   fast: "claude-haiku-4-5",
