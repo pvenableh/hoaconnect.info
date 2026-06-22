@@ -17,6 +17,13 @@ const { currentOrg, isAdmin, isBoardMember, memberType, selectedOrgId } =
 const { themeState } = useTheme();
 const VALID_STYLES = ["classic", "modern", "luxury"] as const;
 const orgStyle = computed<(typeof VALID_STYLES)[number]>(() => {
+  // Dev-only QA hatch (mirrors useAppVersion's ?forceUpdatePrompt): preview the
+  // modern dock from a classic/luxury org without touching prod org data. Visit
+  // any workspace page with ?forceModern. Read off the route query so SSR and the
+  // client agree (no stacked theme classes). Stripped from prod by the dev guard.
+  if (import.meta.dev && "forceModern" in useRoute().query) {
+    return "modern";
+  }
   const s = currentOrg.value?.organization?.settings?.theme;
   return s && (VALID_STYLES as readonly string[]).includes(s) ? s : "modern";
 });
