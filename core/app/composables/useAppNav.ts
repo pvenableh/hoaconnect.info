@@ -23,6 +23,12 @@ export interface AppDef {
   path: string;
   /** Route fragments that mark this app active ("__root__" = exact "/") */
   match: string[];
+  /**
+   * For a "hub" slot that fronts several modules (People, Records, Requests…):
+   * the module keys it contains. The slot shows iff any child is enabled
+   * (anyEnabled). Omit for a leaf slot whose own `key` is its module gate.
+   */
+  children?: string[];
 }
 
 export type DockPosition = "bottom" | "top";
@@ -107,6 +113,35 @@ export function pickGappy(sourceLen: number, count: number): number[] {
   return Array.from({ length: count }, (_, i) => Math.round(i * step));
 }
 
+// Map unread notifications onto per-app badge counts, keyed by app `key`. A
+// single notification type fans out to BOTH the admin hub key and the member
+// leaf key (e.g. a meeting → "records" for the admin dock AND "meetings" for the
+// member dock) — extra keys are harmless since each surface only reads
+// counts[app.key] for the apps it actually renders. Keeping this in one place is
+// what stops the dock and the sidebar badge maps from drifting apart.
+const NOTIF_BADGE_KEYS: Record<string, string[]> = {
+  announcement: ["comms"],
+  email: ["comms"],
+  meeting: ["records", "meetings"],
+  document: ["records", "documents"],
+  payment: ["payments"],
+  membership: ["people"],
+  request: ["requests"],
+};
+
+export function badgeCountsFor(
+  notifications: readonly { readonly type?: string | null; readonly isRead?: boolean }[] | null | undefined
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const n of notifications || []) {
+    if (n.isRead) continue;
+    for (const key of NOTIF_BADGE_KEYS[n.type ?? ""] ?? []) {
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
 const PALETTE_KEY = "app-nav-palette";
 const POSITION_KEY = "app-nav-position";
 const LABELS_KEY = "app-nav-labels";
@@ -134,29 +169,47 @@ function loadPrefs() {
 export function useAppNav() {
   const route = useRoute();
   const { buildOrgPath, navigateToOrg } = useOrgNavigation();
-  const { isEnabled } = useModules();
+  const { isEnabled, anyEnabled } = useModules();
 
   loadPrefs();
 
-  // Admin dock: the high-frequency apps get their own slot for one-tap access
-  // (Members, Meetings, Documents, Requests) alongside Money + Comms. The long
-  // tail (Units, Board, Teams, Vendors, Rules, Storage, Moderation) lives in the
-  // "More" hub so the dock stays focused. Channels is reached via the top-nav
-  // chat button + its peek panel. `key` doubles as the module-gate key — an app
-  // hides when its module is off; keys not in any module map (dashboard, more,
-  // settings) are always shown.
+  // Admin dock — job-based "section hubs" rather than a flat tool list. Seven
+  // slots: Home + five content sections (People, Communications, Records, Money,
+  // Requests) + Settings. Each hub fronts several modules and opens an
+  // AdminSectionHub that discloses its tools — so the dock and the hubs are no
+  // longer two competing nav models with the same items in both. A hub slot's
+  // `children` are its module keys; the slot shows iff any child is on
+  // (anyEnabled). Leaf slots (dashboard, settings) gate on their own `key` and
+  // are core (always shown). `match[]` covers every child route so the
+  // longest-prefix activeKeyFor highlights the right section. Channels is still
+  // reached via the top-nav chat button (deliberately off the dock).
   const ADMIN_APPS: AppDef[] = [
     { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__"] },
-    { key: "directory", label: "Members", shortName: "Members", icon: "users-round", path: "/admin/members", match: ["/admin/members", "/admin/people"] },
-    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/admin/meetings", match: ["/admin/meetings", "/meetings"] },
-    { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/admin/documents", match: ["/admin/documents", "/documents"] },
-    { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/requests", match: ["/admin/requests"] },
-    { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", match: ["/admin/projects"] },
-    { key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", match: ["/admin/payments", "/admin/expenses"] },
-    { key: "email", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications", match: ["/admin/communications", "/admin/email", "/admin/announcements"] },
-    // "More" holds the lower-frequency tools (units/board/teams/vendors/rules/
-    // storage/moderation) so they're one tap away without crowding the dock.
-    { key: "more", label: "More", shortName: "More", icon: "grip", path: "/admin/more", match: ["/admin/more", "/admin/reporting", "/admin/units", "/admin/teams", "/board", "/rules", "/admin/files", "/admin/moderation"] },
+    {
+      key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
+      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board"],
+      children: ["directory", "board", "vendors", "teams"],
+    },
+    {
+      key: "comms", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications",
+      match: ["/admin/communications", "/admin/email", "/admin/announcements", "/admin/channels"],
+      children: ["email", "channels"],
+    },
+    {
+      key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
+      match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/admin/activity"],
+      children: ["meetings", "documents", "rules", "files"],
+    },
+    {
+      key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments",
+      match: ["/admin/payments", "/admin/expenses"],
+      children: ["payments", "expenses"],
+    },
+    {
+      key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/more",
+      match: ["/admin/more", "/admin/requests", "/admin/projects", "/admin/approvals", "/admin/moderation"],
+      children: ["requests", "projects", "moderation", "approvals"],
+    },
     // Settings is a core app (never module-toggled) — keep it last so the dock
     // always ends with a way into org configuration / public site / billing.
     { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },
@@ -173,11 +226,14 @@ export function useAppNav() {
     { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },
   ];
 
-  // Hide apps whose org module is toggled off (Track B). An app's `key` doubles
-  // as its module key; core apps (dashboard/home) aren't in any module map so
-  // isEnabled() returns true for them by default.
+  // Hide apps whose org module is toggled off (Track B). A hub slot shows iff
+  // ANY of its children is enabled (anyEnabled); a leaf slot gates on its own
+  // `key` (which doubles as its module key — core apps like dashboard/home/
+  // settings aren't in any module map, so isEnabled() returns true for them).
   const appsFor = (isAdmin: boolean): AppDef[] =>
-    (isAdmin ? ADMIN_APPS : MEMBER_APPS).filter((app) => isEnabled(app.key));
+    (isAdmin ? ADMIN_APPS : MEMBER_APPS).filter((app) =>
+      app.children ? anyEnabled(app.children) : isEnabled(app.key)
+    );
 
   // Per-app accent sampled from the active palette ramp by the app's position
   const accentsForApps = (apps: AppDef[], paletteId: PaletteId = palette.value): HSL[] => {

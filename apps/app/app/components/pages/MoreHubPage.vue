@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// "More" hub — only the admin tasks that don't already live in another hub.
-// People (Members/Units/Board/Teams/Vendors) and Reporting (Documents/Storage/
-// Rules/…) own those cards, so they are NOT duplicated here — this keeps to the
-// genuinely "More"-only review queues. Cards gate on their module toggles.
+// Requests hub — the community's action queue: resident requests, projects, the
+// member-change approval queue, and moderation. The dock "Requests" slot opens
+// this (route /admin/more). Cards gate on their module toggles; Approvals is
+// always available (resident self-service review).
 import type { HubGroup } from "~/components/Admin/SectionHub.vue";
 
 const { buildOrgPath } = useOrgNavigation();
@@ -10,14 +10,16 @@ const { isEnabled } = useModules();
 
 const groups = computed<HubGroup[]>(() => [
   {
-    label: "Member requests",
+    label: "Work",
     items: [
-      { label: "Approvals", description: "Review resident-submitted changes to contact info, mailing address, vehicles, and pets.", icon: "clipboard-check", to: buildOrgPath("/admin/approvals") },
+      { label: "Requests", description: "Resident maintenance, architectural, and general requests.", icon: "clipboard-list", to: buildOrgPath("/admin/requests"), show: isEnabled("requests") },
+      { label: "Projects", description: "Track community projects and tasks to completion.", icon: "kanban-square", to: buildOrgPath("/admin/projects"), show: isEnabled("projects") },
     ],
   },
   {
-    label: "Moderation",
+    label: "Review queues",
     items: [
+      { label: "Approvals", description: "Review resident-submitted changes to contact info, mailing address, vehicles, and pets.", icon: "clipboard-check", to: buildOrgPath("/admin/approvals") },
       { label: "Moderation", description: "Review flagged posts, comments, and reports.", icon: "shield-alert", to: buildOrgPath("/admin/moderation"), show: isEnabled("moderation") },
     ],
   },
@@ -27,8 +29,8 @@ const groups = computed<HubGroup[]>(() => [
 <template>
   <AdminSectionHub
     eyebrow="Admin"
-    title="More"
-    subtitle="Member-request approvals and moderation — admin tasks beyond the daily apps."
+    title="Requests"
+    subtitle="Resident requests, projects, approvals, and moderation — your community's action queue."
     :groups="groups"
   />
 </template>

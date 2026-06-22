@@ -52,5 +52,14 @@ export function useModules() {
     return v === undefined || v === null ? true : v !== false;
   };
 
-  return { modules, isEnabled };
+  /**
+   * Does ANY of these keys resolve to enabled? Used to gate a consolidated dock
+   * "hub" slot (People, Records, Requests…) that fronts several modules — the
+   * hub shows as long as at least one of its children is on. A key that isn't a
+   * real module (e.g. "teams", "approvals") is always enabled via isEnabled, so
+   * including one as a sentinel keeps a hub permanently visible.
+   */
+  const anyEnabled = (keys: string[]): boolean => keys.some((k) => isEnabled(k));
+
+  return { modules, isEnabled, anyEnabled };
 }

@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AppDef } from "#core/app/composables/useAppNav";
+import { badgeCountsFor, type AppDef } from "#core/app/composables/useAppNav";
 
 const { user } = useDirectusAuth();
 const route = useRoute();
@@ -145,28 +145,7 @@ const logoUrl = computed(() => {
 });
 // Per-app unread badges (best-effort) — same mapping as the dock.
 const { notifications } = useNotifications();
-const badges = computed<Record<string, number>>(() => {
-  const counts: Record<string, number> = {};
-  for (const n of notifications.value || []) {
-    if (n.isRead) continue;
-    const key =
-      n.type === "announcement" || n.type === "email"
-        ? "email"
-        : n.type === "meeting"
-        ? "meetings"
-        : n.type === "payment"
-        ? "payments"
-        : n.type === "document"
-        ? "documents"
-        : n.type === "membership"
-        ? "directory"
-        : n.type === "request"
-        ? "requests"
-        : null;
-    if (key) counts[key] = (counts[key] || 0) + 1;
-  }
-  return counts;
-});
+const badges = computed<Record<string, number>>(() => badgeCountsFor(notifications.value));
 
 // ── Collapse state (shared with auth.vue's content offset) ───────────────────
 const collapsed = useState<boolean>("appNavCollapsed", () => false);

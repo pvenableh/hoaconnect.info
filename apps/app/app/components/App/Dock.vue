@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppDef, HSL } from "#core/app/composables/useAppNav";
+import { badgeCountsFor, type AppDef, type HSL } from "#core/app/composables/useAppNav";
 
 const { user } = useDirectusAuth();
 const route = useRoute();
@@ -39,35 +39,11 @@ const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeK
 const accentVars = (a: HSL) =>
   ({ "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` }) as Record<string, string>;
 
-// Per-app unread badges from the notification system (best-effort)
+// Per-app unread badges from the notification system (best-effort). Mapping
+// lives in useAppNav (badgeCountsFor) so the dock and the sidebar can't drift —
+// it fans each notification onto both the admin hub key and the member leaf key.
 const { notifications } = useNotifications();
-const badges = computed<Record<string, number>>(() => {
-  const counts: Record<string, number> = {};
-  for (const n of notifications.value || []) {
-    if (n.isRead) continue;
-    // Map notification types onto the consolidated dock keys. These MUST match
-    // the `key` values in useAppNav's ADMIN_APPS/MEMBER_APPS — a badge keyed to a
-    // non-existent app silently never renders (the bug this map previously had:
-    // meeting/document → "reporting", membership → "people", request →
-    // "dashboard" were all dead keys).
-    const key =
-      n.type === "announcement" || n.type === "email"
-        ? "email" // Communications
-        : n.type === "meeting"
-        ? "meetings"
-        : n.type === "payment"
-        ? "payments"
-        : n.type === "document"
-        ? "documents"
-        : n.type === "membership"
-        ? "directory" // admin Members; dropped for members (no such app), as intended
-        : n.type === "request"
-        ? "requests"
-        : null;
-    if (key) counts[key] = (counts[key] || 0) + 1;
-  }
-  return counts;
-});
+const badges = computed<Record<string, number>>(() => badgeCountsFor(notifications.value));
 
 // Keep the document default accent synced to the active app
 watch(

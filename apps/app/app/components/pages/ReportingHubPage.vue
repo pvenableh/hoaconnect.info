@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Reporting hub — the community's records and governance: meetings (and their
-// minutes), the published document library, raw file storage, and the rules.
+// Records hub — the community's records and governance: meetings (and their
+// minutes), the published document library, raw file storage, the rules, and
+// resident activity. The dock "Records" slot opens this (route /admin/reporting).
 import type { HubGroup } from "~/components/Admin/SectionHub.vue";
 
 const { buildOrgPath } = useOrgNavigation();
@@ -22,7 +23,7 @@ const groups = computed<HubGroup[]>(() => [
 <template>
   <AdminSectionHub
     eyebrow="Admin"
-    title="Reporting"
+    title="Records"
     subtitle="Meetings, documents, files, and rules — the records your community runs on."
     :groups="groups"
   />
