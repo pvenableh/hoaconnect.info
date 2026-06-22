@@ -47,7 +47,7 @@
               <component
                 :is="link.to ? NuxtLink : 'a'"
                 v-bind="link.to ? { to: link.to } : { href: link.href }"
-                class="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] uppercase tracking-[0.28em] text-white/85 hover:bg-white/10 transition-colors"
+                class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[15px] uppercase tracking-[0.18em] text-white/85 hover:bg-white/10 transition-colors"
                 @click="open = false"
               >
                 <Icon :name="link.icon" class="w-4 h-4 opacity-80" />
@@ -67,7 +67,7 @@
               <li v-for="p in portalLinks" :key="p.key">
                 <a
                   :href="lockHref"
-                  class="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] uppercase tracking-[0.28em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
+                  class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[15px] uppercase tracking-[0.18em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
                   @click="open = false"
                 >
                   <Icon :name="p.icon" class="w-4 h-4 opacity-60" />
@@ -167,6 +167,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .landing-fade-enter-from,
 .landing-fade-leave-to {
   opacity: 0;
+}
+
+/* Serif nav labels — the drawer only renders for classic/luxury, whose
+   --theme-heading-font is Bauer Bodoni; editorial menu type. */
+.landing-drawer__link {
+  font-family: var(--theme-heading-font);
 }
 
 /* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items

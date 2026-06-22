@@ -309,6 +309,9 @@ onBeforeUnmount(() => {
 
 .app-sidebar__label {
   white-space: nowrap;
+  /* The rail only renders for classic/luxury, whose --theme-heading-font is the
+     serif (Bauer Bodoni) — editorial nav type, matching the public landing. */
+  font-family: var(--theme-heading-font);
 }
 
 .app-sidebar__rule {
@@ -412,6 +415,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--theme-heading-font);
 }
 
 /* Unread badge on the icon */
