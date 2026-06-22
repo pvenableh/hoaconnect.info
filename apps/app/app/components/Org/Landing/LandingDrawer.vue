@@ -47,7 +47,7 @@
               <component
                 :is="link.to ? NuxtLink : 'a'"
                 v-bind="link.to ? { to: link.to } : { href: link.href }"
-                class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[15px] uppercase tracking-[0.18em] text-white/85 hover:bg-white/10 transition-colors"
+                class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] text-white/85 hover:bg-white/10 transition-colors"
                 @click="open = false"
               >
                 <Icon v-if="link.icon" :name="link.icon" class="w-4 h-4 opacity-80" />
@@ -67,7 +67,7 @@
               <li v-for="p in portalLinks" :key="p.key">
                 <a
                   :href="lockHref"
-                  class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[15px] uppercase tracking-[0.18em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
+                  class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
                   @click="open = false"
                 >
                   <Icon :name="p.icon" class="w-4 h-4 opacity-60" />
@@ -88,7 +88,7 @@
           <a
             v-if="user"
             href="/dashboard"
-            class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm uppercase tracking-wide font-medium"
+            class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-[2px] text-sm uppercase tracking-wide font-medium"
           >
             <Icon name="lucide:layout-dashboard" class="w-4 h-4" />
             {{ memberNoun.singular }} portal
@@ -96,7 +96,7 @@
           <template v-else>
             <a
               href="/auth/login"
-              class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm uppercase tracking-wide font-medium"
+              class="landing-cta-primary flex items-center justify-center gap-2 w-full px-4 py-3 rounded-[2px] text-sm uppercase tracking-wide font-medium"
               @click="open = false"
             >
               <Icon name="lucide:log-in" class="w-4 h-4" />
@@ -105,7 +105,7 @@
             <div class="grid grid-cols-2 gap-2.5">
               <NuxtLink
                 :to="`/${slug}/request-join`"
-                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-xs uppercase tracking-wide transition-colors"
+                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-[2px] text-xs uppercase tracking-wide transition-colors"
                 @click="open = false"
               >
                 <Icon name="lucide:key-round" class="w-3.5 h-3.5" />
@@ -113,7 +113,7 @@
               </NuxtLink>
               <NuxtLink
                 :to="`/${slug}/signup`"
-                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-xs uppercase tracking-wide transition-colors"
+                class="landing-cta-secondary flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-[2px] text-xs uppercase tracking-wide transition-colors"
                 @click="open = false"
               >
                 <Icon name="lucide:user-plus" class="w-3.5 h-3.5" />
@@ -206,21 +206,28 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   bottom: 0;
 }
 
-/* Footer CTAs — tinted with the org's theme accent so they match the classic
-   (and luxury) look rather than a generic white pill. */
-.landing-cta-primary {
-  background: var(--theme-accent-primary);
+/* Footer CTAs — square (classic) frosted-glass, matching the public page's
+   glass buttons. Primary reads stronger via a denser frost. */
+.landing-cta-primary,
+.landing-cta-secondary {
   color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s ease;
+}
+.landing-cta-primary {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 .landing-cta-primary:hover {
-  filter: brightness(1.06);
+  background: rgba(255, 255, 255, 0.24);
 }
 .landing-cta-secondary {
-  border: 1px solid color-mix(in srgb, var(--theme-accent-primary) 55%, white 45%);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .landing-cta-secondary:hover {
-  background: color-mix(in srgb, var(--theme-accent-primary) 22%, transparent);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 /* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items
