@@ -34,7 +34,12 @@
       >
         <div class="flex items-center justify-between px-5 h-16 border-b border-white/10">
           <span class="text-sm uppercase tracking-ultra-wide truncate">{{ organization?.name }}</span>
-          <button type="button" class="landing-glass-btn w-9 h-9" aria-label="Close menu" @click="open = false">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center w-9 h-9 text-white/80 hover:text-white transition-colors"
+            aria-label="Close menu"
+            @click="open = false"
+          >
             <Icon name="lucide:x" class="w-5 h-5" />
           </button>
         </div>

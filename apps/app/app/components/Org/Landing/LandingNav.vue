@@ -33,7 +33,7 @@
     <template v-else>
       <!-- Editorial (classic/luxury): frosted fixed header, retracts on scroll-down. -->
       <header
-        class="landing-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 sm:px-6 h-16 transition-transform duration-300 ease-out"
+        class="landing-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 sm:px-6 h-16"
         :class="[
           isScrollingDown ? '-translate-y-full' : 'translate-y-0',
           isScrolled ? 'landing-header--scrolled' : '',
@@ -169,10 +169,14 @@ const { data: logoSvg } = useAsyncData(
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
+  /* Tailwind v4 toggles the `translate` property (not `transform`) for
+     -translate-y-full, so transition `translate` or the reveal snaps. */
   transition:
-    transform 0.3s ease-out,
+    translate 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.3s ease,
     box-shadow 0.3s ease;
+  will-change: translate;
 }
 .landing-header--scrolled {
   border-bottom-color: var(--theme-border-primary, rgba(0, 0, 0, 0.06));
@@ -183,15 +187,18 @@ const { data: logoSvg } = useAsyncData(
   font-family: var(--theme-heading-font);
 }
 
-/* The bar is light at all times now, so the glass buttons + menu mark are always
-   dark for contrast. */
+/* The bar is light at all times now, so the icon buttons are dark for contrast
+   and carry no background/border — just the glyph (a subtle wash on hover). */
 .landing-header :deep(.landing-glass-btn) {
-  background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 6%, transparent);
-  border-color: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 14%, transparent);
+  background: transparent;
+  border-color: transparent;
+  /* Drop the glass blur too — it reads as a background disc. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   color: var(--theme-text-primary, #1c1a16);
 }
 .landing-header :deep(.landing-glass-btn:hover) {
-  background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 12%, transparent);
+  background: color-mix(in srgb, var(--theme-text-primary, #1c1a16) 8%, transparent);
 }
 .landing-header :deep(.landing-menu-btn) {
   color: var(--theme-text-primary, #1c1a16);
