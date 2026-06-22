@@ -934,6 +934,24 @@ html.theme-modern-dark {
 	color: var(--theme-text-muted);
 }
 
+/* Native <select> picks up the same underline treatment (Peter: inputs AND
+   selects). Unlayered, so it sweeps every native select over the Tailwind box
+   utilities; the browser's dropdown arrow is preserved (no appearance reset). */
+select {
+	border: 0;
+	border-bottom: 1px solid var(--theme-border-primary);
+	border-radius: 0;
+	background-color: transparent;
+	box-shadow: none;
+	transition: border-color var(--theme-transition-fast, 160ms ease);
+}
+select:focus,
+select:focus-visible {
+	outline: none;
+	box-shadow: none;
+	border-bottom-color: var(--theme-accent-primary);
+}
+
 /* Themed dialog/sheet scrim — a warm editorial dim for classic/luxury, a cool
    one for modern, both with a faint glass blur. Replaces the hardcoded
    bg-black/40 / bg-black/80 in ui/dialog + ui/sheet. */
@@ -971,6 +989,100 @@ html.theme-modern-dark {
 	background: color-mix(in srgb, var(--theme-accent-primary) 12%, transparent);
 	color: var(--theme-accent-primary);
 	flex-shrink: 0;
+}
+
+/* =============================================================================
+   PORTAL SECTION GRID (MemberDashboardPage)
+   Modern = soft app cards (icon-on-top). Classic/luxury = full-width hairline
+   rows (icon · type · chevron), type-led. Kept global (not SFC-scoped) so the
+   html.theme-* family overrides apply reliably — Vue's scoped :global() dropped
+   the descendant overrides.
+============================================================================= */
+.portal-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+@media (min-width: 768px) {
+	.portal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+	.portal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.portal-item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 18px;
+	text-align: left;
+	background: var(--theme-bg-elevated);
+	border: 1px solid var(--theme-border-primary);
+	border-radius: var(--theme-radius-lg);
+	transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.portal-item--on { cursor: pointer; }
+.portal-item--on:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--theme-shadow-md, 0 6px 20px rgba(0, 0, 0, 0.06));
+}
+.portal-item--off { opacity: 0.5; cursor: default; }
+.portal-item__icon { width: 42px; height: 42px; }
+.portal-item__body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.portal-item__label { font-size: 15px; font-weight: 500; }
+.portal-item__desc { font-size: 12.5px; line-height: 1.5; margin-top: 2px; }
+.portal-item__chev { display: none; width: 18px; height: 18px; flex-shrink: 0; color: var(--theme-text-tertiary); transition: transform 160ms ease; }
+
+/* Classic & luxury — full-width, type-led: drop the card, hairline rows. */
+html.theme-classic-light .portal-grid,
+html.theme-classic-dark .portal-grid,
+html.theme-luxury-light .portal-grid,
+html.theme-luxury-dark .portal-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	column-gap: 44px;
+	gap: 0;
+}
+html.theme-classic-light .portal-item,
+html.theme-classic-dark .portal-item,
+html.theme-luxury-light .portal-item,
+html.theme-luxury-dark .portal-item {
+	flex-direction: row;
+	align-items: center;
+	gap: 16px;
+	padding: 18px 2px;
+	background: transparent;
+	border: 0;
+	border-top: 1px solid var(--theme-border-light);
+	border-radius: 0;
+}
+html.theme-classic-light .portal-item--on:hover,
+html.theme-classic-dark .portal-item--on:hover,
+html.theme-luxury-light .portal-item--on:hover,
+html.theme-luxury-dark .portal-item--on:hover {
+	transform: none;
+	box-shadow: none;
+}
+html.theme-classic-light .portal-item__chev,
+html.theme-classic-dark .portal-item__chev,
+html.theme-luxury-light .portal-item__chev,
+html.theme-luxury-dark .portal-item__chev {
+	display: block;
+}
+html.theme-classic-light .portal-item--on:hover .portal-item__chev,
+html.theme-classic-dark .portal-item--on:hover .portal-item__chev,
+html.theme-luxury-light .portal-item--on:hover .portal-item__chev,
+html.theme-luxury-dark .portal-item--on:hover .portal-item__chev {
+	transform: translateX(2px);
+}
+html.theme-classic-light .portal-item__label,
+html.theme-classic-dark .portal-item__label,
+html.theme-luxury-light .portal-item__label,
+html.theme-luxury-dark .portal-item__label {
+	font-size: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.portal-item--on:hover { transform: none; }
+	.portal-item__chev { transition: none; }
 }
 
 /* =============================================================================
