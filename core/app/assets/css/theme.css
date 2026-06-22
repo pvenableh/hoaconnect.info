@@ -979,6 +979,19 @@ select:focus-visible {
 	font-family: var(--theme-heading-font);
 }
 
+/* Classic & luxury are editorial themes — their headings should use the display
+   serif (Bauer Bodoni), not the global Proxima sans the admin app otherwise
+   inherits on h1–h3. This is what makes the classic *admin* read editorial, not
+   "modern". Modern keeps its sans heading face. Unlayered so it wins over the
+   base heading rule; scoped to real heading tags (shadcn CardTitle is a div and
+   intentionally stays sans for dense UI). */
+html.theme-classic-light :is(h1, h2, h3),
+html.theme-classic-dark :is(h1, h2, h3),
+html.theme-luxury-light :is(h1, h2, h3),
+html.theme-luxury-dark :is(h1, h2, h3) {
+	font-family: var(--theme-heading-font);
+}
+
 /* Circle icon chip — perfect circle, subtle accent-opacity fill, accent glyph.
    The shared treatment for section/feature/modal icons across every theme. */
 .t-icon-chip {

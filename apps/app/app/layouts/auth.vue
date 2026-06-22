@@ -179,8 +179,9 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Slim breadcrumb row beneath the header (hidden on root pages) -->
-    <AppBreadcrumbs />
+    <!-- Breadcrumbs removed: the grouped sidebar (classic) and the secondary
+         sub-nav bar (modern) now carry the "where am I" context, so a separate
+         crumb row is redundant clutter. Detail pages keep their own headers. -->
     <!-- Subscription warning banner -->
     <SubscriptionBanner
       v-if="currentOrg?.organization"
