@@ -227,9 +227,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </div>
             </div>
 
+            <!-- Body — cross-fades between the configured states (chat ↔ history). -->
+            <Transition name="ai-view" mode="out-in">
             <!-- Not configured -->
             <div
               v-if="summary && !summary.aiConfigured"
+              key="unconfigured"
               class="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center"
             >
               <Icon name="lucide:sparkles" class="w-8 h-8 t-text-muted" />
@@ -238,7 +241,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             </div>
 
             <!-- Conversation list -->
-            <div v-else-if="view === 'list'" class="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
+            <div v-else-if="view === 'list'" key="list" class="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
               <button
                 class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm t-text hover:t-bg-subtle"
                 @click="newChat"
@@ -262,7 +265,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             </div>
 
             <!-- Chat thread -->
-            <template v-else>
+            <div v-else key="chat" class="flex-1 min-h-0 flex flex-col">
               <div ref="scroller" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
                 <!-- Empty state -->
                 <div v-if="!chat.messages.value.length" class="h-full flex flex-col items-center justify-center text-center gap-4">
@@ -362,7 +365,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   The assistant can be wrong — review drafts before sending. It can't take actions.
                 </p>
               </div>
-            </template>
+            </div>
+            </Transition>
 
             <!-- Buy-credits dialog -->
             <Dialog v-model:open="showBuy">
@@ -397,3 +401,31 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* Cross-fade + gentle vertical drift between the panel's body states
+   (chat ↔ history ↔ unconfigured). mode="out-in" so one settles before the
+   next arrives. Honors reduced-motion. */
+.ai-view-enter-active,
+.ai-view-leave-active {
+  transition: opacity 160ms ease, transform 200ms cubic-bezier(0.36, 0.66, 0.04, 1);
+}
+.ai-view-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.ai-view-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-view-enter-active,
+  .ai-view-leave-active {
+    transition: opacity 120ms ease;
+  }
+  .ai-view-enter-from,
+  .ai-view-leave-to {
+    transform: none;
+  }
+}
+</style>

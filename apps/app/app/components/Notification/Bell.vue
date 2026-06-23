@@ -151,7 +151,7 @@ const getTypeLabel = (type: string) => {
       :class="{ 'animate-bell-ring': shouldAnimate, 'is-active': isOpen }"
       :aria-label="`Notifications${getUnseenCount > 0 ? ` (${getUnseenCount} unread)` : ''}`"
     >
-      <Icon name="lucide:bell" class="w-5 h-5" />
+      <Icon name="lucide:bell" class="w-[18px] h-[18px]" />
 
       <!-- Unseen Badge -->
       <span

@@ -187,7 +187,9 @@ export function useAppNav() {
     { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__"] },
     {
       key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
-      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board"],
+      // Vendors lives at /admin/settings/property-management but belongs to People;
+      // its longer prefix wins over Settings' /admin/settings so People stays active.
+      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/settings/property-management"],
       children: ["directory", "board", "vendors", "teams"],
     },
     {
@@ -212,7 +214,7 @@ export function useAppNav() {
     },
     // Settings is a core app (never module-toggled) — keep it last so the dock
     // always ends with a way into org configuration / public site / billing.
-    { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings"] },
+    { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings", "/admin/users"] },
   ];
 
   const MEMBER_APPS: AppDef[] = [
