@@ -31,12 +31,47 @@ const TIERS = [
   { value: "standard", label: "Deep", hint: "Careful analysis of docs & rules" },
 ] as const;
 
-const SUGGESTIONS = [
+// Starter prompts, grounded in this org's real content (a real indexed document,
+// a governing rule, the latest announcement) — fetched on open. The chips double
+// as the capability hint: clicking one lands on actual data, teaching that the
+// assistant reads the association's documents. Falls back to a static set.
+const FALLBACK_SUGGESTIONS = [
   "What's the latest announcement?",
   "When is the next board meeting?",
   "Draft a notice about upcoming maintenance",
-  "Summarize our pet policy",
 ];
+const suggestions = ref<string[]>([...FALLBACK_SUGGESTIONS]);
+
+async function loadSuggestions() {
+  if (!orgId.value) return;
+  try {
+    const res = await $fetch<{ suggestions: string[] }>("/api/ai/suggestions", {
+      query: { orgId: orgId.value },
+    });
+    if (res?.suggestions?.length) suggestions.value = res.suggestions;
+  } catch {
+    /* keep the fallback set */
+  }
+}
+
+// Split assistant text into plain + citation segments so [Title §section] tokens
+// (the model is told to cite that way) render as visible source chips inline.
+type Segment = { type: "text" | "cite"; value: string };
+function citationSegments(content: string): Segment[] {
+  const re = /\[([^\]\n]{2,90})\]/g;
+  const out: Segment[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) {
+    // Only treat a bracketed token as a citation if it contains a letter.
+    if (!/[A-Za-z]/.test(m[1]!)) continue;
+    if (m.index > last) out.push({ type: "text", value: content.slice(last, m.index) });
+    out.push({ type: "cite", value: m[1]!.trim() });
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) out.push({ type: "text", value: content.slice(last) });
+  return out;
+}
 
 function scrollToBottom() {
   nextTick(() => {
@@ -56,6 +91,7 @@ watch(
   async (open) => {
     if (!open) return;
     refreshCredits();
+    loadSuggestions();
     chat.fetchConversations();
     if (activeConversationId.value && activeConversationId.value !== chat.conversationId.value) {
       await chat.loadConversation(activeConversationId.value);
@@ -237,7 +273,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   </div>
                   <div class="flex flex-col gap-2 w-full max-w-xs">
                     <button
-                      v-for="s in SUGGESTIONS"
+                      v-for="s in suggestions"
                       :key="s"
                       class="rounded-full border t-border px-3 py-1.5 text-sm t-text-secondary hover:t-bg-subtle"
                       @click="ask(s)"
@@ -260,7 +296,23 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                       ? 'bg-[var(--theme-accent-primary)] text-white'
                       : 't-bg-subtle t-text'"
                   >
-                    <template v-if="m.content">{{ m.content }}</template>
+                    <template v-if="m.content">
+                      <!-- User text stays plain; assistant text renders [Title §section]
+                           citations as inline source chips so it visibly reads from docs. -->
+                      <template v-if="m.role === 'assistant'">
+                        <template v-for="(seg, si) in citationSegments(m.content)" :key="si">
+                          <span
+                            v-if="seg.type === 'cite'"
+                            class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 mx-0.5 text-[11px] font-medium align-baseline t-bg-accent/15 t-text-accent"
+                            :title="`Source: ${seg.value}`"
+                          >
+                            <Icon name="lucide:file-text" class="w-3 h-3 shrink-0" />{{ seg.value }}
+                          </span>
+                          <template v-else>{{ seg.value }}</template>
+                        </template>
+                      </template>
+                      <template v-else>{{ m.content }}</template>
+                    </template>
                     <span v-else-if="m.pending" class="inline-flex gap-1 items-center t-text-muted">
                       <span class="spinner-ios !w-4 !h-4" />
                     </span>
