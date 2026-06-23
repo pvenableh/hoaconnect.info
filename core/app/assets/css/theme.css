@@ -717,10 +717,10 @@ html.theme-modern-dark {
 .header-pill {
   /* Visual only — consumers set display/centering via Tailwind so responsive
      `hidden sm:inline-flex` keeps working (this class loads after Tailwind). */
-  /* Compact 36px circles: lighter than the old haloed 44px so a row of them
-     (assistant · channels · notifications · avatar) reads calm, not clunky. */
-  width: 36px;
-  height: 36px;
+  /* Compact 32px circles: a row of them (assistant · channels · notifications ·
+     avatar) reads calm and light, not clunky. */
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   color: var(--theme-text-secondary);
   background: color-mix(in srgb, var(--theme-accent-primary) 6%, var(--theme-bg-elevated));

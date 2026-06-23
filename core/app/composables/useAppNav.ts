@@ -187,9 +187,10 @@ export function useAppNav() {
     { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__"] },
     {
       key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
-      // Vendors lives at /admin/settings/property-management but belongs to People;
-      // its longer prefix wins over Settings' /admin/settings so People stays active.
-      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/settings/property-management"],
+      // Vendors is a People-area route (/admin/vendors). It used to live under
+      // /admin/settings/property-management, which collided with the Settings hub
+      // prefix and made the sidebar jump to Settings; the dedicated URL fixes that.
+      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/vendors"],
       children: ["directory", "board", "vendors", "teams"],
     },
     {

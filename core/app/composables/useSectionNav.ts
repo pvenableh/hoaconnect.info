@@ -31,7 +31,7 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
     { label: "Units", path: "/admin/units", icon: "door-closed", description: "Units, addresses, and occupancy.", module: "directory" },
     { label: "Board", path: "/board", icon: "award", description: "Board roster and current terms.", module: "board" },
     { label: "Teams", path: "/admin/teams", icon: "users", description: "Committees and working groups." },
-    { label: "Vendors & management", path: "/admin/settings/property-management", icon: "contact", description: "Service providers and property-manager access.", module: "vendors" },
+    { label: "Vendors & management", path: "/admin/vendors", icon: "contact", description: "Service providers and property-manager access.", module: "vendors" },
   ],
   comms: [
     { label: "Email", path: "/admin/communications", icon: "mail", description: "Compose and send to your community.", module: "email" },

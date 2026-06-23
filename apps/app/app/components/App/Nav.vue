@@ -438,7 +438,7 @@ watch(
         </div>
 
         <!-- User Menu (Authenticated) -->
-        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-2">
+        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-1.5">
           <!-- AI assistant quick-peek — staff only; pops a slide-over like Channels. -->
           <button
             v-if="showAssistant"
@@ -448,7 +448,7 @@ watch(
             aria-label="Open AI assistant"
             @click="aiAssistant.toggle()"
           >
-            <Icon name="i-lucide-sparkles" class="w-[18px] h-[18px]" />
+            <Icon name="i-lucide-sparkles" class="w-4 h-4" />
           </button>
           <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
           <!-- Channels is a quick action (pops a slide-over); it doesn't carry a
@@ -462,7 +462,7 @@ watch(
             aria-label="Open channels"
             @click="channelsPanel.toggle()"
           >
-            <Icon name="i-lucide-messages-square" class="w-[18px] h-[18px]" />
+            <Icon name="i-lucide-messages-square" class="w-4 h-4" />
           </button>
           <!-- Notification Bell - show on org pages/custom domains -->
           <NotificationBell
@@ -475,7 +475,7 @@ watch(
               class="hidden sm:inline-flex items-center justify-center header-pill"
               title="Account menu"
             >
-              <Avatar class="size-9">
+              <Avatar class="size-8">
                 <AvatarImage
                   v-if="userAvatarUrl"
                   :src="userAvatarUrl"

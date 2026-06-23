@@ -266,9 +266,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
             <!-- Chat thread -->
             <div v-else key="chat" class="flex-1 min-h-0 flex flex-col">
-              <div ref="scroller" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-                <!-- Empty state -->
-                <div v-if="!chat.messages.value.length" class="h-full flex flex-col items-center justify-center text-center gap-4">
+              <div ref="scroller" class="flex-1 min-h-0 overflow-y-auto p-4">
+                <!-- Empty state (fades out as the first message arrives) -->
+                <Transition name="ai-fade">
+                <div v-if="!chat.messages.value.length" key="empty" class="h-full flex flex-col items-center justify-center text-center gap-4">
                   <span class="t-icon-chip !w-12 !h-12"><Icon name="lucide:sparkles" class="w-6 h-6" /></span>
                   <div>
                     <p class="t-text font-medium t-heading">How can I help?</p>
@@ -285,8 +286,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     </button>
                   </div>
                 </div>
+                </Transition>
 
-                <!-- Messages -->
+                <!-- Messages (each rises in) -->
+                <TransitionGroup tag="div" name="ai-msg" class="space-y-4">
                 <div
                   v-for="(m, i) in chat.messages.value"
                   :key="i"
@@ -321,6 +324,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     </span>
                   </div>
                 </div>
+                </TransitionGroup>
               </div>
 
               <!-- Composer -->
@@ -425,6 +429,39 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   }
   .ai-view-enter-from,
   .ai-view-leave-to {
+    transform: none;
+  }
+}
+
+/* Empty state fades as the first message lands. */
+.ai-fade-enter-active,
+.ai-fade-leave-active {
+  transition: opacity 180ms ease;
+}
+.ai-fade-enter-from,
+.ai-fade-leave-to {
+  opacity: 0;
+}
+
+/* Each chat turn rises + fades in; neighbors slide via `move`. */
+.ai-msg-enter-active {
+  transition: opacity 240ms ease, transform 260ms cubic-bezier(0.36, 0.66, 0.04, 1);
+}
+.ai-msg-move {
+  transition: transform 260ms cubic-bezier(0.36, 0.66, 0.04, 1);
+}
+.ai-msg-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-fade-enter-active,
+  .ai-fade-leave-active,
+  .ai-msg-enter-active,
+  .ai-msg-move {
+    transition: opacity 120ms ease;
+  }
+  .ai-msg-enter-from {
     transform: none;
   }
 }
