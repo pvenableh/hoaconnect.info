@@ -27,6 +27,32 @@ export interface AiConversation {
 	date_updated?: string | null;
 }
 
+export interface AiDocChunk {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Which collection the chunk's source row lives in. @required */
+	source_collection: 'hoa_governance' | 'hoa_documents';
+	/** @description The source row id (governance or document). @required */
+	source_id: string;
+	/** @description Source title, denormalized for citation display. */
+	source_title?: string | null;
+	/** @description Section number for governance (e.g. "4.2.1"), if any. */
+	section?: string | null;
+	/** @description 0-based position of this chunk within its source. */
+	chunk_index?: number | null;
+	/** @description The chunk's plain text (what gets cited). */
+	chunk_text?: string | null;
+	/** @description Voyage embedding vector (unit-normalized float array). */
+	embedding?: Record<string, any> | null;
+	/** @description Voyage tokens billed for this chunk. */
+	tokens?: number | null;
+	/** @description sha256 of the source text — re-ingestion skips unchanged sources. */
+	content_hash?: string | null;
+	date_created?: string | null;
+}
+
 export interface AiMessage {
 	/** @primaryKey */
 	id: string;
@@ -1975,6 +2001,7 @@ export interface DirectusExtension {
 
 export interface Schema {
 	ai_conversations: AiConversation[];
+	ai_doc_chunks: AiDocChunk[];
 	ai_messages: AiMessage[];
 	ai_transactions: AiTransaction[];
 	ai_wallets: AiWallet[];
@@ -2069,6 +2096,7 @@ export interface Schema {
 
 export enum CollectionNames {
 	ai_conversations = 'ai_conversations',
+	ai_doc_chunks = 'ai_doc_chunks',
 	ai_messages = 'ai_messages',
 	ai_transactions = 'ai_transactions',
 	ai_wallets = 'ai_wallets',
