@@ -37,6 +37,14 @@ export default defineEventHandler(async (event) => {
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
   if (!message) throw createError({ statusCode: 400, message: "message is required" });
 
+  // Awareness gate: sources the user switched OFF in the "what the AI can see"
+  // chip. Empty (the default) grounds normally; a listed key is never fetched or
+  // sent. Keys: "organization" | "documents" | "entity".
+  const excludedContext: string[] = Array.isArray(body?.excludedContext)
+    ? body.excludedContext.map((k: unknown) => String(k))
+    : [];
+  const allow = (k: string) => !excludedContext.includes(k);
+
   // Authorization — must be a comms-capable actor (admin / board / PM) in this org.
   const actors = await requireOrgComposeAccess(event, orgId);
 
@@ -62,7 +70,7 @@ export default defineEventHandler(async (event) => {
   // and keep the matched passages to inject below (escalating to Sonnet). No-op
   // unless VOYAGE_API_KEY is set; a retrieval failure degrades to a plain answer.
   let ragBlock: string | null = null;
-  if (isRagConfigured()) {
+  if (isRagConfigured() && allow("documents")) {
     try {
       const rag = await retrieveRagContext(orgId, message, userId);
       ragBlock = rag.block;
@@ -152,8 +160,11 @@ export default defineEventHandler(async (event) => {
   }
 
   // Compose the user turn, appending a compact page-context hint when present.
+  // The entity-specific hint is dropped when the user excluded "entity"; a plain
+  // route orientation (no entity) is always harmless to keep.
   let userText = message;
-  if (context && (context.label || context.route || context.summary)) {
+  const keepHint = allow("entity") || !context?.entityType;
+  if (context && keepHint && (context.label || context.route || context.summary)) {
     const where = context.label || context.route;
     const ent = context.entityType ? ` (${context.entityType}${context.entityId ? ` ${context.entityId}` : ""})` : "";
     const sum = context.summary ? ` — ${String(context.summary).slice(0, 240)}` : "";
@@ -161,12 +172,15 @@ export default defineEventHandler(async (event) => {
   }
 
   // System = stable chat prompt + cacheable org-context block (breakpoint on the
-  // last block caches both across the conversation's turns; 5-min TTL).
-  const orgContext = await getOrgContextCached(orgId);
+  // last block caches both across the conversation's turns; 5-min TTL). The org
+  // block is skipped when the user toggled "organization" off.
   const systemInput: SystemBlock[] = [
     { text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
-    { text: orgContext, cache: true },
   ];
+  if (allow("organization")) {
+    const orgContext = await getOrgContextCached(orgId);
+    systemInput.push({ text: orgContext, cache: true });
+  }
   // Trailing, query-specific RAG passages — placed AFTER the cached prefix so the
   // org-context cache breakpoint still applies; this block itself is not cached.
   if (ragBlock) systemInput.push({ text: ragBlock });
@@ -174,8 +188,9 @@ export default defineEventHandler(async (event) => {
   // Entity focus dossier — when the user is looking at a specific record (member,
   // vendor, project, ticket/violation, meeting, channel), inject a compact
   // dossier so the assistant answers about THIS thing. Org-scoped inside the
-  // builder; trailing + uncached (it changes per entity). Best-effort.
-  if (context?.entityType && context?.entityId) {
+  // builder; trailing + uncached (it changes per entity). Best-effort. Skipped
+  // when the user toggled "entity" off.
+  if (context?.entityType && context?.entityId && allow("entity")) {
     try {
       const dossier = await getEntityContext({
         orgId,

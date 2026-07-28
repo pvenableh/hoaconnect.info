@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
     ...summary,
     lowBalance: summary.balanceCredits <= 1000, // ≈ one draft left
     aiConfigured: isAiConfigured(),
+    ragConfigured: isRagConfigured(), // drives the "Documents" awareness source
     packs: CREDIT_PACKS,
   };
 });

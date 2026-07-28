@@ -13,11 +13,28 @@ const clip = (s: unknown, n = 72): string => {
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
-  const orgId = String(getQuery(event).orgId || "").trim();
+  const q = getQuery(event);
+  const orgId = String(q.orgId || "").trim();
+  const entityType = String(q.entityType || "").trim();
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
   await requireOrgComposeAccess(event, orgId);
 
   const directus = getTypedDirectus();
+
+  // When a specific record is focused, lead with prompts about it — they land on
+  // the injected dossier and teach "the assistant knows this record."
+  const ENTITY_PROMPTS: Record<string, string[]> = {
+    member: ["Summarize this member's account", "Any open requests for this member?"],
+    vendor: ["What projects has this vendor worked on?", "Draft an email to this vendor"],
+    project: ["What's the status of this project?", "What tasks are still open here?"],
+    request: ["Summarize this request", "Draft a response to the resident"],
+    violation: ["Summarize this violation", "Draft a courtesy notice to the resident"],
+    ticket: ["Summarize this ticket", "What's the next step here?"],
+    meeting: ["Summarize this meeting's agenda", "Draft a minutes summary"],
+    channel: ["Summarize the recent discussion here", "What's unresolved in this channel?"],
+  };
+  const entityChips = entityType ? ENTITY_PROMPTS[entityType] || [] : [];
+
   const grounded: string[] = [];
 
   // 1) An actually-indexed document — the chip that teaches doc-awareness.
@@ -72,7 +89,7 @@ export default defineEventHandler(async (event) => {
     "Draft a notice about upcoming maintenance",
     "What's the latest announcement?",
   ];
-  const suggestions = [...grounded];
+  const suggestions = [...entityChips, ...grounded];
   for (const f of fallbacks) {
     if (suggestions.length >= 4) break;
     if (!suggestions.includes(f)) suggestions.push(f);

@@ -22,6 +22,7 @@ export interface ConversationSummary {
 
 export function useAiChat(orgId: Ref<string | null | undefined>) {
   const { currentContext } = useAiContext();
+  const { excludedKeys } = useAiAwareness();
 
   const conversationId = ref<string | null>(null);
   const messages = ref<ChatMessage[]>([]);
@@ -125,6 +126,8 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
           message: trimmed,
           tier: tier.value,
           context: currentContext.value,
+          // Sources the user toggled OFF in the awareness chip (default none).
+          excludedContext: excludedKeys.value,
         }),
       });
 

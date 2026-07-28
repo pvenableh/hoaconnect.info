@@ -20,18 +20,12 @@ const orgId = computed(() => selectedOrgId.value);
 const chat = useAiChat(orgId);
 const { summary, refresh: refreshCredits, buyPack } = useAiCredits(orgId);
 const { currentContext } = useAiContext();
+const { setRagAvailable } = useAiAwareness();
 const route = useRoute();
 
-// What the assistant is focused on right now (set by the page via setContext).
-// Surfaces the "the AI knows what you're looking at" cue; Phase 2 expands this
-// into the full "what it can see" panel.
-const focus = computed(() => {
-  const c = currentContext.value;
-  if (c.entityType && (c.label || c.entityId)) {
-    return { type: c.entityType, label: c.label || c.entityType };
-  }
-  return null;
-});
+// Tell the awareness chip whether document search (RAG) is available here, so it
+// only offers the "Documents" source when the env actually has it.
+watch(summary, (s) => setRagAvailable(!!(s as any)?.ragConfigured), { immediate: true });
 
 const view = ref<"chat" | "list">("chat");
 const input = ref("");
@@ -58,7 +52,11 @@ async function loadSuggestions() {
   if (!orgId.value) return;
   try {
     const res = await $fetch<{ suggestions: string[] }>("/api/ai/suggestions", {
-      query: { orgId: orgId.value },
+      query: {
+        orgId: orgId.value,
+        entityType: currentContext.value.entityType,
+        entityId: currentContext.value.entityId,
+      },
     });
     if (res?.suggestions?.length) suggestions.value = res.suggestions;
   } catch {
@@ -243,19 +241,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </div>
             </div>
 
-            <!-- Focus indicator — what the assistant is anchored to on this page. -->
-            <Transition name="ai-fade">
-              <div
-                v-if="focus"
-                class="flex items-center gap-2 px-4 py-2 border-b t-border t-bg-subtle shrink-0"
-              >
-                <Icon name="lucide:crosshair" class="w-3.5 h-3.5 t-text-accent shrink-0" />
-                <span class="text-xs t-text-secondary truncate">
-                  Focused on <span class="font-medium t-text">{{ focus.label }}</span>
-                  <span class="t-text-muted">· {{ focus.type }}</span>
-                </span>
-              </div>
-            </Transition>
+            <!-- What the assistant can see — grounding sources + focus, togglable. -->
+            <AiAwarenessChip v-if="summary && summary.aiConfigured && view === 'chat'" />
 
             <!-- Body — cross-fades between the configured states (chat ↔ history). -->
             <Transition name="ai-view" mode="out-in">
