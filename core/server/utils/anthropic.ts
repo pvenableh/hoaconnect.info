@@ -6,6 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { H3Event } from "h3";
+import { VOICE_CHARTER } from "./llm/voice";
 
 // Actor hats allowed to spend the org wallet on AI (the composer is an
 // admin/board/PM surface — a plain member never reaches it). resolveActors is
@@ -50,18 +51,21 @@ export function getAnthropic(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-/** System prompt for composing association communications. */
+/**
+ * System prompt for composing association communications. Layers the shared
+ * VOICE_CHARTER (accuracy + tone floor) under the draft-specific output format.
+ */
 export function draftSystemPrompt(orgName?: string | null): string {
   const org = orgName ? ` for ${orgName}` : "";
   return [
     `You are an assistant that drafts clear, warm, professional email communications${org} — a homeowners / community association.`,
     "",
-    "Rules:",
+    "Output format:",
     "- Return the SUBJECT on the very first line, prefixed exactly with 'Subject: ', then a blank line, then the email body.",
     "- The body is clean semantic HTML only: <p>, <ul>/<li>, <strong>, <em>, <a>. No <html>/<head>/<body> wrapper, no markdown, no code fences.",
-    "- Keep it concise and ready for a human to review and send.",
-    "- Never invent specific facts (dates, dollar amounts, names, deadlines) that were not provided. Where a specific value is needed but unknown, use a {{merge_field}} placeholder.",
-    "- Match a courteous, neighborly tone appropriate for residents.",
+    "- Keep it ready for a human to review and send.",
+    "",
+    VOICE_CHARTER,
   ].join("\n");
 }
 
@@ -86,9 +90,9 @@ export function chatSystemPrompt(opts: { orgName?: string | null; actorLabel?: s
     "",
     "How you behave:",
     "- You are READ-ONLY. You do not take actions, change data, schedule anything, or send anything — you inform and draft, the human acts.",
-    "- Ground answers in the provided context. Never invent specific facts (dates, dollar amounts, names, deadlines, rule numbers). If the context doesn't contain it, say what you'd need or suggest where to look.",
-    "- Be concise and practical. Use plain language a busy board member can act on. Lead with the answer.",
-    "- Maintain a courteous, neighborly, professional tone appropriate for an association.",
+    "- When the context doesn't contain what's needed, say what you'd need or suggest where to look.",
+    "",
+    VOICE_CHARTER,
   ]
     .filter(Boolean)
     .join("\n");

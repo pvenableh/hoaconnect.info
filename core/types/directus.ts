@@ -12,6 +12,23 @@ export interface ExtensionSeoMetadata {
     no_follow?: boolean;
 }
 
+export interface AiContextSnapshot {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Which context this snapshot holds (currently just 'org'). */
+	context_type?: string;
+	/** @description The assembled plain-text org-context block placed in the system prompt. */
+	content?: string | null;
+	/** @description Rough token estimate of `content` (~len/4). */
+	token_estimate?: number | null;
+	/** @description When this L2 snapshot goes stale and should be rebuilt. */
+	expires_at?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
 export interface AiConversation {
 	/** @primaryKey */
 	id: string;
@@ -1552,6 +1569,29 @@ export interface SubscriptionPlan {
 	is_contact_only?: boolean;
 }
 
+export interface WaitlistSignup {
+	/** @primaryKey */
+	id: string;
+	status?: 'new' | 'contacted' | 'qualified' | 'archived' | null;
+	sort?: number | null;
+	name?: string | null;
+	/** @description Required. */
+	email?: string | null;
+	role?: 'board_member' | 'property_manager' | 'developer' | 'resident' | 'other' | null;
+	association_name?: string | null;
+	unit_count?: `0-30` | `31-60` | `61-100` | `101-200` | `200+` | null;
+	city?: string | null;
+	state?: string | null;
+	/** @description Features the lead is most interested in. */
+	interests?: string[] | null;
+	/** @description What the lead wants to achieve. */
+	goals?: string | null;
+	/** @description Which marketing page the signup came from. */
+	source_page?: string | null;
+	user_agent?: string | null;
+	date_created?: string | null;
+}
+
 export interface DirectusAccess {
 	/** @primaryKey */
 	id: string;
@@ -2000,6 +2040,7 @@ export interface DirectusExtension {
 }
 
 export interface Schema {
+	ai_context_snapshots: AiContextSnapshot[];
 	ai_conversations: AiConversation[];
 	ai_doc_chunks: AiDocChunk[];
 	ai_messages: AiMessage[];
@@ -2065,6 +2106,7 @@ export interface Schema {
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
 	subscription_plans: SubscriptionPlan[];
+	waitlist_signups: WaitlistSignup[];
 	directus_access: DirectusAccess[];
 	directus_activity: DirectusActivity[];
 	directus_collections: DirectusCollection[];
@@ -2095,6 +2137,7 @@ export interface Schema {
 }
 
 export enum CollectionNames {
+	ai_context_snapshots = 'ai_context_snapshots',
 	ai_conversations = 'ai_conversations',
 	ai_doc_chunks = 'ai_doc_chunks',
 	ai_messages = 'ai_messages',
@@ -2160,6 +2203,7 @@ export enum CollectionNames {
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',
 	subscription_plans = 'subscription_plans',
+	waitlist_signups = 'waitlist_signups',
 	directus_access = 'directus_access',
 	directus_activity = 'directus_activity',
 	directus_collections = 'directus_collections',

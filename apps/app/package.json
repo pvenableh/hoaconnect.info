@@ -38,6 +38,7 @@
     "create:ai-wallets": "dotenv -- tsx scripts/create-ai-wallet-collections.ts",
     "create:ai-chat": "dotenv -- tsx scripts/create-ai-chat-collections.ts",
     "create:ai-rag": "dotenv -- tsx scripts/create-ai-rag-collections.ts",
+    "create:ai-context-snapshots": "dotenv -- tsx scripts/create-ai-context-snapshots.ts",
     "backfill:embeddings": "dotenv -- tsx scripts/backfill-embeddings.ts",
     "create:subscription-tiers": "dotenv -- tsx scripts/add-subscription-tier-fields.ts",
     "stripe:subscription-prices": "dotenv -- tsx scripts/create-stripe-subscription-prices.ts",

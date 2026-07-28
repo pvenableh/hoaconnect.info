@@ -11,6 +11,7 @@
 
 import { readItems } from "@directus/sdk";
 import { MODEL_TIERS, type ModelTier } from "#core/shared/ai/credits";
+import { getLlmProvider } from "#core/server/utils/llm/provider";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -32,8 +33,9 @@ export default defineEventHandler(async (event) => {
     return { error: "insufficient_credits", balanceCredits: 0 };
   }
 
-  // AI must be configured before we open a stream.
-  const client = getAnthropic();
+  // AI must be configured before we open a stream (getLlmProvider throws 503
+  // when the key is missing — same gate as the old getAnthropic() call).
+  const llm = getLlmProvider();
 
   const tier = (["fast", "standard"].includes(body?.tier) ? body.tier : "fast") as ModelTier;
   const model = MODEL_TIERS[tier] ?? MODEL_TIERS.fast;
@@ -61,10 +63,10 @@ export default defineEventHandler(async (event) => {
   // Stream in the background; return the SSE response immediately.
   (async () => {
     try {
-      const stream = client.messages.stream({
+      const stream = llm.stream({
         model,
-        max_tokens: 1500,
-        system: [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }],
+        maxTokens: 1500,
+        system: [{ text: systemText, cache: true }],
         messages: [{ role: "user", content: userText }],
       });
 

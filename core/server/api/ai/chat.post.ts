@@ -11,6 +11,8 @@
 
 import { createItem, readItem, readItems, updateItem } from "@directus/sdk";
 import { MODEL_TIERS, type ModelTier } from "#core/shared/ai/credits";
+import { getLlmProvider } from "#core/server/utils/llm/provider";
+import type { SystemBlock } from "#core/server/utils/llm/types";
 
 /** Newest-to-oldest history we replay to the model (keeps the prompt bounded). */
 const HISTORY_LIMIT = 30;
@@ -45,8 +47,9 @@ export default defineEventHandler(async (event) => {
     return { error: "insufficient_credits", balanceCredits: 0 };
   }
 
-  // AI must be configured before we open a stream.
-  const client = getAnthropic();
+  // AI must be configured before we open a stream (getLlmProvider throws 503
+  // when the key is missing — same gate as the old getAnthropic() call).
+  const llm = getLlmProvider();
 
   // Adaptive model: default fast (Haiku). A client tier override always wins;
   // otherwise we escalate to standard (Sonnet) when the turn is "heavy" — either
@@ -146,14 +149,14 @@ export default defineEventHandler(async (event) => {
 
   // System = stable chat prompt + cacheable org-context block (breakpoint on the
   // last block caches both across the conversation's turns; 5-min TTL).
-  const orgContext = await gatherOrgContext(orgId);
-  const systemBlocks: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> = [
-    { type: "text", text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
-    { type: "text", text: orgContext, cache_control: { type: "ephemeral" } },
+  const orgContext = await getOrgContextCached(orgId);
+  const systemInput: SystemBlock[] = [
+    { text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
+    { text: orgContext, cache: true },
   ];
   // Trailing, query-specific RAG passages — placed AFTER the cached prefix so the
   // org-context cache breakpoint still applies; this block itself is not cached.
-  if (ragBlock) systemBlocks.push({ type: "text", text: ragBlock });
+  if (ragBlock) systemInput.push({ text: ragBlock });
 
   const messages = [...history, { role: "user" as const, content: userText }];
 
@@ -174,19 +177,16 @@ export default defineEventHandler(async (event) => {
   (async () => {
     let full = "";
     try {
-      // Haiku rejects effort + adaptive thinking; send them only on heavier tiers.
-      const params: Record<string, any> = {
+      // Haiku (fast) rejects effort + adaptive thinking; pass them only on the
+      // heavier tiers and the provider adds them to the request.
+      const stream = llm.stream({
         model,
-        max_tokens: 1500,
-        system: systemBlocks,
+        maxTokens: 1500,
+        system: systemInput,
         messages,
-      };
-      if (!isFast) {
-        params.thinking = { type: "adaptive" };
-        params.output_config = { effort: "medium" };
-      }
-
-      const stream = client.messages.stream(params as any);
+        thinking: !isFast,
+        effort: isFast ? undefined : "medium",
+      });
 
       for await (const ev of stream) {
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
