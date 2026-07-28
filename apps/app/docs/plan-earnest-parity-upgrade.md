@@ -130,6 +130,28 @@ Earnest and HOA Connect share the same stack: **Nuxt 4 + Directus 11 + Anthropic
 
 ---
 
+## Phase 7 — Stripe Connect (org payouts) + platform account migration
+
+*Independent of the AI/channels/email tracks — but touches live money, so it moves on its own deliberate track with the most operational care. Grounds against Earnest's Connect implementation (`~/Sites/earnest/earnest`) and HOA Connect's existing Stripe code (`docs/STRIPE_*`, `server/utils/stripe*`, `stripe/webhook.post.ts`, the agency-billing + AI-credits flows) before building.*
+
+Two distinct objectives:
+
+**7A. Migrate the platform Stripe account (Hue → HOA Connect).** Today platform billing (subscriptions, AI credit packs) runs through a Hue-owned Stripe account. Stand up a **new HOA Connect Stripe account** and cut over:
+1. Recreate all **products + prices** in the new account: subscription plans (the flat per-building bands), AI credit packs, and the agency seat price. Capture the new price IDs.
+2. Update env/runtime config: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and every `STRIPE_*_PRICE_ID_*` (local `.env` + Vercel). Re-point the Stripe **webhook endpoint** to the new account and re-verify signature.
+3. Update the Directus rows that cache Stripe price/product IDs (subscription_plans, credit packs) to the new account's IDs. Migration/backfill script, idempotent.
+4. Decide the handling of **existing live customers/subscriptions** on the Hue account (Stripe cannot move subscriptions between accounts): either run both accounts during a transition and let renewals migrate, or recreate active subscriptions. Document the cutover runbook; this is the riskiest step and needs Peter's explicit sign-off per action.
+
+**7B. Stripe Connect — orgs get paid into their own accounts.** So an HOA collects dues/assessments/fees directly into its own bank, with HOA Connect as the platform (optional application fee):
+1. **Onboarding**: per-org Connect account (Express recommended — Stripe-hosted KYC/onboarding) stored on `hoa_organizations` (e.g. `stripe_connect_account_id`, `connect_status`, `charges_enabled`, `payouts_enabled`). Admin flow: create account → hosted onboarding link → return/refresh URLs → status polling + webhook (`account.updated`).
+2. **Payments**: resident-facing payment flows (dues, one-time assessments, fees) create charges/Checkout Sessions/PaymentIntents **on the connected account** (destination charges or `on_behalf_of` + `transfer_data`), with an optional platform `application_fee_amount`.
+3. **Data model**: `hoa_payments` / invoices / assessment records scoped per org, tied to Connect charge IDs; reconcile via webhooks (`payment_intent.succeeded`, `charge.refunded`, `payout.*`).
+4. **Webhooks**: handle **Connect** events (`event.account` present) distinctly from platform events in `stripe/webhook.post.ts`; route by account. Verify against the (new) platform signing secret.
+5. **Reporting**: simple per-org money view (collected, pending, payouts) — deliberately not QuickBooks-level (per user preference).
+6. **Guardrails**: this system moves real resident money. Every outbound/irreversible Stripe action (creating charges, initiating payouts, refunds) is confirmed/authorized per HOA Connect's permission matrix; no auto-initiated transfers.
+
+**Deliverables:** new-account product/price recreation + ID backfill + env cutover runbook (7A); Connect onboarding + destination-charge payment flow + `hoa_payments` + Connect webhook routing + per-org money view (7B). Ship 7B behind a per-org flag; 7A is a one-time platform cutover.
+
 ## Sequencing & parallelization
 
 ```

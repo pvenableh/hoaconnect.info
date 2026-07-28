@@ -159,6 +159,16 @@ export async function gatherOrgContext(orgId: string): Promise<string> {
     /* meetings unavailable — non-fatal */
   }
 
+  // ── Brand / location / amenities / board identity ────────────────────────
+  // Same sources the public landing renders. Appended here so it caches with
+  // the rest of the org context (via the context broker).
+  try {
+    const brand = await getBrandContext(orgId);
+    if (brand) lines.push("", brand);
+  } catch {
+    /* brand identity unavailable — non-fatal */
+  }
+
   if (!lines.length) {
     return "No additional association context is available right now.";
   }

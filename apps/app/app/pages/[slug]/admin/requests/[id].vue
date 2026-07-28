@@ -28,6 +28,24 @@ const assignedById = computed(() => {
 });
 const isSubmitter = computed(() => !!user.value?.id && submittedById.value === user.value.id);
 const isAssignee = computed(() => !!user.value?.id && assignedById.value === user.value.id);
+
+// Anchor the AI assistant to this request/violation while the page is open, so
+// the assistant answers about THIS ticket and keeps its own thread for it.
+const { setContext, clearContext } = useAiContext();
+watch(
+  request,
+  (r) => {
+    if (r) {
+      setContext({
+        entityType: (r as any).type === "violation" ? "violation" : "request",
+        entityId: String(r.id),
+        label: r.title || "Request",
+      });
+    }
+  },
+  { immediate: true }
+);
+onBeforeUnmount(clearContext);
 </script>
 
 <template>

@@ -42,6 +42,8 @@ export interface AiConversation {
 	model?: string | null;
 	date_created?: string | null;
 	date_updated?: string | null;
+	/** @description What this conversation is scoped to: { entityType, entityId, label } or { scope, route }. */
+	context?: Record<string, any> | null;
 }
 
 export interface AiDocChunk {

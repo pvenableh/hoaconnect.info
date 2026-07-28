@@ -108,12 +108,25 @@ export default defineEventHandler(async (event) => {
   }
   if (!conversationId) {
     const title = message.length > 60 ? `${message.slice(0, 60)}…` : message;
+    // Scope the new thread to what the user was looking at, so it can later be
+    // resumed per-entity (a member/vendor/project/ticket's own thread) or
+    // per-route. Entity-anchored when an entityId is present, else route/scope.
+    const convoContext = context
+      ? {
+          entityType: context.entityType || undefined,
+          entityId: context.entityId ? String(context.entityId) : undefined,
+          label: context.label || undefined,
+          route: context.route || undefined,
+          scope: context.scope || undefined,
+        }
+      : null;
     const created = (await directus.request(
       createItem("ai_conversations", {
         organization: orgId,
         user: userId,
         title,
         model,
+        context: convoContext,
       } as any)
     )) as { id: string };
     conversationId = created.id;
@@ -157,6 +170,23 @@ export default defineEventHandler(async (event) => {
   // Trailing, query-specific RAG passages — placed AFTER the cached prefix so the
   // org-context cache breakpoint still applies; this block itself is not cached.
   if (ragBlock) systemInput.push({ text: ragBlock });
+
+  // Entity focus dossier — when the user is looking at a specific record (member,
+  // vendor, project, ticket/violation, meeting, channel), inject a compact
+  // dossier so the assistant answers about THIS thing. Org-scoped inside the
+  // builder; trailing + uncached (it changes per entity). Best-effort.
+  if (context?.entityType && context?.entityId) {
+    try {
+      const dossier = await getEntityContext({
+        orgId,
+        entityType: String(context.entityType),
+        entityId: String(context.entityId),
+      });
+      if (dossier) systemInput.push({ text: dossier });
+    } catch {
+      /* dossier unavailable — continue without it */
+    }
+  }
 
   const messages = [...history, { role: "user" as const, content: userText }];
 

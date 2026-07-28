@@ -30,9 +30,43 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
   /** User-selectable model tier (default fast/Haiku). */
   const tier = ref<ModelTier>("fast");
 
+  /** The entity the active thread is anchored to, e.g. "vendor:abc" — null when
+   *  the conversation is general (page/route-scoped, not item-scoped). */
+  const focusedEntityKey = ref<string | null>(null);
+
   function reset() {
     conversationId.value = null;
     messages.value = [];
+  }
+
+  /**
+   * Resume the thread for whatever the user is currently looking at. When the
+   * page has set an entity focus (member/vendor/project/ticket…), load that
+   * item's most recent thread — or start a fresh one scoped to it (the next
+   * send persists the scope). Returns true when an entity focus was handled.
+   */
+  async function hydrateForContext(): Promise<boolean> {
+    const ctx = currentContext.value;
+    const entityType = ctx.entityType;
+    const entityId = ctx.entityId;
+    const key = entityType && entityId ? `${entityType}:${entityId}` : null;
+    focusedEntityKey.value = key;
+    if (!key || !orgId.value) return false;
+    try {
+      const res = await $fetch<{ conversations: ConversationSummary[] }>(
+        "/api/ai/conversations/by-entity",
+        { query: { orgId: orgId.value, entityType, entityId } }
+      );
+      const latest = res.conversations?.[0];
+      if (latest) {
+        await loadConversation(latest.id);
+      } else {
+        reset();
+      }
+    } catch {
+      reset();
+    }
+    return true;
   }
 
   async function fetchConversations() {
@@ -165,7 +199,9 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
     conversations,
     isStreaming,
     tier,
+    focusedEntityKey,
     reset,
+    hydrateForContext,
     fetchConversations,
     loadConversation,
     send,

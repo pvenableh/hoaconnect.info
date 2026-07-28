@@ -22,6 +22,18 @@ const { data: project, pending, refresh } = await useAsyncData(
   { watch: [projectId], server: false }
 );
 
+// Anchor the AI assistant to this project while the page is open, so it answers
+// about THIS project and keeps its own thread for it.
+const { setContext, clearContext } = useAiContext();
+watch(
+  project,
+  (p) => {
+    if (p) setContext({ entityType: "project", entityId: String(p.id), label: p.title || "Project" });
+  },
+  { immediate: true }
+);
+onBeforeUnmount(clearContext);
+
 const statusMeta = computed(() =>
   project.value ? PROJECT_STATUS_META[(project.value.status as string) || "planning"] : null
 );

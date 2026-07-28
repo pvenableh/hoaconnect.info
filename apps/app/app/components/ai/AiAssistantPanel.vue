@@ -19,7 +19,19 @@ const orgId = computed(() => selectedOrgId.value);
 
 const chat = useAiChat(orgId);
 const { summary, refresh: refreshCredits, buyPack } = useAiCredits(orgId);
+const { currentContext } = useAiContext();
 const route = useRoute();
+
+// What the assistant is focused on right now (set by the page via setContext).
+// Surfaces the "the AI knows what you're looking at" cue; Phase 2 expands this
+// into the full "what it can see" panel.
+const focus = computed(() => {
+  const c = currentContext.value;
+  if (c.entityType && (c.label || c.entityId)) {
+    return { type: c.entityType, label: c.label || c.entityType };
+  }
+  return null;
+});
 
 const view = ref<"chat" | "list">("chat");
 const input = ref("");
@@ -95,6 +107,10 @@ watch(
     chat.fetchConversations();
     if (activeConversationId.value && activeConversationId.value !== chat.conversationId.value) {
       await chat.loadConversation(activeConversationId.value);
+    } else {
+      // No explicit conversation → if the page is focused on a specific record,
+      // resume that item's own thread (member/vendor/project/ticket…).
+      await chat.hydrateForContext();
     }
     view.value = "chat";
     scrollToBottom();
@@ -226,6 +242,20 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 </button>
               </div>
             </div>
+
+            <!-- Focus indicator — what the assistant is anchored to on this page. -->
+            <Transition name="ai-fade">
+              <div
+                v-if="focus"
+                class="flex items-center gap-2 px-4 py-2 border-b t-border t-bg-subtle shrink-0"
+              >
+                <Icon name="lucide:crosshair" class="w-3.5 h-3.5 t-text-accent shrink-0" />
+                <span class="text-xs t-text-secondary truncate">
+                  Focused on <span class="font-medium t-text">{{ focus.label }}</span>
+                  <span class="t-text-muted">· {{ focus.type }}</span>
+                </span>
+              </div>
+            </Transition>
 
             <!-- Body — cross-fades between the configured states (chat ↔ history). -->
             <Transition name="ai-view" mode="out-in">
