@@ -286,6 +286,17 @@ const handleEdit = (m: any) => {
   showModal.value = true;
 };
 
+// Anchor the AI assistant to the meeting being viewed/edited while the modal is
+// open, so the assistant answers about THIS meeting (and keeps its own thread).
+const { setContext: setAiFocus, clearContext: clearAiFocus } = useAiContext();
+watch(showModal, (open) => {
+  if (open && editingId.value) {
+    setAiFocus({ entityType: "meeting", entityId: editingId.value, label: form.title || "Meeting" });
+  } else {
+    clearAiFocus();
+  }
+});
+
 // Add an attendee, snapshotting their board role as of the meeting date
 const addAttendee = () => {
   const memberId = attendeePick.value;

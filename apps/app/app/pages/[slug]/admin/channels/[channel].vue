@@ -24,6 +24,30 @@ const channelSlug = computed(() => route.params.channel as string);
 const highlightMessageId = computed(() => route.query.message as string | undefined);
 const showCreateModal = ref(false);
 
+// Anchor the AI assistant to the open channel. The route carries the slug, so we
+// resolve the channel id (the dossier keys on id) client-side and set focus.
+const { setContext: setAiFocus, clearContext: clearAiFocus } = useAiContext();
+const { list: listChannelsForFocus } = useDirectusItems("hoa_channels");
+async function syncChannelFocus() {
+  const slug = channelSlug.value;
+  if (!slug || !orgId.value) return clearAiFocus();
+  try {
+    const rows = await listChannelsForFocus({
+      filter: { slug: { _eq: slug }, organization: { _eq: orgId.value } },
+      fields: ["id", "name"],
+      limit: 1,
+    });
+    const ch = rows?.[0] as any;
+    if (ch?.id) setAiFocus({ entityType: "channel", entityId: String(ch.id), label: `#${ch.name || slug}` });
+    else clearAiFocus();
+  } catch {
+    clearAiFocus();
+  }
+}
+onMounted(syncChannelFocus);
+watch(channelSlug, syncChannelFocus);
+onBeforeUnmount(clearAiFocus);
+
 const handleChannelSelect = (channel: HoaChannel) =>
   router.push(buildOrgPath(`/admin/channels/${channel.slug}`));
 const handleChannelCreated = (channel: any) =>

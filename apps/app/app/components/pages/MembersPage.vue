@@ -284,6 +284,21 @@ const handleEdit = (member: any) => {
   showAddModal.value = true;
 };
 
+// Anchor the AI assistant to the member being viewed/edited while the modal is
+// open, so the assistant answers about THIS member (and keeps their own thread).
+const { setContext: setAiFocus, clearContext: clearAiFocus } = useAiContext();
+watch(showAddModal, (open) => {
+  if (open && editingId.value) {
+    setAiFocus({
+      entityType: "member",
+      entityId: editingId.value,
+      label: `${form.first_name} ${form.last_name}`.trim() || "Member",
+    });
+  } else {
+    clearAiFocus();
+  }
+});
+
 // Keep the org's denormalized member_count in sync after member changes.
 const recomputeCount = async () => {
   if (!organization.value?.id) return;

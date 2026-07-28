@@ -150,6 +150,18 @@ const openEdit = (v: HoaVendor) => {
   dialogOpen.value = true;
 };
 
+// Anchor the AI assistant to the vendor being viewed/edited while the dialog is
+// open, so the assistant answers about THIS vendor (and keeps its own thread).
+const { setContext: setAiFocus, clearContext: clearAiFocus } = useAiContext();
+watch(dialogOpen, (open) => {
+  const e = editing.value as any;
+  if (open && e?.id) {
+    setAiFocus({ entityType: "vendor", entityId: e.id, label: e.company || e.name || "Vendor" });
+  } else {
+    clearAiFocus();
+  }
+});
+
 const saveVendor = async () => {
   if (!orgId.value) return;
   const e = editing.value;
