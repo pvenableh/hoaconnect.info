@@ -46,27 +46,27 @@
 	--theme-bg-elevated: #ffffff;
 	--theme-bg-overlay: rgba(253, 252, 250, 0.95);
 
-	/* Text colors - ink */
-	--theme-text-primary: #454545;
-	--theme-text-secondary: #6c6c6c;
-	--theme-text-tertiary: #8b7355;
+	/* Text colors - near-black ink (matched to 1033lenox.com rgb(18,28,38)) */
+	--theme-text-primary: rgb(18, 28, 38);
+	--theme-text-secondary: #454545;
+	--theme-text-tertiary: #6c6c6c;
 	--theme-text-muted: #9a9a9a;
 	--theme-text-inverse: #ffffff;
 
-	/* Accent colors - aged brass / gold (matched to 1033lenox.com) */
-	--theme-accent-primary: #c9a96e;
-	--theme-accent-secondary: #d4ba8a;
-	--theme-accent-tertiary: #8b7355;
-	--theme-accent-hover: #b89a5f;
-	--theme-accent-active: var(--cyan2, #00d4aa);
+	/* Accent colors - cyan + teal (matched to 1033lenox.com #00bfff / #00efd1) */
+	--theme-accent-primary: #00bfff;
+	--theme-accent-secondary: #00efd1;
+	--theme-accent-tertiary: #00a3d9;
+	--theme-accent-hover: #00a3d9;
+	--theme-accent-active: var(--cyan2, #00efd1);
 	/* Glass system accent (HSL parts of accent-primary) — drives earnest-ui.css
-	   glass tints, skeletons, spinner, scrollbars so they read brass, not cyan. */
-	--app-accent-h: 39; --app-accent-s: 46%; --app-accent-l: 61%;
+	   glass tints, skeletons, spinner, scrollbars so they read cyan like 1033. */
+	--app-accent-h: 195; --app-accent-s: 100%; --app-accent-l: 45%;
 
-	/* Border colors - editorial hairline rules */
-	--theme-border-primary: #e5e0d8;
-	--theme-border-secondary: #d4cfc7;
-	--theme-border-light: #f0ebe3;
+	/* Border colors - light-grey editorial hairline rules (1033 uses ~#ccc) */
+	--theme-border-primary: #e2e1de;
+	--theme-border-secondary: #d0cfcb;
+	--theme-border-light: #eeedea;
 
 	/* Component-specific */
 	--theme-header-bg: #f5f3ef;
@@ -75,25 +75,26 @@
 	--theme-nav-bg: rgba(255, 255, 255, 0.85);
 	--theme-drawer-bg: rgba(255, 255, 255, 0.92);
 
-	/* Typography - editorial serif display + serif body */
+	/* Typography - Bauer Bodoni serif display over a light sans body (Proxima
+	   Nova Light on 1033; falls back to a clean light sans here). */
 	--theme-heading-font: 'Bauer Bodoni Pro_1 W05 Roman', 'Times New Roman', Times, serif;
-	--theme-body-font: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--theme-body-font: 'Proxima Nova', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
 
-	/* Shadows */
-	--theme-shadow-sm: 0 1px 2px rgba(139, 115, 85, 0.05);
-	--theme-shadow-md: 0 4px 6px rgba(139, 115, 85, 0.07);
-	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
+	/* Shadows - neutral cool ink (no more brass tint) */
+	--theme-shadow-sm: 0 1px 2px rgba(18, 28, 38, 0.05);
+	--theme-shadow-md: 0 4px 6px rgba(18, 28, 38, 0.07);
+	--theme-shadow-lg: 0 10px 15px rgba(18, 28, 38, 0.1);
 
-	/* Interactive */
-	--theme-link-color: #8b7355;
-	--theme-link-hover: #c9a96e;
-	--theme-button-bg: #c9a96e;
+	/* Interactive - cyan links, near-black ink pill buttons */
+	--theme-link-color: #00a3d9;
+	--theme-link-hover: #00bfff;
+	--theme-button-bg: rgb(18, 28, 38);
 	--theme-button-text: #ffffff;
-	--theme-button-hover-bg: #b89a5f;
+	--theme-button-hover-bg: #2a3a4a;
 
 	/* Dividers */
-	--theme-divider: #e5e0d8;
-	--theme-divider-light: #f0ebe3;
+	--theme-divider: #e2e1de;
+	--theme-divider-light: #eeedea;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -135,18 +136,18 @@
 	/* Text colors */
 	--theme-text-primary: #F5F3EF;
 	--theme-text-secondary: #C9C4BA;
-	--theme-text-tertiary: #D4BA8A;
+	--theme-text-tertiary: #7fe3ff;
 	--theme-text-muted: #8A857A;
 	--theme-text-inverse: #1C1915;
 
-	/* Accent colors - gold tones */
-	--theme-accent-primary: #D4BA8A;
-	--theme-accent-secondary: #C9A96E;
-	--theme-accent-tertiary: #E5D4B3;
-	--theme-accent-hover: #E5D4B3;
+	/* Accent colors - cyan + teal (dark classic) */
+	--theme-accent-primary: #35cdff;
+	--theme-accent-secondary: #00efd1;
+	--theme-accent-tertiary: #7fe3ff;
+	--theme-accent-hover: #7fe3ff;
 	--theme-accent-active: #00efd1;
-	/* Glass system accent (HSL parts of accent-primary) — gold for dark classic. */
-	--app-accent-h: 39; --app-accent-s: 46%; --app-accent-l: 69%;
+	/* Glass system accent (HSL parts of accent-primary) — cyan for dark classic. */
+	--app-accent-h: 195; --app-accent-s: 100%; --app-accent-l: 60%;
 
 	/* Border colors */
 	--theme-border-primary: #3D372E;
@@ -170,11 +171,11 @@
 	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
 
 	/* Interactive */
-	--theme-link-color: #D4BA8A;
-	--theme-link-hover: #E5D4B3;
-	--theme-button-bg: #C9A96E;
-	--theme-button-text: #1C1915;
-	--theme-button-hover-bg: #D4BA8A;
+	--theme-link-color: #35cdff;
+	--theme-link-hover: #7fe3ff;
+	--theme-button-bg: #35cdff;
+	--theme-button-text: #071019;
+	--theme-button-hover-bg: #7fe3ff;
 
 	/* Dividers */
 	--theme-divider: #3D372E;

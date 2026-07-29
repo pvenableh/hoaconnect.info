@@ -25,6 +25,7 @@ const groups = computed<HubGroup[]>(() => [
     label: "Public site",
     description: "Your community's outward-facing landing page and domain.",
     items: [
+      { label: "Design your site", description: "Drag-and-drop builder for your public landing page, with live preview and AI.", icon: "layout-template", to: buildOrgPath("/admin/settings/site") },
       { label: "Landing & domains", description: "Built-in landing vs external site, and custom/APEX domain.", icon: "globe", to: buildOrgPath("/admin/settings/domains") },
     ],
   },

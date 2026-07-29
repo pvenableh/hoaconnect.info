@@ -58,7 +58,7 @@
           v-if="isAdminOfCurrentDomain"
           type="button"
           class="landing-glass-btn h-10 px-4 gap-2 text-xs uppercase tracking-wide"
-          @click="navigateToOrg('/admin/settings/domains')"
+          @click="navigateToOrg('/admin/settings/site')"
         >
           <Icon name="lucide:pencil" class="w-4 h-4" />
           <span class="hidden sm:inline">Edit public site</span>
@@ -106,7 +106,7 @@
           v-if="isAdminOfCurrentDomain && !organization?.hero?.foreground_image && !organization?.logo"
           type="button"
           class="hero-fade landing-glass-btn mt-6 h-10 px-4 gap-2 text-xs uppercase tracking-wide mx-auto tappable"
-          @click="navigateToOrg('/admin/settings/domains')"
+          @click="navigateToOrg('/admin/settings/site')"
         >
           <Icon name="lucide:image-plus" class="w-4 h-4" />
           Add a transparent PNG logo

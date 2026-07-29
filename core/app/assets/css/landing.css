@@ -60,8 +60,8 @@
 	animation-delay: 0.5s;
 }
 @keyframes heroFadeUp {
-	from { opacity: 0; transform: translateY(24px); }
-	to { opacity: 1; transform: none; }
+	from { opacity: 0; transform: translateY(24px); filter: blur(1rem); }
+	to { opacity: 1; transform: none; filter: blur(0); }
 }
 @media (prefers-reduced-motion: reduce) {
 	.hero-fade {
@@ -84,18 +84,22 @@
 .reveal {
 	opacity: 0;
 	transform: translateY(22px);
+	filter: blur(1rem); /* 1033lenox settle: fade + rise + de-blur */
 	transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-		transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-	will-change: opacity, transform;
+		transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+		filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: opacity, transform, filter;
 }
 .reveal.is-in {
 	opacity: 1;
 	transform: none;
+	filter: blur(0);
 }
 @media (prefers-reduced-motion: reduce) {
 	.reveal {
 		opacity: 1;
 		transform: none;
+		filter: none;
 		transition: none;
 	}
 }
@@ -108,6 +112,7 @@
 	justify-content: center;
 	gap: 0.5rem;
 	padding: 0.95rem 2rem;
+	border-radius: 999px; /* 1033lenox pill CTAs */
 	font-family: var(--theme-body-font);
 	font-size: 0.75rem;
 	color: #fff;
@@ -140,6 +145,7 @@
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.95rem 2.25rem;
+	border-radius: 999px; /* pill */
 	font-family: var(--theme-body-font);
 	font-size: 0.6875rem;
 	text-transform: uppercase;
@@ -158,6 +164,7 @@
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.95rem 2.25rem;
+	border-radius: 999px; /* pill */
 	font-family: var(--theme-body-font);
 	font-size: 0.6875rem;
 	text-transform: uppercase;
