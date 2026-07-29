@@ -56,7 +56,12 @@ const builder = useLandingBuilder(landing);
 const getFileId = (f: any) => (f ? (typeof f === "object" ? f.id : f) : null);
 function fileUrl(id: string | null | undefined, key?: string) {
   if (!id) return "";
-  return `${config.public.directus.url}/assets/${id}${key ? `?key=${key}` : ""}`;
+  const base = `${config.public.directus.url}/assets/${id}`;
+  // "small" is a convenience for a builder thumbnail. This Directus has no named
+  // transform presets (?key=small → 400), but dynamic transforms are allowed, so
+  // map it to a width param that actually resolves.
+  if (key === "small") return `${base}?width=400&quality=75`;
+  return key ? `${base}?key=${key}` : base;
 }
 async function uploadImage(file: File, title = "Landing image"): Promise<string | null> {
   const folderId = typeof org.value?.folder === "object" ? org.value?.folder?.id : org.value?.folder;
@@ -112,16 +117,11 @@ const load = async () => {
   if (!orgId.value) return;
   loading.value = true;
   try {
-    const o: any = await orgItems.get(orgId.value, {
-      fields: [
-        "*",
-        {
-          settings: ["*"],
-          hero: ["*", { background_image: ["id"], foreground_image: ["id"] }],
-          amenities: ["id", "title", "icon", "description", "sort"],
-        },
-      ],
-    });
+    // Load through the server route (service token) — the same source the public
+    // page + preview use. A client-side SDK read returns the hero/amenity image
+    // relations as null under the user's token, which would wipe those images on
+    // save. This returns the full hero/settings/amenities/folder reliably.
+    const o: any = await $fetch("/api/hoa/find", { query: { slug: slug.value } });
     org.value = o;
 
     site.theme = (o.settings?.theme as any) || "classic";
