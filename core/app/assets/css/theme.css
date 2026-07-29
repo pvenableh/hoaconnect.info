@@ -724,9 +724,9 @@ html.theme-modern-dark {
   border-radius: 9999px;
   color: var(--theme-text-secondary);
   background: color-mix(in srgb, var(--theme-accent-primary) 6%, var(--theme-bg-elevated));
-  /* Idle: a single faint hairline (no accent halo). The full accent ring is
-     reserved for hover / focus / open so interaction is what draws the eye. */
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme-accent-primary) 12%, transparent);
+  /* Idle: the refracted glass rim (top-lit highlight + faint ring), not a flat
+     hairline. The full accent ring is still reserved for hover / focus / open. */
+  box-shadow: var(--glass-rim-shadow);
   transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease,
     scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
 }

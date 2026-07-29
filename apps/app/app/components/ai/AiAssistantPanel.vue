@@ -375,7 +375,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     v-model="input"
                     placeholder="Ask the assistant…"
                     rows="1"
-                    class="resize-none max-h-32"
+                    class="resize-none max-h-32 glass-field"
                     :disabled="chat.isStreaming.value"
                     @keydown.enter.exact.prevent="onSend"
                   />
