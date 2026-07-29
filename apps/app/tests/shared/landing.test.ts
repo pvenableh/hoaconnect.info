@@ -159,3 +159,17 @@ describe("narrativeSections — numbered editorial flow", () => {
     expect(contentAlts).toEqual([false, true, false]);
   });
 });
+
+describe("normalizeLandingConfig — location & gallery blocks survive a round-trip", () => {
+  it("keeps stored location and gallery blocks (regression: they were being dropped)", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        { id: "b_about", type: "about", enabled: true },
+        { id: "b_location", type: "location", enabled: true },
+        { id: "b_gallery", type: "gallery", enabled: false },
+      ],
+    });
+    expect(cfg.blocks.map((b) => b.type)).toEqual(["about", "location", "gallery"]);
+    expect(cfg.blocks.find((b) => b.type === "gallery")?.enabled).toBe(false);
+  });
+});

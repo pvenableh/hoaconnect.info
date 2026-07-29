@@ -282,10 +282,15 @@ import OrgLandingFooter from "./Landing/LandingFooter.vue";
 const props = defineProps({
   organization: { type: Object, required: true },
   slug: { type: String, required: true },
+  // Rendered inside the admin builder's preview iframe — hide admin edit chrome
+  // and skip the view beacon so previewing never edits or inflates stats.
+  preview: { type: Boolean, default: false },
 });
 
 const { user } = useDirectusAuth();
-const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
+const { isAdminOfCurrentDomain: isAdminRaw } = useCurrentDomainAccess();
+// In preview mode, never show the admin edit buttons/nudges (this IS the editor).
+const isAdminOfCurrentDomain = computed(() => !props.preview && isAdminRaw.value);
 const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
 
@@ -360,15 +365,17 @@ const rootEl = ref(null);
 onMounted(() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Page-view beacon (once per session, best-effort).
-  try {
-    const key = `landing-view-${props.slug}`;
-    if (!sessionStorage.getItem(key)) {
-      sessionStorage.setItem(key, "1");
-      $fetch("/api/landing/view", { method: "POST", body: { slug: props.slug } }).catch(() => {});
+  // Page-view beacon (once per session, best-effort). Skipped in builder preview.
+  if (!props.preview) {
+    try {
+      const key = `landing-view-${props.slug}`;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        $fetch("/api/landing/view", { method: "POST", body: { slug: props.slug } }).catch(() => {});
+      }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 
   window.addEventListener("scroll", onScroll, { passive: true });

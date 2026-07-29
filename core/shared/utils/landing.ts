@@ -482,6 +482,8 @@ const ALL_BLOCK_TYPES: LandingBlockType[] = [
   "faq",
   "board",
   "contact",
+  "location",
+  "gallery",
 ];
 
 /** Coerce one stored block into a complete LandingBlock. */
