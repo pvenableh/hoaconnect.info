@@ -29,6 +29,28 @@ const replyAttachments = ref<string[]>([]);
 const showReplies = ref(false);
 const isDeleting = ref(false);
 
+// External URLs in the message body → rendered as link-preview cards (max 3;
+// internal/localhost links are skipped so we don't preview our own app).
+const messageUrls = computed(() => {
+  const html = String(props.message.content || "");
+  const mainDomain = String((config.public as any)?.mainDomain || "hoaconnect.info");
+  const urls: string[] = [];
+  const re = /href=["'](https?:\/\/[^"']+)["']/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const u = m[1]!;
+    try {
+      const host = new URL(u).hostname.toLowerCase();
+      if (host === "localhost" || host === mainDomain || host.endsWith(`.${mainDomain}`)) continue;
+    } catch {
+      continue;
+    }
+    if (!urls.includes(u)) urls.push(u);
+    if (urls.length >= 3) break;
+  }
+  return urls;
+});
+
 // Get message replies using realtime subscription
 const { data: replies, isLoading: repliesLoading } = useRealtimeSubscription(
   "hoa_channel_messages",
@@ -201,6 +223,9 @@ const authorName = computed(() => {
           class="prose prose-sm dark:prose-invert max-w-none t-text-secondary"
           v-html="message.content"
         />
+
+        <!-- Link previews for external URLs in the body -->
+        <ChannelsChannelLinkPreview v-for="u in messageUrls" :key="u" :url="u" />
 
         <!-- Attachments -->
         <ChannelsChannelAttachments
