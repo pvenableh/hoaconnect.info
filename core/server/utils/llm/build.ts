@@ -47,6 +47,13 @@ export function buildCreateParams(p: StreamChatParams): Record<string, any> {
   if (system) params.system = system;
   if (p.thinking) params.thinking = { type: "adaptive" };
   if (p.effort) params.output_config = { effort: p.effort };
+  if (p.tools?.length) {
+    params.tools = p.tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.input_schema,
+    }));
+  }
   return params;
 }
 

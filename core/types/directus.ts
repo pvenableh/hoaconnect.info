@@ -44,6 +44,8 @@ export interface AiAction {
 	approved_by?: DirectusUser | string | null;
 	date_created?: string | null;
 	date_updated?: string | null;
+	/** @description Human one-line summary of the proposed action. */
+	title?: string | null;
 }
 
 export interface AiContextSnapshot {
@@ -1133,6 +1135,8 @@ export interface HoaOrganization {
 	connect_charges_enabled?: boolean | null;
 	/** @description Mirror of Stripe account.payouts_enabled */
 	connect_payouts_enabled?: boolean | null;
+	/** @description AI assistant trust dial: 0 ask everything · 1 low-risk internal · 2 up to medium · 3 all non-outbound. Outbound always asks. */
+	ai_autonomy_tier?: 0 | 1 | 2 | 3 | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

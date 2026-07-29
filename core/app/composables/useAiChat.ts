@@ -106,10 +106,10 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
    * balance, or throws with `.status` (402 = out of credits, 503 = AI not
    * configured) so the panel can react (e.g. open the buy-credits dialog).
    */
-  async function send(text: string): Promise<{ credits: number; balanceCredits: number }> {
+  async function send(text: string): Promise<{ credits: number; balanceCredits: number; actions: any[] }> {
     if (!orgId.value) throw new Error("No organization selected");
     const trimmed = text.trim();
-    if (!trimmed) return { credits: 0, balanceCredits: 0 };
+    if (!trimmed) return { credits: 0, balanceCredits: 0, actions: [] };
 
     messages.value.push({ role: "user", content: trimmed });
     const assistant = reactive<ChatMessage>({ role: "assistant", content: "", pending: true });
@@ -147,7 +147,8 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let result = { credits: 0, balanceCredits: 0 };
+      const proposedActions: any[] = [];
+      let result = { credits: 0, balanceCredits: 0, actions: proposedActions };
 
       while (true) {
         const { value, done } = await reader.read();
@@ -170,8 +171,11 @@ export function useAiChat(orgId: Ref<string | null | undefined>) {
             conversationId.value = msg.conversationId;
           } else if (msg.type === "delta") {
             assistant.content += msg.text;
+          } else if (msg.type === "action") {
+            // The assistant proposed a HITL action mid-turn (a pending row).
+            if (msg.action) proposedActions.push(msg.action);
           } else if (msg.type === "done") {
-            result = { credits: msg.credits, balanceCredits: msg.balanceCredits };
+            result = { credits: msg.credits, balanceCredits: msg.balanceCredits, actions: proposedActions };
           } else if (msg.type === "error") {
             throw new Error(msg.message || "Chat failed");
           }

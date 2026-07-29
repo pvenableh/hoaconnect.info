@@ -96,6 +96,8 @@ const channelsPanel = useChannelsPanel();
 // Contextual AI assistant — a slide-over (useAiAssistant) over the current page,
 // like Channels. Staff-only at launch (admin / board / property manager).
 const aiAssistant = useAiAssistant();
+// Shared count of AI proposals awaiting approval → launcher badge (Phase 4).
+const aiPendingCount = useAiPendingCount();
 const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
 onMounted(refreshChannelAccess);
 watch(() => route.params.slug, refreshChannelAccess);
@@ -125,6 +127,22 @@ const showAssistant = computed(
       isBoardMemberOfCurrentDomain.value ||
       isPropertyManagerOfCurrentDomain.value)
 );
+
+// Keep the AI-proposals badge fresh for staff who can act on them.
+const selectedOrgIdForAi = useState<string | null>("selectedOrgId", () => null);
+async function refreshAiPending() {
+  if (!showAssistant.value || !selectedOrgIdForAi.value) return;
+  try {
+    const r = await $fetch<{ count: number }>("/api/ai/actions/pending-count", {
+      query: { orgId: selectedOrgIdForAi.value },
+    });
+    aiPendingCount.value = r.count ?? 0;
+  } catch {
+    /* leave as-is */
+  }
+}
+onMounted(refreshAiPending);
+watch([showAssistant, selectedOrgIdForAi], refreshAiPending);
 
 // Determine if admin UI should be shown
 // On org context (slug route): only show if admin of THAT org
@@ -443,12 +461,19 @@ watch(
           <button
             v-if="showAssistant"
             type="button"
-            class="hidden sm:inline-flex items-center justify-center header-pill"
+            class="hidden sm:inline-flex items-center justify-center header-pill relative"
             title="Assistant"
             aria-label="Open AI assistant"
             @click="aiAssistant.toggle()"
           >
             <Icon name="i-lucide-sparkles" class="w-4 h-4" />
+            <span
+              v-if="aiPendingCount > 0"
+              class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center"
+              :title="`${aiPendingCount} AI proposal${aiPendingCount > 1 ? 's' : ''} awaiting approval`"
+            >
+              {{ aiPendingCount > 9 ? "9+" : aiPendingCount }}
+            </span>
           </button>
           <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
           <!-- Channels is a quick action (pops a slide-over); it doesn't carry a

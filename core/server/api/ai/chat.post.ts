@@ -12,6 +12,9 @@
 import { createItem, readItem, readItems, updateItem } from "@directus/sdk";
 import { MODEL_TIERS, type ModelTier } from "#core/shared/ai/credits";
 import { getLlmProvider } from "#core/server/utils/llm/provider";
+import { getActionTools } from "#core/server/utils/llm/tools";
+import { proposeAction } from "#core/server/utils/ai-actions";
+import { getOrgAutonomyTier } from "#core/server/utils/ai-autonomy";
 import type { SystemBlock } from "#core/server/utils/llm/types";
 
 /** Newest-to-oldest history we replay to the model (keeps the prompt bounded). */
@@ -89,6 +92,14 @@ export default defineEventHandler(async (event) => {
   const tier: ModelTier = requestedTier ?? (heavy ? "standard" : "fast");
   const model = MODEL_TIERS[tier] ?? MODEL_TIERS.fast;
   const isFast = model === MODEL_TIERS.fast;
+
+  // HITL actions: the assistant may PROPOSE actions (create a task, update a
+  // request, draft an email…) unless the client opts out. Proposals are inert
+  // until approved; the org's trust dial decides whether low-risk internal ones
+  // auto-run. Outbound proposals never auto-run.
+  const actionsEnabled = body?.allowActions !== false;
+  const autonomyTier = actionsEnabled ? await getOrgAutonomyTier(orgId) : 0;
+  const actionTools = actionsEnabled ? getActionTools() : [];
 
   const directus = getTypedDirectus();
 
@@ -181,7 +192,7 @@ export default defineEventHandler(async (event) => {
   // last block caches both across the conversation's turns; 5-min TTL). The org
   // block is skipped when the user toggled "organization" off.
   const systemInput: SystemBlock[] = [
-    { text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors) }) },
+    { text: chatSystemPrompt({ orgName, actorLabel: actorLabelFor(actors), canPropose: actionsEnabled }) },
   ];
   if (allow("organization")) {
     const orgContext = await getOrgContextCached(orgId);
@@ -227,28 +238,89 @@ export default defineEventHandler(async (event) => {
   // Stream in the background; return the SSE response immediately.
   (async () => {
     let full = "";
-    try {
-      // Haiku (fast) rejects effort + adaptive thinking; pass them only on the
-      // heavier tiers and the provider adds them to the request.
+    // Sum token usage across both tool rounds so metering is exact.
+    const usageAcc = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+    const addUsage = (u: any) => {
+      usageAcc.input_tokens += u?.input_tokens ?? 0;
+      usageAcc.output_tokens += u?.output_tokens ?? 0;
+      usageAcc.cache_read_input_tokens += u?.cache_read_input_tokens ?? 0;
+      usageAcc.cache_creation_input_tokens += u?.cache_creation_input_tokens ?? 0;
+    };
+
+    // Stream one turn, forwarding text deltas to the client; returns finalMessage.
+    const streamTurn = async (turnMessages: any[]) => {
       const stream = llm.stream({
         model,
         maxTokens: 1500,
         system: systemInput,
-        messages,
+        messages: turnMessages,
         thinking: !isFast,
         effort: isFast ? undefined : "medium",
+        tools: actionTools.length ? actionTools : undefined,
       });
-
       for await (const ev of stream) {
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           full += ev.delta.text;
           await sse.push(JSON.stringify({ type: "delta", text: ev.delta.text }));
         }
       }
+      return stream.finalMessage();
+    };
 
-      const final = await stream.finalMessage();
+    try {
+      // Round 1 — the model may answer, or call tools (stop_reason "tool_use").
+      const final1 = await streamTurn(messages);
+      addUsage(final1.usage);
+      let finalStop = final1.stop_reason;
 
-      // Persist the assistant turn with metered token channels.
+      // Tool round: turn each tool_use into a PROPOSAL (a pending ai_actions row),
+      // emit it to the client, feed the results back, and stream the model's
+      // closing prose. Capped at one tool round to keep turns bounded + cheap.
+      if (actionsEnabled && final1.stop_reason === "tool_use") {
+        const toolUses = (final1.content as any[]).filter((b) => b.type === "tool_use");
+        const toolResults: any[] = [];
+        for (const tu of toolUses) {
+          const res = await proposeAction(tu.name, tu.input as any, {
+            orgId,
+            userId,
+            conversationId,
+            entityType: context?.entityType ?? null,
+            entityId: context?.entityId ? String(context.entityId) : null,
+            autonomyTier,
+          });
+          // Surface the proposal so the client can render its card + refresh the queue.
+          await sse.push(
+            JSON.stringify({
+              type: "action",
+              action: {
+                id: res.actionId ?? null,
+                actionType: tu.name,
+                status: res.status ?? (res.success ? "pending" : "error"),
+                error: res.error ?? null,
+              },
+            })
+          );
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: tu.id,
+            content: res.success
+              ? JSON.stringify({ success: true, summary: res.summary })
+              : JSON.stringify({ success: false, error: res.error }),
+            is_error: !res.success,
+          });
+        }
+
+        const round2Messages = [
+          ...messages,
+          { role: "assistant", content: final1.content },
+          { role: "user", content: toolResults },
+        ];
+        const final2 = await streamTurn(round2Messages);
+        addUsage(final2.usage);
+        finalStop = final2.stop_reason;
+      }
+
+      // Persist the assistant turn with the summed, metered token channels.
       await directus.request(
         createItem("ai_messages", {
           organization: orgId,
@@ -256,10 +328,10 @@ export default defineEventHandler(async (event) => {
           role: "assistant",
           content: full,
           model,
-          input_tokens: final.usage.input_tokens ?? 0,
-          output_tokens: final.usage.output_tokens ?? 0,
-          cache_read_tokens: (final.usage as any).cache_read_input_tokens ?? 0,
-          cache_write_tokens: (final.usage as any).cache_creation_input_tokens ?? 0,
+          input_tokens: usageAcc.input_tokens,
+          output_tokens: usageAcc.output_tokens,
+          cache_read_tokens: usageAcc.cache_read_input_tokens,
+          cache_write_tokens: usageAcc.cache_creation_input_tokens,
         } as any)
       );
       await directus.request(
@@ -269,12 +341,12 @@ export default defineEventHandler(async (event) => {
       const charge = await chargeForCompletion({
         orgId,
         userId,
-        usage: final.usage,
+        usage: usageAcc,
         model,
         feature: "chat",
       });
       await sse.push(
-        JSON.stringify({ type: "done", credits: charge.credits, balanceCredits: charge.balanceCredits })
+        JSON.stringify({ type: "done", credits: charge.credits, balanceCredits: charge.balanceCredits, stop: finalStop })
       );
     } catch (err: any) {
       console.error("AI chat failed:", err?.message || err);

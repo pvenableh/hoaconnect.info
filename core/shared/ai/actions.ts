@@ -72,6 +72,23 @@ export type AutonomyTier = 0 | 1 | 2 | 3;
 /** The default per-org autonomy — the safest setting. */
 export const DEFAULT_AUTONOMY_TIER: AutonomyTier = 0;
 
+/** The trust-dial ladder — label + one-line blurb per tier, for the dial UI. */
+export const AUTONOMY_TIERS: { tier: AutonomyTier; label: string; blurb: string }[] = [
+  { tier: 0, label: "Ask me everything", blurb: "The assistant proposes; nothing happens until you approve it." },
+  { tier: 1, label: "Handle small tasks", blurb: "Auto-runs low-risk internal actions (create a task or note). Everything else waits." },
+  { tier: 2, label: "Handle internal work", blurb: "Auto-runs internal record changes too. Resident/board-facing actions still wait." },
+  { tier: 3, label: "Full internal autonomy", blurb: "Auto-runs any internal action. Anything outbound always waits for you." },
+];
+
+/** Coerce any value into a valid tier (0–3), defaulting to 0. */
+export function clampAutonomyTier(v: unknown): AutonomyTier {
+  const n = Math.trunc(Number(v));
+  if (n >= 3) return 3;
+  if (n === 2) return 2;
+  if (n === 1) return 1;
+  return 0;
+}
+
 /**
  * Whether a proposed action may auto-execute at the given trust tier. Outbound
  * (resident/board-facing) actions ALWAYS return false — a hard cap that no tier

@@ -21,13 +21,21 @@ const chat = useAiChat(orgId);
 const { summary, refresh: refreshCredits, buyPack } = useAiCredits(orgId);
 const { currentContext } = useAiContext();
 const { setRagAvailable } = useAiAwareness();
+const aiActions = useAiActions(orgId);
+const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const route = useRoute();
 
 // Tell the awareness chip whether document search (RAG) is available here, so it
 // only offers the "Documents" source when the env actually has it.
 watch(summary, (s) => setRagAvailable(!!(s as any)?.ragConfigured), { immediate: true });
 
-const view = ref<"chat" | "list">("chat");
+const view = ref<"chat" | "list" | "actions">("chat");
+
+// Open the Proposals queue (loads the org's actions on demand).
+async function openActions() {
+  view.value = "actions";
+  await aiActions.fetchActions();
+}
 const input = ref("");
 const scroller = ref<HTMLElement | null>(null);
 const formatCredits = (n: number) => n.toLocaleString();
@@ -103,6 +111,7 @@ watch(
     refreshCredits();
     loadSuggestions();
     chat.fetchConversations();
+    aiActions.refreshPendingCount();
     if (activeConversationId.value && activeConversationId.value !== chat.conversationId.value) {
       await chat.loadConversation(activeConversationId.value);
     } else {
@@ -129,8 +138,16 @@ async function onSend() {
   input.value = "";
   view.value = "chat";
   try {
-    await chat.send(text);
+    const res = await chat.send(text);
     await refreshCredits();
+    // The assistant may have proposed HITL actions this turn — surface them.
+    if (res?.actions?.length) {
+      await aiActions.refreshPendingCount();
+      const proposed = res.actions.filter((a: any) => a.status === "pending").length;
+      const ran = res.actions.filter((a: any) => a.status === "executed").length;
+      if (proposed) toast.info(`Proposed ${proposed} action${proposed > 1 ? "s" : ""} — review in Proposals`, { action: { label: "Review", onClick: openActions } });
+      else if (ran) toast.success(`Handled ${ran} action${ran > 1 ? "s" : ""} automatically`);
+    }
   } catch (err: any) {
     if (err?.status === 402) {
       toast.error("You're out of AI credits — top up to keep chatting");
@@ -215,7 +232,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             <div class="flex items-center justify-between px-4 h-14 border-b t-border shrink-0">
               <div class="flex items-center gap-2 min-w-0">
                 <button
-                  v-if="view === 'list'"
+                  v-if="view !== 'chat'"
                   class="header-pill"
                   title="Back to chat"
                   @click="view = 'chat'"
@@ -223,7 +240,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   <Icon name="lucide:chevron-left" class="w-4 h-4" />
                 </button>
                 <span class="t-icon-chip"><Icon name="lucide:sparkles" class="w-4 h-4" /></span>
-                <span class="font-semibold truncate t-text">Assistant</span>
+                <span class="font-semibold truncate t-text">{{ view === 'actions' ? 'Proposals' : 'Assistant' }}</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <!-- Wallet meter -->
@@ -240,6 +257,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 </button>
                 <button class="header-pill" title="New chat" @click="newChat">
                   <Icon name="lucide:plus" class="w-4 h-4" />
+                </button>
+                <button
+                  class="header-pill relative"
+                  title="Proposals"
+                  @click="view === 'actions' ? (view = 'chat') : openActions()"
+                >
+                  <Icon name="lucide:list-checks" class="w-4 h-4" />
+                  <span
+                    v-if="aiActions.pendingCount.value > 0"
+                    class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center"
+                  >
+                    {{ aiActions.pendingCount.value > 9 ? "9+" : aiActions.pendingCount.value }}
+                  </span>
                 </button>
                 <button class="header-pill" title="History" @click="view = view === 'list' ? 'chat' : 'list'">
                   <Icon name="lucide:history" class="w-4 h-4" />
@@ -290,6 +320,48 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 <span class="truncate text-sm t-text">{{ c.title || "Untitled" }}</span>
                 <span class="shrink-0 text-xs t-text-muted">{{ fmtDate(c.date_updated) }}</span>
               </button>
+            </div>
+
+            <!-- Proposals queue — HITL actions the assistant proposed. -->
+            <div v-else-if="view === 'actions'" key="actions" class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 w-full max-w-3xl mx-auto">
+              <AiTrustDial :org-id="orgId" :can-edit="isAdminOfCurrentDomain" />
+
+              <div v-if="aiActions.loading.value" class="flex items-center justify-center py-8 t-text-muted">
+                <Icon name="lucide:loader-circle" class="w-5 h-5 animate-spin" />
+              </div>
+              <div v-else-if="!aiActions.actions.value.length" class="text-center py-10 px-6">
+                <span class="t-icon-chip !w-11 !h-11 mx-auto mb-2"><Icon name="lucide:list-checks" class="w-5 h-5" /></span>
+                <p class="t-text font-medium">No proposals yet</p>
+                <p class="text-sm t-text-muted">Ask the assistant to do something — draft an email, open a request, add a task — and it'll queue it here for your approval.</p>
+              </div>
+              <template v-else>
+                <div v-if="aiActions.pending.value.length" class="space-y-2">
+                  <p class="text-[11px] uppercase tracking-wide font-semibold t-text-muted">Awaiting approval</p>
+                  <AiActionCard
+                    v-for="a in aiActions.pending.value"
+                    :key="a.id"
+                    :action="a"
+                    :busy="aiActions.busyId.value === a.id"
+                    @approve="aiActions.approve"
+                    @reject="aiActions.reject"
+                    @undo="aiActions.undo"
+                    @edit="aiActions.edit"
+                  />
+                </div>
+                <div v-if="aiActions.actions.value.some((a) => a.status !== 'pending')" class="space-y-2">
+                  <p class="text-[11px] uppercase tracking-wide font-semibold t-text-muted pt-1">History</p>
+                  <AiActionCard
+                    v-for="a in aiActions.actions.value.filter((x) => x.status !== 'pending')"
+                    :key="a.id"
+                    :action="a"
+                    :busy="aiActions.busyId.value === a.id"
+                    @approve="aiActions.approve"
+                    @reject="aiActions.reject"
+                    @undo="aiActions.undo"
+                    @edit="aiActions.edit"
+                  />
+                </div>
+              </template>
             </div>
 
             <!-- Chat thread -->

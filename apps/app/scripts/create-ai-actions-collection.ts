@@ -173,6 +173,10 @@ async function main() {
     schema: { is_nullable: false },
     meta: { interface: "input", required: true, width: "half", note: "Catalog key (e.g. create_task, send_email)." },
   });
+  await createField("ai_actions", "title", {
+    type: "string",
+    meta: { interface: "input", note: "Human one-line summary of the proposed action." },
+  });
   await createField("ai_actions", "status", {
     type: "string",
     schema: { is_nullable: false, default_value: "pending" },

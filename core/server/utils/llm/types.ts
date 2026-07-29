@@ -43,6 +43,9 @@ export interface StreamChatParams {
   thinking?: boolean;
   /** Output effort hint — heavier tiers only. */
   effort?: Effort;
+  /** HITL tools the model may call (Phase 4). Streamed like any turn; tool_use
+   *  blocks surface via finalMessage() for the caller to run + round-trip. */
+  tools?: ToolDefinition[];
 }
 
 /** Tool schema (mirrors Anthropic's tool shape, kept provider-neutral). */

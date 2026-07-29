@@ -3,6 +3,8 @@ import {
   ACTION_CATALOG,
   actionByKey,
   shouldAutoApprove,
+  clampAutonomyTier,
+  AUTONOMY_TIERS,
   DEFAULT_AUTONOMY_TIER,
   type AutonomyTier,
 } from "#core/shared/ai/actions";
@@ -69,5 +71,30 @@ describe("shouldAutoApprove", () => {
 
   it("unknown actions never auto-approve", () => {
     expect(shouldAutoApprove("does_not_exist", 3)).toBe(false);
+  });
+});
+
+describe("clampAutonomyTier", () => {
+  it("keeps valid tiers", () => {
+    expect(clampAutonomyTier(0)).toBe(0);
+    expect(clampAutonomyTier(3)).toBe(3);
+  });
+  it("clamps out-of-range + junk to a safe tier", () => {
+    expect(clampAutonomyTier(5)).toBe(3);
+    expect(clampAutonomyTier(-1)).toBe(0);
+    expect(clampAutonomyTier(null)).toBe(0);
+    expect(clampAutonomyTier("2")).toBe(2);
+    expect(clampAutonomyTier("nonsense")).toBe(0);
+    expect(clampAutonomyTier(2.9)).toBe(2);
+  });
+});
+
+describe("AUTONOMY_TIERS ladder", () => {
+  it("covers tiers 0–3 in order with labels", () => {
+    expect(AUTONOMY_TIERS.map((t) => t.tier)).toEqual([0, 1, 2, 3]);
+    for (const t of AUTONOMY_TIERS) {
+      expect(t.label.length).toBeGreaterThan(0);
+      expect(t.blurb.length).toBeGreaterThan(0);
+    }
   });
 });
