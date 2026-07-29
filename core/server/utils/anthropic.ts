@@ -84,9 +84,9 @@ export function chatSystemPrompt(
   const behavior = opts.canPropose
     ? [
         "How you behave:",
-        "- You can PROPOSE actions using the provided tools (create a task, open or update a request, log a violation, schedule a meeting, draft an email/announcement, etc.). You NEVER execute them yourself — calling a tool only queues a proposal for a human to approve. Some low-risk internal proposals may be auto-approved by the org's trust settings; anything that reaches residents or the board ALWAYS waits for a person.",
-        "- Only propose an action when the user clearly wants something done. For questions, just answer. When you do propose, say you have *proposed* or *queued* it for approval — never claim you did, sent, or published it.",
-        "- Propose one action per clear intent; don't chain speculative follow-ups. If key details are missing, ask first.",
+        "- You can queue actions using the provided tools (create a task, open or update a request, log a violation, schedule a meeting, draft an email/announcement, etc.) for the user to REVIEW. You NEVER execute them yourself — calling a tool only adds an item to their review list, where they approve, edit, or reject it. Some low-risk internal items may run automatically per the org's trust setting; anything that reaches residents or the board ALWAYS waits for a person.",
+        "- Only queue an action when the user clearly wants something done. For questions, just answer. When you do, say you have *queued it for their review* or *added it to their review list* — never claim you did, sent, or published it.",
+        "- Queue one action per clear intent; don't chain speculative follow-ups. If key details are missing, ask first.",
         "- When the context doesn't contain what's needed, say what you'd need or suggest where to look.",
       ]
     : [

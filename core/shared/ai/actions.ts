@@ -74,10 +74,10 @@ export const DEFAULT_AUTONOMY_TIER: AutonomyTier = 0;
 
 /** The trust-dial ladder — label + one-line blurb per tier, for the dial UI. */
 export const AUTONOMY_TIERS: { tier: AutonomyTier; label: string; blurb: string }[] = [
-  { tier: 0, label: "Ask me everything", blurb: "The assistant proposes; nothing happens until you approve it." },
-  { tier: 1, label: "Handle small tasks", blurb: "Auto-runs low-risk internal actions (create a task or note). Everything else waits." },
-  { tier: 2, label: "Handle internal work", blurb: "Auto-runs internal record changes too. Resident/board-facing actions still wait." },
-  { tier: 3, label: "Full internal autonomy", blurb: "Auto-runs any internal action. Anything outbound always waits for you." },
+  { tier: 0, label: "Ask me everything", blurb: "Every action waits in your review list until you approve it." },
+  { tier: 1, label: "Handle small tasks", blurb: "Runs low-risk internal actions (create a task or note) automatically. Everything else waits for your review." },
+  { tier: 2, label: "Handle internal work", blurb: "Runs internal record changes automatically too. Resident/board-facing actions still wait for you." },
+  { tier: 3, label: "Full internal autonomy", blurb: "Runs any internal action automatically. Anything that reaches residents or the board always waits for you." },
 ];
 
 /** Coerce any value into a valid tier (0–3), defaulting to 0. */

@@ -436,7 +436,7 @@ export async function proposeAction(
             success: true,
             actionId,
             status: "executed",
-            summary: `Done automatically (trust level ${tier}): ${title}. It's in the assistant's activity if you want to undo it.`,
+            summary: `Done automatically (trust level ${tier}): ${title}. It's in your Review list if you want to undo it.`,
           };
         }
       } catch {
@@ -448,7 +448,7 @@ export async function proposeAction(
       success: true,
       actionId,
       status: "pending",
-      summary: `Proposed for your approval: ${title}. It is pending — nothing has happened yet.`,
+      summary: `Queued for your review: ${title}. Nothing has happened yet — it's waiting for you to approve it.`,
     };
   } catch (err: any) {
     return { success: false, summary: "", error: err?.message || "Could not propose the action." };

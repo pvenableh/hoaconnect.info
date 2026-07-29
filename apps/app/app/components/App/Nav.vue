@@ -96,7 +96,7 @@ const channelsPanel = useChannelsPanel();
 // Contextual AI assistant — a slide-over (useAiAssistant) over the current page,
 // like Channels. Staff-only at launch (admin / board / property manager).
 const aiAssistant = useAiAssistant();
-// Shared count of AI proposals awaiting approval → launcher badge (Phase 4).
+// Shared count of AI actions awaiting the user's review → launcher badge (Phase 4).
 const aiPendingCount = useAiPendingCount();
 const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
 onMounted(refreshChannelAccess);
@@ -128,7 +128,7 @@ const showAssistant = computed(
       isPropertyManagerOfCurrentDomain.value)
 );
 
-// Keep the AI-proposals badge fresh for staff who can act on them.
+// Keep the AI-review badge fresh for staff who can act on them.
 const selectedOrgIdForAi = useState<string | null>("selectedOrgId", () => null);
 async function refreshAiPending() {
   if (!showAssistant.value || !selectedOrgIdForAi.value) return;
@@ -470,7 +470,7 @@ watch(
             <span
               v-if="aiPendingCount > 0"
               class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center"
-              :title="`${aiPendingCount} AI proposal${aiPendingCount > 1 ? 's' : ''} awaiting approval`"
+              :title="`${aiPendingCount} AI action${aiPendingCount > 1 ? 's' : ''} waiting for your review`"
             >
               {{ aiPendingCount > 9 ? "9+" : aiPendingCount }}
             </span>

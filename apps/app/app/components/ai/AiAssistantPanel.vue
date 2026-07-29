@@ -31,7 +31,7 @@ watch(summary, (s) => setRagAvailable(!!(s as any)?.ragConfigured), { immediate:
 
 const view = ref<"chat" | "list" | "actions">("chat");
 
-// Open the Proposals queue (loads the org's actions on demand).
+// Open the Review queue (loads the org's queued actions on demand).
 async function openActions() {
   view.value = "actions";
   await aiActions.fetchActions();
@@ -145,7 +145,7 @@ async function onSend() {
       await aiActions.refreshPendingCount();
       const proposed = res.actions.filter((a: any) => a.status === "pending").length;
       const ran = res.actions.filter((a: any) => a.status === "executed").length;
-      if (proposed) toast.info(`Proposed ${proposed} action${proposed > 1 ? "s" : ""} — review in Proposals`, { action: { label: "Review", onClick: openActions } });
+      if (proposed) toast.info(`${proposed} action${proposed > 1 ? "s" : ""} waiting for your review`, { action: { label: "Review", onClick: openActions } });
       else if (ran) toast.success(`Handled ${ran} action${ran > 1 ? "s" : ""} automatically`);
     }
   } catch (err: any) {
@@ -240,7 +240,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   <Icon name="lucide:chevron-left" class="w-4 h-4" />
                 </button>
                 <span class="t-icon-chip"><Icon name="lucide:sparkles" class="w-4 h-4" /></span>
-                <span class="font-semibold truncate t-text">{{ view === 'actions' ? 'Proposals' : 'Assistant' }}</span>
+                <span class="font-semibold truncate t-text">{{ view === 'actions' ? 'Review' : 'Assistant' }}</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <!-- Wallet meter -->
@@ -260,7 +260,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 </button>
                 <button
                   class="header-pill relative"
-                  title="Proposals"
+                  title="Review AI actions"
                   @click="view === 'actions' ? (view = 'chat') : openActions()"
                 >
                   <Icon name="lucide:list-checks" class="w-4 h-4" />
@@ -322,7 +322,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </button>
             </div>
 
-            <!-- Proposals queue — HITL actions the assistant proposed. -->
+            <!-- Review queue — actions the assistant has queued for a human OK. -->
             <div v-else-if="view === 'actions'" key="actions" class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 w-full max-w-3xl mx-auto">
               <AiTrustDial :org-id="orgId" :can-edit="isAdminOfCurrentDomain" />
 
@@ -331,12 +331,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </div>
               <div v-else-if="!aiActions.actions.value.length" class="text-center py-10 px-6">
                 <span class="t-icon-chip !w-11 !h-11 mx-auto mb-2"><Icon name="lucide:list-checks" class="w-5 h-5" /></span>
-                <p class="t-text font-medium">No proposals yet</p>
-                <p class="text-sm t-text-muted">Ask the assistant to do something — draft an email, open a request, add a task — and it'll queue it here for your approval.</p>
+                <p class="t-text font-medium">Nothing to review</p>
+                <p class="text-sm t-text-muted">Ask the assistant to do something — draft an email, open a request, add a task — and it'll appear here for you to review before it runs.</p>
               </div>
               <template v-else>
                 <div v-if="aiActions.pending.value.length" class="space-y-2">
-                  <p class="text-[11px] uppercase tracking-wide font-semibold t-text-muted">Awaiting approval</p>
+                  <p class="text-[11px] uppercase tracking-wide font-semibold t-text-muted">Waiting for you</p>
                   <AiActionCard
                     v-for="a in aiActions.pending.value"
                     :key="a.id"
