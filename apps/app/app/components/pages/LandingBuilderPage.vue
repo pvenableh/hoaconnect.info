@@ -279,6 +279,11 @@ const save = async () => {
 function onAdded(id: string) {
   expandedId.value = id;
 }
+function onReset() {
+  if (!window.confirm("Reset to the default section layout? This replaces your current sections. Your saved page isn't changed until you press Save.")) return;
+  builder.resetToDefault();
+  expandedId.value = null;
+}
 function onApplyAi(result: AiLandingResult) {
   if (result.hero?.title) site.hero.title = result.hero.title;
   if (result.hero?.subtitle) site.hero.subtitle = result.hero.subtitle;
@@ -341,9 +346,21 @@ useSeoMeta({ title: "Design your site" });
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="font-semibold t-text">Sections</h2>
-            <Button variant="outline" size="sm" @click="showPalette = true">
-              <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add section
-            </Button>
+            <div class="flex items-center gap-2">
+              <Button
+                v-if="!builder.isEmpty.value"
+                variant="ghost"
+                size="sm"
+                class="t-text-muted"
+                title="Restore the default section layout"
+                @click="onReset"
+              >
+                <Icon name="lucide:rotate-ccw" class="w-4 h-4 mr-1.5" /> Reset
+              </Button>
+              <Button variant="outline" size="sm" @click="showPalette = true">
+                <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add section
+              </Button>
+            </div>
           </div>
           <LandingBuilderHeroCard />
           <LandingBuilderCanvas

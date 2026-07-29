@@ -13,6 +13,7 @@
 import { nanoid } from "nanoid";
 import {
   BUILTIN_BLOCK_TYPES,
+  defaultLandingBlocks,
   type ContentLayout,
   type FeatureStyle,
   type LandingBlock,
@@ -150,6 +151,11 @@ export function useLandingBuilder(landing: Ref<LandingConfig>) {
     landing.value.blocks = [...landing.value.blocks];
   }
 
+  /** Restore the historical default section order (About/Amenities/…/Contact). */
+  function resetToDefault() {
+    landing.value.blocks = defaultLandingBlocks();
+  }
+
   // ── AI populate ───────────────────────────────────────────────────────────
   /**
    * Apply an AI-generated result. The shared validator maps it onto real
@@ -179,6 +185,7 @@ export function useLandingBuilder(landing: Ref<LandingConfig>) {
     moveBlock,
     setOrder,
     toggleBlock,
+    resetToDefault,
     populateFromAI,
   };
 }

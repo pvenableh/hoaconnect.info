@@ -17,8 +17,7 @@ const LOGICAL: Record<string, number> = { desktop: 1280, mobile: 390 };
 
 const iframe = ref<HTMLIFrameElement | null>(null);
 const pane = ref<HTMLElement | null>(null);
-const paneW = ref(0);
-const paneH = ref(0);
+const { width: paneW, height: paneH } = useElementSize(pane);
 const ready = ref(false);
 
 const logicalWidth = computed(() => LOGICAL[device.value]!);
@@ -59,24 +58,8 @@ watch(
   { deep: true }
 );
 
-let ro: ResizeObserver | null = null;
-onMounted(() => {
-  window.addEventListener("message", onMessage);
-  if (pane.value) {
-    ro = new ResizeObserver((entries) => {
-      const r = entries[0]?.contentRect;
-      if (r) {
-        paneW.value = r.width;
-        paneH.value = r.height;
-      }
-    });
-    ro.observe(pane.value);
-  }
-});
-onBeforeUnmount(() => {
-  window.removeEventListener("message", onMessage);
-  ro?.disconnect();
-});
+onMounted(() => window.addEventListener("message", onMessage));
+onBeforeUnmount(() => window.removeEventListener("message", onMessage));
 
 function reload() {
   ready.value = false;
