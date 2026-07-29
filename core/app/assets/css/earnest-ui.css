@@ -54,6 +54,122 @@
 	-webkit-backdrop-filter: saturate(200%) blur(30px);
 }
 
+/* =============================================================================
+   LIQUID-GLASS EDGE SYSTEM — the refracted-rim material (ported from Earnest's
+   "liquid-glass edge system"). Every surface wears a light-refraction rim
+   instead of a flat 1px border. Tokens key off the active theme's accent
+   (--app-accent-h from theme.css) so classic (brass), modern (cyan) and luxury
+   each get an on-brand rim automatically. Light mode leans on a cool shade ring
+   + drop shadow (a white rim on near-white is invisible by design); dark turns
+   the shade ring OFF and leans on a bright top highlight + a deep shadow.
+============================================================================= */
+:root {
+	--glass-rim-top: 0 0% 100% / 0.65;    /* brightest, top-lit hairline */
+	--glass-rim-mid: 0 0% 100% / 0.24;    /* full ring, mid intensity */
+	--glass-rim-bottom: 0 0% 100% / 0.04; /* rim faded to nothing at the bottom */
+	--glass-shade: var(--app-accent-h, 220) 18% 42% / 0.12; /* carries the edge in light */
+	--glass-shadow-h: var(--app-accent-h, 220);
+	--glass-shadow-s: 24%;
+	--glass-shadow-l: 30%;
+	--glass-shadow-near: 0.10;
+	--glass-shadow-far: 0.18;
+	--glass-blur: 18px;
+	--glass-saturate: 140%;
+	--glass-focus-s: 90%;
+	--glass-focus-l: 50%;
+	--glass-focus-edge: 0.5;
+	--glass-focus-halo: 0.16;
+}
+.dark {
+	--glass-rim-top: 0 0% 100% / 0.26;
+	--glass-rim-mid: 0 0% 100% / 0.10;
+	--glass-rim-bottom: 0 0% 100% / 0.02;
+	--glass-shade: 0 0% 0% / 0; /* shade ring off in dark */
+	--glass-shadow-h: 220;
+	--glass-shadow-s: 18%;
+	--glass-shadow-l: 4%;
+	--glass-shadow-near: 0.40;
+	--glass-shadow-far: 0.60;
+}
+:root {
+	--glass-rim-shadow:
+		inset 0 1px 0 0 hsl(var(--glass-rim-top)),
+		inset 0 0 0 1px hsl(var(--glass-rim-mid)),
+		inset 0 -1px 0 0 hsl(var(--glass-rim-bottom)),
+		inset 0 0 0 1px hsl(var(--glass-shade));
+	--glass-lift-shadow:
+		0 1px 2px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / var(--glass-shadow-near)),
+		0 12px 32px -16px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / var(--glass-shadow-far));
+	--glass-edge-shadow: var(--glass-rim-shadow), var(--glass-lift-shadow);
+}
+
+/* Classes live in @layer components so an unlayered `border: 0` here never beats
+   a deliberate Tailwind `border-*` state utility (utilities layer sits above). */
+@layer components {
+	.glass-edge { border: 0; box-shadow: var(--glass-edge-shadow); }
+	/* Flush variant — rim only, no lift. For chrome docked to an edge (toolbars,
+	   slide-overs, the AI takeover) where a drop shadow would look detached. */
+	.glass-edge--flush { border: 0; box-shadow: var(--glass-rim-shadow); }
+
+	/* True gradient rim — a 1px band whose colour actually travels from the bright
+	   top edge to nothing, masked to the border ring only. Containers only. */
+	@supports (mask-composite: exclude) or (-webkit-mask-composite: xor) {
+		.glass-refract { position: relative; }
+		.glass-refract::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			border-radius: inherit;
+			padding: 1px;
+			background: linear-gradient(
+				to bottom,
+				hsl(var(--glass-rim-top)) 0%,
+				hsl(var(--glass-rim-mid)) 45%,
+				hsl(var(--glass-rim-bottom)) 100%
+			);
+			-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+			-webkit-mask-composite: xor;
+			mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+			mask-composite: exclude;
+			pointer-events: none;
+		}
+	}
+
+	.glass-body {
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+	}
+
+	/* Recessed-glass form control — same material as the surface it sits in. */
+	.glass-field {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 55%, transparent);
+		backdrop-filter: blur(10px) saturate(130%);
+		-webkit-backdrop-filter: blur(10px) saturate(130%);
+		border: 0;
+		box-shadow: var(--glass-rim-shadow),
+			inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.10);
+		transition: box-shadow 200ms cubic-bezier(0.36, 0.66, 0.04, 1);
+	}
+	.dark .glass-field {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #1e2227) 45%, transparent);
+	}
+}
+
+/* Focus keeps the rim and ADDS the accent ring. Deliberately OUTSIDE @layer so it
+   beats the global *:focus-visible outline (unlayered beats layered). Accent is
+   read directly (var(--app-accent-h)) so the ring tracks the active theme. */
+.glass-field:focus,
+.glass-field:focus-visible,
+.glass-field:focus-within {
+	outline: none;
+	box-shadow: var(--glass-rim-shadow),
+		inset 0 0 0 1px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-edge)),
+		0 0 0 3px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-halo));
+}
+.glass-field[aria-invalid='true'] {
+	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(var(--theme-error, #dc2626) / 0.28);
+}
+
 /* ---- Liquid-glass surface — accent-tinted hero/widget chrome ---- */
 .glass-surface {
 	--_h: var(--app-accent-h);
@@ -70,9 +186,9 @@
 		color-mix(in srgb, var(--theme-card-bg, #fff) 65%, transparent);
 	backdrop-filter: blur(18px) saturate(140%);
 	-webkit-backdrop-filter: blur(18px) saturate(140%);
-	border: 1px solid hsl(var(--_h) 40% 70% / 0.18);
+	border: 0;
 	box-shadow:
-		0 1px 0 0 hsl(0 0% 100% / 0.10) inset,
+		var(--glass-rim-shadow),
 		0 12px 32px -16px hsl(var(--_h) 40% 25% / 0.30),
 		0 2px 6px -2px hsl(var(--_h) 30% 20% / 0.10);
 	transition:
@@ -88,9 +204,8 @@
 			hsl(calc(var(--_h) + 35) var(--_s) 50% / 0.10) 100%
 		),
 		color-mix(in srgb, var(--theme-card-bg, #1e2227) 55%, transparent);
-	border-color: hsl(var(--_h) 30% 60% / 0.22);
 	box-shadow:
-		0 1px 0 0 hsl(var(--_h) 60% 80% / 0.08) inset,
+		var(--glass-rim-shadow),
 		0 16px 40px -16px hsl(0 0% 0% / 0.50),
 		0 2px 6px -2px hsl(0 0% 0% / 0.30);
 }
@@ -120,11 +235,14 @@
 	.glass, .glass-thin, .glass-ultra, .glass-surface { background: var(--theme-card-bg, #fff); }
 }
 @media (prefers-reduced-transparency: reduce) {
-	.glass, .glass-thin, .glass-ultra, .glass-surface {
+	.glass, .glass-thin, .glass-ultra, .glass-surface, .glass-body, .glass-field {
 		backdrop-filter: none;
 		-webkit-backdrop-filter: none;
+	}
+	.glass, .glass-thin, .glass-ultra, .glass-surface {
 		background: var(--theme-card-bg, #fff);
 	}
+	.glass-field { background: var(--theme-bg-elevated, #fff); }
 }
 
 /* ---- Dialog overlay glass — accent-tinted blurred modal backdrop ---- */
@@ -152,14 +270,22 @@
 /* =============================================================================
    iOS WIDGET CARDS
 ============================================================================= */
-.ios-card {
-	background: var(--theme-card-bg, #fff);
-	border: 1px solid color-mix(in srgb, var(--theme-border-primary, #e5e5e5) 50%, transparent);
-	border-radius: 1rem; /* rounded-2xl */
-	box-shadow: var(--theme-shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
-	transition: box-shadow 0.2s ease, transform 0.2s ease;
+/* Migrated to the refracted rim (was a flat 1px border). In @layer components so
+   `border: 0` stays below Tailwind utilities — deliberate state borders
+   (border-warning/30, hover:border-primary/40, destructive outlines) still win. */
+@layer components {
+	.ios-card {
+		background: var(--theme-card-bg, #fff);
+		border: 0;
+		border-radius: 1rem; /* rounded-2xl */
+		box-shadow: var(--glass-edge-shadow);
+		transition: box-shadow 0.2s ease, transform 0.2s ease;
+	}
+	.ios-card:hover {
+		box-shadow: var(--glass-rim-shadow), var(--glass-lift-shadow),
+			0 18px 40px -18px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / var(--glass-shadow-far));
+	}
 }
-.ios-card:hover { box-shadow: var(--theme-shadow-md, 0 4px 6px rgba(0,0,0,0.07)); }
 
 /* ---- Auto-upgrade shadcn <Card> inside .ui-kit pages to the iOS look ----
  * Scoped to .ui-kit so pages that haven't opted in are untouched. Selector
