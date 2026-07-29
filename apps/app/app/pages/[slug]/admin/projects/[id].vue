@@ -253,6 +253,7 @@ const TABS = [
             </a>
           </div>
         </div>
+        <AiEntityCard entity-type="project" :label="project.title" />
       </template>
 
       <p v-else class="t-text-muted py-16 text-center">Project not found.</p>

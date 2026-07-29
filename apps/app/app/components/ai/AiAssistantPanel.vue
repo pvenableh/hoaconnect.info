@@ -11,7 +11,7 @@ import {
 // Slide-over AI assistant — an ambient surface over the current page (mirrors
 // the Channels panel). Read-only: it answers org-aware questions and drafts
 // communications; it never takes actions. Mounted once in auth.vue.
-const { isOpen, activeConversationId, close, setConversation } = useAiAssistant();
+const { isOpen, activeConversationId, close, setConversation, consumePendingPrompt } = useAiAssistant();
 
 // Synchronous selected-org state (same source the dashboard/composer use).
 const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -112,6 +112,14 @@ watch(
     }
     view.value = "chat";
     scrollToBottom();
+
+    // A pill on an inline entity card may have seeded a prompt to auto-send.
+    const seeded = consumePendingPrompt();
+    if (seeded && !chat.isStreaming.value) {
+      input.value = seeded;
+      await nextTick();
+      onSend();
+    }
   }
 );
 

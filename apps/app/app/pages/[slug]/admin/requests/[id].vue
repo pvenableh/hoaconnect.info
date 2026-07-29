@@ -65,7 +65,13 @@ onBeforeUnmount(clearContext);
         @updated="refresh"
       />
 
-      <p v-else class="t-text-muted py-16 text-center">Request not found.</p>
+      <AiEntityCard
+        v-if="request"
+        :entity-type="(request as any).type === 'violation' ? 'violation' : 'request'"
+        :label="request.title"
+      />
+
+      <p v-if="!pending && !request" class="t-text-muted py-16 text-center">Request not found.</p>
     </PageContainer>
   </div>
 </template>
