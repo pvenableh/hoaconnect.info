@@ -42,6 +42,7 @@
     "add:ai-conversation-context": "dotenv -- tsx scripts/add-ai-conversation-context.ts",
     "create:ai-actions": "dotenv -- tsx scripts/create-ai-actions-collection.ts",
     "create:email-blocks": "dotenv -- tsx scripts/create-email-blocks-collections.ts",
+    "create:channel-moderation": "dotenv -- tsx scripts/create-channel-moderation.ts",
     "backfill:embeddings": "dotenv -- tsx scripts/backfill-embeddings.ts",
     "create:subscription-tiers": "dotenv -- tsx scripts/add-subscription-tier-fields.ts",
     "stripe:subscription-prices": "dotenv -- tsx scripts/create-stripe-subscription-prices.ts",

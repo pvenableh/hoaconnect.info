@@ -14,6 +14,8 @@ const props = defineProps<{
   isReply?: boolean;
   channelId?: string;
   organizationId?: string;
+  /** Manager (admin / board / channel admin) — can hide/remove others' messages. */
+  canModerate?: boolean;
 }>();
 
 const config = useRuntimeConfig();
@@ -122,6 +124,44 @@ const handleDelete = async () => {
     toast.error("Failed to delete message");
   } finally {
     isDeleting.value = false;
+  }
+};
+
+// ── Moderation (non-author) ──────────────────────────────────────────────────
+const isModerating = ref(false);
+const channelRef = computed(
+  () => props.channelId || (typeof (props.message as any).channel === "object" ? (props.message as any).channel?.id : (props.message as any).channel)
+);
+
+async function moderate(action: "hide" | "remove") {
+  const q = action === "remove"
+    ? "Permanently remove this message? This can't be undone."
+    : "Hide this message from the channel?";
+  if (!confirm(q)) return;
+  isModerating.value = true;
+  try {
+    await $fetch("/api/hoa/channels/moderate", {
+      method: "POST",
+      body: { channel: channelRef.value, messageId: props.message.id, action },
+    });
+    toast.success(action === "hide" ? "Message hidden" : "Message removed");
+  } catch (err: any) {
+    toast.error(err?.data?.message || "Moderation failed");
+  } finally {
+    isModerating.value = false;
+  }
+}
+
+async function report() {
+  const reason = window.prompt("Report this message to moderators — a short reason (optional):") ?? "";
+  try {
+    await $fetch("/api/hoa/channels/report", {
+      method: "POST",
+      body: { channel: channelRef.value, messageId: props.message.id, reason },
+    });
+    toast.success("Reported to moderators");
+  } catch (err: any) {
+    toast.error(err?.data?.message || "Report failed");
   }
 };
 
@@ -283,6 +323,40 @@ const authorName = computed(() => {
               :class="['w-3.5 h-3.5', isDeleting ? 'animate-spin' : '']"
             />
           </Button>
+
+          <!-- Moderation (non-author): managers hide/remove; anyone reports -->
+          <Button
+            v-if="!isAuthor && canModerate"
+            variant="ghost"
+            size="sm"
+            class="h-7 px-2 text-xs t-text-muted hover:text-amber-600"
+            :disabled="isModerating"
+            title="Hide message"
+            @click="moderate('hide')"
+          >
+            <Icon name="lucide:eye-off" class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-if="!isAuthor && canModerate"
+            variant="ghost"
+            size="sm"
+            class="h-7 px-2 text-xs t-text-muted hover:text-red-500"
+            :disabled="isModerating"
+            title="Remove message"
+            @click="moderate('remove')"
+          >
+            <Icon name="lucide:trash-2" class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-if="!isAuthor"
+            variant="ghost"
+            size="sm"
+            class="h-7 px-2 text-xs t-text-muted hover:text-red-500"
+            title="Report to moderators"
+            @click="report()"
+          >
+            <Icon name="lucide:flag" class="w-3.5 h-3.5" />
+          </Button>
         </div>
 
         <!-- Reply Actions for replies -->
@@ -302,6 +376,38 @@ const authorName = computed(() => {
               :name="isDeleting ? 'lucide:loader-2' : 'lucide:trash-2'"
               :class="['w-3 h-3', isDeleting ? 'animate-spin' : '']"
             />
+          </Button>
+          <Button
+            v-if="!isAuthor && canModerate"
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 text-xs t-text-muted hover:text-amber-600"
+            :disabled="isModerating"
+            title="Hide reply"
+            @click="moderate('hide')"
+          >
+            <Icon name="lucide:eye-off" class="w-3 h-3" />
+          </Button>
+          <Button
+            v-if="!isAuthor && canModerate"
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 text-xs t-text-muted hover:text-red-500"
+            :disabled="isModerating"
+            title="Remove reply"
+            @click="moderate('remove')"
+          >
+            <Icon name="lucide:trash-2" class="w-3 h-3" />
+          </Button>
+          <Button
+            v-if="!isAuthor"
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 text-xs t-text-muted hover:text-red-500"
+            title="Report reply"
+            @click="report()"
+          >
+            <Icon name="lucide:flag" class="w-3 h-3" />
           </Button>
         </div>
       </div>
@@ -372,6 +478,7 @@ const authorName = computed(() => {
             :is-reply="true"
             :channel-id="channelId"
             :organization-id="organizationId"
+            :can-moderate="canModerate"
           />
         </template>
       </div>

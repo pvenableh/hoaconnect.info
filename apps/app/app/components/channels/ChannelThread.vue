@@ -482,6 +482,7 @@ watch(
           :message="message"
           :channel-id="currentChannel?.id"
           :organization-id="orgId || undefined"
+          :can-moderate="canManageMembers"
         />
       </template>
 
