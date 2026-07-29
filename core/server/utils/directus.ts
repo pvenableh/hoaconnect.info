@@ -99,6 +99,44 @@ export function getTypedDirectus() {
     .with(rest());
 }
 
+// ── Refresh-token rotation dedup ─────────────────────────────────────────────
+// Directus rotates the refresh token on every /auth/refresh (single-use). When
+// several requests refresh at once with the SAME old token, one wins and the
+// rest 401 → the session dies days before its real TTL. dedupedDirectusRefresh
+// funnels every refresh for a given token through ONE in-flight call and briefly
+// caches the winning result, so siblings reuse it instead of racing. In-process
+// only (enough for a single Nitro instance / local dev). Ported from Earnest.
+const _inflightRefreshes = new Map<string, Promise<any>>();
+const _recentRefreshes = new Map<string, { result: any; at: number }>();
+const REFRESH_RESULT_TTL_MS = 10_000;
+const REFRESH_TIMEOUT_MS = 8_000;
+
+export async function dedupedDirectusRefresh(refreshToken: string): Promise<any> {
+  const cached = _recentRefreshes.get(refreshToken);
+  if (cached && Date.now() - cached.at < REFRESH_RESULT_TTL_MS) return cached.result;
+
+  const inflight = _inflightRefreshes.get(refreshToken);
+  if (inflight) return inflight;
+
+  const url = useRuntimeConfig().directus.url as string;
+  const p = (async () => {
+    const directus = createDirectus(url).with(rest()).with(authentication("json"));
+    // Bound the refresh so a hung Directus can't wedge every waiting request.
+    const result = await Promise.race([
+      directus.request(refresh({ mode: "json", refresh_token: refreshToken })),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Directus refresh timed out")), REFRESH_TIMEOUT_MS)
+      ),
+    ]);
+    _recentRefreshes.set(refreshToken, { result, at: Date.now() });
+    if (_recentRefreshes.size > 500) _recentRefreshes.clear(); // bound memory
+    return result;
+  })().finally(() => _inflightRefreshes.delete(refreshToken));
+
+  _inflightRefreshes.set(refreshToken, p);
+  return p;
+}
+
 /**
  * Get a Directus client with user authentication
  * Uses the session token from nuxt-auth-utils
@@ -138,27 +176,24 @@ export async function getUserDirectus(
   // The token will still work and the client-side refresh will eventually set expiresAt
   const needsRefresh = forceRefresh || (expiresAt !== undefined && expiresAt - now < 60000);
 
-  // If token needs refresh but no refresh token is available, clear session
+  // If a refresh is needed but no refresh token is present, do NOT clear the
+  // sealed cookie — a momentarily-missing token or old-shape session would force
+  // a logout over a recoverable state. Surface 401 for this request; the client
+  // owns teardown. (Earnest §2.)
   if (needsRefresh && !refreshToken) {
-    await clearUserSession(event);
     throw createError({
       statusCode: 401,
-      statusMessage: "Session expired - please log in again",
+      statusMessage: "Session refresh unavailable",
     });
   }
 
-  // Refresh token if needed
+  // Refresh token if needed — through the rotation-dedup so concurrent requests
+  // reuse the winning rotation instead of racing the single-use token.
   if (needsRefresh && refreshToken) {
     try {
-      const directus = createDirectus(config.directus.url)
-        .with(rest())
-        .with(authentication("json"));
+      const authResult: any = await dedupedDirectusRefresh(refreshToken);
 
-      const authResult = await directus.request(
-        refresh({ mode: "json", refresh_token: refreshToken })
-      );
-
-      if (!authResult.access_token) {
+      if (!authResult?.access_token) {
         throw new Error("Token refresh failed - no access token returned");
       }
 
@@ -172,7 +207,7 @@ export async function getUserDirectus(
         },
       });
 
-      accessToken = authResult.access_token;
+      accessToken = authResult.access_token as string;
     } catch (error) {
       // Non-destructive: a refresh-token ROTATION RACE (a concurrent request just
       // rotated the token, invalidating ours) or a transient error must NOT clear

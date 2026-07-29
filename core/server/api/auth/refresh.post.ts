@@ -1,5 +1,7 @@
 // server/api/auth/refresh.post.ts
-import { createDirectus, rest, authentication, refresh } from "@directus/sdk";
+// Refresh routes through dedupedDirectusRefresh (auto-imported from
+// server/utils/directus.ts) so concurrent refreshes don't race the single-use
+// token; failures are classified 401 (dead) vs 503 (transient) and never clear.
 
 export default defineEventHandler(async (event) => {
   console.log('[refresh] Token refresh request received');
@@ -26,16 +28,10 @@ export default defineEventHandler(async (event) => {
 
     console.log('[refresh] Current token expires in:', minutesUntilExpiry, 'minutes');
 
-    const config = useRuntimeConfig();
-
-    // Create client with authentication
-    const directus = createDirectus(config.directus.url)
-      .with(rest())
-      .with(authentication("json"));
-
-    // Refresh with explicit mode and refresh token
-    console.log('[refresh] Calling Directus refresh endpoint...');
-    const authResult = await directus.request(refresh({ mode: 'json', refresh_token: refreshToken }));
+    // Refresh through the rotation-dedup so a timer/tab-focus refresh racing an
+    // in-flight one reuses the winner instead of 401ing on the rotated token.
+    console.log('[refresh] Calling Directus refresh (deduped)...');
+    const authResult: any = await dedupedDirectusRefresh(refreshToken);
 
     if (!authResult.access_token) {
       throw new Error("Token refresh failed - no access token returned");
@@ -66,15 +62,24 @@ export default defineEventHandler(async (event) => {
       expiresIn: expiresInSeconds,
     };
   } catch (error: any) {
-    console.error("[refresh] Token refresh error:", error.message || error);
+    console.error("[refresh] Token refresh error:", error?.message || error);
 
-    // Do NOT clear the session here. This endpoint is hit on a timer (and on tab
-    // focus), so a transient error or a refresh-token rotation race would otherwise
-    // log the user out unnecessarily. Return 401 for this attempt; the client retries
-    // once, and a still-valid session survives.
+    // Never clear the session here — the client owns teardown. Distinguish a DEAD
+    // refresh token (Directus 401/403 / invalid-credentials — a real logout) from
+    // a TRANSIENT failure (network / 5xx / our 8s timeout — keep the session and
+    // let the client retry). Ambiguous errors default to 503 so a hiccup never
+    // logs the user out. (Earnest §3.)
+    const code = error?.errors?.[0]?.extensions?.code;
+    const status = error?.response?.status ?? error?.status;
+    const dead =
+      status === 401 ||
+      status === 403 ||
+      code === "INVALID_CREDENTIALS" ||
+      code === "TOKEN_EXPIRED" ||
+      code === "INVALID_TOKEN";
     throw createError({
-      statusCode: 401,
-      statusMessage: error.message || "Failed to refresh token",
+      statusCode: dead ? 401 : 503,
+      statusMessage: dead ? "Session expired" : "Refresh temporarily unavailable",
     });
   }
 });

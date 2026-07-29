@@ -51,11 +51,27 @@ export default defineNuxtPlugin(() => {
 
       console.log('[auth-refresh] Token refreshed successfully');
       await fetchSession(); // Fetch updated session
-    } catch (error) {
+    } catch (error: any) {
       console.error('[auth-refresh] Failed to refresh token (after retry):', error);
 
-      // Both attempts failed — treat the session as dead: clear and (on a protected
-      // route) redirect to login.
+      // Tolerate-the-race: re-read the cookie. If a sibling request or another tab
+      // already rotated the token (so expiresAt sits comfortably in the future),
+      // we're still logged in — do NOT tear down. (Earnest §5.)
+      try { await fetchSession(); } catch { /* ignore */ }
+      if (loggedIn.value && (session.value?.expiresAt ?? 0) > Date.now() + 30_000) {
+        console.log('[auth-refresh] A sibling refresh already rotated the token; session still valid.');
+        return;
+      }
+
+      // Only tear down on a DEFINITIVE dead token (server returns 401). A transient
+      // failure — 503 / network / timeout — keeps the session; the next tick retries.
+      const status = error?.status ?? error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode;
+      if (status !== 401) {
+        console.warn(`[auth-refresh] Transient refresh failure (status ${status}); keeping session, will retry.`);
+        return;
+      }
+
+      // Genuinely dead — clear and (on a protected route) redirect to login.
       await clear();
 
       // Only force a redirect to login when on a PROTECTED route. On public pages

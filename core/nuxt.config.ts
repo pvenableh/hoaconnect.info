@@ -73,6 +73,15 @@ export default defineNuxtConfig({
     // Server-only keys (never exposed to client-side)
     directusServerToken: process.env.DIRECTUS_STATIC_TOKEN,
     sessionPassword: process.env.NUXT_SESSION_PASSWORD,
+    // nuxt-auth-utils sealed session cookie. Without an explicit maxAge it's a
+    // browser-SESSION cookie that dies on browser close/restart; setting maxAge
+    // makes it a PERSISTENT rolling cookie matching the 7-day Directus refresh
+    // token, so a restart no longer logs the user out. (Earnest parity §4.)
+    session: {
+      maxAge: 60 * 60 * 24 * 7,
+      password: process.env.NUXT_SESSION_PASSWORD,
+      cookie: { sameSite: "lax" },
+    },
     directus: {
       url: process.env.DIRECTUS_URL,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
