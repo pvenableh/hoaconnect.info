@@ -57,7 +57,7 @@ const form = reactive({
     | "announcement"
     | "reminder"
     | "notice",
-  contentMode: "visual" as "visual" | "mjml",
+  contentMode: "visual" as "visual" | "mjml" | "builder",
   greeting: "",
   salutation: "",
   includeBoardFooter: true,
@@ -67,6 +67,12 @@ const form = reactive({
   cc: [] as string[],
   bcc: [] as string[],
 });
+
+// The block-builder authors MJML into form.content, so the save/send/preview
+// pipeline treats "builder" exactly as "mjml" — only the editor UI differs.
+const apiContentMode = computed<"visual" | "mjml">(() =>
+  form.contentMode === "builder" ? "mjml" : form.contentMode
+);
 
 // Attachment state
 interface AttachmentInfo {
@@ -289,7 +295,7 @@ const saveAsTemplate = async () => {
       email_type: form.emailType,
       subject: form.subject || null,
       content: form.content || null,
-      content_mode: form.contentMode,
+      content_mode: apiContentMode.value,
       greeting: form.greeting || null,
       salutation: form.salutation || null,
       include_board_footer: form.includeBoardFooter,
@@ -413,7 +419,7 @@ const handlePreview = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -444,7 +450,7 @@ const handleSaveDraft = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -491,7 +497,7 @@ const handleSend = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
@@ -509,7 +515,7 @@ const handleSend = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -575,7 +581,7 @@ const handleSchedule = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -812,7 +818,7 @@ const handleTestEmail = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
         includeBoardFooter: form.includeBoardFooter,
@@ -832,7 +838,7 @@ const handleTestEmail = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
-      contentMode: form.contentMode,
+      contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
       includeBoardFooter: form.includeBoardFooter,
@@ -960,7 +966,7 @@ useSeoMeta({
                       v-model:content="form.content"
                     />
                   </div>
-                  <!-- Editor mode toggle: visual rich text vs raw MJML/HTML -->
+                  <!-- Editor mode toggle: visual rich text · block builder · raw MJML -->
                   <div class="inline-flex rounded-lg border t-border p-0.5">
                     <button
                       type="button"
@@ -974,6 +980,19 @@ useSeoMeta({
                     >
                       <Icon name="lucide:type" class="w-3.5 h-3.5 mr-1 inline" />
                       Visual
+                    </button>
+                    <button
+                      type="button"
+                      @click="form.contentMode = 'builder'"
+                      :class="[
+                        'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                        form.contentMode === 'builder'
+                          ? 'bg-primary text-primary-foreground'
+                          : 't-text-secondary hover:t-bg-subtle',
+                      ]"
+                    >
+                      <Icon name="lucide:layout-template" class="w-3.5 h-3.5 mr-1 inline" />
+                      Builder
                     </button>
                     <button
                       type="button"
@@ -1023,8 +1042,11 @@ useSeoMeta({
                 <div class="space-y-2">
                   <div class="flex items-center justify-between gap-2">
                     <Label for="content">Message *</Label>
-                    <!-- Surfaced at the point of writing rather than buried below. -->
+                    <!-- Surfaced at the point of writing rather than buried below.
+                         The builder edits copy inside each block, so the raw
+                         merge-field inserter doesn't apply there. -->
                     <button
+                      v-if="form.contentMode !== 'builder'"
                       type="button"
                       class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md t-bg-subtle hover:bg-primary/10 hover:text-primary transition-colors tappable"
                       @click="showMergeFields = !showMergeFields"
@@ -1043,6 +1065,12 @@ useSeoMeta({
                     placeholder="Write your email message here..."
                     :folder-id="orgFolderId"
                   />
+                  <EmailBuilderRoot
+                    v-else-if="form.contentMode === 'builder'"
+                    :org-id="orgId"
+                    v-model:mjml="form.content"
+                    @update:subject="(s: string) => { if (s) form.subject = s; }"
+                  />
                   <template v-else>
                     <textarea
                       v-model="form.content"
@@ -1056,6 +1084,10 @@ useSeoMeta({
                     <template v-if="form.contentMode === 'visual'">
                       Use the toolbar to format text, add images, or browse your
                       organization's files.
+                    </template>
+                    <template v-else-if="form.contentMode === 'builder'">
+                      Add blocks, drag to reorder, and edit each block's content. Merge fields like
+                      <code class="t-bg-subtle px-1 rounded">&#123;&#123;first_name&#125;&#125;</code> work inside text blocks. Preview to see the assembled email.
                     </template>
                     <template v-else>
                       Write raw <strong>MJML</strong> (compiled on send) or plain HTML for full control.
