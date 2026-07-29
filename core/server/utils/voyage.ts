@@ -60,6 +60,9 @@ export async function embed(
   }
   if (!texts.length) return { vectors: [], tokens: 0 };
 
+  // Hard timeout — without this a slow/unreachable Voyage endpoint hangs the whole
+  // chat turn (retrieval is awaited before the model call). Aborts to a throw the
+  // caller swallows, degrading to a plain (non-RAG) answer.
   const res = await fetch(VOYAGE_ENDPOINT, {
     method: "POST",
     headers: {
@@ -67,6 +70,7 @@ export async function embed(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ input: texts, model: VOYAGE_MODEL, input_type: inputType }),
+    signal: AbortSignal.timeout(6000),
   });
 
   if (!res.ok) {

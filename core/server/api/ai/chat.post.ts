@@ -72,8 +72,14 @@ export default defineEventHandler(async (event) => {
   let ragBlock: string | null = null;
   if (isRagConfigured() && allow("documents")) {
     try {
-      const rag = await retrieveRagContext(orgId, message, userId);
-      ragBlock = rag.block;
+      // Cap RAG so a slow embed/retrieval can never wedge the turn — degrade to a
+      // plain answer after RAG_BUDGET_MS. (Voyage also self-aborts at 6s.)
+      const RAG_BUDGET_MS = 4500;
+      const rag = await Promise.race([
+        retrieveRagContext(orgId, message, userId),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), RAG_BUDGET_MS)),
+      ]);
+      ragBlock = rag?.block ?? null;
       if (ragBlock) heavy = true;
     } catch (err: any) {
       console.warn("RAG retrieval failed (continuing without):", err?.message || err);
