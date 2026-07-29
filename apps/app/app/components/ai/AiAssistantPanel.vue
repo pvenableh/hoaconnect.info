@@ -195,20 +195,21 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
       leave-to-class="opacity-0"
     >
       <div v-if="isOpen" class="fixed inset-0 z-[60]" role="dialog" aria-label="AI assistant">
-        <!-- Themed backdrop -->
-        <div class="absolute inset-0 t-scrim" @click="close" />
+        <!-- Glass focus backdrop (the workspace frosts behind the takeover) -->
+        <div class="absolute inset-0 t-scrim backdrop-blur-xl" @click="close" />
 
-        <!-- Drawer -->
+        <!-- Full-screen Focus takeover — a calm, centered surface (Earnest-style),
+             not a right-side sidebar. Rises + fades in. -->
         <Transition
-          enter-active-class="transition-transform duration-250 ease-out"
-          leave-active-class="transition-transform duration-200 ease-in"
-          enter-from-class="translate-x-full"
-          leave-to-class="translate-x-full"
+          enter-active-class="transition duration-300 ease-out"
+          leave-active-class="transition duration-200 ease-in"
+          enter-from-class="opacity-0 scale-[0.985] translate-y-3"
+          leave-to-class="opacity-0 scale-[0.99]"
           appear
         >
           <aside
             v-if="isOpen"
-            class="absolute top-0 right-0 h-full w-full sm:w-[440px] md:w-[560px] t-bg-elevated shadow-2xl flex flex-col"
+            class="absolute inset-0 flex flex-col glass-ultra"
           >
             <!-- Header -->
             <div class="flex items-center justify-between px-4 h-14 border-b t-border shrink-0">
@@ -250,7 +251,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             </div>
 
             <!-- What the assistant can see — grounding sources + focus, togglable. -->
-            <AiAwarenessChip v-if="summary && summary.aiConfigured && view === 'chat'" />
+            <div class="w-full max-w-3xl mx-auto">
+              <AiAwarenessChip v-if="summary && summary.aiConfigured && view === 'chat'" />
+            </div>
 
             <!-- Body — cross-fades between the configured states (chat ↔ history). -->
             <Transition name="ai-view" mode="out-in">
@@ -314,7 +317,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 </Transition>
 
                 <!-- Messages (each rises in) -->
-                <TransitionGroup tag="div" name="ai-msg" class="space-y-4">
+                <TransitionGroup tag="div" name="ai-msg" class="space-y-4 max-w-3xl mx-auto">
                 <div
                   v-for="(m, i) in chat.messages.value"
                   :key="i"
@@ -353,7 +356,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </div>
 
               <!-- Composer -->
-              <div class="border-t t-border p-3 shrink-0 space-y-2">
+              <div class="border-t t-border p-3 pb-4 shrink-0 space-y-2 w-full max-w-3xl mx-auto">
                 <div class="flex items-center gap-1 rounded-full t-bg-subtle p-1 w-fit">
                   <button
                     v-for="t in TIERS"
