@@ -15,13 +15,18 @@ const { currentOrg, isAdmin, isBoardMember, memberType, selectedOrgId } =
 // source of truth for the <html> class (no competing applyTheme/forceThemeStyle
 // writers, which would otherwise leave both theme classes stacked).
 const { themeState } = useTheme();
+// Route captured ONCE at setup. Never call useRoute() inside a computed getter —
+// on re-evaluation the getter runs outside a setup/Nuxt context and throws
+// "composable that requires the Nuxt instance was called outside setup" (dev only,
+// since the sole caller below is import.meta.dev-gated).
+const route = useRoute();
 const VALID_STYLES = ["classic", "modern", "luxury"] as const;
 const orgStyle = computed<(typeof VALID_STYLES)[number]>(() => {
   // Dev-only QA hatch (mirrors useAppVersion's ?forceUpdatePrompt): preview the
   // modern dock from a classic/luxury org without touching prod org data. Visit
   // any workspace page with ?forceModern. Read off the route query so SSR and the
   // client agree (no stacked theme classes). Stripped from prod by the dev guard.
-  if (import.meta.dev && "forceModern" in useRoute().query) {
+  if (import.meta.dev && "forceModern" in route.query) {
     return "modern";
   }
   const s = currentOrg.value?.organization?.settings?.theme;
@@ -74,7 +79,6 @@ const appNavCollapsed = useState<boolean>("appNavCollapsed", () => false);
 // `?as=member` is the entry point (OrgSelector menu, the view switcher); arriving
 // with it flips the sticky cookie so the member preview survives navigation. A
 // banner rides every workspace page while previewing, with an Exit that clears it.
-const route = useRoute();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const { isPreviewingMember, setViewAs } = useViewAs();
 watchEffect(() => {
