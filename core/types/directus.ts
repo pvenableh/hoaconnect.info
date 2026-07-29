@@ -12,6 +12,40 @@ export interface ExtensionSeoMetadata {
     no_follow?: boolean;
 }
 
+export interface AiAction {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Catalog key (e.g. create_task, send_email). @required */
+	action_type: string;
+	/** @required */
+	status: 'pending' | 'approved' | 'rejected' | 'executed' | 'failed';
+	/** @description internal | record_update | scheduling | comms. */
+	category?: string | null;
+	/** @description low | medium | high. */
+	risk?: string | null;
+	/** @description Reaches residents/board — always requires approval. */
+	outbound?: boolean | null;
+	/** @description The action's parameters. */
+	payload?: Record<string, any> | null;
+	/** @description Human-readable preview of what will happen. */
+	preview?: string | null;
+	/** @description Execution result (on success). */
+	result?: Record<string, any> | null;
+	/** @description Failure detail (on failed execution). */
+	error_message?: string | null;
+	entity_type?: string | null;
+	entity_id?: string | null;
+	conversation?: AiConversation | string | null;
+	/** @description The staff member whose turn proposed this action. */
+	requested_by?: DirectusUser | string | null;
+	/** @description Who approved/rejected it. */
+	approved_by?: DirectusUser | string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
 export interface AiContextSnapshot {
 	/** @primaryKey */
 	id: string;
@@ -434,6 +468,24 @@ export interface HoaChannelMessage {
 	date_updated?: string | null;
 }
 
+export interface HoaChannelModerationLog {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	channel?: HoaChannel | string | null;
+	/** @description Who took the action (or the reporter). */
+	moderator?: DirectusUser | string | null;
+	action?: 'hide' | 'remove' | 'report' | null;
+	reason?: string | null;
+	/** @description Plain message uuid — survives a hard delete of the message. */
+	message_id?: string | null;
+	/** @description Snapshot of the message author. */
+	message_author?: DirectusUser | string | null;
+	/** @description Stripped-HTML snapshot of the message content. */
+	message_snippet?: string | null;
+	date_created?: string | null;
+}
+
 export interface HoaChannel {
 	/** @primaryKey */
 	id: string;
@@ -459,6 +511,10 @@ export interface HoaChannel {
 	request?: HoaRequest | string | null;
 	/** @description Pinned channels float to the top of the sidebar. */
 	is_pinned?: boolean | null;
+	/** @description Optional: the project this channel discusses. */
+	project?: HoaProject | string | null;
+	/** @description Optional: the vendor this channel discusses. */
+	vendor?: HoaVendor | string | null;
 	/** @description Members enrolled in / invited to this channel. */
 	channel_members?: HoaChannelMember[] | string[];
 }
@@ -578,6 +634,24 @@ export interface HoaEmailActivity {
 	organization?: HoaOrganization | string | null;
 	/** @description The hoa_emails record this activity event belongs to (from the email_id custom_arg). */
 	email_record?: HoaEmail | string | null;
+}
+
+export interface HoaEmailPartial {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	name: string;
+	slug?: string | null;
+	type?: 'header' | 'footer' | 'web_version_bar' | null;
+	description?: string | null;
+	mjml_source?: string | null;
+	variables_schema?: Record<string, any> | null;
+	instance_variables?: Record<string, any> | null;
+	is_default?: boolean | null;
+	/** @description Null = a platform/system row shared by all orgs. */
+	organization?: HoaOrganization | string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
 }
 
 export interface HoaEmailRecipient {
@@ -976,6 +1050,29 @@ export interface HoaMemberUnit {
 	unit_id?: HoaUnit | string | null;
 }
 
+export interface HoaNewsletterBlock {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	/** @required */
+	name: string;
+	/** @required */
+	slug: string;
+	description?: string | null;
+	category?: 'header' | 'hero' | 'content' | `two-column` | 'cta' | 'image' | 'stats' | 'quote' | 'list' | 'divider' | 'social' | 'footer' | null;
+	/** @description MJML with {{{variable}}} slots. */
+	mjml_source?: string | null;
+	/** @description [{ key, label, type, default }] describing the block's slots. */
+	variables_schema?: Record<string, any> | null;
+	thumbnail?: DirectusFile | string | null;
+	/** @description Platform block available to every org. */
+	is_system?: boolean | null;
+	/** @description Null = a platform/system row shared by all orgs. */
+	organization?: HoaOrganization | string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaOrganization {
 	/** @primaryKey */
 	id: string;
@@ -1330,6 +1427,18 @@ export interface HoaTeam {
 	date_created?: string | null;
 	user_created?: DirectusUser | string | null;
 	members?: HoaTeamMember[] | string[];
+}
+
+export interface HoaTemplateBlock {
+	/** @primaryKey */
+	id: string;
+	sort?: number | null;
+	/** @required */
+	template_id: HoaEmailTemplate | string;
+	/** @required */
+	block_id: HoaNewsletterBlock | string;
+	instance_variables?: Record<string, any> | null;
+	date_created?: string | null;
 }
 
 export interface HoaUnit {
@@ -2042,6 +2151,7 @@ export interface DirectusExtension {
 }
 
 export interface Schema {
+	ai_actions: AiAction[];
 	ai_context_snapshots: AiContextSnapshot[];
 	ai_conversations: AiConversation[];
 	ai_doc_chunks: AiDocChunk[];
@@ -2062,12 +2172,14 @@ export interface Schema {
 	hoa_channel_members: HoaChannelMember[];
 	hoa_channel_mentions: HoaChannelMention[];
 	hoa_channel_messages: HoaChannelMessage[];
+	hoa_channel_moderation_log: HoaChannelModerationLog[];
 	hoa_channels: HoaChannel[];
 	hoa_comment_reports: HoaCommentReport[];
 	hoa_comments: HoaComment[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_email_activity: HoaEmailActivity[];
+	hoa_email_partials: HoaEmailPartial[];
 	hoa_email_recipients: HoaEmailRecipient[];
 	hoa_emails: HoaEmail[];
 	hoa_emails_files: HoaEmailsFile[];
@@ -2084,6 +2196,7 @@ export interface Schema {
 	hoa_member_change_requests: HoaMemberChangeRequest[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
+	hoa_newsletter_blocks: HoaNewsletterBlock[];
 	hoa_organizations: HoaOrganization[];
 	hoa_pets: HoaPet[];
 	hoa_polls: HoaPoll[];
@@ -2100,6 +2213,7 @@ export interface Schema {
 	hoa_tasks_users: HoaTasksUser[];
 	hoa_team_members: HoaTeamMember[];
 	hoa_teams: HoaTeam[];
+	hoa_template_blocks: HoaTemplateBlock[];
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
 	hoa_vendors: HoaVendor[];
@@ -2139,6 +2253,7 @@ export interface Schema {
 }
 
 export enum CollectionNames {
+	ai_actions = 'ai_actions',
 	ai_context_snapshots = 'ai_context_snapshots',
 	ai_conversations = 'ai_conversations',
 	ai_doc_chunks = 'ai_doc_chunks',
@@ -2159,12 +2274,14 @@ export enum CollectionNames {
 	hoa_channel_members = 'hoa_channel_members',
 	hoa_channel_mentions = 'hoa_channel_mentions',
 	hoa_channel_messages = 'hoa_channel_messages',
+	hoa_channel_moderation_log = 'hoa_channel_moderation_log',
 	hoa_channels = 'hoa_channels',
 	hoa_comment_reports = 'hoa_comment_reports',
 	hoa_comments = 'hoa_comments',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_email_activity = 'hoa_email_activity',
+	hoa_email_partials = 'hoa_email_partials',
 	hoa_email_recipients = 'hoa_email_recipients',
 	hoa_emails = 'hoa_emails',
 	hoa_emails_files = 'hoa_emails_files',
@@ -2181,6 +2298,7 @@ export enum CollectionNames {
 	hoa_member_change_requests = 'hoa_member_change_requests',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
+	hoa_newsletter_blocks = 'hoa_newsletter_blocks',
 	hoa_organizations = 'hoa_organizations',
 	hoa_pets = 'hoa_pets',
 	hoa_polls = 'hoa_polls',
@@ -2197,6 +2315,7 @@ export enum CollectionNames {
 	hoa_tasks_users = 'hoa_tasks_users',
 	hoa_team_members = 'hoa_team_members',
 	hoa_teams = 'hoa_teams',
+	hoa_template_blocks = 'hoa_template_blocks',
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
 	hoa_vendors = 'hoa_vendors',
