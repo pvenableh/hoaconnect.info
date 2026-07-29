@@ -40,6 +40,7 @@
     "create:ai-rag": "dotenv -- tsx scripts/create-ai-rag-collections.ts",
     "create:ai-context-snapshots": "dotenv -- tsx scripts/create-ai-context-snapshots.ts",
     "add:ai-conversation-context": "dotenv -- tsx scripts/add-ai-conversation-context.ts",
+    "create:ai-actions": "dotenv -- tsx scripts/create-ai-actions-collection.ts",
     "backfill:embeddings": "dotenv -- tsx scripts/backfill-embeddings.ts",
     "create:subscription-tiers": "dotenv -- tsx scripts/add-subscription-tier-fields.ts",
     "stripe:subscription-prices": "dotenv -- tsx scripts/create-stripe-subscription-prices.ts",
