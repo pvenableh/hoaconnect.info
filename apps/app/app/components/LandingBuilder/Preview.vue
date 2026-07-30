@@ -95,7 +95,7 @@ function reload() {
             v-for="d in (['desktop', 'mobile'] as const)"
             :key="d"
             type="button"
-            class="px-2.5 py-1 rounded-full transition-colors"
+            class="inline-flex items-center justify-center h-7 w-8 rounded-full transition-colors"
             :class="device === d ? 'bg-primary text-primary-foreground' : 't-text-muted hover:t-text'"
             :title="d === 'desktop' ? 'Desktop' : 'Mobile'"
             @click="device = d"
