@@ -13,5 +13,11 @@
 // Chromeless layout for the /auth pages — no marketing nav or footer, just the
 // themed background. The page (via AuthShell) supplies the centered card.
 const { initTheme } = useTheme();
-onMounted(() => initTheme());
+const route = useRoute();
+// The site-preview iframe forces a specific theme via ?theme=… so the builder
+// can preview classic vs modern. Restoring the app-default/stored theme here
+// would clobber that, so skip init when a theme is explicitly forced.
+onMounted(() => {
+  if (!route.query.theme) initTheme();
+});
 </script>

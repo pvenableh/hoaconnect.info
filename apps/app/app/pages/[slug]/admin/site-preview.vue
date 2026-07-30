@@ -10,6 +10,13 @@ const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 const { forceThemeStyle } = useTheme();
 
+// Theme is forced via the iframe URL (?theme=classic|modern|luxury) so the
+// preview renders in the selected theme deterministically on load — the builder
+// reloads this frame with the new ?theme when the toggle changes, which is far
+// more reliable than depending on a postMessage arriving. (The draft still
+// arrives over postMessage; only the theme is URL-driven.)
+if (route.query.theme) forceThemeStyle(String(route.query.theme) as any);
+
 const previewOrg = ref<any>(null);
 
 const { data: loaded } = await useAsyncData(`site-preview-${slug.value}`, () =>

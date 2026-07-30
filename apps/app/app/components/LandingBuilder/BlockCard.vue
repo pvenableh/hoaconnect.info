@@ -41,7 +41,6 @@ const title = computed(() =>
 const subtitle = computed(() =>
   props.block.type === "content" ? LAYOUT_LABELS[props.block.layout || "text-image"] : meta.value.hint
 );
-const isContent = computed(() => props.block.type === "content");
 </script>
 
 <template>
@@ -58,15 +57,6 @@ const isContent = computed(() => props.block.type === "content");
 
       <div class="flex items-center gap-0.5 shrink-0">
         <Switch v-model="block.enabled" class="mr-1" title="Show / hide" />
-        <button
-          v-if="isContent"
-          type="button"
-          class="p-1.5 rounded-md hover:t-bg-subtle t-text-secondary"
-          title="Duplicate"
-          @click="emit('duplicate', block.id)"
-        >
-          <Icon name="lucide:copy" class="w-4 h-4" />
-        </button>
         <button
           type="button"
           class="p-1.5 rounded-md hover:t-bg-subtle"

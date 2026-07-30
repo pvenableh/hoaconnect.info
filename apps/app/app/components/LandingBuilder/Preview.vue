@@ -24,7 +24,10 @@ const logicalWidth = computed(() => LOGICAL[device.value]!);
 const scale = computed(() => (paneW.value ? Math.min(1, paneW.value / logicalWidth.value) : 1));
 const frameHeight = computed(() => (scale.value ? paneH.value / scale.value : paneH.value));
 
-const src = computed(() => `/${props.slug}/admin/site-preview`);
+// The forced theme rides in the URL (?theme=) — changing the toggle reloads the
+// frame into the right theme deterministically. The draft still streams over
+// postMessage (see post()); this just guarantees the theme always applies.
+const src = computed(() => `/${props.slug}/admin/site-preview?theme=${props.theme}`);
 
 function post() {
   const win = iframe.value?.contentWindow;
@@ -43,23 +46,35 @@ function onMessage(e: MessageEvent) {
   }
 }
 
-// Re-push whenever the draft or forced theme changes (debounced by rAF batching).
-let scheduled = false;
+// Push on every draft / theme / device change. Debounced with setTimeout (NOT
+// requestAnimationFrame, which browsers throttle while the tab/pane is hidden —
+// that would silently freeze the theme toggle). No `ready` gate: a post before
+// the iframe is listening is simply lost, and the ready handshake + @load
+// fallback cover the initial state, so user-driven toggles always land.
+let postTimer: ReturnType<typeof setTimeout> | null = null;
 watch(
   () => [props.draft, props.theme, device.value],
   () => {
-    if (!ready.value || scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(() => {
-      scheduled = false;
+    if (postTimer) return;
+    postTimer = setTimeout(() => {
+      postTimer = null;
       post();
-    });
+    }, 30);
   },
   { deep: true }
 );
 
+// Fallback for a missed ready handshake: once the iframe document loads, give
+// its app a tick to mount its message listener, then push the current draft.
+function onIframeLoad() {
+  setTimeout(post, 150);
+}
+
 onMounted(() => window.addEventListener("message", onMessage));
-onBeforeUnmount(() => window.removeEventListener("message", onMessage));
+onBeforeUnmount(() => {
+  window.removeEventListener("message", onMessage);
+  if (postTimer) clearTimeout(postTimer);
+});
 
 function reload() {
   ready.value = false;
@@ -75,12 +90,12 @@ function reload() {
         <Icon name="lucide:eye" class="w-3.5 h-3.5" /> Live preview
       </span>
       <div class="flex items-center gap-2">
-        <div class="inline-flex rounded-lg border t-border p-0.5">
+        <div class="inline-flex rounded-full border t-border p-0.5">
           <button
             v-for="d in (['desktop', 'mobile'] as const)"
             :key="d"
             type="button"
-            class="px-2 py-1 rounded-md transition-colors"
+            class="px-2.5 py-1 rounded-full transition-colors"
             :class="device === d ? 'bg-primary text-primary-foreground' : 't-text-muted hover:t-text'"
             :title="d === 'desktop' ? 'Desktop' : 'Mobile'"
             @click="device = d"
@@ -107,6 +122,7 @@ function reload() {
         :src="src"
         title="Public site preview"
         class="border-0 bg-white origin-top-left"
+        @load="onIframeLoad"
         :style="{
           width: logicalWidth + 'px',
           height: frameHeight + 'px',
