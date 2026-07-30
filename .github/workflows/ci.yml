@@ -32,7 +32,7 @@ jobs:
         run: pnpm test
 
       - name: Typecheck
-        run: pnpm exec nuxt typecheck
+        run: pnpm typecheck
 
       - name: Build
         run: pnpm build
