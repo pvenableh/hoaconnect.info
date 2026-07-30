@@ -18,8 +18,13 @@ export const useCurrentDomainAccess = () => {
   const config = useRuntimeConfig();
   const route = useRoute();
 
-  // Get memberships from the user-members async data (populated by useSelectedOrg)
-  const membershipsState = useState<any[]>("user-members", () => []);
+  // Read memberships from the "user-members" useAsyncData cache that
+  // useSelectedOrg populates. NOTE: this must be useNuxtData, NOT
+  // useState("user-members") — useAsyncData and useState keep SEPARATE stores
+  // even under the same key, so useState here would always be empty and every
+  // current-domain check (admin / member / board / PM) would silently fail for
+  // non-App-Admin users. useNuxtData returns a reactive ref to the same cache.
+  const { data: membershipsState } = useNuxtData<any[]>("user-members");
 
   // Check if we're on an org context (slug route)
   const isOrgContext = computed(() => {
