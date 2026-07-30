@@ -185,27 +185,33 @@ export default defineEventHandler(async (event) => {
     const invitationUrl = `${orgUrl}/accept-invite?token=${token}`;
 
     try {
-      await sendHoaInvitationEmail({
-        to: email,
-        firstName,
-        lastName,
-        organizationName: organization.name || "Unknown Organization",
-        invitationUrl,
-        inviterName:
-          `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() ||
-          "Admin",
-        roleName: roleName,
-        expiresAt: expiresAt.toISOString(),
-        // Organization branding data
-        orgLogoUrl,
-        orgUrl,
-        orgPhoneNumber: organization.phone || undefined,
-        orgEmail: organization.email || undefined,
-        orgAddress,
-        orgLegalName: organization.legal_name || undefined,
-      });
+      // Demo guardrail: create the invitation record (so the UI reflects it) but
+      // never actually email a stranger from a public demo org.
+      if (await shouldBlockDemoEmail(organizationId)) {
+        console.log(`[demo] invitation email suppressed for demo org ${organizationId} → ${email}`);
+      } else {
+        await sendHoaInvitationEmail({
+          to: email,
+          firstName,
+          lastName,
+          organizationName: organization.name || "Unknown Organization",
+          invitationUrl,
+          inviterName:
+            `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() ||
+            "Admin",
+          roleName: roleName,
+          expiresAt: expiresAt.toISOString(),
+          // Organization branding data
+          orgLogoUrl,
+          orgUrl,
+          orgPhoneNumber: organization.phone || undefined,
+          orgEmail: organization.email || undefined,
+          orgAddress,
+          orgLegalName: organization.legal_name || undefined,
+        });
 
-      console.log("✅ Invitation email sent successfully to:", email);
+        console.log("✅ Invitation email sent successfully to:", email);
+      }
     } catch (emailError: any) {
       console.error("❌ Failed to send invitation email:", emailError);
       // Don't fail the whole request if email fails

@@ -127,6 +127,25 @@ const handleSubmit = async (values: { email: string; password: string }) => {
   // so the button shows loading state while the page redirects
 };
 
+const demoLoading = ref(false);
+// One-click "Try the app": sign into the shared, sandboxed demo account, then a
+// full navigation so the server picks up the fresh session and lands us on the
+// demo dashboard. Fails quietly (feature is off when demo creds aren't set).
+const handleTryDemo = async () => {
+  if (demoLoading.value) return;
+  demoLoading.value = true;
+  try {
+    const res = await $fetch<{ success: boolean; redirect: string }>("/api/demo/login", {
+      method: "POST",
+    });
+    toast.success("Welcome to the demo", { description: "Loading a sample community…", duration: 8000 });
+    window.location.assign(res?.redirect || "/demo/dashboard");
+  } catch {
+    toast.error("Demo unavailable", { description: "The live demo isn't available right now." });
+    demoLoading.value = false;
+  }
+};
+
 const handleForgotPassword = () => {
   router.push("/auth/forgot-password");
 };
@@ -145,5 +164,19 @@ const handleRegister = () => {
       @forgot-password="handleForgotPassword"
       @register="handleRegister"
     />
+
+    <!-- One-click sandbox: no signup, no credentials -->
+    <div class="mt-6 pt-5 border-t t-border">
+      <button
+        type="button"
+        :disabled="demoLoading"
+        class="w-full inline-flex items-center justify-center gap-2 rounded-full border t-border px-4 py-2.5 text-sm font-medium t-text hover:t-bg-subtle transition-colors disabled:opacity-60"
+        @click="handleTryDemo"
+      >
+        <Icon :name="demoLoading ? 'lucide:loader-circle' : 'lucide:play'" class="w-4 h-4" :class="{ 'animate-spin': demoLoading }" />
+        {{ demoLoading ? "Loading demo…" : "Try the live demo" }}
+      </button>
+      <p class="mt-2 text-center text-xs t-text-muted">Explore a sample community — no account needed.</p>
+    </div>
   </AuthShell>
 </template>

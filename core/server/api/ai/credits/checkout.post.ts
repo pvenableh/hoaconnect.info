@@ -14,6 +14,11 @@ export default defineEventHandler(async (event) => {
 
   await requireOrgComposeAccess(event, orgId);
 
+  // Demo guardrail: no real Stripe purchases from a public demo org.
+  if (await isDemoOrg(orgId)) {
+    throw createError({ statusCode: 403, message: "Purchases are disabled in the demo." });
+  }
+
   const pack = packById(packId);
   if (!pack) throw createError({ statusCode: 400, message: "Unknown credit pack" });
 

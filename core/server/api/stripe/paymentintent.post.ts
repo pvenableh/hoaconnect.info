@@ -66,6 +66,11 @@ export default defineEventHandler(async (event) => {
 		// Validate input
 		const validatedData = paymentIntentSchema.parse(body);
 
+		// Demo guardrail: never create a real charge for a public demo org.
+		if (await isDemoOrg(validatedData.organizationId)) {
+			throw createError({ statusCode: 403, message: 'Payments are disabled in the demo.' });
+		}
+
 		// Construct payment intent options
 		const baseOptions: Stripe.PaymentIntentCreateParams = {
 			amount: validatedData.amount,

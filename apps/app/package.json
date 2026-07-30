@@ -15,6 +15,7 @@
     "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ../../core/types/directus.ts'",
     "generate-icons": "node scripts/generate-icons.js",
     "seed:605-content": "dotenv -- tsx scripts/seed-605-content.ts",
+    "seed:demo": "dotenv -- tsx scripts/seed-demo.ts",
     "create:change-requests": "dotenv -- tsx scripts/create-member-change-requests.ts",
     "create:channels": "dotenv -- tsx scripts/create-channels-collections.ts",
     "create:email-templates": "dotenv -- tsx scripts/create-email-templates-collection.ts",

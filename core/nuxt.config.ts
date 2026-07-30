@@ -94,6 +94,13 @@ export default defineNuxtConfig({
     // credit economy). Server-only; if unset the AI routes return 503 and the
     // composer's Draft-with-AI button hides.
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    // Public "try the app" demo. Shared demo-admin creds used by /api/demo/login
+    // (and seed-demo.ts). When either is unset the demo login route is disabled.
+    demoUserEmail: process.env.DEMO_USER_EMAIL,
+    demoUserPassword: process.env.DEMO_USER_PASSWORD,
+    // Guardrail switch: when "true", is_demo orgs may send REAL emails (so the
+    // owner can test delivery); otherwise demo email is simulated/logged only.
+    demoAllowEmail: process.env.DEMO_ALLOW_EMAIL,
     // Voyage AI embedding key (server-only) — powers doc/bylaw RAG retrieval.
     // A separate vendor (own key/billing; does NOT consume Anthropic tokens),
     // metered into the same AI wallet as an `embed` feature. When unset every RAG

@@ -476,6 +476,15 @@ export const sendOrganizationEmail = async ({
   bcc?: Array<{ email: string; name?: string }>;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
+
+  // Demo guardrail: never deliver real email from a public demo org (unless the
+  // owner has flipped DEMO_ALLOW_EMAIL to test). Return a simulated success so
+  // callers behave normally.
+  if (await shouldBlockDemoEmail(organizationId)) {
+    console.log(`[demo] email suppressed for demo org ${organizationId} → ${to} — "${subject}"`);
+    return { success: true, messageId: null };
+  }
+
   const sg = initSendGrid();
 
   const fromEmail = fromAddress || config.public.fromEmail || "noreply@hoaconnect.info";

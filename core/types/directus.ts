@@ -1115,6 +1115,8 @@ export interface HoaOrganization {
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
 	is_free_account?: boolean | null;
+	/** @description Public "try the app" demo org. Drives email/payment/AI guardrails. */
+	is_demo?: boolean | null;
 	legal_name?: string | null;
 	type?: 'residential' | 'commercial' | null;
 	/** @description Per-org optional module on/off toggles (managed from Settings → Modules). Missing keys are treated as enabled. */
