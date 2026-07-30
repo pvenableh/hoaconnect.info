@@ -36,7 +36,7 @@ export interface DemoDef {
   phone: string;
   email: string;
   geo: { lat: number; lon: number };
-  hero: { title: string; subtitle: string; cta_text?: string; cta_link?: string };
+  hero: { title: string; subtitle: string; cta_text?: string; cta_link?: string; imageId?: string };
   description: string;
   amenities: Amenity[];
   members: Member[];
@@ -56,7 +56,7 @@ export const DEMO_DEFS: DemoDef[] = [
     geo: { lat: 25.784, lon: -80.187 },
     description:
       "Harborview Lofts is a 96-residence waterfront community in Downtown Miami — floor-to-ceiling glass, a rooftop pool deck, and a walkable bayfront address. This is a live demo of HOA Connect; feel free to click around.",
-    hero: { title: "Harborview Lofts", subtitle: "Waterfront loft living on Biscayne Bay.", cta_text: "Resident portal", cta_link: "/demo" },
+    hero: { title: "Harborview Lofts", subtitle: "Waterfront loft living on Biscayne Bay.", cta_text: "Resident portal", cta_link: "/demo", imageId: "0effbba2-dd61-4d8e-abdd-d8f31e404e22" },
     amenities: [
       { title: "Rooftop Pool Deck", icon: "waves", description: "A heated rooftop pool and sundeck with panoramic bay and skyline views." },
       { title: "Bayfront Fitness", icon: "dumbbell", description: "A 24/7 fitness studio overlooking the water, with Peloton bikes and free weights." },
@@ -86,7 +86,7 @@ export const DEMO_DEFS: DemoDef[] = [
     geo: { lat: 25.7852, lon: -80.1301 },
     description:
       "The Beaumont Residences is a boutique collection of 24 Art Deco homes on Ocean Drive — a restored 1930s landmark reimagined for modern living. This is a live demo of HOA Connect; explore freely.",
-    hero: { title: "The Beaumont Residences", subtitle: "Boutique Art Deco living on Ocean Drive.", cta_text: "Resident portal", cta_link: "/demo-classic" },
+    hero: { title: "The Beaumont Residences", subtitle: "Boutique Art Deco living on Ocean Drive.", cta_text: "Resident portal", cta_link: "/demo-classic", imageId: "e9993e1c-3a9b-4cc0-9c3e-7cdfd2fcf07e" },
     amenities: [
       { title: "Oceanfront Terrace", icon: "sun", description: "A private terrace facing the Atlantic, set for morning coffee and evening gatherings." },
       { title: "Curated Concierge", icon: "concierge-bell", description: "A dedicated concierge for reservations, deliveries, and resident requests." },
@@ -241,8 +241,10 @@ export async function seedDemos(io: SeedIO, user: DemoUser): Promise<void> {
       await dx(`/items/hoa_organizations/${org.id}`, { method: "PATCH", body: JSON.stringify({ settings: created.data.id }) });
     }
 
-    // Hero.
-    const heroPayload = { title: def.hero.title, subtitle: def.hero.subtitle, cta_text: def.hero.cta_text || null, cta_link: def.hero.cta_link || null, status: "published" };
+    // Hero (background_image only when we have a demo asset id, so a re-seed
+    // never clears a manually-set photo).
+    const heroPayload: Record<string, any> = { title: def.hero.title, subtitle: def.hero.subtitle, cta_text: def.hero.cta_text || null, cta_link: def.hero.cta_link || null, status: "published" };
+    if (def.hero.imageId) heroPayload.background_image = def.hero.imageId;
     if (org.hero) await dx(`/items/block_hero/${org.hero}`, { method: "PATCH", body: JSON.stringify(heroPayload) });
     else {
       const created = await dx(`/items/block_hero`, { method: "POST", body: JSON.stringify(heroPayload) });
