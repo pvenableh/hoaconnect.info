@@ -76,7 +76,7 @@ export function useLandingNav(opts: UseLandingNavOptions) {
     const out: LandingNavLink[] = [{ label: "Home", icon: "lucide:home", href: "#top" }];
     for (const b of enabledLandingBlocks(landingCfg.value)) {
       if (b.type === "amenities" && amenitiesPresent.value)
-        out.push({ label: "Amenities", icon: "lucide:concierge-bell", href: "#amenities" });
+        out.push({ label: "Amenities", icon: "lucide:gem", href: "#amenities" });
       else if (b.type === "listings" && landingCfg.value.listings.length)
         out.push({ label: "Listings", icon: "lucide:home", href: "#listings" });
       else if (b.type === "faq" && landingCfg.value.faq.length)
@@ -86,7 +86,7 @@ export function useLandingNav(opts: UseLandingNavOptions) {
       else if (b.type === "contact")
         out.push({ label: "Contact", icon: "lucide:mail", href: "#contact" });
       else if (b.type === "content" && (b.title || b.category) && b.show_in_menu !== false)
-        out.push({ label: (b.category || b.title) as string, icon: b.menu_icon || "lucide:layout-template", href: `#${b.id}` });
+        out.push({ label: (b.category || b.title) as string, icon: b.menu_icon || "lucide:layers", href: `#${b.id}` });
     }
     return out;
   });

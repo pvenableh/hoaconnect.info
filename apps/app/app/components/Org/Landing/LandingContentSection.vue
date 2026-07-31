@@ -117,7 +117,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8 py-12 my-8 border-y t-border-divider">
               <div v-for="(s, i) in stats" :key="i" class="reveal text-center">
                 <Icon v-if="s.icon" :name="s.icon" class="w-6 h-6 mx-auto mb-2 t-text-accent-tertiary" />
-                <span class="t-heading text-5xl font-light leading-none block t-text">{{ s.value }}</span>
+                <span class="t-heading text-5xl font-light leading-none block t-text" :data-count="statNum(s.value)">{{ s.value }}</span>
                 <span v-if="s.unit" class="text-xs tracking-wide uppercase t-text-accent-tertiary block mb-1">{{ s.unit }}</span>
                 <span class="text-sm t-text-tertiary block">{{ s.label }}</span>
               </div>
@@ -199,6 +199,10 @@ const hasLabel = computed(() => !!(props.block?.number_label || props.block?.cat
 
 // Loop the gallery images so the marquee scrolls seamlessly (duplicate once).
 const galleryLoop = computed(() => [...images.value, ...images.value]);
+
+// Only pure-integer stat values count up (skip ZIPs-with-letters, "24/7", "4.5",
+// etc., which should render verbatim). The count-up itself runs in PublicLanding.
+const statNum = (v) => (/^\d+$/.test(String(v ?? "").trim()) ? String(v).trim() : undefined);
 
 // Request the full image resized (no preset padding) so the CSS bg-cover slots
 // crop it cleanly to each block's aspect; format/quality keep payloads small.

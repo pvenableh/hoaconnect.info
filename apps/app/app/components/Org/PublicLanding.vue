@@ -406,6 +406,23 @@ onMounted(() => {
           overwrite: true,
         }),
     });
+
+    // Count-up numeric stat values as they scroll in (Earnest [data-count]).
+    Array.from(rootEl.value.querySelectorAll("[data-count]")).forEach((el) => {
+      const end = parseFloat(el.getAttribute("data-count"));
+      if (!isFinite(end)) return;
+      const obj = { v: 0 };
+      gsap.to(obj, {
+        v: end,
+        duration: 1.4,
+        ease: "power2.out",
+        scrollTrigger: { trigger: el, start: "top 88%", once: true },
+        onUpdate: () => {
+          el.textContent = Math.round(obj.v).toString();
+        },
+      });
+    });
+
     ScrollTrigger.refresh();
   }, rootEl.value);
 });

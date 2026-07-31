@@ -4,7 +4,7 @@
     v-if="count > 0"
     :value="count"
     :label="count === 1 ? 'Amenity' : 'Amenities'"
-    icon="lucide:sparkles"
+    icon="lucide:gem"
     sub="On offer"
   />
 </template>
