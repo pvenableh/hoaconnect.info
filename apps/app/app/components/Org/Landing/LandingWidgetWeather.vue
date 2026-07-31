@@ -29,29 +29,32 @@ const { data } = useFetch<{
   default: () => null,
 });
 
-// Map OpenWeather icon codes → lucide icons.
+// Map OpenWeather icon codes → the Weather Icons (wi) family, matching Earnest's
+// weather iconography. Day/night variants are honored via the trailing d/n.
 const weatherIcon = computed(() => {
   const code = (data.value?.icon || "").slice(0, 2);
   const night = (data.value?.icon || "").endsWith("n");
   switch (code) {
-    case "01":
-      return night ? "lucide:moon" : "lucide:sun";
-    case "02":
-      return night ? "lucide:cloud-moon" : "lucide:cloud-sun";
-    case "03":
-    case "04":
-      return "lucide:cloud";
-    case "09":
-    case "10":
-      return "lucide:cloud-rain";
-    case "11":
-      return "lucide:cloud-lightning";
-    case "13":
-      return "lucide:snowflake";
-    case "50":
-      return "lucide:cloud-fog";
+    case "01": // clear
+      return night ? "wi:night-clear" : "wi:day-sunny";
+    case "02": // few clouds
+      return night ? "wi:night-alt-cloudy" : "wi:day-cloudy";
+    case "03": // scattered clouds
+      return "wi:cloud";
+    case "04": // broken / overcast
+      return "wi:cloudy";
+    case "09": // shower rain
+      return "wi:showers";
+    case "10": // rain
+      return night ? "wi:night-alt-rain" : "wi:day-rain";
+    case "11": // thunderstorm
+      return "wi:thunderstorm";
+    case "13": // snow
+      return "wi:snow";
+    case "50": // mist / fog
+      return "wi:fog";
     default:
-      return "lucide:cloud-sun";
+      return night ? "wi:night-alt-cloudy" : "wi:day-cloudy";
   }
 });
 </script>
