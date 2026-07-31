@@ -425,7 +425,9 @@ html.theme-modern-dark .landing-dock {
 	display: flex;
 	align-items: flex-end;
 	gap: 0.25rem;
-	overflow-x: auto;
+	/* Visible overflow so magnified chips rise above the pill (macOS dock) and
+	   the flex row grows with the chips' spread margins. */
+	overflow: visible;
 	-ms-overflow-style: none;
 	scrollbar-width: none;
 }
@@ -434,6 +436,8 @@ html.theme-modern-dark .landing-dock {
 }
 .landing-dock__item {
 	flex: none;
+	transform-origin: bottom center;
+	transition: transform 90ms ease-out, margin 90ms ease-out;
 }
 .landing-dock__divider {
 	flex: none;
@@ -465,7 +469,6 @@ html.theme-modern-dark .landing-dock {
 	transform-origin: bottom center;
 }
 .landing-dock__icon:hover {
-	transform: scale(1.32) translateY(-6px);
 	border-color: hsl(var(--c-h, 190) var(--c-s, 82%) 55% / 0.5);
 	box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.3),
 		0 12px 24px -8px hsl(var(--c-h, 190) var(--c-s, 82%) 42% / 0.55);
@@ -536,8 +539,12 @@ html.theme-modern-dark .landing-dock {
 	transform: translateX(-50%) translateY(0);
 }
 
-/* Condensed dock on small screens — smaller icons, no magnify jump. */
+/* Condensed dock on small screens — smaller icons; no magnification on touch, so
+   allow horizontal scroll if the chips overflow. */
 @media (max-width: 640px) {
+	.landing-dock__list {
+		overflow-x: auto;
+	}
 	.landing-dock__icon {
 		width: 2.25rem;
 		height: 2.25rem;
@@ -547,15 +554,13 @@ html.theme-modern-dark .landing-dock {
 		width: 1.15rem;
 		height: 1.15rem;
 	}
-	.landing-dock__icon:hover {
-		transform: scale(1.12) translateY(-2px);
-	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.landing-dock__icon,
-	.landing-dock__icon:hover {
-		transform: none;
-		transition: background 0.2s ease;
+	/* Override the inline magnification transform for motion-sensitive users. */
+	.landing-dock__item {
+		transform: none !important;
+		margin: 0 !important;
+		transition: none;
 	}
 }

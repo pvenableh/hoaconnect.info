@@ -8,9 +8,15 @@
 <template>
   <div class="landing-dock-wrap fixed inset-x-0 bottom-4 sm:bottom-6 z-40 flex justify-center px-3 pointer-events-none">
     <nav class="landing-dock pointer-events-auto" aria-label="Site navigation">
-      <ul class="landing-dock__list">
+      <ul class="landing-dock__list" @pointermove="onPointerMove" @pointerleave="reset">
         <!-- Explore -->
-        <li v-for="(link, i) in exploreLinks" :key="`e-${link.label}`" class="landing-dock__item">
+        <li
+          v-for="(link, i) in exploreLinks"
+          :key="`e-${link.label}`"
+          :ref="(el) => setChipRef(el, i)"
+          class="landing-dock__item"
+          :style="chipStyle(i)"
+        >
           <component
             :is="link.to ? NuxtLink : 'a'"
             v-bind="link.to ? { to: link.to } : { href: link.href }"
@@ -28,7 +34,11 @@
         <li class="landing-dock__divider" aria-hidden="true" />
 
         <!-- Account / sign-in end cap -->
-        <li class="landing-dock__item">
+        <li
+          :ref="(el) => setChipRef(el, endCapIndex)"
+          class="landing-dock__item"
+          :style="chipStyle(endCapIndex)"
+        >
           <a
             v-if="user"
             href="/dashboard"
@@ -96,6 +106,43 @@ const accents = computed(() =>
 const endCapIndex = computed(() => exploreLinks.value.length);
 const accentVars = (a: { h: number; s: number; l: number } | undefined) =>
   a ? { "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` } : {};
+
+// ---- macOS-style magnification (ported from App/Dock so the two match) ----
+const REACH = 170; // px of influence on each side of the cursor
+const MAX = 0.5; // peak extra scale (1.5x at the cursor)
+const SPREAD = 18; // px of layout margin per unit of growth (expands the pill)
+const chipEls = ref<HTMLElement[]>([]);
+const magnify = ref<{ scale: number }[]>([]);
+const setChipRef = (el: any, i: number) => {
+  const dom = (el && (el.$el ?? el)) as HTMLElement | null;
+  if (dom) chipEls.value[i] = dom;
+};
+const canMagnify = () =>
+  import.meta.client &&
+  window.matchMedia("(min-width: 768px) and (any-hover: hover) and (any-pointer: fine)").matches;
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
+const onPointerMove = (e: PointerEvent) => {
+  if (!canMagnify()) return reset();
+  const cursorX = e.clientX;
+  magnify.value = Array.from({ length: chipCount.value }, (_, i) => {
+    const el = chipEls.value[i];
+    if (!el) return { scale: 1 };
+    const r = el.getBoundingClientRect();
+    const center = r.left + r.width / 2;
+    const dx = Math.abs(cursorX - center);
+    const t = dx >= REACH ? 0 : 1 - dx / REACH;
+    return { scale: 1 + smoothstep(t) * MAX };
+  });
+};
+const reset = () => {
+  magnify.value = Array.from({ length: chipCount.value }, () => ({ scale: 1 }));
+};
+const chipStyle = (i: number) => {
+  const m = magnify.value[i] || { scale: 1 };
+  const mx = Math.max(0, m.scale - 1) * SPREAD;
+  return { transform: `scale(${m.scale})`, marginLeft: `${mx}px`, marginRight: `${mx}px` };
+};
+watch(chipCount, reset, { immediate: true });
 
 const displayName = computed(() =>
   [props.user?.first_name, props.user?.last_name].filter(Boolean).join(" ") || "Resident"
