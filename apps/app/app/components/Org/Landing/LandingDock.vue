@@ -10,11 +10,13 @@
     <nav class="landing-dock pointer-events-auto" aria-label="Site navigation">
       <ul class="landing-dock__list">
         <!-- Explore -->
-        <li v-for="link in exploreLinks" :key="`e-${link.label}`" class="landing-dock__item">
+        <li v-for="(link, i) in exploreLinks" :key="`e-${link.label}`" class="landing-dock__item">
           <component
             :is="link.to ? NuxtLink : 'a'"
             v-bind="link.to ? { to: link.to } : { href: link.href }"
             class="landing-dock__icon"
+            :class="{ 'landing-dock__icon--solid': !glassChrome }"
+            :style="accentVars(accents[i])"
             :title="link.label"
             :aria-label="link.label"
           >
@@ -26,10 +28,12 @@
         <li v-if="portalLinks.length" class="landing-dock__divider" aria-hidden="true" />
 
         <!-- Locked member portal -->
-        <li v-for="p in portalLinks" :key="`p-${p.key}`" class="landing-dock__item">
+        <li v-for="(p, i) in portalLinks" :key="`p-${p.key}`" class="landing-dock__item">
           <a
             :href="lockHref"
             class="landing-dock__icon landing-dock__icon--locked"
+            :class="{ 'landing-dock__icon--solid': !glassChrome }"
+            :style="accentVars(accents[portalOffset + i])"
             :title="`${p.label} · ${memberNoun.singular} portal`"
             :aria-label="`${p.label} (locked)`"
           >
@@ -57,6 +61,7 @@
             v-else
             :href="primaryAction.href"
             class="landing-dock__icon landing-dock__icon--accent"
+            :style="accentVars(accents[endCapIndex])"
             :title="primaryAction.label"
             :aria-label="primaryAction.label"
           >
@@ -91,6 +96,23 @@ const { user, memberNoun, lockHref, exploreLinks, portalLinks, primaryAction } =
   hasListings: () => props.hasListings,
   hasFaq: () => props.hasFaq,
 });
+
+// Match the admin/member App/Dock: per-chip accent hues sampled from the same
+// palette (gappy so neighbors contrast), and the same frosted-vs-solid chip
+// treatment. Chips are laid out explore → portal → end-cap, so the accent index
+// runs across all three in that order.
+const { accentsForApps, palette, glassChrome } = useAppNav();
+const chipCount = computed(() => exploreLinks.value.length + portalLinks.value.length + 1);
+const accents = computed(() =>
+  accentsForApps(
+    Array.from({ length: chipCount.value }, (_, i) => ({ key: String(i) })) as any,
+    palette.value
+  )
+);
+const portalOffset = computed(() => exploreLinks.value.length);
+const endCapIndex = computed(() => exploreLinks.value.length + portalLinks.value.length);
+const accentVars = (a: { h: number; s: number; l: number } | undefined) =>
+  a ? { "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` } : {};
 
 const displayName = computed(() =>
   [props.user?.first_name, props.user?.last_name].filter(Boolean).join(" ") || "Resident"

@@ -407,8 +407,8 @@ html.theme-modern-dark .glass-widget {
 	display: flex;
 	align-items: flex-end;
 	max-width: 100%;
-	padding: 0.5rem 0.75rem;
-	border-radius: 1.5rem;
+	padding: 0.5rem 0.8rem;
+	border-radius: 9999px;
 	background: rgba(255, 255, 255, 0.55);
 	border: 1px solid rgba(255, 255, 255, 0.6);
 	backdrop-filter: blur(22px) saturate(170%);
@@ -450,29 +450,58 @@ html.theme-modern-dark .landing-dock {
 	justify-content: center;
 	width: 2.75rem;
 	height: 2.75rem;
-	border-radius: 0.9rem;
-	color: var(--theme-text-primary);
-	background: color-mix(in srgb, var(--theme-accent-primary) 10%, transparent);
+	border-radius: 50%;
+	/* Frosted-glass circular chip with an accent-tinted border + shadow, matching
+	   the admin/member App/Dock. The accent hue is supplied per-chip via --c-*
+	   (sampled from the same palette as the app dock); a sensible cyan fallback
+	   keeps it correct if a chip is ever rendered without one. */
+	color: hsl(var(--c-h, 190) var(--c-s, 82%) calc(var(--c-l, 52%) - 6%));
+	background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 60%, transparent);
+	border: 1px solid hsl(var(--c-h, 190) var(--c-s, 82%) 60% / 0.25);
+	box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.3),
+		0 2px 6px -2px hsl(var(--c-h, 190) var(--c-s, 82%) 30% / 0.25);
 	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-		background 0.25s ease, box-shadow 0.25s ease;
+		box-shadow 0.25s ease, border-color 0.2s ease;
 	transform-origin: bottom center;
 }
 .landing-dock__icon:hover {
 	transform: scale(1.32) translateY(-6px);
-	background: color-mix(in srgb, var(--theme-accent-primary) 22%, transparent);
-	box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--theme-accent-primary) 70%, transparent);
+	border-color: hsl(var(--c-h, 190) var(--c-s, 82%) 55% / 0.5);
+	box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.3),
+		0 12px 24px -8px hsl(var(--c-h, 190) var(--c-s, 82%) 42% / 0.55);
 }
+/* Solid mode (glass chrome off) — colored gradient chip, white icon. */
+.landing-dock__icon--solid {
+	background: linear-gradient(
+		160deg,
+		hsl(var(--c-h, 190) var(--c-s, 82%) calc(var(--c-l, 52%) + 12%)) 0%,
+		hsl(var(--c-h, 190) var(--c-s, 82%) var(--c-l, 52%)) 55%,
+		hsl(var(--c-h, 190) var(--c-s, 82%) calc(var(--c-l, 52%) - 8%)) 100%
+	);
+	border-color: transparent;
+	color: #fff;
+}
+/* End-cap CTA (sign in) — solid accent chip, like the app dock's active app. */
 .landing-dock__icon--accent {
-	background: var(--theme-accent-primary);
-	color: var(--theme-text-inverse);
+	background: linear-gradient(
+		160deg,
+		hsl(var(--c-h, 190) var(--c-s, 82%) calc(var(--c-l, 52%) + 12%)) 0%,
+		hsl(var(--c-h, 190) var(--c-s, 82%) var(--c-l, 52%)) 55%,
+		hsl(var(--c-h, 190) var(--c-s, 82%) calc(var(--c-l, 52%) - 8%)) 100%
+	);
+	border-color: transparent;
+	color: #fff;
 }
 .landing-dock__icon--avatar {
 	overflow: hidden;
 	background: transparent;
+	border-color: transparent;
 	padding: 0;
 }
+/* Locked portal chips keep the accent hue (so the row stays cohesive) but read
+   quieter via reduced opacity; the lock badge signals the gated state. */
 .landing-dock__icon--locked {
-	color: var(--theme-text-secondary);
+	opacity: 0.72;
 }
 .landing-dock__glyph {
 	width: 1.4rem;
@@ -512,7 +541,7 @@ html.theme-modern-dark .landing-dock {
 	.landing-dock__icon {
 		width: 2.25rem;
 		height: 2.25rem;
-		border-radius: 0.7rem;
+		border-radius: 50%;
 	}
 	.landing-dock__glyph {
 		width: 1.15rem;
