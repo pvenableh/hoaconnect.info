@@ -38,12 +38,14 @@
         </div>
 
         <div class="content-main min-w-0 overflow-x-clip">
-          <!-- ============ TEXT + IMAGE (side by side, order flips) ============ -->
+          <!-- ============ TEXT + IMAGE (side by side, order flips) ============
+               When the section has no image, the copy + features span the full
+               width instead of leaving an empty media column. -->
           <div
             v-if="layout === 'text-image' || layout === 'image-text'"
-            class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center"
+            :class="images[0] ? 'grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center' : ''"
           >
-            <div :class="layout === 'image-text' ? 'lg:order-2' : ''">
+            <div :class="images[0] && layout === 'image-text' ? 'lg:order-2' : ''">
               <component :is="CopyBlock" />
               <OrgLandingFeatureGrid
                 v-if="features.length"
@@ -58,9 +60,8 @@
                 {{ block.tagline }}
               </p>
             </div>
-            <div :class="layout === 'image-text' ? 'lg:order-1' : ''">
+            <div v-if="images[0]" :class="layout === 'image-text' ? 'lg:order-1' : ''">
               <div
-                v-if="images[0]"
                 class="reveal aspect-[3/4] sm:aspect-[4/3] lg:aspect-[3/4] flex items-end justify-start rounded-sm bg-black/25 bg-blend-darken bg-no-repeat"
                 :class="images[0].fit === 'contain' ? 'bg-contain bg-center' : 'bg-cover bg-center'"
                 :style="bgStyle(images[0])"
