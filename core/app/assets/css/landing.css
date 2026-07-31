@@ -80,27 +80,21 @@
 	opacity: 0;
 }
 
-/* Reveal-on-scroll (toggled by an IntersectionObserver in PublicLanding). */
+/* Reveal-on-scroll. GSAP ScrollTrigger in PublicLanding owns the fade + rise +
+   settle (batched + staggered); this class just holds the pre-animation hidden
+   state to prevent a flash. `.is-in` is the reduced-motion / no-GSAP fallback. */
 .reveal {
 	opacity: 0;
-	transform: translateY(22px);
-	filter: blur(1rem); /* 1033lenox settle: fade + rise + de-blur */
-	transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-		transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-		filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-	will-change: opacity, transform, filter;
+	will-change: opacity, transform;
 }
 .reveal.is-in {
 	opacity: 1;
 	transform: none;
-	filter: blur(0);
 }
 @media (prefers-reduced-motion: reduce) {
 	.reveal {
 		opacity: 1;
 		transform: none;
-		filter: none;
-		transition: none;
 	}
 }
 

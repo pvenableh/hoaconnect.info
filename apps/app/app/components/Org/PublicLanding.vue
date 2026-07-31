@@ -362,6 +362,7 @@ const onScroll = () => {
 
 // ---- Scroll reveal (hero entrance is pure CSS; see .hero-fade in landing.css) ----
 const rootEl = ref(null);
+let revealCtx = null; // GSAP context, reverted on unmount
 onMounted(() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -379,25 +380,37 @@ onMounted(() => {
   }
 
   window.addEventListener("scroll", onScroll, { passive: true });
-  const els = rootEl.value?.querySelectorAll(".reveal") || [];
-  // Reveal sections as they enter the viewport (scroller-agnostic). Degrade to
-  // immediately-visible when reduced-motion or IntersectionObserver is absent.
-  if (reduced || !("IntersectionObserver" in window)) {
+
+  // GSAP ScrollTrigger reveal — a smooth fade + rise + settle, BATCHED so items
+  // that enter together stagger in sequence (à la the Earnest sell sheet). Falls
+  // back to immediately-visible when reduced-motion or GSAP isn't available.
+  const els = Array.from(rootEl.value?.querySelectorAll(".reveal") || []);
+  const { $gsap: gsap, $ScrollTrigger: ScrollTrigger } = useNuxtApp();
+  if (reduced || !gsap || !ScrollTrigger || !els.length) {
     els.forEach((el) => el.classList.add("is-in"));
     return;
   }
-  const io = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.classList.add("is-in");
-          io.unobserve(e.target);
-        }
-      });
-    },
-    { threshold: 0.12 }
-  );
-  els.forEach((el) => io.observe(el));
+  revealCtx = gsap.context(() => {
+    gsap.set(els, { opacity: 0, y: 34, scale: 0.985 });
+    ScrollTrigger.batch(els, {
+      start: "top 86%",
+      once: true,
+      onEnter: (batch) =>
+        gsap.to(batch, {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          stagger: 0.08,
+          overwrite: true,
+        }),
+    });
+    ScrollTrigger.refresh();
+  }, rootEl.value);
 });
-onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", onScroll);
+  revealCtx?.revert();
+});
 </script>
