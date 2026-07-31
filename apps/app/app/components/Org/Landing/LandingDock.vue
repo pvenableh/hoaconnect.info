@@ -25,24 +25,6 @@
           </component>
         </li>
 
-        <li v-if="portalLinks.length" class="landing-dock__divider" aria-hidden="true" />
-
-        <!-- Locked member portal -->
-        <li v-for="(p, i) in portalLinks" :key="`p-${p.key}`" class="landing-dock__item">
-          <a
-            :href="lockHref"
-            class="landing-dock__icon landing-dock__icon--locked"
-            :class="{ 'landing-dock__icon--solid': !glassChrome }"
-            :style="accentVars(accents[portalOffset + i])"
-            :title="`${p.label} · ${memberNoun.singular} portal`"
-            :aria-label="`${p.label} (locked)`"
-          >
-            <Icon :name="p.icon" class="landing-dock__glyph" />
-            <Icon name="lucide:lock" class="landing-dock__lock" />
-            <span class="landing-dock__label">{{ p.label }}</span>
-          </a>
-        </li>
-
         <li class="landing-dock__divider" aria-hidden="true" />
 
         <!-- Account / sign-in end cap -->
@@ -88,7 +70,7 @@ const props = defineProps<{
 
 const config = useRuntimeConfig();
 
-const { user, memberNoun, lockHref, exploreLinks, portalLinks, primaryAction } = useLandingNav({
+const { user, memberNoun, exploreLinks, primaryAction } = useLandingNav({
   organization: () => props.organization,
   slug: () => props.slug,
   user: () => props.user,
@@ -99,18 +81,19 @@ const { user, memberNoun, lockHref, exploreLinks, portalLinks, primaryAction } =
 
 // Match the admin/member App/Dock: per-chip accent hues sampled from the same
 // palette (gappy so neighbors contrast), and the same frosted-vs-solid chip
-// treatment. Chips are laid out explore → portal → end-cap, so the accent index
-// runs across all three in that order.
+// treatment. The public dock intentionally shows only the Explore links + a
+// single portal/sign-in end-cap — the locked member-portal apps are omitted as
+// they're not usable (or useful) to a public visitor. Accent index runs
+// explore → end-cap.
 const { accentsForApps, palette, glassChrome } = useAppNav();
-const chipCount = computed(() => exploreLinks.value.length + portalLinks.value.length + 1);
+const chipCount = computed(() => exploreLinks.value.length + 1);
 const accents = computed(() =>
   accentsForApps(
     Array.from({ length: chipCount.value }, (_, i) => ({ key: String(i) })) as any,
     palette.value
   )
 );
-const portalOffset = computed(() => exploreLinks.value.length);
-const endCapIndex = computed(() => exploreLinks.value.length + portalLinks.value.length);
+const endCapIndex = computed(() => exploreLinks.value.length);
 const accentVars = (a: { h: number; s: number; l: number } | undefined) =>
   a ? { "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` } : {};
 
