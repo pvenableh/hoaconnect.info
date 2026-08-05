@@ -263,7 +263,9 @@ export default defineEventHandler(async (event) => {
           // Wait before each attempt (including first, to let user propagate)
           await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
 
-          authResult = await loginClient.request(login({ email, password }));
+          // mode:"json" so the refresh token is returned in the body (SDK default
+          // is "cookie", which omits it → the session can't refresh). See login.post.ts.
+          authResult = await loginClient.request(login({ email, password }, { mode: "json" }));
 
           console.log("Login response received:", {
             hasAccessToken: !!authResult?.access_token,

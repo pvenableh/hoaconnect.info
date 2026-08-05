@@ -24,11 +24,22 @@ export default defineEventHandler(async (event) => {
     // Create a client for login
     const directus = createDirectus(config.directus.url).with(rest());
 
-    // Authenticate with Directus
-    const authResult = await directus.request(login({ email, password }));
+    // Authenticate with Directus. mode:"json" is REQUIRED so the refresh token
+    // comes back in the response body — the SDK default is "cookie", which returns
+    // it as an httpOnly cookie (unusable cross-origin) and leaves
+    // authResult.refresh_token undefined. Without it the sealed session stores no
+    // refresh token, and every user-token call 401s ("Session refresh unavailable")
+    // once the ~15-min access token expires. Matches the mode:"json" used by every
+    // refresh() call in server/utils/directus.ts.
+    const authResult = await directus.request(login({ email, password }, { mode: "json" }));
 
     if (!authResult.access_token) {
       throw new Error("Authentication failed");
+    }
+    if (!authResult.refresh_token) {
+      // Shouldn't happen with mode:"json"; guard so a bad session can't silently
+      // be created without the ability to refresh.
+      throw new Error("Authentication did not return a refresh token");
     }
 
     // Create an authenticated client to fetch user data
@@ -112,7 +123,7 @@ export default defineEventHandler(async (event) => {
       expiresAt: Date.now() + ((authResult.expires || 900) * 1000), // Convert seconds to milliseconds
       secure: {
         directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token!,
+        directusRefreshToken: authResult.refresh_token,
       },
     });
 

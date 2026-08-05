@@ -532,6 +532,10 @@ export const useNotifications = () => {
     const allNotifications: UnifiedNotification[] = [];
 
     try {
+      // Announcements + mentions + emails all use the user token. Isolate them so
+      // a transient auth (or per-collection permission) failure degrades to the
+      // other sources instead of blanking the whole notification center.
+      try {
       // Fetch announcements
       const now = new Date().toISOString();
       const announcements = (await listAnnouncements({
@@ -618,6 +622,9 @@ export const useNotifications = () => {
         })) as (HoaEmailRecipient & { email?: HoaEmail })[];
 
         allNotifications.push(...emailRecipients.map(transformEmailRecipient));
+      }
+      } catch (e) {
+        console.warn("Failed to fetch core notifications (announcements/mentions/emails):", e);
       }
 
       // Fetch published meetings (audience-targeted). Isolated so a failure

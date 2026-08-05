@@ -46,7 +46,9 @@ export default defineEventHandler(async (event) => {
 
     // Auto-login after registration
     const authClient = createDirectus(config.directus.url).with(rest());
-    const authResult = await authClient.request(login({ email, password }));
+    // mode:"json" so the refresh token is returned in the body (SDK default is
+    // "cookie", which omits it → sessions that can't refresh). See login.post.ts.
+    const authResult = await authClient.request(login({ email, password }, { mode: "json" }));
 
     if (!authResult.access_token) {
       throw new Error("Auto-login failed after registration");

@@ -31,7 +31,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     const directus = createDirectus(config.directus.url).with(rest());
-    const authResult = await directus.request(login({ email, password }));
+    // mode:"json" so the refresh token is returned in the body (SDK default is
+    // "cookie", which omits it → sessions that can't refresh). See login.post.ts.
+    const authResult = await directus.request(login({ email, password }, { mode: "json" }));
     if (!authResult.access_token) throw new Error("Demo authentication failed");
 
     const authClient = createDirectus(config.directus.url)
