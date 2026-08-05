@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Records hub — the community's records and governance: meetings, documents,
-// file storage, rules, and resident activity. The dock "Records" slot opens this
-// (route /admin/reporting). Child links come from useSectionNav (shared source).
+// Records hub — the community's materials: meetings, documents, file storage,
+// and rules. (Usage analytics — resident Activity, AI spend — live under the
+// Dashboard.) The dock "Records" slot opens this (route /admin/reporting).
+// Child links come from useSectionNav (shared source).
 
 const groups = useSectionHubGroups("records");
 </script>

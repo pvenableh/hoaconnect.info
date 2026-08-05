@@ -26,6 +26,14 @@ export interface SectionGroup {
 }
 
 const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
+  // Dashboard is the "insights" home: the at-a-glance overview plus the usage
+  // analytics (resident Activity, AI spend) that don't belong with the
+  // association's materials in Records.
+  dashboard: [
+    { label: "Overview", path: "/", icon: "layout-dashboard", description: "Your community at a glance." },
+    { label: "Activity", path: "/admin/activity", icon: "activity", description: "Resident page views, downloads, and logins." },
+    { label: "AI spend", path: "/admin/ai-spend", icon: "sparkles", description: "How the assistant and AI features use the credit wallet." },
+  ],
   people: [
     { label: "Members", path: "/admin/members", icon: "users-round", description: "Owners, tenants, and their contact details.", module: "directory" },
     { label: "Units", path: "/admin/units", icon: "door-closed", description: "Units, addresses, and occupancy.", module: "directory" },
@@ -42,8 +50,6 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
     { label: "Documents", path: "/admin/documents", icon: "file-text", description: "The curated, published document library.", module: "documents" },
     { label: "Storage", path: "/admin/files", icon: "folder", description: "Dropbox-style manager for raw folders and files.", module: "files" },
     { label: "Rules", path: "/rules", icon: "scale", description: "By-laws, CC&Rs, and searchable governance.", module: "rules" },
-    { label: "Activity", path: "/admin/activity", icon: "activity", description: "Resident page views, downloads, and logins." },
-    { label: "AI spend", path: "/admin/ai-spend", icon: "sparkles", description: "How the assistant and AI features use the credit wallet." },
   ],
   payments: [
     { label: "Payments", path: "/admin/payments", icon: "wallet", description: "Dues, assessments, and statements.", module: "payments" },
@@ -100,6 +106,11 @@ export function useSectionNav() {
     const target = buildOrgPath(path).split("?")[0];
     const here = route.path.replace(/\/$/, "") || "/";
     const base = target.replace(/\/$/, "") || "/";
+    // A link to the org root ("/", e.g. the Dashboard "Overview" tab) must match
+    // ONLY the root itself — the prefix rule would otherwise mark it active on
+    // every page under /{slug}/.
+    const orgRoot = buildOrgPath("/").split("?")[0].replace(/\/$/, "") || "/";
+    if (base === orgRoot) return here === base;
     return here === base || here.startsWith(base + "/");
   };
 
