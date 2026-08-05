@@ -1115,8 +1115,6 @@ export interface HoaOrganization {
 	maintenance_mode?: boolean | null;
 	show_board?: boolean | null;
 	is_free_account?: boolean | null;
-	/** @description Public "try the app" demo org. Drives email/payment/AI guardrails. */
-	is_demo?: boolean | null;
 	legal_name?: string | null;
 	type?: 'residential' | 'commercial' | null;
 	/** @description Per-org optional module on/off toggles (managed from Settings → Modules). Missing keys are treated as enabled. */
@@ -1139,6 +1137,14 @@ export interface HoaOrganization {
 	connect_payouts_enabled?: boolean | null;
 	/** @description AI assistant trust dial: 0 ask everything · 1 low-risk internal · 2 up to medium · 3 all non-outbound. Outbound always asks. */
 	ai_autonomy_tier?: 0 | 1 | 2 | 3 | null;
+	/** @description Public try-the-app demo org. Drives email/payment/AI guardrails. */
+	is_demo?: boolean | null;
+	/** @description Cached total file-storage usage (bytes). Maintained by the app; recomputed to self-heal. */
+	storage_used_bytes?: number | null;
+	/** @description Manual extra storage grant (bytes), stacked on top of the plan limit. For comps / one-off grants. */
+	storage_extra_bytes?: number | null;
+	/** @description Enabled paid add-ons keyed by id, e.g. { "extra_storage_100": true }. */
+	active_addons?: Record<string, any> | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

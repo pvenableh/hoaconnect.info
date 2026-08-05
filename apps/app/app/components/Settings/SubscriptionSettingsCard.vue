@@ -73,9 +73,9 @@
             <div class="p-4 rounded-lg bg-muted/50">
               <p class="text-sm text-muted-foreground">Storage</p>
               <p class="text-2xl font-bold mt-1">
-                -
-                <span v-if="maxStorageGb" class="text-sm font-normal text-muted-foreground">
-                  / {{ maxStorageGb }}GB
+                {{ storageUsedLabel }}
+                <span v-if="storageLimitLabel" class="text-sm font-normal text-muted-foreground">
+                  / {{ storageLimitLabel }}
                 </span>
               </p>
             </div>
@@ -103,6 +103,49 @@
           Manage Billing
         </Button>
       </CardFooter>
+    </Card>
+
+    <!-- Add-ons -->
+    <Card>
+      <CardHeader>
+        <CardTitle>Add-ons</CardTitle>
+        <CardDescription>
+          Optional extras billed monthly on top of your plan.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="space-y-3">
+          <div
+            v-for="addon in addons"
+            :key="addon.key"
+            class="flex items-center justify-between gap-4 rounded-lg border p-4"
+          >
+            <div>
+              <div class="flex items-center gap-2">
+                <p class="font-medium">{{ addon.name }}</p>
+                <Badge variant="secondary">{{ addon.blurb }}</Badge>
+              </div>
+              <p class="text-sm text-muted-foreground mt-0.5">{{ addon.description }}</p>
+              <p class="text-sm font-medium mt-1">${{ addon.monthlyPrice }}/mo</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Icon
+                v-if="addonBusy === addon.key"
+                name="lucide:loader-2"
+                class="h-4 w-4 animate-spin text-muted-foreground"
+              />
+              <Switch
+                :model-value="!!addonState[addon.key]"
+                :disabled="addonBusy === addon.key"
+                @update:model-value="(v: boolean) => toggleAddon(addon.key, v)"
+              />
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-muted-foreground mt-3">
+          Add-ons require an active paid subscription. Changes are prorated on your next invoice.
+        </p>
+      </CardContent>
     </Card>
 
     <!-- Billing History -->
@@ -182,11 +225,64 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from "vue-sonner";
 import type { HoaOrganization, SubscriptionPlan } from "#core/types/directus";
+import type { StorageMeter } from "#core/app/composables/useOrgStorage";
+import { ADDON_LIST } from "#core/shared/billing/addons";
+import { useStorageFormat } from "#core/app/composables/useStorageFormat";
 
 const props = defineProps<{
   organization: HoaOrganization;
 }>();
+
+const storage = useOrgStorage();
+const { formatFileSize } = useStorageFormat();
+
+// ---- live storage usage meter ----
+const meter = ref<StorageMeter | null>(null);
+onMounted(async () => {
+  try {
+    meter.value = await storage.getMeter();
+  } catch {
+    /* best-effort */
+  }
+});
+const storageUsedLabel = computed(() =>
+  meter.value ? formatFileSize(meter.value.usedBytes) : "—"
+);
+const storageLimitLabel = computed(() => {
+  if (!meter.value) return maxStorageGb.value ? `${maxStorageGb.value}GB` : null;
+  if (meter.value.limitBytes == null) return "Unlimited";
+  return formatFileSize(meter.value.limitBytes);
+});
+
+// ---- paid add-ons ----
+const addons = ADDON_LIST;
+const addonBusy = ref<string | null>(null);
+const addonState = ref<Record<string, boolean>>({
+  ...((props.organization as any).active_addons &&
+  typeof (props.organization as any).active_addons === "object"
+    ? (props.organization as any).active_addons
+    : {}),
+});
+async function toggleAddon(key: string, next: boolean) {
+  addonBusy.value = key;
+  try {
+    await storage.setAddon(key, next);
+    addonState.value = { ...addonState.value, [key]: next };
+    // Refresh the meter — the storage limit just changed.
+    try {
+      meter.value = await storage.getMeter();
+    } catch {
+      /* ignore */
+    }
+    toast.success(next ? "Add-on enabled" : "Add-on removed");
+  } catch (e: any) {
+    toast.error(e?.data?.statusMessage || e?.data?.message || "Could not update add-on");
+  } finally {
+    addonBusy.value = null;
+  }
+}
 
 // Extract subscription plan details
 const subscriptionPlan = computed(() => {

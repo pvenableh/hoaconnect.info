@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
 	try {
 		// Initialize Stripe
 		const stripeSecretKey =
-			process.env.NODE_ENV === 'production' ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
+			isStripeLiveMode() ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
 
 		if (!stripeSecretKey) {
 			throw createError({
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
 		}
 
 		// Verify webhook signature
-		const webhookSecret = config.stripeWebhookSecret;
+		const webhookSecret = getStripeWebhookSecret();
 		if (!webhookSecret) {
 			throw createError({
 				statusCode: 500,
@@ -313,6 +313,26 @@ async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus
 	}
 }
 
+// Build the org's active_addons map from the subscription's line items. Each
+// known add-on has a configured recurring Price (per test/live mode); if that
+// Price is present among the items, the add-on is active. (core/shared/billing/addons.ts)
+function reconcileActiveAddons(subscription: Stripe.Subscription): Record<string, boolean> {
+	const config = useRuntimeConfig();
+	const priceByAddon: Record<string, string | undefined> = {
+		extra_storage_100: (isStripeLiveMode()
+			? config.stripeAddonStoragePriceLive
+			: config.stripeAddonStoragePriceTest) as string | undefined,
+	};
+	const priceIds = new Set(
+		(subscription.items?.data || []).map((it) => it.price?.id).filter(Boolean)
+	);
+	const active: Record<string, boolean> = {};
+	for (const [addon, priceId] of Object.entries(priceByAddon)) {
+		if (priceId && priceIds.has(priceId)) active[addon] = true;
+	}
+	return active;
+}
+
 async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirectus>, subscription: Stripe.Subscription, eventType: string) {
 	console.log('Subscription Event:', eventType, subscription.id);
 
@@ -380,6 +400,10 @@ async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirec
 			if (priceItem?.price?.recurring?.interval) {
 				updateData.billing_cycle = priceItem.price.recurring.interval === 'year' ? 'yearly' : 'monthly';
 			}
+
+			// Reconcile paid add-ons from the subscription's line items (Stripe is
+			// the source of truth; keeps active_addons from drifting).
+			updateData.active_addons = reconcileActiveAddons(subscription);
 
 			await directus.request(updateItem('hoa_organizations', org.id, updateData));
 			console.log(`Updated organization ${org.id} subscription status to ${orgStatus}`);

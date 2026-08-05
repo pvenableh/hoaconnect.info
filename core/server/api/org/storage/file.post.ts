@@ -14,6 +14,7 @@ import {
   assertFileInOrg,
   assertFolderInOrg,
 } from "#core/server/utils/org-storage";
+import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
   const root = ctx.storage.rootId;
 
   const file = (await admin.request(
-    readFile(fileId, { fields: ["id", "folder", "uploaded_by"] })
+    readFile(fileId, { fields: ["id", "folder", "uploaded_by", "filesize"] })
   )) as any;
   await assertFileInOrg(root, file);
 
@@ -59,7 +60,9 @@ export default defineEventHandler(async (event) => {
 
     case "delete": {
       await admin.request(deleteFile(fileId));
-      return { deleted: 1 };
+      // Free the bytes from the org's cached usage counter.
+      await addOrgStorageUsage(ctx.orgId, -(Number(file?.filesize) || 0));
+      return { deleted: 1, freedBytes: Number(file?.filesize) || 0 };
     }
 
     default:

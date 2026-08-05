@@ -28,6 +28,7 @@
     "mjml": "^4.18.0",
     "nanoid": "5.1.6",
     "nuxt": "^4.2.1",
+    "sharp": "^0.34.4",
     "nuxt-auth-utils": "^0.5.25",
     "reka-ui": "^2.6.1",
     "shadcn-nuxt": "2.0.0",

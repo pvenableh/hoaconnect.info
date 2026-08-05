@@ -12,7 +12,13 @@
  */
 import { toast } from "vue-sonner";
 import { useStorageFormat } from "#core/app/composables/useStorageFormat";
-import type { StorageAccess, StorageFile, StorageFolder } from "#core/app/composables/useOrgStorage";
+import type {
+  StorageAccess,
+  StorageFile,
+  StorageFolder,
+  StorageMeter,
+  OptimizeResult,
+} from "#core/app/composables/useOrgStorage";
 
 type ViewMode = "grid" | "list";
 
@@ -63,6 +69,7 @@ async function init() {
     map.value = res.map;
     currentFolderId.value = res.rootId;
     await load(res.rootId);
+    loadMeter();
   } catch (e: any) {
     toast.error(e?.data?.statusMessage || e?.message || "Could not open storage");
   } finally {
@@ -146,6 +153,7 @@ async function uploadFiles(fileList: File[]) {
     }
     toast.success(`Uploaded ${done} file${done === 1 ? "" : "s"}`, { id });
     await reload();
+    loadMeter();
   } catch (e: any) {
     toast.error(e?.data?.statusMessage || e?.message || "Upload failed", { id });
   } finally {
@@ -196,16 +204,34 @@ async function confirmRename() {
 function startDelete(type: "folder" | "file", id: string, name: string) {
   deleteTarget.value = { type, id, name };
 }
+// File delete. Folder deletes go through confirmDeleteFolder (keep vs contents).
 async function confirmDelete() {
-  if (!deleteTarget.value) return;
+  if (!deleteTarget.value || deleteTarget.value.type !== "file") return;
   busy.value = true;
   try {
-    if (deleteTarget.value.type === "folder") await storage.deleteFolder(deleteTarget.value.id);
-    else await storage.deleteFile(deleteTarget.value.id);
+    await storage.deleteFile(deleteTarget.value.id);
     if (previewFile.value?.id === deleteTarget.value.id) previewFile.value = null;
     deleteTarget.value = null;
     await reload();
+    loadMeter();
     toast.success("Deleted");
+  } catch (e: any) {
+    toast.error(e?.data?.statusMessage || "Delete failed");
+  } finally {
+    busy.value = false;
+  }
+}
+
+// Folder delete — "keep" reparents contents up a level; "contents" deletes all.
+async function confirmDeleteFolder(mode: "keep" | "contents") {
+  if (!deleteTarget.value || deleteTarget.value.type !== "folder") return;
+  busy.value = true;
+  try {
+    await storage.deleteFolder(deleteTarget.value.id, mode);
+    deleteTarget.value = null;
+    await reload();
+    loadMeter();
+    toast.success(mode === "contents" ? "Folder & contents deleted" : "Folder deleted");
   } catch (e: any) {
     toast.error(e?.data?.statusMessage || "Delete failed");
   } finally {
@@ -221,6 +247,7 @@ async function bulkDelete() {
     for (const id of ids) await storage.deleteFile(id);
     clearSelection();
     await reload();
+    loadMeter();
     toast.success(`Deleted ${ids.length} file${ids.length === 1 ? "" : "s"}`);
   } catch (e: any) {
     toast.error(e?.data?.statusMessage || "Delete failed");
@@ -303,6 +330,130 @@ function relativeDate(d?: string | null) {
   const date = new Date(d);
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
+
+// ---- storage meter ----
+const { public: { directusUrl } } = useRuntimeConfig();
+const meter = ref<StorageMeter | null>(null);
+async function loadMeter(recompute = false) {
+  try {
+    meter.value = await storage.getMeter(recompute);
+  } catch {
+    /* meter is best-effort — never block the manager on it */
+  }
+}
+const storagePct = computed(() => {
+  const m = meter.value;
+  if (!m || m.limitBytes == null || m.limitBytes === 0) return 0;
+  return Math.min(100, Math.round((m.usedBytes / m.limitBytes) * 100));
+});
+const meterBarClass = computed(() =>
+  storagePct.value >= 90
+    ? "bg-destructive"
+    : storagePct.value >= 75
+      ? "bg-amber-500"
+      : "bg-primary"
+);
+
+// ---- copy link ----
+const copiedId = ref<string | null>(null);
+async function copyLink(file: StorageFile) {
+  const url = `${directusUrl}/assets/${file.id}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    copiedId.value = file.id;
+    setTimeout(() => {
+      if (copiedId.value === file.id) copiedId.value = null;
+    }, 1600);
+    toast.success("Link copied");
+  } catch {
+    toast.error("Could not copy link");
+  }
+}
+
+// ---- optimize (single file, in place) ----
+const OPTIMIZABLE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/tiff",
+  "image/avif",
+]);
+function isOptimizable(file: StorageFile) {
+  return !!file.type && OPTIMIZABLE_TYPES.has(file.type.toLowerCase());
+}
+const optimizeTarget = ref<StorageFile | null>(null);
+const optimizeBusy = ref(false);
+const optimizeResult = ref<OptimizeResult | null>(null);
+function startOptimize(file: StorageFile) {
+  optimizeTarget.value = file;
+  optimizeResult.value = null;
+}
+async function runOptimize(format: "auto" | "webp") {
+  if (!optimizeTarget.value) return;
+  optimizeBusy.value = true;
+  try {
+    const res = await storage.optimizeFile(optimizeTarget.value.id, format);
+    optimizeResult.value = res;
+    if (res.optimized) {
+      toast.success(`Saved ${formatFileSize(Math.max(0, res.before - res.after))}`);
+      await reload();
+      loadMeter();
+    } else {
+      toast.info("Already optimized — no smaller version.");
+    }
+  } catch (e: any) {
+    toast.error(e?.data?.statusMessage || "Optimize failed");
+  } finally {
+    optimizeBusy.value = false;
+  }
+}
+
+// ---- library optimize sweep ----
+const showSweep = ref(false);
+const sweepBusy = ref(false);
+const sweepDone = ref(false);
+const sweepProcessed = ref(0);
+const sweepReclaimed = ref(0);
+async function runSweep() {
+  sweepBusy.value = true;
+  sweepDone.value = false;
+  sweepProcessed.value = 0;
+  sweepReclaimed.value = 0;
+  try {
+    let offset = 0;
+    // Loop the one-batch endpoint until it reports done (guarded).
+    for (let guard = 0; guard < 2000; guard++) {
+      const res = await storage.optimizeSweep(offset, 5);
+      sweepProcessed.value += res.processed;
+      sweepReclaimed.value += res.reclaimedBytes;
+      offset = res.nextOffset;
+      if (res.done || res.processed === 0) break;
+    }
+    sweepDone.value = true;
+    await reload();
+    loadMeter();
+  } catch (e: any) {
+    toast.error(e?.data?.statusMessage || "Sweep failed");
+  } finally {
+    sweepBusy.value = false;
+  }
+}
+
+// ---- on-demand folder size ----
+// value: undefined = not loaded, null = loading, number = bytes
+const folderSizes = ref<Record<string, number | null>>({});
+async function loadFolderSize(id: string) {
+  folderSizes.value = { ...folderSizes.value, [id]: null };
+  try {
+    const res = await storage.folderSize(id);
+    folderSizes.value = { ...folderSizes.value, [id]: res.bytes };
+  } catch {
+    const next = { ...folderSizes.value };
+    delete next[id];
+    folderSizes.value = next;
+    toast.error("Could not size folder");
+  }
+}
 </script>
 
 <template>
@@ -338,6 +489,9 @@ function relativeDate(d?: string | null) {
             <Icon name="lucide:list" class="h-4 w-4" />
           </button>
         </div>
+        <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSweep = true">
+          <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Optimize
+        </Button>
         <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSharing = true">
           <Icon name="lucide:users" class="mr-1.5 h-4 w-4" /> Sharing
         </Button>
@@ -364,6 +518,35 @@ function relativeDate(d?: string | null) {
         </button>
       </template>
     </nav>
+
+    <!-- Storage meter -->
+    <div v-if="meter" class="mb-3 rounded-xl border bg-background/60 px-3.5 py-2.5">
+      <div class="flex items-center justify-between text-xs">
+        <span class="font-medium text-foreground">Storage</span>
+        <span class="text-muted-foreground">
+          <template v-if="meter.limitBytes == null">
+            {{ formatFileSize(meter.usedBytes) }} used · Unlimited
+          </template>
+          <template v-else>
+            {{ formatFileSize(meter.usedBytes) }} of {{ formatFileSize(meter.limitBytes) }}
+            ({{ storagePct }}%)
+          </template>
+        </span>
+      </div>
+      <div v-if="meter.limitBytes != null" class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          class="h-full rounded-full transition-all"
+          :class="meterBarClass"
+          :style="{ width: Math.max(2, storagePct) + '%' }"
+        />
+      </div>
+      <p
+        v-if="meter.limitBytes != null && storagePct >= 90"
+        class="mt-1.5 text-xs text-destructive"
+      >
+        You're almost out of storage. Delete or optimize files, or add more storage in Settings → Subscription.
+      </p>
+    </div>
 
     <!-- Main panel -->
     <div
@@ -471,7 +654,9 @@ function relativeDate(d?: string | null) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem @select="openFile(file)"><Icon name="lucide:eye" class="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
                 <DropdownMenuItem as-child><a :href="downloadUrl(file)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
+                <DropdownMenuItem @select="copyLink(file)"><Icon name="lucide:link" class="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
                 <template v-if="canManage">
+                  <DropdownMenuItem v-if="isOptimizable(file)" @select="startOptimize(file)"><Icon name="lucide:sparkles" class="mr-2 h-4 w-4" />Optimize</DropdownMenuItem>
                   <DropdownMenuItem @select="startRename('file', file.id, fileLabel(file))"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
                   <DropdownMenuItem @select="startMove('file', file.id, fileLabel(file))"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -507,7 +692,19 @@ function relativeDate(d?: string | null) {
                   <span class="font-medium">{{ folder.name }}</span>
                 </div>
               </td>
-              <td class="hidden px-3 py-2 text-muted-foreground sm:table-cell">—</td>
+              <td class="hidden px-3 py-2 text-muted-foreground sm:table-cell" @click.stop>
+                <span v-if="folderSizes[folder.id] === null" class="inline-flex items-center gap-1 text-xs">
+                  <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" /> Sizing…
+                </span>
+                <span v-else-if="typeof folderSizes[folder.id] === 'number'">{{ formatFileSize(folderSizes[folder.id]!) }}</span>
+                <button
+                  v-else
+                  class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  @click="loadFolderSize(folder.id)"
+                >
+                  Size
+                </button>
+              </td>
               <td class="hidden px-3 py-2 text-muted-foreground md:table-cell">—</td>
               <td class="px-3 py-2 text-right" @click.stop>
                 <DropdownMenu v-if="canManage">
@@ -547,7 +744,9 @@ function relativeDate(d?: string | null) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem @select="openFile(file)"><Icon name="lucide:eye" class="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
                     <DropdownMenuItem as-child><a :href="downloadUrl(file)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
+                    <DropdownMenuItem @select="copyLink(file)"><Icon name="lucide:link" class="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
                     <template v-if="canManage">
+                      <DropdownMenuItem v-if="isOptimizable(file)" @select="startOptimize(file)"><Icon name="lucide:sparkles" class="mr-2 h-4 w-4" />Optimize</DropdownMenuItem>
                       <DropdownMenuItem @select="startRename('file', file.id, fileLabel(file))"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
                       <DropdownMenuItem @select="startMove('file', file.id, fileLabel(file))"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -612,16 +811,144 @@ function relativeDate(d?: string | null) {
           <DialogTitle>Delete {{ deleteTarget?.type }}?</DialogTitle>
           <DialogDescription>
             <template v-if="deleteTarget?.type === 'folder'">
-              “{{ deleteTarget?.name }}” will be deleted. Its contents move up one level — they are not deleted.
+              What should happen to the contents of “{{ deleteTarget?.name }}”?
             </template>
             <template v-else>
               “{{ deleteTarget?.name }}” will be permanently deleted. This cannot be undone.
             </template>
           </DialogDescription>
         </DialogHeader>
+
+        <!-- Folder: keep-or-delete choice -->
+        <div v-if="deleteTarget?.type === 'folder'" class="space-y-2">
+          <button
+            class="flex w-full items-start gap-3 rounded-xl border p-3 text-left transition hover:bg-muted/40 disabled:opacity-50"
+            :disabled="busy"
+            @click="confirmDeleteFolder('keep')"
+          >
+            <Icon name="lucide:folder-up" class="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p class="text-sm font-medium">Keep the files</p>
+              <p class="text-xs text-muted-foreground">Move everything inside up one level, then delete the empty folder.</p>
+            </div>
+          </button>
+          <button
+            class="flex w-full items-start gap-3 rounded-xl border border-destructive/30 p-3 text-left transition hover:bg-destructive/5 disabled:opacity-50"
+            :disabled="busy"
+            @click="confirmDeleteFolder('contents')"
+          >
+            <Icon name="lucide:trash-2" class="mt-0.5 h-5 w-5 text-destructive" />
+            <div>
+              <p class="text-sm font-medium text-destructive">Delete everything</p>
+              <p class="text-xs text-muted-foreground">Permanently delete the folder and all files and subfolders inside it. This cannot be undone.</p>
+            </div>
+          </button>
+        </div>
+
         <DialogFooter>
           <Button variant="ghost" @click="deleteTarget = null">Cancel</Button>
-          <Button variant="destructive" :disabled="busy" @click="confirmDelete">Delete</Button>
+          <Button
+            v-if="deleteTarget?.type === 'file'"
+            variant="destructive"
+            :disabled="busy"
+            @click="confirmDelete"
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Optimize file dialog -->
+    <Dialog :open="!!optimizeTarget" @update:open="(v) => !v && (optimizeTarget = null, optimizeResult = null)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Optimize image</DialogTitle>
+          <DialogDescription>
+            Shrink “{{ optimizeTarget ? fileLabel(optimizeTarget) : '' }}” in place — the file keeps the same link.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div v-if="!optimizeResult" class="space-y-2">
+          <button
+            class="flex w-full items-start gap-3 rounded-xl border p-3 text-left transition hover:bg-muted/40 disabled:opacity-50"
+            :disabled="optimizeBusy"
+            @click="runOptimize('auto')"
+          >
+            <Icon name="lucide:mail-check" class="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p class="text-sm font-medium">Optimize for web &amp; email</p>
+              <p class="text-xs text-muted-foreground">Re-encodes to JPEG/PNG — safe everywhere, including Outlook and Gmail. Recommended.</p>
+            </div>
+          </button>
+          <button
+            class="flex w-full items-start gap-3 rounded-xl border p-3 text-left transition hover:bg-muted/40 disabled:opacity-50"
+            :disabled="optimizeBusy"
+            @click="runOptimize('webp')"
+          >
+            <Icon name="lucide:image" class="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p class="text-sm font-medium">Optimize as WebP (smaller)</p>
+              <p class="text-xs text-amber-600">Smaller files, but WebP doesn't display in Outlook or Gmail email.</p>
+            </div>
+          </button>
+          <p v-if="optimizeBusy" class="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
+            <Icon name="lucide:loader-2" class="h-4 w-4 animate-spin" /> Optimizing…
+          </p>
+        </div>
+
+        <div v-else class="rounded-xl border bg-muted/30 p-4 text-center">
+          <template v-if="optimizeResult.optimized">
+            <p class="text-sm font-medium text-green-600">
+              Saved {{ formatFileSize(Math.max(0, optimizeResult.before - optimizeResult.after)) }}
+            </p>
+            <p class="mt-1 text-xs text-muted-foreground">
+              {{ formatFileSize(optimizeResult.before) }} → {{ formatFileSize(optimizeResult.after) }}
+            </p>
+          </template>
+          <p v-else class="text-sm text-muted-foreground">Already optimized — no smaller version available.</p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" @click="optimizeTarget = null; optimizeResult = null">
+            {{ optimizeResult ? "Done" : "Cancel" }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Library optimize sweep dialog -->
+    <Dialog v-model:open="showSweep">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Optimize the library</DialogTitle>
+          <DialogDescription>
+            Re-encode every image in this organization's storage to an email-safe, web-optimized size (JPEG/PNG). Files are shrunk in place, so all existing links keep working.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div v-if="sweepBusy || sweepDone" class="rounded-xl border bg-muted/30 p-4 text-center">
+          <p v-if="sweepBusy" class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Icon name="lucide:loader-2" class="h-4 w-4 animate-spin" />
+            Optimizing… {{ sweepProcessed }} processed
+          </p>
+          <template v-else>
+            <p class="text-sm font-medium text-green-600">
+              Reclaimed {{ formatFileSize(sweepReclaimed) }}
+            </p>
+            <p class="mt-1 text-xs text-muted-foreground">
+              {{ sweepProcessed }} image{{ sweepProcessed === 1 ? "" : "s" }} checked.
+            </p>
+          </template>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" :disabled="sweepBusy" @click="showSweep = false">
+            {{ sweepDone ? "Close" : "Cancel" }}
+          </Button>
+          <Button v-if="!sweepDone" :disabled="sweepBusy" @click="runSweep">
+            <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Start
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -726,7 +1053,12 @@ function relativeDate(d?: string | null) {
             <Button as-child variant="outline" size="sm">
               <a :href="downloadUrl(previewFile)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-1.5 h-4 w-4" />Download</a>
             </Button>
+            <Button variant="outline" size="sm" @click="copyLink(previewFile)">
+              <Icon :name="copiedId === previewFile.id ? 'lucide:check' : 'lucide:link'" class="mr-1.5 h-4 w-4" />
+              {{ copiedId === previewFile.id ? "Copied" : "Copy link" }}
+            </Button>
             <template v-if="canManage">
+              <Button v-if="isOptimizable(previewFile)" variant="outline" size="sm" @click="startOptimize(previewFile)"><Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" />Optimize</Button>
               <Button variant="outline" size="sm" @click="startRename('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:pencil" class="mr-1.5 h-4 w-4" />Rename</Button>
               <Button variant="outline" size="sm" @click="startMove('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:folder-input" class="mr-1.5 h-4 w-4" />Move</Button>
               <Button variant="destructive" size="sm" @click="startDelete('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:trash-2" class="mr-1.5 h-4 w-4" />Delete</Button>

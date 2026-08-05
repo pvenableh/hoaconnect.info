@@ -37,6 +37,29 @@ export interface StorageAccess {
 
 export type StorageSource = "comment" | "message" | "email" | "image" | "document";
 
+export interface StorageMeter {
+  usedBytes: number;
+  /** null = unlimited (contact-only / Enterprise) */
+  limitBytes: number | null;
+  remainingBytes: number | null;
+  plan: string | null;
+}
+
+export interface OptimizeResult {
+  optimized: boolean;
+  before: number;
+  after: number;
+  type?: string | null;
+  format?: string;
+}
+
+export interface SweepResult {
+  processed: number;
+  reclaimedBytes: number;
+  nextOffset: number;
+  done: boolean;
+}
+
 /** A file chosen via the universal FilePicker (id + metadata + asset url). */
 export interface PickedFile {
   id: string;
@@ -106,10 +129,22 @@ export const useOrgStorage = () => {
       body: { orgId: orgId(), action: "move", folderId, parentId },
     });
 
-  const deleteFolder = (folderId: string) =>
-    $fetch("/api/org/storage/folder", {
+  /**
+   * Delete a folder. mode "keep" (default) reparents contents up one level;
+   * "contents" recursively deletes everything inside and frees the bytes.
+   */
+  const deleteFolder = (
+    folderId: string,
+    mode: "keep" | "contents" = "keep"
+  ) =>
+    $fetch<{
+      mode: "keep" | "contents";
+      deletedFiles?: number;
+      deletedFolders?: number;
+      freedBytes?: number;
+    }>("/api/org/storage/folder", {
       method: "POST",
-      body: { orgId: orgId(), action: "delete", folderId },
+      body: { orgId: orgId(), action: "delete", folderId, mode },
     });
 
   // ---- file mutations (admin, or own file) ----
@@ -148,6 +183,43 @@ export const useOrgStorage = () => {
     });
   };
 
+  // ---- storage meter / quota ----
+  /** Usage + limit. Pass recompute to authoritatively re-sum (network-heavy). */
+  const getMeter = (recompute = false) =>
+    $fetch<StorageMeter>("/api/org/storage/meter", {
+      method: "POST",
+      body: { orgId: orgId(), recompute },
+    });
+
+  /** On-demand byte size of a folder's whole subtree. */
+  const folderSize = (folderId: string) =>
+    $fetch<{ bytes: number }>("/api/org/storage/size", {
+      method: "POST",
+      body: { orgId: orgId(), folderId },
+    });
+
+  // ---- image optimization ----
+  /** Optimize one file in place (same id). 'auto' = email-safe JPEG/PNG. */
+  const optimizeFile = (fileId: string, format: "auto" | "webp" = "auto") =>
+    $fetch<OptimizeResult>("/api/org/storage/optimize", {
+      method: "POST",
+      body: { orgId: orgId(), fileId, format },
+    });
+
+  /** Run one batch of the library optimize sweep (admin). */
+  const optimizeSweep = (offset = 0, limit = 5) =>
+    $fetch<SweepResult>("/api/org/storage/optimize-sweep", {
+      method: "POST",
+      body: { orgId: orgId(), offset, limit },
+    });
+
+  // ---- paid add-ons (admin) ----
+  const setAddon = (addon: string, enabled: boolean) =>
+    $fetch<{ addon: string; enabled: boolean }>("/api/org/storage/addon", {
+      method: "POST",
+      body: { orgId: orgId(), addon, enabled },
+    });
+
   // ---- settings (browse access) ----
   const getSettings = () =>
     $fetch<{ browseAccess: StorageAccess["browseAccess"] }>(
@@ -172,6 +244,11 @@ export const useOrgStorage = () => {
     moveFile,
     deleteFile,
     upload,
+    getMeter,
+    folderSize,
+    optimizeFile,
+    optimizeSweep,
+    setAddon,
     getSettings,
     setBrowseAccess,
     // asset url helpers (reused from useDirectusFiles)

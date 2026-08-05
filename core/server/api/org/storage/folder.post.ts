@@ -4,15 +4,19 @@
  * Admin-only folder mutations, confined to the org subtree.
  *   action: "create" | "rename" | "move" | "delete"
  *
- * Delete reparents any contents up to the deleted folder's parent first, so
- * nothing is ever orphaned out of the org subtree (Directus would otherwise
- * null out child folder/file references on delete).
+ * Delete takes a `mode`: "keep" (default) reparents any contents up to the
+ * deleted folder's parent and drops the empty shell (nothing is orphaned out of
+ * the org subtree; storage unchanged); "contents" recursively deletes the folder,
+ * its descendants and all their files, and frees the reclaimed bytes. Either way
+ * we avoid Directus's default delete, which would null out contained files.
  */
 
 import {
   createFolder,
   updateFolder,
   deleteFolder,
+  deleteFolders,
+  deleteFiles,
   readFolder,
   readFolders,
   readFiles,
@@ -25,6 +29,7 @@ import {
   isWithinOrgRoot,
   invalidateOrgStorage,
 } from "#core/server/utils/org-storage";
+import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -89,44 +94,103 @@ export default defineEventHandler(async (event) => {
 
     case "delete": {
       const folderId = body?.folderId;
+      // "keep" (default, non-destructive): reparent contents up one level, then
+      // drop the empty shell — storage is unchanged. "contents" (destructive):
+      // delete the folder, every descendant folder, and all files within, and
+      // free the reclaimed bytes from the org meter.
+      const mode: "keep" | "contents" = body?.mode === "contents" ? "contents" : "keep";
       if (!folderId) throw createError({ statusCode: 400, statusMessage: "Folder is required" });
       if (folderId === root) {
         throw createError({ statusCode: 400, statusMessage: "Cannot delete the root folder" });
       }
       await assertFolderInOrg(root, folderId);
 
-      const folder = (await admin.request(
-        readFolder(folderId, { fields: ["id", "parent"] })
-      )) as any;
-      const parentId =
-        folder?.parent == null
-          ? root
-          : typeof folder.parent === "string"
-            ? folder.parent
-            : folder.parent.id;
+      if (mode === "keep") {
+        const folder = (await admin.request(
+          readFolder(folderId, { fields: ["id", "parent"] })
+        )) as any;
+        const parentId =
+          folder?.parent == null
+            ? root
+            : typeof folder.parent === "string"
+              ? folder.parent
+              : folder.parent.id;
 
-      // Reparent contents up one level so nothing leaves the org subtree.
-      const [childFolders, childFiles] = await Promise.all([
-        admin.request(
-          readFolders({ filter: { parent: { _eq: folderId } }, fields: ["id"], limit: -1 })
-        ),
-        admin.request(
-          readFiles({ filter: { folder: { _eq: folderId } }, fields: ["id"], limit: -1 })
-        ),
-      ]);
+        // Reparent contents up one level so nothing leaves the org subtree.
+        const [childFolders, childFiles] = await Promise.all([
+          admin.request(
+            readFolders({ filter: { parent: { _eq: folderId } }, fields: ["id"], limit: -1 })
+          ),
+          admin.request(
+            readFiles({ filter: { folder: { _eq: folderId } }, fields: ["id"], limit: -1 })
+          ),
+        ]);
 
-      await Promise.all([
-        ...(childFolders as any[]).map((f) =>
-          admin.request(updateFolder(f.id, { parent: parentId }))
-        ),
-        ...(childFiles as any[]).map((f) =>
-          admin.request(updateFile(f.id, { folder: parentId }))
-        ),
-      ]);
+        await Promise.all([
+          ...(childFolders as any[]).map((f) =>
+            admin.request(updateFolder(f.id, { parent: parentId }))
+          ),
+          ...(childFiles as any[]).map((f) =>
+            admin.request(updateFile(f.id, { folder: parentId }))
+          ),
+        ]);
 
-      await admin.request(deleteFolder(folderId));
+        await admin.request(deleteFolder(folderId));
+        cleanup();
+        return {
+          mode: "keep",
+          deleted: 1,
+          reparentedFolders: (childFolders as any[]).length,
+          reparentedFiles: (childFiles as any[]).length,
+        };
+      }
+
+      // mode === "contents": recursive destructive delete.
+      // 1. Collect the folder + all descendants (level-order BFS).
+      const folderIds: string[] = [folderId];
+      let frontier: string[] = [folderId];
+      while (frontier.length) {
+        const children = (await admin.request(
+          readFolders({ filter: { parent: { _in: frontier } }, fields: ["id"], limit: -1 })
+        )) as any[];
+        const ids = (children || []).map((c) => c.id).filter(Boolean);
+        if (!ids.length) break;
+        folderIds.push(...ids);
+        frontier = ids;
+      }
+
+      // 2. Gather every file in those folders (ids + sizes for the meter delta).
+      const fileIds: string[] = [];
+      let freedBytes = 0;
+      for (let i = 0; i < folderIds.length; i += 50) {
+        const chunk = folderIds.slice(i, i + 50);
+        const files = (await admin.request(
+          readFiles({ filter: { folder: { _in: chunk } }, fields: ["id", "filesize"], limit: -1 })
+        )) as any[];
+        for (const f of files || []) {
+          fileIds.push(f.id);
+          freedBytes += Number(f.filesize) || 0;
+        }
+      }
+
+      // 3. Delete files first, then folders deepest-first (reverse BFS order).
+      for (let i = 0; i < fileIds.length; i += 100) {
+        await admin.request(deleteFiles(fileIds.slice(i, i + 100)));
+      }
+      const deepestFirst = [...folderIds].reverse();
+      for (let i = 0; i < deepestFirst.length; i += 100) {
+        await admin.request(deleteFolders(deepestFirst.slice(i, i + 100)));
+      }
+
+      // 4. Free the bytes from the org's storage meter.
+      if (freedBytes) await addOrgStorageUsage(ctx.orgId, -freedBytes);
       cleanup();
-      return { deleted: 1, reparentedFolders: (childFolders as any[]).length, reparentedFiles: (childFiles as any[]).length };
+      return {
+        mode: "contents",
+        deletedFolders: folderIds.length,
+        deletedFiles: fileIds.length,
+        freedBytes,
+      };
     }
 
     default:

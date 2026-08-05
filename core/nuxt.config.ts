@@ -13,6 +13,16 @@ import tailwindcss from "@tailwindcss/vite";
 // which app is consuming the layer (the consumer's `~`/`@`/`~~` point at the consumer).
 const coreDir = fileURLToPath(new URL(".", import.meta.url));
 
+// Stripe test/live mode. An explicit override so the PRODUCTION instance can run in
+// Stripe TEST mode — complete Connect onboarding + payment/subscription dry-runs with
+// test cards before taking real money — without flipping NODE_ENV. Set STRIPE_MODE=test
+// (or =live). Unset → derive from NODE_ENV, so existing deployments are unchanged.
+// The server-side counterpart is isStripeLiveMode() in core/server/utils/stripe.ts;
+// keep the two in lockstep.
+const stripeLiveMode = process.env.STRIPE_MODE
+  ? process.env.STRIPE_MODE.toLowerCase() === "live"
+  : process.env.NODE_ENV === "production";
+
 // Build identity — the spine of client-side version detection (see useAppVersion +
 // /api/version). Resolved ONCE at build/boot time and baked into the client bundle as
 // runtimeConfig.public.buildId. After a redeploy the server boots with a fresh id, so a
@@ -139,7 +149,17 @@ export default defineNuxtConfig({
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,
+    // Base webhook secret + optional per-mode secrets. When running test mode on a
+    // prod deploy, set STRIPE_WEBHOOK_SECRET_TEST (the test endpoint's whsec) so the
+    // live secret can stay in place — the server picks by mode, falling back to base.
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    stripeWebhookSecretTest: process.env.STRIPE_WEBHOOK_SECRET_TEST,
+    stripeWebhookSecretLive: process.env.STRIPE_WEBHOOK_SECRET_LIVE,
+    // Recurring Stripe Price ids for paid add-ons (see core/shared/billing/addons.ts).
+    // Per-mode so test + live can coexist. Toggling an add-on adds/removes a
+    // subscription item on the org's band subscription.
+    stripeAddonStoragePriceTest: process.env.STRIPE_PRICE_ADDON_STORAGE_100_TEST,
+    stripeAddonStoragePriceLive: process.env.STRIPE_PRICE_ADDON_STORAGE_100_LIVE,
     // Stripe Connect: platform fee taken on resident dues routed through a
     // connected (Express) account, as a percentage of the charge. Default 2%.
     // Confirm the final rate with the business before going live.
@@ -174,11 +194,13 @@ export default defineNuxtConfig({
       siteSubtitle: "",
       siteDescription:
         "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
-      // Stripe public key
-      stripePublicKey:
-        process.env.NODE_ENV === "production"
-          ? process.env.STRIPE_PUBLIC_KEY_LIVE
-          : process.env.STRIPE_PUBLIC_KEY_TEST,
+      // Stripe public key — chosen by STRIPE_MODE (see stripeLiveMode above).
+      stripePublicKey: stripeLiveMode
+        ? process.env.STRIPE_PUBLIC_KEY_LIVE
+        : process.env.STRIPE_PUBLIC_KEY_TEST,
+      // Surfaced so the UI can show an unmistakable "Stripe test mode" badge when
+      // the instance is transacting against test Stripe (esp. on the prod URL).
+      stripeTestMode: !stripeLiveMode,
       // Agency billing: flat per-seat Price IDs for the agency plan (one Product,
       // monthly + yearly recurring Prices). See docs/stripe-setup.md.
       agencyPriceIdMonthly: process.env.STRIPE_AGENCY_PRICE_ID_MONTHLY || "",
