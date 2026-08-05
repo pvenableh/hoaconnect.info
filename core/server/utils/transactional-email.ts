@@ -3,6 +3,11 @@ import type { HoaOrganization, BlockSetting } from "#core/types/directus";
 import { resolveEmailBranding } from "./email-branding";
 import { buildEmailHtml, buildEmailText, type EmailType } from "./email-templates-mjml";
 import { sendOrganizationEmail } from "./sendgrid";
+import {
+  emailAllowed,
+  allMuted,
+  type NotificationCategory,
+} from "#core/shared/notifications/preferences";
 
 /**
  * sendBrandedTransactionalEmail — one branded, per-org email to a set of
@@ -40,6 +45,13 @@ export interface BrandedTransactionalOptions {
   emailType?: EmailType;
   /** A user id to skip (e.g. the actor who triggered the event). */
   excludeUserId?: string | null;
+  /**
+   * Notification category for preference gating. When set, a recipient who has
+   * opted out of this category's email (or muted everything, or turned off the
+   * master email switch) is skipped. When omitted, only the master email switch
+   * + global mute are honored.
+   */
+  category?: NotificationCategory;
 }
 
 type OrgRow = HoaOrganization & { settings?: BlockSetting | string | null };
@@ -74,13 +86,19 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
   }
   if (!org) return;
 
-  // Recipient emails + first names.
-  let users: Array<{ id: string; email?: string | null; first_name?: string | null }> = [];
+  // Recipient emails + first names + notification prefs (for opt-out gating).
+  let users: Array<{
+    id: string;
+    email?: string | null;
+    first_name?: string | null;
+    email_notifications?: boolean | null;
+    notification_preferences?: Record<string, unknown> | null;
+  }> = [];
   try {
     users = (await admin.request(
       readUsers({
         filter: { id: { _in: recipients } },
-        fields: ["id", "email", "first_name"],
+        fields: ["id", "email", "first_name", "email_notifications", "notification_preferences"],
         limit: -1,
       })
     )) as typeof users;
@@ -110,6 +128,13 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
 
   for (const u of users) {
     if (!u.email) continue;
+    // Respect the member's notification preferences (revives the previously
+    // ignored email_notifications field + honors per-category opt-out).
+    const prefs = (u.notification_preferences as any) || null;
+    const allowed = opts.category
+      ? emailAllowed(prefs, u.email_notifications, opts.category)
+      : u.email_notifications !== false && !allMuted(prefs);
+    if (!allowed) continue;
     try {
       const recipientFirstName = u.first_name || undefined;
       const html = buildEmailHtml({

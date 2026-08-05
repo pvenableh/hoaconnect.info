@@ -272,44 +272,105 @@
               Manage how you receive notifications
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form @submit.prevent="updatePreferences" class="space-y-4">
-              <div class="space-y-3">
-                <label class="flex items-center gap-3">
-                  <input
-                    v-model="preferencesForm.email_notifications"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                  />
-                  <div>
-                    <p class="font-medium">Email Notifications</p>
-                    <p class="text-sm text-muted-foreground">
-                      Receive updates via email
-                    </p>
-                  </div>
-                </label>
-
-                <label class="flex items-center gap-3">
-                  <input
-                    v-model="preferencesForm.newsletter_subscribed"
-                    type="checkbox"
-                    class="rounded border-gray-300"
-                  />
-                  <div>
-                    <p class="font-medium">Newsletter</p>
-                    <p class="text-sm text-muted-foreground">
-                      Receive our weekly newsletter
-                    </p>
-                  </div>
-                </label>
+          <CardContent class="space-y-6">
+            <!-- Master email switch -->
+            <label class="flex items-center justify-between gap-3">
+              <div>
+                <p class="font-medium">Email notifications</p>
+                <p class="text-sm text-muted-foreground">
+                  Master switch — turn off to stop all notification emails.
+                </p>
               </div>
+              <input v-model="emailMaster" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+            </label>
 
-              <div class="flex justify-end">
-                <Button type="submit" :disabled="isUpdating">
-                  Save Preferences
-                </Button>
+            <!-- Per-category matrix -->
+            <div class="overflow-hidden rounded-lg border">
+              <div class="grid grid-cols-[1fr_4rem_4rem] items-center gap-x-2 border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <span>Category</span>
+                <span class="text-center">In-app</span>
+                <span class="text-center">Email</span>
               </div>
-            </form>
+              <div
+                v-for="cat in notifCategories"
+                :key="cat.key"
+                class="grid grid-cols-[1fr_4rem_4rem] items-center gap-x-2 border-b px-4 py-2.5 last:border-b-0"
+              >
+                <span class="text-sm">{{ cat.label }}</span>
+                <input
+                  type="checkbox"
+                  class="mx-auto h-4 w-4 rounded border-gray-300"
+                  :checked="catBell(cat.key)"
+                  @change="setCatBell(cat.key, ($event.target as HTMLInputElement).checked)"
+                />
+                <input
+                  type="checkbox"
+                  class="mx-auto h-4 w-4 rounded border-gray-300 disabled:opacity-40"
+                  :checked="catEmail(cat.key)"
+                  :disabled="!emailMaster"
+                  @change="setCatEmail(cat.key, ($event.target as HTMLInputElement).checked)"
+                />
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <Button :disabled="isUpdating" @click="updatePreferences">Save preferences</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Email digest -->
+        <Card>
+          <CardHeader>
+            <CardTitle>Email digest</CardTitle>
+            <CardDescription>A periodic summary of what's new in your community.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-5">
+            <label class="flex items-center justify-between gap-3">
+              <div>
+                <p class="font-medium">Send me a digest</p>
+                <p class="text-sm text-muted-foreground">A daily or weekly roundup email.</p>
+              </div>
+              <input v-model="digestEnabled" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+            </label>
+
+            <div v-if="digestEnabled" class="space-y-4">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-2">
+                  <Label>Frequency</Label>
+                  <select v-model="digestCadence" class="w-full rounded-md border bg-background px-3 py-2">
+                    <option value="daily">Every day</option>
+                    <option value="weekdays">Weekdays only</option>
+                    <option value="weekly">Weekly (Mondays)</option>
+                    <option value="off">Off</option>
+                  </select>
+                </div>
+                <div class="space-y-2">
+                  <Label>Time</Label>
+                  <select v-model.number="digestHour" class="w-full rounded-md border bg-background px-3 py-2">
+                    <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ formatHour(h - 1) }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <Label>Include</Label>
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <label v-for="s in digestSectionDefs" :key="s.key" class="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 rounded border-gray-300"
+                      :checked="hasSection(s.key)"
+                      @change="toggleSection(s.key, ($event.target as HTMLInputElement).checked)"
+                    />
+                    {{ s.label }}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <Button :disabled="isUpdating" @click="updatePreferences">Save preferences</Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -425,6 +486,76 @@ const preferencesForm = ref({
   locale: "en",
   timezone: "America/New_York",
 });
+
+// ── Unified notification preferences ─────────────────────────────────────────
+import {
+  NOTIFICATION_CATEGORIES,
+  DIGEST_SECTIONS,
+  type DigestCadence,
+  type DigestSection,
+} from "#core/shared/notifications/preferences";
+
+const notifCategories = NOTIFICATION_CATEGORIES;
+const digestSectionDefs = DIGEST_SECTIONS;
+
+const emailMaster = ref(true);
+const notifPrefs = ref<Record<string, any>>({});
+
+// Per-category channel toggles (missing key = on).
+const catEmail = (cat: string) => notifPrefs.value[cat] !== false;
+const setCatEmail = (cat: string, v: boolean) => {
+  notifPrefs.value = { ...notifPrefs.value, [cat]: v };
+};
+const catBell = (cat: string) => notifPrefs.value[`${cat}_bell`] !== false;
+const setCatBell = (cat: string, v: boolean) => {
+  notifPrefs.value = { ...notifPrefs.value, [`${cat}_bell`]: v };
+};
+
+// Digest fields (writable computeds over the same blob).
+const digestEnabled = computed({
+  get: () => notifPrefs.value.digest_enabled === true,
+  set: (v: boolean) => (notifPrefs.value = { ...notifPrefs.value, digest_enabled: v }),
+});
+const digestCadence = computed<DigestCadence>({
+  get: () => (notifPrefs.value.digest_cadence as DigestCadence) || "weekly",
+  set: (v: DigestCadence) => (notifPrefs.value = { ...notifPrefs.value, digest_cadence: v }),
+});
+const digestHour = computed<number>({
+  get: () => (typeof notifPrefs.value.digest_hour === "number" ? notifPrefs.value.digest_hour : 8),
+  set: (v: number) => (notifPrefs.value = { ...notifPrefs.value, digest_hour: v }),
+});
+const hasSection = (key: DigestSection) => {
+  const s = notifPrefs.value.digest_sections;
+  // Default: all sections included until the user narrows the list.
+  return Array.isArray(s) ? s.includes(key) : true;
+};
+const toggleSection = (key: DigestSection, on: boolean) => {
+  const cur: DigestSection[] = Array.isArray(notifPrefs.value.digest_sections)
+    ? notifPrefs.value.digest_sections
+    : DIGEST_SECTIONS.map((s) => s.key);
+  const next = on ? [...new Set([...cur, key])] : cur.filter((k) => k !== key);
+  notifPrefs.value = { ...notifPrefs.value, digest_sections: next };
+};
+
+const formatHour = (h: number) => {
+  const period = h < 12 ? "AM" : "PM";
+  const hr = h % 12 === 0 ? 12 : h % 12;
+  return `${hr}:00 ${period}`;
+};
+
+const loadNotificationPreferences = async () => {
+  try {
+    const r = await $fetch<{
+      email_notifications: boolean;
+      notification_preferences: Record<string, any>;
+    }>("/api/user/notification-preferences");
+    emailMaster.value = r.email_notifications !== false;
+    notifPrefs.value = r.notification_preferences || {};
+  } catch {
+    /* keep defaults */
+  }
+};
+onMounted(loadNotificationPreferences);
 
 // Load profile data
 onMounted(async () => {
@@ -551,14 +682,19 @@ const requestPasswordReset = async () => {
   }
 };
 
-// Update preferences
+// Update preferences — persists the unified notification prefs (master email
+// switch + per-category toggles + digest settings).
 const updatePreferences = async () => {
   isUpdating.value = true;
-
   try {
-    toast.warning(
-      "Preference updates are temporarily disabled while we migrate to the new data model"
-    );
+    await $fetch("/api/user/notification-preferences", {
+      method: "PATCH",
+      body: {
+        email_notifications: emailMaster.value,
+        notification_preferences: notifPrefs.value,
+      },
+    });
+    toast.success("Notification preferences saved");
   } catch (error) {
     toast.error("Failed to update preferences");
   } finally {

@@ -2016,6 +2016,8 @@ export interface DirectusUser {
 	theme_light_overrides?: 'json' | null;
 	theme_dark_overrides?: 'json' | null;
 	text_direction?: 'auto' | 'ltr' | 'rtl';
+	/** @description Per-category email/bell toggles + digest settings. Managed from the account preferences UI. */
+	notification_preferences?: Record<string, any> | null;
 	policies?: DirectusAccess[] | string[];
 }
 
