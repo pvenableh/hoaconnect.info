@@ -17,7 +17,7 @@ const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
 const { list: listExpenses } = useExpenses();
 const { buildOrgPath } = useOrgNavigation();
 
-const tab = ref<"overview" | "charges" | "recurring">("overview");
+const tab = ref<"overview" | "charges" | "recurring" | "reports">("overview");
 
 // --- Data ---------------------------------------------------------------
 const { data: requests, pending, refresh } = await useAsyncData(
@@ -289,7 +289,10 @@ const TYPE_FILTERS = [
     <PageContainer class="space-y-6">
       <!-- Header -->
       <div class="flex items-center justify-between gap-2">
-        <h1 class="text-2xl font-semibold t-text">Finances</h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-semibold t-text">Finances</h1>
+          <PaymentStripeModeBadge />
+        </div>
         <Button class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           New charge
@@ -379,7 +382,7 @@ const TYPE_FILTERS = [
       <!-- Tabs -->
       <div class="flex items-center gap-1.5">
         <button
-          v-for="t in [{ key: 'overview', label: 'Overview' }, { key: 'charges', label: 'Charges' }, { key: 'recurring', label: 'Recurring' }]"
+          v-for="t in [{ key: 'overview', label: 'Overview' }, { key: 'charges', label: 'Charges' }, { key: 'recurring', label: 'Recurring' }, { key: 'reports', label: 'Reports' }]"
           :key="t.key"
           @click="tab = t.key as any"
           class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
@@ -616,6 +619,15 @@ const TYPE_FILTERS = [
             </tbody>
           </table>
         </div>
+      </template>
+
+      <!-- Reports tab -->
+      <template v-else-if="tab === 'reports'">
+        <PaymentFinancialsReport
+          :requests="requests || []"
+          :expenses="expenses || []"
+          :members="members || []"
+        />
       </template>
     </PageContainer>
   </div>

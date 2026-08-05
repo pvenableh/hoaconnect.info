@@ -18,16 +18,42 @@ export type AcaciaInvoice = Stripe.Invoice & {
   subscription?: string | Stripe.Subscription | null;
 };
 
+/**
+ * Whether Stripe should transact in LIVE mode. Explicit `STRIPE_MODE=test|live`
+ * overrides everything so the production instance can run in test mode for full
+ * onboarding + payment dry-runs; unset falls back to NODE_ENV (unchanged default).
+ * Mirror of `stripeLiveMode` in core/nuxt.config.ts — keep the two in lockstep.
+ */
+export function isStripeLiveMode(): boolean {
+  const mode = (process.env.STRIPE_MODE || "").toLowerCase();
+  if (mode === "test") return false;
+  if (mode === "live") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 export function getStripeSecretKey(): string {
   const config = useRuntimeConfig();
-  const key =
-    process.env.NODE_ENV === "production"
-      ? config.stripeSecretKeyLive
-      : config.stripeSecretKeyTest;
+  const key = isStripeLiveMode() ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
   if (!key) {
-    throw createError({ statusCode: 500, message: "Stripe secret key not configured" });
+    throw createError({
+      statusCode: 500,
+      message: `Stripe secret key not configured for ${isStripeLiveMode() ? "live" : "test"} mode`,
+    });
   }
   return key as string;
+}
+
+/**
+ * Webhook signing secret for the active mode. Prefers the per-mode secret
+ * (`STRIPE_WEBHOOK_SECRET_TEST` / `_LIVE`) so test + live endpoints can coexist,
+ * falling back to the single base `STRIPE_WEBHOOK_SECRET`.
+ */
+export function getStripeWebhookSecret(): string | undefined {
+  const config = useRuntimeConfig();
+  const perMode = isStripeLiveMode()
+    ? config.stripeWebhookSecretLive
+    : config.stripeWebhookSecretTest;
+  return (perMode || config.stripeWebhookSecret) as string | undefined;
 }
 
 export function getStripe(): Stripe {

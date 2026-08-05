@@ -4,6 +4,7 @@
       <CardTitle class="flex items-center gap-2">
         <Icon name="lucide:banknote" class="h-5 w-5" />
         Payouts (Stripe Connect)
+        <PaymentStripeModeBadge class="ml-auto" />
       </CardTitle>
       <CardDescription>
         Connect a Stripe account so resident dues are deposited directly into

@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
 		// Initialize Stripe with the appropriate key
 		const stripeSecretKey =
-			process.env.NODE_ENV === 'production' ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
+			isStripeLiveMode() ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
 
 		if (!stripeSecretKey) {
 			throw createError({

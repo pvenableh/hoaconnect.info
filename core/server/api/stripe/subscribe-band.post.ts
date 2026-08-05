@@ -27,7 +27,7 @@ const schema = z.object({
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const stripeSecretKey =
-    process.env.NODE_ENV === "production" ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
+    isStripeLiveMode() ? config.stripeSecretKeyLive : config.stripeSecretKeyTest;
   if (!stripeSecretKey) {
     throw createError({ statusCode: 500, message: "Stripe secret key not configured" });
   }

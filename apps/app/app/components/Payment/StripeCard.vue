@@ -103,6 +103,13 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  // When provided, use this client secret directly (e.g. a subscription's
+  // PaymentIntent) instead of creating a dues PaymentIntent on mount. This keeps
+  // the component reusable across the dues flow (no prop) and subscription checkout.
+  clientSecret: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits<{
@@ -317,11 +324,13 @@ onMounted(async () => {
       throw new Error("Failed to load Stripe");
     }
 
-    // Create payment intent and get client secret
-    const paymentIntent = await createPaymentIntent();
+    // Use a caller-provided client secret (subscription checkout) or create a
+    // dues PaymentIntent on the fly (the original dues flow).
+    const clientSecret =
+      props.clientSecret || (await createPaymentIntent()).clientSecret;
 
     // Setup Stripe Elements with client secret
-    await setupStripeElement(paymentIntent.clientSecret);
+    await setupStripeElement(clientSecret);
   } catch (err: any) {
     isElementLoading.value = false;
     handleError("Payment setup failed", err);

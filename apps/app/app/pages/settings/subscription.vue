@@ -50,6 +50,18 @@ const { data: plans, pending: plansPending } = await useAsyncData(
 const billingCycle = ref<"monthly" | "yearly">("monthly");
 const isProcessing = ref(false);
 
+// When set, the Stripe checkout overlay is shown to confirm payment for a
+// just-created (incomplete) subscription.
+const checkout = ref<{
+  clientSecret: string;
+  email: string;
+  amountCents: number;
+  planName: string;
+} | null>(null);
+const returnUrl = computed(() =>
+  import.meta.client ? `${window.location.origin}/settings/subscription` : undefined
+);
+
 // Current subscription info
 const currentSubscription = computed(() => {
   return {
@@ -153,34 +165,41 @@ const handleSubscribe = async (plan: any) => {
     });
 
     if (response?.clientSecret) {
-      // Redirect to Stripe checkout or handle payment
-      toast.success("Redirecting to payment...");
-      // TODO: Implement Stripe checkout redirect
-      // For now, show a message
-      toast.info(
-        "Payment integration pending. Please contact support to complete your subscription."
-      );
+      // Open the Stripe Elements overlay to confirm payment for the newly
+      // created (incomplete) subscription.
+      const price = billingCycle.value === "yearly" ? plan.price_yearly : plan.price_monthly;
+      checkout.value = {
+        clientSecret: response.clientSecret,
+        email: user.value?.email || "",
+        amountCents: Math.round((Number(price) || 0) * 100),
+        planName: plan.name,
+      };
     } else {
       toast.error("Failed to create subscription");
     }
   } catch (error: any) {
     console.error("Subscription error:", error);
-    toast.error(error.message || "Failed to process subscription");
+    toast.error(error?.data?.message || error.message || "Failed to process subscription");
   } finally {
     isProcessing.value = false;
   }
 };
 
-// Handle manage billing (for active subscriptions)
+const onCheckoutError = (err: Error) => {
+  toast.error(err?.message || "Payment failed");
+};
+
+// Open the Stripe-hosted billing portal (update payment method, invoices, cancel).
 const handleManageBilling = async () => {
   try {
-    // TODO: Create Stripe customer portal session
-    toast.info(
-      "Billing portal integration pending. Please contact support for billing changes."
-    );
+    const { url } = await $fetch<{ url: string }>("/api/stripe/portal", {
+      method: "POST",
+      body: { organizationId: selectedOrgId.value },
+    });
+    if (url && import.meta.client) window.location.href = url;
   } catch (error: any) {
     console.error("Billing portal error:", error);
-    toast.error("Failed to open billing portal");
+    toast.error(error?.data?.message || "Failed to open billing portal");
   }
 };
 </script>
@@ -189,7 +208,10 @@ const handleManageBilling = async () => {
   <div class="ui-kit accent-blue max-w-6xl mx-auto px-6 py-8">
     <!-- Header -->
     <WidgetGlass strong class="mb-8">
-      <h1 class="text-2xl font-semibold tracking-tight t-text">Subscription</h1>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight t-text">Subscription</h1>
+        <PaymentStripeModeBadge />
+      </div>
       <p class="t-text-secondary mt-1">
         Manage your organization's subscription and billing
       </p>
@@ -462,6 +484,37 @@ const handleManageBilling = async () => {
       >
         Contact Support
       </a>
+    </div>
+
+    <!-- Stripe checkout overlay -->
+    <div
+      v-if="checkout"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      @click.self="checkout = null"
+    >
+      <div class="ios-card w-full max-w-lg p-6 bg-background max-h-[90vh] overflow-y-auto">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold t-text">Complete your subscription</h2>
+            <p class="text-sm t-text-muted">{{ checkout.planName }}</p>
+          </div>
+          <button
+            @click="checkout = null"
+            class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80"
+            aria-label="Close"
+          >
+            <Icon name="lucide:x" class="w-4 h-4" />
+          </button>
+        </div>
+        <PaymentStripeCard
+          :client-secret="checkout.clientSecret"
+          :email="checkout.email"
+          :amount="checkout.amountCents"
+          payment-type="card"
+          :return-url="returnUrl"
+          @error="onCheckoutError"
+        />
+      </div>
     </div>
   </div>
 </template>

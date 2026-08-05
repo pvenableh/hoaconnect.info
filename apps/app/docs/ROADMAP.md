@@ -1,7 +1,26 @@
 # HOA Connect — Go-to-Market Roadmap
 
-> Living document. Last updated 2026-06-04.
+> Living document. Last updated 2026-08-04.
 > Product working name in code: **Property Flow**. Public domain: hoaconnect.info.
+
+## Shipped since this roadmap was first written (2026-06 → 2026-08)
+
+A lot landed that the phases below predate. For an accurate picture of what
+exists, treat this list as authoritative over the older phase text:
+
+- **AI assistant + token economy** — chat, RAG (Voyage), draft/rewrite, wallet/
+  credits, HITL actions, graduated autonomy. Needs `ANTHROPIC_API_KEY` (+ `VOYAGE_API_KEY` for RAG).
+- **Communications** — email templating/scheduling/branding, MJML block builder,
+  inbound webhook, CC/BCC, white-label sender; channels (threaded internal comms);
+  universal comments + requests/tickets workflow; meetings; polls.
+- **Projects**, **teams/roles**, **governance/leases/property-management**, **org file storage**.
+- **Billing** — flat per-building band pricing + multi-property **agency billing** (Stripe Subscriptions).
+- **Public landing builder** — drag-drop editor + live preview + AI wizard, classic/modern themes.
+- **Public "try the app" demo** — two seeded orgs, nightly reset.
+- **Simple financial reporting** (Phase 2, partial) — monthly running balance,
+  income-by-type, expense-by-category, delinquency aging, CSV export. See the
+  Reports tab on the Finances page (`/admin/payments`).
+- **Health**: typecheck 0 errors, 300+ passing unit tests (was "no test coverage").
 
 ## North star
 
@@ -43,22 +62,32 @@ configurable public landing page (editorial *classic* or glassy *modern*).
 Dependency order: Stripe Connect → reporting ledger is a chain. Admin UX and
 landing themes are independent design tracks that can interleave.
 
-### Phase 1 — Stripe Connect (revenue gate) — NOT STARTED
-Builds on existing `server/api/stripe/` infrastructure.
-- [ ] Express account creation + onboarding links per organization
-- [ ] Store `stripe_connect_account_id` + onboarding status on `hoa_organizations`
-- [ ] Onboarding status UI in org settings (pending / restricted / active)
-- [ ] Route resident dues PaymentIntents through the connected account
-      (`transfer_data.destination` / `on_behalf_of`) with `application_fee_amount`
-- [ ] Extend webhook for `account.updated`, `payout.*`, Connect payment events
+### Phase 1 — Stripe Connect (revenue gate) — CODE-COMPLETE, NOT ACTIVATED
+Built end-to-end on `core/server/api/stripe/`. See `docs/prompts/phaseB-stripe-connect.md`.
+- [x] Express account creation + onboarding links per organization (`stripe/connect/account*.post.ts`)
+- [x] Store `stripe_connect_account_id` + onboarding status on `hoa_organizations`
+- [x] Onboarding status UI in org settings (`Settings/ConnectPayoutsCard.vue`)
+- [x] Route resident dues PaymentIntents through the connected account
+      (`transfer_data.destination` + `application_fee_amount`, `paymentintent.post.ts:95`)
+- [x] Extend webhook for `account.updated` (syncs charges/payouts enabled)
+- **Before going live (real gaps):**
+  - [ ] **Security:** `connect/account.post.ts` trusts a client-supplied `organizationId` —
+        role-gate it (admin/board/PM, server-verified) before production.
+  - [ ] Operator activation: `pnpm add:connect-fields` + `generate:types`; add Connect
+        fields to `setup-directus-permissions.ts`; enable `account.updated`/`payout.*`
+        webhook events; set `STRIPE_CONNECT_FEE_PERCENT`.
+  - [ ] First-ever Stripe/payments tests (fee math, destination routing, webhook writes).
 
-### Phase 2 — Simple reporting ledger (depends on Phase 1) — NOT STARTED
-The simplification: Connect payments auto-write ledger rows. **Plus manual entry.**
-- [ ] Ledger collection: income + expense rows, category, method, date, memo, attachment
-- [ ] Auto-create income rows from successful Connect dues payments
-- [ ] **Manual entry of income AND expenses** (checks, Zelle, cash, offline) — required
-- [ ] Reports: running balance, income-vs-expense by category, dues delinquency
-- [ ] PDF export
+### Phase 2 — Simple reporting ledger — IN PROGRESS
+Data lives in `payment_requests` (money in), `payment_transactions` (Stripe/manual),
+`payment_expenses` (money out). Manual entry already exists (Finances page + Expenses page).
+- [x] **Manual entry of income AND expenses** (checks, Zelle, cash, offline) — Finances/Expenses pages
+- [x] Reports: running balance, income-vs-expense by category, dues delinquency aging
+      — pure module `core/shared/reporting/ledger.ts` (unit-tested) rendered by the
+      **Reports tab** on the Finances page (`Payment/FinancialsReport.vue`), with CSV export.
+- [x] Auto-write income rows from successful dues payments — webhook writes `payment_transactions`
+- [ ] PDF export (CSV shipped; PDF still pending)
+- [ ] Opening-balance setting per org (running balance currently starts at 0)
 - [ ] Explicitly NOT: fund segregation, reconciliation engine, transfer auto-linking
 
 ### Phase 3 — Earnest admin UX (design track) — IN PROGRESS
@@ -123,5 +152,12 @@ HOA requests/tickets workflow on top.
   Phase 3/4 should converge these.
 - Legacy `tailwind.config.js` (v3-style) coexists with Tailwind v4 `@theme inline`
   in `tailwind.css`. The v4 config is authoritative.
-- No test coverage.
+- Test coverage skews to pure logic (`shared/*`) + access control. Zero tests on
+  the runtime money path (Stripe/Connect), AI chat runtime + RAG, channels,
+  requests runtime, projects, and the landing builder — highest-risk gap is payments.
+- `app/pages/settings/subscription.vue` (per-org subscribe) predates the flat
+  per-building **band** pricing (`subscribe-band.post.ts`, currently unwired) and
+  should be reconciled with it. Its checkout now confirms via Stripe Elements and
+  "Manage Billing" opens the Stripe portal (`stripe/portal.post.ts`), but the
+  subscribe route doesn't yet persist `stripe_customer_id` to the org (webhook does).
 </content>
