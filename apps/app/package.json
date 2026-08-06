@@ -72,6 +72,7 @@
     "setup:org-storage-fields": "dotenv -- tsx scripts/setup-org-storage-fields.ts",
     "recompute:org-storage": "dotenv -- tsx scripts/recompute-org-storage.ts",
     "setup:notification-prefs": "dotenv -- tsx scripts/setup-notification-prefs-field.ts",
+    "digest:worker": "dotenv -- tsx scripts/notification-digest-worker.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"
   },

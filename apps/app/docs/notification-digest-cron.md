@@ -1,52 +1,60 @@
-# Notification digest — droplet cron trigger
+# Notification digest — droplet worker
 
-The daily/weekly digest is dispatched by the hourly endpoint
-`GET /api/cron/notification-digest`. The endpoint runs on the deployed app
-(Vercel); it is **triggered from the DigitalOcean droplet's crontab** rather than
-Vercel Cron, so no Vercel Pro plan is required.
+The daily/weekly digest runs as a **standalone worker on the DigitalOcean droplet**
+(where Directus lives), not in the Vercel app. The worker talks directly to
+Directus (admin token) and SendGrid, and reuses the app's pure preference logic
+plus the exact same org-branded transactional email template, so digests look
+identical to every other HOA Connect notification.
 
-The endpoint is idempotent-by-hour: on each run it emails only the members whose
-configured cadence + local send-hour match the current hour (interpreted in
-`DIGEST_TZ`, default `America/New_York`), so a member receives at most one digest
-per day even though the cron fires 24×/day.
+Script: `apps/app/scripts/notification-digest-worker.ts` (`pnpm run digest:worker`).
+
+It is idempotent-by-hour: each run emails only the members whose cadence + local
+send-hour (interpreted in `DIGEST_TZ`, default `America/New_York`) match the
+current hour, so a member receives at most one digest per day even though the
+cron fires 24×/day. It also honors the master `email_notifications` switch and
+skips demo orgs (unless `DEMO_ALLOW_EMAIL`).
 
 ## One-time setup on the droplet
 
-1. Ensure the same `CRON_SECRET` value is set **both** on the deployed app's env
-   (Vercel) and available to the crontab below. Generate a long random value.
+1. The droplet already runs Directus; check the repo out there (or reuse the
+   existing checkout used for the Earnest worker) and `pnpm install`.
 
-2. Add an hourly crontab entry (`crontab -e`). Point it at the app's public URL:
+2. Provide the worker's env (a `.env` next to `apps/app`, or exported in the cron):
+
+   | var | purpose |
+   |---|---|
+   | `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN` | admin Directus access |
+   | `SENDGRID_API_KEY` | send mail (REST) |
+   | `FROM_EMAIL`, `FROM_NAME` | platform sender (per-org white-label sender is used automatically when a verified sending domain is configured) |
+   | `APP_URL` | dashboard/CTA links, e.g. `https://app.hoaconnect.info` |
+   | `DIGEST_TZ` | timezone for the send-hour (default `America/New_York`) |
+   | `DEMO_ALLOW_EMAIL` | optional — let demo orgs actually send |
+
+3. Add an hourly crontab entry (`crontab -e`):
 
    ```bash
-   # HOA Connect — hourly notification digest (top of every hour)
-   0 * * * * curl -fsS -m 60 -H "x-cron-secret: YOUR_CRON_SECRET" https://app.hoaconnect.info/api/cron/notification-digest > /dev/null 2>&1
+   # HOA Connect — hourly notification digest worker (top of every hour)
+   0 * * * * cd /path/to/hoaconnect/apps/app && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
    ```
 
-   - `-m 60` caps the request at 60s.
-   - Replace `YOUR_CRON_SECRET` with the real value (or read it from an env file the
-     cron sources — keep it out of `crontab -l` output if that matters).
-   - Replace the host with the real app URL if different (`APP_URL`).
+   Adjust the repo path and the `pnpm` path (`which pnpm`). Cron has a minimal
+   PATH, so use absolute paths (or source a profile that sets up fnm/pnpm).
 
-## Auth accepted by the endpoint
-
-Any one of:
-- `x-cron-secret: <CRON_SECRET>` header (used above), or
-- `Authorization: Bearer <CRON_SECRET>`, or
-- a logged-in admin session (for manual triggering from the app).
-
-## Manual test
+## Test
 
 ```bash
-# Dry run — reports who WOULD be sent, sends nothing:
-curl -fsS -H "x-cron-secret: YOUR_CRON_SECRET" "https://app.hoaconnect.info/api/cron/notification-digest?dryRun=1"
-# → { "ok": true, "dryRun": true, "candidates": N, "wouldSend": [ ...userIds ] }
+cd apps/app
+pnpm run digest:worker -- --dry-run   # reports who WOULD receive, sends nothing
+pnpm run digest:worker                 # actually sends (respects the current hour)
 ```
 
-## Scaling note
+## Notes
 
-The digest logic executes on the app (Vercel serverless), so a very large single
-run is bounded by the function timeout. At current HOA scale each hourly batch is
-small (only the members whose local hour matches). If digest volume grows and runs
-approach the timeout, move to a standalone worker **on the droplet** that runs the
-digest against Directus + SendGrid directly (the Earnest worker pattern) instead of
-triggering the Vercel endpoint.
+- This is the **transactional/branded** email system (org branding: header line,
+  footer building photo, legal copyright) — a digest is a member notification, not
+  a marketing send.
+- The in-app HTTP trigger (`/api/cron/notification-digest`) was removed when the
+  work moved to the droplet — the worker is now the single runner.
+- If digest volume ever grows enough that a single hourly run is slow, the worker
+  already runs on the droplet with no serverless timeout; add a concurrency pool
+  in the send loop if needed.
