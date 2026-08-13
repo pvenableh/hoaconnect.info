@@ -146,6 +146,13 @@ export default defineNuxtConfig({
     // required" on non-matching batches) from ever receiving a batch it can't
     // match. Unset = forward the raw batch verbatim (downstream self-filters).
     emailActivityForwardCategory: process.env.EMAIL_ACTIVITY_FORWARD_CATEGORY,
+    // A SECOND, independent fan-out target (e.g. WeddingConnect), forwarded the
+    // same way as the first with its own category filter — so one shared SendGrid
+    // Event Webhook can serve a third app without disturbing the 1033 Lenox forward
+    // above. Unset = no second forward. Auth the downstream via a token in its URL
+    // (e.g. …/api/email/activity?k=<secret>), since we send no custom headers.
+    emailActivityForwardUrl2: process.env.EMAIL_ACTIVITY_FORWARD_URL_2,
+    emailActivityForwardCategory2: process.env.EMAIL_ACTIVITY_FORWARD_CATEGORY_2,
     // Stripe configuration
     stripeSecretKeyTest: process.env.STRIPE_SECRET_KEY_TEST,
     stripeSecretKeyLive: process.env.STRIPE_SECRET_KEY_LIVE,

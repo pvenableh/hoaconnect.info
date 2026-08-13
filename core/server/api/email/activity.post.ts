@@ -85,9 +85,16 @@ export default defineEventHandler(async (event) => {
   // never receive a non-matching (e.g. all-HOA-Connect) batch. Unset = forward
   // the raw batch verbatim and let the downstream self-filter (original behavior).
   const cfg = useRuntimeConfig();
-  const forwardUrl = cfg.emailActivityForwardUrl as string | undefined;
-  if (forwardUrl) {
-    const forwardCategory = (cfg.emailActivityForwardCategory as string | undefined)?.trim();
+  const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
+  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  // Forward the (optionally category-filtered) batch to one downstream consumer.
+  // Fire-and-forget with a single retry — a slow/failed downstream must never make
+  // SendGrid retry or break our 200. Called once per configured target below.
+  const forwardTo = (rawUrl: string | undefined, rawCategory: string | undefined) => {
+    const forwardUrl = rawUrl?.trim();
+    if (!forwardUrl) return;
+    const forwardCategory = rawCategory?.trim();
     // Default: forward the raw batch verbatim. With a category configured, send
     // only the matching events — and null means "this batch has none, don't POST".
     let forwardBody: string | null = raw;
@@ -99,57 +106,59 @@ export default defineEventHandler(async (event) => {
       forwardedCount = matching.length;
       forwardBody = matching.length ? JSON.stringify(matching) : null;
     }
-    if (forwardBody !== null) {
-      const body = forwardBody;
-      const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
-      const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-      const tag = `received ${events.length} · forwarded ${forwardedCount} → ${forwardUrl}`;
+    if (forwardBody === null) return;
+    const body = forwardBody;
+    const tag = `received ${events.length} · forwarded ${forwardedCount} → ${forwardUrl}`;
 
-      // One retry on a transient failure. We've already 200'd SendGrid, so it
-      // won't retry for us — a brief downstream blip would otherwise lose the
-      // batch. We retry ONLY on a clean failure (network error or 5xx), never on
-      // a timeout: a timeout means the body was already sent, so retrying would
-      // risk a duplicate row downstream.
-      const maxAttempts = 2;
-      const forward = (async () => {
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          const last = attempt === maxAttempts;
-          try {
-            const r = await fetch(forwardUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body,
-              signal: AbortSignal.timeout(timeoutMs),
-            });
-            if (r.ok) {
-              console.info(`[email/activity] forward ${tag} · ${r.status} (attempt ${attempt})`);
-              return;
-            }
-            // 4xx won't improve on retry; 5xx might. Give up on the last attempt.
-            if (r.status < 500 || last) {
-              console.warn(`[email/activity] forward ${tag} · responded ${r.status}${last && r.status >= 500 ? " (gave up)" : ""}`);
-              return;
-            }
-            console.warn(`[email/activity] forward ${tag} · responded ${r.status}, retrying`);
-          } catch (e: any) {
-            const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
-            // Timeout: body already sent, downstream likely still processing —
-            // don't retry (would duplicate). Otherwise retry unless we're out.
-            if (timedOut || last) {
-              console.warn(
-                `[email/activity] forward ${tag} · ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed after " + attempt + " attempt(s): " + e}`
-              );
-              return;
-            }
-            console.warn(`[email/activity] forward ${tag} · network error, retrying: ${e}`);
+    // One retry on a transient failure. We've already 200'd SendGrid, so it
+    // won't retry for us — a brief downstream blip would otherwise lose the
+    // batch. We retry ONLY on a clean failure (network error or 5xx), never on
+    // a timeout: a timeout means the body was already sent, so retrying would
+    // risk a duplicate row downstream.
+    const maxAttempts = 2;
+    const forward = (async () => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const last = attempt === maxAttempts;
+        try {
+          const r = await fetch(forwardUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+          if (r.ok) {
+            console.info(`[email/activity] forward ${tag} · ${r.status} (attempt ${attempt})`);
+            return;
           }
-          await sleep(1000);
+          // 4xx won't improve on retry; 5xx might. Give up on the last attempt.
+          if (r.status < 500 || last) {
+            console.warn(`[email/activity] forward ${tag} · responded ${r.status}${last && r.status >= 500 ? " (gave up)" : ""}`);
+            return;
+          }
+          console.warn(`[email/activity] forward ${tag} · responded ${r.status}, retrying`);
+        } catch (e: any) {
+          const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+          // Timeout: body already sent, downstream likely still processing —
+          // don't retry (would duplicate). Otherwise retry unless we're out.
+          if (timedOut || last) {
+            console.warn(
+              `[email/activity] forward ${tag} · ${timedOut ? "did not ack within " + timeoutMs + "ms (likely still delivered)" : "failed after " + attempt + " attempt(s): " + e}`
+            );
+            return;
+          }
+          console.warn(`[email/activity] forward ${tag} · network error, retrying: ${e}`);
         }
-      })();
-      // Keep the worker alive for the forward without blocking the SendGrid 200.
-      if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
-    }
-  }
+        await sleep(1000);
+      }
+    })();
+    // Keep the worker alive for the forward without blocking the SendGrid 200.
+    if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
+  };
+
+  // Target 1: the existing (legacy 1033 Lenox) forward — behaviour unchanged.
+  forwardTo(cfg.emailActivityForwardUrl as string | undefined, cfg.emailActivityForwardCategory as string | undefined);
+  // Target 2: an optional second app (e.g. WeddingConnect), independent filter.
+  forwardTo(cfg.emailActivityForwardUrl2 as string | undefined, cfg.emailActivityForwardCategory2 as string | undefined);
 
   // Only this app's events: either the "HOA Connect" category or an org custom_arg.
   const appEvents = events.filter(
