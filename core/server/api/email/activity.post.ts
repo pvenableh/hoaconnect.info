@@ -88,9 +88,18 @@ export default defineEventHandler(async (event) => {
   const timeoutMs = Number(cfg.emailActivityForwardTimeoutMs) || 15000;
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+  // Collected forward promises — we AWAIT these before returning (see below).
+  // Fire-and-forget via event.waitUntil() proved unreliable on Vercel: for a
+  // batch with no HOA Connect events the handler returns immediately, and the
+  // function is frozen before the forward fetch completes, silently dropping the
+  // downstream POST (this is exactly how the 1033 Lenox forward went dark). Each
+  // forward swallows its own errors and is bounded by timeoutMs, so awaiting can
+  // neither throw nor stall us past SendGrid's webhook timeout.
+  const forwardPromises: Promise<void>[] = [];
+
   // Forward the (optionally category-filtered) batch to one downstream consumer.
-  // Fire-and-forget with a single retry — a slow/failed downstream must never make
-  // SendGrid retry or break our 200. Called once per configured target below.
+  // A single retry on a transient failure — a slow/failed downstream must never
+  // make SendGrid retry or break our 200. Called once per configured target below.
   const forwardTo = (rawUrl: string | undefined, rawCategory: string | undefined) => {
     const forwardUrl = rawUrl?.trim();
     if (!forwardUrl) return;
@@ -151,7 +160,10 @@ export default defineEventHandler(async (event) => {
         await sleep(1000);
       }
     })();
-    // Keep the worker alive for the forward without blocking the SendGrid 200.
+    // Await this before returning (below). Also register with waitUntil when the
+    // runtime provides it — harmless belt-and-suspenders, but the await is what
+    // actually guarantees delivery on Vercel.
+    forwardPromises.push(forward);
     if (typeof (event as any).waitUntil === "function") (event as any).waitUntil(forward);
   };
 
@@ -165,6 +177,10 @@ export default defineEventHandler(async (event) => {
     (e) => e.category?.includes("HOA Connect") || !!e.organization_id
   );
   if (appEvents.length === 0) {
+    // Nothing for us to store, but we may still owe a downstream forward — wait
+    // for it before the function is frozen (this batch is likely all-1033/all-
+    // WeddingConnect). allSettled: forwards never reject, but be defensive.
+    await Promise.allSettled(forwardPromises);
     return { success: true, message: "No matching HOA Connect events found" };
   }
 
@@ -273,6 +289,10 @@ export default defineEventHandler(async (event) => {
       processed.failed++;
     }
   }
+
+  // Ensure any downstream forward finishes before the serverless function is
+  // frozen — this ran concurrently with the Directus writes above.
+  await Promise.allSettled(forwardPromises);
 
   return { success: true, processed };
 });
