@@ -75,13 +75,19 @@ Built end-to-end on `core/server/api/stripe/`. See `docs/prompts/phaseB-stripe-c
 - [x] Route resident dues PaymentIntents through the connected account
       (`transfer_data.destination` + `application_fee_amount`, `paymentintent.post.ts:95`)
 - [x] Extend webhook for `account.updated` (syncs charges/payouts enabled)
-- **Before going live (real gaps):**
-  - [ ] **Security:** `connect/account.post.ts` trusts a client-supplied `organizationId` —
-        role-gate it (admin/board/PM, server-verified) before production.
-  - [ ] Operator activation: `pnpm add:connect-fields` + `generate:types`; add Connect
-        fields to `setup-directus-permissions.ts`; enable `account.updated`/`payout.*`
-        webhook events; set `STRIPE_CONNECT_FEE_PERCENT`.
-  - [ ] First-ever Stripe/payments tests (fee math, destination routing, webhook writes).
+- **Before going live:**
+  - [x] **Security:** both Connect endpoints server-verify the caller is an admin of the
+        org (`requireAdminAccess`) — the client-supplied `organizationId` grants nothing
+        (`ca6e4d2`, `tests/server/connect-endpoints.test.ts`).
+  - [x] First Stripe/payments tests — fee math + destination routing + card/ACH params
+        (`tests/server/paymentintent.test.ts`) and webhook writes, idempotency, and
+        `account.updated` sync (`tests/server/stripe-webhook.test.ts`). The webhook now
+        dedupes `payment_intent.succeeded` on the PaymentIntent id (Stripe retries were
+        double-crediting `payment_requests.amount_paid`).
+  - [ ] Operator activation — follow **[connect-activation-runbook.md](connect-activation-runbook.md)**:
+        `pnpm add:connect-fields` + `generate:types`, permissions audit, enable
+        `account.updated`/`payout.*` on the webhook endpoint, set
+        `STRIPE_CONNECT_FEE_PERCENT`, then the test-mode pilot smoke test.
 
 ### Phase 2 — Simple reporting ledger — IN PROGRESS
 Data lives in `payment_requests` (money in), `payment_transactions` (Stripe/manual),
@@ -92,7 +98,10 @@ Data lives in `payment_requests` (money in), `payment_transactions` (Stripe/manu
       **Reports tab** on the Finances page (`Payment/FinancialsReport.vue`), with CSV export.
 - [x] Auto-write income rows from successful dues payments — webhook writes `payment_transactions`
 - [ ] PDF export (CSV shipped; PDF still pending)
-- [ ] Opening-balance setting per org (running balance currently starts at 0)
+- [x] Opening-balance setting per org — `opening_balance` + `opening_balance_date`
+      (`pnpm add:opening-balance`), threaded through `ledger.ts` (`summarize`/`monthlySeries`
+      take the balance and drop entries dated before the as-of date) and edited in
+      **Settings → Payments → Opening Balance**
 - [ ] Explicitly NOT: fund segregation, reconciliation engine, transfer auto-linking
 
 ### Phase 3 — Earnest admin UX (design track) — IN PROGRESS

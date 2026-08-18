@@ -58,11 +58,12 @@ From **Connect → Get started** (or **Settings → Connect**):
 - [ ] Set the platform fee taken on dues → `STRIPE_CONNECT_FEE_PERCENT` (default `2`, meaning 2%). Server recomputes the authoritative fee; the public var is display-only.
 
 ## 6. Connect activation — operator steps (one-time, in this repo)
-These are code/DB steps that pair with the Stripe setup above:
+Full step-by-step + pilot smoke test: **[connect-activation-runbook.md](./connect-activation-runbook.md)**. In short:
 - [ ] `pnpm --filter ./apps/app add:connect-fields` (adds Connect fields to `hoa_organizations`)
 - [ ] `pnpm --filter ./apps/app generate:types`
-- [ ] Add the new Connect fields to `setup-directus-permissions.ts`, then re-run permissions setup
-- [ ] ⚠️ **Security gate before live:** role-gate `core/server/api/stripe/connect/account.post.ts` — it currently trusts a client-supplied `organizationId`. Must verify the caller is an admin/board/PM of that org first. *(I can do this whenever you're ready.)*
+- [ ] `pnpm --filter ./apps/app setup:permissions:audit` — HOA Admin is `fields: ["*"]` on `hoa_organizations`, so no permission change should be needed; confirm
+- [ ] Enable `account.updated` + `payout.*` **on connected accounts** for the existing `/api/stripe/webhook` endpoint (one endpoint = one signing secret per mode)
+- [x] ~~Security gate~~ — done: both Connect endpoints call `requireAdminAccess(event, orgId)`; the client-supplied `organizationId` grants nothing (`ca6e4d2`)
 
 ## 7. Run the PRODUCTION instance in test mode (full dry-run before live)
 Goal: exercise real Connect onboarding + payment/subscription flows on
