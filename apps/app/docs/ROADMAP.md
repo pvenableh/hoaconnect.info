@@ -1,7 +1,12 @@
 # HOA Connect — Go-to-Market Roadmap
 
-> Living document. Last updated 2026-08-04.
+> Living document. Last updated 2026-08-18.
 > Product working name in code: **Property Flow**. Public domain: hoaconnect.info.
+> **Product vision + strategic phase sequence: [VISION.md](VISION.md)** — "Your
+> community owns everything. Everyone can see it." The vision's 7-phase roadmap
+> supersedes the ordering below for NEW strategic work; the phase sections below
+> remain authoritative for the detailed checklists they contain (the vision's
+> Phase 1 *is* Phase 1 below — same Connect activation blockers).
 
 ## Shipped since this roadmap was first written (2026-06 → 2026-08)
 
@@ -40,8 +45,8 @@ configurable public landing page (editorial *classic* or glassy *modern*).
 | Decision | Choice | Rationale |
 |---|---|---|
 | Architecture | **Single multi-tenant SaaS**; 1033 becomes tenant #1 | Fastest path to revenue; no split codebases |
-| Custom/APEX domains | **Removed** (already done) | Subdomain tenancy; custom domains = paid agency upsell later |
-| Custom bespoke frontends | **Later upsell tier**, not built now | Decoupled API + custom Nuxt frontend is a premium add-on on top of the SaaS |
+| Custom/APEX domains | ~~Removed~~ → **BUILT** (2026-07): verify + serve org landing at the clean root (605lincolnroad.com live) | Sovereignty story needs the community on its own domain; host-first upgrade planned (VISION.md Pillar E) |
+| Custom bespoke frontends | **Standalone Nuxt projects** consuming a public site API — NOT in-monorepo apps | See [plan-bespoke-removal.md](plan-bespoke-removal.md); `apps/_bespoke-starter` to be removed |
 | Finances scope | **Simple reporting, NOT QuickBooks** | 1033's fund-segregation/reconciliation engine is the cautionary tale — do not port it |
 | SaaS billing | Stripe Subscriptions (built) | Refactor to data-driven plan config (Earnest's `EARNEST_PLANS` pattern) |
 | Dues collection | **Stripe Connect (Express)** — to be built | Funds land in the association's bank; platform application fee = our cut |
