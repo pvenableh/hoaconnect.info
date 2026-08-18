@@ -4,6 +4,7 @@
 import { readItems, updateItem } from "@directus/sdk";
 import { randomUUID } from "node:crypto";
 import { normalizeDomain, classifyDomain, isMainDomainHost, verificationRecordName } from "../../utils/domains";
+import { invalidateHostCache } from "../../utils/host-resolver";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -63,6 +64,11 @@ export default defineEventHandler(async (event) => {
       domain_config: domainConfig as any,
     })
   );
+
+  // Claiming a domain leaves it unverified, so it doesn't start serving yet —
+  // but drop any cached (negative) answer so the first request after
+  // verification isn't answered from a stale miss.
+  invalidateHostCache(domain);
 
   return {
     success: true,

@@ -5,6 +5,7 @@
 import { readItem, updateItem } from "@directus/sdk";
 import { resolveTxt } from "node:dns/promises";
 import { verificationRecordName } from "../../utils/domains";
+import { invalidateHostCache } from "../../utils/host-resolver";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -61,6 +62,10 @@ export default defineEventHandler(async (event) => {
       domain_config: { ...cfg, status: "verified", verified_at: new Date().toISOString() } as any,
     })
   );
+
+  // The domain starts serving now. Clear this instance's cached miss so the
+  // owner's very next request resolves (other instances catch up within the TTL).
+  invalidateHostCache(domain);
 
   return { verified: true, domain };
 });

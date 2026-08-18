@@ -1,6 +1,7 @@
 // POST /api/domains/disconnect  { organizationId }
 // Remove a custom domain from an org (admin only).
-import { updateItem } from "@directus/sdk";
+import { readItem, updateItem } from "@directus/sdk";
+import { invalidateHostCache } from "../../utils/host-resolver";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -15,6 +16,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const directus = getTypedDirectus();
+  // Read the domain before we null it — it's the cache key we need to drop.
+  const existing = (await directus
+    .request(readItem("hoa_organizations", organizationId, { fields: ["custom_domain"] }))
+    .catch(() => null)) as { custom_domain?: string | null } | null;
+
   await directus.request(
     updateItem("hoa_organizations", organizationId, {
       custom_domain: null,
@@ -23,6 +29,8 @@ export default defineEventHandler(async (event) => {
       domain_config: null as any,
     })
   );
+
+  if (existing?.custom_domain) invalidateHostCache(existing.custom_domain);
 
   return { success: true };
 });
