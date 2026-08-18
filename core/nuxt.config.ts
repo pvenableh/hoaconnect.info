@@ -239,11 +239,25 @@ export default defineNuxtConfig({
     },
   },
 
+  experimental: {
+    // A lazy route chunk that 404s has already broken the app by the time we
+    // could ask permission, so reload immediately rather than surfacing an error.
+    emitRouteChunkError: "automatic-immediate",
+    // How often an open client re-checks the build manifest for a new deploy.
+    // Fires `app:manifest:update`, signal 1 of three (see app-update.client.ts).
+    checkOutdatedBuildInterval: 5 * 60_000,
+  },
+
   routeRules: {
     // The service worker must NEVER be served from cache: a cached sw.js pins a
     // device to an old worker, and this one is responsible for push delivery and
     // for purging stale caches on activate.
     "/sw.js": {
+      headers: { "cache-control": "no-cache, max-age=0, must-revalidate" },
+    },
+    // The build manifest is the file that tells a client it is stale — an edge
+    // serving a cached copy defeats the entire mechanism.
+    "/_nuxt/builds/latest.json": {
       headers: { "cache-control": "no-cache, max-age=0, must-revalidate" },
     },
   },

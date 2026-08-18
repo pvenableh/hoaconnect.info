@@ -269,6 +269,10 @@ const hasChanges = computed(() => {
   );
 });
 
+// Hold off the silent background update while this form is dirty — a
+// backgrounded client reloads itself, and that must never eat unsaved input.
+useUnsavedWork().guardUnsaved(hasChanges);
+
 // Watch for prop changes
 watch(
   () => props.organization,

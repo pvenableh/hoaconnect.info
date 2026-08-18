@@ -112,6 +112,10 @@ function snapshot() {
 const baseline = ref("");
 const dirty = computed(() => snapshot() !== baseline.value);
 
+// Hold off the silent background update while this form is dirty — a
+// backgrounded client reloads itself, and that must never eat unsaved input.
+useUnsavedWork().guardUnsaved(dirty);
+
 // ── Load ──────────────────────────────────────────────────────────────────
 const load = async () => {
   if (!orgId.value) return;

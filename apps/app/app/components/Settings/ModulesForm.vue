@@ -128,6 +128,10 @@ const hasChanges = computed(() => {
   return ALL_KEYS.some((key) => form.value[key] !== (stored[key] !== false));
 });
 
+// Hold off the silent background update while this form is dirty — a
+// backgrounded client reloads itself, and that must never eat unsaved input.
+useUnsavedWork().guardUnsaved(hasChanges);
+
 watch(
   () => props.organization,
   (newOrg) => {

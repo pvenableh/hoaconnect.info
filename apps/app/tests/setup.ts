@@ -1,5 +1,5 @@
 import { vi, beforeEach } from "vitest";
-import { computed, ref, readonly, reactive, watch, watchEffect, nextTick } from "vue";
+import { computed, ref, readonly, reactive, watch, watchEffect, nextTick, onScopeDispose } from "vue";
 
 // Provide Nuxt auto-imports as globals so composables/utils import cleanly in
 // plain vitest (no Nuxt runtime). Anything session/Directus-shaped is stubbed
@@ -11,6 +11,7 @@ vi.stubGlobal("watch", watch);
 vi.stubGlobal("watchEffect", watchEffect);
 vi.stubGlobal("nextTick", nextTick);
 vi.stubGlobal("readonly", readonly);
+vi.stubGlobal("onScopeDispose", onScopeDispose);
 
 // useState dedupes by key like real Nuxt (two callers of useState("x") share
 // one ref) — composables like useAppSlideOverStack rely on that. The store

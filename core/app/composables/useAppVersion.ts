@@ -1,92 +1,61 @@
-// useAppVersion — Earnest-style "a new version is available" detection.
+// useAppVersion — shared "a newer deploy exists" state.
 //
 // The client bundle bakes the build identity it was compiled with
-// (runtimeConfig.public.buildId). This composable periodically asks the live server
-// what build it's running (GET /api/version); when the live id differs from the baked
-// id, a newer deployment has shipped and `updateAvailable` flips true so the UI can
-// offer a refresh.
+// (runtimeConfig.public.buildId). Detection lives in
+// app/plugins/app-update.client.ts, which watches THREE independent signals so
+// no single dead channel can strand a client on a build whose chunks are gone:
 //
-// Singleton state (module-level) so every consumer shares one poller and one flag —
-// mounting <AppUpdatePrompt> doesn't spin up a second interval.
+//   1. Nuxt's own build manifest, re-checked around route changes
+//      (`experimental.checkOutdatedBuildInterval`), firing `app:manifest:update`.
+//   2. A visibility-gated poll of GET /api/version — the live server's build id,
+//      which unlike a static manifest file can't be served stale by an edge.
+//      Gated so a backgrounded client does no network work at all.
+//   3. The `x-app-build` header on every /api response, compared in a fetch
+//      wrapper, so a stale client learns on its next request rather than on its
+//      next poll.
 //
-// Polls: on an interval, AND opportunistically when the tab regains focus/visibility
-// (a backgrounded tab is the classic stale-version case). Disabled during SSR and in
-// dev (where buildId is a stable boot stamp and HMR already handles reloads).
-
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min — quiet background cadence
-const MIN_FOCUS_RECHECK_MS = 30 * 1000; // throttle focus-driven rechecks
+// This module is just the seam between that detection and <AppUpdatePrompt>.
+// Singleton (module-level) state so every consumer shares one flag.
 
 const updateAvailable = ref(false);
 const liveBuildId = ref<string | null>(null);
-let started = false;
-let timer: ReturnType<typeof setInterval> | null = null;
-let lastCheck = 0;
+/** The user waved the banner away; it stays gone until they background the app. */
+const dismissed = ref(false);
 
 export function useAppVersion() {
   const config = useRuntimeConfig();
-  const bakedBuildId = config.public.buildId;
-  const version = config.public.appVersion;
+  const bakedBuildId = config.public.buildId as string | undefined;
+  const version = config.public.appVersion as string | undefined;
 
-  async function check() {
-    // Once we know an update is waiting, stop hammering — the flag is sticky until reload.
-    if (updateAvailable.value) return;
-    lastCheck = Date.now();
-    try {
-      const res = await $fetch<{ buildId?: string; version?: string }>("/api/version", {
-        // Defeat any intermediate cache; the endpoint is no-store but be belt-and-braces.
-        query: { t: Date.now() },
-      });
-      liveBuildId.value = res?.buildId ?? null;
-      if (res?.buildId && bakedBuildId && res.buildId !== bakedBuildId) {
-        updateAvailable.value = true;
-        stop();
-      }
-    } catch {
-      // Network blip / offline — ignore and retry on the next tick.
-    }
+  /** Detection found a newer build. Idempotent — the flag is sticky. */
+  function markUpdateAvailable(live?: string | null) {
+    if (live) liveBuildId.value = live;
+    updateAvailable.value = true;
   }
 
-  function onVisible() {
-    if (document.visibilityState !== "visible") return;
-    if (Date.now() - lastCheck < MIN_FOCUS_RECHECK_MS) return;
-    check();
-  }
-
-  function start() {
-    if (started || !import.meta.client) return;
-    // No meaningful detection in dev: buildId is a stable per-boot stamp, and HMR owns reloads.
-    if (import.meta.dev) {
-      // Dev-only escape hatch for designing/QA-ing the update banner without a real
-      // deploy: visit any page with ?forceUpdatePrompt. Stripped from prod by the guard.
-      if (window.location.search.includes("forceUpdatePrompt")) updateAvailable.value = true;
-      return;
-    }
-    started = true;
-    timer = setInterval(check, POLL_INTERVAL_MS);
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-  }
-
-  function stop() {
-    if (timer) clearInterval(timer);
-    timer = null;
-    if (import.meta.client) {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    }
-  }
-
-  function reloadForUpdate() {
-    if (import.meta.client) window.location.reload();
+  /**
+   * Full document navigation: new HTML, new chunk hashes, new service-worker
+   * check. `ttl` guards against a reload loop if the "new" build is somehow
+   * still stale — without it a misconfigured deploy would spin forever.
+   */
+  function applyUpdate(path?: string) {
+    if (!import.meta.client) return;
+    reloadNuxtApp({
+      path: path ?? window.location.pathname + window.location.search,
+      persistState: false,
+      ttl: 10_000,
+    });
   }
 
   return {
     updateAvailable: readonly(updateAvailable),
     liveBuildId: readonly(liveBuildId),
+    dismissed,
     bakedBuildId,
     version,
-    start,
-    check,
-    reloadForUpdate,
+    markUpdateAvailable,
+    applyUpdate,
+    /** Back-compat alias — <AppUpdatePrompt> has always called this. */
+    reloadForUpdate: applyUpdate,
   };
 }

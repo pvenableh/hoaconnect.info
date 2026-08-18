@@ -5,14 +5,16 @@
 // detected, a glass card springs up bottom-center offering a one-tap refresh. The
 // poller is inert in dev/SSR, so this renders nothing there. Reduced-motion users get
 // the card without the spring (CSS media query below).
-const { updateAvailable, version, start, reloadForUpdate } = useAppVersion();
+const { updateAvailable, version, dismissed, reloadForUpdate } = useAppVersion();
 
-// Let the user wave it off for this session; the sticky flag means it won't nag again
-// until the next detected build (the poller stops once an update is pending).
-const dismissed = ref(false);
+// Detection lives in the app-update plugin so it runs for the whole session, not
+// just while this banner is mounted — a backgrounded PWA has to be able to
+// update itself on a screen where the banner never rendered.
+//
+// `dismissed` is shared state, not local: waving the banner away should stick
+// across route changes (this component remounts), and the plugin clears the
+// decision by reloading when the user next backgrounds the app.
 const show = computed(() => updateAvailable.value && !dismissed.value);
-
-onMounted(() => start());
 </script>
 
 <template>
@@ -35,7 +37,7 @@ onMounted(() => start());
           <button
             type="button"
             class="app-update-prompt__btn app-update-prompt__btn--primary"
-            @click="reloadForUpdate"
+            @click="reloadForUpdate()"
           >
             Refresh
           </button>
