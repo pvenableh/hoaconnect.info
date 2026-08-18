@@ -1,12 +1,17 @@
-import { readItems, createNotification } from "@directus/sdk";
+import { readItems } from "@directus/sdk";
 import { sendBrandedTransactionalEmail } from "./transactional-email";
+import { notifyUsers } from "./notify";
 
 /**
- * Project-management notifications. Each event pings the bell (Directus native
- * in-app notification, mirroring change-request-notify.ts) AND sends a branded,
- * on-brand email twin via `sendBrandedTransactionalEmail` so the recipient gets
- * a real message — not just a silent badge. Both layers are best-effort: a
- * failure never fails the action that triggered it.
+ * Project-management notifications. Each event goes out on both in-app channels
+ * via `notifyUsers` (the durable bell row plus a best-effort web push, both
+ * gated on the member's per-category preference) AND as a branded email twin via
+ * `sendBrandedTransactionalEmail` so the recipient gets a real message — not
+ * just a silent badge. Every layer is best-effort: a failure never fails the
+ * action that triggered it.
+ *
+ * Category is "task" throughout: these are all project-workspace items, and the
+ * member's Tasks toggle is the one they'd expect to control them.
  */
 
 const idOf = (v: any) => (typeof v === "string" ? v : v?.id) || null;
@@ -52,19 +57,19 @@ async function approverUserIds(orgId: string): Promise<string[]> {
   return [...ids];
 }
 
-async function notify(recipients: string[], subject: string, message: string, item: string, exclude?: string | null) {
+async function notify(orgId: string, recipients: string[], subject: string, message: string, item: string, exclude?: string | null) {
   if (!recipients.length) return;
-  const admin = getTypedDirectus();
-  for (const uid of recipients) {
-    if (exclude && uid === exclude) continue;
-    try {
-      await admin.request(
-        createNotification({ recipient: uid, subject, message, collection: "hoa_project_events", item })
-      );
-    } catch (e) {
-      console.warn("[project-notify] failed for", uid, e);
-    }
-  }
+  await notifyUsers({
+    organizationId: orgId,
+    recipientUserIds: recipients,
+    category: "task",
+    subject,
+    message,
+    collection: "hoa_project_events",
+    item,
+    path: "/admin/projects",
+    excludeUserId: exclude,
+  }).catch((e) => console.warn("[project-notify] notify failed", (e as Error).message));
 }
 
 /** A milestone needs board/admin approval → ping the approvers (bell + email). */
@@ -72,6 +77,7 @@ export async function notifyApprovalRequested(orgId: string, ev: { id: string; t
   const recipients = await approverUserIds(orgId);
   const where = ev.projectTitle ? ` on ${ev.projectTitle}` : "";
   await notify(
+    orgId,
     recipients,
     "Milestone needs approval",
     `"${ev.title || "A milestone"}"${where} is awaiting your approval.`,
@@ -94,6 +100,7 @@ export async function notifyApprovalRequested(orgId: string, ev: { id: string; t
 export async function notifyApprovalDecided(orgId: string, ev: { id: string; title?: string | null }, decidedBy: string | null, approved: boolean, requestedBy?: string | null): Promise<void> {
   if (!requestedBy) return;
   await notify(
+    orgId,
     [requestedBy],
     approved ? "Milestone approved" : "Milestone not approved",
     approved
@@ -123,23 +130,17 @@ export async function notifyApprovalDecided(orgId: string, ev: { id: string; tit
 export async function notifyTaskAssigned(orgId: string, assigneeIds: string[], task: { id: string; title?: string | null }, assignedBy?: string | null): Promise<void> {
   const recipients = [...new Set(assigneeIds.filter(Boolean))];
   if (!recipients.length) return;
-  const admin = getTypedDirectus();
-  for (const uid of recipients) {
-    if (assignedBy && uid === assignedBy) continue;
-    try {
-      await admin.request(
-        createNotification({
-          recipient: uid,
-          subject: "New task assigned",
-          message: `You were assigned "${task.title || "a task"}".`,
-          collection: "hoa_tasks",
-          item: task.id,
-        })
-      );
-    } catch (e) {
-      console.warn("[project-notify] task notify failed for", uid, e);
-    }
-  }
+  await notifyUsers({
+    organizationId: orgId,
+    recipientUserIds: recipients,
+    category: "task",
+    subject: "New task assigned",
+    message: `You were assigned "${task.title || "a task"}".`,
+    collection: "hoa_tasks",
+    item: task.id,
+    path: "/admin/projects",
+    excludeUserId: assignedBy,
+  }).catch((e) => console.warn("[project-notify] task notify failed", (e as Error).message));
   await sendBrandedTransactionalEmail({
     organizationId: orgId,
     recipientUserIds: recipients,

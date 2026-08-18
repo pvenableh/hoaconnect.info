@@ -313,9 +313,88 @@
               </div>
             </div>
 
+            <p class="text-xs text-muted-foreground">
+              "In-app" covers the notification bell and, if you turn them on below, push
+              notifications on your devices.
+            </p>
+
             <div class="flex justify-end">
               <Button :disabled="isUpdating" @click="updatePreferences">Save preferences</Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <!-- Push notifications -->
+        <Card v-if="push.serverEnabled.value || push.unsupportedReason.value === 'ios-install'">
+          <CardHeader>
+            <CardTitle>Push notifications</CardTitle>
+            <CardDescription>
+              Get notified on this device even when HOA Connect isn't open.
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <!-- Ready to turn on / already on -->
+            <template v-if="push.supported.value">
+              <label class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="font-medium">Notifications on this device</p>
+                  <p class="text-sm text-muted-foreground">
+                    {{
+                      push.subscribed.value
+                        ? "This device will receive push notifications."
+                        : "Turn on to receive notifications on this device."
+                    }}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  :variant="push.subscribed.value ? 'outline' : 'default'"
+                  :disabled="push.busy.value"
+                  @click="togglePush"
+                >
+                  {{ push.subscribed.value ? "Turn off" : "Turn on" }}
+                </Button>
+              </label>
+
+              <div
+                v-if="push.permission.value === 'denied'"
+                class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+              >
+                Your browser is blocking notifications for this site. Allow them in your
+                browser's site settings, then try again.
+              </div>
+
+              <div v-if="push.subscribed.value" class="flex items-center gap-3">
+                <Button size="sm" variant="outline" :disabled="push.busy.value" @click="testPush">
+                  Send a test notification
+                </Button>
+                <span v-if="pushTestMessage" class="text-sm text-muted-foreground">
+                  {{ pushTestMessage }}
+                </span>
+              </div>
+            </template>
+
+            <!-- iOS: supported, but only once the app is on the Home Screen -->
+            <div
+              v-else-if="push.unsupportedReason.value === 'ios-install'"
+              class="space-y-2 text-sm text-muted-foreground"
+            >
+              <p class="font-medium text-foreground">Add HOA Connect to your Home Screen first</p>
+              <p>
+                On iPhone and iPad, notifications work once the app is installed. In Safari, tap
+                the Share button, choose <strong>Add to Home Screen</strong>, then open HOA
+                Connect from your Home Screen and come back here.
+              </p>
+            </div>
+
+            <p v-else-if="push.unsupportedReason.value === 'ios-old'" class="text-sm text-muted-foreground">
+              Notifications need iOS 16.4 or later. Update your device to turn them on.
+            </p>
+
+            <p v-else class="text-sm text-muted-foreground">
+              This browser doesn't support push notifications. You'll still get everything in
+              your notification bell and by email.
+            </p>
           </CardContent>
         </Card>
 
@@ -509,6 +588,38 @@ const setCatEmail = (cat: string, v: boolean) => {
 const catBell = (cat: string) => notifPrefs.value[`${cat}_bell`] !== false;
 const setCatBell = (cat: string, v: boolean) => {
   notifPrefs.value = { ...notifPrefs.value, [`${cat}_bell`]: v };
+};
+
+// Web push. The composable owns capability/permission/subscription state; this
+// page only drives it. Kept as one object (not destructured) so the template can
+// read `.value` on each ref without a wall of local aliases.
+const push = usePush();
+const pushTestMessage = ref("");
+
+const togglePush = async () => {
+  pushTestMessage.value = "";
+  if (push.subscribed.value) {
+    await push.disable();
+    return;
+  }
+  // Must run inside the click handler: browsers reject a permission prompt that
+  // isn't tied to a user gesture, and Safari hard-denies for the session.
+  const ok = await push.enable();
+  if (!ok && push.permission.value !== "denied") {
+    pushTestMessage.value = "Couldn't turn on notifications. Try again.";
+  }
+};
+
+const testPush = async () => {
+  pushTestMessage.value = "Sending…";
+  try {
+    const sent = await push.sendTest();
+    pushTestMessage.value = sent
+      ? "Sent — check your notifications."
+      : "Nothing to send to. Try turning notifications off and on again.";
+  } catch {
+    pushTestMessage.value = "Couldn't send a test notification.";
+  }
 };
 
 // Digest fields (writable computeds over the same blob).

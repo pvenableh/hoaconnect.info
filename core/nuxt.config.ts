@@ -96,6 +96,13 @@ export default defineNuxtConfig({
       url: process.env.DIRECTUS_URL,
       staticToken: process.env.DIRECTUS_STATIC_TOKEN,
     },
+    // Web push (VAPID). The PRIVATE key is server-only and must never be
+    // exposed; the public one is published under `public` below so the browser
+    // can subscribe. Generate a pair with `npx web-push generate-vapid-keys`.
+    // Leave both empty and web push cleanly disables itself everywhere — the
+    // account UI hides it and every send path becomes a no-op.
+    vapidPrivateKey: process.env.NUXT_VAPID_PRIVATE_KEY || "",
+    vapidSubject: process.env.NUXT_VAPID_SUBJECT || "mailto:support@hoaconnect.info",
     // OpenWeatherMap key (server-only) — powers the landing Weather widget via
     // /api/landing/weather. One platform key covers all tenants; if unset the
     // weather widget hides gracefully.
@@ -226,6 +233,18 @@ export default defineNuxtConfig({
       // Per-deploy build identity baked into the client bundle. Compared against the
       // live value from GET /api/version to detect that a new version has shipped.
       buildId,
+      // Web push applicationServerKey. Public by definition — it ships to every
+      // browser that subscribes. Empty ⇒ push is disabled (see vapidPrivateKey).
+      vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+    },
+  },
+
+  routeRules: {
+    // The service worker must NEVER be served from cache: a cached sw.js pins a
+    // device to an old worker, and this one is responsible for push delivery and
+    // for purging stale caches on activate.
+    "/sw.js": {
+      headers: { "cache-control": "no-cache, max-age=0, must-revalidate" },
     },
   },
 

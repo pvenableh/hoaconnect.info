@@ -1,8 +1,10 @@
-import { readItems, readItem, createNotification } from "@directus/sdk";
+import { readItems, readItem } from "@directus/sdk";
+import { notifyUsers } from "./notify";
 
 /**
- * In-app notifications for the member self-service review workflow, mirroring
- * the inquiry-routing pattern (Directus native notifications).
+ * In-app notifications for the member self-service review workflow. Both sides
+ * go through `notifyUsers`, so each lands as a durable bell row plus a
+ * best-effort web push, gated on the member's "Requests" preference.
  */
 
 const KIND_LABEL: Record<string, string> = {
@@ -65,26 +67,21 @@ export async function notifyReviewersOfChangeRequest(orgId: string, cr: any, mem
   const subject = "Profile change to review";
   const message = `${name} requested a change to ${label}.`;
 
-  for (const uid of recipients) {
-    if (uid === submitter) continue; // a reviewer editing their own data: skip self-ping
-    try {
-      await admin.request(
-        createNotification({
-          recipient: uid,
-          subject,
-          message,
-          collection: "hoa_member_change_requests",
-          item: cr.id,
-        })
-      );
-    } catch (e) {
-      console.warn("[change-requests] reviewer notify failed for", uid, e);
-    }
-  }
+  // A reviewer editing their own data shouldn't be pinged about it.
+  await notifyUsers({
+    organizationId: orgId,
+    recipientUserIds: recipients,
+    category: "request",
+    subject,
+    message,
+    collection: "hoa_member_change_requests",
+    item: cr.id,
+    path: "/admin/approvals",
+    excludeUserId: submitter,
+  }).catch((e) => console.warn("[change-requests] reviewer notify failed", (e as Error).message));
 }
 
 export async function notifyResidentOfDecision(orgId: string, cr: any): Promise<void> {
-  const admin = getTypedDirectus();
   const recipient = idOf(cr.submitted_by);
   if (!recipient) return;
 
@@ -95,17 +92,14 @@ export async function notifyResidentOfDecision(orgId: string, cr: any): Promise<
     ? `Your requested change to ${label} was approved.`
     : `Your requested change to ${label} wasn't approved. Check the note and try again.`;
 
-  try {
-    await admin.request(
-      createNotification({
-        recipient,
-        subject,
-        message,
-        collection: "hoa_member_change_requests",
-        item: cr.id,
-      })
-    );
-  } catch (e) {
-    console.warn("[change-requests] resident notify failed:", e);
-  }
+  await notifyUsers({
+    organizationId: orgId,
+    recipientUserIds: [recipient],
+    category: "request",
+    subject,
+    message,
+    collection: "hoa_member_change_requests",
+    item: cr.id,
+    path: "/profile",
+  }).catch((e) => console.warn("[change-requests] resident notify failed", (e as Error).message));
 }
