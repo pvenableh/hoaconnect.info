@@ -17,7 +17,7 @@
  * Prerequisites: DIRECTUS_URL + DIRECTUS_STATIC_TOKEN + VOYAGE_API_KEY in .env.
  */
 
-import { ingestItem, type RagSourceCollection } from "../../../core/server/utils/rag-ingest";
+import { ingestItem, type RagSourceCollection } from "../core/server/utils/rag-ingest";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;

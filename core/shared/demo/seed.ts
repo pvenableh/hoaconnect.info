@@ -1,6 +1,6 @@
 /**
  * Demo provisioning — the single source of truth for the "try the app" demo
- * orgs, shared by the CLI seed (apps/app/scripts/seed-demo.ts) and the nightly
+ * orgs, shared by the CLI seed (scripts/seed-demo.ts) and the nightly
  * reset route (/api/demo/reset). Pure of any framework/env coupling: all IO goes
  * through a caller-supplied Directus base URL + admin token, so it runs the same
  * under tsx (script) and Nitro (route).

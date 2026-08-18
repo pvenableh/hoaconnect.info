@@ -1,5 +1,6 @@
 // core/nuxt.config.ts
-// Shared HOA Connect Nuxt LAYER. Consumed by each app via `extends: ['../../core']`.
+// Shared HOA Connect Nuxt LAYER, extended by the app at the repo root via
+// `extends: ['./core']`.
 // Holds the base plumbing every app inherits: modules, global CSS/theme, runtimeConfig
 // (all env-var names unchanged so existing Vercel env keeps working), image/icon config,
 // and the `#core` alias used by moved code to reference this layer's files.

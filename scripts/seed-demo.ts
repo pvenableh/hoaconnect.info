@@ -10,7 +10,7 @@
  *         pnpm run seed:demo -- --dry   (no writes; reports)
  */
 
-import { seedDemos, type DemoUser } from "../../../core/shared/demo/seed";
+import { seedDemos, type DemoUser } from "../core/shared/demo/seed";
 
 const baseUrl = process.env.DIRECTUS_URL;
 const token = process.env.DIRECTUS_STATIC_TOKEN;

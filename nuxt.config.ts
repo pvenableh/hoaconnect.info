@@ -1,11 +1,11 @@
-// apps/app/nuxt.config.ts
+// nuxt.config.ts
 // The multi-tenant HOA Connect app (app.hoaconnect.info). Inherits all shared
 // plumbing (modules, CSS/theme, runtimeConfig, image/icon, auth) from the core
 // layer; only app-identity overrides live here. App-specific UI (pages, layouts,
 // components, lib) and the debug API stay in this package.
 
 export default defineNuxtConfig({
-  extends: ["../../core"],
+  extends: ["./core"],
 
   // Nuxt 4 compatibility (also declared in core; kept here as the consuming app
   // is the authoritative place for the compatibility version).

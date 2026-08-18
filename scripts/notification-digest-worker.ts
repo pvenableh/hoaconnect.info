@@ -6,7 +6,7 @@
  * digests look identical to every other HOA Connect email.
  *
  * Trigger it hourly from the droplet's crontab (see docs/notification-digest-cron.md):
- *   0 * * * * cd /path/to/hoaconnect/apps/app && pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
+ *   0 * * * * cd /path/to/hoaconnect && pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
  *
  * Idempotent-by-hour: each run emails only members whose cadence + local
  * send-hour (interpreted in DIGEST_TZ) match the current hour, so a member gets
@@ -35,9 +35,9 @@ import {
   digestCadence,
   digestSections,
   type DigestSection,
-} from "../../../core/shared/notifications/preferences";
-import { resolveEmailBranding } from "../../../core/server/utils/email-branding";
-import { buildEmailHtml, buildEmailText } from "../../../core/server/utils/email-templates-mjml";
+} from "../core/shared/notifications/preferences";
+import { resolveEmailBranding } from "../core/server/utils/email-branding";
+import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
