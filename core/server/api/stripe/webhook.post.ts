@@ -187,6 +187,26 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 
 	// Create payment transaction record
 	try {
+		// Idempotency: Stripe retries webhooks (and can deliver the same event
+		// more than once). The PaymentIntent id is the natural key — if we've
+		// already booked a succeeded transaction for it, stop. Without this the
+		// retry both duplicates the ledger row and double-credits the linked
+		// payment request's amount_paid.
+		const existing = await directus.request(
+			readItems('payment_transactions', {
+				filter: {
+					stripe_payment_intent_id: { _eq: paymentIntent.id },
+					status: { _eq: 'succeeded' },
+				},
+				fields: ['id'],
+				limit: 1,
+			})
+		);
+		if (existing?.length) {
+			console.log(`Payment intent ${paymentIntent.id} already recorded — skipping duplicate`);
+			return;
+		}
+
 		const transactionData = {
 			status: 'succeeded' as const,
 			organization: organizationId || null,
