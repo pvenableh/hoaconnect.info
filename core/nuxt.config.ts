@@ -199,7 +199,11 @@ export default defineNuxtConfig({
       directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,
       // Legacy - can be removed after migration
       directusUrl: process.env.DIRECTUS_URL,
-      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || "app.hoaconnect.info",
+      // The platform's own domain. Its APEX serves marketing, `app.` and the
+      // per-org subdomains serve the product, and anything else is a customer's
+      // custom domain. Marketing-host detection derives from this (see
+      // isMarketingHost) rather than a separate env var, so the two can't drift.
+      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || "hoaconnect.info",
       // Mapbox public token (pk.*) for static location maps on org landing pages.
       // Set NUXT_PUBLIC_MAPBOX_TOKEN in the environment (kept out of the repo).
       mapboxToken: process.env.NUXT_PUBLIC_MAPBOX_TOKEN || "",

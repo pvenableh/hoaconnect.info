@@ -3,6 +3,7 @@ import {
   classifyDomain,
   hostCandidates,
   isLocalHost,
+  isMarketingHost,
   isPlatformHost,
   normalizeHost,
   pickOrgForHost,
@@ -131,5 +132,39 @@ describe("pickOrgForHost", () => {
 
   it("tolerates rows with no custom_domain", () => {
     expect(pickOrgForHost("example.com", [{ id: "3", slug: "none", custom_domain: null }, bare])?.id).toBe("1");
+  });
+});
+
+describe("isMarketingHost", () => {
+  const main = "hoaconnect.info";
+
+  it("matches the apex and its www form", () => {
+    expect(isMarketingHost("hoaconnect.info", main)).toBe(true);
+    expect(isMarketingHost("www.hoaconnect.info", main)).toBe(true);
+    expect(isMarketingHost("HTTPS://HOAConnect.info/pricing", main)).toBe(true);
+  });
+
+  it("does NOT match the app or an org subdomain — those serve the product", () => {
+    expect(isMarketingHost("app.hoaconnect.info", main)).toBe(false);
+    expect(isMarketingHost("605-lincoln.hoaconnect.info", main)).toBe(false);
+  });
+
+  it("does not match a customer's own domain", () => {
+    expect(isMarketingHost("605lincolnroad.com", main)).toBe(false);
+  });
+
+  it("is a strict subset of isPlatformHost", () => {
+    for (const h of ["hoaconnect.info", "www.hoaconnect.info"]) {
+      expect(isMarketingHost(h, main)).toBe(true);
+      expect(isPlatformHost(h, main)).toBe(true);
+    }
+    // Ours, but not marketing.
+    expect(isPlatformHost("app.hoaconnect.info", main)).toBe(true);
+    expect(isMarketingHost("app.hoaconnect.info", main)).toBe(false);
+  });
+
+  it("is false when either side is missing", () => {
+    expect(isMarketingHost("", main)).toBe(false);
+    expect(isMarketingHost("hoaconnect.info", "")).toBe(false);
   });
 });

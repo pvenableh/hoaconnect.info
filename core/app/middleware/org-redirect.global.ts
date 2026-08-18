@@ -1,6 +1,8 @@
 // middleware/org-redirect.global.ts
 // Redirects logged-in users from main pages to their organization's slug path
 
+import { isMarketingHost } from "#core/shared/domains/host";
+
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // Only run on client side
   if (!import.meta.client) return;
@@ -16,6 +18,15 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // sets isCustomDomain from the request Host before this middleware runs.
   const isCustomDomain = useState<boolean>("isCustomDomain", () => false);
   if (isCustomDomain.value) return;
+
+  // Skip on the marketing host. Its apex is the platform's public front door and
+  // is served by this same deployment, so without this a signed-in visitor could
+  // never reach hoaconnect.info — they'd be bounced straight into their org, and
+  // the org lookup would churn on every marketing page view.
+  const host = import.meta.client
+    ? window.location.host
+    : useRequestURL({ xForwardedHost: true }).host;
+  if (isMarketingHost(host, useRuntimeConfig().public.mainDomain)) return;
 
   // Skip redirect for auth pages, setup pages, account page, and other public routes
   // Account page lives on main domain since user accounts are user-specific, not org-specific

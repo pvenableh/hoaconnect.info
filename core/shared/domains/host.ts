@@ -46,6 +46,25 @@ export function isPlatformHost(rawHost?: string | null, mainDomain?: string | nu
 }
 
 /**
+ * Is this the platform's marketing host — the apex of our own domain?
+ *
+ * The marketing site and the app are one deployment (the WeddingConnect model):
+ * `hoaconnect.info` serves the public marketing pages, `app.hoaconnect.info`
+ * and the per-org subdomains serve the product. So "marketing host" is simply
+ * the main domain's apex plus its www form — deriving it from `mainDomain`
+ * rather than a second env var keeps the two from ever disagreeing.
+ *
+ * Note this is a SUBSET of `isPlatformHost`: every marketing host is one of
+ * ours, but not every host of ours is the marketing host.
+ */
+export function isMarketingHost(rawHost?: string | null, mainDomain?: string | null): boolean {
+  const h = normalizeHost(rawHost);
+  const md = normalizeHost(mainDomain);
+  if (!h || !md) return false;
+  return h === md || h === `www.${md}`;
+}
+
+/**
  * The set of stored `custom_domain` values that should match this host, so an
  * org saved as `example.com` is reachable at `www.example.com` and vice versa.
  * Order is not significance — `pickOrgForHost` decides the winner.

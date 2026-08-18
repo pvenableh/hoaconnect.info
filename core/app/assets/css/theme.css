@@ -1159,3 +1159,64 @@ html.theme-luxury-dark .portal-item__label {
 		--theme-transition-slower: 0ms !important;
 	}
 }
+
+/* ── Marketing theme ─────────────────────────────────────────────────────────
+ * The platform marketing site (hoaconnect.info) has its own gold/serif palette.
+ * It was built as a separate Nuxt project that forked this stylesheet, so 157 of
+ * its 178 shared tokens already carry identical values — only the ones below
+ * actually differ. Expressing it as a theme class rather than importing that
+ * project's CSS keeps a single source of truth: a second global stylesheet
+ * defining the same custom properties would silently redefine the whole app's
+ * theme depending on load order.
+ *
+ * Light-only by design (no -dark twin): the marketing site has no theme toggle.
+ * Applied by app/layouts/marketing.vue, which owns the <html> class the way
+ * layouts/auth.vue does for the workspace.
+ */
+/* Scoped to `html` so it beats whatever theme-{style}-{mode} class the theme
+ * system also applies (both end up on <html>). Specificity, not source order —
+ * otherwise reordering this file would silently un-theme the marketing site. */
+html.theme-marketing {
+	/* Marketing-only palette names, used directly by the marketing components. */
+	--color-cream: #f6f1e7;
+	--color-cream-alt: #cfc6b4;
+	--color-gold: #c9a96e;
+
+	/* Accents — warm gold rather than the app's cyan. */
+	--theme-accent-primary: #c9a96e;
+	--theme-accent-secondary: #d4ba8a;
+	--theme-accent-tertiary: #8b7355;
+	--theme-accent-hover: #b89a5f;
+	--theme-accent-active: #b89a5f;
+	/* Glass system accent (HSL parts of accent-primary), matching the gold. */
+	--app-accent-h: 38;
+	--app-accent-s: 46%;
+	--app-accent-l: 61%;
+
+	/* Editorial serif body, versus the app's Proxima Nova. */
+	--theme-body-font: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+
+	/* Text — softer charcoals. */
+	--theme-text-primary: #454545;
+	--theme-text-secondary: #6c6c6c;
+	--theme-text-tertiary: #8b7355;
+
+	/* Borders and dividers — warm taupe. */
+	--theme-border-primary: #e5e0d8;
+	--theme-border-secondary: #d4cfc7;
+	--theme-border-light: #f0ebe3;
+	--theme-divider: #e5e0d8;
+	--theme-divider-light: #f0ebe3;
+
+	/* Buttons ride the gold accent instead of the app's near-black. */
+	--theme-button-bg: #c9a96e;
+	--theme-button-hover-bg: #b89a5f;
+
+	--theme-link-color: #8b7355;
+	--theme-link-hover: #c9a96e;
+
+	/* Shadows tinted to the palette. */
+	--theme-shadow-sm: 0 1px 2px rgba(139, 115, 85, 0.05);
+	--theme-shadow-md: 0 4px 6px rgba(139, 115, 85, 0.07);
+	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
+}
