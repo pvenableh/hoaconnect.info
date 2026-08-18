@@ -545,12 +545,16 @@ async function setupPermissions(): Promise<void> {
   const adminPolicy = adminRole ? await getRolePolicy(adminRole.id, adminRole.name) : null;
   const memberPolicy = memberRole ? await getRolePolicy(memberRole.id, memberRole.name) : null;
 
-  const orgFilter = { organization: { _eq: "$CURRENT_USER.organization" } };
+  // Org scoping goes through the user's memberships — directus_users has NO
+  // `organization` field, so `$CURRENT_USER.organization` makes Directus 500 the
+  // whole read ("permission to access field \"organization\" in collection
+  // \"directus_users\""). Same idiom as setup-directus-permissions.ts.
+  const orgFilter = { organization: { _in: "$CURRENT_USER.hoa_members.organization" } };
   // Members never see internal comments, and don't see others' hidden comments
   // — but the AUTHOR can still see their own comment after it's hidden.
   const memberReadFilter = {
     _and: [
-      { organization: { _eq: "$CURRENT_USER.organization" } },
+      { organization: { _in: "$CURRENT_USER.hoa_members.organization" } },
       { is_internal: { _eq: false } },
       { status: { _neq: "deleted" } },
       {
@@ -564,7 +568,7 @@ async function setupPermissions(): Promise<void> {
   // Members may only edit/delete their own comments
   const memberOwnFilter = {
     _and: [
-      { organization: { _eq: "$CURRENT_USER.organization" } },
+      { organization: { _in: "$CURRENT_USER.hoa_members.organization" } },
       { user_created: { _eq: "$CURRENT_USER" } },
     ],
   };
@@ -639,22 +643,31 @@ async function setupPermissions(): Promise<void> {
 }
 
 async function postPermission(policy: string, collection: string, action: string, config: any): Promise<void> {
+  // Upsert, don't skip: a row that already exists may hold a STALE filter (this
+  // script shipped `$CURRENT_USER.organization` once, which 500s every read —
+  // see the orgFilter note above). Skipping on conflict left prod broken and
+  // un-repairable by re-running, so patch the existing row instead.
+  const existing = await directusFetch(
+    `/permissions?filter[policy][_eq]=${policy}&filter[collection][_eq]=${collection}&filter[action][_eq]=${action}&fields=id&limit=1`
+  );
+  const current = existing?.data?.[0];
+
   try {
+    if (current) {
+      await directusFetch(`/permissions/${current.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(config),
+      });
+      console.log(`      ♻️  ${action} (updated)`);
+      return;
+    }
     await directusFetch("/permissions", {
       method: "POST",
       body: JSON.stringify({ policy, collection, action, ...config }),
     });
     console.log(`      ✅ ${action}`);
   } catch (error: any) {
-    if (
-      error.message.includes("already exists") ||
-      error.message.includes("409") ||
-      error.message.includes("unique")
-    ) {
-      console.log(`      ⏭️  ${action} (already exists)`);
-    } else {
-      console.log(`      ❌ ${action}: ${error.message}`);
-    }
+    console.log(`      ❌ ${action}: ${error.message}`);
   }
 }
 
