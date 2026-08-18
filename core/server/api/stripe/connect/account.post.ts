@@ -11,9 +11,11 @@ import { z } from 'zod';
  * Idempotent: if the org already has a stripe_connect_account_id we return it
  * instead of creating a duplicate account.
  *
- * NOTE (auth): mirrors the existing thin Stripe routes, which trust the
- * organizationId from the client. Before production, gate this so only an
- * HOA admin of the target org can call it (verify the session user's role).
+ * Auth: admin-only. The organizationId still arrives in the body (the settings
+ * UI knows which org it's on), but it grants nothing by itself — the server
+ * verifies the session user is an admin OF THAT org (App Admin or its HOA
+ * Admin) via requireAdminAccess before touching Stripe. Bank/payout onboarding
+ * is deliberately NOT extended to property managers.
  */
 
 const schema = z.object({
@@ -38,6 +40,11 @@ export default defineEventHandler(async (event) => {
 
     const body = await readBody(event);
     const { organizationId, email } = schema.parse(body);
+
+    // Security gate: only an admin of the target org may create its Connect
+    // account. Throws 403 (401-less sessions come back isAdmin=false) before
+    // any Stripe or Directus write happens.
+    await requireAdminAccess(event, organizationId);
 
     const directus = getTypedDirectus();
 

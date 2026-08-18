@@ -13,6 +13,10 @@ import { z } from 'zod';
  * }
  *
  * Returns { url } — redirect the browser to it.
+ *
+ * Auth: admin-only, same gate as connect/account.post.ts — the server verifies
+ * the session user is an admin of the target org before minting a link that
+ * opens the org's Stripe onboarding (which exposes/edits bank details).
  */
 
 const schema = z.object({
@@ -38,6 +42,9 @@ export default defineEventHandler(async (event) => {
 
     const body = await readBody(event);
     const { organizationId, returnPath, refreshPath } = schema.parse(body);
+
+    // Security gate: only an admin of the target org may mint its onboarding link.
+    await requireAdminAccess(event, organizationId);
 
     const directus = getTypedDirectus();
     const org = (await directus.request(
