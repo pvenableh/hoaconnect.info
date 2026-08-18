@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import type { PaymentRequest, PaymentSchedule, PaymentTransaction, HoaMember } from "#core/types/directus";
+import type {
+  PaymentRequest,
+  PaymentSchedule,
+  PaymentTransaction,
+  HoaMember,
+  HoaOrganization,
+} from "#core/types/directus";
 import { toast } from "vue-sonner";
 
 definePageMeta({
@@ -14,6 +20,7 @@ const { list: listSchedules, create: createSchedule, update: updateSchedule } =
   useDirectusItems<PaymentSchedule>("payment_schedules");
 const { create: createTransaction } = useDirectusItems<PaymentTransaction>("payment_transactions");
 const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
+const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
 const { list: listExpenses } = useExpenses();
 const { buildOrgPath } = useOrgNavigation();
 
@@ -76,6 +83,20 @@ const { data: members } = await useAsyncData(
 const { data: expenses } = await useAsyncData(
   `admin-payments-expenses-${selectedOrgId.value}`,
   () => listExpenses(selectedOrgId.value || undefined),
+  { watch: [selectedOrgId], server: false }
+);
+
+// Opening balance (Settings → Payments) — seeds the running balance in Reports.
+// Fetched here rather than off useSelectedOrg's membership payload, which
+// carries a fixed field list shared by every page.
+const { data: orgBalance } = await useAsyncData(
+  `admin-payments-opening-balance-${selectedOrgId.value}`,
+  async () => {
+    if (!selectedOrgId.value) return null;
+    return (await getOrganization(selectedOrgId.value, {
+      fields: ["id", "opening_balance", "opening_balance_date"],
+    })) as HoaOrganization;
+  },
   { watch: [selectedOrgId], server: false }
 );
 
@@ -627,6 +648,7 @@ const TYPE_FILTERS = [
           :requests="requests || []"
           :expenses="expenses || []"
           :members="members || []"
+          :organization="orgBalance || null"
         />
       </template>
     </PageContainer>

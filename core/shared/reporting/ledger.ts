@@ -41,7 +41,35 @@ export interface LedgerSummary {
   totalExpense: number;
   net: number;
   entryCount: number;
+  /** The org's opening balance (0 when unset). */
+  openingBalance: number;
+  /** openingBalance + net — the balance the running series ends on. */
+  closingBalance: number;
 }
+
+/**
+ * Where the running balance starts. A community migrating in from a bank
+ * statement or a previous system strikes a balance on a date; everything the
+ * app knows about from before that date is already inside `openingBalance`, so
+ * it must be excluded from the series or it would be counted twice.
+ */
+export interface OpeningBalanceOpts {
+  openingBalance?: number;
+  /** ISO date the balance was struck. Entries strictly before it are dropped. */
+  openingBalanceAsOf?: string | null;
+}
+
+/**
+ * Coerce a money value to a number. **Directus serializes `decimal` columns as
+ * strings** ("600.75"), and every amount reaching this module comes from one:
+ * `payment_expenses.amount`, `payment_requests.amount*`, and the org's
+ * `opening_balance`. Left as a string, `total += amount` concatenates and
+ * `round2` then yields NaN — which the UI renders as a silent $0.00.
+ */
+const toAmount = (v: unknown): number => {
+  const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+  return Number.isFinite(n) ? n : 0;
+};
 
 export interface DelinquencyRow {
   memberId: string;
@@ -92,18 +120,46 @@ export function daysOverdue(
   return Math.floor((asOf.getTime() - due.getTime()) / MS_PER_DAY);
 }
 
-export function summarize(entries: LedgerEntry[]): LedgerSummary {
+/**
+ * Drop entries that predate the opening balance's as-of date — they are
+ * already baked into that number. No as-of date means "the opening balance
+ * covers everything before the first record we have", so nothing is dropped.
+ * Entries dated exactly on the as-of date are kept (the balance is struck at
+ * the start of that day).
+ */
+export function entriesSinceOpening(
+  entries: LedgerEntry[],
+  opts: OpeningBalanceOpts = {}
+): LedgerEntry[] {
+  const asOf = opts.openingBalanceAsOf ? new Date(opts.openingBalanceAsOf) : null;
+  if (!asOf || Number.isNaN(asOf.getTime())) return entries;
+  return entries.filter((e) => {
+    const d = new Date(e.date);
+    // Unparseable dates are left in place; the month bucketers skip them.
+    return Number.isNaN(d.getTime()) || d.getTime() >= asOf.getTime();
+  });
+}
+
+export function summarize(
+  entries: LedgerEntry[],
+  opts: OpeningBalanceOpts = {}
+): LedgerSummary {
+  const scoped = entriesSinceOpening(entries, opts);
   let totalIncome = 0;
   let totalExpense = 0;
-  for (const e of entries) {
+  for (const e of scoped) {
     if (e.direction === "in") totalIncome += e.amount;
     else totalExpense += e.amount;
   }
+  const opening = toAmount(opts.openingBalance);
+  const net = totalIncome - totalExpense;
   return {
     totalIncome: round2(totalIncome),
     totalExpense: round2(totalExpense),
-    net: round2(totalIncome - totalExpense),
-    entryCount: entries.length,
+    net: round2(net),
+    entryCount: scoped.length,
+    openingBalance: round2(opening),
+    closingBalance: round2(opening + net),
   };
 }
 
@@ -113,10 +169,10 @@ export function summarize(entries: LedgerEntry[]): LedgerSummary {
  */
 export function monthlySeries(
   entries: LedgerEntry[],
-  opts: { openingBalance?: number } = {}
+  opts: OpeningBalanceOpts = {}
 ): MonthlyBucket[] {
   const map = new Map<string, { income: number; expense: number }>();
-  for (const e of entries) {
+  for (const e of entriesSinceOpening(entries, opts)) {
     const key = monthKey(e.date);
     if (!key) continue;
     const bucket = map.get(key) || { income: 0, expense: 0 };
@@ -125,7 +181,7 @@ export function monthlySeries(
     map.set(key, bucket);
   }
 
-  let running = opts.openingBalance || 0;
+  let running = toAmount(opts.openingBalance);
   return [...map.keys()]
     .sort()
     .map((month) => {
@@ -168,10 +224,32 @@ export function byCategory(
 // Kept structural (not tied to the full Directus interfaces) so they stay easy
 // to test and don't drag the type graph into a pure module.
 
+export interface OrgOpeningBalanceLike {
+  opening_balance?: Money;
+  opening_balance_date?: string | null;
+}
+
+/**
+ * Read an org's configured opening balance (Settings → Payments) into the opts
+ * every aggregator takes. A missing/blank balance is 0 — the pre-existing
+ * behaviour, where every report starts at $0.
+ */
+export function openingBalanceFromOrg(
+  org: OrgOpeningBalanceLike | null | undefined
+): Required<OpeningBalanceOpts> {
+  return {
+    openingBalance: toAmount(org?.opening_balance),
+    openingBalanceAsOf: org?.opening_balance_date || null,
+  };
+}
+
+/** Money fields are `number | string` because Directus decimals arrive as strings. */
+export type Money = number | string | null | undefined;
+
 export interface RequestLike {
   request_type?: string | null;
   title?: string | null;
-  amount_paid?: number | null;
+  amount_paid?: Money;
   paid_at?: string | null;
   status?: string | null;
 }
@@ -179,7 +257,7 @@ export interface RequestLike {
 export interface ExpenseLike {
   category?: string | null;
   title?: string | null;
-  amount?: number | null;
+  amount?: Money;
   expense_date?: string | null;
   date_created?: string | null;
 }
@@ -188,7 +266,7 @@ export interface ExpenseLike {
 export function incomeEntriesFromRequests(requests: RequestLike[]): LedgerEntry[] {
   const out: LedgerEntry[] = [];
   for (const r of requests) {
-    const amount = r.amount_paid || 0;
+    const amount = toAmount(r.amount_paid);
     if (amount <= 0 || !r.paid_at) continue;
     out.push({
       date: r.paid_at,
@@ -205,7 +283,7 @@ export function incomeEntriesFromRequests(requests: RequestLike[]): LedgerEntry[
 export function expenseEntriesFromExpenses(expenses: ExpenseLike[]): LedgerEntry[] {
   const out: LedgerEntry[] = [];
   for (const e of expenses) {
-    const amount = e.amount || 0;
+    const amount = toAmount(e.amount);
     if (amount <= 0) continue;
     const date = e.expense_date || e.date_created;
     if (!date) continue;
@@ -224,9 +302,9 @@ export function expenseEntriesFromExpenses(expenses: ExpenseLike[]): LedgerEntry
 
 export interface OutstandingRequestLike {
   member?: unknown;
-  amount?: number | null;
-  amount_paid?: number | null;
-  amount_remaining?: number | null;
+  amount?: Money;
+  amount_paid?: Money;
+  amount_remaining?: Money;
   due_date?: string | null;
   status?: string | null;
 }
@@ -259,8 +337,8 @@ export function delinquencyAging(
     if (PAID_OR_CLOSED.has((r.status as string) || "")) continue;
     const remaining =
       r.amount_remaining != null
-        ? r.amount_remaining
-        : (r.amount || 0) - (r.amount_paid || 0);
+        ? toAmount(r.amount_remaining)
+        : toAmount(r.amount) - toAmount(r.amount_paid);
     if (remaining <= 0) continue;
 
     const { id, name } = resolveMember(r.member);

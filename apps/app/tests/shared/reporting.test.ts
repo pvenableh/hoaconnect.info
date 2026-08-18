@@ -8,6 +8,8 @@ import {
   incomeEntriesFromRequests,
   expenseEntriesFromExpenses,
   delinquencyAging,
+  entriesSinceOpening,
+  openingBalanceFromOrg,
   toCsv,
   type LedgerEntry,
 } from "#core/shared/reporting/ledger";
@@ -45,10 +47,153 @@ describe("summarize", () => {
       totalExpense: 40.25,
       net: 110.25,
       entryCount: 3,
+      openingBalance: 0,
+      closingBalance: 110.25,
     });
   });
   it("handles an empty set", () => {
-    expect(summarize([])).toEqual({ totalIncome: 0, totalExpense: 0, net: 0, entryCount: 0 });
+    expect(summarize([])).toEqual({
+      totalIncome: 0,
+      totalExpense: 0,
+      net: 0,
+      entryCount: 0,
+      openingBalance: 0,
+      closingBalance: 0,
+    });
+  });
+  it("closes on opening balance + net", () => {
+    const entries: LedgerEntry[] = [
+      { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+      { date: "2026-01-20", direction: "out", amount: 30, category: "utilities" },
+    ];
+    expect(summarize(entries, { openingBalance: 5000 })).toMatchObject({
+      net: 70,
+      openingBalance: 5000,
+      closingBalance: 5070,
+    });
+  });
+  it("ignores entries already baked into the opening balance", () => {
+    const entries: LedgerEntry[] = [
+      { date: "2025-12-31", direction: "in", amount: 999, category: "monthly_dues" },
+      { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+    ];
+    expect(
+      summarize(entries, { openingBalance: 5000, openingBalanceAsOf: "2026-01-01" })
+    ).toMatchObject({ totalIncome: 100, entryCount: 1, closingBalance: 5100 });
+  });
+});
+
+describe("entriesSinceOpening", () => {
+  const entries: LedgerEntry[] = [
+    { date: "2025-11-30", direction: "in", amount: 10, category: "x" },
+    { date: "2026-01-01", direction: "in", amount: 20, category: "x" },
+    { date: "2026-01-01T18:00:00Z", direction: "in", amount: 30, category: "x" },
+    { date: "2026-02-15", direction: "in", amount: 40, category: "x" },
+  ];
+
+  it("keeps entries on or after the as-of date", () => {
+    expect(
+      entriesSinceOpening(entries, { openingBalanceAsOf: "2026-01-01" }).map((e) => e.amount)
+    ).toEqual([20, 30, 40]);
+  });
+  it("keeps everything when no as-of date is set", () => {
+    expect(entriesSinceOpening(entries, { openingBalance: 500 })).toHaveLength(4);
+    expect(entriesSinceOpening(entries)).toHaveLength(4);
+  });
+  it("keeps everything when the as-of date is unparseable", () => {
+    expect(entriesSinceOpening(entries, { openingBalanceAsOf: "whenever" })).toHaveLength(4);
+  });
+  it("leaves unparseable entry dates alone (the month bucketer drops them)", () => {
+    const withBogus: LedgerEntry[] = [{ date: "bogus", direction: "in", amount: 1, category: "x" }];
+    expect(entriesSinceOpening(withBogus, { openingBalanceAsOf: "2026-01-01" })).toHaveLength(1);
+  });
+});
+
+describe("openingBalanceFromOrg", () => {
+  it("reads the org's configured balance + date", () => {
+    expect(
+      openingBalanceFromOrg({ opening_balance: 12500.75, opening_balance_date: "2026-01-01" })
+    ).toEqual({ openingBalance: 12500.75, openingBalanceAsOf: "2026-01-01" });
+  });
+  it("defaults to a $0 start for an unconfigured org", () => {
+    expect(openingBalanceFromOrg(null)).toEqual({ openingBalance: 0, openingBalanceAsOf: null });
+    expect(openingBalanceFromOrg({})).toEqual({ openingBalance: 0, openingBalanceAsOf: null });
+  });
+  it("coerces Directus decimals, which arrive as strings", () => {
+    // hoa_organizations.opening_balance is a `decimal` — the API returns "0.00".
+    expect(openingBalanceFromOrg({ opening_balance: "12500.75" as any })).toEqual({
+      openingBalance: 12500.75,
+      openingBalanceAsOf: null,
+    });
+    expect(openingBalanceFromOrg({ opening_balance: "" as any }).openingBalance).toBe(0);
+  });
+});
+
+// Regression: Directus serializes `decimal` as a string, so every real amount
+// reaching this module is "600.75", not 600.75. Left uncoerced, `total += amount`
+// concatenates and round2 yields NaN, which the Reports tab rendered as $0.00.
+describe("Directus string amounts", () => {
+  it("incomeEntriesFromRequests coerces amount_paid", () => {
+    const [entry] = incomeEntriesFromRequests([
+      { request_type: "monthly_dues", amount_paid: "250.50" as any, paid_at: "2026-01-31" },
+    ]);
+    expect(entry!.amount).toBe(250.5);
+  });
+  it("expenseEntriesFromExpenses coerces amount, still dropping zeros", () => {
+    const entries = expenseEntriesFromExpenses([
+      { category: "utilities", amount: "600.75" as any, expense_date: "2026-02-10" },
+      { category: "other", amount: "0.00" as any, expense_date: "2026-02-11" },
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.amount).toBe(600.75);
+  });
+  it("totals and the running balance stay numbers end to end", () => {
+    const entries = [
+      ...incomeEntriesFromRequests([
+        { request_type: "monthly_dues", amount_paid: "1000.00" as any, paid_at: "2026-02-01" },
+      ]),
+      ...expenseEntriesFromExpenses([
+        { category: "utilities", amount: "600.75" as any, expense_date: "2026-02-10" },
+      ]),
+    ];
+    expect(summarize(entries, { openingBalance: "12600.75" as any })).toMatchObject({
+      totalIncome: 1000,
+      totalExpense: 600.75,
+      net: 399.25,
+      closingBalance: 13000,
+    });
+    expect(monthlySeries(entries, { openingBalance: "12600.75" as any })[0]).toMatchObject({
+      expense: 600.75,
+      runningBalance: 13000,
+    });
+    expect(byCategory(entries, "out")[0]).toMatchObject({ total: 600.75, share: 1 });
+  });
+  it("delinquencyAging coerces amount / amount_paid / amount_remaining", () => {
+    const resolve = () => ({ id: "a", name: "A" });
+    const report = delinquencyAging(
+      [
+        { member: {}, amount_remaining: "100.25" as any, due_date: "2026-02-25", status: "active" },
+        { member: {}, amount: "300.00" as any, amount_paid: "100.00" as any, due_date: "2026-02-25", status: "partially_paid" },
+      ],
+      "2026-03-01",
+      resolve
+    );
+    expect(report.totals.outstanding).toBe(300.25);
+    expect(report.rows[0]!.d1_30).toBe(300.25);
+  });
+});
+
+describe("string opening balances never corrupt the arithmetic", () => {
+  const entries: LedgerEntry[] = [
+    { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+  ];
+  it("monthlySeries adds, never concatenates", () => {
+    expect(monthlySeries(entries, { openingBalance: "1000.00" as any })[0]!.runningBalance).toBe(
+      1100
+    );
+  });
+  it("summarize closes on a number", () => {
+    expect(summarize(entries, { openingBalance: "1000.00" as any }).closingBalance).toBe(1100);
   });
 });
 
@@ -70,6 +215,33 @@ describe("monthlySeries", () => {
       { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
     ];
     expect(monthlySeries(entries, { openingBalance: 1000 })[0].runningBalance).toBe(1100);
+  });
+  it("starts the running balance at the opening balance and carries it forward", () => {
+    const entries: LedgerEntry[] = [
+      { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+      { date: "2026-02-10", direction: "out", amount: 250, category: "utilities" },
+    ];
+    const series = monthlySeries(entries, { openingBalance: 1000 });
+    expect(series.map((m) => m.runningBalance)).toEqual([1100, 850]);
+  });
+  it("drops months already covered by the opening balance's as-of date", () => {
+    const entries: LedgerEntry[] = [
+      { date: "2025-11-10", direction: "in", amount: 900, category: "monthly_dues" },
+      { date: "2025-12-31", direction: "in", amount: 900, category: "monthly_dues" },
+      { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+    ];
+    const series = monthlySeries(entries, {
+      openingBalance: 1000,
+      openingBalanceAsOf: "2026-01-01",
+    });
+    expect(series.map((m) => m.month)).toEqual(["2026-01"]);
+    expect(series[0]!.runningBalance).toBe(1100);
+  });
+  it("supports a negative opening balance (a community starting in the red)", () => {
+    const entries: LedgerEntry[] = [
+      { date: "2026-01-10", direction: "in", amount: 100, category: "monthly_dues" },
+    ];
+    expect(monthlySeries(entries, { openingBalance: -500 })[0]!.runningBalance).toBe(-400);
   });
   it("skips entries with unparseable dates", () => {
     const entries: LedgerEntry[] = [

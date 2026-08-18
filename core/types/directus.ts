@@ -1145,6 +1145,10 @@ export interface HoaOrganization {
 	storage_extra_bytes?: number | null;
 	/** @description Enabled paid add-ons keyed by id, e.g. { "extra_storage_100": true }. */
 	active_addons?: Record<string, any> | null;
+	/** @description Cash on hand when the association started keeping books here. Seeds the running balance in Finances → Reports. May be negative. */
+	opening_balance?: number | null;
+	/** @description Date the opening balance was struck. Income/expenses dated before it are excluded from reports (already inside the balance). */
+	opening_balance_date?: string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 

@@ -2,7 +2,7 @@
 // Financial reports tab for the Finances page. Pure aggregation lives in
 // #core/shared/reporting/ledger (unit-tested); this component just adapts the
 // already-loaded rows, renders the tables, and handles CSV export.
-import type { PaymentRequest, PaymentExpense, HoaMember } from "#core/types/directus";
+import type { PaymentRequest, PaymentExpense, HoaMember, HoaOrganization } from "#core/types/directus";
 import {
   incomeEntriesFromRequests,
   expenseEntriesFromExpenses,
@@ -10,6 +10,7 @@ import {
   monthlySeries,
   byCategory,
   delinquencyAging,
+  openingBalanceFromOrg,
   toCsv,
 } from "#core/shared/reporting/ledger";
 
@@ -17,6 +18,8 @@ const props = defineProps<{
   requests: PaymentRequest[];
   expenses: PaymentExpense[];
   members: HoaMember[];
+  /** Carries opening_balance + opening_balance_date (Settings → Payments). */
+  organization?: Pick<HoaOrganization, "opening_balance" | "opening_balance_date"> | null;
 }>();
 
 // "as of" for aging — captured once on mount so the report is stable while open.
@@ -36,10 +39,16 @@ const entries = computed(() => [
   ...expenseEntriesFromExpenses(props.expenses || []),
 ]);
 
-const summary = computed(() => summarize(entries.value));
+// Where the running balance starts. Unset → 0, i.e. the pre-existing behaviour.
+const opening = computed(() => openingBalanceFromOrg(props.organization));
+const hasOpening = computed(
+  () => !!opening.value.openingBalance || !!opening.value.openingBalanceAsOf
+);
+
+const summary = computed(() => summarize(entries.value, opening.value));
 
 const series = computed(() => {
-  const all = monthlySeries(entries.value);
+  const all = monthlySeries(entries.value, opening.value);
   if (range.value === "all") return all;
   return all.filter((m) => m.month >= cutoffMonth.value);
 });
@@ -82,8 +91,17 @@ const CAT_LABEL: Record<string, string> = {
   landscaping: "Landscaping", admin: "Admin", other: "Other",
 };
 const catLabel = (c: string) => CAT_LABEL[c] || c;
+// UTC, like monthLabel: Directus date-only values ("2026-01-01") parse as UTC
+// midnight, so formatting them locally renders the day before west of GMT.
 const fdate = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+  d
+    ? new Date(d).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "—";
 
 // --- CSV export ---------------------------------------------------------
 const download = (filename: string, csv: string) => {
@@ -100,7 +118,13 @@ const download = (filename: string, csv: string) => {
 const exportMonthly = () => {
   const csv = toCsv(
     ["Month", "Income", "Expense", "Net", "Running balance"],
-    series.value.map((m) => [monthLabel(m.month), m.income, m.expense, m.net, m.runningBalance])
+    [
+      // Lead with the opening balance so the CSV reconciles on its own.
+      ...(hasOpening.value
+        ? [[`Opening balance${opening.value.openingBalanceAsOf ? ` (${fdate(opening.value.openingBalanceAsOf)})` : ""}`, "", "", "", opening.value.openingBalance] as Array<string | number>]
+        : []),
+      ...series.value.map((m) => [monthLabel(m.month), m.income, m.expense, m.net, m.runningBalance]),
+    ]
   );
   download("financial-summary.csv", csv);
 };
@@ -127,7 +151,7 @@ const AGING_COLS = [
 <template>
   <div class="space-y-6">
     <!-- Summary -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 gap-4" :class="hasOpening ? 'md:grid-cols-5' : 'md:grid-cols-4'">
       <div class="ios-card p-5">
         <p class="text-xs uppercase tracking-wide t-text-muted">Income</p>
         <p class="text-2xl font-semibold tabular-nums text-emerald-600 mt-1">{{ currency(summary.totalIncome) }}</p>
@@ -141,6 +165,13 @@ const AGING_COLS = [
         <p class="text-2xl font-semibold tabular-nums mt-1" :class="summary.net >= 0 ? 'text-emerald-600' : 'text-red-600'">
           {{ currency(summary.net) }}
         </p>
+      </div>
+      <div v-if="hasOpening" class="ios-card p-5">
+        <p class="text-xs uppercase tracking-wide t-text-muted">Balance</p>
+        <p class="text-2xl font-semibold tabular-nums mt-1" :class="summary.closingBalance >= 0 ? 't-text' : 'text-red-600'">
+          {{ currency(summary.closingBalance) }}
+        </p>
+        <p class="text-[11px] t-text-muted mt-0.5">Opening {{ currency(summary.openingBalance) }}</p>
       </div>
       <div class="ios-card p-5">
         <p class="text-xs uppercase tracking-wide t-text-muted">Outstanding</p>
@@ -178,6 +209,16 @@ const AGING_COLS = [
           </tr>
         </thead>
         <tbody>
+          <tr v-if="hasOpening" class="border-b border-black/[0.04] dark:border-white/[0.05] bg-black/[0.02] dark:bg-white/[0.03]">
+            <td class="py-2.5 px-4 t-text-muted">
+              Opening balance
+              <span v-if="opening.openingBalanceAsOf" class="text-xs">· {{ fdate(opening.openingBalanceAsOf) }}</span>
+            </td>
+            <td class="py-2.5 px-4 text-right t-text-muted">—</td>
+            <td class="py-2.5 px-4 text-right t-text-muted">—</td>
+            <td class="py-2.5 px-4 text-right t-text-muted">—</td>
+            <td class="py-2.5 px-4 text-right tabular-nums font-semibold t-text">{{ currency(summary.openingBalance) }}</td>
+          </tr>
           <tr v-if="!series.length">
             <td colspan="5" class="py-10 text-center t-text-muted">No financial activity in this range.</td>
           </tr>

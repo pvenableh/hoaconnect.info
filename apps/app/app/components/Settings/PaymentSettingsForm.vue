@@ -58,6 +58,56 @@
       </CardContent>
     </Card>
 
+    <!-- Opening balance -->
+    <Card>
+      <CardHeader>
+        <CardTitle>Opening Balance</CardTitle>
+        <CardDescription>
+          What the association had on hand when it started keeping books here.
+          Reports start from this number instead of $0.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-2">
+            <Label for="openingBalance">Balance</Label>
+            <!-- The $ sits beside the field, not over it: `.field-underline`
+                 zeroes padding-left, so an absolutely-positioned prefix would
+                 overlap the value. -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-muted-foreground">$</span>
+              <Input
+                id="openingBalance"
+                v-model.number="form.openingBalance"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                class="flex-1"
+                :disabled="isSaving"
+              />
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Cash on hand — from the bank statement or the previous system. May be negative.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="openingBalanceDate">As of</Label>
+            <Input
+              id="openingBalanceDate"
+              v-model="form.openingBalanceDate"
+              type="date"
+              :disabled="isSaving"
+            />
+            <p class="text-xs text-muted-foreground">
+              Income and expenses dated before this are left out of reports — they're
+              already inside the balance above.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
     <!-- Late Fees -->
     <Card>
       <CardHeader>
@@ -177,6 +227,13 @@ const emit = defineEmits<{
 
 const { update: updateOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
 
+// Directus serializes `decimal` columns as strings ("12500.75"); normalize so
+// the number input and the dirty-check compare like with like.
+const toAmount = (v: unknown): number => {
+  const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+  return Number.isFinite(n) ? n : 0;
+};
+
 const isSaving = ref(false);
 
 // Form data
@@ -186,6 +243,8 @@ const form = ref({
   lateFeeEnabled: props.organization.late_fee_enabled || false,
   lateFeeAmount: props.organization.late_fee_amount || 0,
   gracePeriodDays: props.organization.payment_grace_period_days || 15,
+  openingBalance: toAmount(props.organization.opening_balance),
+  openingBalanceDate: props.organization.opening_balance_date || "",
 });
 
 // Calculate max total
@@ -204,7 +263,9 @@ const hasChanges = computed(() => {
     form.value.paymentInstructions !== (props.organization.payment_instructions || "") ||
     form.value.lateFeeEnabled !== (props.organization.late_fee_enabled || false) ||
     form.value.lateFeeAmount !== (props.organization.late_fee_amount || 0) ||
-    form.value.gracePeriodDays !== (props.organization.payment_grace_period_days || 15)
+    form.value.gracePeriodDays !== (props.organization.payment_grace_period_days || 15) ||
+    (form.value.openingBalance || 0) !== toAmount(props.organization.opening_balance) ||
+    form.value.openingBalanceDate !== (props.organization.opening_balance_date || "")
   );
 });
 
@@ -218,6 +279,8 @@ watch(
       lateFeeEnabled: newOrg.late_fee_enabled || false,
       lateFeeAmount: newOrg.late_fee_amount || 0,
       gracePeriodDays: newOrg.payment_grace_period_days || 15,
+      openingBalance: toAmount(newOrg.opening_balance),
+      openingBalanceDate: newOrg.opening_balance_date || "",
     };
   },
   { deep: true }
@@ -236,6 +299,9 @@ const saveChanges = async () => {
       late_fee_enabled: form.value.lateFeeEnabled,
       late_fee_amount: form.value.lateFeeAmount,
       payment_grace_period_days: form.value.gracePeriodDays,
+      opening_balance: form.value.openingBalance || 0,
+      // A blank date means "the balance covers everything before our first record".
+      opening_balance_date: form.value.openingBalanceDate || null,
     });
 
     emit("updated", { ...props.organization, ...updated });

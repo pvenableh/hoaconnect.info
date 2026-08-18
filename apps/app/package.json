@@ -34,6 +34,7 @@
     "link:requests-channels": "dotenv -- tsx scripts/link-requests-channels.ts",
     "create:meetings": "dotenv -- tsx scripts/create-meetings-collections.ts",
     "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",
+    "add:opening-balance": "dotenv -- tsx scripts/add-opening-balance-fields.ts",
     "create:comments": "dotenv -- tsx scripts/create-comments-collections.ts",
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",
