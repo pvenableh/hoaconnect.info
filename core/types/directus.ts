@@ -1657,6 +1657,24 @@ export interface PaymentTransaction {
 	payment_request?: PaymentRequest | string | null;
 }
 
+export interface PushSubscription {
+	/** @primaryKey */
+	id: string;
+	/** @description The signed-in member this browser belongs to. @required */
+	user: DirectusUser | string;
+	/** @description Push service URL issued by the browser. Unique — it identifies the subscription. @required */
+	endpoint: string;
+	/** @description Subscription public key (encryption). */
+	p256dh?: string | null;
+	/** @description Subscription auth secret (encryption). */
+	auth?: string | null;
+	/** @description Which browser/device this subscription is, so a member can recognize it. */
+	user_agent?: string | null;
+	/** @description Stamped on each successful send. Stale rows are pruning candidates. */
+	last_used_at?: string | null;
+	date_created?: string | null;
+}
+
 export interface SubscriptionPlan {
 	/** @primaryKey */
 	id: string;
@@ -2239,6 +2257,7 @@ export interface Schema {
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
+	push_subscriptions: PushSubscription[];
 	subscription_plans: SubscriptionPlan[];
 	waitlist_signups: WaitlistSignup[];
 	directus_access: DirectusAccess[];
@@ -2341,6 +2360,7 @@ export enum CollectionNames {
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',
+	push_subscriptions = 'push_subscriptions',
 	subscription_plans = 'subscription_plans',
 	waitlist_signups = 'waitlist_signups',
 	directus_access = 'directus_access',

@@ -36,13 +36,13 @@ export default defineEventHandler(async (event) => {
   const now = new Date().toISOString();
   const userAgent = (getRequestHeader(event, "user-agent") || "").slice(0, 255);
 
-  const existing = (await admin.request(
-    readItems("push_subscriptions" as never, {
+  const existing = await admin.request(
+    readItems("push_subscriptions", {
       filter: { endpoint: { _eq: endpoint } },
       fields: ["id"],
       limit: 1,
-    } as never)
-  )) as unknown as Array<{ id: string }>;
+    })
+  );
 
   const payload = {
     user: userId,
@@ -54,9 +54,9 @@ export default defineEventHandler(async (event) => {
   };
 
   if (existing?.[0]) {
-    await admin.request(updateItem("push_subscriptions" as never, existing[0].id, payload as never));
+    await admin.request(updateItem("push_subscriptions", existing[0].id, payload));
     return { ok: true, created: false };
   }
-  await admin.request(createItem("push_subscriptions" as never, payload as never));
+  await admin.request(createItem("push_subscriptions", payload));
   return { ok: true, created: true };
 });

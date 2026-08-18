@@ -66,12 +66,12 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   try {
     const admin = getTypedDirectus();
     subs = (await admin.request(
-      readItems("push_subscriptions" as never, {
+      readItems("push_subscriptions", {
         filter: { user: { _eq: userId } },
         fields: ["id", "endpoint", "p256dh", "auth"],
         limit: -1,
-      } as never)
-    )) as unknown as PushSubRow[];
+      })
+    )) as PushSubRow[];
   } catch (err) {
     console.warn("[push] failed to load subscriptions", (err as Error)?.message);
     return 0;
@@ -130,11 +130,7 @@ async function deliver(sub: PushSubRow, payload: PushPayload): Promise<boolean> 
       JSON.stringify(payload)
     );
     await admin
-      .request(
-        updateItem("push_subscriptions" as never, sub.id, {
-          last_used_at: new Date().toISOString(),
-        } as never)
-      )
+      .request(updateItem("push_subscriptions", sub.id, { last_used_at: new Date().toISOString() }))
       .catch(() => {});
     return true;
   } catch (err) {
@@ -142,7 +138,7 @@ async function deliver(sub: PushSubRow, payload: PushPayload): Promise<boolean> 
     // Gone: the browser unsubscribed, the app was uninstalled, or the endpoint
     // expired. Prune, or we retry a dead endpoint on every notification forever.
     if (status === 404 || status === 410) {
-      await admin.request(deleteItem("push_subscriptions" as never, sub.id)).catch(() => {});
+      await admin.request(deleteItem("push_subscriptions", sub.id)).catch(() => {});
     } else {
       console.warn("[push] send failed", status ?? "", (err as Error).message);
     }

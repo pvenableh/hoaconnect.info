@@ -22,16 +22,16 @@ export default defineEventHandler(async (event) => {
   }
 
   const admin = getTypedDirectus();
-  const rows = (await admin.request(
-    readItems("push_subscriptions" as never, {
+  const rows = await admin.request(
+    readItems("push_subscriptions", {
       filter: { endpoint: { _eq: endpoint }, user: { _eq: userId } },
       fields: ["id"],
       limit: 1,
-    } as never)
-  )) as unknown as Array<{ id: string }>;
+    })
+  );
 
   if (rows?.[0]) {
-    await admin.request(deleteItem("push_subscriptions" as never, rows[0].id));
+    await admin.request(deleteItem("push_subscriptions", rows[0].id));
     return { ok: true, deleted: true };
   }
   // Already gone (or never ours) — the caller's goal is met either way.
