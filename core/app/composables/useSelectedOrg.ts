@@ -171,30 +171,6 @@ export const useSelectedOrg = async () => {
 
         console.log("[useSelectedOrg] Memberships result:", result);
 
-        // STEP 2.5: Single-org binding (bespoke apps). When NUXT_PUBLIC_ORG_SLUG
-        // is set, pin the selection to that org's membership and skip the
-        // auto-select / slug-route logic below — the app serves exactly one
-        // building and there is no org-picker. No-op in the multi-tenant app
-        // (apps/app leaves lockedOrgSlug empty), so existing behavior is unchanged.
-        const lockedSlug = config.public.lockedOrgSlug as string;
-        if (lockedSlug && Array.isArray(result)) {
-          const bound = result.find(
-            (m: any) => m?.organization?.slug === lockedSlug
-          );
-          const boundId = bound?.organization?.id;
-          if (boundId) {
-            nuxtApp.runWithContext(() => {
-              selectedOrgId.value = boundId;
-              syncToSession(boundId);
-              if (import.meta.client) {
-                localStorage.setItem("selectedOrgId", boundId);
-              }
-              isInitialized.value = true;
-            });
-            return result;
-          }
-        }
-
         // STEP 3: Auto-select first org if no org is selected yet
         if (
           !selectedOrgId.value &&

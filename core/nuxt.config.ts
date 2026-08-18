@@ -220,10 +220,6 @@ export default defineNuxtConfig({
       // These are used when no organization is active or org has no custom branding
       defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
       defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
-      // Single-org binding for bespoke apps. When set, the app serves exactly one
-      // building (no org-picker) — useSelectedOrg/useActiveHoa lock to this slug.
-      // Empty in the multi-tenant app (apps/app) → existing behavior unchanged.
-      lockedOrgSlug: process.env.NUXT_PUBLIC_ORG_SLUG || "",
       // Human-facing release line (shown in the update prompt / About). Bump on each
       // major UX release. Detection itself keys off buildId, not this string.
       appVersion: "2.0.0",
