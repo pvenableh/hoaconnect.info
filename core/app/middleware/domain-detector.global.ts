@@ -1,11 +1,15 @@
 // middleware/domain-detector.global.ts
 // Detects path-based slugs to load organization context, and flags whether the
-// current request is on the main app host vs a custom domain. index.vue's root
-// uses isMainDomain to decide between "redirect into the app" (main host) and
-// "render the org public landing" (custom domain).
+// current request arrived on one of the org's own verified custom domains
+// (e.g. 605lincolnroad.com) rather than the main app host.
+//
+// `isCustomDomain` is derived from the request HOST ONLY — never from the route
+// or from whether an org is loaded. app.hoaconnect.info/605-lincoln is the main
+// host serving a slug, NOT a custom domain, and callers that conflate the two
+// end up doing cross-domain navigations for in-app links.
 export default defineNuxtRouteMiddleware(async (to) => {
   const { activeHoa, fetchActiveHoa, clearActiveHoa } = useActiveHoa();
-  const isMainDomainState = useState("isMainDomain", () => true);
+  const isCustomDomainState = useState("isCustomDomain", () => false);
 
   // Resolve the request Host once — used both by the custom-domain slug guard
   // below and to decide main host vs custom domain for the no-slug root.
@@ -28,6 +32,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     host === md ||
     host === `www.${md}` ||
     host.endsWith(`.${md}`);
+
+  // Set before any early return, so every route (including reserved slugs)
+  // sees a host-accurate flag.
+  isCustomDomainState.value = !isMainHost;
 
   // Slug route (e.g. /my-org or /my-org/dashboard) — load org context.
   const slug = to.params.slug as string | undefined;
@@ -53,19 +61,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (!activeHoa.value || activeHoa.value.slug !== slug) {
       await fetchActiveHoa(slug);
     }
-    isMainDomainState.value = false;
     return;
   }
 
-  // No slug. Decide main host vs custom domain from the request Host, so the
-  // custom-domain clean root (e.g. www.605lincolnroad.com/) is NOT treated as
-  // the main app host (which would redirect it to login). index.vue then
-  // resolves the org by host and renders its public landing.
+  // No slug. On the main app host there's no org context to keep; on a custom
+  // domain the clean root (e.g. www.605lincolnroad.com/) must NOT be treated as
+  // the main app host (which would redirect it to login) — index.vue resolves
+  // the org by host and renders its public landing.
   if (isMainHost) {
     if (activeHoa.value) clearActiveHoa();
-    isMainDomainState.value = true;
   } else {
-    isMainDomainState.value = false;
     // Custom domain on a non-root, non-slug route (e.g. 605lincolnroad.com/auth/login).
     // The root would have been rewritten to /{slug} (handled above), but auth
     // pages aren't — so resolve the org by host to give branding (the auth

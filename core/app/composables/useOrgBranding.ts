@@ -18,7 +18,7 @@ interface BrandingConfig {
 }
 
 export const useOrgBranding = () => {
-  const { activeHoa, isMainDomain } = useActiveHoa();
+  const { activeHoa, isCustomDomain } = useActiveHoa();
   const config = useRuntimeConfig();
   const route = useRoute();
 
@@ -135,7 +135,7 @@ export const useOrgBranding = () => {
   // Expose for use in components
   return {
     branding,
-    isMainDomain,
+    isCustomDomain,
     activeHoa,
   };
 };

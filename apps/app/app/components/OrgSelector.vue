@@ -154,7 +154,9 @@ const handleSelect = async (orgId: string) => {
   await setOrganization(orgId);
 
   const targetOrg = membership?.organization as any;
-  const isMainDomain = useState<boolean>("isMainDomain", () => true);
+  // Host-derived (domain-detector.global) — true only on a tenant's own custom
+  // domain, never on the main app host serving a /{slug} route.
+  const isCustomDomain = useState<boolean>("isCustomDomain", () => false);
 
   // If the target org has its OWN verified custom domain, send the browser
   // there — switching into 605 Lincoln Road lands on 605lincolnroad.com, not
@@ -167,7 +169,7 @@ const handleSelect = async (orgId: string) => {
   // Otherwise, if we're currently on a custom domain, that domain belongs to a
   // DIFFERENT tenant — an in-app router.push would land us at
   // 605lincolnroad.com/1033-lenox. Leave it for the main app host instead.
-  if (!isMainDomain.value && newSlug) {
+  if (isCustomDomain.value && newSlug) {
     window.location.href = `https://${config.public.mainDomain}/${newSlug}`;
     return;
   }

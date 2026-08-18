@@ -17,10 +17,10 @@ withDefaults(
 );
 
 const config = useRuntimeConfig();
-const { activeHoa, isMainDomain } = useActiveHoa();
+const { activeHoa, isCustomDomain } = useActiveHoa();
 
 // Only co-brand when we're on a tenant's domain with a resolved org.
-const showOrgBrand = computed(() => !isMainDomain.value && !!activeHoa.value);
+const showOrgBrand = computed(() => isCustomDomain.value && !!activeHoa.value);
 
 const orgLogoUrl = computed(() => {
   const org = activeHoa.value as any;

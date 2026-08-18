@@ -50,9 +50,11 @@ const isMainMarketingDomain = computed(
 // is confusing because it swaps in the app chrome. When on a custom domain we
 // send "My profile" to the main app domain in a new tab, so it's unmistakably
 // "your HOA Connect account" rather than part of the org's branded site.
-const isMainDomain = useState<boolean>("isMainDomain", () => true);
+// Host-derived (domain-detector.global): true only when the browser is actually
+// on the org's own domain, not when the main app host serves a /{slug} route.
+const onCustomDomainHost = useState<boolean>("isCustomDomain", () => false);
 const isCustomDomain = computed(
-  () => isMainDomain.value === false && isOnOrgPage.value
+  () => onCustomDomainHost.value && isOnOrgPage.value
 );
 const accountUrl = computed(() => `${config.public.appUrl}/account`);
 

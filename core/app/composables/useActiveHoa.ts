@@ -2,14 +2,16 @@
 // Supports path-based routing (slug) for organization context
 export const useActiveHoa = () => {
   const activeHoa = useState<any>("activeHoa", () => null);
-  const isMainDomain = useState("isMainDomain", () => true);
+  // Host-derived only — owned by domain-detector.global, which sets it from the
+  // request Host on every route. Loading an org (a slug route on the main app
+  // host) must NOT flip it; app.hoaconnect.info/605-lincoln is the main host.
+  const isCustomDomain = useState("isCustomDomain", () => false);
   const isLoading = useState("hoaLoading", () => false);
 
   const fetchActiveHoa = async (slug?: string | null) => {
     // If no slug provided, clear and return
     if (!slug) {
       activeHoa.value = null;
-      isMainDomain.value = true;
       return null;
     }
 
@@ -25,19 +27,12 @@ export const useActiveHoa = () => {
         query: { slug },
       });
 
-      if (response) {
-        activeHoa.value = response;
-        isMainDomain.value = false;
-      } else {
-        activeHoa.value = null;
-        isMainDomain.value = true;
-      }
+      activeHoa.value = response || null;
 
       return activeHoa.value;
     } catch (error) {
       console.error("No HOA found for slug:", slug);
       activeHoa.value = null;
-      isMainDomain.value = true;
       return null;
     } finally {
       isLoading.value = false;
@@ -46,7 +41,6 @@ export const useActiveHoa = () => {
 
   const clearActiveHoa = () => {
     activeHoa.value = null;
-    isMainDomain.value = true;
   };
 
   /**
@@ -64,7 +58,7 @@ export const useActiveHoa = () => {
 
   return {
     activeHoa: computed(() => activeHoa.value),
-    isMainDomain: computed(() => isMainDomain.value),
+    isCustomDomain: computed(() => isCustomDomain.value),
     isLoading: computed(() => isLoading.value),
     fetchActiveHoa,
     clearActiveHoa,

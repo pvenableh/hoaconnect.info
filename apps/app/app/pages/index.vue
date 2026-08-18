@@ -39,11 +39,11 @@ definePageMeta({
   middleware: [
     function rootRedirect() {
       // On the main app host, the root is not a public page — route visitors
-      // into the app. Custom domains have isMainDomain=false (set by
-      // domain-detector.global, which runs before page middleware) and fall
-      // through to render the org landing below.
-      const isMainDomain = useState("isMainDomain", () => true);
-      if (!isMainDomain.value) return;
+      // into the app. Custom domains have isCustomDomain=true (set from the
+      // request Host by domain-detector.global, which runs before page
+      // middleware) and fall through to render the org landing below.
+      const isCustomDomain = useState("isCustomDomain", () => false);
+      if (isCustomDomain.value) return;
 
       const { loggedIn } = useUserSession();
       // Logged-in → /dashboard (org-redirect.global carries on to /{slug}).

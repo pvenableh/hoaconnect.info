@@ -7,7 +7,7 @@ const router = useRouter();
 const { login } = useDirectusAuth();
 // On a custom domain the bound tenant is dictated by the host (resolved into
 // activeHoa by domain-detector.global), NOT by the user's default org.
-const { activeHoa, isMainDomain } = useActiveHoa();
+const { activeHoa, isCustomDomain } = useActiveHoa();
 const isLoading = ref(false);
 
 // Ref to the login form component for setting errors
@@ -65,7 +65,7 @@ const handleSubmit = async (values: { email: string; password: string }) => {
     // land on that org (resolved into activeHoa by host), never the user's default
     // org, which could belong to a different tenant and would render its content
     // on the wrong domain (e.g. 605lincolnroad.com/1033-lenox).
-    if (!isMainDomain.value) {
+    if (isCustomDomain.value) {
       const domainSlug = activeHoa.value?.slug;
       await navigateTo(domainSlug ? `/${domainSlug}` : "/", { replace: true });
     } else {
