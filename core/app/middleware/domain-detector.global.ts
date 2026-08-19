@@ -7,6 +7,8 @@
 // or from whether an org is loaded. app.hoaconnect.info/605-lincoln is the main
 // host serving a slug, NOT a custom domain, and callers that conflate the two
 // end up doing cross-domain navigations for in-app links.
+import { orgScopedRedirect } from "#core/shared/domains/org-routes";
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const { activeHoa, fetchActiveHoa, clearActiveHoa } = useActiveHoa();
   const isCustomDomainState = useState("isCustomDomain", () => false);
@@ -75,16 +77,40 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // The root would have been rewritten to /{slug} (handled above), but auth
     // pages aren't — so resolve the org by host to give branding (the auth
     // shell, etc.) the tenant's identity instead of the generic HOA Connect mark.
-    if (!activeHoa.value) {
+    //
+    // On a custom domain activeHoa is ALWAYS the host's org: the slug branch
+    // above bounces a foreign slug before it can load, and this branch only ever
+    // resolves by host. So its slug is a safe stand-in for the host org, and
+    // skipping the lookup when it's already loaded keeps client-side navigation
+    // off the network.
+    let hostSlug = activeHoa.value?.slug ?? null;
+    if (!hostSlug) {
       try {
         const resolved = await $fetch<{ slug?: string } | null>(
           "/api/hoa/by-domain",
           { query: { host } }
         );
-        if (resolved?.slug) await fetchActiveHoa(resolved.slug);
+        hostSlug = resolved?.slug ?? null;
+        if (hostSlug) await fetchActiveHoa(hostSlug);
       } catch {
         // Unmatched/unverified host — leave activeHoa null; branding falls back.
       }
+    }
+
+    // Pull the org-scoped top-level routes onto the host's org. Without this a
+    // custom domain renders the HOST org's branding around the SESSION's
+    // selected-org data — /admin/members on 605lincolnroad.com showing 605
+    // Lincoln in the meta and Harborview in the payload. Not a leak, but the
+    // page misrepresents which community it is. Paths with no org meaning
+    // (/auth/*, /account, /billing/*) return null and stay put; so does a path
+    // already on this slug, so this can't loop. Runs SSR + client, so the
+    // redirect happens with no content flash.
+    const scoped = orgScopedRedirect(to.path, hostSlug);
+    if (scoped) {
+      return navigateTo(
+        { path: scoped, query: to.query, hash: to.hash },
+        { replace: true }
+      );
     }
   }
 });
