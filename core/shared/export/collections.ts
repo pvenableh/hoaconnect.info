@@ -93,6 +93,8 @@ function via(
  * to exclude" apart from "forgot".
  */
 export const PLATFORM_COLLECTIONS: Readonly<Record<string, string>> = {
+  hoa_data_exports:
+    "Operational metadata about the export mechanism itself. Every archive already carries its own manifest, and a list of past jobs points at archives that have since been purged — including it would also mean every archive contains its own in-progress row.",
   billing_accounts:
     "Owned by the property-management agency, not the community. Travels with the PM (Pillar A, PM portability).",
   billing_account_members:

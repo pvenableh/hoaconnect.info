@@ -578,6 +578,34 @@ export interface HoaComment {
 	date_updated?: string | null;
 }
 
+export interface HoaDataExport {
+	/** @primaryKey */
+	id: string;
+	/** @description The community whose data this archive contains. @required */
+	organization: HoaOrganization | string;
+	/** @description The admin who asked for it. Kept even if they later leave. */
+	requested_by?: DirectusUser | string | null;
+	/** @description queued → running → ready | failed. `expired` once the archive is purged. @required */
+	status: 'queued' | 'running' | 'ready' | 'failed' | 'expired';
+	/** @description full = verbatim, for the board. shareable = safe to hand an incoming manager. @required */
+	tier: 'full' | 'shareable';
+	/** @description Whether documents and photos are in the archive, not just the records. */
+	include_files?: boolean;
+	/** @description The archive. Cleared when the export expires; the row survives. */
+	file?: DirectusFile | string | null;
+	/** @description Archive size. bigInteger — a files-included export passes 2 GB routinely. */
+	size_bytes?: number | null;
+	/** @description The manifest.json the worker wrote — row counts per collection, what was withheld. */
+	manifest?: Record<string, any> | null;
+	/** @description Why a failed export failed. Shown to the admin who requested it. */
+	error?: string | null;
+	/** @description The worker purges the archive past this and flips status to `expired`. */
+	expires_at?: string | null;
+	date_started?: string | null;
+	date_completed?: string | null;
+	date_created?: string | null;
+}
+
 export interface HoaDocumentCategory {
 	/** @primaryKey */
 	id: string;
@@ -2212,6 +2240,7 @@ export interface Schema {
 	hoa_channels: HoaChannel[];
 	hoa_comment_reports: HoaCommentReport[];
 	hoa_comments: HoaComment[];
+	hoa_data_exports: HoaDataExport[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_email_activity: HoaEmailActivity[];
@@ -2315,6 +2344,7 @@ export enum CollectionNames {
 	hoa_channels = 'hoa_channels',
 	hoa_comment_reports = 'hoa_comment_reports',
 	hoa_comments = 'hoa_comments',
+	hoa_data_exports = 'hoa_data_exports',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_email_activity = 'hoa_email_activity',

@@ -38,6 +38,13 @@ const groups = computed<HubGroup[]>(() => [
     ],
   },
   {
+    label: "Your data",
+    description: "It's yours. Take it anytime.",
+    items: [
+      { label: "Export your data", description: "Download everything your community has created — records, documents and finances.", icon: "download", to: buildOrgPath("/admin/settings/data") },
+    ],
+  },
+  {
     label: "Features",
     description: "Turn optional modules on or off for this community.",
     items: [
