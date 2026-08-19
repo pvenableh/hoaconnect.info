@@ -376,15 +376,8 @@ export function delinquencyAging(
 
 // ── CSV export ─────────────────────────────────────────────────────────────
 
-/** Escape one CSV cell (RFC 4180: quote when it contains "," | '"' | newline). */
-function csvCell(value: unknown): string {
-  const s = value == null ? "" : String(value);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-/** Build a CSV string from a header row + rows of primitives. */
-export function toCsv(headers: string[], rows: Array<Array<string | number | null>>): string {
-  const lines = [headers.map(csvCell).join(",")];
-  for (const row of rows) lines.push(row.map(csvCell).join(","));
-  return lines.join("\n");
-}
+/**
+ * Moved to `shared/export/csv.ts` when the Data Trust export needed the same
+ * writer. Re-exported here so the Finances tab's imports keep working.
+ */
+export { toCsv } from "../export/csv";
