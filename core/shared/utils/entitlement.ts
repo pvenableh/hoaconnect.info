@@ -23,6 +23,12 @@ export interface EntitlementSource {
   subscription_status?: string | null;
   trial_ends_at?: string | null;
   is_free_account?: boolean | null;
+  /**
+   * Management-transition grace window (Phase 4). While this is in the future
+   * the community keeps working even though its status says otherwise — see
+   * `isEntitledFrom`.
+   */
+  grace_ends_at?: string | null;
 }
 
 /** An org as far as entitlement cares: its own fields + an optional parent account. */
@@ -36,6 +42,9 @@ export interface EffectiveEntitlement {
   subscription_status: string | null;
   trial_ends_at: string | null;
   is_free_account: boolean;
+  grace_ends_at: string | null;
+  /** Access is continuing only because a transition grace window is open. */
+  inGrace: boolean;
   /** The single gate every consumer should read: may they use the app? */
   isEntitled: boolean;
 }
@@ -46,6 +55,19 @@ export interface EffectiveEntitlement {
  * the future. Anything else (expired / canceled / past_due / empty) is blocked.
  * A null source fails OPEN (matches the middleware's "don't lock users out on a
  * missing read" stance).
+ *
+ * The grace clause is what makes a management transition survivable. When a
+ * community is detached from its management company's billing account it has to
+ * start paying for itself, and the old `detach-org` behaviour — status straight
+ * to `expired` — locked the board out at the exact moment they had the most to
+ * do. `grace_ends_at` keeps them running for the window instead, WITHOUT
+ * pretending the subscription is active: the status still reads `canceled`
+ * everywhere, so the renewal prompts and the billing UI stay honest.
+ *
+ * Deliberately not modelled by writing `subscription_status: "trial"` with a
+ * future `trial_ends_at`, which would have needed no schema at all. That lies to
+ * every other reader of the status field, and a lie in the billing state is how
+ * a community ends up unable to explain its own invoice.
  */
 export function isEntitledFrom(
   src: EntitlementSource | null | undefined,
@@ -60,6 +82,10 @@ export function isEntitledFrom(
     if (!src.trial_ends_at) return true;
     return new Date(src.trial_ends_at) > now;
   }
+
+  // Transition grace: an unentitled status still passes until the window closes.
+  if (src.grace_ends_at && new Date(src.grace_ends_at) > now) return true;
+
   return false;
 }
 
@@ -81,11 +107,17 @@ export function resolveEntitlement(
   const account = parentAccount(org);
   const src: EntitlementSource | null = account ?? org ?? null;
 
+  const graceEndsAt = src?.grace_ends_at ?? null;
   return {
     source: account ? "billing_account" : "organization",
     subscription_status: src?.subscription_status ?? null,
     trial_ends_at: src?.trial_ends_at ?? null,
     is_free_account: src?.is_free_account === true,
+    grace_ends_at: graceEndsAt,
+    // Surfaced separately from `isEntitled` so the UI can say WHY access
+    // continues -- "your community is running on a transition grace period
+    // that ends on the 3rd" is a very different banner from "subscribed".
+    inGrace: Boolean(graceEndsAt) && new Date(graceEndsAt as string) > now,
     isEntitled: isEntitledFrom(src, now),
   };
 }

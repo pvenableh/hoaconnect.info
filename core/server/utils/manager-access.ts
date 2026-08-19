@@ -10,14 +10,10 @@
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 
-export type ManagerGrantKey =
-  | "inquiries"
-  | "violations"
-  | "directory"
-  | "documents"
-  | "communications"
-  | "projects"
-  | "activity";
+// The canonical list lives in the shared transition module, because revocation
+// walks it too: a key this file knew about and the revoker didn't would stay
+// true after a manager left. Re-exported here so existing callers are unchanged.
+export type { ManagerGrantKey } from "#core/shared/transition/grants";
 
 /**
  * Return the calling user's Property Manager grant flags for an org, or null if
