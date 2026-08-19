@@ -95,17 +95,17 @@ idempotent-by-hour (sends each member at most once/day).
 
 - [ ] Check out the repo on the droplet (or reuse the existing worker checkout),
       `pnpm install`.
-- [ ] Provide the worker's env (a `.env` next to `apps/app`, or exported in the cron):
+- [ ] Provide the worker's env (a `.env` at the repo root, or exported in the cron):
   - [ ] `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN` (admin)
   - [ ] `SENDGRID_API_KEY`
   - [ ] `FROM_EMAIL` (platform sender), optional `FROM_NAME`
   - [ ] `APP_URL` (e.g. `https://app.hoaconnect.info` — for the dashboard link)
   - [ ] `DIGEST_TZ` (default `America/New_York`)
   - [ ] optional `DEMO_ALLOW_EMAIL=true` to let demo orgs actually send
-- [ ] Dry run: `cd apps/app && pnpm run digest:worker -- --dry-run` (sends nothing).
+- [ ] Dry run: from the repo root, `pnpm run digest:worker -- --dry-run` (sends nothing).
 - [ ] Add the hourly crontab (absolute paths — cron has a minimal PATH):
       ```bash
-      0 * * * * cd /path/to/hoaconnect/apps/app && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
+      0 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
       ```
 
 > Note: `CRON_SECRET` is **not** needed by the digest worker (it runs directly, not
@@ -129,6 +129,46 @@ idempotent-by-hour (sends each member at most once/day).
 
 ---
 
+## 5. Web push (VAPID)
+
+Push is **built and deployed but inert** until a production VAPID pair exists —
+`vapidPublicKey` empty ⇒ no browser can subscribe, `vapidPrivateKey` empty ⇒
+nothing can be sent. The pair in the local `.env` is DEV-ONLY; production needs
+its own. As of 2026-08-19 none of the three vars exist in Vercel production.
+
+- [ ] Generate a pair and set all three vars. This pipes the values straight into
+      Vercel so the private key never lands in your shell history:
+
+      ```bash
+      KEYS=$(npx --yes web-push generate-vapid-keys --json)
+      echo "$KEYS" | jq -r .publicKey  | vercel env add NUXT_PUBLIC_VAPID_PUBLIC_KEY production
+      echo "$KEYS" | jq -r .privateKey | vercel env add NUXT_VAPID_PRIVATE_KEY production
+      printf 'mailto:support@hoaconnect.info' | vercel env add NUXT_VAPID_SUBJECT production
+      ```
+
+- [ ] **Redeploy.** Vercel env changes only reach the runtime on a NEW deployment
+      — an existing build keeps the values it was deployed with.
+- [ ] Verify the key is being served. `/api/user/push/config` is auth-gated (401
+      when anonymous), so check it while logged in — in the browser console on
+      app.hoaconnect.info:
+
+      ```js
+      await $fetch('/api/user/push/config')   // { enabled: true, publicKey: "B…" }
+      ```
+
+      `enabled: false` with an empty `publicKey` means the env vars didn't reach
+      the runtime — you skipped the redeploy.
+- [ ] **Verify delivery to a real device** — still unverified end to end. Subscribe
+      from a phone (account → Preferences → the bell toggle), then trigger a
+      notification and confirm it arrives. Subscribe, upsert-by-endpoint,
+      unsubscribe and dead-endpoint prune were all verified live against prod
+      Directus; only actual delivery to hardware is untested.
+
+The public and private keys MUST come from the same generated pair — mixing pairs
+fails silently at send time with a 401 from the push service.
+
+---
+
 ## Quick env reference
 
 | Variable | Where | Test | Prod | Notes |
@@ -141,3 +181,6 @@ idempotent-by-hour (sends each member at most once/day).
 | `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN` | droplet (worker) | ✅ | ✅ | worker → Directus |
 | `SENDGRID_API_KEY`, `FROM_EMAIL`, `FROM_NAME` | droplet (worker) | ✅ | ✅ | worker → SendGrid |
 | `APP_URL`, `DIGEST_TZ`, `DEMO_ALLOW_EMAIL` | droplet (worker) | ✅ | ✅ | links / timezone / demo |
+| `NUXT_PUBLIC_VAPID_PUBLIC_KEY` | Vercel | ✅ | ✅ | web push — empty ⇒ nobody can subscribe |
+| `NUXT_VAPID_PRIVATE_KEY` | Vercel | ✅ | ✅ | web push — server-only, never exposed |
+| `NUXT_VAPID_SUBJECT` | Vercel | optional | optional | `mailto:` contact, defaults to support@ |

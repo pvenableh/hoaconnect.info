@@ -6,7 +6,7 @@ Directus (admin token) and SendGrid, and reuses the app's pure preference logic
 plus the exact same org-branded transactional email template, so digests look
 identical to every other HOA Connect notification.
 
-Script: `apps/app/scripts/notification-digest-worker.ts` (`pnpm run digest:worker`).
+Script: `scripts/notification-digest-worker.ts` (`pnpm run digest:worker`).
 
 It is idempotent-by-hour: each run emails only the members whose cadence + local
 send-hour (interpreted in `DIGEST_TZ`, default `America/New_York`) match the
@@ -19,7 +19,7 @@ skips demo orgs (unless `DEMO_ALLOW_EMAIL`).
 1. The droplet already runs Directus; check the repo out there (or reuse the
    existing checkout used for the Earnest worker) and `pnpm install`.
 
-2. Provide the worker's env (a `.env` next to `apps/app`, or exported in the cron):
+2. Provide the worker's env (a `.env` at the repo root, or exported in the cron):
 
    | var | purpose |
    |---|---|
@@ -34,16 +34,39 @@ skips demo orgs (unless `DEMO_ALLOW_EMAIL`).
 
    ```bash
    # HOA Connect — hourly notification digest worker (top of every hour)
-   0 * * * * cd /path/to/hoaconnect/apps/app && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
+   0 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
    ```
 
    Adjust the repo path and the `pnpm` path (`which pnpm`). Cron has a minimal
    PATH, so use absolute paths (or source a profile that sets up fnm/pnpm).
 
+   > **The path changed (2026-08-18).** The repo was flattened in `aa064a7` and
+   > `apps/app` no longer exists — the app IS the repo root. An existing crontab
+   > line still ending in `/apps/app` fails every hour: cron mails the `cd`
+   > error and no digest goes out.
+   >
+   > Fixing the crontab is not enough on its own — the droplet's CHECKOUT also
+   > has the old layout, and the workspace is gone, so `node_modules` must be
+   > rebuilt from the single root `package.json`. On the droplet, in order:
+   >
+   > ```bash
+   > cd /path/to/hoaconnect
+   > git pull                                   # brings in the flatten
+   > pnpm install                               # one package.json now, no workspace
+   > pnpm run digest:worker -- --dry-run        # must print a candidates= line
+   > crontab -e                                 # drop the /apps/app suffix
+   > crontab -l | grep digest                   # confirm
+   > ```
+   >
+   > Do NOT regenerate `pnpm-lock.yaml` to resolve an install hiccup — that
+   > floats every caret range and has taken production down before (duplicate
+   > `vue`, duplicate `unhead`). Restore it from git and let `pnpm install`
+   > adapt.
+
 ## Test
 
 ```bash
-cd apps/app
+cd /path/to/hoaconnect      # the repo ROOT — there is no apps/app any more
 pnpm run digest:worker -- --dry-run   # reports who WOULD receive, sends nothing
 pnpm run digest:worker                 # actually sends (respects the current hour)
 ```
