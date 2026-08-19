@@ -140,6 +140,27 @@ function maybeReindexRag(
   for (const one of ids) void ingestItem(source, one).catch(() => {});
 }
 
+/**
+ * Directus SDK errors carry the useful detail in `errors[]` — `error.message` is
+ * often just the generic "An unexpected error occurred." that Directus returns
+ * for a 500. Flatten the upstream messages (plus their extension codes) so a
+ * broken permission filter names itself instead of vanishing into a bare 500.
+ */
+function describeDirectusError(error: any): string | undefined {
+  const errors = error?.errors ?? error?.data?.errors ?? error?.response?.errors;
+  if (!Array.isArray(errors) || !errors.length) return undefined;
+  return errors
+    .map((e: any) => {
+      const code = e?.extensions?.code;
+      const field = e?.extensions?.field;
+      const parts = [e?.message ?? "Unknown Directus error"];
+      if (code) parts.push(`code=${code}`);
+      if (field) parts.push(`field=${field}`);
+      return parts.join(" ");
+    })
+    .join("; ");
+}
+
 export default defineEventHandler(async (event) => {
   let collection: string | undefined;
   let operation: string | undefined;
@@ -161,9 +182,12 @@ export default defineEventHandler(async (event) => {
     maybeReindexRag(collection, operation, id, result);
     return result;
   } catch (error: any) {
+    const directusDetail = describeDirectusError(error);
+
     // Log detailed error info for debugging
     console.error("[/api/directus/items] Error:", {
       message: error.message,
+      directusErrors: directusDetail,
       statusCode: error.statusCode,
       statusMessage: error.statusMessage,
       collection,
@@ -178,9 +202,16 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // In dev, hand the upstream Directus message back to the client so a failing
+    // widget call is debuggable from the network tab. In prod the response stays
+    // generic (the detail is in the server log above).
+    const message = error.message || "Failed to perform operation";
     throw createError({
       statusCode: error.statusCode || 500,
-      message: error.message || "Failed to perform operation",
+      message:
+        import.meta.dev && directusDetail
+          ? `${message} [${collection}.${operation}] ${directusDetail}`
+          : message,
     });
   }
 });
