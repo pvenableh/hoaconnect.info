@@ -181,6 +181,18 @@ describe("the community is never left without an administrator", () => {
   });
 });
 
+describe("an explicitly empty outgoing list means nobody", () => {
+  it("changes billing without offboarding anyone", () => {
+    // The agency dashboard's detach: the property leaves the billing account,
+    // but the manager keeps working there. Reading `outgoingMemberIds?.length`
+    // would have turned this into the default and revoked their access.
+    const plan = planTransition(baseInput({ outgoingMemberIds: [], successorMemberId: null }));
+    expect(plan.outgoing).toEqual([]);
+    expect(kinds(plan)).toEqual(["detach_billing", "open_grace", "write_audit"]);
+    expect(plan.canExecute).toBe(true);
+  });
+});
+
 describe("who gets offered as a successor", () => {
   it("puts board members first, by seniority", () => {
     const ranked = eligibleSuccessors(

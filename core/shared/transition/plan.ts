@@ -252,7 +252,11 @@ export function eligibleSuccessors(
  * The second half is the one that matters; see `isAgencyStaff`.
  */
 function resolveOutgoingIds(input: TransitionInput): readonly string[] {
-  if (input.outgoingMemberIds?.length) return input.outgoingMemberIds;
+  // `null`/absent means "decide for me"; an empty ARRAY means "nobody is
+  // leaving" — a billing-only transition, which is what the agency dashboard's
+  // detach does. Reading `?.length` would have silently turned that into the
+  // default and offboarded people the caller never named.
+  if (input.outgoingMemberIds != null) return input.outgoingMemberIds;
   return input.members
     .filter(
       (m) =>
@@ -372,10 +376,18 @@ export function planTransition(input: TransitionInput): TransitionPlan {
   }
 
   // ── The vendor row: the community's own record of who managed it, when ───
-  const vendorsToEnd = input.managementVendors.filter((v) => !v.activeUntil);
+  // Only when someone is actually leaving. A billing-only transition (the
+  // agency dashboard's detach: the property stops being billed through the
+  // account, the manager carries on managing it) must not end-date the
+  // management relationship — that would put a false end date on the
+  // community's own record of who managed it.
+  const vendorsToEnd =
+    outgoing.length > 0 ? input.managementVendors.filter((v) => !v.activeUntil) : [];
   const alreadyEnded = input.managementVendors.filter((v) => v.activeUntil);
 
-  if (input.managementVendors.length === 0) {
+  if (outgoing.length === 0) {
+    // Nothing to say: nobody is leaving, so the vendor record is untouched.
+  } else if (input.managementVendors.length === 0) {
     warnings.push({
       code: "no_management_vendor",
       message:
