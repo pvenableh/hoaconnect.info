@@ -113,6 +113,58 @@ idempotent-by-hour (sends each member at most once/day).
 
 ---
 
+## 3b. The droplet's checkout is stale — refresh it before either worker runs
+
+**This is the single item blocking two shipped features.** The droplet's checkout
+predates the 2026-08 flatten, so it still has the `apps/app` layout: neither
+`scripts/data-export-worker.ts` nor the current digest worker exists there, and
+any crontab line ending in `/apps/app` points at a directory that is gone.
+
+Until this is done, a board that clicks **Settings → Your data → Request export**
+gets a row that sits at `queued` forever — while the UI (and now the public
+[continuity guarantee](data-continuity-policy.md) at `/your-data`) promises the
+archive will be built whether or not they keep the tab open. That promise is
+live on the marketing site; this is what makes it true.
+
+Run once, on the droplet (`admin.hoaconnect.info`):
+
+```bash
+cd /path/to/hoaconnect
+git pull                                  # brings the flatten + both workers
+pnpm install                              # ONE package.json now — no workspace
+pnpm run digest:worker -- --dry-run       # must print a candidates= line
+pnpm run export:worker -- --dry-run       # lists the queue, writes nothing
+```
+
+> **Never regenerate `pnpm-lock.yaml` to get past an install hiccup.** Deleting it
+> floats every caret range and has produced duplicate `vue` / `unhead` copies —
+> the exact shape that took a production deploy down before. Restore it from git
+> and let `pnpm install` adapt.
+
+Then fix both crontab lines (`crontab -e`) — drop any `/apps/app` suffix:
+
+```bash
+# HOA Connect — notification digest (hourly)
+0 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
+
+# HOA Connect — Data Trust export worker (every 5 min; exits in <1s when idle)
+*/5 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run export:worker >> /var/log/hoa-export.log 2>&1
+```
+
+- [ ] `git pull` + `pnpm install` on the droplet
+- [ ] Both dry runs succeed from the repo root
+- [ ] Export worker env present: `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN`, `APP_URL`,
+      optional `EXPORT_WORK_DIR` (needs disk for the staged records **plus** the
+      finished zip) and `EXPORT_FOLDER_NAME` (default `Data exports`)
+- [ ] Both crontab lines in place, `crontab -l` confirms, no `/apps/app` anywhere
+- [ ] End-to-end: request an export in the app, confirm it flips
+      `queued → running → ready` within ~5 minutes and the download works
+
+Full detail: [data-export-cron.md](data-export-cron.md) and
+[notification-digest-cron.md](notification-digest-cron.md).
+
+---
+
 ## 4. Deploy & verify
 
 - [ ] The code is on `main` — deploy it to Vercel (auto-deploy from `main`, or
