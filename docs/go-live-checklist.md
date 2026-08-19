@@ -165,6 +165,71 @@ Full detail: [data-export-cron.md](data-export-cron.md) and
 
 ---
 
+## 3c. Make the audit log append-only in the database (droplet — Postgres)
+
+`org_audit_log` (Phase 4) is the community's permanent record of what happened
+to it — who ended a manager's access, who took over the account, when. VISION
+lists **"no mutable audit log, ever"** under What NOT to Build.
+
+Right now that holds by construction, not by constraint:
+
+- the migration grants **no role permissions**, so no client can reach the table;
+- the app has **one writer** (`writeAuditEntry`) and no update or delete path.
+
+Both are real, and neither stops the admin static token. Until the trigger below
+is installed, "it cannot be edited" is a statement about our code. Say it that
+way to a board until this is done.
+
+Run once, on the droplet, against the Directus database:
+
+```sql
+CREATE OR REPLACE FUNCTION org_audit_log_append_only() RETURNS trigger AS $$
+BEGIN
+  -- A deliberate erasure (the "delete our data" request in the continuity
+  -- policy) sets the flag first; everything else is refused.
+  IF TG_OP = 'DELETE' AND current_setting('app.allow_audit_delete', true) = 'on' THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'org_audit_log is append-only: % is not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER org_audit_log_no_mutation
+  BEFORE UPDATE OR DELETE ON org_audit_log
+  FOR EACH ROW EXECUTE FUNCTION org_audit_log_append_only();
+```
+
+Verify — the first two must fail, the third must succeed:
+
+```sql
+UPDATE org_audit_log SET summary = 'tampered' WHERE id = (SELECT id FROM org_audit_log LIMIT 1);
+DELETE FROM org_audit_log WHERE id = (SELECT id FROM org_audit_log LIMIT 1);
+SELECT count(*) FROM org_audit_log;
+```
+
+> **Know this before you install it.** `org_audit_log.organization` is
+> `ON DELETE CASCADE`, so the trigger will also refuse the cascade when someone
+> deletes an organization — the org delete fails rather than silently erasing
+> its history. That is the intended trade (erasing a community's record should be
+> a deliberate act), but it means a genuine deletion request is now a two-step
+> operation:
+>
+> ```sql
+> SET app.allow_audit_delete = 'on';   -- this session only
+> -- perform the deletion
+> RESET app.allow_audit_delete;
+> ```
+
+- [ ] Trigger installed
+- [ ] Both mutation statements above fail with the append-only exception
+- [ ] A transition still writes successfully afterwards (run one on a test org)
+
+> Not yet run from this machine — there is no SSH to the droplet here, so the SQL
+> above is written but unverified against the live database. Treat the first run
+> as a test, on a snapshot.
+
+---
+
 ## 4. Deploy & verify
 
 - [ ] The code is on `main` — deploy it to Vercel (auto-deploy from `main`, or

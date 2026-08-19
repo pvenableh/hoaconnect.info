@@ -1177,6 +1177,8 @@ export interface HoaOrganization {
 	opening_balance?: number | null;
 	/** @description Date the opening balance was struck. Income/expenses dated before it are excluded from reports (already inside the balance). */
 	opening_balance_date?: string | null;
+	/** @description Management-transition grace window. While this is in the future the community keeps working even though its subscription status says otherwise. */
+	grace_ends_at?: string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1566,6 +1568,31 @@ export interface HoaVendor {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+}
+
+export interface OrgAuditLog {
+	/** @primaryKey */
+	id: string;
+	/** @description The community this happened to. @required */
+	organization: HoaOrganization | string;
+	/** @description A string, not an enum: Phase 5 adds values and old readers must not break. @required */
+	event_type: 'management_transition' | 'manager_onboarded' | 'admin_promoted';
+	/** @description When it happened — not necessarily when the row was written. @required */
+	occurred_at: string;
+	/** @description Who did it. SET NULL on delete — the entry outlives the account. */
+	actor_user?: DirectusUser | string | null;
+	/** @description Denormalized on purpose: the row must still read correctly once the account is gone. */
+	actor_name?: string | null;
+	actor_email?: string | null;
+	/** @description Who may see it. Phase 5's visibility-policy module decides this centrally. @required */
+	visibility: 'owners' | 'board';
+	/** @description The human sentence. Must make sense without this codebase. */
+	summary?: string;
+	/** @description The structured record of what changed. */
+	payload?: Record<string, any> | null;
+	/** @description Which payload shape this row holds. */
+	schema_version?: number;
+	date_created?: string | null;
 }
 
 export interface PaymentExpense {
@@ -2068,6 +2095,10 @@ export interface DirectusUser {
 	text_direction?: 'auto' | 'ltr' | 'rtl';
 	/** @description Per-category email/bell toggles + digest settings. Managed from the account preferences UI. */
 	notification_preferences?: Record<string, any> | null;
+	/** @description Reverse of hoa_members.user. Required by permission filters that scope on $CURRENT_USER.hoa_members. */
+	hoa_members?: HoaMember[] | string[];
+	/** @description Reverse of billing_account_members.user. Required by permission filters that scope on $CURRENT_USER.billing_account_members. */
+	billing_account_members?: BillingAccountMember[] | string[];
 	policies?: DirectusAccess[] | string[];
 }
 
@@ -2282,6 +2313,7 @@ export interface Schema {
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
 	hoa_vendors: HoaVendor[];
+	org_audit_log: OrgAuditLog[];
 	payment_expenses: PaymentExpense[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
@@ -2386,6 +2418,7 @@ export enum CollectionNames {
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
 	hoa_vendors = 'hoa_vendors',
+	org_audit_log = 'org_audit_log',
 	payment_expenses = 'payment_expenses',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',

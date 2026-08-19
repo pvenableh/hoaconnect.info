@@ -133,6 +133,9 @@ export function entitlementFields(orgPrefix = ""): string[] {
     `${p}subscription_status`,
     `${p}trial_ends_at`,
     `${p}is_free_account`,
+    // Held back from commit 1 on purpose: Directus rejects an entire query on
+    // one unknown field, so the selection ships only now that the column exists.
+    `${p}grace_ends_at`,
     `${p}billing_account.id`,
     `${p}billing_account.subscription_status`,
     `${p}billing_account.trial_ends_at`,

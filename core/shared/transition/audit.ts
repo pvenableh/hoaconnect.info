@@ -68,9 +68,9 @@ export interface AuditEntry {
 /** "A and B", "A, B and C", "A, B, C and 2 others" — for a sentence, not a table. */
 function listNames(names: readonly string[]): string {
   if (names.length <= 3) {
-    return names.length === 1
-      ? names[0]
-      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    const [first] = names;
+    if (names.length === 1) return first ?? "";
+    return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   }
   const rest = names.length - 3;
   return `${names.slice(0, 3).join(", ")} and ${rest} other${rest === 1 ? "" : "s"}`;

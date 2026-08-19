@@ -75,6 +75,7 @@
     "setup:notification-prefs": "dotenv -- tsx scripts/setup-notification-prefs-field.ts",
     "create:push-subscriptions": "dotenv -- tsx scripts/create-push-subscriptions.ts",
     "create:data-exports": "dotenv -- tsx scripts/create-data-exports.ts",
+    "create:transition": "dotenv -- tsx scripts/create-transition-collections.ts",
     "fix:org-filters": "dotenv -- tsx scripts/fix-org-filter-permissions.ts",
     "digest:worker": "dotenv -- tsx scripts/notification-digest-worker.ts",
     "export:worker": "dotenv -- tsx scripts/data-export-worker.ts",

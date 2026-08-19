@@ -121,6 +121,8 @@ export const PLATFORM_COLLECTIONS: Readonly<Record<string, string>> = {
  *   - moderation and report logs: who reported or hid whom.
  *   - `hoa_email_activity`: per-recipient open and click tracking.
  *   - `coupon_usage`: the community's platform billing history.
+ *   - `org_audit_log`: carries board-only entries and cannot yet be filtered
+ *     per row — see the entry for the full reasoning.
  * Member delinquency (`payment_*`, the balance fields on `hoa_members`) stays in
  * BOTH tiers on purpose — a successor manager cannot do the job without it, and
  * withholding it would make the shareable export a courtesy rather than a
@@ -268,6 +270,14 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_reactions", "Reactions", FULL_ONLY),
   direct("hoa_comment_reports", "Comment reports", FULL_ONLY),
   direct("hoa_activity", "Portal activity", FULL_ONLY),
+  // Full tier only, and this is a decision to revisit at Phase 5 rather than a
+  // permanent one. The audit log is record, not deliberation, so a handover has
+  // a fair claim on it — but entries carry a `visibility` of owners OR board,
+  // and the exporter redacts FIELDS, not rows. Until the Community Ledger's
+  // visibility-policy module can filter per row, shipping the whole log in a
+  // shareable archive could hand an incoming manager the board-only entries
+  // with it. Conservative wins; the board still gets all of it in `full`.
+  direct("org_audit_log", "Audit log", FULL_ONLY),
   direct("hoa_email_activity", "Email delivery tracking", FULL_ONLY),
   direct("coupon_usage", "Discounts applied", FULL_ONLY),
   direct("ai_wallets", "AI credit wallet", FULL_ONLY),

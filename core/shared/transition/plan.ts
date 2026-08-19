@@ -198,6 +198,20 @@ function displayName(m: MemberSnapshot): string {
 }
 
 /**
+ * Label a step that reads differently for one subject than for several.
+ * Exists so the singular branch can name the person without TypeScript having
+ * to be told, via `!`, that a one-element array has a first element.
+ */
+function subjectLabel<T>(
+  list: readonly T[],
+  one: (item: T) => string,
+  many: (count: number) => string
+): string {
+  const [first] = list;
+  return list.length === 1 && first !== undefined ? one(first) : many(list.length);
+}
+
+/**
  * Who could hold HOA Admin after the transition, best first.
  *
  * Board members outrank ordinary members and are ordered by seniority, because
@@ -333,10 +347,11 @@ export function planTransition(input: TransitionInput): TransitionPlan {
   if (withGrants.length > 0) {
     steps.push({
       kind: "revoke_grants",
-      label:
-        withGrants.length === 1
-          ? `Revoke ${displayName(withGrants[0])}'s manager permissions`
-          : `Revoke manager permissions from ${withGrants.length} people`,
+      label: subjectLabel(
+        withGrants,
+        (m) => `Revoke ${displayName(m)}'s manager permissions`,
+        (n) => `Revoke manager permissions from ${n} people`
+      ),
       detail: `All ${MANAGER_GRANT_KEYS.length} permissions are cleared — inquiries, violations, directory, documents, communications, projects and activity.`,
       targetIds: withGrants.map((m) => m.id),
     });
@@ -345,10 +360,11 @@ export function planTransition(input: TransitionInput): TransitionPlan {
   if (outgoing.length > 0) {
     steps.push({
       kind: "deactivate_member",
-      label:
-        outgoing.length === 1
-          ? `End ${displayName(outgoing[0])}'s access`
-          : `End access for ${outgoing.length} people`,
+      label: subjectLabel(
+        outgoing,
+        (m) => `End ${displayName(m)}'s access`,
+        (n) => `End access for ${n} people`
+      ),
       detail:
         "Their membership is marked inactive. Nothing is deleted — everything they did stays in the community's record, which is what makes the history yours.",
       targetIds: outgoing.map((m) => m.id),
@@ -373,10 +389,11 @@ export function planTransition(input: TransitionInput): TransitionPlan {
   } else {
     steps.push({
       kind: "end_vendor",
-      label:
-        vendorsToEnd.length === 1
-          ? `End-date ${vendorsToEnd[0].company || "the management company"}`
-          : `End-date ${vendorsToEnd.length} management records`,
+      label: subjectLabel(
+        vendorsToEnd,
+        (v) => `End-date ${v.company || "the management company"}`,
+        (n) => `End-date ${n} management records`
+      ),
       detail:
         "Records the day the relationship ended and marks it inactive. The vendor stays in your history — a community should be able to say who managed it, and when, years later.",
       targetIds: vendorsToEnd.map((v) => v.id),
