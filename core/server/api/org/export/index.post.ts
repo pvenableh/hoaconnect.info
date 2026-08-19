@@ -14,9 +14,7 @@
 
 import { createItem, readItems } from "@directus/sdk";
 import { EXPORT_TIERS, type ExportTier } from "#core/shared/export/collections";
-
-/** How long a finished archive stays downloadable before the worker purges it. */
-export const EXPORT_TTL_DAYS = 7;
+import { EXPORT_TTL_DAYS } from "#core/shared/export/manifest";
 
 /** Job states that mean "there is already work in flight for this org". */
 const IN_FLIGHT = ["queued", "running"] as const;

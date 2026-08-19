@@ -15,6 +15,19 @@ import { PLATFORM_COLLECTIONS } from "./collections";
 
 export const EXPORT_SCHEMA_VERSION = 1;
 
+/**
+ * How long a finished archive stays downloadable before the worker purges it
+ * and flips the job to `expired`.
+ *
+ * It lives here, next to the schema version, because it is shared by three
+ * places that must agree: the route that queues a job, the worker that stamps
+ * `expires_at` and later deletes the file, and the download route that re-checks
+ * expiry between purge runs. A worker that disagreed with the route would either
+ * hand out archives the UI has already called expired, or delete one the board
+ * was still told it had days to fetch.
+ */
+export const EXPORT_TTL_DAYS = 7;
+
 export interface ManifestOrg {
   readonly id: string;
   readonly name: string | null;

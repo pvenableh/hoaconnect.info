@@ -157,15 +157,14 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
     },
   }),
   direct("hoa_units", "Units", BOTH, {
+    // `unit_number`, not `name` — hoa_units carries the number and the status
+    // and nothing else. The JSON beside it is the whole row either way; these
+    // columns only have to be the ones a person would open a spreadsheet for.
     csv: {
       file: "units.csv",
       columns: [
-        { header: "Unit", path: "name" },
+        { header: "Unit", path: "unit_number" },
         { header: "Status", path: "status" },
-        { header: "Bedrooms", path: "bedrooms" },
-        { header: "Bathrooms", path: "bathrooms" },
-        { header: "Square feet", path: "square_feet" },
-        { header: "Ownership percentage", path: "ownership_percentage" },
       ],
     },
   }),
@@ -200,7 +199,7 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
         { header: "Status", path: "status" },
         { header: "Priority", path: "priority" },
         { header: "Category", path: "category" },
-        { header: "Unit", path: "unit.name" },
+        { header: "Unit", path: "unit.unit_number" },
         { header: "Due date", path: "due_date" },
         { header: "Opened", path: "date_created" },
         { header: "Description", path: "description" },
