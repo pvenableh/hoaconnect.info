@@ -25,6 +25,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (isExempt) return;
 
+  // Settings → Your data is never gated. The written continuity guarantee
+  // (docs/data-continuity-policy.md) says a community can take its records out
+  // after it cancels, and the export API already honours that — the routes
+  // check admin access and nothing else. This middleware was the only thing
+  // standing between a cancelled board and its own history, which would have
+  // made "take it anytime" true everywhere except the moment it matters.
+  //
+  // Matched by suffix rather than added to the list above: the page exists as
+  // /{slug}/admin/settings/data, so a prefix match would never have caught it.
+  if (to.path.endsWith('/admin/settings/data')) return;
+
   // Get organization data
   try {
     const { currentOrg, effectiveEntitlement } = await useSelectedOrg();

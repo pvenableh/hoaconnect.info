@@ -197,6 +197,7 @@ const interestOptions = [
   "Branded resident portal",
   "Financial & compliance tools",
   "Property-manager portal",
+  "Data ownership & export",
 ];
 
 const form = reactive({

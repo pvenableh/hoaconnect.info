@@ -30,6 +30,12 @@
           >
             Early access
           </button>
+          <NuxtLink
+            to="/your-data"
+            class="text-sm t-text-secondary hover:t-text transition-colors hidden sm:block"
+          >
+            Your data
+          </NuxtLink>
           <a
             :href="loginUrl"
             class="text-sm t-text-secondary hover:t-text transition-colors hidden sm:block"

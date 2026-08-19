@@ -19,6 +19,15 @@ const organizationName = computed(() => {
   return currentOrg.value?.organization?.name || 'Your organization';
 });
 
+// The export page stays reachable after a subscription ends — see
+// core/app/middleware/subscription.ts and docs/data-continuity-policy.md. This
+// screen is where a cancelled board actually lands, so it is where the promise
+// has to be visible; a guarantee nobody can find is a guarantee nobody has.
+const exportPath = computed(() => {
+  const slug = currentOrg.value?.organization?.slug;
+  return slug ? `/${slug}/admin/settings/data` : null;
+});
+
 const trialEndsAt = computed(() => {
   const date = currentOrg.value?.organization?.trial_ends_at;
   if (!date) return null;
@@ -132,6 +141,20 @@ const statusMessage = computed(() => {
               class="block w-full py-3 px-4 t-bg-subtle hover:bg-stone-200 t-text-secondary text-center font-medium rounded-lg transition"
             >
               Sign Out
+            </NuxtLink>
+          </div>
+
+          <!-- Your records don't expire with the subscription. -->
+          <div v-if="exportPath" class="mt-6 pt-6 border-t t-border text-center">
+            <p class="text-sm t-text-secondary">
+              Your community's records are still yours, and still here.
+            </p>
+            <NuxtLink
+              :to="exportPath"
+              class="inline-flex items-center gap-2 mt-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              <Icon name="i-lucide-download" class="w-4 h-4" />
+              Export your data
             </NuxtLink>
           </div>
         </div>
