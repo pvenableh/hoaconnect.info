@@ -200,7 +200,7 @@ export function useAppNav() {
     },
     {
       key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
-      match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules"],
+      match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/admin/ledger"],
       children: ["meetings", "documents", "rules", "files"],
     },
     {
@@ -224,6 +224,10 @@ export function useAppNav() {
     { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
     { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
     { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
+    // Ungated, like the admin link: Pillar B's promise is that an owner can see
+    // what their board decided WITHOUT asking permission, and a ledger an org
+    // can hide from its own owners is not that promise.
+    { key: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", match: ["/ledger"] },
     { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
     { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
     { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },

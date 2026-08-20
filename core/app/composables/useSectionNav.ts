@@ -50,6 +50,10 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
     { label: "Documents", path: "/admin/documents", icon: "file-text", description: "The curated, published document library.", module: "documents" },
     { label: "Storage", path: "/admin/files", icon: "folder", description: "Dropbox-style manager for raw folders and files.", module: "files" },
     { label: "Rules", path: "/rules", icon: "scale", description: "By-laws, CC&Rs, and searchable governance.", module: "rules" },
+    // No module gate: a community's permanent record of itself is not an
+    // optional app, and an org that could switch its own audit trail off in
+    // Settings would make "append-only" a setting rather than a guarantee.
+    { label: "Ledger", path: "/admin/ledger", icon: "history", description: "The permanent record of what happened to your community." },
   ],
   payments: [
     { label: "Payments", path: "/admin/payments", icon: "wallet", description: "Dues, assessments, and statements.", module: "payments" },
