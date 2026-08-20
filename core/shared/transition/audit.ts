@@ -18,52 +18,35 @@
  *   machine record. A reader a year from now — or an incoming manager reading
  *   an export — must not need this codebase to understand the row.
  *
- * `visibility` is carried per-entry but decided by the caller. Phase 5 replaces
- * that with the central visibility-policy module; until then a transition is
- * owner-visible, which is the whole point of recording it.
+ * `visibility` is carried per-entry. Phase 4 let this builder pick the string;
+ * Phase 5 took that decision away and gave it to the event catalogue
+ * (`core/shared/ledger/events.ts`), which is why the field below is a lookup
+ * rather than a literal. A transition is still owner-visible — that is the whole
+ * point of recording it — but the answer now comes from the same place every
+ * other writer's does.
  *
  * Pure: no Directus, no H3, no clock.
  */
 
 import type { TransitionPlan } from "./plan";
-import { TRANSITION_SCHEMA_VERSION } from "./plan";
-
-export const AUDIT_SCHEMA_VERSION = TRANSITION_SCHEMA_VERSION;
+import { LEDGER_SCHEMA_VERSION } from "#core/shared/ledger/entry";
+import { defaultVisibilityFor } from "#core/shared/ledger/events";
 
 /**
- * Event types the ledger understands. Phase 4 writes one of them; the union is
- * the extension point, and an unknown value read from an older row should be
- * rendered generically rather than dropped.
+ * Phase 5 moved these definitions into `core/shared/ledger/` — the row shape,
+ * the visibility tiers and the event catalogue are now shared by six writers
+ * and two readers, and could not keep living inside the transition module.
+ * Re-exported here under their original names so Phase 4's callers are
+ * unchanged; the ledger module is the source of truth.
  */
-export type AuditEventType =
-  | "management_transition"
-  | "manager_onboarded"
-  | "admin_promoted";
+export type { LedgerVisibility as AuditVisibility } from "#core/shared/ledger/entry";
+export type { LedgerActor as AuditActor } from "#core/shared/ledger/entry";
+export type { LedgerEntry as AuditEntry } from "#core/shared/ledger/entry";
+export type { LedgerEventType as AuditEventType } from "#core/shared/ledger/events";
+import type { LedgerActor as AuditActor } from "#core/shared/ledger/entry";
+import type { LedgerEntry as AuditEntry } from "#core/shared/ledger/entry";
 
-/** Who may see an entry. Conservative by default — see the header. */
-export type AuditVisibility = "owners" | "board";
-
-export interface AuditActor {
-  readonly userId: string | null;
-  /** Denormalized on purpose: the row must still read correctly if the account is later deleted. */
-  readonly name: string;
-  readonly email: string | null;
-}
-
-export interface AuditEntry {
-  readonly schema_version: number;
-  readonly organization: string;
-  readonly event_type: AuditEventType;
-  readonly occurred_at: string;
-  readonly actor_user: string | null;
-  readonly actor_name: string;
-  readonly actor_email: string | null;
-  readonly visibility: AuditVisibility;
-  /** One sentence, for a human reading the feed. */
-  readonly summary: string;
-  /** The structured record of what changed. */
-  readonly payload: Record<string, unknown>;
-}
+export const AUDIT_SCHEMA_VERSION = LEDGER_SCHEMA_VERSION;
 
 /** "A and B", "A, B and C", "A, B, C and 2 others" — for a sentence, not a table. */
 function listNames(names: readonly string[]): string {
@@ -116,15 +99,17 @@ export function buildTransitionAuditEntry(input: {
     : "A management transition was carried out.";
 
   return {
-    schema_version: AUDIT_SCHEMA_VERSION,
+    schema_version: LEDGER_SCHEMA_VERSION,
     organization: input.organizationId,
     event_type: "management_transition",
     occurred_at: occurredAt,
     actor_user: actor.userId,
     actor_name: actor.name,
     actor_email: actor.email,
-    // A community's owners are entitled to know who runs their association.
-    visibility: "owners",
+    // A community's owners are entitled to know who runs their association —
+    // and from Phase 5 that judgement is the catalogue's to make, not this
+    // builder's. See core/shared/ledger/events.ts.
+    visibility: defaultVisibilityFor("management_transition"),
     summary,
     payload: {
       organization_name: input.organizationName,

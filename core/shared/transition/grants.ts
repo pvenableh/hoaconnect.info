@@ -39,6 +39,29 @@ export type ManagerGrantKey = (typeof MANAGER_GRANT_KEYS)[number];
 
 export type ManagerGrants = Readonly<Record<ManagerGrantKey, boolean>>;
 
+/**
+ * The short noun each grant goes by in a sentence.
+ *
+ * The settings screen phrases these as actions ("Send communications") because
+ * it is describing a switch. A ledger entry needs the noun — "added
+ * Communications, removed Projects" — and a permanent record should not be
+ * carrying the UI's phrasing of the day. Both live off the same key list, so a
+ * new grant is still added in exactly one place.
+ */
+export const MANAGER_GRANT_LABELS: Readonly<Record<ManagerGrantKey, string>> = {
+  inquiries: "Inquiries",
+  violations: "Violations",
+  directory: "Directory",
+  documents: "Documents",
+  communications: "Communications",
+  projects: "Projects",
+  activity: "Activity",
+};
+
+export function grantLabel(key: string): string {
+  return MANAGER_GRANT_LABELS[key as ManagerGrantKey] ?? key;
+}
+
 export interface GrantPreset {
   readonly key: string;
   readonly label: string;
