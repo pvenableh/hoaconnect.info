@@ -228,6 +228,24 @@ SELECT count(*) FROM org_audit_log;
 > above is written but unverified against the live database. Treat the first run
 > as a test, on a snapshot.
 
+**Confirmed NOT installed as of 2026-08-20.** There is no SSH from the dev
+machine, but the trigger can be probed over the Directus API without SSH and
+without changing anything: PATCH an existing `org_audit_log` row, writing one
+field back with its own current value.
+
+```bash
+# 200 = no trigger. The append-only exception = installed.
+curl -s -o /dev/null -w '%{http_code}\n' -X PATCH \
+  -H "Authorization: Bearer $DIRECTUS_STATIC_TOKEN" -H 'Content-Type: application/json' \
+  -d "{\"summary\": \"<the row's existing summary, verbatim>\"}" \
+  "$DIRECTUS_URL/items/org_audit_log/<id>"
+```
+
+It returned **200**, so the admin static token can still rewrite history. Phase 5
+did not change that and cannot: `writeAuditEntry` is still the only writer in the
+app, and there is still no update or delete path — but that is a property of our
+code. Until the SQL above runs, say it that way to a board.
+
 ---
 
 ## 3d. The transition test fixture lives on prod — on purpose
@@ -241,7 +259,8 @@ one from scratch each time.
 |---|---|
 | Org | `Transition Test HOA [TEST FIXTURE]` — slug `transition-test` |
 | Billing account | `Transition Test Agency [TEST FIXTURE]` — no Stripe subscription, so seat syncs charge nothing |
-| State | post-transition: detached, `grace_ends_at 2026-10-19`, manager + agency memberships inactive, Nina Alvarez promoted to HOA Admin |
+| State | post-transition: detached, `grace_ends_at 2026-10-19`, Nina Alvarez promoted to HOA Admin. **Dana Reyes (manager) is inactive; the demo user's "Agency Admin" seat was REACTIVATED on 2026-08-20** so the fixture can still be driven from a browser — the transition left nobody with a login on it, which made the org unreachable for Phase 5's ledger read-back. Flip it back to `inactive` to restore the pristine post-transition state. |
+| Ledger | three `org_audit_log` entries: August's transition, plus two `manager_grants_changed` rows written by Phase 5's grant route (one switch, one preset) against Dana Reyes |
 | Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
 | Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
 

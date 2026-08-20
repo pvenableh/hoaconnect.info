@@ -270,13 +270,19 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_reactions", "Reactions", FULL_ONLY),
   direct("hoa_comment_reports", "Comment reports", FULL_ONLY),
   direct("hoa_activity", "Portal activity", FULL_ONLY),
-  // Full tier only, and this is a decision to revisit at Phase 5 rather than a
-  // permanent one. The audit log is record, not deliberation, so a handover has
-  // a fair claim on it — but entries carry a `visibility` of owners OR board,
-  // and the exporter redacts FIELDS, not rows. Until the Community Ledger's
-  // visibility-policy module can filter per row, shipping the whole log in a
-  // shareable archive could hand an incoming manager the board-only entries
-  // with it. Conservative wins; the board still gets all of it in `full`.
+  // Full tier only — and the reason has now half-expired, so read this before
+  // changing it. The audit log is record, not deliberation, so a handover has a
+  // fair claim on it; the blocker was that entries carry a `visibility` of
+  // owners OR board and the exporter redacts FIELDS, not rows.
+  //
+  // Phase 5 supplied the missing half: `core/shared/ledger/visibility.ts` can
+  // now decide per row, and `canView(entry, viewer)` is the exact predicate a
+  // shareable archive needs. What is still missing is on THIS side — an
+  // `ExportEntry` has no way to express "include these rows and not those", so
+  // the worker would ship the whole collection or none of it. Moving
+  // org_audit_log into BOTH tiers means teaching the export map a row filter
+  // first. Until then, conservative wins; the board still gets all of it in
+  // `full`.
   direct("org_audit_log", "Audit log", FULL_ONLY),
   direct("hoa_email_activity", "Email delivery tracking", FULL_ONLY),
   direct("coupon_usage", "Discounts applied", FULL_ONLY),
