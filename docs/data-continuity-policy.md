@@ -78,6 +78,13 @@ files/              Every uploaded document and photo (optional — see below)
   manager who can't see who is behind cannot do the job. A "handover" without it
   would be a courtesy, not a handover.
 
+  It also includes the **Community Ledger** — your association's own record of
+  what happened to it — but only the entries owners are entitled to see. The
+  board-only entries (personnel, and anything naming one household's standing)
+  stay in your own complete copy. This is the one collection that travels in
+  part rather than whole or not at all, and `manifest.json` says so explicitly
+  for the archive you are holding.
+
 **Documents and photos are opt-in.** JSON and spreadsheets are always included.
 The files archive is a checkbox because a community's storage can run to
 hundreds of gigabytes, and most exports don't need it.

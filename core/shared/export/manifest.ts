@@ -43,6 +43,16 @@ export interface ManifestCollection {
   readonly rows: number;
   /** Fields nulled for this tier, omitted when nothing was redacted. */
   readonly redacted?: readonly string[];
+  /**
+   * Rows withheld for this tier, omitted when every row travelled. Says which
+   * field decided and which values were kept — a row count on its own would let
+   * a reader believe they were holding the whole collection.
+   */
+  readonly filtered?: {
+    readonly field: string;
+    readonly kept: readonly string[];
+    readonly note: string;
+  };
 }
 
 export interface ManifestFiles {

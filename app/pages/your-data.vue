@@ -370,7 +370,25 @@
                 >
                   {{ label }}
                 </li>
+                <li
+                  v-for="row in partiallyWithheld"
+                  :key="row.label"
+                  class="withheld-chip opacity-0 text-[0.8125rem] px-3 py-1.5 rounded-full border t-border t-text-secondary"
+                >
+                  {{ row.label }}<span class="t-text-tertiary"> — in part</span>
+                </li>
               </ul>
+
+              <div v-if="partiallyWithheld.length" class="mb-8 space-y-2">
+                <p
+                  v-for="row in partiallyWithheld"
+                  :key="row.label"
+                  class="text-[0.9375rem] leading-relaxed t-text-tertiary"
+                >
+                  <strong class="t-text-secondary">{{ row.label }}:</strong>
+                  {{ row.note }}
+                </p>
+              </div>
 
               <div
                 class="section-tagline opacity-0 border-l-2 t-border-accent pl-6"
@@ -652,6 +670,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   EXPORT_MAP,
   PLATFORM_COLLECTIONS,
+  rowFilterFor,
   entriesForTier,
 } from "#core/shared/export/collections";
 import { EXPORT_TTL_DAYS } from "#core/shared/export/manifest";
@@ -676,6 +695,18 @@ const shareableSet = new Set(shareableEntries.map((e) => e.collection));
 const withheldLabels = fullEntries
   .filter((e) => !shareableSet.has(e.collection))
   .map((e) => e.label);
+
+/**
+ * Collections that travel in part: the shareable copy carries some of their
+ * rows and not others. Derived from the map's row filters rather than written
+ * here, for the same reason as everything else on this page — and stated at
+ * all because a chip list that showed only whole collections would let a reader
+ * believe every collection they DIDN'T see listed came over complete.
+ */
+const partiallyWithheld = shareableEntries
+  .map((e) => ({ label: e.label, filter: rowFilterFor(e, "shareable") }))
+  .filter((e) => e.filter !== null)
+  .map((e) => ({ label: e.label, note: e.filter.note }));
 
 // The three CSVs are projections declared in the map; ledger.csv is derived by
 // the worker from the payment collections, so it is named here. A test asserts

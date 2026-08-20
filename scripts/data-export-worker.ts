@@ -58,6 +58,8 @@ import {
 // ledger maths the test suite and the Finances tab already cover.
 import {
   exportOrder,
+  keepsRow,
+  rowFilterFor,
   type ExportEntry,
   type ExportTier,
 } from "../core/shared/export/collections";
@@ -221,6 +223,7 @@ async function* pages(
  */
 async function* entryPages(
   entry: ExportEntry,
+  tier: ExportTier,
   orgId: string,
   idsByCollection: Map<string, string[]>,
   pks: Map<string, string>,
@@ -229,19 +232,25 @@ async function* entryPages(
   const pk = pkOf(pks, entry.collection);
   const scope = entry.scope;
 
+  // A tier's row filter narrows the QUERY, not the page — the same rule the
+  // ledger reader follows. Filtering after the read would page through gaps and
+  // send withheld rows over the wire on the way to being discarded.
+  const rowFilter = rowFilterFor(entry, tier);
+  const tierFilter = rowFilter ? { [rowFilter.field]: { _in: [...rowFilter.keep] } } : {};
+
   if (scope.kind === "self") {
-    yield* pages(entry.collection, { [pk]: { _eq: orgId } }, fields, pk);
+    yield* pages(entry.collection, { [pk]: { _eq: orgId }, ...tierFilter }, fields, pk);
     return;
   }
   if (scope.kind === "direct") {
-    yield* pages(entry.collection, { [scope.field]: { _eq: orgId } }, fields, pk);
+    yield* pages(entry.collection, { [scope.field]: { _eq: orgId }, ...tierFilter }, fields, pk);
     return;
   }
 
   const parentIds = idsByCollection.get(scope.parent) ?? [];
   if (!parentIds.length) return;
   for (const ids of chunk(parentIds, ID_CHUNK)) {
-    yield* pages(entry.collection, { [scope.field]: { _in: ids } }, fields, pk);
+    yield* pages(entry.collection, { [scope.field]: { _in: ids }, ...tierFilter }, fields, pk);
   }
 }
 
@@ -273,14 +282,20 @@ async function stageCollection(
 
   try {
     await write(out, "[\n");
-    for await (const page of entryPages(entry, orgId, idsByCollection, pks, ["*"])) {
-      const redacted = redactRows(entry, tier, page);
+    for await (const page of entryPages(entry, tier, orgId, idsByCollection, pks, ["*"])) {
+      // Belt and braces. The query above already excluded these rows; this
+      // catches the case where it silently stopped matching — a renamed column,
+      // a tier value written by a newer deploy — which would otherwise put
+      // board-only rows in an archive a community hands to a stranger, with
+      // nothing on the outside to notice.
+      const kept = page.filter((row) => keepsRow(entry, tier, row));
+      const redacted = redactRows(entry, tier, kept);
       let text = "";
       for (const row of redacted) {
         text += `${rows === 0 && text === "" ? "" : ",\n"}${JSON.stringify(row)}`;
         rows++;
       }
-      if (keepIds) for (const row of page) ids.push(String(row[pk]));
+      if (keepIds) for (const row of kept) ids.push(String(row[pk]));
       if (text) await write(out, text);
     }
     await write(out, "\n]\n");
@@ -291,12 +306,18 @@ async function stageCollection(
   if (keepIds) idsByCollection.set(entry.collection, ids);
 
   const redactedHere = redactedFields(entry, tier);
+  const rowFilter = rowFilterFor(entry, tier);
   return {
     collection: entry.collection,
     label: entry.label,
     file,
     rows,
     ...(redactedHere.length ? { redacted: [...redactedHere] } : {}),
+    // Say in the manifest that rows were withheld. A count alone would let a
+    // reader believe they are holding the whole collection.
+    ...(rowFilter
+      ? { filtered: { field: rowFilter.field, kept: [...rowFilter.keep], note: rowFilter.note } }
+      : {}),
   };
 }
 
@@ -311,6 +332,7 @@ async function stageCollection(
  */
 async function stageCsv(
   entry: ExportEntry,
+  tier: ExportTier,
   orgId: string,
   workDir: string,
   idsByCollection: Map<string, string[]>,
@@ -324,10 +346,13 @@ async function stageCsv(
 
   try {
     await write(out, `${toCsv([...columns.map((c) => c.header)], [])}\n`);
-    for await (const page of entryPages(entry, orgId, idsByCollection, pks, fields)) {
-      const lines = page.map((row) =>
-        columns.map((c) => csvCell(readPath(row, c.path))).join(",")
-      );
+    for await (const page of entryPages(entry, tier, orgId, idsByCollection, pks, fields)) {
+      // The readable half of the archive obeys the same row filter as the
+      // verbatim half. No mapped collection has both today; the day one does,
+      // the CSV must not be the copy that leaks.
+      const lines = page
+        .filter((row) => keepsRow(entry, tier, row))
+        .map((row) => columns.map((c) => csvCell(readPath(row, c.path))).join(","));
       if (lines.length) await write(out, `${lines.join("\n")}\n`);
     }
   } finally {
@@ -627,7 +652,7 @@ async function buildArchive(
     // losing a spreadsheet is not a reason to fail an export the board is
     // waiting on.
     try {
-      const csv = await stageCsv(entry, org.id, workDir, idsByCollection, pks);
+      const csv = await stageCsv(entry, tier, org.id, workDir, idsByCollection, pks);
       if (csv) csvs.push(csv);
     } catch (err) {
       console.warn(`   ⚠️  ${entry.csv?.file}: ${(err as Error).message}`);

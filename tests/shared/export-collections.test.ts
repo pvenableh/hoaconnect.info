@@ -6,10 +6,13 @@ import {
   entriesForTier,
   entryFor,
   exportOrder,
+  keepsRow,
   orderEntries,
+  rowFilterFor,
   unmappedCollections,
   type ExportEntry,
 } from "#core/shared/export/collections";
+import { visibleTiersFor } from "#core/shared/ledger/visibility";
 import { CollectionNames } from "#core/types/directus";
 
 const ALL_COLLECTIONS = Object.values(CollectionNames) as string[];
@@ -185,6 +188,67 @@ describe("tiers", () => {
     // a redaction on a full-only entry would never run.
     for (const entry of EXPORT_MAP) {
       if (!entry.redact?.length) continue;
+      expect(entry.tiers).toContain("shareable");
+    }
+  });
+
+  it("carries the community's ledger into BOTH tiers, owner-visible rows only", () => {
+    // The whole point of the row filter. A handover that omitted the community's
+    // own record would hand a successor the data and none of the history that
+    // explains it — but a board-tier entry names one household's standing, and
+    // a shareable archive is a copy a community can give to anyone.
+    const entry = entryFor("org_audit_log")!;
+    expect(entry.tiers).toEqual(["full", "shareable"]);
+
+    const filter = rowFilterFor(entry, "shareable")!;
+    expect(filter.field).toBe("visibility");
+    expect([...filter.keep]).toEqual(["owners"]);
+    expect(filter.note).toBeTruthy();
+
+    // The full tier is verbatim by definition — never filtered.
+    expect(rowFilterFor(entry, "full")).toBeNull();
+  });
+
+  it("takes the shareable tiers from the ledger's policy module, not a literal", () => {
+    // If who-may-see-what changes, the export changes in the same commit.
+    const entry = entryFor("org_audit_log")!;
+    const asOwner = visibleTiersFor({
+      isMember: true,
+      isBoard: false,
+      isManager: false,
+      isAdmin: false,
+    });
+    expect([...rowFilterFor(entry, "shareable")!.keep]).toEqual([...asOwner]);
+  });
+
+  it("keeps an owner-visible row and drops a board one, failing closed on both edges", () => {
+    const entry = entryFor("org_audit_log")!;
+    expect(keepsRow(entry, "shareable", { visibility: "owners" })).toBe(true);
+    expect(keepsRow(entry, "shareable", { visibility: "board" })).toBe(false);
+
+    // A row with no visibility at all is the one whose audience is unknown —
+    // withheld, in the same direction the ledger's own reader fails.
+    expect(keepsRow(entry, "shareable", {})).toBe(false);
+    expect(keepsRow(entry, "shareable", { visibility: null })).toBe(false);
+    expect(keepsRow(entry, "shareable", { visibility: "everyone" })).toBe(false);
+
+    // The board's own copy is verbatim.
+    expect(keepsRow(entry, "full", { visibility: "board" })).toBe(true);
+  });
+
+  it("filters no other collection by row, so an unfiltered entry stays unfiltered", () => {
+    for (const entry of EXPORT_MAP) {
+      if (entry.collection === "org_audit_log") continue;
+      expect(rowFilterFor(entry, "shareable"), `${entry.collection}`).toBeNull();
+      expect(keepsRow(entry, "shareable", { anything: "at all" })).toBe(true);
+    }
+  });
+
+  it("declares a row filter only on entries that reach the shareable tier", () => {
+    // A filter on a full-only entry would never run — the same trap the
+    // redaction test guards.
+    for (const entry of EXPORT_MAP) {
+      if (!entry.shareableRows) continue;
       expect(entry.tiers).toContain("shareable");
     }
   });

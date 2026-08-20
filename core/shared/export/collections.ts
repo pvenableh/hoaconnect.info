@@ -23,6 +23,8 @@
  * Pure: no Directus, no fs, no H3.
  */
 
+import { visibleTiersFor, type LedgerViewer } from "#core/shared/ledger/visibility";
+
 /**
  * `full` — everything, for the community's own board.
  * `shareable` — the variant that is safe to hand an incoming manager: the
@@ -46,6 +48,25 @@ export interface CsvColumn {
   readonly path: string;
 }
 
+/**
+ * Which ROWS of a collection travel in the shareable tier.
+ *
+ * Redaction blanks fields; this keeps or drops whole rows. Declarative on
+ * purpose — a field and a set of allowed values, not a predicate function — so
+ * the worker can push it into the Directus query rather than reading everything
+ * and discarding half. That matters for the same reason it matters in the
+ * ledger reader: a filter applied after the read makes every count and every
+ * page boundary lie, and here it would also mean withheld rows crossing the
+ * wire before being thrown away.
+ */
+export interface RowFilter {
+  readonly field: string;
+  /** Rows whose `field` is one of these are kept. Everything else is dropped. */
+  readonly keep: readonly string[];
+  /** Why, for the manifest and for the next person reading this map. */
+  readonly note: string;
+}
+
 export interface ExportEntry {
   readonly collection: string;
   /** Human name, used in the manifest and the archive README. */
@@ -57,6 +78,11 @@ export interface ExportEntry {
    * operationally necessary but carries something that should not travel.
    */
   readonly redact?: readonly string[];
+  /**
+   * Rows kept in the `shareable` tier only. Absent means every row travels.
+   * `full` is verbatim by definition and never filtered.
+   */
+  readonly shareableRows?: RowFilter;
   /** When set, the archive also gets a human-readable CSV of this collection. */
   readonly csv?: {
     readonly file: string;
@@ -66,6 +92,23 @@ export interface ExportEntry {
 
 const BOTH: readonly ExportTier[] = ["full", "shareable"];
 const FULL_ONLY: readonly ExportTier[] = ["full"];
+
+/**
+ * Who a `shareable` archive is written for, in the ledger's own terms: someone
+ * with a seat in the community and no office in it.
+ *
+ * Deliberately NOT a manager, even though the archive's usual reader is an
+ * incoming one. A shareable export is the copy a community can hand to anybody
+ * — a successor, a lawyer, an owner who asked for it — and it stops being that
+ * the moment its contents depend on who is receiving it. The board's own copy
+ * is the `full` tier, which is verbatim.
+ */
+const SHAREABLE_ARCHIVE_VIEWER: LedgerViewer = {
+  isMember: true,
+  isBoard: false,
+  isManager: false,
+  isAdmin: false,
+};
 
 /** Shorthand for the overwhelmingly common case. */
 function direct(
@@ -121,8 +164,10 @@ export const PLATFORM_COLLECTIONS: Readonly<Record<string, string>> = {
  *   - moderation and report logs: who reported or hid whom.
  *   - `hoa_email_activity`: per-recipient open and click tracking.
  *   - `coupon_usage`: the community's platform billing history.
- *   - `org_audit_log`: carries board-only entries and cannot yet be filtered
- *     per row — see the entry for the full reasoning.
+ * `org_audit_log` is the exception to the shape of this list: it appears in
+ * BOTH tiers, filtered by ROW rather than withheld whole — the shareable copy
+ * carries the community's owner-visible history and leaves the board-tier
+ * entries behind. See its entry.
  * Member delinquency (`payment_*`, the balance fields on `hoa_members`) stays in
  * BOTH tiers on purpose — a successor manager cannot do the job without it, and
  * withholding it would make the shareable export a courtesy rather than a
@@ -270,20 +315,23 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_reactions", "Reactions", FULL_ONLY),
   direct("hoa_comment_reports", "Comment reports", FULL_ONLY),
   direct("hoa_activity", "Portal activity", FULL_ONLY),
-  // Full tier only — and the reason has now half-expired, so read this before
-  // changing it. The audit log is record, not deliberation, so a handover has a
-  // fair claim on it; the blocker was that entries carry a `visibility` of
-  // owners OR board and the exporter redacts FIELDS, not rows.
+  // In BOTH tiers, and this is the entry the row filter was built for.
   //
-  // Phase 5 supplied the missing half: `core/shared/ledger/visibility.ts` can
-  // now decide per row, and `canView(entry, viewer)` is the exact predicate a
-  // shareable archive needs. What is still missing is on THIS side — an
-  // `ExportEntry` has no way to express "include these rows and not those", so
-  // the worker would ship the whole collection or none of it. Moving
-  // org_audit_log into BOTH tiers means teaching the export map a row filter
-  // first. Until then, conservative wins; the board still gets all of it in
-  // `full`.
-  direct("org_audit_log", "Audit log", FULL_ONLY),
+  // The community's own record of itself is record, not deliberation, so a
+  // handover has a fair claim on it — an archive that omitted it would hand a
+  // successor the operational data and none of the history that explains it.
+  // The blocker used to be that entries carry a `visibility` of owners OR board
+  // while the exporter could only redact FIELDS. `shareableRows` is the missing
+  // half, and the tiers it keeps are not written out here: they come from the
+  // ledger's own policy module, so a change to who may see an entry reaches the
+  // export in the same commit rather than in a later one that someone forgets.
+  direct("org_audit_log", "Community ledger", BOTH, {
+    shareableRows: {
+      field: "visibility",
+      keep: visibleTiersFor(SHAREABLE_ARCHIVE_VIEWER),
+      note: "Owner-visible entries only. Board-tier entries — personnel, and anything naming one household's standing — stay in the community's own full export.",
+    },
+  }),
   direct("hoa_email_activity", "Email delivery tracking", FULL_ONLY),
   direct("coupon_usage", "Discounts applied", FULL_ONLY),
   direct("ai_wallets", "AI credit wallet", FULL_ONLY),
@@ -345,6 +393,35 @@ export function orderEntries(entries: readonly ExportEntry[]): readonly ExportEn
 /** Entries included in a tier, parents before children. */
 export function exportOrder(tier: ExportTier): readonly ExportEntry[] {
   return orderEntries(entriesForTier(tier));
+}
+
+/** The row filter that applies to this entry in this tier, or null. */
+export function rowFilterFor(entry: ExportEntry, tier: ExportTier): RowFilter | null {
+  if (tier !== "shareable") return null;
+  return entry.shareableRows ?? null;
+}
+
+/**
+ * Does this row travel in this tier?
+ *
+ * The worker narrows its query with the same filter, so in a correct run this
+ * agrees with the query and changes nothing. It is applied anyway, on the way
+ * out: a filter that silently stopped matching — a renamed column, a tier
+ * spelled differently by a newer writer — would put board-only rows in an
+ * archive a community hands to a stranger, and that is not a failure anyone
+ * would notice from the outside. A row missing the field entirely is DROPPED,
+ * because an unlabelled row is exactly the one whose visibility is unknown.
+ */
+export function keepsRow(
+  entry: ExportEntry,
+  tier: ExportTier,
+  row: Record<string, unknown>
+): boolean {
+  const filter = rowFilterFor(entry, tier);
+  if (!filter) return true;
+  const value = row[filter.field];
+  if (value == null) return false;
+  return filter.keep.includes(String(value));
 }
 
 /**

@@ -89,6 +89,22 @@ describe("the prose matches the software", () => {
     expect(WORKER).toContain('csv/ledger.csv');
   });
 
+  it("says when a collection travels only in part", () => {
+    // A chip list of whole collections would let a reader believe everything
+    // NOT listed came over complete. The moment the map filters a collection by
+    // row, the page has to say so — and it derives that from the map rather
+    // than from copy someone remembered to update.
+    const filtered = EXPORT_MAP.filter(
+      (e) => e.tiers.includes("shareable") && e.shareableRows
+    );
+    expect(filtered.length).toBeGreaterThan(0);
+    for (const entry of filtered) {
+      expect(entry.shareableRows!.note.length).toBeGreaterThan(20);
+    }
+    expect(PAGE).toContain("rowFilterFor");
+    expect(PAGE).toContain("partiallyWithheld");
+  });
+
   it("counts record types from the map rather than hard-coding a number", () => {
     expect(PAGE).toContain('entriesForTier("full")');
     expect(PAGE).toContain('entriesForTier("shareable")');
