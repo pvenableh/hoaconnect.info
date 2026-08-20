@@ -27,8 +27,11 @@ const props = withDefaults(
     /** "Records" for the board, "Your community" for owners. */
     eyebrow?: string;
     subtitle?: string;
+    /** Show the owner-facing "Ask your community" box above the feed. */
+    showAsk?: boolean;
   }>(),
   {
+    showAsk: false,
     eyebrow: "Records",
     subtitle:
       "What happened to your community, in the order it happened. Every entry is permanent — corrections are new entries, never edits.",
@@ -144,6 +147,12 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
       <p class="text-sm t-text-secondary max-w-2xl mt-1">{{ props.subtitle }}</p>
     </header>
 
+    <!-- The owner surface only. A board member has the whole feed and the admin
+         tools; the person this is FOR is the owner who would otherwise have to
+         ask someone. Gated on the prop rather than on a role check so the page
+         and the route cannot disagree about who is looking. -->
+    <AiAskTheHoa v-if="props.showAsk && !accessDenied && !failed" :slug="slug" />
+
     <div v-if="accessDenied" class="rounded-xl border t-border p-8 text-center">
       <Icon name="i-lucide-lock" class="w-8 h-8 mx-auto mb-2 t-text-muted" />
       <p class="t-text font-medium">This community's ledger is for its members</p>
@@ -200,7 +209,8 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
             <li
               v-for="entry in month.entries"
               :key="entry.id"
-              class="rounded-xl border t-border overflow-hidden"
+              :id="`entry-${entry.id}`"
+              class="rounded-xl border t-border overflow-hidden scroll-mt-16"
             >
               <div class="flex items-start gap-3 p-4">
                 <!-- Accent TINT under accent text; see the warning in theme.css. -->

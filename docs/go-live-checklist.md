@@ -276,6 +276,45 @@ one from scratch each time.
 | Fixture rows behind those entries | a draft-then-published document with no file; a three-vote poll (votes inserted with the admin token, before the permission fix below), now closed again after the reopen read-back; a second, OPEN poll ("Should the bike room get a second rack?") created through the app on 2026-08-20 to verify `POST /api/org/polls/create` — it is deliberately left open so the fixture has one poll in each state; a `payment_expenses` row for $2,400.75; a `payment_requests` row for $450.25 marked paid; two `ai_actions` rows, one executed and undone. All of them exist to give the ledger something true to point at — none is real community data. |
 | Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
 | Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
+| AI (Phase 6) | all twelve ledger entries are embedded into `ai_ledger_chunks` (`pnpm run backfill:ledger-embeddings -- --apply --org=transition-test`), and the wallet was given a **3,000-credit test allowance** on 2026-08-20 because it had never been funded — that is a fixture balance, not a real one. The eleven owner-visible / one board-only split is what makes the retrieval boundary provable: see §3e. |
+
+## 3e. The Anthropic account has no credit balance — every AI feature is dark
+
+Found 2026-08-20 while verifying Phase 6. The key in `.env` authenticates fine;
+the **account behind it is out of credit**, so the API refuses every completion:
+
+```
+400 invalid_request_error — Your credit balance is too low to access the
+Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.
+```
+
+This is not specific to "Ask the HOA". It is the same key `getAnthropic()` hands
+to the staff chat, the composer's "Draft with AI", and the Phase 4 tool loop, so
+**all of them are currently non-functional wherever this key is used** — locally
+for certain, and on Vercel if it is the same key there.
+
+Nothing in the app is wrong: the request reaches the provider and comes back
+refused. `POST /api/ai/ask` now turns that into a 502 with a readable sentence
+rather than passing the provider's billing message through to a member, which is
+what it did the first time this surfaced.
+
+- [ ] Top up the Anthropic account (Plans & Billing)
+- [ ] Re-run the four Phase 6 verification questions on `/transition-test`
+- [ ] Confirm which key Vercel holds, and whether it is the same account
+
+### Also unverified: `VOYAGE_API_KEY` on Vercel
+
+The document half of "Ask the HOA" and the whole ledger vector index depend on
+it. It is set locally and the prod `ai_doc_chunks` / `ai_ledger_chunks` rows were
+built from here. Without it in Vercel, deployed retrieval silently drops to the
+lexical fallback — degraded, not broken, and invisible unless someone checks the
+`retrieval.ledgerMode` field the ask route returns.
+
+- [ ] Confirm `VOYAGE_API_KEY` in the Vercel environment
+- [ ] Run `pnpm run create:ai-ledger-chunks` against any other Directus instance
+      (already run against prod on 2026-08-20)
+
+---
 
 ### A permission gap the fixture exposed — `hoa_poll_votes` — FIXED 2026-08-20
 

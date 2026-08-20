@@ -54,7 +54,7 @@ tools.
 |---|---|
 | Gate | an active seat in this community (`checkMembership`), plus whatever else `visibleTiersFor` grants. No compose access, no board office. |
 | Grounding — documents | existing `retrieveRagContext()` (Voyage → `ai_doc_chunks`, 22 chunks live on prod). Unchanged, already cites `[Title §section]`. |
-| Grounding — ledger | new: the viewer's visible entries, ranked, cited by id and date. |
+| Grounding — ledger | new: the viewer's visible entries, embedded into `ai_ledger_chunks` and retrieved by cosine, cited by id and date. Lexical fallback when Voyage is unconfigured. |
 | Model | one non-streaming `completeWithTools` call with **no tools**. Read-only is enforced by there being nothing to call. |
 | Metering | `chargeForCompletion({ feature: "ask" })` — `"ask"` is already in the `AiFeature` union. 402 at zero balance, same as chat. |
 | State | stateless single-shot. No `ai_conversations` rows; those belong to the staff assistant. Follow-ups ride on the client passing the prior turn back. |
@@ -64,19 +64,24 @@ tools.
 Everything decidable without I/O, unit-tested like `ledger/visibility.ts` and
 `polls/access.ts`:
 
-1. **`selectLedgerContext(entries, question, opts)`** — rank the viewer's
-   *already-narrowed* entries for a question and return the ones worth spending
-   prompt on. Lexical, not vector: the ledger is small (a busy community writes
-   hundreds of rows a year, not millions), a lexical scorer needs no new
-   collection and no prod schema write, and — the real reason — it is
-   deterministic and inspectable, which is what a feature whose entire promise is
-   citation should be. Scores against `summary`, the event's catalogue `label`,
-   and flat payload values; always keeps a recency floor, because "when did X
-   happen" is the question owners actually ask.
-2. **`buildGroundingBlock(...)`** — the ledger half of the system prompt, in the
+1. **`embeddableLedgerText(entry)`** — the one text an entry is *represented*
+   by: its `summary`, the event's catalogue label, and flat payload values.
+   Shared by the indexer and the fallback scorer so what gets embedded and what
+   gets matched can never drift apart.
+2. **`selectLedgerContext(candidates, opts)`** — top-k, score floor, and a
+   recency floor over *already-narrowed, already-scored* candidates. Takes
+   scores, not a scorer, so vector and lexical retrieval converge on one
+   selection rule. The recency floor is there because "when did X happen" is the
+   question owners actually ask, and a semantically mediocre match on the most
+   recent transition still beats silence.
+3. **`scoreLedgerLexical(text, question)`** — the fallback ranking, used when
+   Voyage is unconfigured or an org has no chunks indexed yet. Deterministic and
+   inspectable; it is also what makes the feature degrade rather than go dark if
+   `VOYAGE_API_KEY` turns out to be missing from Vercel.
+4. **`buildGroundingBlock(...)`** — the ledger half of the system prompt, in the
    same shape `retrieveRagContext` already returns for documents, so the two
    sources read as one cited context rather than two grafted formats.
-3. **`decideAnswerability(...)`** — **cite or refuse.** With no document passages
+5. **`decideAnswerability(...)`** — **cite or refuse.** With no document passages
    over threshold and no ledger entries over threshold, the route does not call
    the model at all; it returns "I don't have anything in this community's
    records that answers that" and suggests who to ask. An answer that cites
@@ -112,8 +117,10 @@ the nav entry can come after the answer quality is real.
 - **No streaming.** One answer, one charge, one citation list.
 - **No State of the Community brief.** It is a scheduled digest over the same
   retrieval; it should be built on top of a retrieval that has been proven right.
-- **No new Directus collection.** Lexical ranking is chosen partly so this phase
-  needs no prod schema write.
+- **No change to `ai_doc_chunks`.** Ledger vectors get their own collection
+  rather than a `source_type` discriminator on the document index: every ledger
+  row carries a `visibility`, documents do not, and a mixed index is one
+  forgotten filter away from a doc-only query returning a board-only row.
 
 ## How it gets verified before it widens
 
@@ -129,22 +136,37 @@ Phase 5 precisely so a filter has something to fail to drop:
    ledger entry; the `payment_recorded` row is not in the model's context at all.
 4. A question the records cannot answer → refuses, cites nothing, charges nothing.
 
-**One honest gap in that plan.** The fixture has no member-seat login — the
-transition left nobody with one, and the demo user's seat was reactivated as an
-*Agency Admin*. So (3) can be proven three ways short of a click: the pure
-selector unit-tested with an owner viewer, `visibilityFilter` already unit-tested
-in `ledger-visibility.test.ts`, and the route shown to derive its filter from
-that one call. Clicking it as a real owner needs a member account on the fixture
-— **ask Peter before creating one**, since it is a user row on the production
-Directus.
+(3) is the acceptance test, and it gets **clicked, not merely unit-tested**. The
+fixture had no member-seat login — the transition left nobody with one, and the
+demo user's seat was reactivated as an *Agency Admin* — so this phase adds one:
+a single Directus user with an active `hoa_members` seat on `transition-test`, no
+board office and no admin role. Peter approved that prod row on 2026-08-20. It is
+recorded in `go-live-checklist.md` §3d alongside the rest of the fixture, with how
+to remove it.
 
 ## Order of work
 
 1. `core/shared/ai/ask.ts` + tests. Pure, no route yet.
-2. `POST /api/ai/ask` — membership gate, `visibilityFilter` narrowing, both
+2. `ai_ledger_chunks` — creation script, the fire-and-forget indexer hung off
+   `writeAuditEntry`, and a backfill for the rows that already exist.
+3. `POST /api/ai/ask` — membership gate, `visibilityFilter` narrowing, both
    retrievers, cite-or-refuse, metering.
-3. The ask box on `/{slug}/ledger`.
-4. Live read-back on the fixture, all four cases above.
+4. The ask box on `/{slug}/ledger`.
+5. A member seat on the fixture, then live read-back of all four cases above.
+
+### The indexing rule that must not be broken
+
+**Embedding never blocks or fails a ledger write.** `writeAuditEntry`
+deliberately does not swallow failures — a transition that silently isn't
+recorded is worse than one that fails loudly — and a third-party embedding
+vendor must not be able to turn a Voyage outage into a hole in a community's
+permanent record. Indexing is fire-and-forget with its own try/catch, and the
+backfill script is what closes any gap it leaves.
+
+The denormalized `visibility` on each chunk is safe for the one reason that
+matters: `org_audit_log` is append-only, so a row's visibility is fixed at write
+time and the copy cannot drift from the source. Retrieval narrows on it **in the
+Directus query**, not after — the same rule `/api/org/ledger` follows.
 
 Gate every step on `pnpm typecheck && pnpm test` from the repo root.
 

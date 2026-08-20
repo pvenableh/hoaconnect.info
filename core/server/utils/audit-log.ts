@@ -21,6 +21,7 @@
 
 import { createItem } from "@directus/sdk";
 import type { AuditEntry } from "#core/shared/transition/audit";
+import { indexLedgerEntrySafely } from "./ledger-index";
 
 /**
  * Append one entry. Returns the new row id.
@@ -47,6 +48,24 @@ export async function writeAuditEntry(entry: AuditEntry): Promise<string> {
       schema_version: entry.schema_version,
     } as any)
   )) as { id: string };
+
+  // Index it for owner-facing retrieval ("Ask the HOA"). Deliberately AWAITED
+  // and deliberately incapable of failing: on Vercel a fire-and-forget promise
+  // may never run, and an embedding vendor must never be able to turn an outage
+  // into a hole in a community's permanent record. `indexLedgerEntrySafely` is
+  // bounded, swallows everything, and no-ops when RAG is unconfigured; the
+  // `backfill:ledger-embeddings` script closes any gap it leaves. A missing
+  // chunk costs retrieval one entry — it does not cost the record anything.
+  await indexLedgerEntrySafely({
+    id: row.id,
+    organization: entry.organization,
+    visibility: entry.visibility,
+    event_type: entry.event_type,
+    occurred_at: entry.occurred_at,
+    summary: entry.summary,
+    actor_name: entry.actor_name,
+    payload: entry.payload,
+  });
 
   return row.id;
 }

@@ -12,6 +12,7 @@ definePageMeta({
 
 <template>
   <PagesCommunityLedgerPage
+    show-ask
     eyebrow="Your community"
     subtitle="What has happened to your community, in the order it happened. Nothing here can be edited or deleted — corrections are new entries."
   />

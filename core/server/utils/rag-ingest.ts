@@ -177,7 +177,13 @@ export async function removeItemChunks(collection: RagSourceCollection, id: stri
 
 // ── Wallet metering (REST; mirrors ai-wallet.chargeForEmbedding, pure split) ────
 
-async function chargeEmbeddingRest(orgId: string, tokens: number, userId: string | null): Promise<void> {
+/**
+ * Exported because the Community Ledger indexer needs the same metering and
+ * runs in the same two places this does: inside Nitro AND inside a standalone
+ * tsx backfill script, where the `chargeForEmbedding` auto-import does not
+ * exist. One REST implementation beats two that drift.
+ */
+export async function chargeEmbeddingRest(orgId: string, tokens: number, userId: string | null): Promise<void> {
   try {
     if (tokens <= 0) return;
     const orgRow = (await dxFetch(`/items/hoa_organizations/${orgId}?fields=is_free_account`))?.data;
