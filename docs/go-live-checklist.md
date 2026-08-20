@@ -273,31 +273,41 @@ one from scratch each time.
 | Billing account | `Transition Test Agency [TEST FIXTURE]` — no Stripe subscription, so seat syncs charge nothing |
 | State | post-transition: detached, `grace_ends_at 2026-10-19`, Nina Alvarez promoted to HOA Admin. **Dana Reyes (manager) is inactive; the demo user's "Agency Admin" seat was REACTIVATED on 2026-08-20** so the fixture can still be driven from a browser — the transition left nobody with a login on it, which made the org unreachable for Phase 5's ledger read-back. Flip it back to `inactive` to restore the pristine post-transition state. |
 | Ledger | **nine** `org_audit_log` entries as of 2026-08-20 — one per Phase 5 writer, each driven through its real route. August's transition; two `manager_grants_changed` (one switch, one preset) against Dana Reyes; `document_published`; `poll_closed`; `expense_recorded`; `payment_recorded` (the only **board**-visible row, and the one that proves the export's row filter drops something); `ai_action_executed` + `ai_action_undone`. |
-| Fixture rows behind those entries | a draft-then-published document with no file; a three-vote poll (votes inserted with the admin token — see the permission gap below); a `payment_expenses` row for $2,400.75; a `payment_requests` row for $450.25 marked paid; two `ai_actions` rows, one executed and undone. All of them exist to give the ledger something true to point at — none is real community data. |
+| Fixture rows behind those entries | a draft-then-published document with no file; a three-vote poll (votes inserted with the admin token, before the permission fix below); a `payment_expenses` row for $2,400.75; a `payment_requests` row for $450.25 marked paid; two `ai_actions` rows, one executed and undone. All of them exist to give the ledger something true to point at — none is real community data. |
 | Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
 | Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
 
-### A permission gap the fixture exposed — `hoa_poll_votes`
+### A permission gap the fixture exposed — `hoa_poll_votes` — FIXED 2026-08-20
 
-Creating a vote through the app (`POST /api/directus/items`, as an org admin on
-a live session) returns:
+Creating a vote through the app as an **org admin** returned:
 
 ```
 You don't have permission to access collection "hoa_poll_votes" or it does not exist.
 ```
 
-The collection exists — the admin static token reads and writes it — so this is
-a missing Directus **permission**, not a missing table. It means **nobody can
-vote in a poll on production**: `usePolls().vote()` goes through the same client
-path. The polls UI otherwise works, so the failure is a toast, not a blank page,
-which is how it has stayed unnoticed.
+Directus says "or it does not exist" for a missing permission as well as a
+missing table, which is what made this look worse than it was on first reading.
+The collection exists, and **HOA Member always had `create`** — members could
+vote all along. The gap was the **HOA Admin** policy, which held only `read` and
+`delete`. An admin is usually also a resident, and `PollCard` offers them the
+same vote buttons as everyone else, so the click failed on a toast: the UI
+offering an action the permissions refuse.
 
-Phase 5's `poll_closed` writer is unaffected (the close route reads the tally
-with the admin token), and the fixture's three votes were inserted with that
-token to exercise it.
+Fixed by adding one line to `scripts/create-polls-collections.ts` and re-running
+`pnpm create:polls` against prod. The re-run PATCHed the ten existing rows with
+byte-identical config and added exactly one: HOA Admin `create` on
+`hoa_poll_votes`, with the member's own-vote validation rather than a blanket
+grant. Verified on the fixture through the app's own client path — an admin can
+cast their own vote (Directus fills `user` via `special: user-created`), and is
+refused when voting as another user or into another community.
 
-- [ ] Grant the member/admin roles create+read on `hoa_poll_votes` (and confirm
-      `hoa_polls` read) — a prod permission change, so decide it deliberately.
+Admin `delete` stays org-wide where a member's is own-vote-only: moderating a
+poll is an administrative act, and the tally the ledger records at close has to
+be correctable before it is closed.
+
+Still worth knowing: the **Property Manager** policy has no poll permissions at
+all, so a PM cannot see polls. That is untouched here — it is a product question
+(should a manager see community feedback?), not a bug report.
 
 Re-seed a clean one, or remove it entirely:
 

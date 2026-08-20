@@ -243,7 +243,15 @@ async function setupPermissions(): Promise<void> {
       await postPermission(adminPolicy.id, "hoa_polls", action, { permissions: orgFilter, validation: action === "create" || action === "update" ? orgFilter : null, fields: ["*"] });
     }
     console.log("\n   📋 hoa_poll_votes for HOA Admin...");
+    // An admin is usually also a resident, and PollCard offers them the same
+    // vote buttons it offers everyone else. Without `create` the click fails on
+    // a toast — the UI offering an action the permissions refuse. Same shape as
+    // the member's: they may cast their OWN vote, not somebody else's.
+    await postPermission(adminPolicy.id, "hoa_poll_votes", "create", { permissions: {}, validation: ownVoteFilter, fields: ["*"] });
     await postPermission(adminPolicy.id, "hoa_poll_votes", "read", { permissions: orgFilter, validation: null, fields: ["*"] });
+    // Admin delete is org-wide (a member's is own-vote-only): moderating a poll
+    // is an administrative act, and the tally the ledger records at close has to
+    // be correctable before it is closed.
     await postPermission(adminPolicy.id, "hoa_poll_votes", "delete", { permissions: orgFilter, validation: null, fields: ["*"] });
   }
   if (memberPolicy) {
