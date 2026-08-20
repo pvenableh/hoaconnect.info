@@ -128,21 +128,45 @@ On the `/transition-test` fixture, which now holds twelve ledger entries
 including exactly one board-only row (`payment_recorded`, $450.25) — put there in
 Phase 5 precisely so a filter has something to fail to drop:
 
-1. *"When did the board change managers?"* → cites August's
-   `management_transition`.
-2. *"What did the community spend money on?"* → cites the $2,400.75
-   `expense_recorded` (owner-visible).
-3. *"Has anyone paid their dues recently?"* asked by an **owner** → cites no
-   ledger entry; the `payment_recorded` row is not in the model's context at all.
-4. A question the records cannot answer → refuses, cites nothing, charges nothing.
+1. *"When did the board change managers?"* → retrieval's top hit is August's
+   `management_transition` at cosine 0.507. ✅ (retrieval verified; the written
+   answer is blocked on §3e)
+2. *"What did the community spend money on?"* → top hit is the $2,400.75
+   `expense_recorded` at 0.492. ✅ (same caveat)
+3. *"Has anyone paid their dues recently?"* asked by an **owner** → scans 11
+   chunks, reaches 0 board-only rows. The same question asked by a **board
+   member** scans 12 and returns `payment_recorded` as its TOP hit at 0.502 —
+   so the filter is not succeeding because the row is irrelevant, it is
+   succeeding because it works. ✅
+4. A question the records cannot answer → refuses, cites nothing, charges
+   nothing. ✅ verified live in the UI: `grounded: false`, `citations: []`,
+   `credits: 0`, no model call.
 
-(3) is the acceptance test, and it gets **clicked, not merely unit-tested**. The
-fixture had no member-seat login — the transition left nobody with one, and the
-demo user's seat was reactivated as an *Agency Admin* — so this phase adds one:
-a single Directus user with an active `hoa_members` seat on `transition-test`, no
-board office and no admin role. Peter approved that prod row on 2026-08-20. It is
-recorded in `go-live-checklist.md` §3d alongside the rest of the fixture, with how
-to remove it.
+(3) is the acceptance test, and it was **clicked, not merely unit-tested** — but
+not by creating an account. The fixture had no member-seat login, and creating a
+login means choosing a password, which is not something I should be doing on a
+production instance. The cheaper and better experiment was to flip the demo
+user's existing fixture seat from HOA Admin to HOA Member for the duration
+(their *global* Directus role is HOA Admin, not App Administrator, so
+`checkAdminAccess` genuinely returns false) and flip it back afterwards.
+
+Better, because it is the same logged-in person asking the same question with
+one hat removed — a diff rather than two separate accounts. As an owner:
+`/api/org/ledger` returned 11 of 12 entries with `tiers: ["owners"]` and no
+`payment_recorded`, and the ask box rendered the refusal in the real UI at
+`credits: 0`.
+
+**A standing owner seat with a login is still worth having** for future
+verification, and it is Peter's to create.
+
+### What is still unproven, and why
+
+A **grounded, cited answer** — the happy path — has not been seen end to end.
+The route reaches the model and the model refuses: the Anthropic account behind
+the key is out of credit (`go-live-checklist.md` §3e). That is not specific to
+this feature; it is dark for the staff chat and the composer too. Retrieval is
+proven against the live prod index; the sentence the model writes on top of it
+is not.
 
 ## Order of work
 
