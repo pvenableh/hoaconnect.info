@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { describeGrace } from "#core/shared/transition/grace";
 
 definePageMeta({
   middleware: ["auth"],
@@ -60,6 +61,15 @@ const checkout = ref<{
 } | null>(null);
 const returnUrl = computed(() =>
   import.meta.client ? `${window.location.origin}/settings/subscription` : undefined
+);
+
+// The grace window a management transition opens. This page is where the grace
+// banner's "Set up billing" sends a board, so it is the last place that should
+// greet them with a red "Subscription Not Active" — they arrived here BECAUSE
+// they were told everything still works. Status stays honest (it really is
+// expired); the grace notice explains what that means and by when.
+const grace = computed(() =>
+  describeGrace((currentOrg.value?.organization as any)?.grace_ends_at)
 );
 
 // Current subscription info
@@ -281,6 +291,19 @@ const handleManageBilling = async () => {
       </div>
 
       <!-- Warning for expired/canceled -->
+      <div
+        v-else-if="grace?.active"
+        class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+      >
+        <div class="flex items-start gap-3">
+          <Icon name="i-lucide-life-buoy" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p class="font-medium text-blue-900">{{ grace.headline }}</p>
+            <p class="text-sm text-blue-800 mt-1">{{ grace.detail }}</p>
+          </div>
+        </div>
+      </div>
+
       <div
         v-else-if="
           currentSubscription.status === 'expired' ||

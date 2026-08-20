@@ -37,6 +37,10 @@
  *    property of our code, not of the database, and it should be described that
  *    way rather than overclaimed.
  *
+ * ── hoa_invitations.manager_permissions ────────────────────────────────────
+ * Where a grant preset waits between "invite this manager with Full service"
+ * and the member row that only exists once they accept.
+ *
  * ── hoa_organizations.grace_ends_at ────────────────────────────────────────
  * The 60-day window a detached community keeps working in. `isEntitledFrom`
  * passes while this is in the future, WITHOUT the status pretending to be
@@ -308,6 +312,25 @@ async function main() {
       interface: "datetime",
       width: "half",
       note: "Management-transition grace window. While this is in the future the community keeps working even though its subscription status says otherwise.",
+    },
+    schema: { is_nullable: true },
+  });
+
+  // ── 3. hoa_invitations.manager_permissions ────────────────────────────────
+  // A property manager's grants are chosen when they are INVITED — that is the
+  // moment an admin is actually thinking about what this person should be able
+  // to do. But a member row does not exist until the invitation is accepted, so
+  // without somewhere to park the choice the preset was being re-decided from
+  // memory days later, on a card of seven switches. This column carries the
+  // preset across the gap; `accept-invitation` copies it onto the new member.
+  console.log("\n3. hoa_invitations.manager_permissions");
+  await createField("hoa_invitations", "manager_permissions", {
+    type: "json",
+    meta: {
+      interface: "input-code",
+      width: "full",
+      note: "Property-manager grants chosen at invite time, copied onto the member row on acceptance. Null for non-manager invitations.",
+      options: { language: "json" },
     },
     schema: { is_nullable: true },
   });

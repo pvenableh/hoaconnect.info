@@ -1,10 +1,28 @@
 <script setup lang="ts">
+/**
+ * The billing banner. Also the screen most likely to lie to a community that
+ * has just changed management companies.
+ *
+ * A detached community's `subscription_status` genuinely IS "canceled" — the
+ * grace window deliberately does not fake an active subscription (see
+ * `isEntitledFrom`). So without the grace clause below, the board that just
+ * took its account back would be told across the top of every page that its
+ * subscription is cancelled and features are limited, on the very day nothing
+ * has stopped working. Grace therefore wins over status here, and says the
+ * calmer, truer thing: everything works, here is the date it stops.
+ */
+import { describeGrace } from "#core/shared/transition/grace";
+
 const props = defineProps<{
   subscriptionStatus?: string | null;
   trialEndsAt?: string | null;
   organizationName?: string | null;
   isFreeAccount?: boolean | null;
+  graceEndsAt?: string | null;
 }>();
+
+const grace = computed(() => describeGrace(props.graceEndsAt));
+const inGrace = computed(() => grace.value?.active === true);
 
 const emit = defineEmits<{
   (e: "renew"): void;
@@ -30,6 +48,10 @@ const shouldShow = computed(() => {
   // Never show banner for free accounts
   if (props.isFreeAccount) return false;
 
+  // A community inside its transition grace window always gets the grace
+  // banner — including on the last day, when the countdown matters most.
+  if (inGrace.value) return true;
+
   // Show for expired subscriptions
   if (props.subscriptionStatus === "expired") return true;
 
@@ -50,6 +72,8 @@ const shouldShow = computed(() => {
 
 // Banner type determines styling
 const bannerType = computed(() => {
+  // Nothing is broken during grace, so nothing on screen should be red.
+  if (inGrace.value) return grace.value!.daysRemaining <= 14 ? "warning" : "info";
   if (props.subscriptionStatus === "expired") return "error";
   if (props.subscriptionStatus === "canceled") return "warning";
   if (trialDaysRemaining.value !== null && trialDaysRemaining.value <= 3)
@@ -87,6 +111,17 @@ const bannerStyles = computed(() => {
 });
 
 const bannerMessage = computed(() => {
+  if (inGrace.value) {
+    const g = grace.value!;
+    return {
+      title: `Transition grace period — ends ${g.endsOn}`,
+      description:
+        `${props.organizationName || "Your community"} keeps working normally until then ` +
+        `(${g.daysRemaining} day${g.daysRemaining === 1 ? "" : "s"} left). Set up your own subscription before it closes.`,
+      action: "Set up billing",
+    };
+  }
+
   if (props.subscriptionStatus === "expired") {
     return {
       title: "Subscription Expired",

@@ -195,6 +195,7 @@ onMounted(() => {
       :trial-ends-at="currentOrg.organization.trial_ends_at"
       :organization-name="currentOrg.organization.name"
       :is-free-account="currentOrg.organization.is_free_account"
+      :grace-ends-at="currentOrg.organization.grace_ends_at"
     />
     <main class="flex-1 pb-28">
       <slot />

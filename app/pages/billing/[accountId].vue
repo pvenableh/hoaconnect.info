@@ -32,7 +32,32 @@ const seatsActive = computed(() => (data.value as any)?.seatsActive ?? 0);
 const busy = ref(false);
 const showAdd = ref(false);
 const showSubscribe = ref(false);
-const newProp = reactive({ name: "", slug: "", street_address: "", city: "", state: "", zip: "" });
+const newProp = reactive({
+  name: "",
+  slug: "",
+  street_address: "",
+  city: "",
+  state: "",
+  zip: "",
+  // The community's own administrator. Required by the API — see the
+  // board-admin guarantee in add-property.post.ts. An agency that creates a
+  // property and keeps the only admin seat has created a community that cannot
+  // leave, and every later fix for that has to go through the manager.
+  boardAdminFirstName: "",
+  boardAdminLastName: "",
+  boardAdminEmail: "",
+});
+const canCreateProperty = computed(
+  () =>
+    !!newProp.name &&
+    !!newProp.slug &&
+    !!newProp.boardAdminFirstName &&
+    !!newProp.boardAdminLastName &&
+    !!newProp.boardAdminEmail
+);
+
+/** What the last detach did, so the grace date is visible rather than implied. */
+const lastDetach = ref<{ name: string; graceEndsAt: string | null } | null>(null);
 
 const config = useRuntimeConfig();
 const agencyPriceId = computed(() =>
@@ -76,15 +101,48 @@ async function openPortal() {
 }
 
 async function addProperty() {
-  if (!newProp.name || !newProp.slug) return;
+  if (!canCreateProperty.value) return;
   busy.value = true;
   try {
-    await $fetch("/api/billing-account/add-property", {
+    const { name, slug, street_address, city, state, zip } = newProp;
+    const res: any = await $fetch("/api/billing-account/add-property", {
       method: "POST",
-      body: { accountId: accountId.value, ...newProp },
+      body: {
+        accountId: accountId.value,
+        name,
+        slug,
+        street_address,
+        city,
+        state,
+        zip,
+        boardAdmin: {
+          firstName: newProp.boardAdminFirstName,
+          lastName: newProp.boardAdminLastName,
+          email: newProp.boardAdminEmail,
+        },
+      },
     });
     showAdd.value = false;
-    Object.assign(newProp, { name: "", slug: "", street_address: "", city: "", state: "", zip: "" });
+    // The property exists either way; a failed invitation is worth saying out
+    // loud, because the guarantee it provides is the point of the field.
+    if (res?.boardAdminInvite && res.boardAdminInvite.sent === false) {
+      alert(
+        `${name} was created, but the administrator invitation to ${res.boardAdminInvite.email} could not be sent. ` +
+          `Invite them from the property's Members page — until someone from the community holds an admin seat, ` +
+          `the community cannot take its account back.`
+      );
+    }
+    Object.assign(newProp, {
+      name: "",
+      slug: "",
+      street_address: "",
+      city: "",
+      state: "",
+      zip: "",
+      boardAdminFirstName: "",
+      boardAdminLastName: "",
+      boardAdminEmail: "",
+    });
     await refresh();
   } catch (e: any) {
     alert(e?.data?.message || "Failed to add property");
@@ -93,11 +151,34 @@ async function addProperty() {
   }
 }
 
+/**
+ * Detach is a BILLING change, not an offboarding — and since Phase 4 it is also
+ * not a cliff. The old copy here ("it will revert to self-billed and need its
+ * own subscription") described the old behaviour, where the org's status went
+ * straight to expired and the board was locked out of an account they still
+ * had to run. It now opens a 60-day grace window instead, and nobody's access
+ * is touched. Saying so is the difference between an agency that detaches a
+ * property cleanly and one that avoids the button.
+ */
 async function detach(orgId: string, name: string) {
-  if (!confirm(`Remove "${name}" from this billing account? It will revert to self-billed and need its own subscription.`)) return;
+  if (
+    !confirm(
+      `Remove "${name}" from this billing account?\n\n` +
+        `• It stops being billed through this account and your seat count goes down.\n` +
+        `• Nobody loses access — your managers keep working on it.\n` +
+        `• The community keeps running for 60 days while it sorts out its own subscription.\n\n` +
+        `To actually hand a community over — revoke a manager's access and promote a board member — ` +
+        `use the transition wizard in that community's Settings → Vendors & management.`
+    )
+  )
+    return;
   busy.value = true;
   try {
-    await $fetch("/api/billing-account/detach-org", { method: "POST", body: { orgId } });
+    const res: any = await $fetch("/api/billing-account/detach-org", {
+      method: "POST",
+      body: { orgId },
+    });
+    lastDetach.value = { name, graceEndsAt: res?.graceEndsAt ?? null };
     await refresh();
   } catch (e: any) {
     alert(e?.data?.message || "Failed to detach property");
@@ -191,10 +272,34 @@ async function onSubscribed() {
             <input v-model="newProp.state" placeholder="State" class="rounded-md border px-3 py-2 text-sm" />
             <input v-model="newProp.zip" placeholder="ZIP" class="rounded-md border px-3 py-2 text-sm" />
           </div>
+
+          <div class="mt-4 rounded-md border t-border bg-white p-3">
+            <p class="text-sm font-medium t-text">Who runs this community's account?</p>
+            <p class="mt-0.5 text-xs t-text-muted">
+              Someone from the community — a board member, not your staff. They're invited as an
+              administrator alongside you. This is what lets the community take its own account back
+              later without going through you, and it's required.
+            </p>
+            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <input v-model="newProp.boardAdminFirstName" placeholder="First name" class="rounded-md border px-3 py-2 text-sm" />
+              <input v-model="newProp.boardAdminLastName" placeholder="Last name" class="rounded-md border px-3 py-2 text-sm" />
+              <input v-model="newProp.boardAdminEmail" type="email" placeholder="board@community.org" class="rounded-md border px-3 py-2 text-sm" />
+            </div>
+          </div>
+
           <div class="mt-3 flex justify-end gap-2">
             <button class="text-sm t-text-muted" @click="showAdd = false">Cancel</button>
-            <button :disabled="busy || !newProp.name || !newProp.slug" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white disabled:opacity-50" @click="addProperty">Create property</button>
+            <button :disabled="busy || !canCreateProperty" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white disabled:opacity-50" @click="addProperty">Create property</button>
           </div>
+        </div>
+
+        <div v-if="lastDetach" class="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p class="font-medium">{{ lastDetach.name }} is no longer billed through this account.</p>
+          <p v-if="lastDetach.graceEndsAt">
+            Nobody lost access, and the community keeps running until
+            {{ fmtDate(lastDetach.graceEndsAt) }} while it sets up its own subscription.
+          </p>
+          <p v-else>Nobody lost access. The community keeps running.</p>
         </div>
 
         <div class="overflow-hidden rounded-lg border">

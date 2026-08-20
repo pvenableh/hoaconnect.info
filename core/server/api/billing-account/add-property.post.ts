@@ -4,8 +4,25 @@
 // as its HOA Admin. No own Stripe subscription — entitlement resolves up to the
 // account. Bumps the account's seat count (Stripe prorates up). Owner /
 // billing_admin only.
+//
+// **The board-admin guarantee (Phase 4).** This route used to make the creating
+// agency the new community's ONLY HOA Admin, which is how a community ends up
+// unable to run its own account: when the manager leaves, the admin seat leaves
+// with them. `planTransition` refuses that state outright — `no_eligible_successor`
+// — and refusing it at transition time is far too late, because by then the only
+// person who could invite a board member is the manager being offboarded.
+//
+// So a property cannot be created without naming someone from the community.
+// The caller still becomes an admin (they have to be able to set the property
+// up); they are just no longer the only one. It costs an agency one field and
+// it is the difference between a community that can leave and one that cannot.
 import { z } from "zod";
 import { createItem, createFolder, readItems, readRoles, updateItem } from "@directus/sdk";
+import { randomBytes } from "crypto";
+import { sendHoaInvitationEmail } from "../../utils/sendgrid";
+
+/** How long the board admin's invitation stays valid. Matches invite-member. */
+const INVITE_TTL_DAYS = 7;
 
 const schema = z.object({
   accountId: z.string().min(1),
@@ -19,6 +36,14 @@ const schema = z.object({
   zip: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
+  // Required, deliberately. See the board-admin guarantee note above.
+  boardAdmin: z.object({
+    firstName: z.string().min(1, "The community administrator's first name is required"),
+    lastName: z.string().min(1, "The community administrator's last name is required"),
+    email: z
+      .string({ required_error: "A community administrator's email is required" })
+      .email("Enter a valid email for the community's administrator"),
+  }),
 });
 
 export default defineEventHandler(async (event) => {
@@ -29,7 +54,9 @@ export default defineEventHandler(async (event) => {
       message: parsed.error.errors.map((e) => e.message).join(", "),
     });
   }
-  const { accountId, name, slug, street_address, city, state, zip, phone, email } = parsed.data;
+  const { accountId, name, slug, street_address, city, state, zip, phone, email, boardAdmin } =
+    parsed.data;
+  const boardAdminEmail = boardAdmin.email.toLowerCase().trim();
 
   const { userId, email: userEmail } = await requireAuthenticatedUser(event);
   await requireBillingAccountRole(event, accountId, ["owner", "billing_admin"]);
@@ -69,22 +96,78 @@ export default defineEventHandler(async (event) => {
     console.warn("[add-property] folder creation failed:", e);
   }
 
-  // 3. Caller becomes HOA Admin of the new property.
+  // 3. Caller becomes HOA Admin of the new property — so they can set it up.
   const roles = await directus.request(
     readRoles({ filter: { name: { _eq: "HOA Admin" } }, limit: 1 })
   );
   const hoaAdminRoleId = roles?.[0]?.id;
-  if (hoaAdminRoleId) {
+  if (!hoaAdminRoleId) {
+    throw createError({
+      statusCode: 500,
+      message: "The HOA Admin role is missing, so this property cannot be given an administrator.",
+    });
+  }
+
+  await directus.request(
+    createItem("hoa_members", {
+      user: userId,
+      organization: org.id,
+      role: hoaAdminRoleId,
+      email: userEmail,
+      member_type: "owner",
+      status: "active",
+    })
+  );
+
+  // 3b. …and the community gets its own administrator, invited now rather than
+  // hoped for later. The invitation is the deliverable: they become a member
+  // when they accept, and until then the org's roster shows the agency alone —
+  // which is exactly what the wizard tells an admin when it refuses to run.
+  //
+  // A failed invite does NOT fail the property. The org, the folder and the
+  // seat are already written and there is no transaction across them; throwing
+  // here would leave a half-made property behind and the agency would create a
+  // second one. The failure is reported in the response instead.
+  let boardAdminInvite: { email: string; sent: boolean; error?: string } = {
+    email: boardAdminEmail,
+    sent: false,
+  };
+  try {
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
     await directus.request(
-      createItem("hoa_members", {
-        user: userId,
+      createItem("hoa_invitations", {
+        email: boardAdminEmail,
         organization: org.id,
         role: hoaAdminRoleId,
-        email: userEmail,
-        member_type: "owner",
-        status: "active",
+        invited_by: userId,
+        token,
+        invitation_status: "pending",
+        expires_at: expiresAt.toISOString(),
       })
     );
+
+    const appUrl = useRuntimeConfig().public.appUrl;
+    await sendHoaInvitationEmail({
+      to: boardAdminEmail,
+      firstName: boardAdmin.firstName,
+      lastName: boardAdmin.lastName,
+      organizationName: name,
+      invitationUrl: `${appUrl}/${slug}/accept-invite?token=${token}`,
+      inviterName: userEmail || "Your management company",
+      roleName: "HOA Admin",
+      expiresAt: expiresAt.toISOString(),
+      orgUrl: `${appUrl}/${slug}`,
+    });
+    boardAdminInvite = { email: boardAdminEmail, sent: true };
+  } catch (e: any) {
+    console.error("[add-property] board admin invitation failed:", e);
+    boardAdminInvite = {
+      email: boardAdminEmail,
+      sent: false,
+      error: e?.message || "The invitation could not be sent.",
+    };
   }
 
   // 4. Bump seats (Stripe prorates up).
@@ -94,5 +177,6 @@ export default defineEventHandler(async (event) => {
     success: true,
     organization: { id: org.id, name: org.name, slug: org.slug },
     seats: seats.seats,
+    boardAdminInvite,
   };
 });

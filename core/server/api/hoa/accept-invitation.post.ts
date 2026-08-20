@@ -157,6 +157,13 @@ export default defineEventHandler(async (event) => {
         phone: phone || null,
         member_type: "owner", // Default to owner, can be changed later
         status: "active",
+        // The grants the admin chose when they sent the invitation. A manager
+        // who accepts is immediately able to do the job they were invited to do,
+        // rather than logging into an account with no permissions and waiting
+        // for someone to remember which switches to flip.
+        ...(invitation.manager_permissions
+          ? { manager_permissions: invitation.manager_permissions }
+          : {}),
       })
     );
 

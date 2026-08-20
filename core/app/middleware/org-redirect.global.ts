@@ -37,6 +37,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     '/account',
     '/ui-kit', // design system showcase (main-domain, no org context)
     '/approve', // public tokenized milestone-approval link
+    // Main-domain billing screens. Both are reached by a logged-in user WITH a
+    // selected org, so without these they get slug-prefixed into 404s — and the
+    // subscription middleware's own redirect target was one of them, which made
+    // the blocked-subscription screen unreachable by the exact users it exists
+    // for. Found by walking a real transition into its grace window.
+    '/subscription-expired',
+    '/settings/subscription',
   ];
 
   if (skipPaths.some(path => to.path.startsWith(path))) {

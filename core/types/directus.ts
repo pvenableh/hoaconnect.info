@@ -851,6 +851,8 @@ export interface HoaInvitation {
 	/** @required */
 	expires_at: string;
 	accepted_at?: string | null;
+	/** @description Property-manager grants chosen at invite time, copied onto the member row on acceptance. Null for non-manager invitations. */
+	manager_permissions?: Record<string, any> | null;
 }
 
 export interface HoaJoinRequest {

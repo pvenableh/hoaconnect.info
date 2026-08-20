@@ -7,7 +7,13 @@
  *    active-since/until history, and an archive view. Management-category vendors
  *    carry the inquiry-routing role + notify flags + an optional PM login link.
  *  - Managers: people with the Property Manager login role, with per-manager
- *    grant switches. Invite new managers here.
+ *    grant switches and the named presets from `shared/transition/grants.ts`.
+ *    Invite new managers here — the preset chosen at invite time rides on the
+ *    invitation and lands on the member row when they accept.
+ *  - Transition: the guided manager swap (Phase 4). It lives on this page
+ *    because this is where an admin already comes to see who manages the
+ *    community and what they can do; a handover is the same subject, and
+ *    burying it in a menu of its own is how it gets found only in a crisis.
  *  - Routing: inquiry type → management role + "always notify the board".
  */
 import { toast } from "vue-sonner";
@@ -20,11 +26,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { requestTypeList } from "#core/app/config/requestWorkflows";
+import { GRANT_PRESETS, matchPreset, presetFor } from "#core/shared/transition/grants";
 import type { HoaVendor } from "#core/types/directus";
 
 const config = useRuntimeConfig();
-const { selectedOrgId } = await useSelectedOrg();
+const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
+const orgName = computed(() => currentOrg.value?.organization?.name || "");
 
 const PM_ROLE = config.public.directusRolePropertyManager as string;
 
@@ -279,8 +287,32 @@ const toggleGrant = async (m: ManagerRow, key: string, value: boolean) => {
   }
 };
 
+/**
+ * The preset a manager's current switches add up to, or null for a custom mix.
+ * Shown as a badge so an admin reads "Full service" instead of counting seven
+ * toggles — and so the word the sales page uses is the word the settings page
+ * uses.
+ */
+const presetLabel = (m: ManagerRow) => matchPreset(m.manager_permissions)?.label ?? null;
+
+/** Apply a whole preset in one write, which is also how it gets revoked cleanly. */
+const applyPreset = async (m: ManagerRow, key: string) => {
+  const preset = presetFor(key);
+  if (!preset) return;
+  savingGrants.value[m.id] = true;
+  try {
+    await membersApi.update(m.id, { manager_permissions: { ...preset.grants } } as any);
+    m.manager_permissions = { ...preset.grants };
+    toast.success(`${preset.label} applied`);
+  } catch (e: any) {
+    toast.error(e.message || "Failed to apply preset");
+  } finally {
+    savingGrants.value[m.id] = false;
+  }
+};
+
 const inviteOpen = ref(false);
-const invite = ref({ firstName: "", lastName: "", email: "" });
+const invite = ref({ firstName: "", lastName: "", email: "", preset: "standard" });
 const inviting = ref(false);
 const sendInvite = async () => {
   if (!orgId.value) return;
@@ -298,11 +330,15 @@ const sendInvite = async () => {
         lastName: invite.value.lastName.trim(),
         organizationId: orgId.value,
         roleId: PM_ROLE,
+        // Parked on the invitation; copied onto the member row on acceptance.
+        // Deciding this now, while thinking about who this person is, beats
+        // deciding it days later from a row of switches.
+        grantPreset: invite.value.preset,
       },
     });
     toast.success("Invitation sent");
     inviteOpen.value = false;
-    invite.value = { firstName: "", lastName: "", email: "" };
+    invite.value = { firstName: "", lastName: "", email: "", preset: "standard" };
   } catch (e: any) {
     toast.error(e.data?.message || e.message || "Failed to send invitation");
   } finally {
@@ -367,6 +403,7 @@ watch(orgId, () => {
         <TabsList class="mb-6 flex-wrap h-auto gap-1">
           <TabsTrigger value="vendors"><Icon name="lucide:contact" class="h-4 w-4 mr-2" />Vendors</TabsTrigger>
           <TabsTrigger value="managers"><Icon name="lucide:user-cog" class="h-4 w-4 mr-2" />Managers</TabsTrigger>
+          <TabsTrigger value="transition"><Icon name="lucide:arrow-right-left" class="h-4 w-4 mr-2" />Transition</TabsTrigger>
           <TabsTrigger value="routing"><Icon name="lucide:route" class="h-4 w-4 mr-2" />Routing</TabsTrigger>
         </TabsList>
 
@@ -444,11 +481,33 @@ watch(orgId, () => {
                 <div v-for="m in managers" :key="m.id" class="rounded-xl border p-4">
                   <div class="flex items-center justify-between gap-2 mb-3">
                     <div class="min-w-0">
-                      <div class="font-medium t-text truncate">{{ (m.first_name || "") + " " + (m.last_name || "") }}</div>
+                      <div class="font-medium t-text truncate flex items-center gap-2">
+                        {{ (m.first_name || "") + " " + (m.last_name || "") }}
+                        <span v-if="presetLabel(m)" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0 font-normal">
+                          {{ presetLabel(m) }}
+                        </span>
+                      </div>
                       <div class="text-sm t-text-muted truncate">{{ m.email }}</div>
                     </div>
                     <span v-if="m.status && m.status !== 'active'" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 capitalize">{{ m.status }}</span>
                   </div>
+
+                  <div class="flex items-center gap-2 flex-wrap mb-3">
+                    <span class="text-xs t-text-muted mr-1">Set all at once:</span>
+                    <Button
+                      v-for="p in GRANT_PRESETS"
+                      :key="p.key"
+                      variant="outline"
+                      size="sm"
+                      class="rounded-full text-xs h-7"
+                      :disabled="savingGrants[m.id]"
+                      :title="p.description"
+                      @click="applyPreset(m, p.key)"
+                    >
+                      {{ p.label }}
+                    </Button>
+                  </div>
+
                   <div class="divide-y">
                     <div v-for="g in GRANTS" :key="g.key" class="flex items-center justify-between gap-3 py-2.5">
                       <div class="space-y-0.5 pr-4">
@@ -466,6 +525,16 @@ watch(orgId, () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <!-- ───────── Transition ───────── -->
+        <TabsContent value="transition" class="space-y-6">
+          <ManagementTransitionWizard
+            v-if="orgId"
+            :org-id="orgId"
+            :org-name="orgName"
+            @completed="loadManagers(); loadVendors();"
+          />
         </TabsContent>
 
         <!-- ───────── Routing ───────── -->
@@ -629,7 +698,7 @@ watch(orgId, () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite property manager</DialogTitle>
-          <DialogDescription>They'll get a login with no permissions until you grant them.</DialogDescription>
+          <DialogDescription>Pick what they can do now — it takes effect the moment they accept.</DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
@@ -645,6 +714,31 @@ watch(orgId, () => {
           <div class="space-y-1.5">
             <Label>Email</Label>
             <Input v-model="invite.email" type="email" placeholder="name@company.com" />
+          </div>
+          <div class="space-y-2">
+            <Label>What should they be able to do?</Label>
+            <div class="space-y-2">
+              <button
+                v-for="p in GRANT_PRESETS"
+                :key="p.key"
+                type="button"
+                class="w-full flex items-start gap-3 rounded-xl border p-3 text-left"
+                :class="invite.preset === p.key ? 'border-blue-500 bg-blue-50' : 't-border'"
+                @click="invite.preset = p.key"
+              >
+                <span
+                  class="h-4 w-4 mt-0.5 rounded-full border-2 shrink-0 grid place-items-center"
+                  :class="invite.preset === p.key ? 'border-blue-600' : 't-border'"
+                >
+                  <span v-if="invite.preset === p.key" class="h-2 w-2 rounded-full bg-blue-600" />
+                </span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-medium t-text">{{ p.label }}</span>
+                  <span class="block text-xs t-text-muted">{{ p.description }}</span>
+                </span>
+              </button>
+            </div>
+            <p class="text-xs t-text-muted">You can change any of this later, per manager.</p>
           </div>
         </div>
         <DialogFooter>

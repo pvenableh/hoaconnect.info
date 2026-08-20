@@ -17,6 +17,14 @@
       </CardHeader>
       <CardContent>
         <div class="space-y-6">
+          <!-- The transition grace window, said plainly and with its date. -->
+          <div
+            v-if="grace?.active"
+            class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"
+          >
+            <p class="font-medium">{{ grace.headline }}</p>
+            <p>{{ grace.detail }}</p>
+          </div>
           <!-- Plan Info -->
           <div class="flex items-start justify-between">
             <div>
@@ -229,6 +237,7 @@ import { toast } from "vue-sonner";
 import type { HoaOrganization, SubscriptionPlan } from "#core/types/directus";
 import type { StorageMeter } from "#core/app/composables/useOrgStorage";
 import { ADDON_LIST } from "#core/shared/billing/addons";
+import { describeGrace } from "#core/shared/transition/grace";
 import { useStorageFormat } from "#core/app/composables/useStorageFormat";
 
 const props = defineProps<{
@@ -339,7 +348,16 @@ const maxDocuments = computed(() => subscriptionPlan.value?.max_documents);
 const maxStorageGb = computed(() => subscriptionPlan.value?.max_storage_gb);
 
 // Status
+// A community in its transition grace window reads as "Canceled" on this card
+// while everything on the page still works — accurate about the subscription,
+// misleading about the community. The grace badge takes precedence and carries
+// the date, because the date is the only thing on this screen the board can
+// still act on.
+const grace = computed(() => describeGrace((props.organization as any).grace_ends_at));
+const inGrace = computed(() => grace.value?.active === true);
+
 const statusLabel = computed(() => {
+  if (inGrace.value) return grace.value!.badge;
   switch (props.organization.subscription_status) {
     case "active":
       return "Active";
@@ -355,6 +373,7 @@ const statusLabel = computed(() => {
 });
 
 const statusVariant = computed(() => {
+  if (inGrace.value) return "secondary";
   switch (props.organization.subscription_status) {
     case "active":
       return "default";

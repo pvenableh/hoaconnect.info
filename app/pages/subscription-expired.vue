@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { describeGrace } from "#core/shared/transition/grace";
+
 definePageMeta({
   middleware: ['auth'],
   layout: 'default',
@@ -28,6 +30,17 @@ const exportPath = computed(() => {
   return slug ? `/${slug}/admin/settings/data` : null;
 });
 
+// A community that changed management companies has a `canceled` status and a
+// grace window, which are two different situations wearing the same word. While
+// the window is open they should not be here at all (the entitlement check lets
+// them through), so if they arrive it is by typing the URL — and telling them
+// their subscription has expired would be flatly untrue. When the window has
+// closed, this IS the right screen, but "your grace period ended" explains what
+// happened in a way "expired" does not.
+const grace = computed(() =>
+  describeGrace((currentOrg.value?.organization as any)?.grace_ends_at)
+);
+
 const trialEndsAt = computed(() => {
   const date = currentOrg.value?.organization?.trial_ends_at;
   if (!date) return null;
@@ -39,6 +52,26 @@ const trialEndsAt = computed(() => {
 });
 
 const statusMessage = computed(() => {
+  if (grace.value) {
+    return grace.value.active
+      ? {
+          title: 'Your community is still running',
+          description: `${grace.value.detail} Nothing here is switched off yet.`,
+          icon: 'i-lucide-life-buoy',
+          iconColor: 'text-blue-500',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
+        }
+      : {
+          title: 'Your transition grace period has ended',
+          description: grace.value.detail,
+          icon: 'i-lucide-clock',
+          iconColor: 'text-amber-500',
+          bgColor: 'bg-amber-50',
+          borderColor: 'border-amber-200',
+        };
+  }
+
   switch (subscriptionStatus.value) {
     case 'expired':
       return {
@@ -61,7 +94,12 @@ const statusMessage = computed(() => {
     case 'trial':
       return {
         title: 'Trial Ended',
-        description: `Your free trial ended on ${trialEndsAt.value}. Subscribe now to continue using all features.`,
+        // An org whose trial has no end date renders "ended on null" here —
+        // pointless and slightly alarming on a screen someone hits at a bad
+        // moment.
+        description: trialEndsAt.value
+          ? `Your free trial ended on ${trialEndsAt.value}. Subscribe now to continue using all features.`
+          : 'Your free trial has ended. Subscribe now to continue using all features.',
         icon: 'i-lucide-clock',
         iconColor: 'text-amber-500',
         bgColor: 'bg-amber-50',
@@ -129,11 +167,26 @@ const statusMessage = computed(() => {
 
           <!-- CTA Buttons -->
           <div class="space-y-3">
+            <!-- While the window is open the community is not locked out, so the
+                 way back in comes first. -->
             <NuxtLink
-              to="/settings/subscription"
+              v-if="grace?.active && exportPath"
+              :to="exportPath.replace('/settings/data', '')"
               class="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-medium rounded-lg transition"
             >
-              {{ subscriptionStatus === 'canceled' ? 'Reactivate Subscription' : 'Renew Subscription' }}
+              Back to {{ organizationName }}
+            </NuxtLink>
+
+            <NuxtLink
+              to="/settings/subscription"
+              :class="[
+                'block w-full py-3 px-4 text-center font-medium rounded-lg transition',
+                grace?.active
+                  ? 't-bg-subtle hover:bg-stone-200 t-text-secondary'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white',
+              ]"
+            >
+              {{ grace?.active ? 'Set up your own billing' : subscriptionStatus === 'canceled' ? 'Reactivate Subscription' : 'Renew Subscription' }}
             </NuxtLink>
 
             <NuxtLink

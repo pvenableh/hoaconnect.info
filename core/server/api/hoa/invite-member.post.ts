@@ -1,12 +1,36 @@
 import { readItem, createItem, readItems } from "@directus/sdk";
 import { sendHoaInvitationEmail } from "../../utils/sendgrid";
 import { randomBytes } from "crypto";
+import {
+  normalizeGrants,
+  presetFor,
+  type ManagerGrants,
+} from "#core/shared/transition/grants";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody(event);
 
   const { email, firstName, lastName, organizationId, roleId } = body;
+
+  // Manager grants, chosen at invite time. Parked on the invitation row and
+  // copied onto the member when they accept — see `hoa_invitations.manager_permissions`
+  // in scripts/create-transition-collections.ts for why the choice has to wait
+  // somewhere rather than be made again later from a row of seven switches.
+  //
+  // `grantPreset` (a key from GRANT_PRESETS) is the normal path; an explicit
+  // `managerPermissions` object covers a custom mix. Either way it is normalized
+  // to the full key set, so a stored row never carries a missing — and therefore
+  // ambiguous — flag.
+  const pmRoleId = String(useRuntimeConfig().public.directusRolePropertyManager || "");
+  let managerPermissions: ManagerGrants | null = null;
+  if (pmRoleId && String(roleId) === pmRoleId) {
+    const preset = presetFor(body?.grantPreset);
+    if (preset) managerPermissions = preset.grants;
+    else if (body?.managerPermissions && typeof body.managerPermissions === "object") {
+      managerPermissions = normalizeGrants(body.managerPermissions);
+    }
+  }
 
   // Validation
   if (!email || !firstName || !lastName || !organizationId || !roleId) {
@@ -178,6 +202,7 @@ export default defineEventHandler(async (event) => {
         token,
         invitation_status: "pending",
         expires_at: expiresAt.toISOString(),
+        manager_permissions: managerPermissions,
       })
     );
 
