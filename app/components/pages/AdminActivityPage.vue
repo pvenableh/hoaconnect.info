@@ -217,7 +217,7 @@ const fmtTime = (d?: string | null) =>
           <div v-else-if="!rows.length" class="p-6 text-sm t-text-muted">No activity in this period.</div>
           <ul v-else class="divide-y t-border-divider">
             <li v-for="row in rows.slice(0, 100)" :key="row.id" class="flex items-center gap-3 px-4 py-2.5">
-              <span class="inline-flex items-center rounded-full t-bg-accent t-text-accent px-2 py-0.5 text-[11px] font-medium shrink-0">
+              <span class="inline-flex items-center rounded-full t-bg-accent/15 t-text-accent px-2 py-0.5 text-[11px] font-medium shrink-0">
                 {{ EVENT_LABELS[row.event_type || ""] || row.event_type }}
               </span>
               <span class="text-sm t-text truncate">{{ memberLabel(row.member) }}</span>

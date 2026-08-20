@@ -84,7 +84,7 @@ const fmt = (s: string | null | undefined) =>
                 >Approved</span>
                 <span
                   v-else-if="ev.approval === 'needs_approval'"
-                  class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold t-bg-accent t-text-accent"
+                  class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold t-bg-accent/15 t-text-accent"
                 >Pending approval</span>
               </div>
               <p v-if="fmt(ev.event_date)" class="text-xs t-text-muted">

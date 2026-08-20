@@ -82,7 +82,7 @@ useHead({ bodyAttrs: { class: "" } });
             v-for="opt in [{ k: 'active-set', l: 'Active' }, { k: 'all', l: 'All' }, { k: 'archived', l: 'Archived' }]"
             :key="opt.k"
             class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="statusFilter === opt.k ? 't-bg-accent t-text-accent' : 't-bg-alt t-text-muted hover:t-bg-subtle'"
+            :class="statusFilter === opt.k ? 't-bg-accent/20 t-text-accent' : 't-bg-alt t-text-muted hover:t-bg-subtle'"
             @click="statusFilter = opt.k"
           >{{ opt.l }}</button>
         </div>

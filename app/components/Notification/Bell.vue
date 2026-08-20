@@ -210,7 +210,7 @@ const getTypeLabel = (type: string) => {
             <span
               v-if="tab.count > 0"
               class="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-semibold rounded-full"
-              :class="activeFilter === tab.key ? 'bg-white/25 text-white' : 't-bg-accent t-text-accent'"
+              :class="activeFilter === tab.key ? 'bg-white/25 text-white' : 't-bg-accent/20 t-text-accent'"
             >
               {{ tab.count > 9 ? "9+" : tab.count }}
             </span>

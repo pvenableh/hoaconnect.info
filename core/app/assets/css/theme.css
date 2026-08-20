@@ -690,7 +690,20 @@ html.theme-modern-dark {
    These were referenced across the app (badges, active states, icon chips) but
    never defined, so accent tints rendered transparent. Explicit opacity variants
    match the usages in the codebase (Tailwind's `/NN` modifier doesn't apply to
-   custom utilities, so the tints are hand-defined via color-mix). */
+   custom utilities, so the tints are hand-defined via color-mix).
+
+   ⚠ NEVER pair `.t-bg-accent` with `.t-text-accent`. Both resolve to
+   `--theme-accent-primary`, so the content is the same colour as its own
+   background — invisible, in EVERY theme and in both light and dark. This is
+   not a contrast near-miss that some palette gets away with; it is one variable
+   used twice. Five call sites shipped that way before anyone noticed, because
+   the element still occupies space and still looks like a deliberate accent
+   pill.
+
+   The two correct pairings:
+     • accent chip with accent text → `t-bg-accent/10|15|20` + `t-text-accent`
+     • solid accent fill           → `t-bg-accent` + `t-text-inverse`
+*/
 .t-bg-accent { background-color: var(--theme-accent-primary); }
 .t-bg-accent\/20 { background-color: color-mix(in srgb, var(--theme-accent-primary) 20%, transparent); }
 .t-bg-accent\/15 { background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent); }

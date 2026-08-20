@@ -203,12 +203,8 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
               class="rounded-xl border t-border overflow-hidden"
             >
               <div class="flex items-start gap-3 p-4">
-                <!--
-                  NOT `t-bg-accent t-text-accent`: in this theme both tokens
-                  resolve to the same colour, so the glyph vanishes into its own
-                  badge. Accent on a subtle ground instead.
-                -->
-                <span class="mt-0.5 shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle t-text-accent">
+                <!-- Accent TINT under accent text; see the warning in theme.css. -->
+                <span class="mt-0.5 shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-accent/15 t-text-accent">
                   <Icon :name="`i-lucide-${describe(entry).icon}`" class="w-4 h-4" />
                 </span>
 

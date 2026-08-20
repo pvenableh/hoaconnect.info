@@ -247,7 +247,9 @@ const fmt = (s: string | null | undefined) =>
 const TYPE_OPTS = Object.entries(EVENT_TYPE_META).map(([value, m]) => ({ value, label: m.label }));
 
 const APPROVAL_META: Record<string, { label: string; cls: string }> = {
-  needs_approval: { label: "Needs approval", cls: "t-bg-accent t-text-accent" },
+  // Tint + strong text, matching the emerald/orange siblings below. NOT the
+  // full `t-bg-accent` fill: it and `t-text-accent` are the same colour.
+  needs_approval: { label: "Needs approval", cls: "t-bg-accent/15 t-text-accent" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
   rejected: { label: "Sent back", cls: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" },
 };
