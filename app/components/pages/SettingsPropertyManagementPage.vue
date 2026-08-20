@@ -274,17 +274,45 @@ const loadManagers = async () => {
 
 const grantValue = (m: ManagerRow, key: string) => m.manager_permissions?.[key] === true;
 
-const toggleGrant = async (m: ManagerRow, key: string, value: boolean) => {
+/**
+ * Both grant writes go through POST /api/org/managers/grants rather than a
+ * direct Directus PATCH, because that route is where the change gets RECORDED.
+ * A permission change with no date attached is exactly what a board asks about
+ * two years later; see core/server/api/org/managers/grants.post.ts. The route
+ * returns the resulting set, so the switch reflects what actually landed rather
+ * than what we hoped would.
+ */
+const saveGrants = async (
+  m: ManagerRow,
+  payload: { key: string; value: boolean } | { presetKey: string }
+) => {
+  if (!orgId.value) return null;
   savingGrants.value[m.id] = true;
-  const next = { ...(m.manager_permissions || {}), [key]: value };
   try {
-    await membersApi.update(m.id, { manager_permissions: next } as any);
-    m.manager_permissions = next;
+    const res = await $fetch<{
+      manager_permissions: Record<string, boolean>;
+      recorded: boolean;
+      recordError: string | null;
+      summary: string | null;
+    }>("/api/org/managers/grants", {
+      method: "POST",
+      body: { orgId: orgId.value, memberId: m.id, ...payload },
+    });
+    m.manager_permissions = res.manager_permissions;
+    // The permission itself is saved either way. Saying so is the honest
+    // version of a green toast on a history with a hole in it.
+    if (res.recordError) toast.warning(res.recordError);
+    return res;
   } catch (e: any) {
-    toast.error(e.message || "Failed to update permission");
+    toast.error(e.data?.statusMessage || e.message || "Failed to update permission");
+    return null;
   } finally {
     savingGrants.value[m.id] = false;
   }
+};
+
+const toggleGrant = async (m: ManagerRow, key: string, value: boolean) => {
+  await saveGrants(m, { key, value });
 };
 
 /**
@@ -299,16 +327,8 @@ const presetLabel = (m: ManagerRow) => matchPreset(m.manager_permissions)?.label
 const applyPreset = async (m: ManagerRow, key: string) => {
   const preset = presetFor(key);
   if (!preset) return;
-  savingGrants.value[m.id] = true;
-  try {
-    await membersApi.update(m.id, { manager_permissions: { ...preset.grants } } as any);
-    m.manager_permissions = { ...preset.grants };
-    toast.success(`${preset.label} applied`);
-  } catch (e: any) {
-    toast.error(e.message || "Failed to apply preset");
-  } finally {
-    savingGrants.value[m.id] = false;
-  }
+  const res = await saveGrants(m, { presetKey: key });
+  if (res) toast.success(`${preset.label} applied`);
 };
 
 const inviteOpen = ref(false);

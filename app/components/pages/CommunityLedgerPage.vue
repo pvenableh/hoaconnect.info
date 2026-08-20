@@ -203,7 +203,12 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
               class="rounded-xl border t-border overflow-hidden"
             >
               <div class="flex items-start gap-3 p-4">
-                <span class="mt-0.5 shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-accent t-text-accent">
+                <!--
+                  NOT `t-bg-accent t-text-accent`: in this theme both tokens
+                  resolve to the same colour, so the glyph vanishes into its own
+                  badge. Accent on a subtle ground instead.
+                -->
+                <span class="mt-0.5 shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle t-text-accent">
                   <Icon :name="`i-lucide-${describe(entry).icon}`" class="w-4 h-4" />
                 </span>
 
@@ -271,7 +276,7 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
       <p class="text-xs t-text-muted border-t t-border-divider pt-4 max-w-2xl">
         The ledger records outcomes, not discussions. Board conversations, drafts
         and comment threads are deliberately never written here.
-        <template v-if="!seesBoardOnly">
+        <template v-if="!loading && !seesBoardOnly">
           A small number of entries — anything naming one household's account —
           are visible only to the board.
         </template>
