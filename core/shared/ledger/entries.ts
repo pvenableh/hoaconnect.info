@@ -242,3 +242,112 @@ export function buildDocumentPublishedEntry(input: {
     },
   };
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * poll_closed
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface PollOptionTally {
+  readonly optionId: string;
+  readonly label: string;
+  readonly count: number;
+}
+
+export interface PollTally {
+  /** In BALLOT order, not sorted by count — the payload should read like the ballot did. */
+  readonly results: readonly PollOptionTally[];
+  /** Votes cast. On a multiple-choice poll this exceeds the number of people. */
+  readonly votesCast: number;
+  /** Distinct people who voted. Counted, never named. */
+  readonly voters: number;
+}
+
+/** The options with the highest count — more than one when the vote tied. */
+export function pollLeaders(tally: PollTally): readonly PollOptionTally[] {
+  const top = tally.results.reduce((max, r) => Math.max(max, r.count), 0);
+  if (top <= 0) return [];
+  return tally.results.filter((r) => r.count === top);
+}
+
+/**
+ * The entry for a vote reaching its outcome.
+ *
+ * **The tally, never the ballot.** This builder takes counts, and there is
+ * deliberately no shape in which a voter's identity could reach it — not even
+ * for a poll whose `is_anonymous` flag is off, where the app shows names while
+ * voting is live. A permanent, owner-visible record of how each neighbour voted
+ * on the pet policy is precisely the artefact that makes a community stop using
+ * the product to decide anything. The outcome is the community's record; the
+ * ballot is not.
+ *
+ * Owner-visible from the catalogue: a decision the community made is the
+ * community's to read.
+ *
+ * Only `open → closed` is an outcome. Closing a draft that was never put to the
+ * community changes nothing that happened to it, and returns `null` — as does
+ * closing a poll that was already closed.
+ */
+export function buildPollClosedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly poll: {
+    readonly pollId: string;
+    readonly title: string;
+    readonly allowMultiple?: boolean | null;
+    readonly closesAt?: string | null;
+  };
+  readonly previousStatus: string | null | undefined;
+  readonly tally: PollTally;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  if (String(input.previousStatus ?? "") !== "open") return null;
+
+  const title = input.poll.title?.trim() || "An untitled vote";
+  const leaders = pollLeaders(input.tally);
+  const votes = input.tally.votesCast;
+
+  // Three honest endings, and "nobody voted" is one of them. A poll that closed
+  // with no votes is a fact about the community worth keeping, not a row to skip.
+  let outcome: string;
+  if (!leaders.length) {
+    outcome = "closed with no votes cast";
+  } else if (leaders.length > 1) {
+    const names = leaders.map((l) => l.label);
+    const tied = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    outcome = `closed in a tie between ${tied}, at ${leaders[0]!.count} ${
+      leaders[0]!.count === 1 ? "vote" : "votes"
+    } each`;
+  } else {
+    outcome = `closed with ${leaders[0]!.label} ahead at ${leaders[0]!.count} of ${votes} ${
+      votes === 1 ? "vote" : "votes"
+    }`;
+  }
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "poll_closed",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("poll_closed"),
+    summary: `“${title}” ${outcome}.`,
+    payload: {
+      organization_name: input.organizationName,
+      poll_id: input.poll.pollId,
+      title,
+      // The full tally in ballot order, so a reader can check the arithmetic
+      // rather than take the summary's word for the winner.
+      results: input.tally.results.map((r) => ({ option: r.label, votes: r.count })),
+      outcome: leaders.length === 1 ? leaders[0]!.label : null,
+      tied: leaders.length > 1 ? leaders.map((l) => l.label) : null,
+      votes_cast: votes,
+      voters: input.tally.voters,
+      multiple_choice: input.poll.allowMultiple === true,
+      closed_scheduled_for: input.poll.closesAt ?? null,
+    },
+  };
+}

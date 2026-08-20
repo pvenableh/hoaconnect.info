@@ -107,7 +107,22 @@ export const usePolls = () => {
     } as Poll);
   };
 
-  const closePoll = (id: string) => updatePoll(id, { status: "closed" } as Partial<Poll>);
+  /**
+   * Closing goes through the server, because closing is the outcome the
+   * Community Ledger records — the route reads the tally at the moment of
+   * closing and writes it into the append-only record. See
+   * core/server/api/org/polls/close.post.ts. Reopening stays a plain update:
+   * it undoes a close rather than deciding anything, and if the poll is closed
+   * a second time the ledger records the second outcome, which is the honest
+   * account of what happened.
+   */
+  const closePoll = async (id: string) => {
+    if (!selectedOrgId.value) throw new Error("No organization selected");
+    return await $fetch("/api/org/polls/close", {
+      method: "POST",
+      body: { orgId: selectedOrgId.value, pollId: id },
+    });
+  };
   const reopenPoll = (id: string) => updatePoll(id, { status: "open" } as Partial<Poll>);
 
   // Cast (or toggle) a vote. For single-choice polls, replaces any prior vote.

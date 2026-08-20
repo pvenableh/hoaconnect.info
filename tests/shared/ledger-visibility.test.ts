@@ -40,9 +40,11 @@ import {
 import {
   buildDocumentPublishedEntry,
   buildGrantChangeEntry,
+  buildPollClosedEntry,
   diffGrants,
   isNoOpGrantChange,
   isPublishTransition,
+  pollLeaders,
 } from "#core/shared/ledger/entries";
 import {
   formatDate,
@@ -415,6 +417,98 @@ describe("document-published entries", () => {
       previous_status: "draft",
       organization_name: "Transition Test HOA",
     });
+  });
+});
+
+describe("poll-closed entries", () => {
+  const actor = { userId: "u-1", name: "Peter Hoffman", email: "peter@example.com" };
+  const at = "2026-08-21T16:00:00.000Z";
+
+  const tally = (counts: number[], over: Record<string, any> = {}) => ({
+    results: ["Yes", "No", "Abstain"].map((label, i) => ({
+      optionId: `o${i + 1}`,
+      label,
+      count: counts[i] ?? 0,
+    })),
+    votesCast: counts.reduce((a, b) => a + b, 0),
+    voters: counts.reduce((a, b) => a + b, 0),
+    ...over,
+  });
+
+  const build = (counts: number[], over: Record<string, any> = {}) => {
+    const { poll: pollOver, tally: tallyOver, ...rest } = over;
+    return buildPollClosedEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      poll: { pollId: "p-3", title: "Should we repaint the lobby?", ...(pollOver ?? {}) },
+      previousStatus: "open",
+      tally: tallyOver ?? tally(counts),
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("records the outcome and the tally", () => {
+    const built = build([31, 12, 5]);
+    expect(built?.summary).toBe("“Should we repaint the lobby?” closed with Yes ahead at 31 of 48 votes.");
+    expect(built?.payload.outcome).toBe("Yes");
+    expect(built?.payload.votes_cast).toBe(48);
+  });
+
+  it("never carries who voted which way — only counts, in ballot order", () => {
+    // The guarantee this whole builder exists to make. A permanent, owner-visible
+    // record of how each neighbour voted is what stops a community deciding
+    // anything in the product; if this shape ever grows a voter list, that is a
+    // product decision and not a refactor.
+    const built = build([31, 12, 5]);
+    expect(built?.payload.results).toEqual([
+      { option: "Yes", votes: 31 },
+      { option: "No", votes: 12 },
+      { option: "Abstain", votes: 5 },
+    ]);
+    // The actor — who CLOSED the poll — is recorded, as on every entry. The
+    // payload, which is everything about the vote itself, carries no person.
+    const payload = JSON.stringify(built?.payload);
+    expect(payload).not.toMatch(/option_id|user|member|email|@/i);
+    // `voters` is a count of people, never a list of them.
+    expect(typeof built?.payload.voters).toBe("number");
+  });
+
+  it("says a tie is a tie rather than picking a winner", () => {
+    const built = build([24, 24, 3]);
+    expect(built?.summary).toBe("“Should we repaint the lobby?” closed in a tie between Yes and No, at 24 votes each.");
+    expect(built?.payload.outcome).toBeNull();
+    expect(built?.payload.tied).toEqual(["Yes", "No"]);
+  });
+
+  it("keeps the row when nobody voted — that is a fact about the community too", () => {
+    const built = build([0, 0, 0]);
+    expect(built?.summary).toBe("“Should we repaint the lobby?” closed with no votes cast.");
+    expect(built?.payload.outcome).toBeNull();
+    expect(pollLeaders(tally([0, 0, 0]))).toEqual([]);
+  });
+
+  it("counts people separately from votes on a multiple-choice poll", () => {
+    const built = build([31, 12, 5], {
+      tally: { ...tally([31, 12, 5]), voters: 30 },
+      poll: { allowMultiple: true },
+    });
+    expect(built?.payload.voters).toBe(30);
+    expect(built?.payload.votes_cast).toBe(48);
+    expect(built?.payload.multiple_choice).toBe(true);
+  });
+
+  it("is owner-visible, from the catalogue", () => {
+    expect(build([1, 0, 0])?.visibility).toBe("owners");
+    expect(defaultVisibilityFor("poll_closed")).toBe("owners");
+  });
+
+  it("writes nothing for a poll that was never open, or was closed already", () => {
+    // A draft closed is a decision the community was never asked to make.
+    expect(build([1, 0, 0], { previousStatus: "draft" })).toBeNull();
+    expect(build([1, 0, 0], { previousStatus: "closed" })).toBeNull();
+    expect(build([1, 0, 0], { previousStatus: null })).toBeNull();
   });
 });
 
