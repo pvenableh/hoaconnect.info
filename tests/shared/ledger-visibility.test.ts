@@ -38,6 +38,9 @@ import {
   type LedgerViewer,
 } from "#core/shared/ledger/visibility";
 import {
+  AI_ACTIONS_RECORDED_BOARD_ONLY,
+  buildAiActionEntry,
+  buildAiActionUndoneEntry,
   buildDocumentPublishedEntry,
   buildExpenseRecordedEntry,
   buildGrantChangeEntry,
@@ -677,6 +680,127 @@ describe("payment entries — the one default that must not be relaxed", () => {
 
   it("coerces a Directus decimal string like every other money field", () => {
     expect(build({ payment: { amount: "450.25" } })?.payload.amount).toBe(450.25);
+  });
+});
+
+describe("AI action entries — what makes 'auditable AI' a claim", () => {
+  const actor = { userId: "u-1", name: "Nina Alvarez", email: "nina@example.com" };
+  const at = "2026-08-21T19:00:00.000Z";
+
+  const build = (over: Record<string, any> = {}) => {
+    const { action: actionOver, ...rest } = over;
+    return buildAiActionEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      action: {
+        actionId: "a-5",
+        actionType: "create_task",
+        title: "Create task “Fix the lobby light”",
+        category: "internal",
+        risk: "low",
+        outbound: false,
+        entityType: "hoa_tasks",
+        entityId: "t-9",
+        ...(actionOver ?? {}),
+      },
+      status: "executed",
+      approval: "human",
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("names the person who approved it", () => {
+    expect(build()?.summary).toBe('Nina Alvarez approved an AI action: Create task “Fix the lobby light”.');
+    expect(build()?.payload.approval).toBe("human");
+  });
+
+  it("says out loud when the trust dial approved it rather than a person", () => {
+    // "The assistant did this because your board allows it to" is a different
+    // sentence from "because Nina said yes", and a community reading a year of
+    // history is entitled to know which one it is looking at.
+    const built = build({ approval: "automatic" });
+    expect(built?.summary).toBe(
+      "An AI action ran automatically under the community's trust settings: Create task “Fix the lobby light”."
+    );
+    expect(built?.payload.approval).toBe("automatic");
+  });
+
+  it("records the shape of the action, not only its name", () => {
+    expect(build()?.payload).toMatchObject({
+      action_id: "a-5",
+      action_type: "create_task",
+      category: "internal",
+      risk: "low",
+      outbound: false,
+      entity_type: "hoa_tasks",
+      entity_id: "t-9",
+    });
+  });
+
+  it("is owner-visible — the community sees what the assistant did for it", () => {
+    expect(build()?.visibility).toBe("owners");
+    expect(canView(build()!, owner)).toBe(true);
+  });
+
+  it("narrows to the board when the action's own title is board-internal", () => {
+    // A board note's subject line in an owner-visible feed would publish
+    // deliberation through the back door.
+    for (const type of AI_ACTIONS_RECORDED_BOARD_ONLY) {
+      const built = build({ action: { actionType: type } });
+      expect(built?.visibility).toBe("board");
+      expect(canView(built!, owner)).toBe(false);
+    }
+    expect(AI_ACTIONS_RECORDED_BOARD_ONLY.has("send_email")).toBe(false);
+  });
+
+  it("records executions only — not proposals, rejections or failures", () => {
+    // A proposal is the assistant thinking, a rejection is a human declining,
+    // and a failure changed nothing about the community.
+    for (const status of ["pending", "approved", "rejected", "failed", null]) {
+      expect(build({ status })).toBeNull();
+    }
+  });
+
+  it("records an undo, at the same visibility as the execution", () => {
+    // An undo a reader cannot see turns the execution entry into a lie by
+    // omission.
+    const undone = buildAiActionUndoneEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      action: { actionId: "a-5", actionType: "create_task", title: "Create task “Fix the lobby light”" },
+      undone: true,
+      actor,
+      occurredAt: at,
+    });
+    expect(undone?.event_type).toBe("ai_action_undone");
+    expect(undone?.summary).toBe('Nina Alvarez undid an AI action: Create task “Fix the lobby light”.');
+    expect(undone?.visibility).toBe("owners");
+    expect(descriptorFor("ai_action_undone").category).toBe("ai");
+
+    const boardOne = buildAiActionUndoneEntry({
+      organizationId: "org-1",
+      organizationName: null,
+      action: { actionId: "a-6", actionType: "notify_board", title: "Draft board note: “Roof bids”" },
+      undone: true,
+      actor,
+      occurredAt: at,
+    });
+    expect(boardOne?.visibility).toBe("board");
+  });
+
+  it("writes nothing when an undo found nothing to undo", () => {
+    expect(
+      buildAiActionUndoneEntry({
+        organizationId: "org-1",
+        organizationName: null,
+        action: { actionId: "a-5", actionType: "create_task", title: "Create task" },
+        undone: false,
+        actor,
+        occurredAt: at,
+      })
+    ).toBeNull();
   });
 });
 

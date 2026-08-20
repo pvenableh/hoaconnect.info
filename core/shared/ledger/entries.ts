@@ -23,7 +23,7 @@
  * planner's types into every ledger consumer. It follows the same rules.
  */
 
-import type { LedgerActor, LedgerEntry } from "./entry";
+import type { LedgerActor, LedgerEntry, LedgerVisibility } from "./entry";
 import { LEDGER_SCHEMA_VERSION } from "./entry";
 import { defaultVisibilityFor } from "./events";
 import {
@@ -554,6 +554,164 @@ export function buildPaymentRecordedEntry(input: {
       source: input.source,
       method: p.method ?? null,
       reference: p.reference ?? null,
+    },
+  };
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * ai_action_executed / ai_action_undone
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * AI actions whose CONTENT is board-internal, recorded board-only.
+ *
+ * The catalogue makes AI executions owner-visible, and that is right: "auditable
+ * AI" is a slogan unless the community can see what the assistant did on its
+ * behalf. But two action types carry board-internal content in their own title —
+ * a board note's subject line, an internal comment — and an entry naming those
+ * in an owner-visible feed would publish deliberation through the back door,
+ * which is exactly the line drawn in the header of `./entry`.
+ *
+ * The narrowing is per action type and lives here rather than in the catalogue
+ * because it is a property of the payload, not of the event: the SAME event type
+ * is owner-visible for every other action the assistant takes.
+ */
+export const AI_ACTIONS_RECORDED_BOARD_ONLY: ReadonlySet<string> = new Set([
+  "notify_board",
+  "add_comment",
+]);
+
+export interface AiActionSubject {
+  readonly actionId: string;
+  /** Catalogue key: create_task, send_email, … */
+  readonly actionType: string;
+  /** The human one-line summary the approval card showed. */
+  readonly title: string;
+  readonly category?: string | null;
+  readonly risk?: string | null;
+  /** Reaches residents or the board. Outbound actions never auto-run. */
+  readonly outbound?: boolean | null;
+  readonly entityType?: string | null;
+  readonly entityId?: string | null;
+}
+
+/** Who let it happen: a person, or the community's trust setting. */
+export type AiApproval = "human" | "automatic";
+
+function aiVisibility(actionType: string): LedgerVisibility {
+  return AI_ACTIONS_RECORDED_BOARD_ONLY.has(actionType)
+    ? "board"
+    : defaultVisibilityFor("ai_action_executed");
+}
+
+/**
+ * The entry for an AI action that actually ran.
+ *
+ * This is the writer that makes "auditable AI" a claim rather than a slogan.
+ * Every other pillar of the ledger records what people did; this one records
+ * what a machine did on a community's behalf, and it is the only evidence an
+ * owner will ever have that the autonomy dial their board set is doing what
+ * they were told it does.
+ *
+ * Two things it deliberately says out loud:
+ *
+ * - **Whether a person approved it, or the trust dial did.** "The assistant did
+ *   this because your board allows it to" is a different sentence from "the
+ *   assistant did this because Nina said yes", and a community reading a year of
+ *   history is entitled to know which it was looking at.
+ * - **What kind of action it was** — category, risk, and whether it reached
+ *   anyone outside the office — so the record can be audited by shape and not
+ *   only read one row at a time.
+ *
+ * Proposals, rejections and failures are NOT recorded here. A proposal is the
+ * assistant thinking, a rejection is a human declining, and a failure changed
+ * nothing about the community; the ai_actions queue holds all three for the
+ * board's review screen. Only `executed` is an outcome.
+ */
+export function buildAiActionEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly action: AiActionSubject;
+  readonly status: string | null | undefined;
+  readonly approval: AiApproval;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  if (String(input.status ?? "") !== "executed") return null;
+
+  const a = input.action;
+  const title = a.title?.trim() || "an unnamed action";
+
+  const summary =
+    input.approval === "automatic"
+      ? `An AI action ran automatically under the community's trust settings: ${title}.`
+      : `${input.actor.name} approved an AI action: ${title}.`;
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "ai_action_executed",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: aiVisibility(a.actionType),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      action_id: a.actionId,
+      action_type: a.actionType,
+      title,
+      category: a.category ?? null,
+      risk: a.risk ?? null,
+      outbound: a.outbound === true,
+      approval: input.approval,
+      entity_type: a.entityType ?? null,
+      entity_id: a.entityId ?? null,
+    },
+  };
+}
+
+/**
+ * The entry for an executed AI action being reversed.
+ *
+ * Written wherever the execution was written, and at the same visibility — an
+ * undo that a reader cannot see turns the execution entry into a lie by
+ * omission. This is the "corrections are new entries" rule applied to the one
+ * actor that cannot be asked what it meant.
+ */
+export function buildAiActionUndoneEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly action: AiActionSubject;
+  readonly undone: boolean;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  // Nothing was reverted — an undo that found nothing to undo is not an event.
+  if (!input.undone) return null;
+
+  const a = input.action;
+  const title = a.title?.trim() || "an unnamed action";
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "ai_action_undone",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: aiVisibility(a.actionType),
+    summary: `${input.actor.name} undid an AI action: ${title}.`,
+    payload: {
+      organization_name: input.organizationName,
+      action_id: a.actionId,
+      action_type: a.actionType,
+      title,
+      entity_type: a.entityType ?? null,
+      entity_id: a.entityId ?? null,
     },
   };
 }

@@ -162,6 +162,18 @@ const CATALOGUE = [
     defaultVisibility: "owners",
     note: "An approved AI action ran. 'Auditable AI' is only a claim if the executions are visible.",
   },
+  {
+    key: "ai_action_undone",
+    label: "AI action undone",
+    icon: "undo-2",
+    category: "ai",
+    defaultVisibility: "owners",
+    // Its own type rather than a second meaning for `ai_action_executed`.
+    // Without it the ledger would say the assistant did a thing and stop there,
+    // while a human had reversed it two minutes later — a record that is
+    // technically true and materially misleading. Corrections are new entries.
+    note: "An executed AI action was reversed. Visible wherever the execution was, or the record misleads.",
+  },
 ] as const satisfies readonly LedgerEventDescriptor[];
 
 export const LEDGER_EVENTS: readonly LedgerEventDescriptor[] = CATALOGUE;

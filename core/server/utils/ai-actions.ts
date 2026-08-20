@@ -19,7 +19,7 @@
 //
 // getTypedDirectus is auto-imported from server/utils/directus.ts.
 
-import { createItem, readItem, readItems, updateItem, deleteItem } from "@directus/sdk";
+import { createItem, readItem, readItems, readUsers, updateItem, deleteItem } from "@directus/sdk";
 import {
   actionByKey,
   shouldAutoApprove,
@@ -28,6 +28,7 @@ import {
   type AutonomyTier,
 } from "#core/shared/ai/actions";
 import { isKnownAction } from "./llm/tools";
+import { buildAiActionEntry, buildAiActionUndoneEntry } from "#core/shared/ledger/entries";
 
 export interface ProposeContext {
   orgId: string;
@@ -430,6 +431,7 @@ export async function proposeAction(
           userId: ctx.userId,
           verifyOrg: async () => {}, // proposer already scoped to this org
           orgId: ctx.orgId,
+          autoApproved: true,
         });
         if (decided.status === "executed") {
           return {
@@ -465,6 +467,12 @@ export interface DecideInput {
   verifyOrg: (orgId: string) => Promise<unknown> | unknown;
   /** When the caller already knows the org (the proposer), skip re-verify. */
   orgId?: string;
+  /**
+   * True when the trust dial ran this rather than a person approving it. The
+   * ledger says which, out loud — "the assistant did this because your board
+   * allows it to" is a different sentence from "because Nina said yes".
+   */
+  autoApproved?: boolean;
 }
 
 export interface DecideResult {
@@ -484,7 +492,21 @@ export async function decideAiAction(input: DecideInput): Promise<DecideResult> 
   const { id, decision, userId, verifyOrg } = input;
   const row = (await directus().request(
     readItem("ai_actions", id, {
-      fields: ["id", "organization", "action_type", "status", "payload"],
+      // title/category/risk/outbound/entity are read for the ledger entry: it
+      // has to read correctly years later, next to none of these rows.
+      fields: [
+        "id",
+        "organization",
+        "action_type",
+        "status",
+        "payload",
+        "title",
+        "category",
+        "risk",
+        "outbound",
+        "entity_type",
+        "entity_id",
+      ],
     })
   )) as any;
   if (!row) throw createError({ statusCode: 404, message: "Action not found" });
@@ -517,6 +539,16 @@ export async function decideAiAction(input: DecideInput): Promise<DecideResult> 
     await directus().request(
       updateItem("ai_actions", id, { status: "executed", result: stored, ...nowStamp } as any)
     );
+
+    // The community's record of what the assistant did on its behalf. Written
+    // HERE because this is the single point every execution passes through —
+    // auto-approved runs included — so there is no lane that escapes the ledger.
+    await recordAiActionInLedger(orgId, row, {
+      kind: "executed",
+      approval: input.autoApproved ? "automatic" : "human",
+      userId,
+    });
+
     return { id, status: "executed", result: stored };
   } catch (err: any) {
     await directus().request(
@@ -542,7 +574,18 @@ export async function undoAiAction(input: {
 }): Promise<{ id: string; undone: boolean }> {
   const { id, verifyOrg } = input;
   const row = (await directus().request(
-    readItem("ai_actions", id, { fields: ["id", "organization", "status", "result"] })
+    readItem("ai_actions", id, {
+      fields: [
+        "id",
+        "organization",
+        "status",
+        "result",
+        "action_type",
+        "title",
+        "entity_type",
+        "entity_id",
+      ],
+    })
   )) as any;
   if (!row) throw createError({ statusCode: 404, message: "Action not found" });
 
@@ -569,5 +612,103 @@ export async function undoAiAction(input: {
   await directus().request(
     updateItem("ai_actions", id, { result: { ...row.result, _undone: true, _undoneAt: new Date().toISOString() } } as any)
   );
+
+  // The correction, as its own entry. An undo the reader cannot see would leave
+  // the execution entry saying the assistant did something that was reversed
+  // two minutes later — true, and materially misleading.
+  await recordAiActionInLedger(orgId, row, { kind: "undone", userId: input.userId });
+
   return { id, undone: true };
+}
+
+// ── the ledger's copy ───────────────────────────────────────────────────────────
+
+/**
+ * Write the Community Ledger entry for an AI action.
+ *
+ * Never throws. The action has already happened by the time this runs, and
+ * failing the caller would report an error on work that landed — the same call
+ * the transition executor and the grant-change route make, with the difference
+ * that there is no human here to tell. It logs loudly instead.
+ */
+async function recordAiActionInLedger(
+  orgId: string | null | undefined,
+  row: any,
+  opts: { kind: "executed"; approval: "human" | "automatic"; userId: string | null }
+    | { kind: "undone"; userId: string | null }
+) {
+  if (!orgId) return;
+
+  try {
+    const [orgs, users] = await Promise.all([
+      directus().request(
+        readItems("hoa_organizations", {
+          filter: { id: { _eq: orgId } },
+          fields: ["name"],
+          limit: 1,
+        })
+      ) as Promise<any[]>,
+      // `readUsers`, not `readItems` — the SDK refuses core collections, and
+      // this only surfaces at runtime. It cost a live run to find.
+      opts.userId
+        ? (directus().request(
+            readUsers({
+              filter: { id: { _eq: opts.userId } },
+              fields: ["first_name", "last_name", "email"],
+              limit: 1,
+            })
+          ) as Promise<any[]>)
+        : Promise.resolve([]),
+    ]);
+
+    const u = users?.[0];
+    const actor = {
+      userId: opts.userId ?? null,
+      name:
+        [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim() ||
+        u?.email ||
+        // Only reachable for an action with no requesting user at all; the
+        // sentence still has to read like a sentence.
+        "The assistant",
+      email: u?.email ?? null,
+    };
+
+    const action = {
+      actionId: String(row.id),
+      actionType: String(row.action_type ?? ""),
+      title: row.title ?? "",
+      category: row.category ?? null,
+      risk: row.risk ?? null,
+      outbound: row.outbound === true,
+      entityType: row.entity_type ?? null,
+      entityId: row.entity_id ?? null,
+    };
+
+    const organizationName = orgs?.[0]?.name ?? null;
+    const occurredAt = new Date().toISOString();
+
+    const entry =
+      opts.kind === "executed"
+        ? buildAiActionEntry({
+            organizationId: orgId,
+            organizationName,
+            action,
+            status: "executed",
+            approval: opts.approval,
+            actor,
+            occurredAt,
+          })
+        : buildAiActionUndoneEntry({
+            organizationId: orgId,
+            organizationName,
+            action,
+            undone: true,
+            actor,
+            occurredAt,
+          });
+
+    if (entry) await writeAuditEntry(entry);
+  } catch (err) {
+    console.error("[ai-actions] ledger write failed for action", row?.id, err);
+  }
 }
