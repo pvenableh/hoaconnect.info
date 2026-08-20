@@ -41,6 +41,7 @@ import {
   buildDocumentPublishedEntry,
   buildExpenseRecordedEntry,
   buildGrantChangeEntry,
+  buildPaymentRecordedEntry,
   buildPollClosedEntry,
   diffGrants,
   formatMoney,
@@ -593,6 +594,89 @@ describe("expense entries", () => {
     // The asymmetry with payment_recorded, asserted rather than assumed.
     const built = build();
     expect(JSON.stringify(built?.payload)).not.toMatch(/member|household|unit/i);
+  });
+});
+
+describe("payment entries — the one default that must not be relaxed", () => {
+  const actor = { userId: "u-2", name: "Nina Alvarez", email: "nina@example.com" };
+  const at = "2026-08-21T18:00:00.000Z";
+
+  const build = (over: Record<string, any> = {}) => {
+    const { payment: paymentOver, ...rest } = over;
+    return buildPaymentRecordedEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      payment: {
+        transactionId: "t-1",
+        memberId: "m-2",
+        memberName: "Nina Alvarez",
+        unitLabel: "4B",
+        amount: 450,
+        description: "August assessments",
+        method: "card",
+        reference: "pi_123",
+        ...(paymentOver ?? {}),
+      },
+      status: "succeeded",
+      source: "stripe",
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("is board-only, and an owner cannot see it", () => {
+    // The assertion this file exists for. One payment names one household; a
+    // feed showing nine neighbours paying in March publishes the tenth's
+    // delinquency without ever mentioning them. If this ever goes owner-visible
+    // it is a product decision, not a refactor.
+    const built = build()!;
+    expect(built.visibility).toBe("board");
+    expect(defaultVisibilityFor("payment_recorded")).toBe("board");
+    expect(canView(built, owner)).toBe(false);
+    expect(canView(built, board)).toBe(true);
+    expect(canView(built, admin)).toBe(true);
+    expect(canView(built, manager)).toBe(true);
+  });
+
+  it("says who paid, how much, and what for", () => {
+    expect(build()?.summary).toBe("Nina Alvarez paid $450.00 toward August assessments.");
+  });
+
+  it("says plainly when a manager recorded a payment taken outside the app", () => {
+    expect(build({ source: "manual", payment: { method: "offline" } })?.summary).toBe(
+      "Nina Alvarez's payment of $450.00 was recorded toward August assessments, received outside the app."
+    );
+    expect(build({ source: "manual" })?.payload.source).toBe("manual");
+  });
+
+  it("never records the card's last four digits", () => {
+    // They identify a person's payment instrument and answer no question this
+    // record exists to answer.
+    const built = build({ payment: { last4: "4242" } as any });
+    expect(JSON.stringify(built?.payload)).not.toMatch(/4242|last4/);
+    expect(built?.payload.method).toBe("card");
+  });
+
+  it("writes nothing for anything but a succeeded payment", () => {
+    expect(build({ status: "pending" })).toBeNull();
+    expect(build({ status: "failed" })).toBeNull();
+    expect(build({ status: null })).toBeNull();
+  });
+
+  it("writes nothing for a zero or negative amount", () => {
+    expect(build({ payment: { amount: 0 } })).toBeNull();
+    expect(build({ payment: { amount: "0.00" } })).toBeNull();
+    expect(build({ payment: { amount: -5 } })).toBeNull();
+  });
+
+  it("still reads correctly when the household cannot be named", () => {
+    const built = build({ payment: { memberName: null, unitLabel: null } });
+    expect(built?.summary).toBe("A household paid $450.00 toward August assessments.");
+  });
+
+  it("coerces a Directus decimal string like every other money field", () => {
+    expect(build({ payment: { amount: "450.25" } })?.payload.amount).toBe(450.25);
   });
 });
 

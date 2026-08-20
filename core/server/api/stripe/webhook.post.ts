@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createItem, updateItem, readItems, readItem } from '@directus/sdk';
 import type { AcaciaInvoice } from '#core/server/utils/stripe';
 import type { PaymentTransaction } from '#core/types/directus';
+import { buildPaymentRecordedEntry } from '#core/shared/ledger/entries';
 // Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
@@ -221,7 +222,9 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 			metadata: paymentIntent.metadata as unknown as PaymentTransaction['metadata'],
 		};
 
-		await directus.request(createItem('payment_transactions', transactionData));
+		const transaction = (await directus.request(
+			createItem('payment_transactions', transactionData)
+		)) as { id?: string };
 
 		// Update payment request if linked
 		if (paymentRequestId) {
@@ -229,6 +232,22 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 		}
 
 		console.log('Payment transaction created successfully');
+
+		// The Community Ledger's copy — board-only, because it names one
+		// household. Written here rather than by the payments UI because this is
+		// where a payment actually lands, and the duplicate guard above already
+		// makes it exactly-once across Stripe's retries.
+		await recordPaymentInLedger(directus, {
+			organizationId: organizationId || null,
+			memberId: memberId || null,
+			transactionId: transaction?.id ?? null,
+			amount: paymentIntent.amount / 100,
+			currency: paymentIntent.currency,
+			description: paymentIntent.description || null,
+			method: paymentIntent.payment_method_types?.[0] ?? null,
+			reference: paymentIntent.id,
+			source: 'stripe',
+		});
 	} catch (err) {
 		console.error('Error creating payment transaction:', err);
 	}
@@ -668,5 +687,96 @@ async function updatePaymentRequest(directus: ReturnType<typeof getTypedDirectus
 		}
 	} catch (err) {
 		console.error('Error updating payment request:', err);
+	}
+}
+
+
+/**
+ * Write the ledger's copy of a payment.
+ *
+ * Never throws: a webhook that fails is a webhook Stripe retries, and a retry
+ * whose only failing step was the ledger write would re-run nothing (the
+ * duplicate guard stops it) while Stripe kept trying. A missing entry is logged
+ * loudly and left for a human; a retry storm is not.
+ *
+ * The actor is the PAYER, not an administrator — nobody with a session was
+ * involved. When the member cannot be resolved the entry still reads correctly,
+ * which is the whole reason actor details are denormalized onto every row.
+ */
+async function recordPaymentInLedger(
+	directus: ReturnType<typeof getTypedDirectus>,
+	input: {
+		organizationId: string | null;
+		memberId: string | null;
+		transactionId: string | null;
+		amount: number;
+		currency: string | null;
+		description: string | null;
+		method: string | null;
+		reference: string | null;
+		source: 'stripe' | 'manual';
+	}
+) {
+	if (!input.organizationId) return;
+
+	try {
+		let memberName: string | null = null;
+		let memberEmail: string | null = null;
+		let memberUser: string | null = null;
+
+		if (input.memberId) {
+			const rows = (await directus.request(
+				readItems('hoa_members', {
+					filter: { id: { _eq: input.memberId }, organization: { _eq: input.organizationId } },
+					// No unit: it hangs off hoa_member_units → hoa_units, and one bad
+					// nested path fails the WHOLE Directus query — which here would
+					// mean a payment silently missing from the record. The
+					// household's name is what a board reads anyway.
+					fields: ['first_name', 'last_name', 'email', 'user'],
+					limit: 1,
+				})
+			)) as any[];
+			const m = rows?.[0];
+			if (m) {
+				memberName = [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || null;
+				memberEmail = m.email ?? null;
+				memberUser = typeof m.user === 'string' ? m.user : (m.user?.id ?? null);
+			}
+		}
+
+		const orgs = (await directus.request(
+			readItems('hoa_organizations', {
+				filter: { id: { _eq: input.organizationId } },
+				fields: ['name'],
+				limit: 1,
+			})
+		)) as any[];
+
+		const entry = buildPaymentRecordedEntry({
+			organizationId: input.organizationId,
+			organizationName: orgs?.[0]?.name ?? null,
+			payment: {
+				transactionId: input.transactionId,
+				memberId: input.memberId,
+				memberName,
+				amount: input.amount,
+				currency: input.currency,
+				description: input.description,
+				method: input.method,
+				reference: input.reference,
+			},
+			status: 'succeeded',
+			source: input.source,
+			actor: {
+				userId: memberUser,
+				name: memberName || 'An online payment',
+				email: memberEmail,
+			},
+			occurredAt: new Date().toISOString(),
+		});
+
+		if (entry) await writeAuditEntry(entry);
+	} catch (err) {
+		console.error('[stripe/webhook] ledger write failed for payment', input.reference, err);
 	}
 }

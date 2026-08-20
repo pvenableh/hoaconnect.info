@@ -2,7 +2,6 @@
 import type {
   PaymentRequest,
   PaymentSchedule,
-  PaymentTransaction,
   HoaMember,
   HoaOrganization,
 } from "#core/types/directus";
@@ -18,7 +17,6 @@ const { list: listRequests, create: createRequest, update: updateRequest } =
   useDirectusItems<PaymentRequest>("payment_requests");
 const { list: listSchedules, create: createSchedule, update: updateSchedule } =
   useDirectusItems<PaymentSchedule>("payment_schedules");
-const { create: createTransaction } = useDirectusItems<PaymentTransaction>("payment_transactions");
 const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
 const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
 const { list: listExpenses } = useExpenses();
@@ -230,26 +228,14 @@ const markPaid = async (r: PaymentRequest) => {
   if (markingId.value) return;
   markingId.value = r.id;
   try {
-    const amount = r.amount_remaining ?? r.amount ?? 0;
-    const memberId = typeof r.member === "object" ? (r.member as any)?.id : r.member;
-    // Record an offline/manual transaction so history + receipts stay consistent.
-    await createTransaction({
-      organization: selectedOrgId.value,
-      member: memberId,
-      payment_request: r.id,
-      amount,
-      currency: "usd",
-      status: "succeeded",
-      description: `Manual payment — ${r.title}`,
-      stripe_payment_intent_id: `manual_${r.id}`,
-      notes: "Recorded manually by an admin (offline payment).",
-    } as Partial<PaymentTransaction>);
-    await updateRequest(r.id, {
-      status: "paid",
-      amount_paid: r.amount ?? amount,
-      amount_remaining: 0,
-      paid_at: new Date().toISOString(),
-    } as Partial<PaymentRequest>);
+    // The offline transaction, the charge's status, and the community's
+    // permanent record of the payment all happen in one place —
+    // core/server/api/org/payments/record.post.ts. An offline payment is the
+    // one that later gets disputed, which is exactly why it needs the record.
+    await $fetch("/api/org/payments/record", {
+      method: "POST",
+      body: { orgId: selectedOrgId.value, paymentRequestId: r.id },
+    });
     toast.success("Marked as paid");
     await refresh();
   } catch (e: any) {

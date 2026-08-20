@@ -462,3 +462,98 @@ export function buildExpenseRecordedEntry(input: {
     },
   };
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * payment_recorded
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** How the money arrived. Kept, because "collected online" and "a manager ticked a box" are different facts. */
+export type PaymentSource = "stripe" | "manual";
+
+export interface PaymentSubject {
+  readonly transactionId: string | null;
+  readonly memberId: string | null;
+  /** The household's name as it read when they paid. */
+  readonly memberName: string | null;
+  readonly unitLabel?: string | null;
+  readonly amount: unknown;
+  readonly currency?: string | null;
+  /** What the payment was for — the charge's title, not a synthetic description. */
+  readonly description?: string | null;
+  /** "card", "us_bank_account", "offline". Deliberately NOT the last four digits. */
+  readonly method?: string | null;
+  /** The Stripe PaymentIntent id, or the manual reference. */
+  readonly reference?: string | null;
+}
+
+/**
+ * The entry for money arriving from one household.
+ *
+ * **Board-only, and this default must not be relaxed.** Every other money entry
+ * describes the community; this one describes a neighbour. VISION's first named
+ * risk to the entire product is a delinquency-shaming incident, and an
+ * owner-visible feed of who paid what and when is the shortest path to one —
+ * not because any single row is damning, but because the absence of a row is.
+ * A ledger that shows nine neighbours paying in March publishes the tenth's
+ * delinquency without ever mentioning them. The aggregate is owner-visible
+ * through the reporting ledger; the individual payments are the board's.
+ *
+ * The card's last four digits are not recorded. They identify a person's
+ * payment instrument and answer no question this record exists to answer.
+ *
+ * Only a succeeded payment for a positive amount is an outcome; a pending, a
+ * failed, or a zero-amount intent returns `null`.
+ */
+export function buildPaymentRecordedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly payment: PaymentSubject;
+  readonly status: string | null | undefined;
+  readonly source: PaymentSource;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  if (String(input.status ?? "") !== "succeeded") return null;
+
+  const p = input.payment;
+  const amount = toLedgerAmount(p.amount);
+  if (amount <= 0) return null;
+
+  const money = formatMoney(amount, p.currency ?? "USD");
+  const who = p.memberName?.trim() || p.unitLabel?.trim() || "A household";
+  const description = p.description?.trim() || null;
+  const forWhat = description ? ` toward ${description}` : "";
+
+  // A payment taken online and a payment a manager marked received are
+  // different claims about the world, and the sentence says which it is.
+  const summary =
+    input.source === "manual"
+      ? `${who}'s payment of ${money} was recorded${forWhat}, received outside the app.`
+      : `${who} paid ${money}${forWhat}.`;
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "payment_recorded",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("payment_recorded"),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      transaction_id: p.transactionId,
+      member_id: p.memberId,
+      member_name: p.memberName,
+      unit: p.unitLabel ?? null,
+      amount,
+      currency: (p.currency || "USD").toUpperCase(),
+      description,
+      source: input.source,
+      method: p.method ?? null,
+      reference: p.reference ?? null,
+    },
+  };
+}
