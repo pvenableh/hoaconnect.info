@@ -160,6 +160,12 @@ Then fix both crontab lines (`crontab -e`) — drop any `/apps/app` suffix:
 - [ ] End-to-end: request an export in the app, confirm it flips
       `queued → running → ready` within ~5 minutes and the download works
 
+**Still stale as of 2026-08-20**, and provable from here without SSH: the
+`hoa_data_exports` row on `/transition-test` requested at 16:07 UTC is still
+`queued`, with `date_started` null. Nothing has picked it up, which is exactly
+what a stale checkout looks like from the outside. The same droplet runs the
+digest worker, so both features are waiting on this one `git pull`.
+
 Full detail: [data-export-cron.md](data-export-cron.md) and
 [notification-digest-cron.md](notification-digest-cron.md).
 
@@ -246,6 +252,12 @@ did not change that and cannot: `writeAuditEntry` is still the only writer in th
 app, and there is still no update or delete path — but that is a property of our
 code. Until the SQL above runs, say it that way to a board.
 
+**Re-probed 2026-08-20 (end of the Phase 5 writers session): still 200.** The
+probe is a no-op — it writes the row's existing `summary` back verbatim — so
+running it again costs nothing and is the honest way to answer "is it installed
+yet" without SSH. Six writers now feed this table; the trigger is the only thing
+that would make their output tamper-evident rather than merely tamper-free.
+
 ---
 
 ## 3d. The transition test fixture lives on prod — on purpose
@@ -260,9 +272,32 @@ one from scratch each time.
 | Org | `Transition Test HOA [TEST FIXTURE]` — slug `transition-test` |
 | Billing account | `Transition Test Agency [TEST FIXTURE]` — no Stripe subscription, so seat syncs charge nothing |
 | State | post-transition: detached, `grace_ends_at 2026-10-19`, Nina Alvarez promoted to HOA Admin. **Dana Reyes (manager) is inactive; the demo user's "Agency Admin" seat was REACTIVATED on 2026-08-20** so the fixture can still be driven from a browser — the transition left nobody with a login on it, which made the org unreachable for Phase 5's ledger read-back. Flip it back to `inactive` to restore the pristine post-transition state. |
-| Ledger | three `org_audit_log` entries: August's transition, plus two `manager_grants_changed` rows written by Phase 5's grant route (one switch, one preset) against Dana Reyes |
+| Ledger | **nine** `org_audit_log` entries as of 2026-08-20 — one per Phase 5 writer, each driven through its real route. August's transition; two `manager_grants_changed` (one switch, one preset) against Dana Reyes; `document_published`; `poll_closed`; `expense_recorded`; `payment_recorded` (the only **board**-visible row, and the one that proves the export's row filter drops something); `ai_action_executed` + `ai_action_undone`. |
+| Fixture rows behind those entries | a draft-then-published document with no file; a three-vote poll (votes inserted with the admin token — see the permission gap below); a `payment_expenses` row for $2,400.75; a `payment_requests` row for $450.25 marked paid; two `ai_actions` rows, one executed and undone. All of them exist to give the ledger something true to point at — none is real community data. |
 | Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
 | Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
+
+### A permission gap the fixture exposed — `hoa_poll_votes`
+
+Creating a vote through the app (`POST /api/directus/items`, as an org admin on
+a live session) returns:
+
+```
+You don't have permission to access collection "hoa_poll_votes" or it does not exist.
+```
+
+The collection exists — the admin static token reads and writes it — so this is
+a missing Directus **permission**, not a missing table. It means **nobody can
+vote in a poll on production**: `usePolls().vote()` goes through the same client
+path. The polls UI otherwise works, so the failure is a toast, not a blank page,
+which is how it has stayed unnoticed.
+
+Phase 5's `poll_closed` writer is unaffected (the close route reads the tally
+with the admin token), and the fixture's three votes were inserted with that
+token to exercise it.
+
+- [ ] Grant the member/admin roles create+read on `hoa_poll_votes` (and confirm
+      `hoa_polls` read) — a prod permission change, so decide it deliberately.
 
 Re-seed a clean one, or remove it entirely:
 
