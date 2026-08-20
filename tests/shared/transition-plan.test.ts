@@ -23,12 +23,15 @@ import {
 import {
   GRANT_PRESETS,
   MANAGER_GRANT_KEYS,
+  MANAGER_GRANT_LABELS,
   matchPreset,
   normalizeGrants,
   NO_GRANTS,
   hasAnyGrant,
   presetFor,
 } from "#core/shared/transition/grants";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildTransitionAuditEntry } from "#core/shared/transition/audit";
 
 const NOW = "2026-08-19T12:00:00.000Z";
@@ -328,6 +331,45 @@ describe("grant presets", () => {
   it("revocation clears every key rather than nulling the field", () => {
     expect(Object.keys(NO_GRANTS).sort()).toEqual([...MANAGER_GRANT_KEYS].sort());
     expect(hasAnyGrant(NO_GRANTS)).toBe(false);
+  });
+
+  it("names every grant, because the ledger writes the name into a permanent row", () => {
+    // A key with no label renders as the raw key in a grant-change entry —
+    // "gained feedback" instead of "gained Community feedback" — in a record
+    // that cannot be edited afterwards.
+    for (const key of MANAGER_GRANT_KEYS) {
+      expect(MANAGER_GRANT_LABELS[key], key).toBeTruthy();
+      expect(MANAGER_GRANT_LABELS[key]).not.toBe(key);
+    }
+  });
+
+  it("offers every grant as a switch on the settings screen", () => {
+    // The screen keeps its own list, because a switch is phrased as an action
+    // and a ledger entry needs a noun. A key missing from that list is a
+    // permission an admin cannot turn on — and, far worse, cannot turn OFF when
+    // a manager leaves.
+    const page = readFileSync(
+      join(process.cwd(), "app/components/pages/SettingsPropertyManagementPage.vue"),
+      "utf8"
+    );
+    const listed = new Set(
+      [...page.matchAll(/\{\s*key:\s*"([a-z_]+)",\s*label:/g)].map((m) => m[1])
+    );
+    for (const key of MANAGER_GRANT_KEYS) {
+      expect(listed.has(key), `${key} has no switch on the settings screen`).toBe(true);
+    }
+  });
+
+  it("adds a new grant switched OFF, so it never widens an existing manager", () => {
+    // `feedback` arrived after managers already existed. normalizeGrants filling
+    // an absent key as false is what makes adding one safe.
+    expect(normalizeGrants({ inquiries: true }).feedback).toBe(false);
+    expect(NO_GRANTS.feedback).toBe(false);
+    // The narrower presets deliberately leave it off; full service is the only
+    // one that hands over community feedback.
+    expect(presetFor("inquiries_only")!.grants.feedback).toBe(false);
+    expect(presetFor("standard")!.grants.feedback).toBe(false);
+    expect(presetFor("full_service")!.grants.feedback).toBe(true);
   });
 
   it("recognizes a stored set as its preset, and a custom mix as none", () => {

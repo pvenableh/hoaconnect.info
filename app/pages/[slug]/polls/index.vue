@@ -6,20 +6,32 @@ definePageMeta({
   layout: "auth",
 });
 
-const { isAdmin, isBoardMember } = await useSelectedOrg();
-const { listOrgPolls } = usePolls();
+const { fetchOrgPolls } = usePolls();
 
-const canManage = computed(() => isAdmin.value || isBoardMember.value);
 const showNew = ref(false);
 
-const { data: polls, pending, refresh } = await useAsyncData(
+// The route decides who may run these — including a property manager on this
+// community's `feedback` grant, which no role check on this page could see.
+// Asking it, rather than inferring from isAdmin/isBoardMember, is what keeps the
+// page and the routes that enforce it from drifting apart.
+const { data, pending, refresh } = await useAsyncData(
   "org-polls",
-  () => listOrgPolls(["open", "closed", "draft"]).then((p) => p as Poll[]),
-  { server: false, default: () => [] as Poll[] }
+  () => fetchOrgPolls(["open", "closed", "draft"]),
+  {
+    server: false,
+    default: () => ({
+      polls: [] as Poll[],
+      viewer: { canManage: false, canVote: false, viaGrant: false },
+    }),
+  }
 );
 
-const openPolls = computed(() => (polls.value || []).filter((p) => p.status !== "closed"));
-const closedPolls = computed(() => (polls.value || []).filter((p) => p.status === "closed"));
+const polls = computed(() => data.value?.polls ?? []);
+const canManage = computed(() => data.value?.viewer?.canManage === true);
+const viaGrant = computed(() => data.value?.viewer?.viaGrant === true);
+
+const openPolls = computed(() => polls.value.filter((p) => p.status !== "closed"));
+const closedPolls = computed(() => polls.value.filter((p) => p.status === "closed"));
 
 const onCreated = async () => {
   showNew.value = false;
@@ -33,7 +45,13 @@ const onCreated = async () => {
       <div class="flex items-center justify-between gap-2">
         <div>
           <h1 class="text-2xl font-semibold t-text">Polls</h1>
-          <p class="text-sm t-text-muted mt-0.5">Community feedback & votes.</p>
+          <p class="text-sm t-text-muted mt-0.5">
+            Community feedback &amp; votes.
+            <span v-if="viaGrant">
+              You can see these because this community granted your management
+              company access to its feedback.
+            </span>
+          </p>
         </div>
         <Button v-if="canManage" class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> New poll

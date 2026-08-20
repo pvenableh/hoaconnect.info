@@ -24,6 +24,16 @@
  * Every grant a Property Manager can hold. Adding one here is the only place it
  * needs adding — `manager-access.ts` imports this type, the presets below are
  * checked for completeness in the test suite, and revocation walks the same list.
+ *
+ * `feedback` covers polls: seeing them, their live tallies, and closing them.
+ * It is deliberately NOT part of `communications`, so an admin can let a manager
+ * see what residents think without also letting them email every resident — the
+ * two are adjacent but a board may well want one and not the other. It covers
+ * closing as well as reading for the same reason `documents` covers publishing
+ * as well as viewing: a grant names an area of responsibility, not a verb.
+ *
+ * Every key defaults to FALSE through `normalizeGrants`, so adding one here
+ * never widens an existing manager's access — an admin has to turn it on.
  */
 export const MANAGER_GRANT_KEYS = [
   "inquiries",
@@ -31,6 +41,7 @@ export const MANAGER_GRANT_KEYS = [
   "directory",
   "documents",
   "communications",
+  "feedback",
   "projects",
   "activity",
 ] as const;
@@ -54,6 +65,7 @@ export const MANAGER_GRANT_LABELS: Readonly<Record<ManagerGrantKey, string>> = {
   directory: "Directory",
   documents: "Documents",
   communications: "Communications",
+  feedback: "Community feedback",
   projects: "Projects",
   activity: "Activity",
 };

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Poll, PollVote } from "#core/app/composables/usePolls";
+import type { Poll, PollResults } from "#core/app/composables/usePolls";
 
 const props = withDefaults(
   defineProps<{
@@ -11,29 +11,31 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: "changed"): void }>();
 
-const { getVotes, tally, vote, closePoll, reopenPoll } = usePolls();
+const { getResults, vote, closePoll, reopenPoll } = usePolls();
 
-const votes = ref<PollVote[]>([]);
+const EMPTY: PollResults = { counts: {}, total: 0, myOptionIds: [], myVotes: [], canVote: false };
+
+const results = ref<PollResults>(EMPTY);
 const loading = ref(true);
 const busy = ref(false);
 
 const load = async () => {
   loading.value = true;
   try {
-    votes.value = (await getVotes(props.poll.id)) as PollVote[];
+    results.value = await getResults(props.poll.id);
   } catch (e) {
-    console.error("Failed to load votes:", e);
-    votes.value = [];
+    console.error("Failed to load results:", e);
+    results.value = EMPTY;
   } finally {
     loading.value = false;
   }
 };
 onMounted(load);
-
-const results = computed(() => tally(votes.value));
 const isClosed = computed(() => props.poll.status === "closed");
 const hasVoted = computed(() => results.value.myOptionIds.length > 0);
-const showResults = computed(() => isClosed.value || hasVoted.value);
+// A property manager running a community's polls has no ballot, so there is no
+// "vote first" state to hold them in — they see the results straight away.
+const showResults = computed(() => isClosed.value || hasVoted.value || !results.value.canVote);
 
 const pct = (optionId: string) => {
   const t = results.value.total;
@@ -42,10 +44,10 @@ const pct = (optionId: string) => {
 const isMine = (optionId: string) => results.value.myOptionIds.includes(optionId);
 
 const onVote = async (optionId: string) => {
-  if (isClosed.value || busy.value) return;
+  if (isClosed.value || busy.value || !results.value.canVote) return;
   busy.value = true;
   try {
-    await vote(props.poll, optionId, votes.value);
+    await vote(props.poll, optionId, results.value);
     await load();
   } finally {
     busy.value = false;
@@ -92,11 +94,11 @@ const onReopen = async () => {
         v-for="opt in poll.options"
         :key="opt.id"
         type="button"
-        :disabled="isClosed || busy"
+        :disabled="isClosed || busy || !results.canVote"
         class="relative w-full text-left rounded-xl border overflow-hidden transition-colors"
         :class="[
           isMine(opt.id) ? 'border-fuchsia-400' : 't-border',
-          isClosed ? 'cursor-default' : 'hover:border-stone-300',
+          isClosed || !results.canVote ? 'cursor-default' : 'hover:border-stone-300',
         ]"
         @click="onVote(opt.id)"
       >
@@ -109,7 +111,7 @@ const onReopen = async () => {
         <div class="relative flex items-center justify-between px-3 py-2.5">
           <span class="text-sm font-medium t-text flex items-center gap-2">
             <Icon
-              v-if="!isClosed"
+              v-if="!isClosed && results.canVote"
               :name="isMine(opt.id) ? 'lucide:check-circle-2' : 'lucide:circle'"
               class="w-4 h-4"
               :class="isMine(opt.id) ? 'text-fuchsia-600' : 'text-stone-300'"
@@ -126,6 +128,9 @@ const onReopen = async () => {
     <!-- Footer -->
     <div class="mt-3 flex items-center justify-between text-xs t-text-muted">
       <span>{{ results.total }} vote{{ results.total === 1 ? "" : "s" }}</span>
+      <!-- A manager reading on a grant is not a resident; say so rather than
+           showing them a ballot that would refuse them. -->
+      <span v-if="!results.canVote && !isClosed" class="italic">Results only</span>
       <span v-if="poll.allow_multiple">Multiple choice</span>
       <span v-else-if="!isClosed && hasVoted">Tap again to change your vote</span>
     </div>

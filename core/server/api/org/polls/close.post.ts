@@ -15,8 +15,9 @@
  * accept a voter. See `buildPollClosedEntry` for why that matters more than it
  * looks.
  *
- * Admin, or a property manager holding the `communications` grant — the same
- * people who can run a poll in the first place.
+ * Admin, or a property manager holding the `feedback` grant — the same switch
+ * that lets them see the poll in the first place. It was `communications` for a
+ * day, which meant a manager could close a vote they had no way to read.
  */
 
 import { readItems, updateItem } from "@directus/sdk";
@@ -26,13 +27,16 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody(event);
 
-  const orgId = String(body?.orgId || "").trim();
+  const orgId = await resolveOrgId({ orgId: body?.orgId, slug: body?.slug });
   const pollId = String(body?.pollId || "").trim();
   if (!orgId || !pollId) {
-    throw createError({ statusCode: 400, statusMessage: "orgId and pollId are required" });
+    throw createError({
+      statusCode: 400,
+      statusMessage: "pollId and one of orgId or slug are required",
+    });
   }
 
-  await requireAdminOrManagerGrant(event, orgId, "communications");
+  await requireAdminOrManagerGrant(event, orgId, "feedback");
 
   const directus = getTypedDirectus();
 

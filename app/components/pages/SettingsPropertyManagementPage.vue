@@ -65,12 +65,17 @@ const MANAGEMENT_ROLE_OPTIONS = [
   { value: "general", label: "General" },
 ] as const;
 
+// One row per MANAGER_GRANT_KEYS entry — the phrasing is the screen's (a switch
+// reads as an action), the keys are the module's. A test asserts this list stays
+// in step with the key list, because a grant missing here is a permission an
+// admin cannot turn on and, worse, cannot turn OFF when a manager leaves.
 const GRANTS = [
   { key: "inquiries", label: "View & respond to inquiries", desc: "Read and respond to requests submitted to the community." },
   { key: "violations", label: "Manage violations", desc: "Create and manage violation notices." },
   { key: "directory", label: "View directory", desc: "See the member directory (names, units, contact)." },
   { key: "documents", label: "View documents", desc: "Access the community's documents." },
   { key: "communications", label: "Send communications", desc: "Send emails to members. Higher-trust." },
+  { key: "feedback", label: "Community feedback", desc: "See polls and their results, and close a poll when the vote is done. Closing is recorded in the community's ledger." },
   { key: "projects", label: "Manage projects", desc: "Create and manage projects, milestones, and tasks." },
   { key: "activity", label: "View activity", desc: "See resident activity (page views, downloads) across the community." },
 ] as const;
