@@ -154,6 +154,7 @@ const uploadAll = async () => {
   const targetFolder = selectedFolder.value || orgFolder.value;
   let successCount = 0;
   let errorCount = 0;
+  const createdIds: string[] = [];
 
   for (const queuedFile of fileQueue.value) {
     if (queuedFile.status === "success") {
@@ -170,18 +171,21 @@ const uploadAll = async () => {
         folder: targetFolder || undefined,
       })) as any;
 
-      // Create the document entry
-      await createDocument({
+      // Create the document entry — always as a draft. The publish call below
+      // is what makes it readable by the community, and what records that in
+      // the ledger; see core/server/api/org/documents/publish.post.ts.
+      const created = (await createDocument({
         title: queuedFile.title,
         document_category: selectedCategory.value || null,
-        status: documentStatus.value,
+        status: "draft",
         organization: orgId.value,
         file: fileResult.id,
         folder: targetFolder || null,
-        date_published:
-          documentStatus.value === "published" ? new Date().toISOString() : null,
+        date_published: null,
         sort: 0,
-      });
+      })) as any;
+
+      if (created?.id) createdIds.push(String(created.id));
 
       queuedFile.status = "success";
       successCount++;
@@ -192,6 +196,22 @@ const uploadAll = async () => {
     }
 
     uploadProgress.value.current++;
+  }
+
+  // Publish in ONE call rather than one per file: a batch of twelve documents
+  // is one act by one person, and the route writes a ledger entry per document
+  // either way. A publish failure leaves drafts — recoverable, and invisible to
+  // the community until someone means them to be visible.
+  if (documentStatus.value === "published" && createdIds.length) {
+    try {
+      await $fetch("/api/org/documents/publish", {
+        method: "POST",
+        body: { orgId: orgId.value, documentIds: createdIds },
+      });
+    } catch (error: any) {
+      console.error("Failed to publish uploaded documents:", error);
+      toast.error("Uploaded, but publishing failed — the documents are saved as drafts.");
+    }
   }
 
   isUploading.value = false;

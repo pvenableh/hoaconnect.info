@@ -148,3 +148,97 @@ export function buildGrantChangeEntry(input: {
     },
   };
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * document_published
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface DocumentSubject {
+  readonly documentId: string;
+  /** The title as it read when it was published — the row it came from may be renamed later. */
+  readonly title: string;
+  readonly categoryName?: string | null;
+  /** The stored file's name, so the entry still identifies the artefact after a retitle. */
+  readonly fileName?: string | null;
+}
+
+/** The statuses `hoa_documents.status` actually carries. */
+export type DocumentStatus = "draft" | "published" | "archived";
+
+/**
+ * Was this a publish at all?
+ *
+ * `draft → published` and `archived → published` both are: in each case a
+ * document that the community could not read became one it can. `published →
+ * published` is not — re-saving a published document changes its metadata, and
+ * a library that logs every retitle is one nobody scrolls.
+ */
+export function isPublishTransition(
+  previousStatus: string | null | undefined,
+  nextStatus: string | null | undefined
+): boolean {
+  return String(nextStatus ?? "") === "published" && String(previousStatus ?? "") !== "published";
+}
+
+/**
+ * The entry for a document entering the community's library.
+ *
+ * Owner-visible from the catalogue: what governs a community is the community's
+ * to read, and "which version of the rules applied in March" is one of the
+ * questions an association most often has to answer from a cold start years
+ * later. That is why the title and the file name are both denormalized here —
+ * an entry has to identify the artefact after the row has been renamed, moved
+ * to another category, or deleted outright.
+ *
+ * **Publishing is the outcome; a draft save is not.** Nothing is written while a
+ * document sits in draft, however many times it is edited — see the header of
+ * `./entry` for why deliberation stays out of the record. Un-publishing is not
+ * recorded here either: it is not this builder's transition, and if it ever
+ * becomes record it deserves its own event type rather than a second meaning
+ * for this one.
+ *
+ * Returns `null` when the document was already published.
+ */
+export function buildDocumentPublishedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly document: DocumentSubject;
+  readonly previousStatus: string | null | undefined;
+  readonly nextStatus?: string | null;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  const nextStatus = input.nextStatus ?? "published";
+  if (!isPublishTransition(input.previousStatus, nextStatus)) return null;
+
+  const title =
+    input.document.title?.trim() || input.document.fileName?.trim() || "An untitled document";
+  const category = input.document.categoryName?.trim() || null;
+
+  // "Restored" rather than "published" when it comes back from the archive: the
+  // community saw this document before, and a board reading the feed should not
+  // have to work out from two entries that it is the same document twice.
+  const verb = String(input.previousStatus ?? "") === "archived" ? "restored to" : "published to";
+  const where = category ? `the document library under ${category}` : "the document library";
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "document_published",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("document_published"),
+    summary: `${title} was ${verb} ${where}.`,
+    payload: {
+      organization_name: input.organizationName,
+      document_id: input.document.documentId,
+      title,
+      category,
+      file_name: input.document.fileName ?? null,
+      previous_status: input.previousStatus ?? null,
+    },
+  };
+}

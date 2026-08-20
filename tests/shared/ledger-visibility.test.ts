@@ -38,9 +38,11 @@ import {
   type LedgerViewer,
 } from "#core/shared/ledger/visibility";
 import {
+  buildDocumentPublishedEntry,
   buildGrantChangeEntry,
   diffGrants,
   isNoOpGrantChange,
+  isPublishTransition,
 } from "#core/shared/ledger/entries";
 import {
   formatDate,
@@ -326,6 +328,93 @@ describe("grant-change entries", () => {
       occurredAt: at,
     });
     expect(built?.summary).toBe("nobody@example.com gained Projects.");
+  });
+});
+
+describe("document-published entries", () => {
+  const actor = { userId: "u-1", name: "Peter Hoffman", email: "peter@example.com" };
+  const at = "2026-08-21T15:00:00.000Z";
+
+  const build = (previousStatus: string | null, over: Record<string, any> = {}) => {
+    const { document: documentOver, ...rest } = over;
+    return buildDocumentPublishedEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      document: {
+        documentId: "doc-9",
+        title: "Reserve Study 2026",
+        categoryName: "Financials",
+        fileName: "reserve-study-2026.pdf",
+        ...(documentOver ?? {}),
+      },
+      previousStatus,
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("records the publish, naming the document and where it landed", () => {
+    const built = build("draft");
+    expect(built?.summary).toBe(
+      "Reserve Study 2026 was published to the document library under Financials."
+    );
+    expect(built?.event_type).toBe("document_published");
+    expect(built?.occurred_at).toBe(at);
+  });
+
+  it("is owner-visible, from the catalogue", () => {
+    // What governs a community is the community's to read. If this ever comes
+    // back board-only, the catalogue changed and the change was not deliberate.
+    expect(build("draft")?.visibility).toBe("owners");
+    expect(defaultVisibilityFor("document_published")).toBe("owners");
+  });
+
+  it("writes nothing for a draft save, however many times it happens", () => {
+    expect(build("draft", { nextStatus: "draft" })).toBeNull();
+    expect(build(null, { nextStatus: "draft" })).toBeNull();
+    expect(isPublishTransition("draft", "draft")).toBe(false);
+  });
+
+  it("writes nothing when the document was already published", () => {
+    // Re-saving a published document changes metadata; the library did not gain
+    // anything, and a ledger of retitles is a ledger nobody scrolls.
+    expect(build("published")).toBeNull();
+    expect(isPublishTransition("published", "published")).toBe(false);
+  });
+
+  it("treats a return from the archive as a publish, and says so", () => {
+    expect(isPublishTransition("archived", "published")).toBe(true);
+    expect(build("archived")?.summary).toBe(
+      "Reserve Study 2026 was restored to the document library under Financials."
+    );
+  });
+
+  it("drops the category clause rather than naming an empty one", () => {
+    const built = build("draft", { document: { categoryName: null } });
+    expect(built?.summary).toBe("Reserve Study 2026 was published to the document library.");
+    expect(built?.payload.category).toBeNull();
+  });
+
+  it("falls back to the file name when a document has no title", () => {
+    const built = build("draft", { document: { title: "  " } });
+    expect(built?.summary).toBe(
+      "reserve-study-2026.pdf was published to the document library under Financials."
+    );
+  });
+
+  it("keeps enough to identify the artefact after the row is gone", () => {
+    // The point of denormalizing: the source row can be renamed, recategorized,
+    // or deleted, and this entry still says which document was published.
+    const built = build("draft");
+    expect(built?.payload).toMatchObject({
+      document_id: "doc-9",
+      title: "Reserve Study 2026",
+      category: "Financials",
+      file_name: "reserve-study-2026.pdf",
+      previous_status: "draft",
+      organization_name: "Transition Test HOA",
+    });
   });
 });
 

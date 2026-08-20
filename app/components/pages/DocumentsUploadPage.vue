@@ -163,17 +163,26 @@ const handleSubmit = async () => {
       folder: selectedFolder || undefined,
     })) as any;
 
-    await createDocument({
+    // Always created as a draft. Publishing is a decision the community's
+    // ledger records, and `/api/org/documents/publish` is the one place that
+    // makes it — see core/server/api/org/documents/publish.post.ts.
+    const created = (await createDocument({
       title: form.title,
       document_category: form.document_category || null,
-      status: form.status,
+      status: "draft",
       organization: orgId.value,
       file: fileResult.id,
       folder: selectedFolder || null,
-      date_published:
-        form.status === "published" ? new Date().toISOString() : null,
+      date_published: null,
       sort: 0,
-    });
+    })) as any;
+
+    if (form.status === "published" && created?.id) {
+      await $fetch("/api/org/documents/publish", {
+        method: "POST",
+        body: { orgId: orgId.value, documentId: created.id },
+      });
+    }
 
     toast.success("Document uploaded successfully");
     navigateToOrg("/documents");
