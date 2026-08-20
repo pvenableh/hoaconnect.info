@@ -39,12 +39,15 @@ import {
 } from "#core/shared/ledger/visibility";
 import {
   buildDocumentPublishedEntry,
+  buildExpenseRecordedEntry,
   buildGrantChangeEntry,
   buildPollClosedEntry,
   diffGrants,
+  formatMoney,
   isNoOpGrantChange,
   isPublishTransition,
   pollLeaders,
+  toLedgerAmount,
 } from "#core/shared/ledger/entries";
 import {
   formatDate,
@@ -509,6 +512,87 @@ describe("poll-closed entries", () => {
     expect(build([1, 0, 0], { previousStatus: "draft" })).toBeNull();
     expect(build([1, 0, 0], { previousStatus: "closed" })).toBeNull();
     expect(build([1, 0, 0], { previousStatus: null })).toBeNull();
+  });
+});
+
+describe("expense entries", () => {
+  const actor = { userId: "u-1", name: "Peter Hoffman", email: "peter@example.com" };
+  const at = "2026-08-21T17:00:00.000Z";
+
+  const build = (over: Record<string, any> = {}) => {
+    const { expense: expenseOver, ...rest } = over;
+    return buildExpenseRecordedEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      expense: {
+        expenseId: "x-4",
+        title: "Fall cleanup",
+        vendor: "Sunrise Landscaping",
+        categoryLabel: "Landscaping",
+        amount: 2400,
+        paidDate: "2026-08-19",
+        ...(expenseOver ?? {}),
+      },
+      previousStatus: "approved",
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("names the vendor, the amount and what it was for", () => {
+    expect(build()?.summary).toBe("Sunrise Landscaping was paid $2,400.00 for Fall cleanup (Landscaping).");
+  });
+
+  it("is owner-visible — where the dues went is what owners are entitled to see", () => {
+    expect(build()?.visibility).toBe("owners");
+    expect(defaultVisibilityFor("expense_recorded")).toBe("owners");
+  });
+
+  it("survives a Directus decimal, which arrives as a string", () => {
+    // The bug this guards against shipped once already: "600.75" + a number
+    // concatenates, round2 yields NaN, and the UI shows $0.00. In an
+    // append-only record it would be "$NaN", permanently.
+    const built = build({ expense: { amount: "2400.75" } });
+    expect(built?.summary).toContain("$2,400.75");
+    expect(built?.payload.amount).toBe(2400.75);
+    expect(toLedgerAmount("600.75")).toBe(600.75);
+    expect(toLedgerAmount(null)).toBe(0);
+    expect(toLedgerAmount("not a number")).toBe(0);
+    expect(formatMoney("12.5")).toBe("$12.50");
+  });
+
+  it("writes nothing when the expense was already paid", () => {
+    // Re-saving a paid expense corrects a typo; it does not spend it twice.
+    expect(build({ previousStatus: "paid" })).toBeNull();
+  });
+
+  it("writes for a draft or approved expense that has just been paid", () => {
+    expect(build({ previousStatus: "draft" })).not.toBeNull();
+    expect(build({ previousStatus: null })).not.toBeNull();
+  });
+
+  it("drops the vendor clause rather than inventing one", () => {
+    expect(build({ expense: { vendor: null } })?.summary).toBe(
+      "$2,400.00 was paid for Fall cleanup (Landscaping)."
+    );
+  });
+
+  it("keeps the number as a number for anyone adding up a year", () => {
+    expect(build()?.payload).toMatchObject({
+      expense_id: "x-4",
+      vendor: "Sunrise Landscaping",
+      category: "Landscaping",
+      amount: 2400,
+      currency: "USD",
+      paid_date: "2026-08-19",
+    });
+  });
+
+  it("names no household — an expense is money out to a business", () => {
+    // The asymmetry with payment_recorded, asserted rather than assumed.
+    const built = build();
+    expect(JSON.stringify(built?.payload)).not.toMatch(/member|household|unit/i);
   });
 });
 

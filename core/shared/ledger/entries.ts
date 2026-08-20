@@ -351,3 +351,114 @@ export function buildPollClosedEntry(input: {
     },
   };
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * expense_recorded
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * A money value as a number, whatever the database handed us.
+ *
+ * **Directus serializes `decimal` columns as strings** ("2400.00"), and
+ * `payment_expenses.amount` is one. A string reaching a formatter renders
+ * "$NaN" into a permanent record — the same class of bug that made the Reports
+ * tab quietly show $0.00. Coerced here, at the boundary, exactly as
+ * `core/shared/reporting/ledger.ts` does it.
+ */
+export function toLedgerAmount(value: unknown): number {
+  const n = typeof value === "number" ? value : parseFloat(String(value ?? ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** US dollars, for a sentence. The ledger stores the raw number alongside it. */
+export function formatMoney(value: unknown, currency = "USD"): string {
+  const amount = toLedgerAmount(value);
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: (currency || "USD").toUpperCase(),
+    }).format(amount);
+  } catch {
+    // An unrecognised currency code must not stop an entry being written.
+    return `${amount.toFixed(2)} ${(currency || "USD").toUpperCase()}`;
+  }
+}
+
+export interface ExpenseSubject {
+  readonly expenseId: string;
+  readonly title: string;
+  /** Who was paid. Named, because a vendor is not a household. */
+  readonly vendor?: string | null;
+  readonly categoryLabel?: string | null;
+  readonly amount: unknown;
+  readonly currency?: string | null;
+  readonly paidDate?: string | null;
+  readonly projectName?: string | null;
+}
+
+/**
+ * The entry for community money going out.
+ *
+ * Owner-visible from the catalogue, and this is the direction that matters:
+ * where the dues went is the question owners most often cannot get answered,
+ * and VISION's Pillar B promises they can. An expense names a VENDOR, which is
+ * a business the community paid — not a household. That asymmetry is the whole
+ * reason this event and `payment_recorded` have different defaults.
+ *
+ * **Paid is the outcome.** A draft expense is someone typing, and an approved
+ * one is a decision to spend that has not yet moved any money. The entry is
+ * written when the money left, so the ledger's money category answers "what did
+ * this community spend" rather than "what did it consider spending".
+ *
+ * Returns `null` when the expense was already paid — re-saving a paid expense
+ * corrects a typo; it does not spend the money twice.
+ */
+export function buildExpenseRecordedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly expense: ExpenseSubject;
+  readonly previousStatus: string | null | undefined;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  if (String(input.previousStatus ?? "") === "paid") return null;
+
+  const e = input.expense;
+  const amount = toLedgerAmount(e.amount);
+  const money = formatMoney(amount, e.currency ?? "USD");
+  const title = e.title?.trim() || "an unnamed expense";
+  const vendor = e.vendor?.trim() || null;
+  const category = e.categoryLabel?.trim() || null;
+
+  const tail = category ? `${title} (${category})` : title;
+  const summary = vendor
+    ? `${vendor} was paid ${money} for ${tail}.`
+    : `${money} was paid for ${tail}.`;
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "expense_recorded",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("expense_recorded"),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      expense_id: e.expenseId,
+      title,
+      vendor,
+      category,
+      // The number as well as the sentence: a reader adding up a year of
+      // spending should not have to parse "$2,400.00" back out of prose.
+      amount,
+      currency: (e.currency || "USD").toUpperCase(),
+      paid_date: e.paidDate ?? null,
+      project: e.projectName ?? null,
+      previous_status: input.previousStatus ?? null,
+    },
+  };
+}

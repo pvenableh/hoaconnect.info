@@ -52,9 +52,14 @@ const blank = () => ({
 });
 const form = ref(blank());
 
-const openCreate = () => { editingId.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
+// The status the row had when the form was opened. `paid` is the one status
+// this screen does not write itself — see the save handler below.
+const originalStatus = ref<PaymentExpense["status"] | null>(null);
+
+const openCreate = () => { editingId.value = null; originalStatus.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
 const openEdit = (e: PaymentExpense) => {
   editingId.value = e.id;
+  originalStatus.value = e.status || "draft";
   form.value = {
     title: e.title || "", vendor: e.vendor || "", category: e.category || "other",
     status: e.status || "draft", amount: e.amount ?? null,
@@ -78,11 +83,19 @@ const save = async () => {
     if (receiptFile.value) {
       receiptId = await uploadReceipt(receiptFile.value);
     }
+    // Marking an expense paid is the outcome the Community Ledger records, and
+    // core/server/api/org/expenses/record.post.ts owns that transition. The form
+    // saves everything else and hands the row over as `approved`; the route
+    // makes it paid and writes the entry. An expense that was ALREADY paid keeps
+    // its status here, so editing a typo does not spend the money twice.
+    const wasPaid = originalStatus.value === "paid";
+    const becomingPaid = form.value.status === "paid" && !wasPaid;
+
     const payload: Partial<PaymentExpense> = {
       title: form.value.title.trim(),
       vendor: form.value.vendor || null,
       category: form.value.category,
-      status: form.value.status,
+      status: becomingPaid ? "approved" : form.value.status,
       amount: form.value.amount,
       expense_date: form.value.expense_date || null,
       paid_date: form.value.paid_date || null,
@@ -91,13 +104,25 @@ const save = async () => {
       receipt: receiptId || null,
       project: form.value.project || null,
     };
+    let expenseId = editingId.value;
     if (editingId.value) {
       await update(editingId.value, payload);
-      toast.success("Expense updated");
     } else {
-      await create(payload, selectedOrgId.value);
-      toast.success("Expense added");
+      const created = (await create(payload, selectedOrgId.value)) as any;
+      expenseId = created?.id ?? null;
     }
+
+    if (becomingPaid && expenseId) {
+      await $fetch("/api/org/expenses/record", {
+        method: "POST",
+        body: {
+          orgId: selectedOrgId.value,
+          expenseId,
+          paidDate: form.value.paid_date || null,
+        },
+      });
+    }
+    toast.success(editingId.value ? "Expense updated" : "Expense added");
     showForm.value = false;
     await refresh();
   } catch (e: any) {
