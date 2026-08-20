@@ -25,6 +25,13 @@
  * Cleanup deletes the org (CASCADE takes the members, vendors and audit rows
  * with it) and the billing account. It is a test fixture, not a community —
  * never point this at a real slug.
+ *
+ * **The seeded org is kept on prod deliberately** — see
+ * `docs/go-live-checklist.md` §3d. It is renamed with a `[TEST FIXTURE]` suffix
+ * and put in `maintenance_mode` by hand after seeding, so a stranger who guesses
+ * the slug meets a maintenance screen rather than a community that does not
+ * exist. Re-seeding gives you the pre-transition state again; do that rather
+ * than trying to unwind a transition, which is not reversible by design.
  */
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;

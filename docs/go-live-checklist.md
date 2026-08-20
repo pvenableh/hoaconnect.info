@@ -230,6 +230,35 @@ SELECT count(*) FROM org_audit_log;
 
 ---
 
+## 3d. The transition test fixture lives on prod — on purpose
+
+`/transition-test` is **not a real community**. It is the fixture the Phase 4
+wizard was driven against end to end (2026-08-20), kept deliberately so the next
+piece of transition work has a realistic org to run against rather than seeding
+one from scratch each time.
+
+| | |
+|---|---|
+| Org | `Transition Test HOA [TEST FIXTURE]` — slug `transition-test` |
+| Billing account | `Transition Test Agency [TEST FIXTURE]` — no Stripe subscription, so seat syncs charge nothing |
+| State | post-transition: detached, `grace_ends_at 2026-10-19`, manager + agency memberships inactive, Nina Alvarez promoted to HOA Admin |
+| Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
+| Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
+
+Re-seed a clean one, or remove it entirely:
+
+```bash
+pnpm tsx --env-file=.env scripts/seed-transition-test-org.ts --cleanup
+pnpm tsx --env-file=.env scripts/seed-transition-test-org.ts
+```
+
+Deleting the org CASCADEs its members, vendors and audit rows; the script also
+removes the billing account and its roster. Never point the script at a real slug.
+
+- [ ] Delete the fixture before any public launch that lists communities.
+
+---
+
 ## 4. Deploy & verify
 
 - [ ] The code is on `main` — deploy it to Vercel (auto-deploy from `main`, or
