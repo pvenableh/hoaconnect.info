@@ -354,6 +354,100 @@ export function buildPollClosedEntry(input: {
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
+ * poll_reopened
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** "Yes and No", "Yes, No and Abstain" — a list a sentence can hold. */
+function joinLabels(labels: readonly string[]): string {
+  if (labels.length <= 1) return labels[0] ?? "";
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+/**
+ * The entry for a closed vote being opened again.
+ *
+ * **Why this exists at all.** `poll_closed` writes an owner-visible row saying
+ * the community decided something. Reopening the poll sets that outcome aside
+ * and lets the ballot change — and until this builder existed, it did so
+ * silently, leaving a permanent record that asserted a decision the community
+ * no longer holds. That is the same failure `ai_action_undone` was added to
+ * prevent, and the same one Pillar B exists to close: a record that is
+ * technically true and materially misleading is worse than no record, because
+ * a board will cite it.
+ *
+ * **It carries the result that was set aside**, not just the fact of reopening.
+ * An entry has to be readable without this codebase and after the source row is
+ * gone — and the interesting question a year later is not "was it reopened" but
+ * "what did it say before it was". Same tally shape as the close, so the same
+ * guarantee holds: counts in ballot order, never a voter.
+ *
+ * Only `closed → open` is a correction. Opening a DRAFT is putting a question
+ * to the community for the first time, which un-decides nothing and returns
+ * `null`; so does reopening a poll that was already open.
+ */
+export function buildPollReopenedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly poll: {
+    readonly pollId: string;
+    readonly title: string;
+    readonly allowMultiple?: boolean | null;
+    readonly closesAt?: string | null;
+  };
+  readonly previousStatus: string | null | undefined;
+  /** The tally as it stood at the moment of reopening — the result being set aside. */
+  readonly tally: PollTally;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  if (String(input.previousStatus ?? "") !== "closed") return null;
+
+  const title = input.poll.title?.trim() || "An untitled vote";
+  const leaders = pollLeaders(input.tally);
+  const votes = input.tally.votesCast;
+
+  let stood: string;
+  if (!leaders.length) {
+    stood = "no votes had been cast";
+  } else if (leaders.length > 1) {
+    stood = `the vote was tied between ${joinLabels(leaders.map((l) => l.label))} at ${
+      leaders[0]!.count
+    } ${leaders[0]!.count === 1 ? "vote" : "votes"} each`;
+  } else {
+    stood = `${leaders[0]!.label} was ahead at ${leaders[0]!.count} of ${votes} ${
+      votes === 1 ? "vote" : "votes"
+    }`;
+  }
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "poll_reopened",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("poll_reopened"),
+    summary: `“${title}” was reopened for voting after being closed — ${stood}.`,
+    payload: {
+      organization_name: input.organizationName,
+      poll_id: input.poll.pollId,
+      title,
+      // The result being set aside, in ballot order, so the correction can be
+      // read against the close it corrects without holding both rows.
+      set_aside_results: input.tally.results.map((r) => ({ option: r.label, votes: r.count })),
+      set_aside_outcome: leaders.length === 1 ? leaders[0]!.label : null,
+      set_aside_tied: leaders.length > 1 ? leaders.map((l) => l.label) : null,
+      votes_cast: votes,
+      voters: input.tally.voters,
+      multiple_choice: input.poll.allowMultiple === true,
+      previous_status: "closed",
+    },
+  };
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
  * expense_recorded
  * ────────────────────────────────────────────────────────────────────────── */
 

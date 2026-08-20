@@ -1,10 +1,18 @@
 /**
  * usePolls — community feedback polls.
  *
- * Admins create polls; members vote; results aggregate client-side. One vote
- * per (poll, user) unless allow_multiple (changing a single-choice vote replaces
- * the prior one). Backed by hoa_polls + hoa_poll_votes
- * (scripts/create-polls-collections.ts).
+ * Members vote; the community's admins, its board, and a property manager
+ * holding its `feedback` grant run the polls. One vote per (poll, user) unless
+ * allow_multiple (changing a single-choice vote replaces the prior one). Backed
+ * by hoa_polls + hoa_poll_votes (scripts/create-polls-collections.ts).
+ *
+ * **Everything except casting a vote goes through /api/org/polls.** Not for
+ * tidiness: a manager's Directus role policy has no `hoa_polls` at all and
+ * should not, because a role permission is the same in every community that
+ * manager works for and no admin can turn it off. The per-community grant is
+ * only readable server-side, so any control the page renders from `canManage`
+ * needs a route behind it or it offers an action the permissions refuse.
+ * Closing and reopening additionally write the Community Ledger.
  */
 
 export interface PollOption {
@@ -80,9 +88,10 @@ export const usePolls = () => {
     return selectedOrgId.value ? { orgId: selectedOrgId.value } : {};
   };
   const hasOrg = () => Object.keys(orgParam()).length > 0;
-  // Reads go through /api/org/polls; only the writes still use Directus directly.
-  const { get: getPoll, create: createPollItem, update: updatePoll } =
-    useDirectusItems<Poll>("hoa_polls");
+  // Reads and manage-writes go through /api/org/polls. The one direct Directus
+  // write left is a member casting their OWN vote — see `vote()` for why that
+  // one is better off where it is.
+  const { get: getPoll } = useDirectusItems<Poll>("hoa_polls");
   const { create: createVote, remove: removeVote } =
     useDirectusItems<PollVote>("hoa_poll_votes");
 
@@ -127,6 +136,20 @@ export const usePolls = () => {
     });
   };
 
+  /**
+   * Create a poll — through the server, for the same reason reading is.
+   *
+   * This was a direct Directus insert, and a property manager holding the
+   * community's `feedback` grant is shown the "New poll" button (the page
+   * renders from `canManage`) while their role policy has no `hoa_polls` at
+   * all. The button offered an action the permissions refused. The route reads
+   * the grant per community and inserts with the admin token, so a poll a
+   * manager creates is indistinguishable from one an admin created.
+   *
+   * It also resolves the org from the URL rather than `selectedOrgId`, which
+   * resets to the user's first membership on a hard navigation — the same trap
+   * the reads already avoid.
+   */
   const createPoll = async (input: {
     title: string;
     description?: string;
@@ -136,29 +159,29 @@ export const usePolls = () => {
     closes_at?: string | null;
     target_audience?: string;
     status?: "draft" | "open";
-  }) => {
-    if (!selectedOrgId.value) throw new Error("No organization selected");
-    return createPollItem({
-      title: input.title,
-      description: input.description || null,
-      options: input.options,
-      allow_multiple: input.allow_multiple || false,
-      is_anonymous: input.is_anonymous || false,
-      closes_at: input.closes_at || null,
-      target_audience: input.target_audience || "all",
-      status: input.status || "open",
-      organization: selectedOrgId.value,
-    } as Poll);
+  }): Promise<{ id: string; status: string }> => {
+    if (!hasOrg()) throw new Error("No organization selected");
+    return await $fetch<{ id: string; status: string }>("/api/org/polls/create", {
+      method: "POST",
+      body: {
+        ...orgParam(),
+        title: input.title,
+        description: input.description || null,
+        options: input.options,
+        allow_multiple: input.allow_multiple || false,
+        is_anonymous: input.is_anonymous || false,
+        closes_at: input.closes_at || null,
+        target_audience: input.target_audience || "all",
+        status: input.status || "open",
+      },
+    });
   };
 
   /**
    * Closing goes through the server, because closing is the outcome the
    * Community Ledger records — the route reads the tally at the moment of
    * closing and writes it into the append-only record. See
-   * core/server/api/org/polls/close.post.ts. Reopening stays a plain update:
-   * it undoes a close rather than deciding anything, and if the poll is closed
-   * a second time the ledger records the second outcome, which is the honest
-   * account of what happened.
+   * core/server/api/org/polls/close.post.ts.
    */
   const closePoll = async (id: string) => {
     if (!hasOrg()) throw new Error("No organization selected");
@@ -167,7 +190,24 @@ export const usePolls = () => {
       body: { ...orgParam(), pollId: id },
     });
   };
-  const reopenPoll = (id: string) => updatePoll(id, { status: "open" } as Partial<Poll>);
+
+  /**
+   * Reopening goes through the server too — and it is NOT the harmless inverse
+   * of closing that it looks like.
+   *
+   * Closing wrote an owner-visible ledger row saying the community decided
+   * something. Reopening lets the ballot change, so left silent it leaves the
+   * record asserting a decision the community no longer holds. The route writes
+   * a `poll_reopened` entry carrying the result being set aside — a correction
+   * as a new row, never an edit. See core/server/api/org/polls/reopen.post.ts.
+   */
+  const reopenPoll = async (id: string) => {
+    if (!hasOrg()) throw new Error("No organization selected");
+    return await $fetch("/api/org/polls/reopen", {
+      method: "POST",
+      body: { ...orgParam(), pollId: id },
+    });
+  };
 
   /**
    * Cast (or toggle) a vote. For single-choice polls, replaces any prior vote.

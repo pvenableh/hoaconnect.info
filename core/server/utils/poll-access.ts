@@ -38,3 +38,27 @@ export async function requirePollAccess(event: H3Event, orgId: string): Promise<
   }
   return access;
 }
+
+/**
+ * The write guard, as a throw — create, close, reopen.
+ *
+ * `canManage` is `isAdmin || isBoard || hasFeedbackGrant`, and the page renders
+ * its "New poll", "Close" and "Reopen" controls from exactly that. Routes that
+ * ask a DIFFERENT question end up refusing an action the UI just offered, which
+ * is the bug class `25fa1a8` fixed for voting: `close.post.ts` used
+ * `requireAdminOrManagerGrant`, which has no notion of a board officer, so a
+ * board member who is not an org admin was shown "Close" and got a 403.
+ *
+ * One guard for all three, derived from the same function the page renders
+ * from, is what keeps that from happening again.
+ */
+export async function requirePollManage(event: H3Event, orgId: string): Promise<PollAccess> {
+  const access = await getPollAccess(event, orgId);
+  if (!access.canManage) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: "Only this community's board, its administrators, or a manager it has granted feedback access may run its polls.",
+    });
+  }
+  return access;
+}

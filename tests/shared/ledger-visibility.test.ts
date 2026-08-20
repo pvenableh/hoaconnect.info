@@ -46,6 +46,7 @@ import {
   buildGrantChangeEntry,
   buildPaymentRecordedEntry,
   buildPollClosedEntry,
+  buildPollReopenedEntry,
   diffGrants,
   formatMoney,
   isNoOpGrantChange,
@@ -929,5 +930,102 @@ describe("dates and month grouping", () => {
     const groups = groupByMonth([{ occurred_at: "" }], "UTC");
     expect(groups[0]?.label).toBe("Undated");
     expect(groups[0]?.entries).toHaveLength(1);
+  });
+});
+
+
+describe("poll-reopened entries", () => {
+  // Reopening is the one poll action that can quietly un-decide something the
+  // community already decided, and the ledger's promise is that a board reading
+  // a `poll_closed` row is reading something still true. These assertions are
+  // that promise: same guarantees as the close (counts, never a ballot), same
+  // owner visibility as the row being corrected, and a correction that names
+  // what it set aside rather than merely noting that something changed.
+  const actor = { userId: "u-9", name: "Dana Reyes", email: "dana@example.com" };
+  const at = "2026-08-22T09:30:00.000Z";
+
+  const tally = (counts: number[], over: Record<string, any> = {}) => ({
+    results: ["Yes", "No", "Abstain"].map((label, i) => ({
+      optionId: `o${i + 1}`,
+      label,
+      count: counts[i] ?? 0,
+    })),
+    votesCast: counts.reduce((a, b) => a + b, 0),
+    voters: counts.reduce((a, b) => a + b, 0),
+    ...over,
+  });
+
+  const build = (counts: number[], over: Record<string, any> = {}) => {
+    const { poll: pollOver, tally: tallyOver, ...rest } = over;
+    return buildPollReopenedEntry({
+      organizationId: "org-1",
+      organizationName: "Transition Test HOA",
+      poll: { pollId: "p-3", title: "Should we repaint the lobby?", ...(pollOver ?? {}) },
+      previousStatus: "closed",
+      tally: tallyOver ?? tally(counts),
+      actor,
+      occurredAt: at,
+      ...rest,
+    });
+  };
+
+  it("names the result it set aside, not just that a poll reopened", () => {
+    const built = build([31, 12, 5]);
+    expect(built?.summary).toBe(
+      "“Should we repaint the lobby?” was reopened for voting after being closed — Yes was ahead at 31 of 48 votes."
+    );
+    expect(built?.payload.set_aside_outcome).toBe("Yes");
+    expect(built?.payload.set_aside_results).toEqual([
+      { option: "Yes", votes: 31 },
+      { option: "No", votes: 12 },
+      { option: "Abstain", votes: 5 },
+    ]);
+  });
+
+  it("carries no voter, exactly like the close it corrects", () => {
+    const built = build([31, 12, 5]);
+    const payload = JSON.stringify(built?.payload);
+    expect(payload).not.toMatch(/option_id|user|member|email|@/i);
+    expect(typeof built?.payload.voters).toBe("number");
+  });
+
+  it("reports a set-aside tie as a tie", () => {
+    const built = build([24, 24, 3]);
+    expect(built?.summary).toBe(
+      "“Should we repaint the lobby?” was reopened for voting after being closed — the vote was tied between Yes and No at 24 votes each."
+    );
+    expect(built?.payload.set_aside_outcome).toBeNull();
+    expect(built?.payload.set_aside_tied).toEqual(["Yes", "No"]);
+  });
+
+  it("records a reopen of a poll nobody voted in", () => {
+    const built = build([0, 0, 0]);
+    expect(built?.summary).toBe(
+      "“Should we repaint the lobby?” was reopened for voting after being closed — no votes had been cast."
+    );
+    expect(built?.payload.set_aside_outcome).toBeNull();
+  });
+
+  it("is owner-visible — it must reach everyone the closed row reached", () => {
+    // If a correction were board-only, owners would keep reading the outcome
+    // and never learn it was set aside. That is a worse record than none.
+    expect(build([1, 0, 0])?.visibility).toBe("owners");
+    expect(defaultVisibilityFor("poll_reopened")).toBe("owners");
+    expect(defaultVisibilityFor("poll_reopened")).toBe(defaultVisibilityFor("poll_closed"));
+    expect(canView(entry({ event_type: "poll_reopened", visibility: "owners" }), owner)).toBe(true);
+  });
+
+  it("files under Decisions, next to the vote it corrects", () => {
+    expect(categoryFor("poll_reopened")).toBe(categoryFor("poll_closed"));
+    expect(eventTypesInCategory("governance")).toContain("poll_reopened");
+  });
+
+  it("writes nothing when nothing was un-decided", () => {
+    // Opening a DRAFT is asking the question for the first time, and reopening
+    // an already-open poll changes nothing. Neither sets aside an outcome, so
+    // neither is a correction.
+    expect(build([1, 0, 0], { previousStatus: "draft" })).toBeNull();
+    expect(build([1, 0, 0], { previousStatus: "open" })).toBeNull();
+    expect(build([1, 0, 0], { previousStatus: null })).toBeNull();
   });
 });

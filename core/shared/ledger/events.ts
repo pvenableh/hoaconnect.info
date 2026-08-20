@@ -155,6 +155,20 @@ const CATALOGUE = [
     note: "A poll or vote reached its outcome. The outcome and the tally, never who voted which way.",
   },
   {
+    key: "poll_reopened",
+    label: "Vote reopened",
+    icon: "rotate-ccw",
+    category: "governance",
+    // Owner-visible, and it has to be: it corrects an owner-visible row. The
+    // same reasoning as `ai_action_undone` — a ledger that says a vote closed
+    // with Yes ahead, and never mentions that the result was set aside and the
+    // ballot opened again, is technically true and materially misleading.
+    // Reopening is the one poll action that can quietly un-decide something the
+    // community already decided, so it is the one that most needs a row.
+    defaultVisibility: "owners",
+    note: "A closed vote was opened again, setting aside a recorded outcome. Carries the result that was set aside.",
+  },
+  {
     key: "ai_action_executed",
     label: "AI action carried out",
     icon: "sparkles",
