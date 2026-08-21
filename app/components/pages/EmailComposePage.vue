@@ -24,7 +24,7 @@ const props = defineProps<{
   audience?: "all" | "owners" | "tenants";
 }>();
 
-const { navigateToOrg } = useOrgNavigation();
+const { navigateToOrg, buildOrgPath } = useOrgNavigation();
 const emailSystem = useEmailSystem();
 const emailTemplates = useEmailTemplates();
 const { list: listMembers } = useDirectusItems("hoa_members");
@@ -867,36 +867,26 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="min-h-screen t-bg-subtle dark:bg-stone-950">
+  <div class="min-h-screen t-bg-subtle">
     <div class="p-6">
       <div class="max-w-5xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8">
-          <Button variant="ghost" size="sm" @click="handleCancel" class="mb-4">
-            <Icon name="lucide:arrow-left" class="w-4 h-4 mr-2" />
-            Back to Emails
-          </Button>
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 class="text-3xl font-bold mb-2">
-                {{ props.emailId ? "Edit Email" : "Compose Email" }}
-              </h1>
-              <p class="t-text-secondary">
-                Create and send emails to your HOA members
-              </p>
-            </div>
-            <div class="flex gap-2">
-              <Button variant="outline" size="sm" @click="openTemplatePicker">
-                <Icon name="lucide:layout-template" class="w-4 h-4 mr-2" />
-                Start from template
-              </Button>
-              <Button variant="outline" size="sm" @click="openSaveTemplate">
-                <Icon name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
-                Save as template
-              </Button>
-            </div>
-          </div>
-        </div>
+        <AppPageHeader
+          :back-to="buildOrgPath('/admin/communications')"
+          back-label="Communications"
+          :title="props.emailId ? 'Edit Email' : 'Compose Email'"
+          description="Create and send emails to your HOA members."
+        >
+          <template #actions>
+            <Button variant="outline" size="sm" @click="openTemplatePicker">
+              <Icon name="lucide:layout-template" class="w-4 h-4 mr-2" />
+              Start from template
+            </Button>
+            <Button variant="outline" size="sm" @click="openSaveTemplate">
+              <Icon name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
+              Save as template
+            </Button>
+          </template>
+        </AppPageHeader>
 
         <!-- Loading State -->
         <div v-if="isLoading" class="text-center py-12">
@@ -908,15 +898,12 @@ useSeoMeta({
         </div>
 
         <!-- No Organization State -->
-        <div v-else-if="!organization" class="text-center py-12">
-          <Alert variant="destructive" class="max-w-md mx-auto">
-            <Icon name="lucide:alert-circle" class="w-4 h-4" />
-            <AlertTitle>No Organization Found</AlertTitle>
-            <AlertDescription>
-              You are not associated with any HOA organization.
-            </AlertDescription>
-          </Alert>
-        </div>
+        <AppEmptyState
+          v-else-if="!organization"
+          icon="lucide:alert-circle"
+          title="No organization found"
+          description="You aren't associated with any HOA organization, so there's nobody to send to. Ask an admin to add you to one."
+        />
 
         <!-- Main Form -->
         <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1251,9 +1238,13 @@ useSeoMeta({
                   </div>
                 </div>
 
-                <p v-else class="text-sm t-text-muted text-center py-4">
-                  No attachments added
-                </p>
+                <AppEmptyState
+                  v-else
+                  compact
+                  icon="lucide:paperclip"
+                  title="No attachments"
+                  description="Attach a document from your files, and recipients get it with the email."
+                />
               </CardContent>
             </Card>
           </div>
@@ -1652,13 +1643,13 @@ useSeoMeta({
               <div v-if="loadingTemplates" class="flex items-center justify-center py-12">
                 <Icon name="lucide:loader-2" class="w-7 h-7 animate-spin t-text-muted" />
               </div>
-              <div
+              <AppEmptyState
                 v-else-if="availableTemplates.length === 0"
-                class="flex flex-col items-center justify-center py-12 t-text-muted"
-              >
-                <Icon name="lucide:layout-template" class="w-10 h-10 mb-2 opacity-50" />
-                <p>No templates yet. Build an email and "Save as template".</p>
-              </div>
+                compact
+                icon="lucide:layout-template"
+                title="No templates yet"
+                description="Build an email you expect to send again, then choose “Save as template” — it will be waiting here next time."
+              />
               <div v-else class="space-y-2">
                 <button
                   v-for="tpl in availableTemplates"
