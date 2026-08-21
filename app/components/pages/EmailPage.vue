@@ -13,11 +13,14 @@ import type { HoaEmail } from "#core/types/directus";
 const { navigateToOrg } = useOrgNavigation();
 const emailSystem = useEmailSystem();
 
-// Await to ensure org is loaded during SSR
-const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
+// Declared before the await: composables must not run after a top-level await.
+const activeTab = useTabQuery({
+  values: ["all", "sent", "scheduled", "drafts"],
+  fallback: "all",
+});
 
-// Current tab
-const activeTab = ref<"all" | "sent" | "scheduled" | "drafts">("all");
+// Awaited so the org is loaded during SSR.
+const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -26,6 +29,24 @@ const orgId = computed(() => selectedOrgId.value);
 // Pagination
 const currentPage = ref(1);
 const pageLimit = 20;
+
+const tabItems = [
+  { value: "all", label: "All", icon: "lucide:inbox" },
+  { value: "sent", label: "Sent", icon: "lucide:send" },
+  { value: "scheduled", label: "Scheduled", icon: "lucide:clock" },
+  { value: "drafts", label: "Drafts", icon: "lucide:file-pen" },
+];
+
+// Columns: subject identifies the email and stays on a phone; the rest is
+// context that drops away rather than pushing the table sideways.
+const emailColumns = [
+  { key: "subject", label: "Subject", sortable: true },
+  { key: "email_type", label: "Type", hideOnMobile: true },
+  { key: "status", label: "Status" },
+  { key: "recipients", label: "Recipients", hideOnMobile: true },
+  { key: "date", label: "Date", sortable: true, hideOnMobile: true, value: (r: any) => r.sent_at || r.date_created },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
 
 // Get status filter based on tab
 const statusFilter = computed(() => {
@@ -131,10 +152,10 @@ const formatDate = (date: string | null | undefined) => {
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
     draft: "t-bg-subtle t-text-secondary",
-    scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
-    sending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-200",
-    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
-    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+    scheduled: "bg-info/15 text-info",
+    sending: "bg-warning/15 text-warning",
+    sent: "bg-success/15 text-success",
+    failed: "bg-destructive/15 text-destructive",
   };
   return classes[status] || classes.draft;
 };
@@ -158,40 +179,33 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer>
-        <CommunicationsTabs />
-        <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
-          <div>
-            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications · Email</p>
-            <h1 class="text-3xl font-semibold tracking-tight t-text">Email</h1>
-            <p class="t-text-secondary mt-1">
-              Send email to your members — alerts, newsletters, reminders, and notices
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <Button @click="goToTemplates" variant="outline" size="lg">
-              <Icon name="lucide:layout-template" class="w-5 h-5 mr-2" />
+        <AppPageHeader
+          eyebrow="Communications"
+          title="Email"
+          description="Alerts, newsletters, reminders, and notices for your members."
+        >
+          <template #actions>
+            <Button variant="outline" @click="goToTemplates">
+              <Icon name="lucide:layout-template" />
               Templates
             </Button>
-            <Button @click="goToActivity" variant="outline" size="lg">
-              <Icon name="lucide:activity" class="w-5 h-5 mr-2" />
+            <Button variant="outline" @click="goToActivity">
+              <Icon name="lucide:activity" />
               Activity
             </Button>
-            <Button @click="goToCompose" size="lg">
-              <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
+            <Button @click="goToCompose">
+              <Icon name="lucide:plus" />
               Compose
             </Button>
-          </div>
-        </WidgetGlass>
+          </template>
+        </AppPageHeader>
 
         <!-- Loading State -->
-        <div v-if="isLoading" class="text-center py-12">
-          <Icon
-            name="lucide:loader-2"
-            class="w-8 h-8 animate-spin mx-auto mb-4"
-          />
-          <p class="text-sm t-text-secondary">Loading your organization...</p>
+        <div v-if="isLoading" class="flex flex-col items-center py-12 gap-3">
+          <span class="spinner-ios" />
+          <p class="type-meta">Loading your organization…</p>
         </div>
 
         <!-- No Organization State -->
@@ -279,55 +293,7 @@ useSeoMeta({
             </Card>
           </div>
 
-          <!-- Tabs -->
-          <div class="border-b t-border">
-            <nav class="flex space-x-8">
-              <button
-                @click="activeTab = 'all'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'all'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                All Emails
-              </button>
-              <button
-                @click="activeTab = 'sent'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'sent'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                Sent
-              </button>
-              <button
-                @click="activeTab = 'scheduled'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'scheduled'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                Scheduled
-              </button>
-              <button
-                @click="activeTab = 'drafts'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'drafts'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                Drafts
-              </button>
-            </nav>
-          </div>
+          <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Email views" />
 
           <!-- Emails List -->
           <Card>
@@ -335,98 +301,83 @@ useSeoMeta({
               <!-- Loading — content-shaped skeleton -->
               <WidgetRowSkeleton v-if="fetchStatus === 'pending'" :rows="6" :avatar="false" />
 
-              <!-- Emails Table -->
-              <div v-else-if="emails.length" class="overflow-x-auto">
-                <table class="w-full">
-                  <thead>
-                    <tr class="border-b">
-                      <th class="text-left p-3">Subject</th>
-                      <th class="text-left p-3">Type</th>
-                      <th class="text-left p-3">Status</th>
-                      <th class="text-left p-3">Recipients</th>
-                      <th class="text-left p-3">Date</th>
-                      <th class="text-right p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="email in emails"
-                      :key="email.id"
-                      class="border-b hover:t-bg-subtle cursor-pointer"
-                      @click="goToEmail(email.id)"
+              <AppDataTable
+                v-else-if="emails.length"
+                :columns="emailColumns"
+                :rows="emails"
+                @row-click="(row) => goToEmail(row.id)"
+              >
+                <template #cell-subject="{ row }">
+                  <span class="font-medium t-text">{{ row.subject }}</span>
+                </template>
+                <template #cell-email_type="{ value }">
+                  <span
+                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full capitalize"
+                    :class="getEmailTypeBadgeClass(value)"
+                  >
+                    {{ value }}
+                  </span>
+                </template>
+                <template #cell-status="{ row }">
+                  <span
+                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full capitalize"
+                    :class="getStatusBadgeClass(row.status || 'draft')"
+                  >
+                    {{ row.status || 'draft' }}
+                  </span>
+                </template>
+                <template #cell-recipients="{ row }">
+                  <template v-if="row.status === 'sent' || row.status === 'failed'">
+                    <span class="text-success">{{ row.delivered_count || 0 }}</span>
+                    <span class="t-text-muted">/</span>
+                    <span>{{ row.recipient_count || 0 }}</span>
+                    <span v-if="row.failed_count" class="text-destructive ml-1">
+                      ({{ row.failed_count }} failed)
+                    </span>
+                  </template>
+                  <span v-else class="t-text-muted">—</span>
+                </template>
+                <template #cell-date="{ value }">
+                  <span class="t-text-secondary">{{ formatDate(value) }}</span>
+                </template>
+                <template #cell-actions="{ row }">
+                  <div class="flex justify-end gap-2" @click.stop>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="View email"
+                      @click="goToEmail(row.id)"
                     >
-                      <td class="p-3">
-                        <div class="font-medium">{{ email.subject }}</div>
-                      </td>
-                      <td class="p-3">
-                        <span
-                          class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full capitalize"
-                          :class="getEmailTypeBadgeClass(email.email_type)"
-                        >
-                          {{ email.email_type }}
-                        </span>
-                      </td>
-                      <td class="p-3">
-                        <span
-                          class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full capitalize"
-                          :class="getStatusBadgeClass(email.status || 'draft')"
-                        >
-                          {{ email.status || 'draft' }}
-                        </span>
-                      </td>
-                      <td class="p-3">
-                        <div v-if="email.status === 'sent' || email.status === 'failed'">
-                          <span class="text-green-600">{{ email.delivered_count || 0 }}</span>
-                          <span class="t-text-muted">/</span>
-                          <span>{{ email.recipient_count || 0 }}</span>
-                          <span v-if="email.failed_count" class="text-red-500 ml-1">
-                            ({{ email.failed_count }} failed)
-                          </span>
-                        </div>
-                        <span v-else class="t-text-muted">—</span>
-                      </td>
-                      <td class="p-3 t-text-secondary">
-                        {{ formatDate(email.sent_at || email.date_created) }}
-                      </td>
-                      <td class="p-3 text-right" @click.stop>
-                        <div class="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            @click="goToEmail(email.id)"
-                          >
-                            <Icon name="lucide:eye" class="w-4 h-4" />
-                          </Button>
-                          <Button
-                            v-if="email.status === 'draft'"
-                            variant="destructive"
-                            size="sm"
-                            @click="confirmDelete(email.id)"
-                          >
-                            <Icon name="lucide:trash-2" class="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                      <Icon name="lucide:eye" />
+                    </Button>
+                    <Button
+                      v-if="row.status === 'draft'"
+                      variant="destructive"
+                      size="icon-sm"
+                      aria-label="Delete draft"
+                      @click="confirmDelete(row.id)"
+                    >
+                      <Icon name="lucide:trash-2" />
+                    </Button>
+                  </div>
+                </template>
+              </AppDataTable>
 
-              <!-- Empty State -->
-              <div v-else class="text-center py-12 t-text-muted">
-                <Icon
-                  name="lucide:mail"
-                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                />
-                <p class="font-medium">No emails yet</p>
-                <p class="text-sm mt-1">
-                  Create your first email to communicate with your members
-                </p>
-                <Button @click="goToCompose" class="mt-4">
-                  <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
-                  Compose Email
+              <AppEmptyState
+                v-else
+                icon="lucide:mail"
+                :title="activeTab === 'all' ? 'No emails yet' : `Nothing in ${activeTab}`"
+                :description="
+                  activeTab === 'all'
+                    ? 'Write your first email to reach everyone in the community.'
+                    : 'Emails appear here once they reach this state.'
+                "
+              >
+                <Button @click="goToCompose">
+                  <Icon name="lucide:plus" />
+                  Compose an email
                 </Button>
-              </div>
+              </AppEmptyState>
 
               <!-- Pagination -->
               <div
