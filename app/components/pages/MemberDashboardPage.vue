@@ -167,7 +167,7 @@ const primaryActions = computed(() =>
 );
 
 // Fetch recent documents (last 5 published)
-const { data: recentDocuments, pending: docsPending } = await useAsyncData(
+const { data: recentDocuments, pending: docsPending, error: docsError } = await useAsyncData(
   `recent-documents-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -228,7 +228,7 @@ const { data: memberStats } = await useAsyncData(
 );
 
 // Fetch announcements (audience-aware)
-const { data: announcements, pending: annPending } = await useAsyncData(
+const { data: announcements, pending: annPending, error: annError } = await useAsyncData(
   `member-announcements-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -295,6 +295,24 @@ const { data: household } = await useAsyncData(
   },
   { watch: [orgId], server: false }
 );
+// Both of these cards fetch with `server: false`, which means the request never
+// STARTS during SSR — so `pending` is false on the server and only turns true
+// once the client mounts. The template read that as "done, and there is
+// nothing", so the server rendered the empty state and the client rendered the
+// skeleton, and the two disagreed at hydration.
+//
+// It was also the wrong thing to show a resident: the first paint said "No
+// documents published yet" before anything had looked. Treat "no data and no
+// error yet" as still loading, which is what it actually is, and both sides
+// agree on the skeleton. An error still falls through to the empty state
+// rather than spinning forever.
+const docsLoading = computed(
+  () => docsPending.value || (!recentDocuments.value && !docsError.value)
+);
+const annLoading = computed(
+  () => annPending.value || (!announcements.value && !annError.value)
+);
+
 const vehiclesEnabled = computed(() => isEnabled("vehicles"));
 const petsEnabled = computed(() => isEnabled("pets"));
 const householdStats = computed(() => ({
@@ -515,7 +533,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
-              <WidgetRowSkeleton v-if="annPending" :rows="4" avatar-shape="square" :trailing="false" />
+              <WidgetRowSkeleton v-if="annLoading" :rows="4" avatar-shape="square" :trailing="false" />
               <div v-else-if="announcements && announcements.length > 0" class="space-y-3">
                 <!-- A row opens the Building tab, which is on this same page —
                      so it's a tab switch, not a navigation. With the feed module
@@ -575,7 +593,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
-              <WidgetRowSkeleton v-if="docsPending" :rows="4" avatar-shape="square" :trailing="false" />
+              <WidgetRowSkeleton v-if="docsLoading" :rows="4" avatar-shape="square" :trailing="false" />
               <div v-else-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
                 <button
                   v-for="(doc, i) in recentDocuments"

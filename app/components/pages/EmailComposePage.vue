@@ -1483,17 +1483,22 @@ useSeoMeta({
 
                 <!-- Schedule for later -->
                 <div class="rounded-lg border t-border">
-                  <button
-                    type="button"
-                    class="flex items-center justify-between w-full px-3 py-2"
-                    @click="scheduleEnabled = !scheduleEnabled"
-                  >
-                    <span class="text-sm font-medium flex items-center gap-1.5">
+                  <!-- This row must NOT be a <button>. A Switch renders its own
+                       <button>, and a button inside a button is invalid HTML:
+                       the parser auto-closes the outer one, so the DOM never
+                       matches what the server serialized and the page hydrates
+                       with a mismatch. It also made the switch itself inert —
+                       reka-ui set the value, then the click bubbled to the
+                       wrapper and flipped it straight back, so only the label
+                       ever worked. This is the row shape every other Switch in
+                       the app already uses. -->
+                  <div class="flex items-center justify-between w-full px-3 py-2">
+                    <Label class="text-sm font-medium flex items-center gap-1.5">
                       <Icon name="lucide:calendar-clock" class="w-4 h-4" />
                       Schedule for later
-                    </span>
-                    <Switch :model-value="scheduleEnabled" @update:model-value="(v) => scheduleEnabled = v" />
-                  </button>
+                    </Label>
+                    <Switch v-model="scheduleEnabled" aria-label="Schedule for later" />
+                  </div>
                   <div v-if="scheduleEnabled" class="px-3 pb-3 pt-1 space-y-3 border-t t-border">
                     <div class="space-y-1.5">
                       <Label for="sched-at" class="text-xs">Send at</Label>

@@ -330,11 +330,9 @@ useSeoMeta({ title: "Design your site" });
           <Button variant="outline" size="sm" @click="showSettings = true">
             <Icon name="lucide:settings-2" class="w-4 h-4 mr-1.5" /> Site settings
           </Button>
-          <a :href="`/${slug}`" target="_blank" rel="noopener">
-            <Button variant="ghost" size="sm">
-              <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" /> View
-            </Button>
-          </a>
+          <Button as="a" :href="`/${slug}`" target="_blank" rel="noopener" variant="ghost" size="sm">
+            <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" /> View
+          </Button>
           <Button size="sm" class="rounded-full" :disabled="saving || !dirty" @click="save">
             <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
             <Icon v-else name="lucide:check" class="w-4 h-4 mr-1.5" />

@@ -179,12 +179,21 @@ useSeoMeta({ title: "Public site" });
         description="Choose your landing page setup and connect a custom domain."
       >
         <template #actions>
-          <a :href="`/${slug}`" target="_blank" rel="noopener">
-            <Button variant="outline" size="sm" class="rounded-full">
-              <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" />
-              View site
-            </Button>
-          </a>
+          <!-- `as="a"` rather than an <a> wrapping a <Button>: a link may not
+               contain interactive content, and the wrapper gave the row two
+               focusable stops for one action. -->
+          <Button
+            as="a"
+            :href="`/${slug}`"
+            target="_blank"
+            rel="noopener"
+            variant="outline"
+            size="sm"
+            class="rounded-full"
+          >
+            <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" />
+            View site
+          </Button>
         </template>
       </AppPageHeader>
 
