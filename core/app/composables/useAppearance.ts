@@ -92,11 +92,13 @@ export function useAppearance() {
     const html = document.documentElement;
     html.classList.toggle("dark", resolved.value === "dark");
 
-    // The glass accent. CSS carries a matching resting default so the first
-    // paint is already right; this keeps it correct if the resolver ever starts
-    // returning a per-organization colour.
+    // Both accent tiers. CSS carries matching resting defaults so the first
+    // paint is already right; this keeps them correct if the resolver ever
+    // starts returning a per-organization colour.
+    const dark = resolved.value === "dark";
     const vars = accentCssVars(
-      resolved.value === "dark" ? accent.value.dark : accent.value.light,
+      dark ? accent.value.dark : accent.value.light,
+      dark ? accent.value.ink.dark : accent.value.ink.light,
     );
     for (const [k, v] of Object.entries(vars)) html.style.setProperty(k, v);
   }

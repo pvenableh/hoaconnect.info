@@ -10,6 +10,12 @@
  *
  * View at /ui-kit on the main domain. Standalone (no app shell, no org context).
  */
+import {
+  BRAND_ACCENT_HEX,
+  getAdminAccent,
+  accentCssVars,
+} from "#core/shared/branding/accent";
+
 definePageMeta({ layout: false });
 useHead({ title: "UI Kit — HOA Connect design system" });
 
@@ -17,9 +23,49 @@ useHead({ title: "UI Kit — HOA Connect design system" });
 // admin and auth actually get — that is the whole point of it as a contract.
 const appearance = useWorkspaceAppearance();
 
-const accents = ["cyan", "blue", "violet", "emerald", "amber", "rose", "gold"] as const;
-type Accent = (typeof accents)[number];
-const accent = ref<Accent>("cyan");
+// The swatches drive the REAL resolver, not a decorative-only override, so this
+// row is a live preview of what per-organization accents would look like: both
+// the glass tier (rims, halos, the active thumb) and the ink tier (buttons,
+// links, focus rings) move together, exactly as they would if getAdminAccent()
+// started reading an org's colour.
+const accents = [
+  { id: "brand", label: "HOA Connect", hex: BRAND_ACCENT_HEX },
+  { id: "blue", label: "Blue", hex: "#3B82F6" },
+  { id: "violet", label: "Violet", hex: "#8B5CF6" },
+  { id: "emerald", label: "Emerald", hex: "#10B981" },
+  { id: "amber", label: "Amber", hex: "#F59E0B" },
+  { id: "rose", label: "Rose", hex: "#F43F5E" },
+  { id: "gold", label: "Gold", hex: "#B8956C" },
+] as const;
+
+const accent = ref<string>("brand");
+
+const previewAccent = computed(() => {
+  const found = accents.find((a) => a.id === accent.value) ?? accents[0];
+  return getAdminAccent(found.hex);
+});
+
+// Written onto <html>, exactly where the appearance layer writes them — NOT onto
+// this page's root div. Custom properties resolve at their DECLARATION site, and
+// `--primary` is declared on `html` as `var(--theme-accent-primary)`; overriding
+// that variable on a descendant re-tints the glass but leaves every button and
+// focus ring on the old colour. Writing to <html> is both correct and the honest
+// test, since it exercises the real code path.
+watchEffect(() => {
+  if (!import.meta.client) return;
+  const dark = appearance.isDark.value;
+  const vars = accentCssVars(
+    dark ? previewAccent.value.dark : previewAccent.value.light,
+    dark ? previewAccent.value.ink.dark : previewAccent.value.ink.light,
+  );
+  for (const [k, v] of Object.entries(vars)) {
+    document.documentElement.style.setProperty(k, v);
+  }
+});
+
+// Hand the accent back when leaving, or the preview colour follows the user out
+// of the style guide and into the app.
+onUnmounted(() => appearance.apply());
 
 const demoLoading = ref(true);
 const replayLoad = () => {
@@ -101,7 +147,7 @@ const materials = [
 </script>
 
 <template>
-  <div class="ui-kit min-h-screen t-bg t-text" :class="`accent-${accent}`">
+  <div class="ui-kit min-h-screen t-bg t-text">
     <div class="mx-auto max-w-5xl px-5 py-10 space-y-12">
       <!-- ── Header ───────────────────────────────────────────────────── -->
       <header class="flex flex-wrap items-end justify-between gap-4">
@@ -128,21 +174,25 @@ const materials = [
       <section>
         <h2 class="type-section">Accent</h2>
         <p class="type-body">
-          The workspace ships one brand accent. These swatches exist to prove the
-          system re-tints cleanly — the seam is <code>getAdminAccent()</code>, so
-          per-organization colour is a one-line change when we want it.
+          The workspace ships one brand accent, but it is resolved through
+          <code>getAdminAccent()</code> — so letting an organization brand their
+          own workspace is a one-line change. Pick a colour to preview it: the
+          buttons, links, focus rings, glass rims and the active tab thumb all
+          re-tint together.
         </p>
-        <div class="flex flex-wrap items-center gap-2 mt-3 px-5">
+        <div class="flex flex-wrap items-center gap-2 mt-3 content-column">
           <button
             v-for="a in accents"
-            :key="a"
+            :key="a.id"
             class="w-7 h-7 rounded-full ios-press glass-edge"
-            :class="[`accent-${a}`, accent === a ? 'ring-2 ring-offset-2 ring-offset-transparent' : '']"
-            :style="{ backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))' }"
-            :title="a"
-            :aria-label="a"
-            @click="accent = a"
+            :class="accent === a.id ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''"
+            :style="{ backgroundColor: a.hex }"
+            :title="a.label"
+            :aria-label="a.label"
+            :aria-pressed="accent === a.id"
+            @click="accent = a.id"
           />
+          <span class="type-meta ml-2">{{ accents.find((a) => a.id === accent)?.label }}</span>
         </div>
       </section>
 
@@ -315,7 +365,7 @@ const materials = [
           The create/edit surface. Drag the grabber down to dismiss — past 100px
           or with a flick it goes, otherwise it springs back.
         </p>
-        <div class="px-5 mt-3">
+        <div class="mt-3 content-column">
           <Button @click="sheetOpen = true">Open sheet</Button>
         </div>
       </section>

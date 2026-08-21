@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { getAdminAccent } from "#core/shared/branding/accent";
 
 // The workspace theme (`html.theme-app`) has to define every `--theme-*` token
 // the public themes define. Roughly 3,600 `t-*` utility usages read these, and
@@ -151,6 +152,39 @@ describe("theme-app token completeness", () => {
       expect(contrast(accent[mode], onAccent[mode])).toBeGreaterThanOrEqual(4.5);
       expect(contrast(accent[mode], page[mode])).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it("bakes the same ink accent into CSS that the resolver writes at runtime", () => {
+    // The CSS value is what paints before any JS runs; the resolver's value is
+    // what gets written on hydration. If they disagree, every cold load flashes
+    // one accent and settles on another.
+    const css = pair("--theme-accent-primary");
+    const ink = getAdminAccent().ink;
+
+    const toHex = ({ h, s, l }: { h: number; s: number; l: number }) => {
+      const S = s / 100;
+      const L = l / 100;
+      const c = (1 - Math.abs(2 * L - 1)) * S;
+      const hp = h / 60;
+      const x = c * (1 - Math.abs((hp % 2) - 1));
+      const [r1, g1, b1] =
+        hp < 1 ? [c, x, 0]
+        : hp < 2 ? [x, c, 0]
+        : hp < 3 ? [0, c, x]
+        : hp < 4 ? [0, x, c]
+        : hp < 5 ? [x, 0, c]
+        : [c, 0, x];
+      const m = L - c / 2;
+      return (
+        "#" +
+        [r1 + m, g1 + m, b1 + m]
+          .map((v) => Math.round(v * 255).toString(16).padStart(2, "0"))
+          .join("")
+      );
+    };
+
+    expect(css.light.toLowerCase()).toBe(toHex(ink.light));
+    expect(css.dark.toLowerCase()).toBe(toHex(ink.dark));
   });
 
   it("keeps a non-light-dark() fallback for every colour token", () => {

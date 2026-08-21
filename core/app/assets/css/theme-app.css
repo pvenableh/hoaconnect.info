@@ -26,14 +26,19 @@
 
    COLOUR
    The brand reads in two tiers, which is what keeps glass legible:
-   - `--app-accent-*` is BRIGHT cyan. It is decoration on glass — rims, focus
-     halos, active thumbs, glows — never text, so it is tuned for light-play.
-   - `--theme-accent-primary` is DEEP cyan. It is ink and fills — links, accent
-     text, primary buttons — so it is tuned to pass WCAG AA (light #00769B on
-     white is 5.2:1; dark #38CFF0 on the ground is ~10:1).
-   Neither is hardcoded anywhere else. The accent is written at runtime from
-   core/shared/branding/accent.ts, which is the single seam for letting
-   organizations brand the workspace later.
+   - `--app-accent-*` is the BRIGHT tier. It is decoration on glass — rims,
+     focus halos, active thumbs, glows — and never carries text, so it is tuned
+     purely for light-play.
+   - `--theme-accent-primary` is the INK tier: the same hue, pushed dark enough
+     (or in dark mode, bright enough) to carry links, accent text and button
+     fills at WCAG AA.
+
+   The values below are RESTING DEFAULTS for the first paint only. Both tiers are
+   written at runtime from core/shared/branding/accent.ts, which SOLVES the ink
+   lightness against these grounds rather than hardcoding it — so if an
+   organization ever brands their own workspace, any hue they pick still passes.
+   A test asserts these hexes equal what the resolver produces, because a
+   mismatch would flash one accent on load and settle on another.
 ============================================================================= */
 
 html.theme-app {
@@ -64,7 +69,7 @@ html.theme-app {
 	--theme-text-inverse: light-dark(#ffffff, #0b1015);
 
 	/* --- Accent (ink tier — see the note above) ----------------------------- */
-	--theme-accent-primary: light-dark(#00769b, #38cff0);
+	--theme-accent-primary: light-dark(#007aa3, #45cbf7);
 	--theme-accent-secondary: light-dark(#00a6d6, #6fe0fa);
 	--theme-accent-tertiary: light-dark(#005a78, #12a8cc);
 	--theme-accent-hover: light-dark(#008fbb, #6fe0fa);
@@ -106,9 +111,9 @@ html.theme-app {
 	--theme-shadow-lg: 0 20px 56px -16px light-dark(rgba(15, 23, 42, 0.1), rgba(0, 0, 0, 0.6));
 
 	/* --- Interactive --------------------------------------------------------- */
-	--theme-link-color: light-dark(#00769b, #38cff0);
+	--theme-link-color: light-dark(#007aa3, #45cbf7);
 	--theme-link-hover: light-dark(#008fbb, #6fe0fa);
-	--theme-button-bg: light-dark(#00769b, #38cff0);
+	--theme-button-bg: light-dark(#007aa3, #45cbf7);
 	--theme-button-text: light-dark(#ffffff, #061016);
 	--theme-button-hover-bg: light-dark(#008fbb, #6fe0fa);
 	--theme-focus-ring: 0 0 0 2px light-dark(rgba(0, 118, 155, 0.32), rgba(56, 207, 240, 0.35));
@@ -202,7 +207,7 @@ html.theme-app {
 	--success-foreground: light-dark(#ffffff, #04170e);
 	--warning: light-dark(#a16207, #fbbf24);
 	--warning-foreground: light-dark(#ffffff, #1a1204);
-	--info: light-dark(#00769b, #38cff0);
+	--info: light-dark(#007aa3, #45cbf7);
 	--info-foreground: light-dark(#ffffff, #061016);
 
 	/* Generous iOS rounding: shadcn's rounded-xl card lands at 16px. */
@@ -373,20 +378,47 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		color: var(--theme-text-muted);
 	}
 
-	/* Page-level headings sit on the content column; card-level ones do not,
-	   because the card already provides the inset. `.type-flush` opts out. */
+	/* ---- The content column ------------------------------------------------
+	   Page-level headings are inset by --surface-inset, which equals a card's
+	   own padding (1.25rem = the `p-5` on .ios-card). The effect, straight out
+	   of iOS grouped lists: a card's EDGE sits on the page margin, while all
+	   TEXT — the heading above the card and the text inside it — lines up on one
+	   column. Without it the heading looks tucked left of everything under it.
+
+	   The heading's introductory paragraph has to come along, or the heading
+	   appears indented relative to its own subtitle, which just reads as a
+	   mistake. Card-level headings opt out because the card already provides the
+	   inset; `.type-flush` opts out anywhere. */
 	html.theme-app .type-display,
-	html.theme-app .type-section {
+	html.theme-app .type-section,
+	html.theme-app .type-display + p,
+	html.theme-app .type-section + p,
+	html.theme-app .type-display + .type-body,
+	html.theme-app .type-section + .type-body {
 		padding-inline-start: var(--surface-inset);
 	}
 	html.theme-app .ios-card .type-display,
 	html.theme-app .ios-card .type-section,
+	html.theme-app .ios-card .type-display + p,
+	html.theme-app .ios-card .type-section + p,
 	html.theme-app .glass-surface .type-display,
 	html.theme-app .glass-surface .type-section,
+	html.theme-app .glass-surface .type-display + p,
+	html.theme-app .glass-surface .type-section + p,
 	html.theme-app [data-slot="card"] .type-display,
 	html.theme-app [data-slot="card"] .type-section,
-	html.theme-app .type-flush {
+	html.theme-app [data-slot="card"] .type-display + p,
+	html.theme-app [data-slot="card"] .type-section + p,
+	html.theme-app .type-flush,
+	html.theme-app .type-flush + p {
 		padding-inline-start: 0;
+	}
+
+	/* Put anything else on the content column — a row of controls under a
+	   heading, a note that is not the immediate sibling. Use this rather than
+	   hand-matching the value, so it tracks --surface-inset if that ever moves. */
+	html.theme-app .content-column {
+		padding-inline-start: var(--surface-inset);
 	}
 }
 
@@ -409,7 +441,7 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		--theme-text-tertiary: #96a3b1;
 		--theme-text-muted: #7a8794;
 		--theme-text-inverse: #0b1015;
-		--theme-accent-primary: #38cff0;
+		--theme-accent-primary: #45cbf7;
 		--theme-accent-secondary: #6fe0fa;
 		--theme-accent-tertiary: #12a8cc;
 		--theme-accent-hover: #6fe0fa;
@@ -425,9 +457,9 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		--theme-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
 		--theme-shadow-md: 0 8px 28px -6px rgba(0, 0, 0, 0.45);
 		--theme-shadow-lg: 0 20px 56px -16px rgba(0, 0, 0, 0.6);
-		--theme-link-color: #38cff0;
+		--theme-link-color: #45cbf7;
 		--theme-link-hover: #6fe0fa;
-		--theme-button-bg: #38cff0;
+		--theme-button-bg: #45cbf7;
 		--theme-button-text: #061016;
 		--theme-button-hover-bg: #6fe0fa;
 		--theme-focus-ring: 0 0 0 2px rgba(56, 207, 240, 0.35);
@@ -437,7 +469,7 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		--success-foreground: #04170e;
 		--warning: #fbbf24;
 		--warning-foreground: #1a1204;
-		--info: #38cff0;
+		--info: #45cbf7;
 		--info-foreground: #061016;
 	}
 }
