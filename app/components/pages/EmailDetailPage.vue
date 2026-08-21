@@ -232,6 +232,12 @@ const getRecipientStatusBadgeClass = (status: string) => {
   return classes[status] || classes.pending;
 };
 
+const recipientColumns = [
+  { key: "recipient_name", label: "Name", sortable: true, class: "truncate max-w-[120px]" },
+  { key: "recipient_email", label: "Email", sortable: true, hideOnMobile: true, class: "truncate max-w-[160px]" },
+  { key: "status", label: "Status", sortable: true },
+];
+
 const attachmentKey = (a: string | HoaEmailsFile) =>
   typeof a === "string" ? a : a.id;
 
@@ -443,37 +449,27 @@ useSeoMeta({
               </CardHeader>
               <CardContent class="pt-0">
                 <div class="max-h-60 overflow-y-auto">
-                  <table class="w-full text-sm">
-                    <thead class="sticky top-0 bg-white">
-                      <tr class="border-b text-left text-xs t-text-muted">
-                        <th class="py-2 pr-2">Name</th>
-                        <th class="py-2 pr-2">Email</th>
-                        <th class="py-2">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="recipient in email.recipients"
-                        :key="recipient.id"
-                        class="border-b last:border-0"
+                  <AppDataTable
+                    :columns="recipientColumns"
+                    :rows="email.recipients"
+                    sticky-header
+                    empty-title="No recipients"
+                    empty-description="This email has nobody on it yet."
+                    empty-icon="lucide:users"
+                  >
+                    <template #cell-recipient_name="{ value }">{{ value || "—" }}</template>
+                    <template #cell-recipient_email="{ value }">
+                      <span class="t-text-secondary">{{ value }}</span>
+                    </template>
+                    <template #cell-status="{ value }">
+                      <span
+                        class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded capitalize"
+                        :class="getRecipientStatusBadgeClass((value as string) || 'pending')"
                       >
-                        <td class="py-2 pr-2 truncate max-w-[120px]">
-                          {{ recipient.recipient_name || '—' }}
-                        </td>
-                        <td class="py-2 pr-2 t-text-secondary truncate max-w-[160px]">
-                          {{ recipient.recipient_email }}
-                        </td>
-                        <td class="py-2">
-                          <span
-                            class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded capitalize"
-                            :class="getRecipientStatusBadgeClass(recipient.status || 'pending')"
-                          >
-                            {{ recipient.status || 'pending' }}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        {{ value || "pending" }}
+                      </span>
+                    </template>
+                  </AppDataTable>
                 </div>
               </CardContent>
             </Card>

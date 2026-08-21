@@ -439,6 +439,28 @@ async function runSweep() {
   }
 }
 
+// The list view used to be two `v-for`s stacked in one tbody. One array with a
+// `kind` on it says the same thing and lets the table own the row semantics —
+// including making rows keyboard-reachable, which a `<tr @click>` never was.
+// Deliberately not sortable: in a file manager, folders come before files, and
+// a name sort that interleaved them would be worse than no sort at all.
+const listRows = computed(() => [
+  ...folders.value.map((f) => ({ key: `lf-${f.id}`, kind: "folder" as const, folder: f, file: null })),
+  ...files.value.map((f) => ({ key: `lfi-${f.id}`, kind: "file" as const, folder: null, file: f })),
+]);
+
+const listColumns = [
+  { key: "name", label: "Name" },
+  { key: "size", label: "Size", hideOnMobile: true },
+  { key: "modified", label: "Modified", hideOnMobile: true },
+  { key: "actions", label: "", align: "right" as const, class: "w-10" },
+];
+
+function openListRow(row: { kind: "folder" | "file"; folder: StorageFolder | null; file: StorageFile | null }) {
+  if (row.kind === "folder" && row.folder) openFolder(row.folder);
+  else if (row.file) openFile(row.file);
+}
+
 // ---- on-demand folder size ----
 // value: undefined = not loaded, null = loading, number = bytes
 const folderSizes = ref<Record<string, number | null>>({});
@@ -669,95 +691,95 @@ async function loadFolderSize(id: string) {
       </div>
 
       <!-- LIST -->
-      <div v-else class="overflow-hidden rounded-xl border">
-        <table class="w-full text-sm">
-          <thead class="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th class="px-3 py-2 font-medium">Name</th>
-              <th class="hidden px-3 py-2 font-medium sm:table-cell">Size</th>
-              <th class="hidden px-3 py-2 font-medium md:table-cell">Modified</th>
-              <th class="w-10 px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y">
-            <tr
-              v-for="folder in folders"
-              :key="'lf-' + folder.id"
-              class="cursor-pointer transition hover:bg-muted/40"
-              @click="openFolder(folder)"
-            >
-              <td class="px-3 py-2">
-                <div class="flex items-center gap-2">
-                  <Icon name="lucide:folder" class="h-5 w-5 text-amber-400" />
-                  <span class="font-medium">{{ folder.name }}</span>
-                </div>
-              </td>
-              <td class="hidden px-3 py-2 text-muted-foreground sm:table-cell" @click.stop>
-                <span v-if="folderSizes[folder.id] === null" class="inline-flex items-center gap-1 text-xs">
-                  <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" /> Sizing…
-                </span>
-                <span v-else-if="typeof folderSizes[folder.id] === 'number'">{{ formatFileSize(folderSizes[folder.id]!) }}</span>
-                <button
+      <div v-else class="overflow-hidden rounded-xl border px-2 pb-2">
+        <AppDataTable
+          :columns="listColumns"
+          :rows="listRows"
+          row-key="key"
+          :row-class="(row) => (row.file && selected.has(row.file.id) ? 'bg-primary/5' : undefined)"
+          empty-title="This folder is empty"
+          empty-description="Drop files here, or use New folder to organize what you have."
+          empty-icon="lucide:folder-open"
+          @row-click="openListRow"
+        >
+          <template #cell-name="{ row }">
+            <div class="flex items-center gap-2">
+              <template v-if="row.kind === 'folder'">
+                <Icon name="lucide:folder" class="h-5 w-5 text-warning" />
+                <span class="font-medium">{{ row.folder!.name }}</span>
+              </template>
+              <template v-else>
+                <img v-if="isImage(row.file!.type)" :src="thumbUrl(row.file!, 64)" class="h-7 w-7 rounded object-cover" loading="lazy" >
+                <Icon
                   v-else
-                  class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                  @click="loadFolderSize(folder.id)"
+                  :name="iconForKind(fileKind(row.file!.type, row.file!.filename_download))"
+                  class="h-5 w-5"
+                  :class="colorForKind(fileKind(row.file!.type, row.file!.filename_download))"
+                />
+                <span class="font-medium">{{ fileLabel(row.file!) }}</span>
+              </template>
+            </div>
+          </template>
+
+          <template #cell-size="{ row }">
+            <span v-if="row.kind === 'file'" class="text-muted-foreground">{{ formatFileSize(row.file!.filesize) }}</span>
+            <template v-else>
+              <span v-if="folderSizes[row.folder!.id] === null" class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" /> Sizing…
+              </span>
+              <span v-else-if="typeof folderSizes[row.folder!.id] === 'number'" class="text-muted-foreground">
+                {{ formatFileSize(folderSizes[row.folder!.id]!) }}
+              </span>
+              <button
+                v-else
+                class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                @click.stop="loadFolderSize(row.folder!.id)"
+              >
+                Size
+              </button>
+            </template>
+          </template>
+
+          <template #cell-modified="{ row }">
+            <span class="text-muted-foreground">
+              {{ row.kind === "file" ? relativeDate(row.file!.modified_on || row.file!.uploaded_on) : "—" }}
+            </span>
+          </template>
+
+          <template #cell-actions="{ row }">
+            <DropdownMenu v-if="row.kind === 'file' || canManage">
+              <DropdownMenuTrigger as-child>
+                <button
+                  class="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="More actions"
+                  @click.stop
                 >
-                  Size
+                  <Icon name="lucide:ellipsis" class="h-4 w-4" />
                 </button>
-              </td>
-              <td class="hidden px-3 py-2 text-muted-foreground md:table-cell">—</td>
-              <td class="px-3 py-2 text-right" @click.stop>
-                <DropdownMenu v-if="canManage">
-                  <DropdownMenuTrigger as-child>
-                    <button class="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><Icon name="lucide:ellipsis" class="h-4 w-4" /></button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem @select="startRename('folder', folder.id, folder.name)"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
-                    <DropdownMenuItem @select="startMove('folder', folder.id, folder.name)"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <template v-if="row.kind === 'folder'">
+                  <DropdownMenuItem @select="startRename('folder', row.folder!.id, row.folder!.name)"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
+                  <DropdownMenuItem @select="startMove('folder', row.folder!.id, row.folder!.name)"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem class="text-destructive" @select="startDelete('folder', row.folder!.id, row.folder!.name)"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                </template>
+                <template v-else>
+                  <DropdownMenuItem @select="openFile(row.file!)"><Icon name="lucide:eye" class="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
+                  <DropdownMenuItem as-child><a :href="downloadUrl(row.file!)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
+                  <DropdownMenuItem @select="copyLink(row.file!)"><Icon name="lucide:link" class="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
+                  <template v-if="canManage">
+                    <DropdownMenuItem v-if="isOptimizable(row.file!)" @select="startOptimize(row.file!)"><Icon name="lucide:sparkles" class="mr-2 h-4 w-4" />Optimize</DropdownMenuItem>
+                    <DropdownMenuItem @select="startRename('file', row.file!.id, fileLabel(row.file!))"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
+                    <DropdownMenuItem @select="startMove('file', row.file!.id, fileLabel(row.file!))"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem class="text-destructive" @select="startDelete('folder', folder.id, folder.name)"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </td>
-            </tr>
-            <tr
-              v-for="file in files"
-              :key="'lfi-' + file.id"
-              class="cursor-pointer transition hover:bg-muted/40"
-              :class="selected.has(file.id) ? 'bg-primary/5' : ''"
-              @click="openFile(file)"
-            >
-              <td class="px-3 py-2">
-                <div class="flex items-center gap-2">
-                  <img v-if="isImage(file.type)" :src="thumbUrl(file, 64)" class="h-7 w-7 rounded object-cover" loading="lazy" />
-                  <Icon v-else :name="iconForKind(fileKind(file.type, file.filename_download))" class="h-5 w-5" :class="colorForKind(fileKind(file.type, file.filename_download))" />
-                  <span class="font-medium">{{ fileLabel(file) }}</span>
-                </div>
-              </td>
-              <td class="hidden px-3 py-2 text-muted-foreground sm:table-cell">{{ formatFileSize(file.filesize) }}</td>
-              <td class="hidden px-3 py-2 text-muted-foreground md:table-cell">{{ relativeDate(file.modified_on || file.uploaded_on) }}</td>
-              <td class="px-3 py-2 text-right" @click.stop>
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <button class="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><Icon name="lucide:ellipsis" class="h-4 w-4" /></button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem @select="openFile(file)"><Icon name="lucide:eye" class="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
-                    <DropdownMenuItem as-child><a :href="downloadUrl(file)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
-                    <DropdownMenuItem @select="copyLink(file)"><Icon name="lucide:link" class="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
-                    <template v-if="canManage">
-                      <DropdownMenuItem v-if="isOptimizable(file)" @select="startOptimize(file)"><Icon name="lucide:sparkles" class="mr-2 h-4 w-4" />Optimize</DropdownMenuItem>
-                      <DropdownMenuItem @select="startRename('file', file.id, fileLabel(file))"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
-                      <DropdownMenuItem @select="startMove('file', file.id, fileLabel(file))"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem class="text-destructive" @select="startDelete('file', file.id, fileLabel(file))"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                    </template>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                    <DropdownMenuItem class="text-destructive" @select="startDelete('file', row.file!.id, fileLabel(row.file!))"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                  </template>
+                </template>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </template>
+        </AppDataTable>
       </div>
     </div>
 

@@ -239,21 +239,26 @@ async function fetchEmails() {
   }
 }
 
-function getEventColor(event?: string): string {
+// This used to return a bare hue that the template interpolated into
+// `text-${hue}-500`. Tailwind never sees a class assembled at runtime, so every
+// one of those icons had been rendering uncoloured — found by looking at the
+// generated CSS, not by reading the code. Whole class names, and status
+// meanings instead of hues, so both modes are handled for free.
+function getEventColorClass(event?: string): string {
   const colorMap: Record<string, string> = {
-    delivered: "green",
-    open: "blue",
-    click: "purple",
-    bounce: "red",
-    processed: "gray",
-    deferred: "yellow",
-    dropped: "orange",
-    spam_report: "red",
-    unsubscribe: "gray",
-    group_unsubscribe: "gray",
-    group_resubscribe: "green",
+    delivered: "text-success",
+    open: "text-info",
+    click: "text-info",
+    bounce: "text-destructive",
+    processed: "t-text-muted",
+    deferred: "text-warning",
+    dropped: "text-warning",
+    spam_report: "text-destructive",
+    unsubscribe: "t-text-muted",
+    group_unsubscribe: "t-text-muted",
+    group_resubscribe: "text-success",
   };
-  return colorMap[event || ""] || "gray";
+  return colorMap[event || ""] || "t-text-muted";
 }
 
 function getEventIcon(event?: string): string {
@@ -289,6 +294,16 @@ function getMemberName(activity: HoaEmailActivity): string {
   }
   return activity.email || "Unknown";
 }
+
+// The event and who it happened to are the identity of a row; the rest is
+// detail that folds away on a phone.
+const activityColumns = [
+  { key: "event", label: "Event", sortable: true },
+  { key: "recipient", label: "Recipient", sortable: true, value: (a: HoaEmailActivity) => getMemberName(a) },
+  { key: "subject", label: "Email", hideOnMobile: true, value: (a: HoaEmailActivity) => getEmailSubject(a) },
+  { key: "clicked_url", label: "Clicked URL", hideOnMobile: true },
+  { key: "date_created", label: "Time", sortable: true, hideOnMobile: true },
+];
 
 function getEmailSubject(activity: HoaEmailActivity): string {
   if (typeof activity.email_recipient === "object" && activity.email_recipient) {
@@ -544,83 +559,52 @@ useSeoMeta({
                 class="max-h-[60vh] overflow-y-auto"
                 @scroll="handleScroll"
               >
-                <!-- Loading -->
-                <div v-if="loading" class="text-center py-8">
-                  <Icon name="lucide:loader-2" class="w-6 h-6 animate-spin mx-auto mb-2" />
-                  <p class="text-sm t-text-muted">Loading activity...</p>
-                </div>
-
-                <!-- Activity Table -->
-                <div v-else-if="filteredActivities.length" class="overflow-x-auto">
-                  <table class="w-full">
-                    <thead class="sticky top-0 t-bg border-b">
-                      <tr>
-                        <th class="text-left p-3 text-sm font-medium">Event</th>
-                        <th class="text-left p-3 text-sm font-medium">Recipient</th>
-                        <th class="text-left p-3 text-sm font-medium">Email</th>
-                        <th class="text-left p-3 text-sm font-medium">Clicked URL</th>
-                        <th class="text-left p-3 text-sm font-medium">Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="activity in filteredActivities"
-                        :key="activity.id"
-                        class="border-b hover:t-bg-subtle"
+                <AppDataTable
+                  class="px-2 pb-2"
+                  :columns="activityColumns"
+                  :rows="filteredActivities"
+                  :loading="loading"
+                  :filtered="eventFilter !== 'all' || emailFilter !== 'all' || !!searchQuery"
+                  sticky-header
+                  empty-title="No activity yet"
+                  empty-description="Email activity appears here once emails are sent and tracked."
+                  empty-icon="lucide:inbox"
+                >
+                  <template #cell-event="{ row }">
+                    <div class="flex items-center gap-2">
+                      <Icon
+                        :name="getEventIcon(row.event)"
+                        :class="getEventColorClass(row.event)"
+                        class="w-5 h-5"
+                      />
+                      <Badge
+                        :variant="row.event === 'bounce' ? 'destructive' : 'secondary'"
+                        class="capitalize"
                       >
-                        <td class="p-3">
-                          <div class="flex items-center gap-2">
-                            <Icon
-                              :name="getEventIcon(activity.event)"
-                              :class="`text-${getEventColor(activity.event)}-500`"
-                              class="w-5 h-5"
-                            />
-                            <Badge
-                              :variant="activity.event === 'bounce' ? 'destructive' : 'secondary'"
-                              class="capitalize"
-                            >
-                              {{ activity.event }}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td class="p-3">
-                          <div>
-                            <p class="font-medium text-sm">{{ getMemberName(activity) }}</p>
-                            <p class="text-xs t-text-muted">{{ activity.email }}</p>
-                          </div>
-                        </td>
-                        <td class="p-3">
-                          <span class="text-sm">{{ getEmailSubject(activity) }}</span>
-                        </td>
-                        <td class="p-3">
-                          <a
-                            v-if="activity.clicked_url"
-                            :href="activity.clicked_url"
-                            target="_blank"
-                            class="text-xs text-primary hover:underline truncate block max-w-[200px]"
-                          >
-                            {{ activity.clicked_url }}
-                          </a>
-                          <span v-else class="t-text-muted">-</span>
-                        </td>
-                        <td class="p-3">
-                          <span class="text-sm t-text-secondary">
-                            {{ formatDate(activity.date_created) }}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <!-- Empty State -->
-                <div v-else class="text-center py-12 t-text-muted">
-                  <Icon name="lucide:inbox" class="w-12 h-12 mx-auto mb-4 t-text-muted" />
-                  <p class="font-medium">No activity found</p>
-                  <p class="text-sm mt-1">
-                    Email activity will appear here once emails are sent and tracked.
-                  </p>
-                </div>
+                        {{ row.event }}
+                      </Badge>
+                    </div>
+                  </template>
+                  <template #cell-recipient="{ row }">
+                    <p class="font-medium text-sm">{{ getMemberName(row) }}</p>
+                    <p class="text-xs t-text-muted">{{ row.email }}</p>
+                  </template>
+                  <template #cell-clicked_url="{ value }">
+                    <a
+                      v-if="value"
+                      :href="value as string"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-xs t-text-accent hover:underline truncate block max-w-[200px]"
+                    >
+                      {{ value }}
+                    </a>
+                    <span v-else class="t-text-muted">—</span>
+                  </template>
+                  <template #cell-date_created="{ value }">
+                    <span class="text-sm t-text-secondary">{{ formatDate(value as string) }}</span>
+                  </template>
+                </AppDataTable>
 
                 <!-- Load More Indicator -->
                 <div v-if="loadingMore" class="flex items-center justify-center py-4">

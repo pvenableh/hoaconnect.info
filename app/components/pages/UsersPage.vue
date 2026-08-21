@@ -428,16 +428,29 @@ const formatLastAccess = (date: string | null) => {
   return formatDate(date);
 };
 
+// Every one of these was a light-only pair, so a status badge in dark mode was
+// dark text on a near-white chip. Status tokens carry both grounds.
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    inactive: "bg-gray-100 text-gray-800",
-    pending: "bg-yellow-100 text-yellow-800",
-    suspended: "bg-red-100 text-red-800",
-    archived: "bg-gray-100 text-gray-600",
+    active: "bg-success/15 text-success",
+    inactive: "t-bg-subtle t-text-secondary",
+    pending: "bg-warning/15 text-warning",
+    suspended: "bg-destructive/15 text-destructive",
+    archived: "t-bg-subtle t-text-muted",
   };
-  return classes[status] || "bg-gray-100 text-gray-800";
+  return classes[status] || "t-bg-subtle t-text-secondary";
 };
+
+// Who they are stays on the phone; role, units and last access fold away.
+const accountColumns = [
+  { key: "name", label: "Name", sortable: true, value: (m: any) => `${m.first_name || ""} ${m.last_name || ""}`.trim() },
+  { key: "email", label: "Email", sortable: true, hideOnMobile: true, value: (m: any) => m.user?.email || m.email },
+  { key: "role", label: "Role", sortable: true },
+  { key: "units", label: "Unit(s)", hideOnMobile: true, value: (m: any) => formatUnits(m) },
+  { key: "status", label: "Status", sortable: true },
+  { key: "last_access", label: "Last Access", sortable: true, hideOnMobile: true, value: (m: any) => m.user?.last_access },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
 
 const getPrimaryUnit = (member: any) => {
   if (!member.units || member.units.length === 0) return null;
@@ -525,106 +538,82 @@ useSeoMeta({
               <!-- Users Table -->
               <Card>
                 <CardContent class="pt-6">
-                  <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                      <thead>
-                        <tr class="border-b">
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
-                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Last Access</th>
-                          <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          v-for="member in filteredMembersWithAccounts"
-                          :key="member.id"
-                          class="border-b hover:t-bg-subtle"
-                        >
-                          <td class="p-3">
-                            <div class="flex items-center gap-2">
-                              <div
-                                class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary"
-                              >
-                                {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
-                              </div>
-                              <span>{{ member.first_name }} {{ member.last_name }}</span>
-                            </div>
-                          </td>
-                          <td class="p-3">{{ member.user?.email || member.email }}</td>
-                          <td class="p-3">
-                            <span
-                              class="text-xs px-2 py-1 rounded font-medium"
-                              :class="getRoleBadgeClass(member.role)"
-                            >
-                              {{ getRoleDisplay(member.role) }}
-                            </span>
-                          </td>
-                          <td class="p-3">{{ formatUnits(member) }}</td>
-                          <td class="p-3">
-                            <span
-                              class="text-xs px-2 py-1 rounded font-medium"
-                              :class="getStatusBadgeClass(member.status)"
-                            >
-                              {{ member.status }}
-                            </span>
-                          </td>
-                          <td class="p-3 text-sm t-text-secondary">
-                            {{ formatLastAccess(member.user?.last_access) }}
-                          </td>
-                          <td class="p-3 text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger as-child>
-                                <Button variant="ghost" size="sm">
-                                  <Icon name="lucide:more-horizontal" class="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  v-if="member.status !== 'active'"
-                                  @click="handleUpdateStatus(member, 'active')"
-                                >
-                                  <Icon name="lucide:check" class="w-4 h-4 mr-2" />
-                                  Activate
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  v-if="member.status !== 'inactive'"
-                                  @click="handleUpdateStatus(member, 'inactive')"
-                                >
-                                  <Icon name="lucide:pause" class="w-4 h-4 mr-2" />
-                                  Deactivate
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="navigateToOrg('/admin/members')">
-                                  <Icon name="lucide:edit" class="w-4 h-4 mr-2" />
-                                  Edit Member
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <AppEmptyState
-                    v-if="!filteredMembersWithAccounts?.length"
-                    icon="lucide:users"
-                    :variant="searchQuery ? 'search' : 'empty'"
-                    :title="searchQuery ? 'No matches' : 'No accounts yet'"
-                    :description="
-                      searchQuery
-                        ? 'No account matches that search.'
-                        : 'People who can sign in appear here once a member record is linked to a login.'
-                    "
+                  <AppDataTable
+                    :columns="accountColumns"
+                    :rows="filteredMembersWithAccounts"
+                    :filtered="!!searchQuery"
+                    empty-title="No accounts yet"
+                    empty-description="People who can sign in appear here once a member record is linked to a login."
+                    empty-icon="lucide:users"
                   >
-                    <Button v-if="searchQuery" variant="outline" @click="searchQuery = ''">
-                      Clear search
-                    </Button>
-                  </AppEmptyState>
+                    <template #cell-name="{ row }">
+                      <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary shrink-0">
+                          {{ row.first_name?.[0] || "" }}{{ row.last_name?.[0] || "" }}
+                        </div>
+                        <span>{{ row.first_name }} {{ row.last_name }}</span>
+                      </div>
+                    </template>
+
+                    <template #cell-role="{ row }">
+                      <span class="text-xs px-2 py-1 rounded-full font-medium" :class="getRoleBadgeClass(row.role)">
+                        {{ getRoleDisplay(row.role) }}
+                      </span>
+                    </template>
+
+                    <template #cell-status="{ value }">
+                      <span class="text-xs px-2 py-1 rounded-full font-medium capitalize" :class="getStatusBadgeClass(value as string)">
+                        {{ value }}
+                      </span>
+                    </template>
+
+                    <template #cell-last_access="{ value }">
+                      <span class="text-sm t-text-secondary">{{ formatLastAccess(value as string) }}</span>
+                    </template>
+
+                    <template #cell-actions="{ row }">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="icon-sm" aria-label="Account actions">
+                            <Icon name="lucide:more-horizontal" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem v-if="row.status !== 'active'" @click="handleUpdateStatus(row, 'active')">
+                            <Icon name="lucide:check" class="w-4 h-4 mr-2" />
+                            Activate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem v-if="row.status !== 'inactive'" @click="handleUpdateStatus(row, 'inactive')">
+                            <Icon name="lucide:pause" class="w-4 h-4 mr-2" />
+                            Deactivate
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem @click="navigateToOrg('/admin/members')">
+                            <Icon name="lucide:edit" class="w-4 h-4 mr-2" />
+                            Edit Member
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </template>
+
+                    <template #empty>
+                      <AppEmptyState
+                        icon="lucide:users"
+                        :variant="searchQuery ? 'search' : 'empty'"
+                        :title="searchQuery ? 'No matches' : 'No accounts yet'"
+                        :description="
+                          searchQuery
+                            ? 'No account matches that search.'
+                            : 'People who can sign in appear here once a member record is linked to a login.'
+                        "
+                        compact
+                      >
+                        <Button v-if="searchQuery" variant="outline" @click="searchQuery = ''">
+                          Clear search
+                        </Button>
+                      </AppEmptyState>
+                    </template>
+                  </AppDataTable>
                 </CardContent>
               </Card>
             </div>

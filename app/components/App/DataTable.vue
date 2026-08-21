@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="Row extends Record<string, any>">
 /**
  * The one way to show rows of records.
  *
@@ -15,6 +15,10 @@
  *
  * Below `sm` the table collapses to stacked cards, each cell labelled by its
  * column, because a horizontally-scrolling table on a phone is unreadable.
+ *
+ * Generic over the row type so `#cell-*` slots hand back the caller's own
+ * record rather than a bag of `any` — without that, every `@click="edit(row)"`
+ * against a typed handler needed a cast at the call site.
  */
 export interface DataTableColumn<Row = Record<string, unknown>> {
   /** Key into the row, and the name of the `cell-<key>` slot. */
@@ -30,8 +34,6 @@ export interface DataTableColumn<Row = Record<string, unknown>> {
   /** Pull the value out of a row. Defaults to `row[key]`. */
   value?: (row: Row) => unknown;
 }
-
-type Row = Record<string, any>;
 
 const props = withDefaults(
   defineProps<{
@@ -49,6 +51,8 @@ const props = withDefaults(
     filtered?: boolean;
     /** Keeps the header visible while the body scrolls. */
     stickyHeader?: boolean;
+    /** Per-row classes, for tables where a row's state tints the whole row. */
+    rowClass?: (row: Row) => string | undefined;
   }>(),
   {
     rowKey: "id",
@@ -175,7 +179,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
             :key="keyFor(row, i)"
             :data-flip-id="keyFor(row, i)"
             class="data-table__row stagger-item"
-            :class="{ 'data-table__row--clickable': clickable }"
+            :class="[{ 'data-table__row--clickable': clickable }, rowClass?.(row)]"
             :tabindex="clickable ? 0 : undefined"
             :role="clickable ? 'button' : undefined"
             @click="clickable && emit('row-click', row)"
@@ -212,6 +216,14 @@ const alignClass = (col: DataTableColumn<Row>) =>
 </template>
 
 <style scoped>
+/* Every `:deep()` rule below is anchored on `.data-table__scroll`, a plain div
+   in this template, and NOT on `.data-table__table`. The table class lands on
+   the inner `<table>` of the Table primitive, which is not that component's
+   root element and therefore never receives this file's scope attribute — so
+   rules written against it compiled to a selector that matched nothing. The
+   mobile card collapse, the sticky header and the muted header colour were all
+   silently dead until a phone-width pass showed a full table still sitting
+   there. Found by looking at computed styles in the browser, not by reading. */
 .data-table__toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -228,7 +240,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
   z-index: 1;
   background: var(--theme-card-bg);
 }
-.data-table__table :deep(th) {
+.data-table__scroll :deep(th) {
   color: var(--theme-text-muted);
 }
 .data-table__sort {
@@ -260,15 +272,15 @@ const alignClass = (col: DataTableColumn<Row>) =>
   .data-table__col--desktop {
     display: none;
   }
-  .data-table__table :deep(thead) {
+  .data-table__scroll :deep(thead) {
     display: none;
   }
-  .data-table__table :deep(tr) {
+  .data-table__scroll :deep(tbody tr) {
     display: block;
     border-bottom: 1px solid var(--theme-border-light);
     padding: 0.5rem 0;
   }
-  .data-table__table :deep(td) {
+  .data-table__scroll :deep(tbody td) {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
@@ -277,7 +289,12 @@ const alignClass = (col: DataTableColumn<Row>) =>
     border: 0;
     padding-block: 0.25rem;
   }
-  .data-table__table :deep(td)::before {
+  /* A column with no label has nothing to announce, so it skips the label rail
+     and takes the full width instead of sitting in a lopsided two-up. */
+  .data-table__scroll :deep(tbody td[data-label=""]) {
+    justify-content: flex-end;
+  }
+  .data-table__scroll :deep(tbody td:not([data-label=""]))::before {
     content: attr(data-label);
     font-size: 0.675rem;
     font-weight: 600;

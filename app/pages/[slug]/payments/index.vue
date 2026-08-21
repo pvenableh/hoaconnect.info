@@ -70,6 +70,35 @@ const totalDue = computed(() =>
   outstanding.value.reduce((sum, r) => sum + (r.amount_remaining ?? r.amount ?? 0), 0)
 );
 
+// History came from two places — Stripe transactions, and requests an admin
+// marked paid offline — and used to render as two stacked `v-for`s in one
+// tbody, which meant the list was only sorted within each half. Merging them
+// into one shape first makes the whole history sort by date, and makes the
+// sortable headers tell the truth.
+const history = computed(() => [
+  ...(transactions.value || []).map((tx) => ({
+    id: `tx-${tx.id}`,
+    description: tx.description || "Payment",
+    date: tx.date_created,
+    amount: tx.amount,
+    receiptUrl: tx.receipt_url || null,
+  })),
+  ...paid.value.map((r) => ({
+    id: `req-${r.id}`,
+    description: r.title,
+    date: r.paid_at,
+    amount: r.amount,
+    receiptUrl: null,
+  })),
+]);
+
+const historyColumns = [
+  { key: "description", label: "Description", sortable: true },
+  { key: "date", label: "Date", sortable: true, hideOnMobile: true },
+  { key: "amount", label: "Amount", align: "right" as const, sortable: true, class: "tabular-nums" },
+  { key: "receiptUrl", label: "Receipt", align: "right" as const, hideOnMobile: true },
+];
+
 // --- Pay flow -----------------------------------------------------------
 const showPaymentModal = ref(false);
 const selectedRequest = ref<PaymentRequest | null>(null);
@@ -212,55 +241,40 @@ const TYPE_LABEL: Record<string, string> = {
         </section>
 
         <!-- Payment history (transactions with receipts) -->
-        <section v-if="transactions?.length || paid.length" class="space-y-3">
-          <h2 class="text-lg font-semibold t-text">Payment History</h2>
+        <section v-if="history.length" class="space-y-3">
+          <h2 class="type-section">Payment History</h2>
 
-          <div class="ios-card overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-black/[0.06] dark:border-white/[0.08]">
-                  <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Description</th>
-                  <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Date</th>
-                  <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Amount</th>
-                  <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Receipt</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="tx in transactions"
-                  :key="tx.id"
-                  class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
+          <div class="ios-card overflow-hidden px-2 pb-2">
+            <AppDataTable
+              :columns="historyColumns"
+              :rows="history"
+              empty-title="No payments yet"
+              empty-description="Payments you make will show up here with their receipts."
+              empty-icon="lucide:receipt"
+            >
+              <template #cell-description="{ value }">
+                <span class="t-text">{{ value }}</span>
+              </template>
+              <template #cell-date="{ value }">
+                <span class="t-text-muted">{{ formatDate(value as string) }}</span>
+              </template>
+              <template #cell-amount="{ value }">
+                <span class="font-medium t-text">{{ currency(value as number) }}</span>
+              </template>
+              <template #cell-receiptUrl="{ value }">
+                <a
+                  v-if="value"
+                  :href="value as string"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
+                  title="View receipt"
                 >
-                  <td class="py-2.5 px-4 t-text">{{ tx.description || "Payment" }}</td>
-                  <td class="py-2.5 px-4 t-text-muted">{{ formatDate(tx.date_created) }}</td>
-                  <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(tx.amount) }}</td>
-                  <td class="py-2.5 px-4 text-right">
-                    <a
-                      v-if="tx.receipt_url"
-                      :href="tx.receipt_url"
-                      target="_blank"
-                      rel="noopener"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                      title="View receipt"
-                    >
-                      <Icon name="heroicons:arrow-top-right-on-square" class="h-4 w-4" />
-                    </a>
-                    <span v-else class="t-text-muted">—</span>
-                  </td>
-                </tr>
-                <!-- Paid requests without a linked transaction (e.g. recorded offline) -->
-                <tr
-                  v-for="request in paid"
-                  :key="request.id"
-                  class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
-                >
-                  <td class="py-2.5 px-4 t-text">{{ request.title }}</td>
-                  <td class="py-2.5 px-4 t-text-muted">{{ formatDate(request.paid_at) }}</td>
-                  <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(request.amount) }}</td>
-                  <td class="py-2.5 px-4 text-right t-text-muted">—</td>
-                </tr>
-              </tbody>
-            </table>
+                  <Icon name="heroicons:arrow-top-right-on-square" class="h-4 w-4" />
+                </a>
+                <span v-else class="t-text-muted">—</span>
+              </template>
+            </AppDataTable>
           </div>
         </section>
       </template>

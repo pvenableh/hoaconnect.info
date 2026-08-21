@@ -106,6 +106,11 @@ const columns = [
   { key: "type", label: "Type", hideOnMobile: true },
   { key: "balance", label: "Balance", align: "right" as const, sortable: true },
 ];
+// `row-class` is for the case where the row's state, not one cell's, is the
+// point — an overdue balance tints the whole line rather than one number.
+const memberRowClass = (row: (typeof members)[number]) =>
+  row.balance < 0 ? "bg-destructive/[0.06]" : undefined;
+
 const members = [
   { id: 1, name: "Dana Whitfield", unit: "4B", type: "Owner", balance: 0 },
   { id: 2, name: "Marcus Lee", unit: "2A", type: "Tenant", balance: 240 },
@@ -274,12 +279,14 @@ const materials = [
         <h2 class="type-section">Data table</h2>
         <p class="type-body">
           Sortable headers, keyboard-reachable rows, and a built-in empty state.
-          Collapses to labelled cards on phones.
+          Collapses to labelled cards on phones. `row-class` tints a whole row
+          when its state — not one of its cells — is what matters.
         </p>
         <div class="ios-card p-5 mt-3">
           <AppDataTable
             :columns="columns"
             :rows="showEmpty ? [] : members"
+            :row-class="memberRowClass"
             :loading="demoLoading"
             empty-title="No members yet"
             empty-description="Invite the first owner to get started."

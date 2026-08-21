@@ -161,10 +161,21 @@ const fdate = (d?: string | null) =>
 
 const CAT_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
 const STATUS_CLASS: Record<string, string> = {
-  draft: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
-  approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
-  paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  draft: "t-bg-subtle t-text-muted",
+  approved: "bg-info/15 text-info",
+  paid: "bg-success/15 text-success",
 };
+
+// What the expense was stays on the phone; category, date and status are the
+// kind of context you only read on a wide screen.
+const expenseColumns = [
+  { key: "title", label: "Expense", sortable: true },
+  { key: "category", label: "Category", sortable: true, hideOnMobile: true },
+  { key: "expense_date", label: "Date", sortable: true, hideOnMobile: true },
+  { key: "amount", label: "Amount", align: "right" as const, sortable: true, class: "tabular-nums" },
+  { key: "status", label: "Status", sortable: true },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
 </script>
 
 <template>
@@ -260,79 +271,64 @@ const STATUS_CLASS: Record<string, string> = {
       </div>
 
       <!-- Table -->
-      <div class="ios-card overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-black/[0.06] dark:border-white/[0.08]">
-              <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Expense</th>
-              <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Category</th>
-              <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Date</th>
-              <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Amount</th>
-              <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
-              <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="pending">
-              <td colspan="6" class="py-10 text-center"><span class="spinner-ios" /></td>
-            </tr>
-            <tr v-else-if="!filtered.length">
-              <td colspan="6" class="py-10 text-center t-text-muted">No expenses yet.</td>
-            </tr>
-            <tr
-              v-for="e in filtered"
-              :key="e.id"
-              class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
+      <div class="ios-card overflow-hidden px-2 pb-2">
+        <AppDataTable
+          :columns="expenseColumns"
+          :rows="filtered"
+          :loading="pending"
+          :filtered="categoryFilter !== 'all'"
+          empty-title="No expenses yet"
+          empty-description="Record what the association spends and it shows up here and in Reports."
+          empty-icon="lucide:receipt"
+        >
+          <template #cell-title="{ row }">
+            <span class="t-text">{{ row.title }}</span>
+            <span v-if="row.vendor" class="t-text-muted text-xs ml-2">{{ row.vendor }}</span>
+            <span
+              v-if="projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string))"
+              class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 text-[10px] t-text-accent ml-2 align-middle"
             >
-              <td class="py-2.5 px-4">
-                <span class="t-text">{{ e.title }}</span>
-                <span v-if="e.vendor" class="t-text-muted text-xs ml-2">{{ e.vendor }}</span>
-                <span
-                  v-if="projectName(typeof e.project === 'object' ? (e.project as any)?.id : (e.project as string))"
-                  class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 text-[10px] t-text-accent ml-2 align-middle"
-                >
-                  <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(typeof e.project === 'object' ? (e.project as any)?.id : (e.project as string)) }}
-                </span>
-              </td>
-              <td class="py-2.5 px-4 t-text-muted">{{ CAT_LABEL[e.category as string] }}</td>
-              <td class="py-2.5 px-4 t-text-muted">{{ fdate(e.expense_date) }}</td>
-              <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(e.amount) }}</td>
-              <td class="py-2.5 px-4">
-                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="STATUS_CLASS[e.status as string]">
-                  {{ e.status }}
-                </span>
-              </td>
-              <td class="py-2.5 px-4">
-                <div class="flex items-center justify-end gap-2">
-                  <a
-                    v-if="receiptUrl(e)"
-                    :href="receiptUrl(e)!"
-                    target="_blank"
-                    rel="noopener"
-                    title="View receipt"
-                    class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                  >
-                    <Icon name="lucide:paperclip" class="w-4 h-4" />
-                  </a>
-                  <button
-                    @click="openEdit(e)"
-                    title="Edit"
-                    class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                  >
-                    <Icon name="lucide:pencil" class="w-4 h-4" />
-                  </button>
-                  <button
-                    @click="removeExpense(e)"
-                    title="Delete"
-                    class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                  >
-                    <Icon name="lucide:trash-2" class="w-4 h-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string)) }}
+            </span>
+          </template>
+          <template #cell-category="{ value }">
+            <span class="t-text-muted">{{ CAT_LABEL[value as string] }}</span>
+          </template>
+          <template #cell-expense_date="{ value }">
+            <span class="t-text-muted">{{ fdate(value as string) }}</span>
+          </template>
+          <template #cell-amount="{ value }">
+            <span class="font-medium t-text">{{ currency(value as number) }}</span>
+          </template>
+          <template #cell-status="{ value }">
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="STATUS_CLASS[value as string]">
+              {{ value }}
+            </span>
+          </template>
+          <template #cell-actions="{ row }">
+            <div class="flex items-center justify-end gap-2">
+              <Button
+                v-if="receiptUrl(row)"
+                as="a"
+                variant="outline"
+                size="icon-sm"
+                :href="receiptUrl(row)!"
+                target="_blank"
+                rel="noopener"
+                aria-label="View receipt"
+                title="View receipt"
+              >
+                <Icon name="lucide:paperclip" />
+              </Button>
+              <Button variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(row)">
+                <Icon name="lucide:pencil" />
+              </Button>
+              <Button variant="destructive" size="icon-sm" aria-label="Delete expense" title="Delete" @click="removeExpense(row)">
+                <Icon name="lucide:trash-2" />
+              </Button>
+            </div>
+          </template>
+        </AppDataTable>
       </div>
     </PageContainer>
   </div>

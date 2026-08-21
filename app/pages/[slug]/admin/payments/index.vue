@@ -274,14 +274,45 @@ const fdate = (d?: string | null) =>
 const TYPE_LABEL: Record<string, string> = {
   monthly_dues: "Monthly Dues", assessment: "Assessment", late_fee: "Late Fee", other: "Other",
 };
+// Status is meaning, not decoration, so it rides the status tokens rather than
+// a hand-picked palette pair per mode — one definition that is already proven
+// against both grounds.
 const STATUS_CLASS: Record<string, string> = {
-  active: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
-  overdue: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
-  partially_paid: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
-  paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
-  canceled: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
-  draft: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
+  active: "bg-warning/15 text-warning",
+  overdue: "bg-destructive/15 text-destructive",
+  partially_paid: "bg-info/15 text-info",
+  paid: "bg-success/15 text-success",
+  canceled: "t-bg-subtle t-text-muted",
+  draft: "t-bg-subtle t-text-muted",
 };
+// Columns. The identity column (who, or what happened) stays on the phone; the
+// rest is context and folds away, so a charge is still readable one-handed.
+const activityColumns = [
+  { key: "kind", label: "", class: "w-10" },
+  { key: "label", label: "Activity" },
+  { key: "date", label: "Date", hideOnMobile: true, class: "whitespace-nowrap" },
+  { key: "amount", label: "Amount", align: "right" as const, class: "tabular-nums" },
+];
+
+const chargeColumns = [
+  { key: "member", label: "Member", sortable: true, value: (r: any) => memberName(r.member) },
+  { key: "title", label: "Charge", sortable: true },
+  { key: "due_date", label: "Due", sortable: true, hideOnMobile: true },
+  { key: "amount", label: "Amount", align: "right" as const, sortable: true, class: "tabular-nums" },
+  { key: "status", label: "Status", sortable: true },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
+
+const scheduleColumns = [
+  { key: "member", label: "Member", sortable: true, value: (r: any) => memberName(r.member) },
+  { key: "title", label: "Title", sortable: true },
+  { key: "frequency", label: "Frequency", hideOnMobile: true },
+  { key: "next_payment_date", label: "Next", sortable: true, hideOnMobile: true },
+  { key: "amount", label: "Amount", align: "right" as const, sortable: true, class: "tabular-nums" },
+  { key: "status", label: "Status", hideOnMobile: true },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
+
 const TYPE_FILTERS = [
   { key: "all", label: "All types" },
   { key: "monthly_dues", label: "Monthly Dues" },
@@ -443,35 +474,36 @@ const TYPE_FILTERS = [
           <div class="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.08]">
             <h3 class="font-semibold t-text">Recent activity</h3>
           </div>
-          <table class="w-full text-sm">
-            <tbody>
-              <tr v-if="!recentActivity.length">
-                <td class="py-8 text-center t-text-muted">No activity yet.</td>
-              </tr>
-              <tr
-                v-for="(a, i) in recentActivity"
-                :key="i"
-                class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
+          <AppDataTable
+            class="px-2 pb-2"
+            :columns="activityColumns"
+            :rows="recentActivity"
+            :row-key="(a: any) => `${a.kind}-${a.date}-${a.label}`"
+            empty-title="No activity yet"
+            empty-description="Money in and out will appear here as it happens."
+            empty-icon="lucide:arrow-left-right"
+          >
+            <template #cell-kind="{ row }">
+              <span
+                class="inline-flex items-center justify-center w-8 h-8 rounded-full"
+                :class="row.kind === 'in' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'"
               >
-                <td class="py-2.5 px-4 w-10">
-                  <span
-                    class="inline-flex items-center justify-center w-8 h-8 rounded-full"
-                    :class="a.kind === 'in' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'"
-                  >
-                    <Icon :name="a.kind === 'in' ? 'lucide:arrow-down-left' : 'lucide:arrow-up-right'" class="w-4 h-4" />
-                  </span>
-                </td>
-                <td class="py-2.5 px-2">
-                  <span class="t-text">{{ a.label }}</span>
-                  <span class="t-text-muted text-xs ml-2">{{ a.member }}</span>
-                </td>
-                <td class="py-2.5 px-4 t-text-muted whitespace-nowrap">{{ fdate(a.date) }}</td>
-                <td class="py-2.5 px-4 text-right font-medium tabular-nums" :class="a.kind === 'in' ? 'text-emerald-600' : 'text-red-600'">
-                  {{ a.kind === 'in' ? '+' : '−' }}{{ currency(a.amount) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                <Icon :name="row.kind === 'in' ? 'lucide:arrow-down-left' : 'lucide:arrow-up-right'" class="w-4 h-4" />
+              </span>
+            </template>
+            <template #cell-label="{ row }">
+              <span class="t-text">{{ row.label }}</span>
+              <span class="t-text-muted text-xs ml-2">{{ row.member }}</span>
+            </template>
+            <template #cell-date="{ value }">
+              <span class="t-text-muted">{{ fdate(value as string) }}</span>
+            </template>
+            <template #cell-amount="{ row }">
+              <span class="font-medium" :class="row.kind === 'in' ? 'text-success' : 'text-destructive'">
+                {{ row.kind === 'in' ? '+' : '−' }}{{ currency(row.amount) }}
+              </span>
+            </template>
+          </AppDataTable>
         </div>
       </template>
 
@@ -499,132 +531,122 @@ const TYPE_FILTERS = [
           </div>
         </div>
 
-        <div class="ios-card overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-black/[0.06] dark:border-white/[0.08]">
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Member</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Charge</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Due</th>
-                <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Amount</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
-                <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="pending">
-                <td colspan="6" class="py-10 text-center"><span class="spinner-ios" /></td>
-              </tr>
-              <tr v-else-if="!filtered.length">
-                <td colspan="6" class="py-10 text-center t-text-muted">No charges found.</td>
-              </tr>
-              <tr
-                v-for="r in filtered"
-                :key="r.id"
-                class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
-              >
-                <td class="py-2.5 px-4 t-text">{{ memberName(r.member) }}</td>
-                <td class="py-2.5 px-4">
-                  <span class="t-text">{{ r.title }}</span>
-                  <span class="t-text-muted text-xs ml-2">{{ TYPE_LABEL[r.request_type as string] }}</span>
-                </td>
-                <td class="py-2.5 px-4 t-text-muted">{{ fdate(r.due_date) }}</td>
-                <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(r.amount) }}</td>
-                <td class="py-2.5 px-4">
-                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="STATUS_CLASS[r.status as string]">
-                    {{ r.status }}
-                  </span>
-                </td>
-                <td class="py-2.5 px-4">
-                  <div class="flex items-center justify-end gap-2">
-                    <button
-                      v-if="!['paid','canceled'].includes(r.status as string)"
-                      @click="markPaid(r)"
-                      :disabled="markingId === r.id"
-                      title="Mark as paid"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                    >
-                      <Icon v-if="markingId === r.id" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
-                      <Icon v-else name="lucide:check" class="w-4 h-4" />
-                    </button>
-                    <button
-                      v-if="!['paid','canceled'].includes(r.status as string)"
-                      @click="cancelCharge(r)"
-                      title="Cancel charge"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                    >
-                      <Icon name="lucide:x" class="w-4 h-4" />
-                    </button>
-                    <span v-if="['paid','canceled'].includes(r.status as string)" class="t-text-muted text-xs px-2">—</span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="ios-card overflow-hidden px-2 pb-2">
+          <AppDataTable
+            :columns="chargeColumns"
+            :rows="filtered"
+            :loading="pending"
+            :filtered="statusFilter !== 'all' || typeFilter !== 'all'"
+            empty-title="No charges yet"
+            empty-description="Create a charge to bill a member for dues, an assessment, or a fee."
+            empty-icon="lucide:receipt"
+          >
+            <template #cell-member="{ value }">
+              <span class="t-text">{{ value }}</span>
+            </template>
+            <template #cell-title="{ row }">
+              <span class="t-text">{{ row.title }}</span>
+              <span class="t-text-muted text-xs ml-2">{{ TYPE_LABEL[row.request_type as string] }}</span>
+            </template>
+            <template #cell-due_date="{ value }">
+              <span class="t-text-muted">{{ fdate(value as string) }}</span>
+            </template>
+            <template #cell-amount="{ value }">
+              <span class="font-medium t-text">{{ currency(value as number) }}</span>
+            </template>
+            <template #cell-status="{ value }">
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="STATUS_CLASS[value as string]">
+                {{ value }}
+              </span>
+            </template>
+            <template #cell-actions="{ row }">
+              <div class="flex items-center justify-end gap-2">
+                <template v-if="!['paid', 'canceled'].includes(row.status as string)">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    :disabled="markingId === row.id"
+                    aria-label="Mark as paid"
+                    title="Mark as paid"
+                    @click="markPaid(row)"
+                  >
+                    <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
+                    <Icon v-else name="lucide:check" />
+                  </Button>
+                  <Button variant="outline" size="icon-sm" aria-label="Cancel charge" title="Cancel charge" @click="cancelCharge(row)">
+                    <Icon name="lucide:x" />
+                  </Button>
+                </template>
+                <span v-else class="t-text-muted text-xs px-2">—</span>
+              </div>
+            </template>
+          </AppDataTable>
         </div>
       </template>
 
       <!-- Recurring tab -->
       <template v-else-if="tab === 'recurring'">
-        <div class="ios-card overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-black/[0.06] dark:border-white/[0.08]">
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Member</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Title</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Frequency</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Next</th>
-                <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Amount</th>
-                <th class="text-left py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
-                <th class="text-right py-2.5 px-4 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!schedules?.length">
-                <td colspan="7" class="py-10 text-center t-text-muted">No recurring charges.</td>
-              </tr>
-              <tr
-                v-for="s in schedules"
-                :key="s.id"
-                class="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0"
-              >
-                <td class="py-2.5 px-4 t-text">{{ memberName(s.member) }}</td>
-                <td class="py-2.5 px-4 t-text">{{ s.title }}</td>
-                <td class="py-2.5 px-4 t-text-muted capitalize">{{ s.frequency }}</td>
-                <td class="py-2.5 px-4 t-text-muted">{{ fdate(s.next_payment_date) }}</td>
-                <td class="py-2.5 px-4 text-right font-medium tabular-nums t-text">{{ currency(s.amount) }}</td>
-                <td class="py-2.5 px-4 t-text-muted capitalize">{{ s.status }}</td>
-                <td class="py-2.5 px-4">
-                  <div class="flex items-center justify-end gap-2">
-                    <button
-                      v-if="s.status === 'active'"
-                      @click="setScheduleStatus(s, 'paused')"
-                      title="Pause"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                    >
-                      <Icon name="lucide:pause" class="w-4 h-4" />
-                    </button>
-                    <button
-                      v-else-if="s.status === 'paused'"
-                      @click="setScheduleStatus(s, 'active')"
-                      title="Resume"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                    >
-                      <Icon name="lucide:play" class="w-4 h-4" />
-                    </button>
-                    <button
-                      v-if="s.status !== 'canceled'"
-                      @click="setScheduleStatus(s, 'canceled')"
-                      title="Cancel"
-                      class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80 transition-opacity"
-                    >
-                      <Icon name="lucide:x" class="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="ios-card overflow-hidden px-2 pb-2">
+          <AppDataTable
+            :columns="scheduleColumns"
+            :rows="schedules || []"
+            empty-title="No recurring charges"
+            empty-description="Set a charge to repeat and it will bill on its own from here."
+            empty-icon="lucide:repeat"
+          >
+            <template #cell-member="{ value }">
+              <span class="t-text">{{ value }}</span>
+            </template>
+            <template #cell-title="{ value }">
+              <span class="t-text">{{ value }}</span>
+            </template>
+            <template #cell-frequency="{ value }">
+              <span class="t-text-muted capitalize">{{ value }}</span>
+            </template>
+            <template #cell-next_payment_date="{ value }">
+              <span class="t-text-muted">{{ fdate(value as string) }}</span>
+            </template>
+            <template #cell-amount="{ value }">
+              <span class="font-medium t-text">{{ currency(value as number) }}</span>
+            </template>
+            <template #cell-status="{ value }">
+              <span class="t-text-muted capitalize">{{ value }}</span>
+            </template>
+            <template #cell-actions="{ row }">
+              <div class="flex items-center justify-end gap-2">
+                <Button
+                  v-if="row.status === 'active'"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Pause"
+                  title="Pause"
+                  @click="setScheduleStatus(row, 'paused')"
+                >
+                  <Icon name="lucide:pause" />
+                </Button>
+                <Button
+                  v-else-if="row.status === 'paused'"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Resume"
+                  title="Resume"
+                  @click="setScheduleStatus(row, 'active')"
+                >
+                  <Icon name="lucide:play" />
+                </Button>
+                <Button
+                  v-if="row.status !== 'canceled'"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Cancel"
+                  title="Cancel"
+                  @click="setScheduleStatus(row, 'canceled')"
+                >
+                  <Icon name="lucide:x" />
+                </Button>
+              </div>
+            </template>
+          </AppDataTable>
         </div>
       </template>
 

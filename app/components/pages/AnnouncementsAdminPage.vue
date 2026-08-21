@@ -323,18 +323,36 @@ const isExpired = (expiryDate: string | null | undefined) => {
   return new Date(expiryDate) < new Date();
 };
 
+// Draft used to be `bg-yellow-100 text-yellow-800` with no dark pair, so a draft
+// badge in dark mode was near-black text on near-white. The status tokens carry
+// both grounds, so there is nothing left to forget.
 const getStatusBadgeClass = (status: string | null | undefined) => {
   switch (status) {
     case "published":
-      return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200";
+      return "bg-success/15 text-success";
     case "draft":
-      return "bg-yellow-100 text-yellow-800";
-    case "archived":
-      return "t-bg-subtle t-text-secondary";
+      return "bg-warning/15 text-warning";
     default:
       return "t-bg-subtle t-text-secondary";
   }
 };
+
+// Title carries the row on a phone; type, audience and the two dates are the
+// context you read on a wide screen.
+const announcementColumns = [
+  { key: "title", label: "Title", sortable: true },
+  { key: "announcement_type", label: "Type", sortable: true, hideOnMobile: true },
+  { key: "target_audience", label: "Audience", hideOnMobile: true },
+  { key: "status", label: "Status", sortable: true },
+  { key: "publish_date", label: "Publish Date", sortable: true, hideOnMobile: true, class: "whitespace-nowrap" },
+  { key: "expiry_date", label: "Expiry", sortable: true, hideOnMobile: true, class: "whitespace-nowrap" },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
+
+// A published announcement that has already expired is still on the list but is
+// no longer doing its job, so the row says so at a glance.
+const announcementRowClass = (row: any) =>
+  isExpired(row.expiry_date) && row.status === "published" ? "bg-destructive/[0.06]" : undefined;
 
 useSeoMeta({
   title: "Manage Announcements",
@@ -398,145 +416,101 @@ useSeoMeta({
           <!-- Announcements Table -->
           <Card>
             <CardContent class="pt-6">
-              <div class="overflow-x-auto">
-                <table class="w-full">
-                  <thead>
-                    <tr class="border-b">
-                      <th class="text-left p-3">Title</th>
-                      <th class="text-left p-3">Type</th>
-                      <th class="text-left p-3">Audience</th>
-                      <th class="text-left p-3">Status</th>
-                      <th class="text-left p-3">Publish Date</th>
-                      <th class="text-left p-3">Expiry</th>
-                      <th class="text-right p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="announcement in filteredAnnouncements"
-                      :key="announcement.id"
-                      class="border-b hover:t-bg-subtle"
-                      :class="{ 'bg-red-50/30': isExpired(announcement.expiry_date) && announcement.status === 'published' }"
-                    >
-                      <td class="p-3">
-                        <div class="flex items-center gap-2">
-                          <span
-                            v-if="announcement.is_pinned"
-                            class="text-amber-500"
-                            title="Pinned"
-                          >
-                            <Icon name="lucide:pin" class="w-4 h-4" />
-                          </span>
-                          <span class="font-medium">{{ announcement.title }}</span>
-                        </div>
-                        <p
-                          v-if="announcement.content"
-                          class="text-xs t-text-muted line-clamp-1 mt-1"
-                          v-html="announcement.content"
-                        />
-                      </td>
-                      <td class="p-3">
-                        <span
-                          class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
-                          :class="getTypeInfo(announcement.announcement_type).color"
-                        >
-                          <Icon
-                            :name="'lucide:' + getTypeInfo(announcement.announcement_type).icon"
-                            class="w-3 h-3"
-                          />
-                          {{ getTypeInfo(announcement.announcement_type).label }}
-                        </span>
-                      </td>
-                      <td class="p-3 text-sm">
-                        {{ getAudienceDisplay(announcement.target_audience) }}
-                      </td>
-                      <td class="p-3">
-                        <span
-                          class="text-xs px-2 py-1 rounded font-medium"
-                          :class="getStatusBadgeClass(announcement.status)"
-                        >
-                          {{ announcement.status }}
-                        </span>
-                      </td>
-                      <td class="p-3 text-sm whitespace-nowrap">
-                        {{ formatDateTime(announcement.publish_date) }}
-                      </td>
-                      <td class="p-3 text-sm whitespace-nowrap">
-                        <span
-                          :class="{
-                            'text-red-600 font-medium': isExpired(announcement.expiry_date),
-                          }"
-                        >
-                          {{ formatDateTime(announcement.expiry_date) }}
-                        </span>
-                        <span
-                          v-if="isExpired(announcement.expiry_date)"
-                          class="text-xs text-red-600 block"
-                        >
-                          Expired
-                        </span>
-                      </td>
-                      <td class="p-3 text-right">
-                        <div class="flex items-center justify-end gap-1">
-                          <Button
-                            v-if="announcement.status === 'draft'"
-                            @click="handleQuickPublish(announcement)"
-                            variant="ghost"
-                            size="sm"
-                            title="Publish"
-                          >
-                            <Icon name="lucide:send" class="w-4 h-4 text-green-600" />
-                          </Button>
-                          <Button
-                            @click="handleTogglePin(announcement)"
-                            variant="ghost"
-                            size="sm"
-                            :title="announcement.is_pinned ? 'Unpin' : 'Pin'"
-                          >
-                            <Icon
-                              :name="announcement.is_pinned ? 'lucide:pin-off' : 'lucide:pin'"
-                              class="w-4 h-4"
-                              :class="{ 'text-amber-500': announcement.is_pinned }"
-                            />
-                          </Button>
-                          <Button
-                            @click="handleEdit(announcement)"
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Icon name="lucide:edit" class="w-4 h-4" />
-                          </Button>
-                          <Button
-                            @click="handleDelete(announcement.id)"
-                            variant="destructive"
-                            size="sm"
-                          >
-                            <Icon name="lucide:trash-2" class="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div
-                v-if="!filteredAnnouncements?.length"
-                class="text-center py-12 t-text-muted"
+              <AppDataTable
+                :columns="announcementColumns"
+                :rows="filteredAnnouncements"
+                :row-class="announcementRowClass"
+                :filtered="activeTab !== 'all'"
+                empty-title="No announcements yet"
+                empty-description="Create your first announcement to keep your community informed."
+                empty-icon="lucide:megaphone"
               >
-                <Icon
-                  name="lucide:megaphone"
-                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                />
-                <p class="font-medium">No announcements found</p>
-                <p class="text-sm mt-1">
-                  Create your first announcement to keep your community informed
-                </p>
-                <Button @click="handleAdd" class="mt-4">
-                  <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
-                  Create Announcement
-                </Button>
-              </div>
+                <template #cell-title="{ row }">
+                  <div class="flex items-center gap-2">
+                    <Icon v-if="row.is_pinned" name="lucide:pin" class="w-4 h-4 text-warning shrink-0" title="Pinned" />
+                    <span class="font-medium">{{ row.title }}</span>
+                  </div>
+                  <p v-if="row.content" class="text-xs t-text-muted line-clamp-1 mt-1" v-html="row.content" />
+                </template>
+
+                <template #cell-announcement_type="{ row }">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
+                    :class="getTypeInfo(row.announcement_type).color"
+                  >
+                    <Icon :name="'lucide:' + getTypeInfo(row.announcement_type).icon" class="w-3 h-3" />
+                    {{ getTypeInfo(row.announcement_type).label }}
+                  </span>
+                </template>
+
+                <template #cell-target_audience="{ value }">
+                  <span class="text-sm">{{ getAudienceDisplay(value as string) }}</span>
+                </template>
+
+                <template #cell-status="{ value }">
+                  <span class="text-xs px-2 py-1 rounded-full font-medium capitalize" :class="getStatusBadgeClass(value as string)">
+                    {{ value }}
+                  </span>
+                </template>
+
+                <template #cell-publish_date="{ value }">
+                  <span class="text-sm">{{ formatDateTime(value as string) }}</span>
+                </template>
+
+                <template #cell-expiry_date="{ value }">
+                  <span class="text-sm" :class="{ 'text-destructive font-medium': isExpired(value as string) }">
+                    {{ formatDateTime(value as string) }}
+                  </span>
+                  <span v-if="isExpired(value as string)" class="text-xs text-destructive block">Expired</span>
+                </template>
+
+                <template #cell-actions="{ row }">
+                  <div class="flex items-center justify-end gap-1">
+                    <Button
+                      v-if="row.status === 'draft'"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Publish announcement"
+                      title="Publish"
+                      @click="handleQuickPublish(row)"
+                    >
+                      <Icon name="lucide:send" class="text-success" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :aria-label="row.is_pinned ? 'Unpin announcement' : 'Pin announcement'"
+                      :title="row.is_pinned ? 'Unpin' : 'Pin'"
+                      @click="handleTogglePin(row)"
+                    >
+                      <Icon
+                        :name="row.is_pinned ? 'lucide:pin-off' : 'lucide:pin'"
+                        :class="{ 'text-warning': row.is_pinned }"
+                      />
+                    </Button>
+                    <Button variant="outline" size="icon-sm" aria-label="Edit announcement" @click="handleEdit(row)">
+                      <Icon name="lucide:edit" />
+                    </Button>
+                    <Button variant="destructive" size="icon-sm" aria-label="Delete announcement" @click="handleDelete(row.id)">
+                      <Icon name="lucide:trash-2" />
+                    </Button>
+                  </div>
+                </template>
+
+                <template #empty>
+                  <AppEmptyState
+                    icon="lucide:megaphone"
+                    title="No announcements yet"
+                    description="Create your first announcement to keep your community informed."
+                    compact
+                  >
+                    <Button @click="handleAdd">
+                      <Icon name="lucide:plus" />
+                      Create Announcement
+                    </Button>
+                  </AppEmptyState>
+                </template>
+              </AppDataTable>
             </CardContent>
           </Card>
 

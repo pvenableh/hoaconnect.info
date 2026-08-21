@@ -74,6 +74,15 @@ const fmtDate = (iso: string | null | undefined) =>
 const fmtMoney = (n: number, currency = "usd") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(n);
 
+// The detach column only exists for someone who can actually detach, so the
+// column list is computed rather than a static array with a hidden cell.
+const propertyColumns = computed(() => [
+  { key: "name", label: "Property", sortable: true },
+  { key: "status", label: "Status", sortable: true, hideOnMobile: true },
+  { key: "member_count", label: "Members", sortable: true, hideOnMobile: true },
+  ...(canManage.value ? [{ key: "actions", label: "", align: "right" as const }] : []),
+]);
+
 async function syncSeats() {
   busy.value = true;
   try {
@@ -302,33 +311,28 @@ async function onSubscribed() {
           <p v-else>Nobody lost access. The community keeps running.</p>
         </div>
 
-        <div class="overflow-hidden rounded-lg border">
-          <table class="w-full text-sm">
-            <thead class="t-bg-subtle text-left text-xs uppercase tracking-wide t-text-muted">
-              <tr>
-                <th class="px-4 py-2">Property</th>
-                <th class="px-4 py-2">Status</th>
-                <th class="px-4 py-2">Members</th>
-                <th v-if="canManage" class="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr v-for="p in properties" :key="p.id">
-                <td class="px-4 py-2">
-                  <NuxtLink :to="`/${p.slug}`" class="font-medium t-text hover:text-blue-600">{{ p.name }}</NuxtLink>
-                  <span class="ml-1 text-xs t-text-muted">/{{ p.slug }}</span>
-                </td>
-                <td class="px-4 py-2 capitalize">{{ p.status }}</td>
-                <td class="px-4 py-2">{{ p.member_count ?? "—" }}</td>
-                <td v-if="canManage" class="px-4 py-2 text-right">
-                  <button :disabled="busy" class="text-xs text-red-600 hover:underline disabled:opacity-50" @click="detach(p.id, p.name)">Detach</button>
-                </td>
-              </tr>
-              <tr v-if="!properties.length">
-                <td :colspan="canManage ? 4 : 3" class="px-4 py-6 text-center t-text-muted">No properties attached yet.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="overflow-hidden rounded-lg border px-2 pb-2">
+          <AppDataTable
+            :columns="propertyColumns"
+            :rows="properties"
+            empty-title="No properties attached yet"
+            empty-description="Attach a community and its subscription bills through this account."
+            empty-icon="lucide:building-2"
+          >
+            <template #cell-name="{ row }">
+              <NuxtLink :to="`/${row.slug}`" class="font-medium t-text hover:t-text-accent">{{ row.name }}</NuxtLink>
+              <span class="ml-1 text-xs t-text-muted">/{{ row.slug }}</span>
+            </template>
+            <template #cell-status="{ value }">
+              <span class="capitalize">{{ value }}</span>
+            </template>
+            <template #cell-member_count="{ value }">{{ value ?? "—" }}</template>
+            <template #cell-actions="{ row }">
+              <Button variant="ghost" size="sm" :disabled="busy" class="text-destructive" @click="detach(row.id, row.name)">
+                Detach
+              </Button>
+            </template>
+          </AppDataTable>
         </div>
       </section>
 

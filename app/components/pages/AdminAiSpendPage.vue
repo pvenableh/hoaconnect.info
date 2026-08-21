@@ -85,6 +85,14 @@ const features = computed(() => {
     .map(([key, credits]) => ({ key, label: FEATURE_LABELS[key] || key, credits }))
     .sort((a, b) => b.credits - a.credits);
 });
+
+// Name stays on the phone; the rest is context you only need on a wide screen.
+const userColumns = [
+  { key: "person", label: "Person", sortable: true, value: (r: any) => r.name },
+  { key: "calls", label: "Calls", align: "right" as const, sortable: true, hideOnMobile: true },
+  { key: "credits", label: "Credits", align: "right" as const, sortable: true },
+  { key: "cost", label: "\u2248 Cost", align: "right" as const, hideOnMobile: true, value: (r: any) => r.credits },
+];
 </script>
 
 <template>
@@ -152,30 +160,25 @@ const features = computed(() => {
             <h2 class="text-sm font-semibold t-text">By person</h2>
             <p class="text-xs t-text-muted">Credits used in the last {{ data.days }} days. For oversight — there are no per-person limits.</p>
           </div>
-          <div v-if="!data.users.length" class="p-8 text-center text-sm t-text-muted">
-            No AI usage in this period yet.
-          </div>
-          <table v-else class="w-full text-sm">
-            <thead>
-              <tr class="text-left t-text-muted">
-                <th class="px-4 py-2 font-medium">Person</th>
-                <th class="px-4 py-2 font-medium text-right">Calls</th>
-                <th class="px-4 py-2 font-medium text-right">Credits</th>
-                <th class="px-4 py-2 font-medium text-right">≈ Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="u in data.users" :key="u.userId || u.name" class="border-t t-border">
-                <td class="px-4 py-2">
-                  <div class="t-text">{{ u.name }}</div>
-                  <div v-if="u.email" class="text-xs t-text-muted">{{ u.email }}</div>
-                </td>
-                <td class="px-4 py-2 text-right t-text-secondary">{{ fmtCredits(u.calls) }}</td>
-                <td class="px-4 py-2 text-right t-text font-medium">{{ fmtCredits(u.credits) }}</td>
-                <td class="px-4 py-2 text-right t-text-secondary">{{ fmtUsd(u.credits) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <AppDataTable
+            class="px-2 pb-2"
+            :columns="userColumns"
+            :rows="data.users"
+            :row-key="(r: any) => r.userId || r.name"
+            empty-title="No AI usage yet"
+            empty-description="Nobody has spent credits in this period."
+            empty-icon="lucide:sparkles"
+          >
+            <template #cell-person="{ row }">
+              <div class="t-text">{{ row.name }}</div>
+              <div v-if="row.email" class="type-micro t-text-muted normal-case tracking-normal">{{ row.email }}</div>
+            </template>
+            <template #cell-calls="{ value }">{{ fmtCredits(value as number) }}</template>
+            <template #cell-credits="{ value }">
+              <span class="t-text font-medium">{{ fmtCredits(value as number) }}</span>
+            </template>
+            <template #cell-cost="{ value }">{{ fmtUsd(value as number) }}</template>
+          </AppDataTable>
         </div>
       </template>
     </template>
