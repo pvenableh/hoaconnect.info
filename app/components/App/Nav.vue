@@ -24,9 +24,6 @@ const config = useRuntimeConfig();
 
 // Mobile sheet open state
 const mobileMenuOpen = ref(false);
-// Shared open-state for the classic/luxury left rail when it's an overlay drawer
-// (below lg). The hamburger here toggles it; AppSidebar consumes the same state.
-const appNavMobileOpen = useState<boolean>("appNavMobileOpen", () => false);
 
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
@@ -338,42 +335,11 @@ const userAvatarUrl = computed(() => {
   return null;
 });
 
-// Premium gating for the Luxury theme in the avatar dropdown.
-// Free accounts have full access; otherwise require an active/trial subscription.
-const hasPremiumTheme = computed(() => {
-  const org = currentOrg.value?.organization as any;
-  if (!org) return false;
-  if (org.is_free_account === true) return true;
-  return ["active", "trial"].includes(org.subscription_status);
-});
-
-function handlePremiumRequired() {
-  toast.info("The Luxury theme requires a premium plan");
-  router.push("/settings/subscription");
-}
-
-// The org forces the workspace theme (see auth.vue), so the per-user STYLE picker
-// is hidden — only the light/dark MODE toggle remains. The dock-appearance
-// settings only apply to the modern dock; classic/luxury use the left sidebar.
-const orgThemeStyle = computed(() => {
-  const t = currentOrg.value?.organization?.settings?.theme;
-  return t && ["classic", "modern", "luxury"].includes(t) ? t : "modern";
-});
-const orgForcesTheme = computed(
-  () => isOnOrgPage.value && !!currentOrg.value?.organization
-);
-const showDockSettings = computed(
-  () => isOnOrgPage.value && orgThemeStyle.value === "modern"
-);
-
-// Classic/luxury orgs render the left AppSidebar (lg+), which hosts the org
-// PICKER at its top. So on lg+ we drop the header's left org picker (the
-// adjacent duplicate) — the centered brand logo stays. Below lg the rail is
-// hidden, so the header keeps the picker too (via `lg:hidden`, not v-if).
-const navIsSidebar = computed(
-  () =>
-    !!user.value && isOnOrgPage.value && orgThemeStyle.value !== "modern"
-);
+// The workspace has one chrome — the floating dock — so the dock-appearance
+// settings apply everywhere there is an org context. An organization's theme no
+// longer selects a nav shape (that choice dressed its public landing page, not
+// the tool), which is why there is nothing here reading settings.theme.
+const showDockSettings = computed(() => isOnOrgPage.value);
 
 // Close mobile menu on route change
 watch(
@@ -428,19 +394,7 @@ watch(
           v-if="user && !isMainMarketingDomain"
           class="col-start-1 row-start-1 justify-self-start flex items-center gap-2"
         >
-          <!-- Mobile nav-drawer toggle — classic/luxury workspaces only. Opens the
-               left rail as an overlay below lg; at lg+ the rail is persistent so
-               this hides. -->
-          <button
-            v-if="navIsSidebar && isOnOrgPage"
-            type="button"
-            class="lg:hidden inline-flex items-center justify-center header-pill"
-            aria-label="Open navigation"
-            @click="appNavMobileOpen = !appNavMobileOpen"
-          >
-            <Icon name="i-lucide-panel-left" class="w-5 h-5" />
-          </button>
-          <div class="hidden sm:flex" :class="navIsSidebar ? 'lg:hidden' : ''">
+          <div class="hidden sm:flex">
             <OrgSelector />
           </div>
         </div>
@@ -587,18 +541,13 @@ watch(
 
               <DropdownMenuSeparator />
 
-              <!-- Appearance: theme style + dark mode (reuses ThemeSelector).
-                   The org forces the style in the workspace, so only the
-                   light/dark mode toggle shows there (style picker hidden).
-                   @click/@keydown.stop so its controls work inside the dropdown
-                   without the menu intercepting the interaction (matches the dock
-                   appearance block below). -->
+              <!-- Appearance: light/dark only. The STYLE picker is always hidden
+                   in the workspace — classic/modern/luxury dress an organization's
+                   public landing page, and are chosen in its site settings, not
+                   here. @click/@keydown.stop so the toggle works inside the
+                   dropdown without the menu intercepting it. -->
               <div class="px-2 pb-1" @click.stop @keydown.stop>
-                <ThemeSelector
-                  :has-premium="hasPremiumTheme"
-                  :hide-styles="orgForcesTheme"
-                  @premium-required="handlePremiumRequired"
-                />
+                <ThemeSelector hide-styles />
               </div>
 
               <DropdownMenuSeparator />

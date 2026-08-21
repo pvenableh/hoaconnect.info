@@ -33,9 +33,23 @@ export function useSlidingThumb(
   const width = ref(0);
   const measured = ref(false);
 
+  /**
+   * Template refs hand back an Element for a plain tag but a component INSTANCE
+   * for a component, and the items here are both: buttons in the segmented
+   * control, NuxtLinks in the section sub-nav. Unwrap to the underlying element,
+   * or ResizeObserver.observe() throws on the instance.
+   */
+  function toElement(
+    el: Element | ComponentPublicInstance | null,
+  ): HTMLElement | null {
+    if (!el) return null;
+    const candidate = "$el" in el ? (el as ComponentPublicInstance).$el : el;
+    return candidate instanceof HTMLElement ? candidate : null;
+  }
+
   function setItemRef(index: number) {
     return (el: Element | ComponentPublicInstance | null) => {
-      itemEls.value[index] = (el as HTMLElement) ?? null;
+      itemEls.value[index] = toElement(el);
     };
   }
 
@@ -67,8 +81,11 @@ export function useSlidingThumb(
     measure();
     if (typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(() => measure());
-      if (trackEl.value) ro.observe(trackEl.value);
-      for (const el of itemEls.value) if (el) ro.observe(el);
+      const observe = (el: unknown) => {
+        if (el instanceof Element) ro?.observe(el);
+      };
+      observe(trackEl.value);
+      for (const el of itemEls.value) observe(el);
     }
     // Web fonts land after first paint and change every label's width.
     if (import.meta.client && "fonts" in document) {

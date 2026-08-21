@@ -18,8 +18,6 @@ useWorkspaceAppearance();
 // on re-evaluation the getter runs outside a setup/Nuxt context and throws
 // "composable that requires the Nuxt instance was called outside setup".
 const route = useRoute();
-// Collapse state shared with AppSidebar; drives the desktop content offset.
-const appNavCollapsed = useState<boolean>("appNavCollapsed", () => false);
 
 // ── Persistent "view as member" preview (admins) ────────────────────────────
 // `?as=member` is the entry point (OrgSelector menu, the view switcher); arriving
