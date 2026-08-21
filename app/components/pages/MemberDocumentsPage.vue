@@ -20,7 +20,7 @@ const { list: listCategories } = useDirectusItems("hoa_document_categories");
 const { getUrl } = useDirectusFiles();
 
 // Theme support
-const { isModern, isClassic, initTheme } = useTheme();
+const { isModern, initTheme } = useTheme();
 
 onMounted(() => {
   initTheme();
@@ -258,12 +258,21 @@ const closeCategoryDialog = () => {
 };
 
 // Spaced text for modern header
-const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
 </script>
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
+
+        <!-- One header above the branch. Both layouts used to build their own —
+             the grid a letter-spaced centred title, the accordion a centred
+             bold one — so the page introduced itself differently depending on
+             the org's PUBLIC theme, which the workspace no longer follows.
+             Hoisting it also means the page has a title while it loads. -->
+        <AppPageHeader
+          title="Documents"
+          description="Access important community documents and resources."
+        />
 
         <!-- Loading — content-shaped skeleton (client-only fetch) -->
         <div v-if="pending" class="ios-card p-2">
@@ -272,13 +281,6 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
 
         <!-- Modern Theme Layout -->
         <template v-else-if="isModern">
-          <!-- Spaced Header -->
-          <div class="text-center mb-12 pt-8">
-            <h1 class="text-2xl tracking-[0.4em] t-text-muted font-light uppercase">
-              {{ spacedTitle }}
-            </h1>
-          </div>
-
           <!-- Category Grid -->
           <StaggerList
             v-if="categoryList.length > 0"
@@ -301,8 +303,12 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
           </StaggerList>
 
           <!-- Empty state -->
-          <div v-else class="text-center py-24">
-            <p class="t-text-muted">No documents available</p>
+          <div v-else class="ios-card">
+            <AppEmptyState
+              icon="lucide:file-text"
+              title="No documents available"
+              description="Community documents appear here once your board publishes them."
+            />
           </div>
 
           <!-- Category Documents Dialog -->
@@ -356,14 +362,6 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
 
         <!-- Classic Theme Layout (Accordion) -->
         <template v-else>
-          <!-- Header -->
-          <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold t-text t-heading">Documents</h1>
-            <p class="t-text-secondary mt-2">
-              Access important community documents and resources
-            </p>
-          </div>
-
           <!-- Documents Accordion -->
           <Card v-if="documentsByCategory.size > 0" class="t-card-flat">
             <CardContent class="p-0">
@@ -443,14 +441,12 @@ const spacedTitle = computed(() => "DOCUMENTS".split("").join(" "));
 
           <!-- Empty state -->
           <Card v-else class="t-card-flat">
-            <CardContent class="py-16 text-center">
-              <div class="w-16 h-16 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-4">
-                <Icon name="heroicons:document" class="h-8 w-8 t-text-muted" />
-              </div>
-              <h3 class="text-lg font-medium t-text t-heading mb-2">No documents available</h3>
-              <p class="t-text-muted">
-                Community documents will appear here once they are published.
-              </p>
+            <CardContent class="p-0">
+              <AppEmptyState
+                icon="lucide:file-text"
+                title="No documents available"
+                description="Community documents appear here once your board publishes them."
+              />
             </CardContent>
           </Card>
         </template>

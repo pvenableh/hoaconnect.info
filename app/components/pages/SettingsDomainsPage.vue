@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 
 const route = useRoute();
-const { navigateToOrg } = useOrgNavigation();
+const { navigateToOrg, buildOrgPath } = useOrgNavigation();
 const config = useRuntimeConfig();
 const mainDomain = computed(() => (config.public.mainDomain as string) || "app.hoaconnect.info");
 const slug = computed(() => route.params.slug as string);
@@ -172,24 +172,21 @@ useSeoMeta({ title: "Public site" });
 <template>
   <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/settings/organization')">
-            <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
-            Settings
-          </Button>
-          <h1 class="text-2xl font-semibold t-text">Public site</h1>
-          <p class="text-sm t-text-muted mt-0.5">
-            Choose your landing page setup and connect a custom domain.
-          </p>
-        </div>
-        <a :href="`/${slug}`" target="_blank" rel="noopener" class="shrink-0">
-          <Button variant="outline" size="sm" class="rounded-full">
-            <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" />
-            View site
-          </Button>
-        </a>
-      </div>
+      <AppPageHeader
+        :back-to="buildOrgPath('/admin/settings/organization')"
+        back-label="Settings"
+        title="Public site"
+        description="Choose your landing page setup and connect a custom domain."
+      >
+        <template #actions>
+          <a :href="`/${slug}`" target="_blank" rel="noopener">
+            <Button variant="outline" size="sm" class="rounded-full">
+              <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" />
+              View site
+            </Button>
+          </a>
+        </template>
+      </AppPageHeader>
 
       <div v-if="loading" class="flex justify-center py-16"><div class="spinner-ios" /></div>
 
@@ -199,7 +196,7 @@ useSeoMeta({ title: "Public site" });
           <div class="flex items-start gap-3">
             <span class="t-icon-chip"><Icon name="lucide:layout-template" class="w-5 h-5" /></span>
             <div>
-              <h2 class="font-semibold t-text">Design your site</h2>
+              <h2 class="type-card">Design your site</h2>
               <p class="text-sm t-text-muted mt-0.5">
                 Build your landing page — add and reorder sections, edit content, and preview live.
               </p>
@@ -214,7 +211,7 @@ useSeoMeta({ title: "Public site" });
         <!-- Public landing: built-in vs external marketing site -->
         <div class="ios-card p-6 space-y-4">
           <div>
-            <h2 class="font-semibold t-text">Landing page</h2>
+            <h2 class="type-card">Landing page</h2>
             <p class="text-sm t-text-muted mt-0.5">
               Use HOA Connect's built-in landing, or host your own marketing site and use HOA Connect
               as the resident portal only.
@@ -272,7 +269,7 @@ useSeoMeta({ title: "Public site" });
 
         <!-- Custom domain -->
         <div class="pt-2 flex items-center gap-3">
-          <h2 class="text-lg font-semibold t-text">Custom domain</h2>
+          <h2 class="type-section type-flush">Custom domain</h2>
           <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">
             {{ statusLabel }}
           </span>
@@ -317,7 +314,7 @@ useSeoMeta({ title: "Public site" });
 
           <div class="ios-card p-6 space-y-5">
             <div>
-              <h2 class="font-semibold t-text">1. Point your domain to us</h2>
+              <h2 class="type-card">1. Point your domain to us</h2>
               <p class="text-sm t-text-muted mt-0.5">Add this at your DNS provider (GoDaddy, Cloudflare, Namecheap, Route 53…).</p>
             </div>
 
@@ -338,7 +335,7 @@ useSeoMeta({ title: "Public site" });
 
             <template v-if="cfg.record_name">
               <div>
-                <h2 class="font-semibold t-text">2. Add the verification record</h2>
+                <h2 class="type-card">2. Add the verification record</h2>
                 <p class="text-sm t-text-muted mt-0.5">Proves you own the domain. We check this when you verify.</p>
               </div>
               <div class="rounded-xl border t-border divide-y t-border text-sm">

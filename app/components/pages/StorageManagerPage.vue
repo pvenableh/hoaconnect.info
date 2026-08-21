@@ -20,7 +20,6 @@ import type {
   OptimizeResult,
 } from "#core/app/composables/useOrgStorage";
 
-type ViewMode = "grid" | "list";
 
 const storage = useOrgStorage();
 const { formatFileSize, fileKind, isImage, iconForKind, colorForKind, fileLabel } =
@@ -28,7 +27,13 @@ const { formatFileSize, fileKind, isImage, iconForKind, colorForKind, fileLabel 
 
 const loading = ref(true);
 const busy = ref(false);
-const viewMode = ref<ViewMode>("grid");
+// Grid/list is a segmented control now, so the value is a plain string like
+// every other one in the app rather than its own two-member union.
+const VIEW_MODES = [
+  { value: "grid", label: "Grid", icon: "lucide:layout-grid" },
+  { value: "list", label: "List", icon: "lucide:list" },
+];
+const viewMode = ref("grid");
 const search = ref("");
 
 const rootId = ref<string | null>(null);
@@ -480,37 +485,17 @@ async function loadFolderSize(id: string) {
 
 <template>
   <div class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
-    <!-- Header -->
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Files</h1>
-        <p class="text-sm text-muted-foreground">
-          Your organization's shared storage.
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
+    <AppPageHeader
+      eyebrow="Records"
+      title="Files"
+      description="Your organization's shared storage."
+    >
+      <template #actions>
         <div class="relative">
           <Icon name="lucide:search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input v-model="search" placeholder="Search this folder" class="h-9 w-44 pl-8 sm:w-56" />
         </div>
-        <div class="flex items-center rounded-lg border bg-background p-0.5">
-          <button
-            class="flex h-7 w-7 items-center justify-center rounded-md transition"
-            :class="viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
-            title="Grid view"
-            @click="viewMode = 'grid'"
-          >
-            <Icon name="lucide:layout-grid" class="h-4 w-4" />
-          </button>
-          <button
-            class="flex h-7 w-7 items-center justify-center rounded-md transition"
-            :class="viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
-            title="List view"
-            @click="viewMode = 'list'"
-          >
-            <Icon name="lucide:list" class="h-4 w-4" />
-          </button>
-        </div>
+        <AppSegmentedControl v-model="viewMode" :items="VIEW_MODES" size="sm" label="File view" />
         <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSweep = true">
           <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Optimize
         </Button>
@@ -524,8 +509,8 @@ async function loadFolderSize(id: string) {
           <Icon name="lucide:upload" class="mr-1.5 h-4 w-4" /> Upload
         </Button>
         <input ref="uploadInput" type="file" multiple class="hidden" @change="onFilesChosen" />
-      </div>
-    </div>
+      </template>
+    </AppPageHeader>
 
     <!-- Breadcrumb -->
     <nav class="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
@@ -593,21 +578,23 @@ async function loadFolderSize(id: string) {
       </div>
 
       <!-- empty -->
-      <div
+      <AppEmptyState
         v-else-if="!folders.length && !files.length"
-        class="grid place-items-center py-24 text-center"
+        :variant="search ? 'search' : 'empty'"
+        icon="lucide:folder-open"
+        :title="search ? 'No matches' : 'This folder is empty'"
+        :description="
+          search
+            ? 'Nothing in this folder matches that. Try a different search, or clear it to see everything.'
+            : canManage
+              ? 'Upload files or create a folder to organize what your community keeps here.'
+              : 'Nothing has been put here yet.'
+        "
       >
-        <div class="grid h-16 w-16 place-items-center rounded-2xl bg-muted">
-          <Icon name="lucide:folder-open" class="h-8 w-8 text-muted-foreground" />
-        </div>
-        <p class="mt-4 font-medium">{{ search ? "No matches" : "This folder is empty" }}</p>
-        <p class="mt-1 text-sm text-muted-foreground">
-          {{ search ? "Try a different search." : canManage ? "Upload files or create a folder to get started." : "Nothing here yet." }}
-        </p>
-        <Button v-if="canManage && !search" size="sm" class="mt-4" @click="pickFiles">
+        <Button v-if="canManage && !search" size="sm" @click="pickFiles">
           <Icon name="lucide:upload" class="mr-1.5 h-4 w-4" /> Upload files
         </Button>
-      </div>
+      </AppEmptyState>
 
       <!-- GRID -->
       <div

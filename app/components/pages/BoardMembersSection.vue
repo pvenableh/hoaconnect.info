@@ -52,16 +52,20 @@ function getTitleIcon(title: string | null): string {
 }
 
 // Get background color class for title
+// Board titles are CATEGORICAL colour — the hue distinguishes one office from
+// another and carries no status meaning, so these stay arbitrary rather than
+// moving onto the status tokens. They do need a dark pair, though: these were
+// light-only, which put dark ink on a near-white chip in dark mode.
 function getTitleColorClass(title: string | null): string {
   const colors: Record<string, string> = {
-    president: "bg-amber-100 text-amber-700",
-    vice_president: "bg-blue-100 text-blue-700",
-    secretary: "bg-emerald-100 text-emerald-700",
-    treasurer: "bg-purple-100 text-purple-700",
-    director: "bg-stone-100 text-stone-700",
+    president: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+    vice_president: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+    secretary: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+    treasurer: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200",
+    director: "t-bg-subtle t-text-secondary",
   };
 
-  return colors[title || ""] || "bg-stone-100 text-stone-700";
+  return colors[title || ""] || "t-bg-subtle t-text-secondary";
 }
 
 // Format date for display
@@ -96,7 +100,7 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
       <div
         v-for="term in boardMembers"
         :key="term.id"
-        class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow overflow-hidden"
+        class="ios-card overflow-hidden"
       >
         <!-- Card Header with Title Badge -->
         <div class="p-6">
@@ -111,7 +115,7 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
 
             <!-- Info -->
             <div class="flex-1 min-w-0">
-              <h3 class="text-lg font-semibold text-stone-900 truncate">
+              <h3 class="type-card t-text truncate">
                 {{ getMemberName(term.hoa_member) }}
               </h3>
 
@@ -127,7 +131,7 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
               <!-- Term Dates -->
               <p
                 v-if="term.term_start || term.term_end"
-                class="text-sm text-stone-500 mt-2"
+                class="type-meta t-text-muted mt-2"
               >
                 <span v-if="term.term_start">{{ formatTermDate(term.term_start) }}</span>
                 <span v-if="term.term_start && term.term_end"> - </span>
@@ -139,7 +143,7 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
               <a
                 v-if="showEmail && term.hoa_member?.email"
                 :href="`mailto:${term.hoa_member.email}`"
-                class="text-sm text-primary hover:underline mt-1 block truncate"
+                class="type-meta t-text-accent hover:underline mt-1 block truncate"
               >
                 {{ term.hoa_member.email }}
               </a>
@@ -149,7 +153,7 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
           <!-- Message/Bio -->
           <p
             v-if="term.message"
-            class="text-stone-600 mt-4 text-sm leading-relaxed"
+            class="type-body t-text-secondary mt-4"
           >
             {{ term.message }}
           </p>
@@ -159,13 +163,10 @@ function getMemberInitials(member: BoardMemberTerm["hoa_member"]): string {
   </div>
 
   <!-- Empty State -->
-  <div v-else class="text-center py-12">
-    <div class="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-4">
-      <Icon name="heroicons:user-group" class="h-8 w-8 text-stone-400" />
-    </div>
-    <h3 class="text-lg font-medium text-stone-900 mb-2">No Board Members Listed</h3>
-    <p class="text-stone-500">
-      Board member information will appear here once it's available.
-    </p>
-  </div>
+  <AppEmptyState
+    v-else
+    icon="lucide:users-round"
+    title="No board members listed"
+    description="Once your community records who holds each office, they appear here with their term."
+  />
 </template>

@@ -8,9 +8,8 @@ const { list: listCategories } = useDirectusItems("hoa_document_categories");
 const { upload: uploadFile } = useDirectusFiles();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const folderComposable = useDirectusFolders();
-const router = useRouter();
 const route = useRoute();
-const { navigateToOrg } = useOrgNavigation();
+const { navigateToOrg, buildOrgPath } = useOrgNavigation();
 
 const orgId = computed(() => selectedOrgId.value);
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -198,18 +197,12 @@ const handleSubmit = async () => {
 <template>
   <div class="min-h-screen bg-stone-50">
     <PageContainer class="space-y-6">
-        <!-- Header -->
-        <div>
-          <Button
-            @click="router.back()"
-            variant="outline"
-            size="sm"
-            class="mb-4"
-          >
-            ← Back
-          </Button>
-          <h1 class="text-3xl font-bold">Upload Document</h1>
-        </div>
+        <AppPageHeader
+          :back-to="buildOrgPath('/admin/documents')"
+          back-label="Documents"
+          title="Upload Document"
+          description="Publish a file to your community. Everyone with access to its category will be able to download it."
+        />
 
         <!-- Upload Form -->
         <Card>
