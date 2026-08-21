@@ -6,31 +6,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { HoaDocument, HoaDocumentCategory } from "#core/types/directus";
 
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listCategories } = useDirectusItems("hoa_document_categories");
 const { getUrl } = useDirectusFiles();
 
-// Theme support
-const { isModern, initTheme } = useTheme();
-
-onMounted(() => {
-  initTheme();
-});
-
 // Await to ensure org is loaded during SSR
-const { selectedOrgId, currentOrg } = await useSelectedOrg();
+const { selectedOrgId } = await useSelectedOrg();
 
 const orgId = computed(() => selectedOrgId.value);
-const organization = computed(() => currentOrg.value?.organization || null);
 
 // Category icon mapping for default categories
 const categoryIcons: Record<string, string> = {
@@ -72,7 +57,7 @@ const { data: categories } = await useAsyncData(
 );
 
 // Fetch published documents for the organization
-const { data: documents, pending } = await useAsyncData(
+const { data: documents, pending, error: documentsError } = await useAsyncData(
   `member-documents-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -172,11 +157,6 @@ const documentsByCategory = computed(() => {
   return grouped;
 });
 
-// Array view of the grouped Map, for <StaggerList> (needs an array + stable id).
-const categoryList = computed(() =>
-  Array.from(documentsByCategory.value, ([id, group]) => ({ id, ...group })),
-);
-
 // Format date for display
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "";
@@ -238,219 +218,155 @@ const downloadDocument = async (doc: HoaDocument) => {
   }
 };
 
-// Default open categories for accordion (classic theme)
+// Every category opens by default: a resident arriving here should see the
+// documents themselves, not a list of folders to go fishing in.
 const defaultOpenCategories = computed(() => {
   return Array.from(documentsByCategory.value.keys());
 });
 
-// Selected category for modern theme modal
-const selectedCategory = ref<{ category: HoaDocumentCategory | null; documents: HoaDocument[] } | null>(null);
-const showCategoryDialog = ref(false);
-
-const openCategoryDialog = (group: { category: HoaDocumentCategory | null; documents: HoaDocument[] }) => {
-  selectedCategory.value = group;
-  showCategoryDialog.value = true;
-};
-
-const closeCategoryDialog = () => {
-  showCategoryDialog.value = false;
-  selectedCategory.value = null;
-};
-
-// Spaced text for modern header
+// This page fetches with `server: false`, so the request never STARTS during
+// SSR and `pending` is false on the server. The template read that as "done,
+// and there is nothing" — the server rendered "No documents available" before
+// anything had looked, and the client then rendered the skeleton, so the two
+// disagreed at hydration. Treat "no data and no error yet" as loading, which
+// is what it actually is. An error still falls through to the empty state
+// rather than spinning forever.
+const documentsLoading = computed(
+  () => pending.value || (!documents.value && !documentsError.value)
+);
 </script>
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
+      <!-- One header, one body. This page used to branch its entire body on the
+           org's PUBLIC theme: "modern" orgs got a grid of category tiles whose
+           only always-visible content was the category name — the document
+           count was hover-only, so on a phone every tile was an unlabelled
+           box — and reaching a document meant tile -> modal -> row, with no
+           URL and no back button. The accordion below is the branch that
+           actually shows people their documents, and it is the last admin-side
+           read of themeStyle in the app. -->
+      <AppPageHeader
+        title="Documents"
+        description="Access important community documents and resources."
+      />
 
-        <!-- One header above the branch. Both layouts used to build their own —
-             the grid a letter-spaced centred title, the accordion a centred
-             bold one — so the page introduced itself differently depending on
-             the org's PUBLIC theme, which the workspace no longer follows.
-             Hoisting it also means the page has a title while it loads. -->
-        <AppPageHeader
-          title="Documents"
-          description="Access important community documents and resources."
-        />
+      <!-- Loading — content-shaped skeleton (client-only fetch) -->
+      <div v-if="documentsLoading" class="ios-card p-2">
+        <WidgetRowSkeleton :rows="6" avatar-shape="square" />
+      </div>
 
-        <!-- Loading — content-shaped skeleton (client-only fetch) -->
-        <div v-if="pending" class="ios-card p-2">
-          <WidgetRowSkeleton :rows="6" avatar-shape="square" />
-        </div>
-
-        <!-- Modern Theme Layout -->
-        <template v-else-if="isModern">
-          <!-- Category Grid -->
-          <StaggerList
-            v-if="categoryList.length > 0"
-            :items="categoryList"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-            :stagger="50"
-            v-slot="{ item: group }"
-          >
-            <button
-              @click="openCategoryDialog(group)"
-              class="group relative aspect-[4/3] w-full rounded-sm border t-border bg-transparent hover:t-bg-subtle transition-all duration-300 text-left p-6 flex flex-col justify-center"
+      <Card v-else-if="documentsByCategory.size > 0" class="t-card-flat">
+        <CardContent class="p-0">
+          <Accordion type="multiple" :default-value="defaultOpenCategories" class="w-full">
+            <AccordionItem
+              v-for="[categoryId, group] in documentsByCategory"
+              :key="categoryId"
+              :value="categoryId"
+              class="border-b t-border last:border-b-0"
             >
-              <h3 class="text-base font-normal t-text text-center">
-                {{ group.category?.name || 'Documents' }}
-              </h3>
-              <p class="text-xs t-text-muted text-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                {{ group.documents.length }} document{{ group.documents.length !== 1 ? 's' : '' }}
-              </p>
-            </button>
-          </StaggerList>
-
-          <!-- Empty state -->
-          <div v-else class="ios-card">
-            <AppEmptyState
-              icon="lucide:file-text"
-              title="No documents available"
-              description="Community documents appear here once your board publishes them."
-            />
-          </div>
-
-          <!-- Category Documents Dialog -->
-          <Dialog v-model:open="showCategoryDialog">
-            <DialogContent class="sm:max-w-2xl max-h-[80vh] overflow-hidden t-bg-elevated">
-              <DialogHeader>
-                <DialogTitle class="t-text t-heading">
-                  {{ selectedCategory?.category?.name || 'Documents' }}
-                </DialogTitle>
-                <DialogDescription v-if="selectedCategory?.category?.description" class="t-text-secondary">
-                  {{ selectedCategory.category.description }}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div class="overflow-y-auto max-h-[60vh] -mx-6 px-6">
-                <div class="space-y-2 py-4">
-                  <button
-                    v-for="doc in selectedCategory?.documents"
-                    :key="doc.id"
-                    @click="downloadDocument(doc)"
-                    class="w-full flex items-center gap-4 p-4 rounded-lg t-hover-bg transition-colors text-left group border t-border"
-                  >
-                    <!-- File icon -->
-                    <div class="w-10 h-10 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0">
-                      <Icon
-                        :name="getFileIcon(typeof doc.file === 'object' ? doc.file?.type : undefined)"
-                        class="h-5 w-5 t-text-secondary"
-                      />
-                    </div>
-
-                    <!-- Document info -->
-                    <div class="flex-1 min-w-0">
-                      <h3 class="font-medium t-text truncate">
-                        {{ doc.title }}
-                      </h3>
-                      <p v-if="doc.date_published || doc.date_created" class="text-sm t-text-muted">
-                        {{ formatDate(doc.date_published || doc.date_created) }}
-                      </p>
-                    </div>
-
-                    <!-- Download indicator -->
-                    <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Icon name="heroicons:arrow-down-tray" class="h-5 w-5 t-text-accent" />
-                    </div>
-                  </button>
+              <AccordionTrigger class="px-6 py-4 t-hover-bg">
+                <div class="flex items-center gap-3">
+                  <div class="icon-tile shrink-0 rounded-lg t-bg-accent/10 flex items-center justify-center">
+                    <Icon
+                      :name="group.category?.icon || getIconForCategory(group.category)"
+                      class="t-text-accent"
+                    />
+                  </div>
+                  <div class="text-left">
+                    <span class="type-card t-text">
+                      {{ group.category?.name || 'Documents' }}
+                    </span>
+                    <span class="ml-2 type-meta t-text-muted">
+                      ({{ group.documents.length }})
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </template>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div class="px-6 pb-4">
+                  <!-- Category description if available -->
+                  <p
+                    v-if="group.category?.description"
+                    class="type-meta t-text-muted mb-4 pl-13"
+                  >
+                    {{ group.category.description }}
+                  </p>
 
-        <!-- Classic Theme Layout (Accordion) -->
-        <template v-else>
-          <!-- Documents Accordion -->
-          <Card v-if="documentsByCategory.size > 0" class="t-card-flat">
-            <CardContent class="p-0">
-              <Accordion type="multiple" :default-value="defaultOpenCategories" class="w-full">
-                <AccordionItem
-                  v-for="[categoryId, group] in documentsByCategory"
-                  :key="categoryId"
-                  :value="categoryId"
-                  class="border-b t-border last:border-b-0"
-                >
-                  <AccordionTrigger class="px-6 py-4 t-hover-bg">
-                    <div class="flex items-center gap-3">
-                      <div class="w-10 h-10 rounded-lg t-bg-accent/10 flex items-center justify-center">
+                  <!-- Document list -->
+                  <div class="space-y-2">
+                    <button
+                      v-for="doc in group.documents"
+                      :key="doc.id"
+                      @click="downloadDocument(doc)"
+                      class="w-full flex items-center gap-4 p-3 rounded-lg t-hover-bg transition-colors text-left group"
+                    >
+                      <!-- File icon -->
+                      <div class="icon-tile rounded-lg t-bg-subtle flex items-center justify-center shrink-0 group-hover:t-bg-alt">
                         <Icon
-                          :name="group.category?.icon || getIconForCategory(group.category)"
-                          class="h-5 w-5 t-text-accent"
+                          :name="getFileIcon(typeof doc.file === 'object' ? doc.file?.type : undefined)"
+                          class="t-text-secondary"
                         />
                       </div>
-                      <div class="text-left">
-                        <span class="font-semibold t-text t-heading">
-                          {{ group.category?.name || 'Documents' }}
-                        </span>
-                        <span class="ml-2 text-sm t-text-muted">
-                          ({{ group.documents.length }})
-                        </span>
+
+                      <!-- Document info -->
+                      <div class="flex-1 min-w-0">
+                        <h3 class="type-card t-text truncate">
+                          {{ doc.title }}
+                        </h3>
+                        <p v-if="doc.date_published || doc.date_created" class="type-meta t-text-muted">
+                          {{ formatDate(doc.date_published || doc.date_created) }}
+                        </p>
                       </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div class="px-6 pb-4">
-                      <!-- Category description if available -->
-                      <p
-                        v-if="group.category?.description"
-                        class="text-sm t-text-muted mb-4 pl-13"
-                      >
-                        {{ group.category.description }}
-                      </p>
 
-                      <!-- Document list -->
-                      <div class="space-y-2">
-                        <button
-                          v-for="doc in group.documents"
-                          :key="doc.id"
-                          @click="downloadDocument(doc)"
-                          class="w-full flex items-center gap-4 p-3 rounded-lg t-hover-bg transition-colors text-left group"
-                        >
-                          <!-- File icon -->
-                          <div class="w-10 h-10 rounded-lg t-bg-subtle flex items-center justify-center flex-shrink-0 group-hover:t-bg-alt">
-                            <Icon
-                              :name="getFileIcon(typeof doc.file === 'object' ? doc.file?.type : undefined)"
-                              class="h-5 w-5 t-text-secondary"
-                            />
-                          </div>
-
-                          <!-- Document info -->
-                          <div class="flex-1 min-w-0">
-                            <h3 class="font-medium t-text truncate">
-                              {{ doc.title }}
-                            </h3>
-                            <p v-if="doc.date_published || doc.date_created" class="text-sm t-text-muted">
-                              {{ formatDate(doc.date_published || doc.date_created) }}
-                            </p>
-                          </div>
-
-                          <!-- Download indicator -->
-                          <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Icon name="heroicons:arrow-down-tray" class="h-5 w-5 t-text-accent" />
-                          </div>
-                        </button>
+                      <!-- Download affordance. This was hover-only, which means
+                           it did not exist on a touch device — the row read as
+                           inert. Always visible, muted until hover. -->
+                      <div class="icon-glyph shrink-0">
+                        <Icon
+                          name="heroicons:arrow-down-tray"
+                          class="t-text-muted group-hover:t-text-accent transition-colors"
+                        />
                       </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </Card>
+                    </button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </CardContent>
+      </Card>
 
-          <!-- Empty state -->
-          <Card v-else class="t-card-flat">
-            <CardContent class="p-0">
-              <AppEmptyState
-                icon="lucide:file-text"
-                title="No documents available"
-                description="Community documents appear here once your board publishes them."
-              />
-            </CardContent>
-          </Card>
-        </template>
-
-      </PageContainer>
+      <!-- Empty state -->
+      <Card v-else class="t-card-flat">
+        <CardContent class="p-0">
+          <AppEmptyState
+            icon="lucide:file-text"
+            title="No documents available"
+            description="Community documents appear here once your board publishes them."
+          />
+        </CardContent>
+      </Card>
+    </PageContainer>
   </div>
 </template>
+
+<style scoped>
+/* Nuxt Icon runs in CSS mode here, so `<Icon>` renders a masked
+   `<span class="iconify">` that is 1em square and takes its size from
+   `font-size` — the `h-5 w-5` these icons used to carry never applied at all
+   (measured: 13.125px, i.e. the inherited font-size, where `w-5` would have
+   given 18.75px). Same failure the empty-state icons had. Size the wrapper's
+   font-size instead, which is the mechanism that actually works. */
+.icon-tile {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.25rem;
+}
+
+.icon-glyph {
+  font-size: 1.25rem;
+  line-height: 0;
+}
+</style>

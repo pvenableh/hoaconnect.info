@@ -10,6 +10,5 @@ definePageMeta({
 </script>
 
 <template>
-  <!-- All logged-in users see the public documents view -->
   <PagesMemberDocumentsPage />
 </template>

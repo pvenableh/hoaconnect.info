@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// Never rendered — the middleware redirects before this page mounts.
 // `/{slug}/admin` has no page of its own — the admin dashboard IS the org root
 // (`/{slug}`), and every real admin screen lives a level deeper under
 // `/admin/*`. Without this shim the bare path 404s, and it is reachable three
@@ -17,6 +18,5 @@ definePageMeta({
 </script>
 
 <template>
-  <!-- Never rendered — the middleware redirects before this page mounts. -->
   <div />
 </template>
