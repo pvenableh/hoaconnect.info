@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { ref, onMounted, watch } from "vue";
+import { ref, watch } from "vue";
 import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
 import { refDebounced } from "@vueuse/core";
 import type { AppliedCoupon } from "#core/app/composables/useCoupons";
 
-const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
@@ -111,24 +110,14 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-onMounted(() => {
-  const el = cardRef.value;
-  if (el && $gsap) {
-    $gsap.fromTo(
-      el,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-    );
-  }
-});
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+    <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">Create an account</h1>
-        <p class="text-sm t-text-muted">Enter your details below to get started</p>
+        <h1 class="type-section type-flush">Create an account</h1>
+        <p class="type-meta">Enter your details below to get started</p>
       </div>
         <form @submit="onSubmit" class="space-y-2">
           <div class="grid grid-cols-2 gap-4">
@@ -140,7 +129,7 @@ onMounted(() => {
                 placeholder="John"
                 v-bind="field"
                 :error-message="errors[0]"
-                variant="underline"
+               
               />
             </VeeField>
 
@@ -152,7 +141,7 @@ onMounted(() => {
                 placeholder="Doe"
                 v-bind="field"
                 :error-message="errors[0]"
-                variant="underline"
+               
               />
             </VeeField>
           </div>
@@ -165,7 +154,7 @@ onMounted(() => {
               placeholder="m@example.com"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
             />
           </VeeField>
 
@@ -176,7 +165,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
               @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
@@ -214,7 +203,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
             />
           </VeeField>
 
@@ -233,7 +222,7 @@ onMounted(() => {
               {{ isSubmitting ? "Creating account..." : "Create account" }}
             </Button>
 
-            <p class="text-center text-sm t-text-muted">
+            <p class="text-center type-meta">
               Already have an account?
               <button
                 type="button"

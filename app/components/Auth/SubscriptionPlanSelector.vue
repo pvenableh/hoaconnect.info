@@ -128,7 +128,7 @@ const getStorageLimit = (plan: any) => {
 
         <div class="space-y-1">
           <h3 class="text-xl font-semibold t-text">{{ plan.name }}</h3>
-          <p class="text-sm t-text-muted">{{ plan.description }}</p>
+          <p class="type-meta">{{ plan.description }}</p>
         </div>
 
         <!-- Price -->

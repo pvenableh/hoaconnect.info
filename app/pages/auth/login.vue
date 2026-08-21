@@ -167,16 +167,20 @@ const handleRegister = () => {
 
     <!-- One-click sandbox: no signup, no credentials -->
     <div class="mt-6 pt-5 border-t t-border">
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="lg"
+        class="w-full"
         :disabled="demoLoading"
-        class="w-full inline-flex items-center justify-center gap-2 rounded-full border t-border px-4 py-2.5 text-sm font-medium t-text hover:t-bg-subtle transition-colors disabled:opacity-60"
         @click="handleTryDemo"
       >
-        <Icon :name="demoLoading ? 'lucide:loader-circle' : 'lucide:play'" class="w-4 h-4" :class="{ 'animate-spin': demoLoading }" />
+        <Icon
+          :name="demoLoading ? 'lucide:loader-circle' : 'lucide:play'"
+          :class="{ 'animate-spin': demoLoading }"
+        />
         {{ demoLoading ? "Loading demo…" : "Try the live demo" }}
-      </button>
-      <p class="mt-2 text-center text-xs t-text-muted">Explore a sample community — no account needed.</p>
+      </Button>
+      <p class="mt-2 text-center type-meta">Explore a sample community — no account needed.</p>
     </div>
   </AuthShell>
 </template>

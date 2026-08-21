@@ -106,26 +106,16 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-onMounted(() => {
-  const el = cardRef.value;
-  if (el && $gsap) {
-    $gsap.fromTo(
-      el,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-    );
-  }
-});
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+    <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">
+        <h1 class="type-section type-flush">
           {{ isSuccess ? "Password reset" : "Set new password" }}
         </h1>
-        <p class="text-sm t-text-muted">
+        <p class="type-meta">
           {{
             isSuccess
               ? "Your password has been updated successfully"
@@ -141,7 +131,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
               @input="passwordValue = ($event.target as HTMLInputElement).value"
             >
               <template #after>
@@ -179,7 +169,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
             />
           </VeeField>
 
@@ -198,7 +188,7 @@ onMounted(() => {
             <CheckCircle2 class="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm t-text-muted">
+            <p class="type-meta">
               Your password has been successfully reset. You can now sign in
               with your new password.
             </p>

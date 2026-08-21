@@ -71,24 +71,14 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-onMounted(() => {
-  const el = cardRef.value;
-  if (el && $gsap) {
-    $gsap.fromTo(
-      el,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-    );
-  }
-});
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+    <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">Reset your password</h1>
-        <p class="text-sm t-text-muted">
+        <h1 class="type-section type-flush">Reset your password</h1>
+        <p class="type-meta">
           {{
             isSuccess
               ? "Check your email for a reset link"
@@ -105,7 +95,7 @@ onMounted(() => {
               placeholder="m@example.com"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
             />
           </VeeField>
 
@@ -133,9 +123,9 @@ onMounted(() => {
             <Mail class="h-6 w-6 t-text-accent" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm t-text-muted">We've sent a password reset link to</p>
+            <p class="type-meta">We've sent a password reset link to</p>
             <p class="font-medium t-text">{{ submittedEmail }}</p>
-            <p class="text-sm t-text-muted">Please check your inbox and spam folder.</p>
+            <p class="type-meta">Please check your inbox and spam folder.</p>
           </div>
           <Button
             type="button"

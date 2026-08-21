@@ -142,26 +142,16 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-onMounted(() => {
-  const el = cardRef.value;
-  if (el && $gsap) {
-    $gsap.fromTo(
-      el,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-    );
-  }
-});
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+    <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">
+        <h1 class="type-section type-flush">
           {{ isSuccess ? "Welcome aboard!" : "Accept invitation" }}
         </h1>
-        <p class="text-sm t-text-muted">
+        <p class="type-meta">
           {{
             isSuccess
               ? "Your account has been created successfully"
@@ -184,7 +174,7 @@ onMounted(() => {
                 placeholder="John"
                 v-bind="field"
                 :error-message="errors[0]"
-                variant="underline"
+               
               />
             </VeeField>
 
@@ -196,7 +186,7 @@ onMounted(() => {
                 placeholder="Doe"
                 v-bind="field"
                 :error-message="errors[0]"
-                variant="underline"
+               
               />
             </VeeField>
           </div>
@@ -209,7 +199,7 @@ onMounted(() => {
               v-bind="field"
               :error-message="errors[0]"
               @input="passwordValue = ($event.target as HTMLInputElement).value"
-              variant="underline"
+             
             >
               <template #after>
                 <div class="mt-2 mb-3 space-y-1">
@@ -246,7 +236,7 @@ onMounted(() => {
               type="password"
               v-bind="field"
               :error-message="errors[0]"
-              variant="underline"
+             
             />
           </VeeField>
 
@@ -265,7 +255,7 @@ onMounted(() => {
             <PartyPopper class="h-6 w-6 t-text-accent" />
           </div>
           <div class="space-y-2">
-            <p class="text-sm t-text-muted">
+            <p class="type-meta">
               Your account has been created and you're ready to go. Click below
               to sign in.
             </p>

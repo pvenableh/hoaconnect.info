@@ -634,6 +634,17 @@ a[role='button']:not([data-no-press]):active,
 	from { opacity: 0; transform: translate3d(0, 8px, 0); }
 	to   { opacity: 1; transform: none; }
 }
+
+/* A single element arriving — the same motion as one stagger item, for things
+   that enter alone (an auth card, a panel, a just-revealed section). Prefer this
+   over a JS tween: it needs no ticker, and it cannot get stuck half-played in a
+   background tab the way a rAF-driven enter can. */
+.enter-rise {
+	animation: stagger-rise var(--motion-base, 240ms) var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+	.enter-rise { animation: none; opacity: 1; transform: none; }
+}
 .stagger-item {
 	animation: stagger-rise var(--motion-base, 240ms) var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
 }

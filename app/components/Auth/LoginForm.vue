@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { ref, onMounted, computed } from "vue";
+import { ref, computed } from "vue";
 import { useForm, Field as VeeField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
 
-const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
@@ -103,26 +102,16 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-onMounted(() => {
-  const el = cardRef.value;
-  if (el && $gsap) {
-    $gsap.fromTo(
-      el,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-    );
-  }
-});
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div ref="cardRef" class="glass-surface glass-surface--strong p-8 sm:p-10">
+    <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">
+        <h1 class="type-section type-flush">
           {{ organizationName ? `Sign in to ${organizationName}` : 'Sign in to your account' }}
         </h1>
-        <p class="text-sm t-text-muted">
+        <p class="type-meta">
           <template v-if="allowedDomain">
             Enter your {{ allowedDomain }} email to continue
           </template>
@@ -159,7 +148,6 @@ onMounted(() => {
             :placeholder="allowedDomain ? `you@${allowedDomain}` : 'm@example.com'"
             v-bind="field"
             :error-message="errors[0]"
-            variant="underline"
             :disabled="isProcessing"
             @input="clearFormError"
           />
@@ -171,7 +159,6 @@ onMounted(() => {
             type="password"
             v-bind="field"
             :error-message="errors[0]"
-            variant="underline"
             :disabled="isProcessing"
             @input="clearFormError"
           >
@@ -204,7 +191,7 @@ onMounted(() => {
             {{ isProcessing ? "Verifying credentials..." : "Sign in" }}
           </Button>
 
-          <p class="text-center text-sm t-text-muted">
+          <p class="text-center type-meta">
             Don't have an account?
             <button
               type="button"
