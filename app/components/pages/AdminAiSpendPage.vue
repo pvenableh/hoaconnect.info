@@ -24,11 +24,13 @@ interface SpendResponse {
   users: SpendUser[];
 }
 
+// The window is a segmented control, so its value is a string like every other
+// one in the app; the API wants a number, converted at the single call site.
 const RANGES = [
-  { days: 7, label: "7d" },
-  { days: 30, label: "30d" },
-  { days: 90, label: "90d" },
-] as const;
+  { value: "7", label: "7d" },
+  { value: "30", label: "30d" },
+  { value: "90", label: "90d" },
+];
 
 const FEATURE_LABELS: Record<string, string> = {
   draft: "Drafts",
@@ -40,7 +42,7 @@ const FEATURE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const range = ref<number>(30);
+const range = ref("30");
 const loading = ref(true);
 const accessDenied = ref(false);
 const data = ref<SpendResponse | null>(null);
@@ -55,7 +57,7 @@ const load = async () => {
   accessDenied.value = false;
   try {
     data.value = await $fetch<SpendResponse>("/api/org/ai-spend", {
-      query: { orgId: orgId.value, days: range.value },
+      query: { orgId: orgId.value, days: Number(range.value) },
     });
   } catch (err: any) {
     if (err?.statusCode === 403 || err?.response?.status === 403) accessDenied.value = true;
@@ -71,10 +73,10 @@ watch(range, load);
 const stats = computed(() => {
   const d = data.value;
   return [
-    { label: "Spent this period", value: d ? fmtCredits(d.totals.credits) : "—", sub: d ? fmtUsd(d.totals.credits) : "", icon: "i-lucide-sparkles" },
-    { label: "Assistant + AI calls", value: d ? fmtCredits(d.totals.calls) : "—", sub: "", icon: "i-lucide-bot" },
-    { label: "Balance remaining", value: d ? fmtCredits(d.wallet.balanceCredits) : "—", sub: d ? fmtUsd(d.wallet.balanceCredits) : "", icon: "i-lucide-wallet" },
-    { label: "People using AI", value: d ? fmtCredits(d.users.length) : "—", sub: "", icon: "i-lucide-users-round" },
+    { label: "Spent this period", value: d ? fmtCredits(d.totals.credits) : "—", sub: d ? fmtUsd(d.totals.credits) : "", icon: "lucide:sparkles" },
+    { label: "Assistant + AI calls", value: d ? fmtCredits(d.totals.calls) : "—", sub: "", icon: "lucide:bot" },
+    { label: "Balance remaining", value: d ? fmtCredits(d.wallet.balanceCredits) : "—", sub: d ? fmtUsd(d.wallet.balanceCredits) : "", icon: "lucide:wallet" },
+    { label: "People using AI", value: d ? fmtCredits(d.users.length) : "—", sub: "", icon: "lucide:users-round" },
   ];
 });
 
@@ -97,45 +99,36 @@ const userColumns = [
 
 <template>
   <div class="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto">
-    <!-- Header -->
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p class="t-eyebrow">Reporting</p>
-        <h1 class="text-2xl font-semibold t-text t-heading">AI spend</h1>
-        <p class="text-sm t-text-secondary">
-          How the assistant and AI features are using the organization's shared credit wallet.
-        </p>
-      </div>
-      <div class="flex items-center gap-1 rounded-full t-bg-subtle p-1">
-        <button
-          v-for="r in RANGES"
-          :key="r.days"
-          class="px-3 py-1 text-sm rounded-full transition-colors"
-          :class="range === r.days ? 'bg-white shadow-sm t-text dark:bg-white/10' : 't-text-secondary hover:t-text'"
-          @click="range = r.days"
-        >
-          {{ r.label }}
-        </button>
-      </div>
-    </div>
+    <AppPageHeader
+      eyebrow="Reporting"
+      title="AI spend"
+      description="How the assistant and AI features are using the organization's shared credit wallet."
+    >
+      <template #actions>
+        <AppSegmentedControl v-model="range" :items="RANGES" size="sm" label="Time range" />
+      </template>
+    </AppPageHeader>
 
-    <div v-if="accessDenied" class="rounded-xl border t-border p-8 text-center">
-      <Icon name="i-lucide-lock" class="w-8 h-8 mx-auto mb-2 t-text-muted" />
-      <p class="t-text font-medium">AI spend is admin-only</p>
-      <p class="text-sm t-text-muted">Ask an organization admin if you need spend visibility.</p>
+    <div v-if="accessDenied" class="rounded-xl border t-border">
+      <AppEmptyState
+        icon="lucide:lock"
+        title="AI spend is admin-only"
+        description="Spend covers the whole organization's wallet, so it's kept to admins. Ask one of yours if you need visibility."
+      />
     </div>
 
     <template v-else>
       <!-- Stat cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div v-for="s in stats" :key="s.label" class="rounded-xl border t-border t-bg p-4">
-          <div class="flex items-center gap-2 t-text-muted">
-            <span class="t-icon-chip"><Icon :name="s.icon" class="w-4 h-4" /></span>
-            <span class="text-xs">{{ s.label }}</span>
-          </div>
-          <p class="mt-2 text-2xl font-semibold t-text">{{ s.value }}</p>
-          <p v-if="s.sub" class="text-xs t-text-muted">{{ s.sub }}</p>
-        </div>
+        <AppStatCard
+          v-for="s in stats"
+          :key="s.label"
+          :label="s.label"
+          :value="s.value"
+          :description="s.sub || undefined"
+          :icon="s.icon"
+          :loading="loading"
+        />
       </div>
 
       <div v-if="loading" class="flex items-center justify-center py-12">
@@ -145,7 +138,7 @@ const userColumns = [
       <template v-else-if="data">
         <!-- Per-feature breakdown -->
         <div v-if="features.length" class="rounded-xl border t-border t-bg p-4">
-          <h2 class="text-sm font-semibold t-text mb-3">By feature</h2>
+          <h2 class="type-card mb-3">By feature</h2>
           <ul class="space-y-2">
             <li v-for="f in features" :key="f.key" class="flex items-center justify-between text-sm">
               <span class="t-text-secondary">{{ f.label }}</span>
@@ -157,8 +150,8 @@ const userColumns = [
         <!-- Per-user table -->
         <div class="rounded-xl border t-border t-bg overflow-hidden">
           <div class="px-4 py-3 border-b t-border">
-            <h2 class="text-sm font-semibold t-text">By person</h2>
-            <p class="text-xs t-text-muted">Credits used in the last {{ data.days }} days. For oversight — there are no per-person limits.</p>
+            <h2 class="type-card">By person</h2>
+            <p class="type-meta">Credits used in the last {{ data.days }} days. For oversight — there are no per-person limits.</p>
           </div>
           <AppDataTable
             class="px-2 pb-2"

@@ -141,11 +141,7 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
 
 <template>
   <div class="space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
-    <header>
-      <p class="text-xs uppercase tracking-ultra-wide t-text-muted">{{ props.eyebrow }}</p>
-      <h1 class="text-2xl font-semibold t-text">Ledger</h1>
-      <p class="text-sm t-text-secondary max-w-2xl mt-1">{{ props.subtitle }}</p>
-    </header>
+    <AppPageHeader :eyebrow="props.eyebrow" title="Ledger" :description="props.subtitle" />
 
     <!-- The owner surface only. A board member has the whole feed and the admin
          tools; the person this is FOR is the owner who would otherwise have to
@@ -153,16 +149,22 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
          and the route cannot disagree about who is looking. -->
     <AiAskTheHoa v-if="props.showAsk && !accessDenied && !failed" :slug="slug" />
 
-    <div v-if="accessDenied" class="rounded-xl border t-border p-8 text-center">
-      <Icon name="i-lucide-lock" class="w-8 h-8 mx-auto mb-2 t-text-muted" />
-      <p class="t-text font-medium">This community's ledger is for its members</p>
-      <p class="text-sm t-text-muted">Ask an administrator for a seat in the community.</p>
+    <div v-if="accessDenied" class="rounded-xl border t-border">
+      <AppEmptyState
+        icon="lucide:lock"
+        title="This community's ledger is for its members"
+        description="Ask an administrator for a seat in the community and the ledger opens with it."
+      />
     </div>
 
-    <div v-else-if="failed" class="rounded-xl border t-border p-8 text-center">
-      <Icon name="i-lucide-triangle-alert" class="w-8 h-8 mx-auto mb-2 t-text-muted" />
-      <p class="t-text font-medium">The ledger couldn't be loaded</p>
-      <button class="text-sm underline t-text-secondary mt-1" @click="load()">Try again</button>
+    <div v-else-if="failed" class="rounded-xl border t-border">
+      <AppEmptyState
+        icon="lucide:triangle-alert"
+        title="The ledger couldn't be loaded"
+        description="Nothing is lost — the record is intact, we just couldn't reach it."
+      >
+        <Button variant="outline" @click="load()">Try again</Button>
+      </AppEmptyState>
     </div>
 
     <template v-else>
@@ -189,19 +191,18 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
 
       <WidgetRowSkeleton v-if="loading" :rows="6" :lines="2" />
 
-      <div v-else-if="!entries.length" class="rounded-xl border t-border p-10 text-center">
-        <Icon name="i-lucide-history" class="w-8 h-8 mx-auto mb-2 t-text-muted" />
-        <p class="t-text font-medium">Nothing recorded yet</p>
-        <p class="text-sm t-text-muted max-w-md mx-auto mt-1">
-          The ledger records what happens to your community — management changes,
-          permissions, published documents, decided votes. It fills itself as
-          those things happen.
-        </p>
+      <div v-else-if="!entries.length" class="rounded-xl border t-border">
+        <AppEmptyState
+          icon="lucide:history"
+          :variant="category ? 'search' : 'empty'"
+          :title="category ? 'Nothing in this category yet' : 'Nothing recorded yet'"
+          description="The ledger records what happens to your community — management changes, permissions, published documents, decided votes. It fills itself as those things happen."
+        />
       </div>
 
       <div v-else class="space-y-8">
         <section v-for="month in months" :key="month.key" class="space-y-2">
-          <h2 class="text-xs font-semibold uppercase tracking-ultra-wide t-text-muted sticky top-0 t-bg py-2 z-10">
+          <h2 class="type-micro t-text-muted sticky top-0 t-bg py-2 z-10">
             {{ month.label }}
           </h2>
 
