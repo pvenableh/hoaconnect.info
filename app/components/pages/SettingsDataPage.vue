@@ -133,15 +133,11 @@ onMounted(load);
 
 <template>
   <div class="space-y-6">
-    <div>
-      <p class="text-xs uppercase tracking-widest text-muted-foreground">Admin</p>
-      <h1 class="text-2xl font-semibold">Your data</h1>
-      <p class="text-sm text-muted-foreground mt-1 max-w-2xl">
-        Everything your community creates here belongs to your community. Export
-        it whenever you want — to keep a copy, to move to another provider, or to
-        hand to a new manager. No approval, no waiting on us.
-      </p>
-    </div>
+    <AppPageHeader
+      eyebrow="Admin"
+      title="Your data"
+      description="Everything your community creates here belongs to your community. Export it whenever you want — to keep a copy, to move to another provider, or to hand to a new manager. No approval, no waiting on us."
+    />
 
     <Card>
       <CardHeader>
@@ -227,10 +223,14 @@ onMounted(load);
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p v-if="loading" class="text-sm text-muted-foreground">Loading…</p>
-        <p v-else-if="rows.length === 0" class="text-sm text-muted-foreground">
-          You haven't exported anything yet.
-        </p>
+        <p v-if="loading" class="type-meta">Loading…</p>
+        <AppEmptyState
+          v-else-if="rows.length === 0"
+          compact
+          icon="lucide:archive"
+          title="You haven't exported anything yet"
+          description="Request one above — it's prepared in the background, and you don't have to wait on this page."
+        />
 
         <ul v-else class="divide-y">
           <li v-for="row in rows" :key="row.id" class="py-3 flex items-center gap-4">

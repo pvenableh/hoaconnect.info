@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import type { HoaEmailTemplate } from "#core/types/directus";
 
-const { navigateToOrg } = useOrgNavigation();
+const { navigateToOrg, buildOrgPath } = useOrgNavigation();
 const emailTemplates = useEmailTemplates();
 const { selectedOrgId } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
@@ -72,30 +72,35 @@ useSeoMeta({ title: "Email Templates" });
   <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
       <CommunicationsTabs />
-      <div class="flex items-start justify-between gap-2">
-        <div>
-          <Button variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/communications')">
-            <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
-            Communications
+      <AppPageHeader
+        :back-to="buildOrgPath('/admin/communications')"
+        back-label="Communications"
+        title="Email Templates"
+        description="Reusable starting points for your emails. Save one from the composer with “Save as template”."
+      >
+        <template #actions>
+          <Button class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            New email
           </Button>
-          <h1 class="text-2xl font-semibold t-text">Email Templates</h1>
-          <p class="text-sm t-text-muted mt-0.5">
-            Reusable starting points for your emails. Save one from the composer with "Save as template".
-          </p>
-        </div>
-        <Button class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
-          <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
-          New email
-        </Button>
-      </div>
+        </template>
+      </AppPageHeader>
 
       <div v-if="loading" class="flex items-center justify-center py-16">
         <Icon name="lucide:loader-2" class="w-7 h-7 animate-spin t-text-muted" />
       </div>
 
-      <div v-else-if="templates.length === 0" class="ios-card p-10 text-center">
-        <Icon name="lucide:layout-template" class="w-10 h-10 mx-auto mb-3 t-text-muted opacity-50" />
-        <p class="t-text-muted">No templates yet. Compose an email and choose "Save as template".</p>
+      <div v-else-if="templates.length === 0" class="ios-card">
+        <AppEmptyState
+          icon="lucide:layout-template"
+          title="No templates yet"
+          description="Templates are made in the composer, not here — write an email you expect to send again, then choose “Save as template”."
+        >
+          <Button class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            Compose an email
+          </Button>
+        </AppEmptyState>
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -124,7 +129,7 @@ useSeoMeta({ title: "Email Templates" });
               class="rounded-full w-9 h-9 p-0"
               @click="confirmDelete(tpl)"
             >
-              <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
+              <Icon name="lucide:trash-2" class="w-4 h-4 text-destructive" />
             </Button>
           </div>
         </div>
