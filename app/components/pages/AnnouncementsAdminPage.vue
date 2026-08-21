@@ -20,6 +20,12 @@ const {
 const { buildOrgPath } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
+// Declared before the await: composables must not run after a top-level await.
+const activeTab = useTabQuery({
+  values: ["all", "published", "draft", "archived"],
+  fallback: "all",
+});
+
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Computed organization from the composable
@@ -29,7 +35,7 @@ const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
 
 // Current tab
-const activeTab = ref<"all" | "published" | "draft" | "archived">("all");
+
 
 // Announcement type options
 const typeOptions = [
@@ -115,6 +121,13 @@ const filteredAnnouncements = computed(() => {
 });
 
 // Count by status
+const tabItems = computed(() => [
+  { value: "all", label: "All", icon: "lucide:list", count: statusCounts.value.all },
+  { value: "published", label: "Published", icon: "lucide:check-circle", count: statusCounts.value.published },
+  { value: "draft", label: "Drafts", icon: "lucide:file-pen", count: statusCounts.value.draft },
+  { value: "archived", label: "Archived", icon: "lucide:archive", count: statusCounts.value.archived },
+]);
+
 const statusCounts = computed(() => {
   if (!announcements.value) return { all: 0, published: 0, draft: 0, archived: 0 };
   return {
@@ -372,58 +385,7 @@ useSeoMeta({
             </CardHeader>
           </Card>
 
-          <!-- Tabs -->
-          <div class="border-b t-border">
-            <nav class="flex space-x-8">
-              <button
-                @click="activeTab = 'all'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'all'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
-                ]"
-              >
-                All ({{ statusCounts.all }})
-              </button>
-              <button
-                @click="activeTab = 'published'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'published'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
-                ]"
-              >
-                <Icon name="lucide:check-circle" class="w-4 h-4 inline mr-1" />
-                Published ({{ statusCounts.published }})
-              </button>
-              <button
-                @click="activeTab = 'draft'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'draft'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
-                ]"
-              >
-                <Icon name="lucide:file-edit" class="w-4 h-4 inline mr-1" />
-                Drafts ({{ statusCounts.draft }})
-              </button>
-              <button
-                @click="activeTab = 'archived'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'archived'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:text-stone-900 hover:border-stone-300',
-                ]"
-              >
-                <Icon name="lucide:archive" class="w-4 h-4 inline mr-1" />
-                Archived ({{ statusCounts.archived }})
-              </button>
-            </nav>
-          </div>
+          <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Announcement views" />
 
           <!-- Action Buttons -->
           <div class="flex justify-end">

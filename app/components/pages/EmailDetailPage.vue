@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { HoaEmailsFile } from "#core/types/directus";
 
 const props = defineProps<{
@@ -20,6 +19,13 @@ const emailSystem = useEmailSystem();
 
 // Tab state
 const activeTab = ref("activity");
+// A control INSIDE a card, so `sm` — the page-level size would compete with the
+// card's own title. Not URL-synced: this is a detail within one record, not a
+// view of the page.
+const tabItems = [
+  { value: "activity", label: "Activity", icon: "lucide:list" },
+  { value: "charts", label: "Charts", icon: "lucide:bar-chart-2" },
+];
 
 // Fetch email details
 const {
@@ -483,20 +489,19 @@ useSeoMeta({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Tabs v-model="activeTab" class="w-full">
-                  <TabsList class="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="activity">
-                      <Icon name="lucide:list" class="w-4 h-4 mr-2" />
-                      Activity
-                    </TabsTrigger>
-                    <TabsTrigger value="charts">
-                      <Icon name="lucide:bar-chart-2" class="w-4 h-4 mr-2" />
-                      Charts
-                    </TabsTrigger>
-                  </TabsList>
+                <AppSegmentedControl
+                  v-model="activeTab"
+                  :items="tabItems"
+                  size="sm"
+                  fill
+                  label="Email detail views"
+                  class="mb-4"
+                />
+
+                <AppTabPanels :value="activeTab" :items="tabItems">
 
                   <!-- Activity List Tab -->
-                  <TabsContent value="activity" class="mt-0">
+                  <div v-if="activeTab === 'activity'" class="mt-0">
                     <!-- Engagement Stats Row -->
                     <div
                       v-if="activityStats"
@@ -585,10 +590,10 @@ useSeoMeta({
                         <p class="text-sm">No activity yet</p>
                       </div>
                     </div>
-                  </TabsContent>
+                  </div>
 
                   <!-- Charts Tab -->
-                  <TabsContent value="charts" class="mt-0">
+                  <div v-if="activeTab === 'charts'" class="mt-0">
                     <!-- Delivery Chart -->
                     <div class="mb-6">
                       <h4 class="text-sm font-medium t-text-secondary mb-3">Delivery Status</h4>
@@ -685,8 +690,8 @@ useSeoMeta({
                         <p class="text-sm text-indigo-600">Click-to-Open</p>
                       </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                </AppTabPanels>
               </CardContent>
             </Card>
           </div>

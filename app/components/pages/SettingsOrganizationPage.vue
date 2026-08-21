@@ -1,100 +1,85 @@
 <template>
-  <div class="ui-kit accent-blue min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer>
       <!-- Loading State -->
       <div
         v-if="isLoading || !isHydrated"
-        class="flex items-center justify-center min-h-[400px]"
+        class="flex flex-col items-center justify-center min-h-[400px] gap-3"
       >
-        <div class="text-center">
-          <div
-            class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
-            role="status"
-          />
-          <p class="mt-4 text-muted-foreground">Loading organization...</p>
-        </div>
+        <span class="spinner-ios" />
+        <p class="type-meta">Loading organization…</p>
       </div>
 
       <template v-else-if="organization">
-        <!-- Page Header -->
-        <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 class="text-3xl font-bold">Organization Settings</h1>
-            <p class="text-muted-foreground mt-2">
-              Manage your organization's information, branding, and subscription
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            class="rounded-full"
-            @click="navigateToOrg('/admin/settings/domains')"
-          >
-            <Icon name="lucide:globe" class="h-4 w-4 mr-2" />
-            Edit public site
-          </Button>
-        </div>
+        <AppPageHeader
+          eyebrow="Settings"
+          title="Organization"
+          description="Identity, branding, features, and billing for your community."
+        >
+          <template #actions>
+            <Button variant="outline" @click="navigateToOrg('/admin/settings/domains')">
+              <Icon name="lucide:globe" />
+              Edit public site
+            </Button>
+          </template>
+        </AppPageHeader>
 
-        <!-- Settings Tabs -->
-        <Tabs v-model="activeTab" default-value="general">
-          <TabsList class="mb-6 flex-wrap h-auto gap-1">
-            <TabsTrigger
-              v-for="tab in tabs"
-              :key="tab.id"
-              :value="tab.id"
-              class="whitespace-nowrap"
-            >
-              <Icon :name="tab.icon" class="h-4 w-4 mr-2" />
-              {{ tab.label }}
-            </TabsTrigger>
-          </TabsList>
+        <AppSegmentedControl
+          v-model="activeTab"
+          :items="tabItems"
+          label="Settings sections"
+          class="mb-6"
+        />
+
+        <AppTabPanels :value="activeTab" :items="tabItems">
 
           <!-- General Tab -->
-          <TabsContent value="general" class="space-y-6">
+          <div v-if="activeTab === 'general'" class="space-y-6">
             <SettingsOrganizationInfoForm
               :organization="organization"
               @updated="handleOrganizationUpdate"
             />
-          </TabsContent>
+          </div>
 
           <!-- Branding Tab -->
-          <TabsContent value="branding" class="space-y-6">
+          <div v-if="activeTab === 'branding'" class="space-y-6">
             <SettingsBrandingSettingsForm
               :organization="organization"
               :settings="settings"
               @updated="handleSettingsUpdate"
             />
             <SettingsEmailSenderForm :organization="organization" />
-          </TabsContent>
+          </div>
 
           <!-- SEO Tab -->
-          <TabsContent value="seo" class="space-y-6">
+          <div v-if="activeTab === 'seo'" class="space-y-6">
             <SettingsSeoSettingsForm
               :settings="settings"
               @updated="handleSettingsUpdate"
             />
-          </TabsContent>
+          </div>
 
           <!-- Modules Tab -->
-          <TabsContent value="modules" class="space-y-6">
+          <div v-if="activeTab === 'modules'" class="space-y-6">
             <SettingsModulesForm
               :organization="organization"
               @updated="handleOrganizationUpdate"
             />
-          </TabsContent>
+          </div>
 
           <!-- Subscription Tab -->
-          <TabsContent value="subscription" class="space-y-6">
+          <div v-if="activeTab === 'subscription'" class="space-y-6">
             <SettingsSubscriptionSettingsCard :organization="organization" />
-          </TabsContent>
+          </div>
 
           <!-- Payment Settings Tab (surfaces Stripe Connect payouts + dues/late fees) -->
-          <TabsContent value="payments" class="space-y-6">
+          <div v-if="activeTab === 'payments'" class="space-y-6">
             <SettingsPaymentSettingsForm
               :organization="organization"
               @updated="handleOrganizationUpdate"
             />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </AppTabPanels>
       </template>
 
       <!-- No Organization -->
@@ -118,13 +103,6 @@
 <script setup lang="ts">
 import type { HoaOrganization, BlockSetting } from "#core/types/directus";
 import { toast } from "vue-sonner";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-
 const { navigateToOrg } = useOrgNavigation();
 const { patchActiveHoa } = useActiveHoa();
 
@@ -152,36 +130,21 @@ const allTabs = [
 ];
 
 // Filter out subscription tab for free accounts
-const tabs = computed(() => {
-  if (organization.value?.is_free_account) {
-    return allTabs.filter((tab) => tab.id !== "subscription");
-  }
-  return allTabs;
+// A free account has no subscription to manage, so that tab is dropped rather
+// than shown leading nowhere.
+const tabItems = computed(() => {
+  const list = organization.value?.is_free_account
+    ? allTabs.filter((tab) => tab.id !== "subscription")
+    : allTabs;
+  return list.map((t) => ({ value: t.id, label: t.label, icon: t.icon }));
 });
 
-// Tab state, deep-linkable via ?tab= (the Settings hub links straight to a tab)
-const route = useRoute();
-const router = useRouter();
-// Validate against the static tab list (not the `tabs` computed, which reads
-// `organization` declared further down — touching it here would be a TDZ error).
-const validTabIds = new Set(allTabs.map((t) => t.id));
-const normalizeTab = (t: unknown): string => {
-  const id = typeof t === "string" ? t : "general";
-  return validTabIds.has(id) ? id : "general";
-};
-const activeTab = ref(normalizeTab(route.query.tab));
-watch(
-  () => route.query.tab,
-  (t) => {
-    const id = normalizeTab(t);
-    if (id !== activeTab.value) activeTab.value = id;
-  }
-);
-watch(activeTab, (t) => {
-  const q = t === "general" ? undefined : t;
-  if ((route.query.tab as string | undefined) !== q) {
-    router.replace({ query: { ...route.query, tab: q } });
-  }
+// Deep-linkable via ?tab= — the Settings hub links straight to a tab.
+// Validated against the STATIC list, not the `tabs` computed, which reads
+// `organization` declared further down (touching it here would be a TDZ error).
+const activeTab = useTabQuery({
+  values: allTabs.map((t) => t.id),
+  fallback: "general",
 });
 
 // Organization data

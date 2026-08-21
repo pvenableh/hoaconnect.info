@@ -40,7 +40,18 @@ const vendorsApi = useDirectusItems<HoaVendor>("hoa_vendors");
 const membersApi = useDirectusItems("hoa_members");
 const orgApi = useDirectusItems("hoa_organizations");
 
-const activeTab = ref("vendors");
+// Linkable, replace-not-push — the shared tab contract.
+const activeTab = useTabQuery({
+  values: ["vendors", "managers", "transition", "routing"],
+  fallback: "vendors",
+});
+
+const tabItems = [
+  { value: "vendors", label: "Vendors", icon: "lucide:contact" },
+  { value: "managers", label: "Managers", icon: "lucide:user-cog" },
+  { value: "transition", label: "Transition", icon: "lucide:arrow-right-left" },
+  { value: "routing", label: "Routing", icon: "lucide:route" },
+];
 
 const CATEGORY_OPTIONS = [
   { value: "management", label: "Management" },
@@ -424,16 +435,17 @@ watch(orgId, () => {
         </p>
       </div>
 
-      <Tabs v-model="activeTab" default-value="vendors">
-        <TabsList class="mb-6 flex-wrap h-auto gap-1">
-          <TabsTrigger value="vendors"><Icon name="lucide:contact" class="h-4 w-4 mr-2" />Vendors</TabsTrigger>
-          <TabsTrigger value="managers"><Icon name="lucide:user-cog" class="h-4 w-4 mr-2" />Managers</TabsTrigger>
-          <TabsTrigger value="transition"><Icon name="lucide:arrow-right-left" class="h-4 w-4 mr-2" />Transition</TabsTrigger>
-          <TabsTrigger value="routing"><Icon name="lucide:route" class="h-4 w-4 mr-2" />Routing</TabsTrigger>
-        </TabsList>
+      <AppSegmentedControl
+        v-model="activeTab"
+        :items="tabItems"
+        label="Property management sections"
+        class="mb-6"
+      />
+
+      <AppTabPanels :value="activeTab" :items="tabItems">
 
         <!-- ───────── Vendors ───────── -->
-        <TabsContent value="vendors" class="space-y-6">
+        <div v-if="activeTab === 'vendors'" class="space-y-6">
           <Card>
             <CardHeader class="flex flex-row items-start justify-between gap-3">
               <div>
@@ -483,10 +495,10 @@ watch(orgId, () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
 
         <!-- ───────── Managers ───────── -->
-        <TabsContent value="managers" class="space-y-6">
+        <div v-if="activeTab === 'managers'" class="space-y-6">
           <Card>
             <CardHeader class="flex flex-row items-start justify-between gap-3">
               <div>
@@ -550,20 +562,20 @@ watch(orgId, () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
 
         <!-- ───────── Transition ───────── -->
-        <TabsContent value="transition" class="space-y-6">
+        <div v-if="activeTab === 'transition'" class="space-y-6">
           <ManagementTransitionWizard
             v-if="orgId"
             :org-id="orgId"
             :org-name="orgName"
             @completed="loadManagers(); loadVendors();"
           />
-        </TabsContent>
+        </div>
 
         <!-- ───────── Routing ───────── -->
-        <TabsContent value="routing" class="space-y-6">
+        <div v-if="activeTab === 'routing'" class="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Inquiry routing</CardTitle>
@@ -599,8 +611,8 @@ watch(orgId, () => {
               </template>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </AppTabPanels>
     </PageContainer>
 
     <!-- Vendor dialog -->
