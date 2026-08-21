@@ -51,7 +51,16 @@ const status = ref<"published" | "draft" | "archived">("published");
 const showCreateFolderDialog = ref(false);
 const showCategoryManager = ref(false);
 const showBatchUploadDialog = ref(false);
-const activeTab = ref("categories");
+// Linkable, replace-not-push — the same tab contract as every other page.
+const activeTab = useTabQuery({
+  values: ["categories", "files"],
+  fallback: "categories",
+});
+
+const tabItems = [
+  { value: "categories", label: "Categories", icon: "lucide:layout-grid" },
+  { value: "files", label: "File library", icon: "lucide:folder" },
+];
 const batchUploadTargetFolder = ref<string | null>(null);
 const newFolderName = ref("");
 const creatingFolder = ref(false);
@@ -513,61 +522,38 @@ const handleBatchUploadComplete = async () => {
 </script>
 
 <template>
-  <div class="ui-kit accent-blue min-h-screen t-bg t-text">
-    <!-- Page Header Section -->
-    <div class="t-bg-alt border-b t-border-divider">
-      <div class="max-w-6xl mx-auto px-6 py-12">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="t-label t-text-accent mb-3 tracking-widest">Resource Library</p>
-            <h1 class="text-4xl t-heading font-light tracking-wide mb-3">Documents</h1>
-            <p class="t-text-secondary text-lg">
-              Access important community documents, bylaws, and records
-            </p>
-          </div>
-          <div class="flex gap-3">
-            <!-- Category Manager toggle -->
-            <Button
-              @click="showCategoryManager = !showCategoryManager"
-              variant="outline"
-              class="t-border hover:t-bg-subtle"
-              :class="showCategoryManager ? 't-bg-subtle' : ''"
-            >
-              <Icon name="heroicons:tag" class="h-4 w-4 mr-2" />
-              Categories
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="min-h-screen t-bg t-text">
+    <PageContainer class="space-y-8">
+      <AppPageHeader
+        eyebrow="Records"
+        title="Documents"
+        description="Community documents, bylaws, and records."
+      >
+        <template #actions>
+          <Button
+            variant="outline"
+            :class="showCategoryManager ? 't-bg-subtle' : ''"
+            @click="showCategoryManager = !showCategoryManager"
+          >
+            <Icon name="lucide:tag" />
+            Manage categories
+          </Button>
+        </template>
+      </AppPageHeader>
 
-    <!-- Main Content -->
-    <div class="max-w-6xl mx-auto px-6 py-10 space-y-8">
       <!-- Category Manager (collapsible) -->
       <DocumentsCategoryManager v-if="showCategoryManager" />
 
-      <!-- Tabbed Interface -->
-      <Tabs v-model="activeTab" class="w-full">
-        <div class="t-bg-elevated rounded-xl border t-border p-1 inline-flex mb-8">
-          <TabsList class="grid w-full grid-cols-2 max-w-md bg-transparent">
-            <TabsTrigger value="categories" class="rounded-lg data-[state=active]:t-bg-accent data-[state=active]:text-white">
-              <Icon name="heroicons:squares-2x2" class="h-4 w-4 mr-2" />
-              Document Categories
-            </TabsTrigger>
-            <TabsTrigger value="files" class="rounded-lg data-[state=active]:t-bg-accent data-[state=active]:text-white">
-              <Icon name="heroicons:folder" class="h-4 w-4 mr-2" />
-              File Library
-            </TabsTrigger>
-          </TabsList>
+      <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Document views" />
+
+      <AppTabPanels :value="activeTab" :items="tabItems">
+        <!-- Document Categories Tab -->
+        <div v-if="activeTab === 'categories'">
+          <DocumentsDocumentCategoryView />
         </div>
 
-        <!-- Document Categories Tab -->
-        <TabsContent value="categories" class="mt-0">
-          <DocumentsDocumentCategoryView />
-        </TabsContent>
-
         <!-- File Library Tab -->
-        <TabsContent value="files" class="mt-0">
+        <div v-else-if="activeTab === 'files'">
           <!-- File Library Header -->
           <div class="mb-8">
             <h2 class="t-heading text-xl font-light tracking-wide mb-2 flex items-center gap-3">
@@ -811,22 +797,17 @@ const handleBatchUploadComplete = async () => {
                 />
               </div>
 
-              <!-- Empty state -->
-              <div
+              <AppEmptyState
                 v-if="documentTree.length === 0"
-                class="text-center py-16"
-              >
-                <div class="w-16 h-16 rounded-2xl t-bg-subtle flex items-center justify-center mx-auto mb-4">
-                  <Icon name="heroicons:folder" class="w-8 h-8 t-text-muted" />
-                </div>
-                <h3 class="t-heading font-medium mb-1">No Documents</h3>
-                <p class="t-text-muted text-sm">No folders or documents found. Upload some documents to get started.</p>
-              </div>
+                icon="lucide:folder"
+                title="No documents yet"
+                description="Upload the bylaws, minutes and notices your residents need to find."
+              />
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+        </div>
+      </AppTabPanels>
+    </PageContainer>
 
     <!-- Create Folder Dialog -->
     <Dialog v-model:open="showCreateFolderDialog">
