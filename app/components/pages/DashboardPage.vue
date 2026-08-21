@@ -17,32 +17,32 @@ const { selectedOrgId, currentOrg, currentRole, isAdmin, isBoardMember, isMember
 const orgId = computed(() => selectedOrgId.value);
 
 // ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
-const route = useRoute();
-const router = useRouter();
 const { isEnabled } = useModules();
 const feedEnabled = computed(() => isEnabled("feed"));
 const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 
-// Tab state, two-way synced with ?tab= so it's deep-linkable
-const normalizeTab = (t: unknown): string => {
-  const tab = typeof t === "string" ? t : "overview";
-  if (tab === "building" && !feedEnabled.value) return "overview";
-  return tab === "building" ? "building" : "overview";
-};
-const activeTab = ref(normalizeTab(route.query.tab));
-watch(
-  () => route.query.tab,
-  (t) => {
-    const tab = normalizeTab(t);
-    if (tab !== activeTab.value) activeTab.value = tab;
-  }
-);
-watch(activeTab, (t) => {
-  const q = t === "overview" ? undefined : t;
-  if ((route.query.tab as string | undefined) !== q) {
-    router.replace({ query: { ...route.query, tab: q } });
+// Deep-linkable tab state. useTabQuery replaces the two hand-rolled watchers
+// that used to keep this in sync with `?tab=`, and applies the same rule the
+// rest of the app follows: replace, not push, so Back leaves the dashboard.
+const activeTab = useTabQuery({
+  values: ["overview", "building"],
+  fallback: "overview",
+});
+
+// "Building" only exists when the feed module is on; if it is off, a stale
+// `?tab=building` link should land on Overview rather than an empty panel.
+watchEffect(() => {
+  if (activeTab.value === "building" && !feedEnabled.value) {
+    activeTab.value = "overview";
   }
 });
+
+const tabItems = computed(() => [
+  { value: "overview", label: "Overview", icon: "lucide:layout-dashboard" },
+  ...(feedEnabled.value
+    ? [{ value: "building", label: "Building", icon: "lucide:building-2" }]
+    : []),
+]);
 
 // Fetch recent documents
 const { data: documents } = await useAsyncData(
@@ -344,28 +344,18 @@ const {
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-6">
-        <!-- Glass hero header -->
-        <WidgetGlass strong>
-          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">{{ stats.organization }}</p>
-          <h1 class="text-3xl font-semibold tracking-tight t-text">Dashboard</h1>
-          <p class="t-text-secondary mt-1">Here's how your community is doing.</p>
-        </WidgetGlass>
+        <AppPageHeader
+          :eyebrow="stats.organization"
+          title="Dashboard"
+          description="Here's how your community is doing."
+        />
 
-        <Tabs v-model="activeTab" class="space-y-6">
-          <TabsList class="flex-wrap h-auto gap-1">
-            <TabsTrigger value="overview">
-              <Icon name="lucide:layout-dashboard" class="w-4 h-4 mr-1.5" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger v-if="feedEnabled" value="building">
-              <Icon name="lucide:building-2" class="w-4 h-4 mr-1.5" />
-              Building
-            </TabsTrigger>
-          </TabsList>
+        <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Dashboard views" />
 
-          <TabsContent value="overview" class="space-y-4 mt-0">
+        <AppTabPanels :value="activeTab" :items="tabItems">
+          <div v-if="activeTab === 'overview'" class="space-y-4">
             <!-- Edit toolbar — toggle the iOS-home-screen-style customization -->
             <div class="flex items-center justify-between">
               <p class="text-sm t-text-muted">
@@ -562,14 +552,14 @@ const {
                 @reset="resetWidgets"
               />
             </ClientOnly>
-          </TabsContent>
+          </div>
 
           <!-- Building feed tab -->
-          <TabsContent v-if="feedEnabled" value="building" class="space-y-6 mt-0">
+          <div v-else-if="activeTab === 'building' && feedEnabled" class="space-y-6">
             <div class="flex items-start justify-between gap-2">
               <div>
-                <h2 class="text-xl font-semibold t-text">Building</h2>
-                <p class="text-sm t-text-muted mt-0.5">
+                <h2 class="type-section type-flush">Building</h2>
+                <p class="type-meta">
                   Everything happening in your community — react and join the conversation.
                 </p>
               </div>
@@ -585,8 +575,8 @@ const {
               :is-board="isBoard"
               :is-member="isMember"
             />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </AppTabPanels>
       </PageContainer>
   </div>
 </template>
