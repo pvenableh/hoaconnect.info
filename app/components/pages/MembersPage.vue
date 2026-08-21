@@ -34,11 +34,17 @@ const assignMemberUnit = async (memberId: string, unitId: string, isPrimaryUnit 
 };
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
+// The selected view lives in `?tab=` so it is linkable and survives a refresh,
+// but via router.replace — Back leaves the page rather than stepping backwards
+// through tabs. Declared BEFORE the await below: composables should not be
+// called after a top-level await in setup.
+const activeTab = useTabQuery({
+  values: ["members", "invite", "pending", "board"],
+  fallback: "members",
+});
+
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
-
-// Current tab
-const activeTab = ref<"members" | "invite" | "pending" | "board">("members");
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -232,6 +238,29 @@ const activeBoardTerms = computed(() =>
 const pastBoardTerms = computed(() =>
   (boardTerms.value || []).filter((term: any) => !isActiveTerm(term))
 );
+
+// Name, email and role identify a member; everything else is context, so it
+// drops away on a phone rather than forcing the table sideways.
+const memberColumns = [
+  { key: "name", label: "Name", sortable: true, value: (r: any) => `${r.first_name} ${r.last_name}` },
+  { key: "email", label: "Email", sortable: true },
+  { key: "phone", label: "Phone", hideOnMobile: true, value: (r: any) => r.phone || "—" },
+  { key: "company", label: "Company", hideOnMobile: true, value: (r: any) => r.company || "—" },
+  { key: "member_type", label: "Type", sortable: true, hideOnMobile: true },
+  { key: "role", label: "Role" },
+  { key: "units", label: "Unit(s)", hideOnMobile: true },
+  { key: "account", label: "Account", hideOnMobile: true },
+  { key: "actions", label: "Actions", align: "right" as const },
+];
+
+// Counts ride on the tabs so the page says how much is behind each one without
+// making anyone open it. A zero count renders as no badge rather than "(0)".
+const tabItems = computed(() => [
+  { value: "members", label: "Members", icon: "lucide:users-round", count: members.value?.length ?? 0 },
+  { value: "invite", label: "Invite", icon: "lucide:user-plus" },
+  { value: "pending", label: "Pending", icon: "lucide:clock", count: invitations.value?.length ?? 0 },
+  { value: "board", label: "Board", icon: "lucide:award", count: activeBoardTerms.value?.length ?? 0 },
+]);
 
 // Add member modal (for non-account members)
 const showAddModal = ref(false);
@@ -558,23 +587,18 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer>
-        <WidgetGlass strong class="mb-8">
-          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Members</p>
-          <h1 class="text-3xl font-semibold tracking-tight t-text">Manage Members</h1>
-          <p class="t-text-secondary mt-1">
-            Invite new members and manage existing memberships
-          </p>
-        </WidgetGlass>
+        <AppPageHeader
+          eyebrow="People"
+          title="Members"
+          description="Invite new members and manage existing memberships."
+        />
 
         <!-- Loading State -->
-        <div v-if="isLoading" class="text-center py-12">
-          <Icon
-            name="lucide:loader-2"
-            class="w-8 h-8 animate-spin mx-auto mb-4"
-          />
-          <p class="text-sm t-text-secondary">Loading your organization...</p>
+        <div v-if="isLoading" class="flex flex-col items-center py-12 gap-3">
+          <span class="spinner-ios" />
+          <p class="type-meta">Loading your organization…</p>
         </div>
 
         <!-- No Organization State -->
@@ -590,56 +614,7 @@ useSeoMeta({
 
         <!-- Main Content -->
         <div v-else class="space-y-6">
-        <!-- Tabs -->
-        <div class="border-b t-border">
-          <nav class="flex space-x-8">
-            <button
-              @click="activeTab = 'members'"
-              :class="[
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeTab === 'members'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-              ]"
-            >
-              Members ({{ members?.length || 0 }})
-            </button>
-            <button
-              @click="activeTab = 'invite'"
-              :class="[
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeTab === 'invite'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-              ]"
-            >
-              Invite Member
-            </button>
-            <button
-              @click="activeTab = 'pending'"
-              :class="[
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeTab === 'pending'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-              ]"
-            >
-              Pending Invitations ({{ invitations?.length || 0 }})
-            </button>
-            <button
-              @click="activeTab = 'board'"
-              :class="[
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                activeTab === 'board'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-              ]"
-            >
-              <Icon name="lucide:award" class="w-4 h-4 inline mr-1" />
-              Board ({{ activeBoardTerms?.length || 0 }})
-            </button>
-          </nav>
-        </div>
+        <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Members views" />
 
         <!-- Members Tab -->
         <div v-if="activeTab === 'members'" class="space-y-4">
@@ -687,95 +662,70 @@ useSeoMeta({
           <!-- Members Table -->
           <Card>
             <CardContent class="pt-6">
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="border-b">
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Phone</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Company</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Type</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
-                      <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Account</th>
-                      <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-                    </tr>
-                  </thead>
-                  <StaggerList
-                    :items="members || []"
-                    tag="tbody"
-                    item-tag="tr"
-                    item-class="border-b hover:t-bg-subtle"
-                    :stagger="25"
-                    :y="8"
-                    v-slot="{ item: member }"
-                  >
-                      <td class="p-3">
-                        {{ member.first_name }} {{ member.last_name }}
-                      </td>
-                      <td class="p-3">{{ member.email }}</td>
-                      <td class="p-3">{{ member.phone || "—" }}</td>
-                      <td class="p-3">{{ member.company || "—" }}</td>
-                      <td class="p-3 capitalize">{{ member.member_type }}</td>
-                      <td class="p-3">
-                        <span
-                          class="text-xs px-2 py-1 rounded font-medium"
-                          :class="getRoleBadgeClass(member.role)"
-                        >
-                          {{ getRoleDisplay(member.role) }}
-                        </span>
-                      </td>
-                      <td class="p-3">{{ formatUnits(member) }}</td>
-                      <td class="p-3">
-                        <span
-                          v-if="member.user"
-                          class="text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200 px-2 py-1 rounded"
-                        >
-                          Yes
-                        </span>
-                        <span
-                          v-else
-                          class="text-xs t-bg-subtle t-text-secondary px-2 py-1 rounded"
-                        >
-                          No
-                        </span>
-                      </td>
-                      <td class="p-3">
-                        <div class="flex items-center justify-end gap-2">
-                          <Button
-                            @click="handleEdit(member)"
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Icon name="lucide:edit" class="w-4 h-4" />
-                          </Button>
-                          <Button
-                            @click="handleDelete(member.id)"
-                            variant="destructive"
-                            size="sm"
-                          >
-                            <Icon name="lucide:trash-2" class="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                  </StaggerList>
-                </table>
-              </div>
-
-              <div
-                v-if="!members?.length"
-                class="text-center py-12 t-text-muted"
+              <AppDataTable
+                :columns="memberColumns"
+                :rows="members || []"
+                empty-title="No members yet"
+                empty-description="Add members directly, or invite them to create their own login."
+                empty-icon="lucide:users"
               >
-                <Icon
-                  name="lucide:users"
-                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                />
-                <p class="font-medium">No members yet</p>
-                <p class="text-sm mt-1">
-                  Add members or invite them to join your HOA
-                </p>
-              </div>
+                <template #cell-name="{ row }">
+                  <span class="font-medium t-text">
+                    {{ row.first_name }} {{ row.last_name }}
+                  </span>
+                </template>
+                <template #cell-member_type="{ value }">
+                  <span class="capitalize">{{ value }}</span>
+                </template>
+                <template #cell-role="{ row }">
+                  <span
+                    class="text-xs px-2 py-1 rounded-full font-medium"
+                    :class="getRoleBadgeClass(row.role)"
+                  >
+                    {{ getRoleDisplay(row.role) }}
+                  </span>
+                </template>
+                <template #cell-units="{ row }">{{ formatUnits(row) }}</template>
+                <template #cell-account="{ row }">
+                  <Badge :variant="row.user ? 'default' : 'secondary'">
+                    {{ row.user ? "Yes" : "No" }}
+                  </Badge>
+                </template>
+                <template #cell-actions="{ row }">
+                  <div class="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Edit member"
+                      @click="handleEdit(row)"
+                    >
+                      <Icon name="lucide:pencil" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      aria-label="Delete member"
+                      @click="handleDelete(row.id)"
+                    >
+                      <Icon name="lucide:trash-2" />
+                    </Button>
+                  </div>
+                </template>
+
+                <template #empty>
+                  <AppEmptyState
+                    icon="lucide:users"
+                    title="No members yet"
+                    description="Add members directly, or invite them to create their own login."
+                    compact
+                  >
+                    <Button @click="handleAddMember">
+                      <Icon name="lucide:user-plus" />
+                      Add the first member
+                    </Button>
+                  </AppEmptyState>
+                </template>
+              </AppDataTable>
             </CardContent>
           </Card>
         </div>
@@ -877,19 +827,17 @@ useSeoMeta({
                   </div>
                 </div>
 
-                <div
+                <AppEmptyState
                   v-if="!invitations?.length"
-                  class="text-center py-12 t-text-muted"
+                  icon="lucide:mail-check"
+                  title="No pending invitations"
+                  description="Everything sent has been accepted or has expired."
                 >
-                  <Icon
-                    name="lucide:mail-check"
-                    class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                  />
-                  <p class="font-medium">No pending invitations</p>
-                  <p class="text-sm mt-1">
-                    All invitations have been accepted or expired
-                  </p>
-                </div>
+                  <Button variant="outline" @click="activeTab = 'invite'">
+                    <Icon name="lucide:user-plus" />
+                    Invite someone
+                  </Button>
+                </AppEmptyState>
               </div>
             </CardContent>
           </Card>
@@ -973,16 +921,12 @@ useSeoMeta({
                   </div>
                 </div>
               </div>
-              <div v-else class="text-center py-12 t-text-muted">
-                <Icon
-                  name="lucide:award"
-                  class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                />
-                <p class="font-medium">No active board members</p>
-                <p class="text-sm mt-1">
-                  Add board positions to display on your public Board page
-                </p>
-              </div>
+              <AppEmptyState
+                v-else
+                icon="lucide:award"
+                title="No active board members"
+                description="Board positions added here appear on your community's public Board page."
+              />
             </CardContent>
           </Card>
 
