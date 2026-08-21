@@ -274,11 +274,10 @@ const publicNavItems = computed(() => {
     items.push({ label: "Board", path: buildPath("/board"), icon: "award" });
   }
 
-  items.push({
-    label: "Announcements",
-    path: buildPath("/announcements"),
-    icon: "megaphone",
-  });
+  // No Announcements entry: Phase 9 retired the standalone feature and
+  // `/{slug}/announcements` is now a bare redirect to the org home, so the item
+  // sent members somewhere and then bounced them straight back. Community
+  // updates live in the building feed and arrive by email.
   items.push({
     label: "Documents",
     path: buildPath("/documents"),
