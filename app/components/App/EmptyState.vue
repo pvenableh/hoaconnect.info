@@ -69,11 +69,26 @@ withDefaults(
   height: 2.25rem;
   margin-bottom: 0.625rem;
 }
-.empty-state__icon :deep(svg) {
+/* Nuxt Icon runs in CSS mode here, so `<Icon>` renders a masked
+   `<span class="iconify">` and NEVER an `<svg>`. The old `:deep(svg)` rule
+   therefore matched nothing and every empty-state icon has been rendering at
+   the inherited 1em — a 15px glyph adrift in a 48px circle. Size the wrapper's
+   font-size (an iconify span is 1em square) and cover the svg case too, in case
+   an icon ever resolves inline. Anchored on `.empty-state__icon`, which is in
+   THIS template, so the scope attribute actually lands on it. */
+.empty-state__icon {
+  font-size: 1.375rem;
+}
+.empty-state--compact .empty-state__icon {
+  font-size: 1.125rem;
+}
+.empty-state__icon :deep(svg),
+.empty-state__icon :deep(.iconify) {
   width: 1.375rem;
   height: 1.375rem;
 }
-.empty-state--compact .empty-state__icon :deep(svg) {
+.empty-state--compact .empty-state__icon :deep(svg),
+.empty-state--compact .empty-state__icon :deep(.iconify) {
   width: 1.125rem;
   height: 1.125rem;
 }

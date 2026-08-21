@@ -391,28 +391,24 @@ const handleDelete = async (id: string) => {
 </script>
 
 <template>
-  <div class="ui-kit accent-violet min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-6">
-        <!-- Glass hero -->
-        <WidgetGlass strong class="flex items-center justify-between gap-4">
-          <div>
-            <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">
-              {{ organization?.name }}
-            </p>
-            <h1 class="text-3xl font-semibold tracking-tight t-text">Meetings</h1>
-            <p class="t-text-secondary mt-1">
-              Post notices, agendas, minutes &amp; recordings for your community.
-            </p>
-          </div>
-          <Button class="shrink-0" @click="handleAdd">
-            <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
-            New meeting
-          </Button>
-        </WidgetGlass>
+        <AppPageHeader
+          :eyebrow="organization?.name"
+          title="Meetings"
+          description="Post notices, agendas, minutes & recordings for your community."
+        >
+          <template #actions>
+            <Button @click="handleAdd">
+              <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
+              New meeting
+            </Button>
+          </template>
+        </AppPageHeader>
 
         <!-- Upcoming -->
         <section v-if="upcoming.length" class="space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Upcoming</h2>
+          <h2 class="type-micro t-text-secondary">Upcoming</h2>
           <div class="grid gap-3">
             <div v-for="(m, i) in upcoming" :key="m.id" v-motion v-bind="rise(i)" class="ios-card p-4">
               <div class="flex items-start justify-between gap-4">
@@ -439,7 +435,7 @@ const handleDelete = async (id: string) => {
                     <Icon name="i-lucide-pencil" class="size-4" />
                   </Button>
                   <Button variant="ghost" size="sm" @click="handleDelete(m.id)">
-                    <Icon name="i-lucide-trash-2" class="size-4 text-red-500" />
+                    <Icon name="i-lucide-trash-2" class="size-4 text-destructive" />
                   </Button>
                 </div>
               </div>
@@ -448,9 +444,9 @@ const handleDelete = async (id: string) => {
         </section>
 
         <!-- Past / all others -->
-        <section class="space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Past &amp; other</h2>
-          <div v-if="past.length" class="grid gap-3">
+        <section v-if="past.length" class="space-y-3">
+          <h2 class="type-micro t-text-secondary">Past &amp; other</h2>
+          <div class="grid gap-3">
             <div v-for="(m, i) in past" :key="m.id" v-motion v-bind="rise(i)" class="ios-card p-4">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
@@ -459,7 +455,7 @@ const handleDelete = async (id: string) => {
                     <h3 class="font-semibold t-text truncate">{{ m.title }}</h3>
                     <span
                       v-if="m.status === 'canceled'"
-                      class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 uppercase tracking-wide"
+                      class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-destructive/15 text-destructive uppercase tracking-wide"
                     >Canceled</span>
                     <span
                       v-if="!m.is_published"
@@ -481,26 +477,34 @@ const handleDelete = async (id: string) => {
                     <Icon name="i-lucide-pencil" class="size-4" />
                   </Button>
                   <Button variant="ghost" size="sm" @click="handleDelete(m.id)">
-                    <Icon name="i-lucide-trash-2" class="size-4 text-red-500" />
+                    <Icon name="i-lucide-trash-2" class="size-4 text-destructive" />
                   </Button>
                 </div>
               </div>
             </div>
           </div>
-          <div v-else-if="!upcoming.length" class="ios-card p-10 text-center">
-            <Icon name="i-lucide-calendar-off" class="size-10 mx-auto t-text-muted opacity-50 mb-3" />
-            <p class="t-text-secondary">No meetings yet.</p>
-            <Button class="mt-4" @click="handleAdd">
+        </section>
+
+        <!-- Sibling of both sections, not a child of "Past & other" — otherwise
+             a board with only upcoming meetings saw that heading with nothing
+             under it. -->
+        <div v-if="!upcoming.length && !past.length" class="ios-card">
+          <AppEmptyState
+            icon="lucide:calendar-off"
+            title="No meetings yet"
+            description="Post a notice with its agenda, then come back after to add minutes, a recording and who attended."
+          >
+            <Button @click="handleAdd">
               <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
               Create your first meeting
             </Button>
-          </div>
-        </section>
+          </AppEmptyState>
+        </div>
       </PageContainer>
 
     <!-- Create / edit dialog -->
     <Dialog v-model:open="showModal">
-      <DialogContent class="ui-kit accent-violet max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent class="ui-kit max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ editingId ? "Edit meeting" : "New meeting" }}</DialogTitle>
           <DialogDescription>

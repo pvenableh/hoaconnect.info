@@ -330,6 +330,20 @@ const materials = [
             </AppEmptyState>
           </div>
         </div>
+
+        <!-- `compact` is for an empty state nested INSIDE a card or a table
+             body, where the full-size version would tower over its container. -->
+        <div class="ios-card mt-4">
+          <div class="px-4 pt-4">
+            <h3 class="type-card">Top documents</h3>
+          </div>
+          <AppEmptyState
+            compact
+            icon="lucide:download"
+            title="No downloads yet"
+            description="Documents residents open get counted here."
+          />
+        </div>
       </section>
 
       <!-- ── Forms ────────────────────────────────────────────────────── -->

@@ -92,20 +92,16 @@ const openDetail = (m: any) => {
 </script>
 
 <template>
-  <div class="ui-kit accent-violet min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-6">
-        <WidgetGlass strong>
-          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">
-            {{ organization?.name }}
-          </p>
-          <h1 class="text-3xl font-semibold tracking-tight t-text">Meetings</h1>
-          <p class="t-text-secondary mt-1">
-            Notices, agendas, minutes and recordings for your community.
-          </p>
-        </WidgetGlass>
+        <AppPageHeader
+          :eyebrow="organization?.name"
+          title="Meetings"
+          description="Notices, agendas, minutes and recordings for your community."
+        />
 
         <section v-if="upcoming.length" class="space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Upcoming</h2>
+          <h2 class="type-micro t-text-secondary">Upcoming</h2>
           <button
             v-for="(m, i) in upcoming"
             :key="m.id"
@@ -126,8 +122,8 @@ const openDetail = (m: any) => {
           </button>
         </section>
 
-        <section class="space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wider t-text-secondary">Past</h2>
+        <section v-if="past.length" class="space-y-3">
+          <h2 class="type-micro t-text-secondary">Past</h2>
           <button
             v-for="(m, i) in past"
             :key="m.id"
@@ -149,15 +145,23 @@ const openDetail = (m: any) => {
               <span v-if="m.recording_url"><Icon name="i-lucide-video" class="size-3.5 inline -mt-0.5 mr-0.5" />Recording</span>
             </div>
           </button>
-          <div v-if="!upcoming.length && !past.length" class="ios-card p-10 text-center">
-            <Icon name="i-lucide-calendar-off" class="size-10 mx-auto t-text-muted opacity-50 mb-3" />
-            <p class="t-text-secondary">No meetings have been published yet.</p>
-          </div>
         </section>
+
+        <!-- The empty state is a sibling of both sections, not a child of Past.
+             It used to live inside it, which meant a community with upcoming
+             meetings and no past ones still rendered a bare "PAST" heading with
+             nothing under it. -->
+        <div v-if="!upcoming.length && !past.length" class="ios-card">
+          <AppEmptyState
+            icon="lucide:calendar-off"
+            title="No meetings published yet"
+            description="Notices, agendas and minutes appear here once your board publishes them."
+          />
+        </div>
       </PageContainer>
 
     <Dialog v-model:open="showDetail">
-      <DialogContent v-if="selected" class="ui-kit accent-violet max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent v-if="selected" class="ui-kit max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ selected.title }}</DialogTitle>
           <DialogDescription>{{ formatDateTime(selected.meeting_date) }}</DialogDescription>
@@ -173,24 +177,24 @@ const openDetail = (m: any) => {
           </div>
 
           <div v-if="selected.agenda">
-            <h4 class="text-xs font-semibold uppercase tracking-wider t-text-secondary mb-1">Agenda</h4>
+            <h4 class="type-micro t-text-secondary mb-1">Agenda</h4>
             <div class="prose prose-sm max-w-none t-text-secondary" v-html="selected.agenda" />
           </div>
 
           <div v-if="selected.minutes">
-            <h4 class="text-xs font-semibold uppercase tracking-wider t-text-secondary mb-1">Minutes</h4>
+            <h4 class="type-micro t-text-secondary mb-1">Minutes</h4>
             <div class="prose prose-sm max-w-none t-text-secondary" v-html="selected.minutes" />
           </div>
 
           <div v-if="selected.recording_url">
-            <h4 class="text-xs font-semibold uppercase tracking-wider t-text-secondary mb-1">Recording</h4>
+            <h4 class="type-micro t-text-secondary mb-1">Recording</h4>
             <a :href="selected.recording_url" target="_blank" class="t-accent-app underline text-sm">
               <Icon name="i-lucide-play-circle" class="size-4 inline -mt-0.5 mr-1" />Watch recording
             </a>
           </div>
 
           <div v-if="selected.attendees?.length">
-            <h4 class="text-xs font-semibold uppercase tracking-wider t-text-secondary mb-2">Attendees</h4>
+            <h4 class="type-micro t-text-secondary mb-2">Attendees</h4>
             <ul class="space-y-1.5">
               <li v-for="a in selected.attendees" :key="a.id" class="flex items-center justify-between text-sm">
                 <span class="t-text">{{ memberName(a.hoa_member) }}</span>
