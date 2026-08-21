@@ -4,7 +4,9 @@
 definePageMeta({ layout: false });
 useHead({ title: 'UI Kit — Earnest design system' });
 
-const theme = useTheme();
+// The showcase renders the real workspace theme, so what you see here is what
+// admin and auth actually get — that is the whole point of it as a contract.
+const appearance = useWorkspaceAppearance();
 
 const accents = ['cyan', 'blue', 'violet', 'emerald', 'amber', 'rose', 'gold'] as const;
 type Accent = (typeof accents)[number];
@@ -18,8 +20,6 @@ const replayLoad = () => {
 };
 
 onMounted(() => {
-	// Show the modern (sans-serif, glassy) look for the showcase.
-	theme.forceThemeStyle('modern', theme.themeMode.value);
 	// Let the river skeletons run for a beat, then reveal the "loaded" state.
 	setTimeout(() => (demoLoading.value = false), 2600);
 });
@@ -53,10 +53,10 @@ const settingsRows = [
 				<div class="flex items-center gap-2">
 					<button
 						class="ios-card px-3 py-2 text-sm flex items-center gap-2"
-						@click="theme.toggleMode()"
+						@click="appearance.toggle()"
 					>
-						<Icon :name="theme.isDark.value ? 'lucide:sun' : 'lucide:moon'" class="w-4 h-4" />
-						{{ theme.isDark.value ? 'Light' : 'Dark' }}
+						<Icon :name="appearance.isDark.value ? 'lucide:sun' : 'lucide:moon'" class="w-4 h-4" />
+						{{ appearance.isDark.value ? 'Light' : 'Dark' }}
 					</button>
 					<button class="ios-card px-3 py-2 text-sm flex items-center gap-2" @click="replayLoad">
 						<span class="spinner-ios spinner-ios--sm" />

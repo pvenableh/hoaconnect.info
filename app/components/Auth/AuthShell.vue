@@ -16,6 +16,12 @@ withDefaults(
   }
 );
 
+// Signing in is a workspace surface, not a public one: it wears `theme-app` in
+// the user's light/dark, never the org's landing-page style. This sits here
+// rather than in the auth-blank layout because that layout is shared with the
+// platform landing and the site-preview iframe, which render PUBLIC themes.
+useWorkspaceAppearance();
+
 const config = useRuntimeConfig();
 const { activeHoa, isCustomDomain } = useActiveHoa();
 

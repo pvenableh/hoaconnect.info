@@ -8,15 +8,10 @@
 // and the menu/avatar, which is the user's way back out to the rest of the app.
 const { user } = useDirectusAuth();
 
-// Apply the app theme class on <html> during SSR (mirrors auth.vue) to avoid a
-// flash of the unthemed background on refresh.
-const { initTheme, themeState } = useTheme();
-const htmlThemeClass = computed(() => {
-  const base = `theme-${themeState.style}-${themeState.mode}`;
-  return themeState.mode === "dark" ? `${base} dark` : base;
-});
-useHead({ htmlAttrs: { class: htmlThemeClass } });
-onMounted(() => initTheme());
+// Channels is a workspace surface, so it wears the same `theme-app` as the rest
+// of the workspace (mirrors auth.vue), applied before paint so a refresh never
+// flashes the unthemed background.
+useWorkspaceAppearance();
 
 // Initialize org context + notifications so the top nav (bell, identity) works.
 const { isAdmin, isBoardMember, memberType, selectedOrgId } = await useSelectedOrg();
@@ -44,7 +39,7 @@ onMounted(loadNotifications);
 </script>
 
 <template>
-  <div class="h-dvh flex flex-col overflow-hidden bg-background">
+  <div class="ui-kit h-dvh flex flex-col overflow-hidden bg-background">
     <AppNav />
 
     <!-- Full-height workspace; the channel page scrolls internally. -->

@@ -5,6 +5,9 @@
 @import "./glass.css";
 @import "./landing.css";
 @import "./earnest-ui.css";
+/* Last: the workspace's own theme block gets final say over the public themes
+   and over the shared glass layer it builds on. */
+@import "./theme-app.css";
 
 /* Premium Typography Classes */
 .text-ultra-light {

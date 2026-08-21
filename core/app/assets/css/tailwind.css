@@ -139,6 +139,17 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
+  /* Status colours. Defined by the workspace theme (theme-app.css) so that
+     "this succeeded" / "this needs attention" follow light and dark like every
+     other surface. Status used to be written as raw palette classes
+     (text-emerald-600, text-rose-600), which is exactly why it never did. */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

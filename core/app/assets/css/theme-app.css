@@ -1,0 +1,378 @@
+/* =============================================================================
+   THE APP THEME — the workspace's own design system
+   -----------------------------------------------------------------------------
+   Admin and auth are ONE branded surface. They do not change shape per
+   organization the way the public landing pages do: every workspace is the same
+   liquid-glass, iOS-flavoured product, in light or dark. That is what this file
+   provides — a seventh theme block, `theme-app`, that sits alongside the six
+   public `theme-{classic,modern,luxury}-{light,dark}` blocks in theme.css but
+   deliberately does NOT participate in that triad, so the public themes can keep
+   evolving without ever moving the workspace.
+
+   HOW IT WORKS
+   - `html.theme-app` defines the COMPLETE `--theme-*` token set. That is a hard
+     requirement, not a nicety: ~3,600 `t-*` utility usages across the app read
+     these tokens, and any token defined in the public blocks but missing here
+     would silently fall back to the classic values that theme.css puts on
+     `:root`. There is a test (tests/shared/theme-app-tokens.test.ts) that fails
+     if this block ever drifts from the public blocks' token set.
+   - Light and dark are ONE definition per token via `light-dark()`, keyed off
+     `color-scheme`. The `.dark` class still does the switching, so Tailwind's
+     `@custom-variant dark` and earnest-ui.css's `.dark` glass-rim overrides keep
+     working exactly as before — we just stopped maintaining two parallel copies
+     of every colour.
+   - `html.theme-app` (0,1,1) outranks theme.css's `:root` (0,1,0) regardless of
+     import order, so the classic defaults on `:root` can never leak in.
+
+   COLOUR
+   The brand reads in two tiers, which is what keeps glass legible:
+   - `--app-accent-*` is BRIGHT cyan. It is decoration on glass — rims, focus
+     halos, active thumbs, glows — never text, so it is tuned for light-play.
+   - `--theme-accent-primary` is DEEP cyan. It is ink and fills — links, accent
+     text, primary buttons — so it is tuned to pass WCAG AA (light #00769B on
+     white is 5.2:1; dark #38CFF0 on the ground is ~10:1).
+   Neither is hardcoded anywhere else. The accent is written at runtime from
+   core/shared/branding/accent.ts, which is the single seam for letting
+   organizations brand the workspace later.
+============================================================================= */
+
+html.theme-app {
+	color-scheme: light;
+
+	/* --- Backgrounds -------------------------------------------------------
+	   A cool off-white ground in light, a deep blue-black in dark. Neither is a
+	   neutral grey: glass takes its character from what it sits on, and a
+	   slightly cool ground makes a white pane read as floating rather than flat. */
+	--theme-bg-primary: light-dark(#f6f8fb, #0b1015);
+	--theme-bg-secondary: light-dark(#edf1f6, #121a21);
+	--theme-bg-tertiary: light-dark(#e2e8f0, #1b242d);
+	--theme-bg-elevated: light-dark(#ffffff, #151d25);
+	--theme-bg-overlay: light-dark(rgba(246, 248, 251, 0.95), rgba(11, 16, 21, 0.95));
+
+	/* --- Text ---------------------------------------------------------------
+	   The ramp is monotonic and every rung clears WCAG AA (4.5:1) against BOTH
+	   the page ground and an elevated card. That constraint sets the bottom rung:
+	   "muted" is real content — placeholders, hints, timestamps, the "Don't have
+	   an account?" line — so the conventional pale grey (which measured 2.65:1 on
+	   white and 3.03:1 on a dark card) is not available to us. Muted reads as
+	   muted here because it sits at ~5:1 next to a ~15:1 primary, not because it
+	   is faint in absolute terms. */
+	--theme-text-primary: light-dark(#0f151d, #e9eff5);
+	--theme-text-secondary: light-dark(#414b59, #a9b6c3);
+	--theme-text-tertiary: light-dark(#525c6b, #96a3b1);
+	--theme-text-muted: light-dark(#626c7d, #7a8794);
+	--theme-text-inverse: light-dark(#ffffff, #0b1015);
+
+	/* --- Accent (ink tier — see the note above) ----------------------------- */
+	--theme-accent-primary: light-dark(#00769b, #38cff0);
+	--theme-accent-secondary: light-dark(#00a6d6, #6fe0fa);
+	--theme-accent-tertiary: light-dark(#005a78, #12a8cc);
+	--theme-accent-hover: light-dark(#008fbb, #6fe0fa);
+	--theme-accent-active: light-dark(#00a6d6, #38cff0);
+
+	/* --- Accent (glass tier) -----------------------------------------------
+	   Resting default only. The appearance plugin writes these inline from
+	   getAdminAccent(); the values here keep the first paint correct before any
+	   JS runs, and must match BRAND_ACCENT in core/shared/branding/accent.ts.
+	   These are numbers, not colours, so they flip in the .dark block below. */
+	--app-accent-h: 195;
+	--app-accent-s: 100%;
+	--app-accent-l: 50%;
+
+	/* --- Borders ------------------------------------------------------------ */
+	--theme-border-primary: light-dark(#e3e9f0, #232e38);
+	--theme-border-secondary: light-dark(#d2dbe5, #2f3c48);
+	--theme-border-light: light-dark(#eff3f7, #1a232c);
+
+	/* --- Component surfaces -------------------------------------------------
+	   The translucent ones are what `.glass-bar` and the dock sit on. */
+	--theme-header-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(21, 29, 37, 0.72));
+	--theme-footer-bg: light-dark(#edf1f6, #0b1015);
+	--theme-card-bg: light-dark(#ffffff, #151d25);
+	--theme-nav-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(21, 29, 37, 0.72));
+	--theme-drawer-bg: light-dark(rgba(255, 255, 255, 0.95), rgba(21, 29, 37, 0.96));
+
+	/* --- Typography ---------------------------------------------------------
+	   One sans family across the workspace. The editorial serif belongs to the
+	   public landing pages; in here it would read as a different product. */
+	--theme-heading-font: "Proxima Nova W01 Regular", "Helvetica Neue", Helvetica, Roboto, Arial, sans-serif;
+	--theme-body-font: "Proxima Nova W01 Regular", "Helvetica Neue", Helvetica, Roboto, Arial, sans-serif;
+
+	/* --- Shadows ------------------------------------------------------------
+	   Wide and soft. `light-dark()` sits in the colour slot, so one declaration
+	   covers both modes. Dark needs far more opacity to register at all. */
+	--theme-shadow-sm: 0 2px 10px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.3));
+	--theme-shadow-md: 0 8px 28px -6px light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.45));
+	--theme-shadow-lg: 0 20px 56px -16px light-dark(rgba(15, 23, 42, 0.1), rgba(0, 0, 0, 0.6));
+
+	/* --- Interactive --------------------------------------------------------- */
+	--theme-link-color: light-dark(#00769b, #38cff0);
+	--theme-link-hover: light-dark(#008fbb, #6fe0fa);
+	--theme-button-bg: light-dark(#00769b, #38cff0);
+	--theme-button-text: light-dark(#ffffff, #061016);
+	--theme-button-hover-bg: light-dark(#008fbb, #6fe0fa);
+	--theme-focus-ring: 0 0 0 2px light-dark(rgba(0, 118, 155, 0.32), rgba(56, 207, 240, 0.35));
+
+	/* --- Dividers ------------------------------------------------------------ */
+	--theme-divider: light-dark(#e3e9f0, #232e38);
+	--theme-divider-light: light-dark(#eff3f7, #1a232c);
+
+	/* --- Transitions ---------------------------------------------------------
+	   Mode-independent. The house spring lives in variables.css (--spring); these
+	   are the plain easings that predate it and that `t-transition` still uses. */
+	--theme-transition-fast: 150ms ease;
+	--theme-transition-base: 200ms ease;
+	--theme-transition-slow: 300ms ease;
+	--theme-transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* --- Spacing -------------------------------------------------------------- */
+	--theme-space-xs: 0.5rem;
+	--theme-space-sm: 1rem;
+	--theme-space-md: 1.5rem;
+	--theme-space-lg: 2rem;
+	--theme-space-xl: 3rem;
+	--theme-space-2xl: 6rem;
+	--theme-space-3xl: 8rem;
+
+	/* --- Radius --------------------------------------------------------------
+	   Generous, iOS-native. Concentric rule for nested surfaces: an inner radius
+	   should equal its container's radius minus the padding between them. */
+	--theme-radius-sm: 8px;
+	--theme-radius-md: 12px;
+	--theme-radius-lg: 16px;
+
+	/* --- Letter spacing -------------------------------------------------------- */
+	--theme-tracking-tight: -0.01em;
+	--theme-tracking-normal: 0;
+	--theme-tracking-wide: 0.05em;
+	--theme-tracking-wider: 0.1em;
+	--theme-tracking-widest: 0.15em;
+
+	/* The content-column inset: page-level headings align with the TEXT inside
+	   cards, while the cards themselves bleed to the page margin. Straight from
+	   iOS grouped lists — it is most of why those screens feel settled. */
+	--surface-inset: 1.25rem;
+}
+
+/* Dark mode. `light-dark()` handles every colour above; this block exists for
+   the values that are not colours and therefore cannot use it. */
+html.theme-app.dark {
+	color-scheme: dark;
+
+	/* Glass accent: brighter and a little less saturated so it does not glare
+	   against the dark ground. Mirrors BRAND_ACCENT.dark. */
+	--app-accent-h: 195;
+	--app-accent-s: 88%;
+	--app-accent-l: 56%;
+}
+
+/* =============================================================================
+   SHADCN TOKEN BRIDGE
+   Points shadcn-ui's palette at the `--theme-*` tokens above, so every Card,
+   Button, Dialog, Input and Tabs follows the workspace theme instead of the
+   static neutral palette in tailwind.css. Same idea as the public themes' bridge
+   in theme.css, but this one commits to the brand: `--primary` is cyan, not a
+   neutral near-black, because the workspace should look like HOA Connect and not
+   like an unstyled admin panel.
+============================================================================= */
+html.theme-app {
+	--background: var(--theme-bg-primary);
+	--foreground: var(--theme-text-primary);
+	--card: var(--theme-card-bg);
+	--card-foreground: var(--theme-text-primary);
+	--popover: var(--theme-bg-elevated);
+	--popover-foreground: var(--theme-text-primary);
+	--primary: var(--theme-accent-primary);
+	--primary-foreground: var(--theme-button-text);
+	--secondary: var(--theme-bg-secondary);
+	--secondary-foreground: var(--theme-text-primary);
+	--muted: var(--theme-bg-secondary);
+	--muted-foreground: var(--theme-text-muted);
+	--accent: var(--theme-bg-tertiary);
+	--accent-foreground: var(--theme-text-primary);
+	--border: var(--theme-border-primary);
+	--input: var(--theme-border-primary);
+	--ring: var(--theme-accent-primary);
+	/* --destructive stays the shared red so danger reads the same everywhere. */
+
+	/* Status colours. These existed only as hardcoded Tailwind palette classes
+	   before (text-emerald-600, text-rose-600 and friends), which is why status
+	   never followed the theme. */
+	--success: light-dark(#0f8a4c, #34d399);
+	--success-foreground: light-dark(#ffffff, #04170e);
+	--warning: light-dark(#a16207, #fbbf24);
+	--warning-foreground: light-dark(#ffffff, #1a1204);
+	--info: light-dark(#00769b, #38cff0);
+	--info-foreground: light-dark(#ffffff, #061016);
+
+	/* Generous iOS rounding: shadcn's rounded-xl card lands at 16px. */
+	--radius: 0.75rem;
+}
+
+/* =============================================================================
+   THE TYPE LADDER
+   Seven roles, roughly 1.4x apart, sized in rem against the app's 15px root.
+   Named `type-*` rather than `t-*` because `t-*` is already the theme-token
+   utility prefix in this codebase.
+
+   Two cascade decisions worth keeping:
+   1. The metrics are UNLAYERED and carry an `:is(h1,h2,h3,h4,h5,h6)` compound,
+      so the ladder beats both the global heading defaults and any stray
+      font-size utility at the call site.
+   2. The COLOURS live in @layer components, so they stay beatable —
+      `<h3 class="type-card t-text-accent">` still works. Unlayered colour would
+      win against every text utility, which is not what anyone expects.
+
+   Case convention: actions are Title Case, meta-labels are UPPERCASE with
+   tracking, prose is sentence case.
+============================================================================= */
+
+.type-display,
+:is(h1, h2, h3, h4, h5, h6).type-display {
+	font-family: var(--theme-heading-font);
+	font-size: 1.8rem;
+	font-weight: 700;
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+	text-wrap: balance;
+}
+
+.type-section,
+:is(h1, h2, h3, h4, h5, h6).type-section {
+	font-family: var(--theme-heading-font);
+	font-size: 1.25rem;
+	font-weight: 600;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.type-card,
+:is(h1, h2, h3, h4, h5, h6).type-card {
+	font-family: var(--theme-heading-font);
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.35;
+	letter-spacing: 0;
+}
+
+.type-body,
+:is(h1, h2, h3, h4, h5, h6).type-body {
+	font-family: var(--theme-body-font);
+	font-size: 0.9rem;
+	font-weight: 400;
+	line-height: 1.55;
+	letter-spacing: 0;
+}
+
+.type-meta,
+:is(h1, h2, h3, h4, h5, h6).type-meta {
+	font-family: var(--theme-body-font);
+	font-size: 0.775rem;
+	font-weight: 400;
+	line-height: 1.45;
+	letter-spacing: 0;
+}
+
+.type-micro,
+:is(h1, h2, h3, h4, h5, h6).type-micro {
+	font-family: var(--theme-body-font);
+	font-size: 0.675rem;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.type-label,
+:is(h1, h2, h3, h4, h5, h6).type-label {
+	font-family: var(--theme-body-font);
+	font-size: 0.675rem;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+@layer components {
+	.type-display,
+	.type-section,
+	.type-card {
+		color: var(--theme-text-primary);
+	}
+	.type-body {
+		color: var(--theme-text-secondary);
+	}
+	.type-meta,
+	.type-micro,
+	.type-label {
+		color: var(--theme-text-muted);
+	}
+
+	/* Page-level headings sit on the content column; card-level ones do not,
+	   because the card already provides the inset. `.type-flush` opts out. */
+	html.theme-app .type-display,
+	html.theme-app .type-section {
+		padding-inline-start: var(--surface-inset);
+	}
+	html.theme-app .ios-card .type-display,
+	html.theme-app .ios-card .type-section,
+	html.theme-app .glass-surface .type-display,
+	html.theme-app .glass-surface .type-section,
+	html.theme-app [data-slot="card"] .type-display,
+	html.theme-app [data-slot="card"] .type-section,
+	html.theme-app .type-flush {
+		padding-inline-start: 0;
+	}
+}
+
+/* =============================================================================
+   FALLBACK — browsers without light-dark()
+   Every colour above collapses to its LIGHT value in a browser that cannot
+   resolve light-dark(), which would leave dark mode unreadable rather than
+   merely unstyled. Baseline support is wide (all majors since mid-2024), but the
+   failure mode is bad enough to be worth the guard.
+============================================================================= */
+@supports not (color: light-dark(#000, #fff)) {
+	html.theme-app.dark {
+		--theme-bg-primary: #0b1015;
+		--theme-bg-secondary: #121a21;
+		--theme-bg-tertiary: #1b242d;
+		--theme-bg-elevated: #151d25;
+		--theme-bg-overlay: rgba(11, 16, 21, 0.95);
+		--theme-text-primary: #e9eff5;
+		--theme-text-secondary: #a9b6c3;
+		--theme-text-tertiary: #96a3b1;
+		--theme-text-muted: #7a8794;
+		--theme-text-inverse: #0b1015;
+		--theme-accent-primary: #38cff0;
+		--theme-accent-secondary: #6fe0fa;
+		--theme-accent-tertiary: #12a8cc;
+		--theme-accent-hover: #6fe0fa;
+		--theme-accent-active: #38cff0;
+		--theme-border-primary: #232e38;
+		--theme-border-secondary: #2f3c48;
+		--theme-border-light: #1a232c;
+		--theme-header-bg: rgba(21, 29, 37, 0.72);
+		--theme-footer-bg: #0b1015;
+		--theme-card-bg: #151d25;
+		--theme-nav-bg: rgba(21, 29, 37, 0.72);
+		--theme-drawer-bg: rgba(21, 29, 37, 0.96);
+		--theme-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
+		--theme-shadow-md: 0 8px 28px -6px rgba(0, 0, 0, 0.45);
+		--theme-shadow-lg: 0 20px 56px -16px rgba(0, 0, 0, 0.6);
+		--theme-link-color: #38cff0;
+		--theme-link-hover: #6fe0fa;
+		--theme-button-bg: #38cff0;
+		--theme-button-text: #061016;
+		--theme-button-hover-bg: #6fe0fa;
+		--theme-focus-ring: 0 0 0 2px rgba(56, 207, 240, 0.35);
+		--theme-divider: #232e38;
+		--theme-divider-light: #1a232c;
+		--success: #34d399;
+		--success-foreground: #04170e;
+		--warning: #fbbf24;
+		--warning-foreground: #1a1204;
+		--info: #38cff0;
+		--info-foreground: #061016;
+	}
+}

@@ -12,7 +12,12 @@ const emit = defineEmits<{
 	premiumRequired: [];
 }>();
 
-const { themeStyle, themeMode, setThemeStyle, setThemeMode, isDark, THEME_OPTIONS } = useTheme();
+const { themeStyle, setThemeStyle, THEME_OPTIONS } = useTheme();
+// Light/dark is workspace appearance, not a landing-page theme: it comes from
+// useAppearance, which is the single owner of the `dark` class and of the stored
+// preference. The style picker above still belongs to useTheme — it chooses a
+// PUBLIC landing style, and is hidden (`hideStyles`) everywhere in the workspace.
+const { isDark, toggle: toggleAppearance } = useAppearance();
 
 function handleThemeSelect(themeId: ThemeStyle) {
 	const theme = THEME_OPTIONS.find(t => t.id === themeId);
@@ -62,7 +67,7 @@ function handleThemeSelect(themeId: ThemeStyle) {
 
 		<!-- Mode Toggle -->
 		<div class="theme-selector__mode">
-			<button class="mode-toggle" :class="{ dark: isDark }" @click="setThemeMode(isDark ? 'light' : 'dark')">
+			<button class="mode-toggle" :class="{ dark: isDark }" @click="toggleAppearance()">
 				<span class="mode-toggle__track">
 					<span class="mode-toggle__thumb">
 						<Icon :name="isDark ? 'i-heroicons-moon' : 'i-heroicons-sun'" class="w-3 h-3" />

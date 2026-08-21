@@ -10,14 +10,14 @@
 </template>
 
 <script setup>
-// Chromeless layout for the /auth pages — no marketing nav or footer, just the
-// themed background. The page (via AuthShell) supplies the centered card.
-const { initTheme } = useTheme();
-const route = useRoute();
-// The site-preview iframe forces a specific theme via ?theme=… so the builder
-// can preview classic vs modern. Restoring the app-default/stored theme here
-// would clobber that, so skip init when a theme is explicitly forced.
-onMounted(() => {
-  if (!route.query.theme) initTheme();
-});
+// Chromeless layout — no marketing nav or footer, just the themed background.
+// The page supplies its own centered card (via AuthShell) or full-bleed content.
+//
+// This layout deliberately sets NO theme. Its pages fall into two camps and each
+// owns its own: the auth/signup pages are workspace surfaces and get `theme-app`
+// from AuthShell, while the platform landing and the site-preview iframe render a
+// PUBLIC org theme and force it themselves via forceThemeStyle(). The old
+// initTheme() call here served only the first camp, and applying a stored theme
+// to all of them is what used to leave auth pages wearing whichever style the
+// user last looked at.
 </script>
