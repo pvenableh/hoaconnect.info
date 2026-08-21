@@ -29,31 +29,31 @@ const orgId = computed(() => selectedOrgId.value);
 const organization = computed<HoaOrganization | null>(() => currentOrg.value?.organization || null);
 
 // ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
-const route = useRoute();
-const router = useRouter();
 const { isEnabled } = useModules();
 const feedEnabled = computed(() => isEnabled("feed"));
 const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 
-const normalizeTab = (t: unknown): string => {
-  const tab = typeof t === "string" ? t : "overview";
-  if (tab === "building" && !feedEnabled.value) return "overview";
-  return tab === "building" ? "building" : "overview";
-};
-const activeTab = ref(normalizeTab(route.query.tab));
-watch(
-  () => route.query.tab,
-  (t) => {
-    const tab = normalizeTab(t);
-    if (tab !== activeTab.value) activeTab.value = tab;
-  }
-);
-watch(activeTab, (t) => {
-  const q = t === "overview" ? undefined : t;
-  if ((route.query.tab as string | undefined) !== q) {
-    router.replace({ query: { ...route.query, tab: q } });
+// Same tab contract as the rest of the app: linkable via `?tab=`, replace not
+// push, so Back leaves the portal rather than stepping through its tabs.
+const activeTab = useTabQuery({
+  values: ["overview", "building"],
+  fallback: "overview",
+});
+
+// "Building" only exists when the feed module is on; a stale link to it should
+// land on Overview rather than an empty panel.
+watchEffect(() => {
+  if (activeTab.value === "building" && !feedEnabled.value) {
+    activeTab.value = "overview";
   }
 });
+
+const tabItems = computed(() => [
+  { value: "overview", label: "Overview", icon: "lucide:layout-dashboard" },
+  ...(feedEnabled.value
+    ? [{ value: "building", label: "Building", icon: "lucide:building-2" }]
+    : []),
+]);
 
 // Get org logo URL
 const orgLogoUrl = computed(() => {
@@ -442,19 +442,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </div>
         </header>
 
-        <Tabs v-model="activeTab" class="space-y-8">
-          <TabsList class="flex-wrap h-auto gap-1">
-            <TabsTrigger value="overview">
-              <Icon name="i-lucide-layout-dashboard" class="w-4 h-4 mr-1.5" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger v-if="feedEnabled" value="building">
-              <Icon name="i-lucide-building-2" class="w-4 h-4 mr-1.5" />
-              Building
-            </TabsTrigger>
-          </TabsList>
+        <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Portal views" />
 
-          <TabsContent value="overview" class="space-y-10 mt-0">
+        <AppTabPanels :value="activeTab" :items="tabItems" class="mt-8">
+          <div v-if="activeTab === 'overview'" class="space-y-10">
         <!-- Portal sections — the resident hub. All sections are shown; ones the
              community hasn't enabled render greyed + non-navigating. Classic /
              luxury render as full-width hairline rows; modern as soft cards. -->
@@ -739,10 +730,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             Go to Admin Dashboard
           </Button>
         </div>
-          </TabsContent>
+          </div>
 
           <!-- Building feed tab -->
-          <TabsContent v-if="feedEnabled" value="building" class="space-y-6 mt-0">
+          <div v-else-if="activeTab === 'building' && feedEnabled" class="space-y-6">
             <div class="flex items-start justify-between gap-2">
               <div>
                 <h2 class="text-xl font-semibold t-text">Building</h2>
@@ -762,8 +753,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               :is-board="isBoard"
               :is-member="isMember"
             />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </AppTabPanels>
       </PageContainer>
   </div>
 </template>
