@@ -368,20 +368,38 @@
 }
 
 /* ---- Auto-upgrade shadcn <Card> inside .ui-kit pages to the iOS look ----
- * Scoped to .ui-kit so pages that haven't opted in are untouched. Selector
- * specificity (0,2,0) beats Tailwind's single-class utilities, so the card's
- * own `rounded-xl border shadow-sm` are overridden without !important.
+ * Scoped to .ui-kit so pages that haven't opted in are untouched.
  *
- * CAVEAT, measured: that also means a `border-*` utility written at a CALL SITE
- * on a <Card> is silently inert — `<Card class="border-destructive/50">` renders
- * the ordinary hairline. Tailwind emits this block into the utilities layer too,
- * after the single-class utilities, so specificity decides and (0,2,0) wins.
- * To tint a card's edge, use a ring, or a plain <div> instead of <Card>. */
+ * This block is UNLAYERED, and that — not its (0,2,0) specificity — is what
+ * makes it win: an unlayered rule beats every rule in every layer, and Tailwind
+ * puts utilities in `@layer utilities`. That is how the card's own
+ * `rounded-xl border shadow-sm` get overridden without !important. Same
+ * mechanism as `.field-underline`; verified by brace-matching the layer stack
+ * in the built `entry.*.css`, not by reading the source, because the
+ * `@layer components` block above closes before this rule. */
 .ui-kit [data-slot='card'] {
 	border-radius: 1rem;
-	border-color: color-mix(in srgb, var(--theme-border-primary, #e5e5e5) 50%, transparent);
 	box-shadow: var(--theme-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
 	transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* The edge is the one thing call sites legitimately want to override — a danger
+ * zone wants a red border, an accent callout wants the accent. Because the rule
+ * above is unlayered, `<Card class="border-destructive/50">` used to be silently
+ * inert and rendered the ordinary hairline.
+ *
+ * So the glass edge steps aside for any card that names a border colour itself.
+ * The Card component's own base classes are `... rounded-xl border py-6 ...` —
+ * `border` with no trailing hyphen — so a default card still matches and is
+ * unaffected. Writing any `border-*` utility at the call site opts that card
+ * out and lets the utility through.
+ *
+ * Trade-off, stated plainly: a card carrying only a border WIDTH (`border-2`,
+ * `border-t`) also opts out, and falls back to the flat `--border` rather than
+ * the 50% mix. That is a hairline difference in one colour, and it is the price
+ * of the common case working the way anyone would expect it to. */
+.ui-kit [data-slot='card']:not([class*='border-']) {
+	border-color: color-mix(in srgb, var(--theme-border-primary, #e5e5e5) 50%, transparent);
 }
 .ui-kit [data-slot='card']:hover {
 	box-shadow: var(--theme-shadow-md, 0 4px 6px rgba(0, 0, 0, 0.07));

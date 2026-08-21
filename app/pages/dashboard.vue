@@ -31,15 +31,19 @@ watch(
 );
 </script>
 
+<!-- One root, deliberately. These were two sibling roots with complementary
+     conditions — `:show="isLoading || hasRedirected"` on one and the exact
+     negation as a `v-if` on the other — which made the page multi-root and
+     silently disabled Nuxt's route transitions for it. As a v-if/v-else pair
+     the states are mutually exclusive by construction rather than by two
+     expressions that have to be kept in agreement, and the overlay no longer
+     needs a `show` prop that restated its own mount condition. -->
 <template>
-  <!-- Show loading overlay while fetching org or during redirect -->
   <LoadingOverlay
-    :show="isLoading || hasRedirected"
+    v-if="isLoading || hasRedirected"
     message="Loading your dashboard..."
   />
 
-  <!-- Show dashboard content when not loading and not redirecting -->
-  <PagesDashboardPage
-    v-if="!isLoading && !hasRedirected"
-  />
+  <!-- Only reached when the user has no org to redirect to. -->
+  <PagesDashboardPage v-else />
 </template>
