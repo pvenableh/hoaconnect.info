@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const { rise } = useMotionPresets();
 // Use useDirectusItems for list (read) operations only
 const { list: listUnits } = useDirectusItems("hoa_units");
 
@@ -161,15 +160,12 @@ const handleDelete = async (id: string) => {
 </script>
 
 <template>
-  <div class="ui-kit accent-violet min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-6">
         <!-- Loading State -->
-        <div v-if="isLoading" class="text-center py-12">
-          <Icon
-            name="lucide:loader-2"
-            class="w-8 h-8 animate-spin mx-auto mb-4"
-          />
-          <p class="text-sm t-text-secondary">Loading your organization...</p>
+        <div v-if="isLoading" class="flex flex-col items-center py-12 gap-3">
+          <span class="spinner-ios" />
+          <p class="type-meta">Loading your organization…</p>
         </div>
 
         <!-- No Organization State -->
@@ -196,15 +192,22 @@ const handleDelete = async (id: string) => {
             </Alert>
           </div>
 
-          <!-- Header -->
-          <div class="flex justify-between items-center">
-            <h1 class="text-3xl font-bold">Units</h1>
-            <Button @click="handleAdd">Add Unit</Button>
-          </div>
+          <AppPageHeader
+            eyebrow="People"
+            title="Units"
+            :description="`${units?.length ?? 0} unit${units?.length === 1 ? '' : 's'} in this community`"
+          >
+            <template #actions>
+              <Button @click="handleAdd">
+                <Icon name="lucide:plus" />
+                Add Unit
+              </Button>
+            </template>
+          </AppPageHeader>
 
           <!-- Units Grid -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card v-for="(unit, i) in units" :key="unit.id" v-motion v-bind="rise(i)" class="relative">
+          <div v-if="units?.length" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card v-for="unit in units" :key="unit.id" class="stagger-item relative">
               <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)" class="block hover:opacity-80 transition-opacity">
                 <CardHeader>
                   <CardTitle class="text-center text-2xl">{{
@@ -241,13 +244,19 @@ const handleDelete = async (id: string) => {
                 </div>
               </CardFooter>
             </Card>
+          </div>
 
-            <div
-              v-if="!units?.length"
-              class="col-span-full text-center py-12 t-text-muted"
+          <div v-else class="ios-card">
+            <AppEmptyState
+              icon="lucide:door-closed"
+              title="No units yet"
+              description="Add the units in your building so members can be assigned to them."
             >
-              No units added yet
-            </div>
+              <Button @click="handleAdd">
+                <Icon name="lucide:plus" />
+                Add the first unit
+              </Button>
+            </AppEmptyState>
           </div>
 
           <!-- Add/Edit Modal -->

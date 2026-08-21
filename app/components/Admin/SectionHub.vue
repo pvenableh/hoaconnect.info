@@ -37,58 +37,44 @@ const visibleGroups = computed(() =>
 </script>
 
 <template>
-  <div class="ui-kit min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-8">
-      <WidgetGlass strong>
-        <p v-if="eyebrow" class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">{{ eyebrow }}</p>
-        <h1 class="text-3xl font-semibold tracking-tight t-text">{{ title }}</h1>
-        <p v-if="subtitle" class="t-text-secondary mt-1">{{ subtitle }}</p>
-      </WidgetGlass>
+      <AppPageHeader :eyebrow="eyebrow" :title="title" :description="subtitle" />
 
-      <!-- Empty state — every card in this hub is gated off for this community. -->
-      <div v-if="!visibleGroups.length" class="ios-card p-12 text-center">
-        <Icon name="lucide:layout-grid" class="mx-auto h-10 w-10 t-text-muted mb-3 opacity-60" />
-        <h3 class="text-lg font-medium t-text mb-1">Nothing here yet</h3>
-        <p class="t-text-muted">
-          The features for this section aren't enabled. Turn them on in
-          <NuxtLink :to="buildOrgPath('/admin/settings/organization?tab=modules')" class="t-text-accent underline">Settings → Features</NuxtLink>.
-        </p>
+      <!-- Every card in this hub is gated off for this community. -->
+      <div v-if="!visibleGroups.length" class="ios-card">
+        <AppEmptyState
+          icon="lucide:layout-grid"
+          title="Nothing here yet"
+          description="The features for this section aren't enabled yet."
+        >
+          <Button variant="outline" size="sm" as-child>
+            <NuxtLink :to="buildOrgPath('/admin/settings/organization?tab=modules')">
+              Turn features on
+            </NuxtLink>
+          </Button>
+        </AppEmptyState>
       </div>
 
       <section v-for="(group, gi) in visibleGroups" :key="gi" class="space-y-3">
         <div v-if="group.label || group.description">
-          <h2 v-if="group.label" class="text-sm font-semibold uppercase tracking-wider t-text-secondary">
-            {{ group.label }}
-          </h2>
-          <p v-if="group.description" class="text-sm t-text-muted">{{ group.description }}</p>
+          <h2 v-if="group.label" class="type-micro">{{ group.label }}</h2>
+          <p v-if="group.description" class="type-meta">{{ group.description }}</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <NuxtLink
-            v-for="(item, ii) in group.items"
+            v-for="item in group.items"
             :key="item.label"
-            v-motion
-            :initial="{ opacity: 0, y: 14 }"
-            :enter="{
-              opacity: 1,
-              y: 0,
-              transition: { type: 'spring', stiffness: 220, damping: 28, delay: gi * 80 + ii * 40 },
-            }"
             :to="item.to"
-            class="ios-card p-5 flex items-start gap-4 hover:shadow-lg transition-shadow group"
+            class="ios-card stagger-item p-5 flex items-start gap-4 hover:shadow-lg transition-shadow group"
           >
-            <span
-              class="flex items-center justify-center w-11 h-11 rounded-full shrink-0"
-              :style="{
-                backgroundColor: 'color-mix(in srgb, var(--theme-accent-primary) 12%, transparent)',
-                color: 'var(--theme-accent-primary)',
-              }"
-            >
+            <span class="section-hub__icon" aria-hidden="true">
               <Icon :name="iconName(item.icon)" class="w-5 h-5" />
             </span>
             <div class="min-w-0 flex-1">
-              <h3 class="font-semibold t-text">{{ item.label }}</h3>
-              <p class="text-sm t-text-muted">{{ item.description }}</p>
+              <h3 class="type-card">{{ item.label }}</h3>
+              <p class="type-meta">{{ item.description }}</p>
             </div>
             <Icon
               name="lucide:chevron-right"
@@ -100,3 +86,17 @@ const visibleGroups = computed(() =>
     </PageContainer>
   </div>
 </template>
+
+<style scoped>
+.section-hub__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l) / 0.12);
+  color: hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l));
+}
+</style>
