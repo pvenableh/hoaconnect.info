@@ -635,6 +635,58 @@ a[role='button']:not([data-no-press]):active,
 	to   { opacity: 1; transform: none; }
 }
 
+/* =============================================================================
+   LATERAL TAB TRAVEL
+   The same directional language as the route-level push/pop in main.css, one
+   level down. Moving to a tab on the RIGHT slides content in from the right;
+   moving back leftward reverses it. Sibling views are laid out side by side, so
+   switching between them should look like moving along that row rather than a
+   cut — which is what tells you at a glance whether you went forward or back.
+
+   Shorter than a route change (that is a bigger move, and it deserves more
+   weight) and a smaller travel distance, because the surrounding page chrome
+   stays put and only the panel moves.
+============================================================================= */
+.tab-forward-enter-active,
+.tab-forward-leave-active,
+.tab-back-enter-active,
+.tab-back-leave-active {
+	transition:
+		transform 180ms var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)),
+		opacity 140ms ease;
+}
+.tab-forward-enter-from {
+	opacity: 0;
+	transform: translate3d(22px, 0, 0);
+}
+.tab-forward-leave-to {
+	opacity: 0;
+	transform: translate3d(-14px, 0, 0);
+}
+.tab-back-enter-from {
+	opacity: 0;
+	transform: translate3d(-22px, 0, 0);
+}
+.tab-back-leave-to {
+	opacity: 0;
+	transform: translate3d(14px, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tab-forward-enter-active,
+	.tab-forward-leave-active,
+	.tab-back-enter-active,
+	.tab-back-leave-active {
+		transition: opacity 120ms ease;
+	}
+	.tab-forward-enter-from,
+	.tab-forward-leave-to,
+	.tab-back-enter-from,
+	.tab-back-leave-to {
+		transform: none;
+	}
+}
+
 /* A single element arriving — the same motion as one stagger item, for things
    that enter alone (an auth card, a panel, a just-revealed section). Prefer this
    over a JS tween: it needs no ticker, and it cannot get stuck half-played in a

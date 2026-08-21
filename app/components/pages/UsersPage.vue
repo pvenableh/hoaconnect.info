@@ -16,11 +16,15 @@ const { list: listJoinRequests } = useDirectusItems("hoa_join_requests");
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
-// Await to ensure org is loaded during SSR
-const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
+// Declared before the await below: composables should not be called after a
+// top-level await in setup.
+const activeTab = useTabQuery({
+  values: ["users", "requests", "connect"],
+  fallback: "users",
+});
 
-// Current tab
-const activeTab = ref<"users" | "requests" | "connect">("users");
+// Awaited so the org is loaded during SSR.
+const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -45,7 +49,7 @@ const getRoleDisplay = (roleId: string | null | undefined): string => {
 // Get role badge color
 const getRoleBadgeClass = (roleId: string | null | undefined): string => {
   if (roleId === config.public.directusRoleHoaAdmin) {
-    return "bg-purple-100 text-purple-800";
+    return "bg-primary/12 text-primary";
   }
   return "t-bg-subtle t-text-secondary";
 };
@@ -197,6 +201,29 @@ const { data: units } = await useAsyncData(
     server: false,
   }
 );
+
+// Join requests carry a count because they are a QUEUE — something is waiting
+// for a person to act. The other two are just collections.
+const tabItems = computed(() => [
+  {
+    value: "users",
+    label: "Accounts",
+    icon: "lucide:users",
+    count: membersWithAccounts.value?.length ?? 0,
+  },
+  {
+    value: "requests",
+    label: "Join requests",
+    icon: "lucide:user-plus",
+    count: joinRequests.value?.length ?? 0,
+  },
+  {
+    value: "connect",
+    label: "Connect",
+    icon: "lucide:link",
+    count: membersWithoutAccounts.value?.length ?? 0,
+  },
+]);
 
 // Search and filter
 const searchQuery = ref("");
@@ -436,20 +463,16 @@ useSeoMeta({
 <template>
   <div class="min-h-screen t-bg">
     <PageContainer>
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold mb-2">User Management</h1>
-          <p class="t-text-secondary">
-            Manage user accounts, approve join requests, and connect users to members
-          </p>
-        </div>
+        <AppPageHeader
+          eyebrow="Settings"
+          title="Users"
+          description="Login accounts, join requests, and connecting people to their member record."
+        />
 
         <!-- Loading State -->
-        <div v-if="isLoading" class="text-center py-12">
-          <Icon
-            name="lucide:loader-2"
-            class="w-8 h-8 animate-spin mx-auto mb-4"
-          />
-          <p class="text-sm t-text-secondary">Loading your organization...</p>
+        <div v-if="isLoading" class="flex flex-col items-center py-12 gap-3">
+          <span class="spinner-ios" />
+          <p class="type-meta">Loading your organization…</p>
         </div>
 
         <!-- No Organization State -->
@@ -475,356 +498,300 @@ useSeoMeta({
             </CardHeader>
           </Card>
 
-          <!-- Tabs -->
-          <div class="border-b t-border">
-            <nav class="flex space-x-8">
-              <button
-                @click="activeTab = 'users'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'users'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                <Icon name="lucide:users" class="w-4 h-4 inline mr-1" />
-                Users with Accounts ({{ membersWithAccounts?.length || 0 }})
-              </button>
-              <button
-                @click="activeTab = 'requests'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'requests'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                <Icon name="lucide:user-plus" class="w-4 h-4 inline mr-1" />
-                Join Requests
-                <span
-                  v-if="joinRequests?.length"
-                  class="ml-1 bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full"
-                >
-                  {{ joinRequests.length }}
-                </span>
-              </button>
-              <button
-                @click="activeTab = 'connect'"
-                :class="[
-                  'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-                  activeTab === 'connect'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent t-text-secondary hover:t-text hover:border-muted',
-                ]"
-              >
-                <Icon name="lucide:link" class="w-4 h-4 inline mr-1" />
-                Connect Users ({{ membersWithoutAccounts?.length || 0 }})
-              </button>
-            </nav>
-          </div>
+          <AppSegmentedControl v-model="activeTab" :items="tabItems" label="User views" />
 
-          <!-- Users with Accounts Tab -->
-          <div v-if="activeTab === 'users'" class="space-y-4">
-            <!-- Search -->
-            <div class="flex justify-between items-center">
-              <div class="relative">
-                <Icon
-                  name="lucide:search"
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
-                />
-                <Input
-                  v-model="searchQuery"
-                  placeholder="Search users..."
-                  class="pl-10 w-64"
-                />
+          <AppTabPanels :value="activeTab" :items="tabItems">
+            <!-- Users with Accounts Tab -->
+            <div v-if="activeTab === 'users'" class="space-y-4">
+              <!-- Search -->
+              <div class="flex justify-between items-center">
+                <div class="relative">
+                  <Icon
+                    name="lucide:search"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
+                  />
+                  <Input
+                    v-model="searchQuery"
+                    placeholder="Search users..."
+                    class="pl-10 w-64"
+                  />
+                </div>
+                <Button @click="navigateToOrg('/admin/members')" variant="outline">
+                  <Icon name="lucide:users" class="w-4 h-4 mr-2" />
+                  Manage Members
+                </Button>
               </div>
-              <Button @click="navigateToOrg('/admin/members')" variant="outline">
-                <Icon name="lucide:users" class="w-4 h-4 mr-2" />
-                Manage Members
-              </Button>
+
+              <!-- Users Table -->
+              <Card>
+                <CardContent class="pt-6">
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                      <thead>
+                        <tr class="border-b">
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
+                          <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Last Access</th>
+                          <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="member in filteredMembersWithAccounts"
+                          :key="member.id"
+                          class="border-b hover:t-bg-subtle"
+                        >
+                          <td class="p-3">
+                            <div class="flex items-center gap-2">
+                              <div
+                                class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary"
+                              >
+                                {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
+                              </div>
+                              <span>{{ member.first_name }} {{ member.last_name }}</span>
+                            </div>
+                          </td>
+                          <td class="p-3">{{ member.user?.email || member.email }}</td>
+                          <td class="p-3">
+                            <span
+                              class="text-xs px-2 py-1 rounded font-medium"
+                              :class="getRoleBadgeClass(member.role)"
+                            >
+                              {{ getRoleDisplay(member.role) }}
+                            </span>
+                          </td>
+                          <td class="p-3">{{ formatUnits(member) }}</td>
+                          <td class="p-3">
+                            <span
+                              class="text-xs px-2 py-1 rounded font-medium"
+                              :class="getStatusBadgeClass(member.status)"
+                            >
+                              {{ member.status }}
+                            </span>
+                          </td>
+                          <td class="p-3 text-sm t-text-secondary">
+                            {{ formatLastAccess(member.user?.last_access) }}
+                          </td>
+                          <td class="p-3 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger as-child>
+                                <Button variant="ghost" size="sm">
+                                  <Icon name="lucide:more-horizontal" class="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  v-if="member.status !== 'active'"
+                                  @click="handleUpdateStatus(member, 'active')"
+                                >
+                                  <Icon name="lucide:check" class="w-4 h-4 mr-2" />
+                                  Activate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  v-if="member.status !== 'inactive'"
+                                  @click="handleUpdateStatus(member, 'inactive')"
+                                >
+                                  <Icon name="lucide:pause" class="w-4 h-4 mr-2" />
+                                  Deactivate
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @click="navigateToOrg('/admin/members')">
+                                  <Icon name="lucide:edit" class="w-4 h-4 mr-2" />
+                                  Edit Member
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <AppEmptyState
+                    v-if="!filteredMembersWithAccounts?.length"
+                    icon="lucide:users"
+                    :variant="searchQuery ? 'search' : 'empty'"
+                    :title="searchQuery ? 'No matches' : 'No accounts yet'"
+                    :description="
+                      searchQuery
+                        ? 'No account matches that search.'
+                        : 'People who can sign in appear here once a member record is linked to a login.'
+                    "
+                  >
+                    <Button v-if="searchQuery" variant="outline" @click="searchQuery = ''">
+                      Clear search
+                    </Button>
+                  </AppEmptyState>
+                </CardContent>
+              </Card>
             </div>
 
-            <!-- Users Table -->
-            <Card>
-              <CardContent class="pt-6">
-                <div class="overflow-x-auto">
-                  <table class="w-full text-sm">
-                    <thead>
-                      <tr class="border-b">
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Name</th>
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Email</th>
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Role</th>
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Unit(s)</th>
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Status</th>
-                        <th class="text-left p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Last Access</th>
-                        <th class="text-right p-3 text-xs font-medium uppercase tracking-wide t-text-muted">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="member in filteredMembersWithAccounts"
-                        :key="member.id"
-                        class="border-b hover:t-bg-subtle"
-                      >
-                        <td class="p-3">
-                          <div class="flex items-center gap-2">
-                            <div
-                              class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary"
-                            >
-                              {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
-                            </div>
-                            <span>{{ member.first_name }} {{ member.last_name }}</span>
-                          </div>
-                        </td>
-                        <td class="p-3">{{ member.user?.email || member.email }}</td>
-                        <td class="p-3">
-                          <span
-                            class="text-xs px-2 py-1 rounded font-medium"
-                            :class="getRoleBadgeClass(member.role)"
-                          >
-                            {{ getRoleDisplay(member.role) }}
-                          </span>
-                        </td>
-                        <td class="p-3">{{ formatUnits(member) }}</td>
-                        <td class="p-3">
-                          <span
-                            class="text-xs px-2 py-1 rounded font-medium"
-                            :class="getStatusBadgeClass(member.status)"
-                          >
-                            {{ member.status }}
-                          </span>
-                        </td>
-                        <td class="p-3 text-sm t-text-secondary">
-                          {{ formatLastAccess(member.user?.last_access) }}
-                        </td>
-                        <td class="p-3 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                              <Button variant="ghost" size="sm">
-                                <Icon name="lucide:more-horizontal" class="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                v-if="member.status !== 'active'"
-                                @click="handleUpdateStatus(member, 'active')"
-                              >
-                                <Icon name="lucide:check" class="w-4 h-4 mr-2" />
-                                Activate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                v-if="member.status !== 'inactive'"
-                                @click="handleUpdateStatus(member, 'inactive')"
-                              >
-                                <Icon name="lucide:pause" class="w-4 h-4 mr-2" />
-                                Deactivate
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem @click="navigateToOrg('/admin/members')">
-                                <Icon name="lucide:edit" class="w-4 h-4 mr-2" />
-                                Edit Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div
-                  v-if="!filteredMembersWithAccounts?.length"
-                  class="text-center py-12 t-text-muted"
-                >
-                  <Icon
-                    name="lucide:users"
-                    class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                  />
-                  <p class="font-medium">No users with accounts</p>
-                  <p class="text-sm mt-1">
-                    Members with linked accounts will appear here
+            <!-- Join Requests Tab -->
+            <div v-if="activeTab === 'requests'" class="space-y-4">
+              <!-- Info Box -->
+              <Card class="bg-amber-50 border-amber-200">
+                <CardContent class="pt-6">
+                  <p class="text-sm text-amber-900">
+                    <strong>Join Requests:</strong>
+                    Users who have registered and requested to join your HOA will appear here.
+                    Review their details and approve or reject their request.
                   </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          <!-- Join Requests Tab -->
-          <div v-if="activeTab === 'requests'" class="space-y-4">
-            <!-- Info Box -->
-            <Card class="bg-amber-50 border-amber-200">
-              <CardContent class="pt-6">
-                <p class="text-sm text-amber-900">
-                  <strong>Join Requests:</strong>
-                  Users who have registered and requested to join your HOA will appear here.
-                  Review their details and approve or reject their request.
-                </p>
-              </CardContent>
-            </Card>
-
-            <!-- Requests List -->
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Join Requests</CardTitle>
-                <CardDescription>
-                  Review and process requests from users who want to join your HOA
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div v-if="joinRequests?.length" class="space-y-4">
-                  <div
-                    v-for="request in joinRequests"
-                    :key="request.id"
-                    class="flex items-start justify-between p-4 border rounded-lg hover:t-bg-subtle"
-                  >
-                    <div class="flex-1">
-                      <div class="flex items-center gap-3 mb-2">
-                        <div
-                          class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary"
+              <!-- Requests List -->
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Join Requests</CardTitle>
+                  <CardDescription>
+                    Review and process requests from users who want to join your HOA
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div v-if="joinRequests?.length" class="space-y-4">
+                    <div
+                      v-for="request in joinRequests"
+                      :key="request.id"
+                      class="flex items-start justify-between p-4 border rounded-lg hover:t-bg-subtle"
+                    >
+                      <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                          <div
+                            class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary"
+                          >
+                            {{ request.user?.first_name?.[0] || '' }}{{ request.user?.last_name?.[0] || '' }}
+                          </div>
+                          <div>
+                            <p class="font-medium">
+                              {{ request.user?.first_name }} {{ request.user?.last_name }}
+                            </p>
+                            <p class="text-sm t-text-secondary">{{ request.user?.email }}</p>
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-3">
+                          <div>
+                            <span class="t-text-muted">Unit:</span>
+                            <span class="ml-2 font-medium">{{ request.unit_number || 'Not specified' }}</span>
+                          </div>
+                          <div>
+                            <span class="t-text-muted">Type:</span>
+                            <span class="ml-2 font-medium capitalize">{{ request.member_type || 'Not specified' }}</span>
+                          </div>
+                          <div>
+                            <span class="t-text-muted">Requested:</span>
+                            <span class="ml-2">{{ formatDate(request.date_created) }}</span>
+                          </div>
+                        </div>
+                        <p v-if="request.message" class="text-sm t-text-secondary mt-2 italic">
+                          "{{ request.message }}"
+                        </p>
+                      </div>
+                      <div class="flex gap-2 ml-4">
+                        <Button
+                          @click="openApproveModal(request)"
+                          size="sm"
+                          variant="default"
                         >
-                          {{ request.user?.first_name?.[0] || '' }}{{ request.user?.last_name?.[0] || '' }}
+                          <Icon name="lucide:check" class="w-4 h-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          @click="handleRejectRequest(request)"
+                          size="sm"
+                          variant="destructive"
+                          :disabled="isRejecting === request.id"
+                        >
+                          <Icon
+                            v-if="isRejecting === request.id"
+                            name="lucide:loader-2"
+                            class="w-4 h-4 animate-spin"
+                          />
+                          <Icon v-else name="lucide:x" class="w-4 h-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <AppEmptyState
+                    v-else
+                    icon="lucide:inbox"
+                    title="Nothing waiting"
+                    description="Residents asking to join this community land here for your review."
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <!-- Connect Users Tab -->
+            <div v-if="activeTab === 'connect'" class="space-y-4">
+              <!-- Info Box -->
+              <Card class="bg-blue-50 border-blue-200">
+                <CardContent class="pt-6">
+                  <p class="text-sm text-blue-900">
+                    <strong>Connect Users:</strong>
+                    These are member records that don't have a linked user account.
+                    You can connect them to existing user accounts so members can log in.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <!-- Members without accounts list -->
+              <Card>
+                <CardHeader>
+                  <CardTitle>Members Without Accounts</CardTitle>
+                  <CardDescription>
+                    Connect these members to existing user accounts to give them login access
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div v-if="membersWithoutAccounts?.length" class="space-y-3">
+                    <div
+                      v-for="member in membersWithoutAccounts"
+                      :key="member.id"
+                      class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
+                    >
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold t-text-secondary"
+                        >
+                          {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
                         </div>
                         <div>
                           <p class="font-medium">
-                            {{ request.user?.first_name }} {{ request.user?.last_name }}
+                            {{ member.first_name }} {{ member.last_name }}
                           </p>
-                          <p class="text-sm t-text-secondary">{{ request.user?.email }}</p>
+                          <p class="text-sm t-text-secondary">{{ member.email || 'No email' }}</p>
                         </div>
                       </div>
-                      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-3">
-                        <div>
-                          <span class="t-text-muted">Unit:</span>
-                          <span class="ml-2 font-medium">{{ request.unit_number || 'Not specified' }}</span>
-                        </div>
-                        <div>
-                          <span class="t-text-muted">Type:</span>
-                          <span class="ml-2 font-medium capitalize">{{ request.member_type || 'Not specified' }}</span>
-                        </div>
-                        <div>
-                          <span class="t-text-muted">Requested:</span>
-                          <span class="ml-2">{{ formatDate(request.date_created) }}</span>
-                        </div>
+                      <div class="flex items-center gap-4">
+                        <span
+                          class="text-xs px-2 py-1 rounded font-medium capitalize"
+                          :class="getStatusBadgeClass(member.status)"
+                        >
+                          {{ member.status }}
+                        </span>
+                        <Button @click="openConnectModal(member)" size="sm" variant="outline">
+                          <Icon name="lucide:link" class="w-4 h-4 mr-1" />
+                          Connect Account
+                        </Button>
                       </div>
-                      <p v-if="request.message" class="text-sm t-text-secondary mt-2 italic">
-                        "{{ request.message }}"
-                      </p>
-                    </div>
-                    <div class="flex gap-2 ml-4">
-                      <Button
-                        @click="openApproveModal(request)"
-                        size="sm"
-                        variant="default"
-                      >
-                        <Icon name="lucide:check" class="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        @click="handleRejectRequest(request)"
-                        size="sm"
-                        variant="destructive"
-                        :disabled="isRejecting === request.id"
-                      >
-                        <Icon
-                          v-if="isRejecting === request.id"
-                          name="lucide:loader-2"
-                          class="w-4 h-4 animate-spin"
-                        />
-                        <Icon v-else name="lucide:x" class="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
                     </div>
                   </div>
-                </div>
 
-                <div
-                  v-else
-                  class="text-center py-12 t-text-muted"
-                >
-                  <Icon
-                    name="lucide:inbox"
-                    class="w-12 h-12 mx-auto mb-4 t-text-muted"
+                  <AppEmptyState
+                    v-else
+                    icon="lucide:check-circle"
+                    title="Everyone is connected"
+                    description="Every member record is already linked to a login."
                   />
-                  <p class="font-medium">No pending requests</p>
-                  <p class="text-sm mt-1">
-                    New join requests will appear here for your review
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <!-- Connect Users Tab -->
-          <div v-if="activeTab === 'connect'" class="space-y-4">
-            <!-- Info Box -->
-            <Card class="bg-blue-50 border-blue-200">
-              <CardContent class="pt-6">
-                <p class="text-sm text-blue-900">
-                  <strong>Connect Users:</strong>
-                  These are member records that don't have a linked user account.
-                  You can connect them to existing user accounts so members can log in.
-                </p>
-              </CardContent>
-            </Card>
-
-            <!-- Members without accounts list -->
-            <Card>
-              <CardHeader>
-                <CardTitle>Members Without Accounts</CardTitle>
-                <CardDescription>
-                  Connect these members to existing user accounts to give them login access
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div v-if="membersWithoutAccounts?.length" class="space-y-3">
-                  <div
-                    v-for="member in membersWithoutAccounts"
-                    :key="member.id"
-                    class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
-                  >
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold t-text-secondary"
-                      >
-                        {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
-                      </div>
-                      <div>
-                        <p class="font-medium">
-                          {{ member.first_name }} {{ member.last_name }}
-                        </p>
-                        <p class="text-sm t-text-secondary">{{ member.email || 'No email' }}</p>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                      <span
-                        class="text-xs px-2 py-1 rounded font-medium capitalize"
-                        :class="getStatusBadgeClass(member.status)"
-                      >
-                        {{ member.status }}
-                      </span>
-                      <Button @click="openConnectModal(member)" size="sm" variant="outline">
-                        <Icon name="lucide:link" class="w-4 h-4 mr-1" />
-                        Connect Account
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  v-else
-                  class="text-center py-12 t-text-muted"
-                >
-                  <Icon
-                    name="lucide:check-circle"
-                    class="w-12 h-12 mx-auto mb-4 t-text-muted"
-                  />
-                  <p class="font-medium">All members have accounts</p>
-                  <p class="text-sm mt-1">
-                    Every member record is linked to a user account
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
+          </AppTabPanels>
 
           <!-- Approve Join Request Modal -->
           <Dialog v-model:open="showApproveModal">

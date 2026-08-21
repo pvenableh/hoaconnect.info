@@ -616,376 +616,378 @@ useSeoMeta({
         <div v-else class="space-y-6">
         <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Members views" />
 
-        <!-- Members Tab -->
-        <div v-if="activeTab === 'members'" class="space-y-4">
-          <!-- Info Box — theme-aware accent tint (adapts to light/dark + theme) -->
-          <Card class="t-bg-accent/10 t-border-accent">
-            <CardContent class="pt-6">
-              <p class="text-sm t-text">
-                <strong>Two ways to add members:</strong>
-              </p>
-              <ul
-                class="text-sm t-text-secondary mt-2 space-y-1 list-disc list-inside"
-              >
-                <li>
-                  <strong class="t-text">Add Member:</strong> Create a record for residents who
-                  don't need system access
-                </li>
-                <li>
-                  <strong class="t-text">Invite Member:</strong> Send an email invitation for
-                  residents who need to log in
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
+        <AppTabPanels :value="activeTab" :items="tabItems">
+          <!-- Members Tab -->
+          <div v-if="activeTab === 'members'" class="space-y-4">
+            <!-- Info Box — theme-aware accent tint (adapts to light/dark + theme) -->
+            <Card class="t-bg-accent/10 t-border-accent">
+              <CardContent class="pt-6">
+                <p class="text-sm t-text">
+                  <strong>Two ways to add members:</strong>
+                </p>
+                <ul
+                  class="text-sm t-text-secondary mt-2 space-y-1 list-disc list-inside"
+                >
+                  <li>
+                    <strong class="t-text">Add Member:</strong> Create a record for residents who
+                    don't need system access
+                  </li>
+                  <li>
+                    <strong class="t-text">Invite Member:</strong> Send an email invitation for
+                    residents who need to log in
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
 
-          <!-- Action Buttons -->
-          <div class="flex justify-between items-center">
-            <div class="flex gap-2">
-              <Button @click="navigateToOrg('/admin/units')" variant="outline">
-                <Icon name="lucide:building" class="w-4 h-4 mr-2" />
-                Manage Units
-              </Button>
+            <!-- Action Buttons -->
+            <div class="flex justify-between items-center">
+              <div class="flex gap-2">
+                <Button @click="navigateToOrg('/admin/units')" variant="outline">
+                  <Icon name="lucide:building" class="w-4 h-4 mr-2" />
+                  Manage Units
+                </Button>
+              </div>
+              <div class="flex gap-2">
+                <Button @click="activeTab = 'invite'" variant="outline">
+                  <Icon name="lucide:mail" class="w-4 h-4 mr-2" />
+                  Invite Member
+                </Button>
+                <Button @click="handleAddMember">
+                  <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
+                  Add Member
+                </Button>
+              </div>
             </div>
-            <div class="flex gap-2">
-              <Button @click="activeTab = 'invite'" variant="outline">
-                <Icon name="lucide:mail" class="w-4 h-4 mr-2" />
-                Invite Member
-              </Button>
-              <Button @click="handleAddMember">
-                <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
-                Add Member
-              </Button>
-            </div>
+
+            <!-- Members Table -->
+            <Card>
+              <CardContent class="pt-6">
+                <AppDataTable
+                  :columns="memberColumns"
+                  :rows="members || []"
+                  empty-title="No members yet"
+                  empty-description="Add members directly, or invite them to create their own login."
+                  empty-icon="lucide:users"
+                >
+                  <template #cell-name="{ row }">
+                    <span class="font-medium t-text">
+                      {{ row.first_name }} {{ row.last_name }}
+                    </span>
+                  </template>
+                  <template #cell-member_type="{ value }">
+                    <span class="capitalize">{{ value }}</span>
+                  </template>
+                  <template #cell-role="{ row }">
+                    <span
+                      class="text-xs px-2 py-1 rounded-full font-medium"
+                      :class="getRoleBadgeClass(row.role)"
+                    >
+                      {{ getRoleDisplay(row.role) }}
+                    </span>
+                  </template>
+                  <template #cell-units="{ row }">{{ formatUnits(row) }}</template>
+                  <template #cell-account="{ row }">
+                    <Badge :variant="row.user ? 'default' : 'secondary'">
+                      {{ row.user ? "Yes" : "No" }}
+                    </Badge>
+                  </template>
+                  <template #cell-actions="{ row }">
+                    <div class="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Edit member"
+                        @click="handleEdit(row)"
+                      >
+                        <Icon name="lucide:pencil" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon-sm"
+                        aria-label="Delete member"
+                        @click="handleDelete(row.id)"
+                      >
+                        <Icon name="lucide:trash-2" />
+                      </Button>
+                    </div>
+                  </template>
+
+                  <template #empty>
+                    <AppEmptyState
+                      icon="lucide:users"
+                      title="No members yet"
+                      description="Add members directly, or invite them to create their own login."
+                      compact
+                    >
+                      <Button @click="handleAddMember">
+                        <Icon name="lucide:user-plus" />
+                        Add the first member
+                      </Button>
+                    </AppEmptyState>
+                  </template>
+                </AppDataTable>
+              </CardContent>
+            </Card>
           </div>
 
-          <!-- Members Table -->
-          <Card>
-            <CardContent class="pt-6">
-              <AppDataTable
-                :columns="memberColumns"
-                :rows="members || []"
-                empty-title="No members yet"
-                empty-description="Add members directly, or invite them to create their own login."
-                empty-icon="lucide:users"
-              >
-                <template #cell-name="{ row }">
-                  <span class="font-medium t-text">
-                    {{ row.first_name }} {{ row.last_name }}
-                  </span>
-                </template>
-                <template #cell-member_type="{ value }">
-                  <span class="capitalize">{{ value }}</span>
-                </template>
-                <template #cell-role="{ row }">
-                  <span
-                    class="text-xs px-2 py-1 rounded-full font-medium"
-                    :class="getRoleBadgeClass(row.role)"
+          <!-- Invite Tab -->
+          <div v-if="activeTab === 'invite'">
+            <InviteMemberForm
+              v-if="organization?.id"
+              :organization-id="organization.id"
+              @success="handleInviteSuccess"
+            />
+          </div>
+
+          <!-- Pending Invitations Tab -->
+          <div v-if="activeTab === 'pending'" class="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Invitations</CardTitle>
+                <CardDescription>
+                  Track invitations that haven't been accepted yet
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="space-y-3">
+                  <div
+                    v-for="invitation in invitations"
+                    :key="invitation.id"
+                    class="flex items-center justify-between p-4 border rounded-lg"
+                    :class="{
+                      't-bg-subtle t-border': isExpired(
+                        invitation.expires_at
+                      ),
+                    }"
                   >
-                    {{ getRoleDisplay(row.role) }}
-                  </span>
-                </template>
-                <template #cell-units="{ row }">{{ formatUnits(row) }}</template>
-                <template #cell-account="{ row }">
-                  <Badge :variant="row.user ? 'default' : 'secondary'">
-                    {{ row.user ? "Yes" : "No" }}
-                  </Badge>
-                </template>
-                <template #cell-actions="{ row }">
-                  <div class="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      aria-label="Edit member"
-                      @click="handleEdit(row)"
-                    >
-                      <Icon name="lucide:pencil" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      aria-label="Delete member"
-                      @click="handleDelete(row.id)"
-                    >
-                      <Icon name="lucide:trash-2" />
-                    </Button>
-                  </div>
-                </template>
-
-                <template #empty>
-                  <AppEmptyState
-                    icon="lucide:users"
-                    title="No members yet"
-                    description="Add members directly, or invite them to create their own login."
-                    compact
-                  >
-                    <Button @click="handleAddMember">
-                      <Icon name="lucide:user-plus" />
-                      Add the first member
-                    </Button>
-                  </AppEmptyState>
-                </template>
-              </AppDataTable>
-            </CardContent>
-          </Card>
-        </div>
-
-        <!-- Invite Tab -->
-        <div v-if="activeTab === 'invite'">
-          <InviteMemberForm
-            v-if="organization?.id"
-            :organization-id="organization.id"
-            @success="handleInviteSuccess"
-          />
-        </div>
-
-        <!-- Pending Invitations Tab -->
-        <div v-if="activeTab === 'pending'" class="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Invitations</CardTitle>
-              <CardDescription>
-                Track invitations that haven't been accepted yet
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="space-y-3">
-                <div
-                  v-for="invitation in invitations"
-                  :key="invitation.id"
-                  class="flex items-center justify-between p-4 border rounded-lg"
-                  :class="{
-                    't-bg-subtle t-border': isExpired(
-                      invitation.expires_at
-                    ),
-                  }"
-                >
-                  <div class="flex-1">
-                    <div class="flex items-center gap-3">
-                      <div>
-                        <p class="font-medium">{{ invitation.email }}</p>
-                        <p class="text-sm t-text-secondary">
-                          Role: {{ getRoleDisplay(invitation.role) }}
-                        </p>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-3">
+                        <div>
+                          <p class="font-medium">{{ invitation.email }}</p>
+                          <p class="text-sm t-text-secondary">
+                            Role: {{ getRoleDisplay(invitation.role) }}
+                          </p>
+                          <p class="text-xs t-text-muted mt-1">
+                            Invited by
+                            {{ invitation.invited_by?.first_name }}
+                            {{ invitation.invited_by?.last_name }} on
+                            {{ formatDate(invitation.date_created) }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <div class="text-right">
+                        <div
+                          v-if="isExpired(invitation.expires_at)"
+                          class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded"
+                        >
+                          Expired
+                        </div>
+                        <div
+                          v-else
+                          class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded"
+                        >
+                          Pending
+                        </div>
                         <p class="text-xs t-text-muted mt-1">
-                          Invited by
-                          {{ invitation.invited_by?.first_name }}
-                          {{ invitation.invited_by?.last_name }} on
-                          {{ formatDate(invitation.date_created) }}
+                          Expires {{ formatDate(invitation.expires_at) }}
                         </p>
+                      </div>
+                      <div class="flex gap-2">
+                        <Button
+                          @click="handleResendInvitation(invitation.id)"
+                          variant="outline"
+                          size="sm"
+                          :disabled="resendingInvitation === invitation.id"
+                        >
+                          <Icon
+                            v-if="resendingInvitation === invitation.id"
+                            name="lucide:loader-2"
+                            class="w-4 h-4 animate-spin"
+                          />
+                          <Icon v-else name="lucide:send" class="w-4 h-4" />
+                          <span class="ml-1 hidden sm:inline">Resend</span>
+                        </Button>
+                        <Button
+                          @click="handleCancelInvitation(invitation.id)"
+                          variant="destructive"
+                          size="sm"
+                          :disabled="cancellingInvitation === invitation.id"
+                        >
+                          <Icon
+                            v-if="cancellingInvitation === invitation.id"
+                            name="lucide:loader-2"
+                            class="w-4 h-4 animate-spin"
+                          />
+                          <Icon v-else name="lucide:x" class="w-4 h-4" />
+                          <span class="ml-1 hidden sm:inline">Cancel</span>
+                        </Button>
                       </div>
                     </div>
                   </div>
-                  <div class="flex items-center gap-4">
-                    <div class="text-right">
+
+                  <AppEmptyState
+                    v-if="!invitations?.length"
+                    icon="lucide:mail-check"
+                    title="No pending invitations"
+                    description="Everything sent has been accepted or has expired."
+                  >
+                    <Button variant="outline" @click="activeTab = 'invite'">
+                      <Icon name="lucide:user-plus" />
+                      Invite someone
+                    </Button>
+                  </AppEmptyState>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <!-- Board Tab -->
+          <div v-if="activeTab === 'board'" class="space-y-6">
+            <!-- Info Box -->
+            <Card class="bg-amber-50 border-amber-200">
+              <CardContent class="pt-6">
+                <p class="text-sm text-amber-900">
+                  <strong>Manage your HOA Board:</strong>
+                  Assign board positions to members. Active board members will be displayed on the public Board page.
+                </p>
+              </CardContent>
+            </Card>
+
+            <!-- Action Button -->
+            <div class="flex justify-end">
+              <Button @click="handleAddBoardTerm">
+                <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
+                Add Board Position
+              </Button>
+            </div>
+
+            <!-- Active Board Members -->
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Board Members</CardTitle>
+                <CardDescription>
+                  Active board positions displayed on your public Board page
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div v-if="activeBoardTerms?.length" class="space-y-3">
+                  <div
+                    v-for="term in activeBoardTerms"
+                    :key="term.id"
+                    class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
+                  >
+                    <div class="flex items-center gap-4">
                       <div
-                        v-if="isExpired(invitation.expires_at)"
-                        class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded"
+                        class="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
+                        :class="getBoardTitleColor(term.title)"
                       >
-                        Expired
+                        {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
                       </div>
-                      <div
-                        v-else
-                        class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded"
-                      >
-                        Pending
+                      <div>
+                        <p class="font-medium">
+                          {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
+                        </p>
+                        <span
+                          class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                          :class="getBoardTitleColor(term.title)"
+                        >
+                          {{ formatBoardTitle(term.title) }}
+                        </span>
+                        <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
+                          <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                          <span v-if="term.term_start && term.term_end"> - </span>
+                          <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                          <span v-if="term.term_start && !term.term_end"> - Present</span>
+                        </p>
                       </div>
-                      <p class="text-xs t-text-muted mt-1">
-                        Expires {{ formatDate(invitation.expires_at) }}
-                      </p>
                     </div>
                     <div class="flex gap-2">
                       <Button
-                        @click="handleResendInvitation(invitation.id)"
+                        @click="handleEditBoardTerm(term)"
                         variant="outline"
                         size="sm"
-                        :disabled="resendingInvitation === invitation.id"
                       >
-                        <Icon
-                          v-if="resendingInvitation === invitation.id"
-                          name="lucide:loader-2"
-                          class="w-4 h-4 animate-spin"
-                        />
-                        <Icon v-else name="lucide:send" class="w-4 h-4" />
-                        <span class="ml-1 hidden sm:inline">Resend</span>
+                        <Icon name="lucide:edit" class="w-4 h-4" />
                       </Button>
                       <Button
-                        @click="handleCancelInvitation(invitation.id)"
+                        @click="handleDeleteBoardTerm(term.id)"
                         variant="destructive"
                         size="sm"
-                        :disabled="cancellingInvitation === invitation.id"
                       >
-                        <Icon
-                          v-if="cancellingInvitation === invitation.id"
-                          name="lucide:loader-2"
-                          class="w-4 h-4 animate-spin"
-                        />
-                        <Icon v-else name="lucide:x" class="w-4 h-4" />
-                        <span class="ml-1 hidden sm:inline">Cancel</span>
+                        <Icon name="lucide:trash-2" class="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
-
                 <AppEmptyState
-                  v-if="!invitations?.length"
-                  icon="lucide:mail-check"
-                  title="No pending invitations"
-                  description="Everything sent has been accepted or has expired."
-                >
-                  <Button variant="outline" @click="activeTab = 'invite'">
-                    <Icon name="lucide:user-plus" />
-                    Invite someone
-                  </Button>
-                </AppEmptyState>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  v-else
+                  icon="lucide:award"
+                  title="No active board members"
+                  description="Board positions added here appear on your community's public Board page."
+                />
+              </CardContent>
+            </Card>
 
-        <!-- Board Tab -->
-        <div v-if="activeTab === 'board'" class="space-y-6">
-          <!-- Info Box -->
-          <Card class="bg-amber-50 border-amber-200">
-            <CardContent class="pt-6">
-              <p class="text-sm text-amber-900">
-                <strong>Manage your HOA Board:</strong>
-                Assign board positions to members. Active board members will be displayed on the public Board page.
-              </p>
-            </CardContent>
-          </Card>
-
-          <!-- Action Button -->
-          <div class="flex justify-end">
-            <Button @click="handleAddBoardTerm">
-              <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
-              Add Board Position
-            </Button>
-          </div>
-
-          <!-- Active Board Members -->
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Board Members</CardTitle>
-              <CardDescription>
-                Active board positions displayed on your public Board page
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div v-if="activeBoardTerms?.length" class="space-y-3">
-                <div
-                  v-for="term in activeBoardTerms"
-                  :key="term.id"
-                  class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
-                >
-                  <div class="flex items-center gap-4">
-                    <div
-                      class="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
-                      :class="getBoardTitleColor(term.title)"
-                    >
-                      {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
-                    </div>
-                    <div>
-                      <p class="font-medium">
-                        {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
-                      </p>
-                      <span
-                        class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                        :class="getBoardTitleColor(term.title)"
+            <!-- Past Board Members -->
+            <Card v-if="pastBoardTerms?.length">
+              <CardHeader>
+                <CardTitle>Past Board Members</CardTitle>
+                <CardDescription>
+                  Historical board positions (expired or inactive)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="space-y-3">
+                  <div
+                    v-for="term in pastBoardTerms"
+                    :key="term.id"
+                    class="flex items-center justify-between p-4 border rounded-lg t-bg-subtle"
+                  >
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 t-text-secondary"
                       >
-                        {{ formatBoardTitle(term.title) }}
-                      </span>
-                      <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
-                        <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
-                        <span v-if="term.term_start && term.term_end"> - </span>
-                        <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
-                        <span v-if="term.term_start && !term.term_end"> - Present</span>
-                      </p>
+                        {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
+                      </div>
+                      <div>
+                        <p class="font-medium t-text-secondary">
+                          {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
+                        </p>
+                        <span class="text-xs t-text-muted">
+                          {{ formatBoardTitle(term.title) }}
+                        </span>
+                        <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
+                          <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                          <span v-if="term.term_start && term.term_end"> - </span>
+                          <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div class="flex gap-2">
-                    <Button
-                      @click="handleEditBoardTerm(term)"
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Icon name="lucide:edit" class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      @click="handleDeleteBoardTerm(term.id)"
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Icon name="lucide:trash-2" class="w-4 h-4" />
-                    </Button>
+                    <div class="flex gap-2">
+                      <Button
+                        @click="handleEditBoardTerm(term)"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Icon name="lucide:edit" class="w-4 h-4" />
+                      </Button>
+                      <Button
+                        @click="handleDeleteBoardTerm(term.id)"
+                        variant="ghost"
+                        size="sm"
+                      >
+                        <Icon name="lucide:trash-2" class="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <AppEmptyState
-                v-else
-                icon="lucide:award"
-                title="No active board members"
-                description="Board positions added here appear on your community's public Board page."
-              />
-            </CardContent>
-          </Card>
-
-          <!-- Past Board Members -->
-          <Card v-if="pastBoardTerms?.length">
-            <CardHeader>
-              <CardTitle>Past Board Members</CardTitle>
-              <CardDescription>
-                Historical board positions (expired or inactive)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="space-y-3">
-                <div
-                  v-for="term in pastBoardTerms"
-                  :key="term.id"
-                  class="flex items-center justify-between p-4 border rounded-lg t-bg-subtle"
-                >
-                  <div class="flex items-center gap-4">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 t-text-secondary"
-                    >
-                      {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
-                    </div>
-                    <div>
-                      <p class="font-medium t-text-secondary">
-                        {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
-                      </p>
-                      <span class="text-xs t-text-muted">
-                        {{ formatBoardTitle(term.title) }}
-                      </span>
-                      <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
-                        <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
-                        <span v-if="term.term_start && term.term_end"> - </span>
-                        <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex gap-2">
-                    <Button
-                      @click="handleEditBoardTerm(term)"
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Icon name="lucide:edit" class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      @click="handleDeleteBoardTerm(term.id)"
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <Icon name="lucide:trash-2" class="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        </AppTabPanels>
 
         <!-- Add/Edit Member Modal -->
         <Dialog v-model:open="showAddModal">

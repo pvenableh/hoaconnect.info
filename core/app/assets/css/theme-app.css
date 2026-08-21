@@ -235,8 +235,33 @@ html.theme-app .field-underline {
 	-webkit-backdrop-filter: blur(10px) saturate(130%);
 	box-shadow: var(--glass-rim-shadow),
 		inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.1);
-	padding-inline: 0.875rem;
 	transition: box-shadow 200ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+
+/* A glass field needs inner padding — the underline it replaces deliberately had
+   none. Two cases, because `.field-underline` sets `padding-left: 0` UNLAYERED,
+   which beats every Tailwind padding utility:
+   1. No padding utility at the call site → supply the default.
+   2. A padding utility IS present (a search box with `pl-10` to clear its icon)
+      → `revert-layer` hands control back to the utilities layer, so the call
+      site's value wins. Without this the icon and the text overlap — which they
+      did in every theme, since `.field-underline` was already overriding those
+      utilities long before this file existed. */
+html.theme-app .field-underline:not([class*="pl-"]):not([class*="px-"]):not([class*="ps-"]) {
+	padding-inline-start: 0.875rem;
+}
+html.theme-app .field-underline:not([class*="pr-"]):not([class*="px-"]):not([class*="pe-"]) {
+	padding-inline-end: 0.875rem;
+}
+html.theme-app .field-underline[class*="pl-"],
+html.theme-app .field-underline[class*="px-"],
+html.theme-app .field-underline[class*="ps-"] {
+	padding-inline-start: revert-layer;
+}
+html.theme-app .field-underline[class*="pr-"],
+html.theme-app .field-underline[class*="px-"],
+html.theme-app .field-underline[class*="pe-"] {
+	padding-inline-end: revert-layer;
 }
 html.theme-app.dark .field-underline {
 	background: color-mix(in srgb, var(--theme-bg-elevated) 45%, transparent);
