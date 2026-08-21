@@ -399,7 +399,7 @@ useSeoMeta({
 
         <!-- Access Denied -->
         <div v-else-if="!hasAccess" class="text-center py-12">
-          <Icon name="lucide:shield-x" class="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <Icon name="lucide:shield-x" class="w-16 h-16 text-destructive mx-auto mb-4" />
           <h2 class="text-xl font-semibold mb-2">Access Denied</h2>
           <p class="t-text-secondary">
             You don't have permission to view email activity.
@@ -427,14 +427,14 @@ useSeoMeta({
               </CardContent>
               <div
                 v-if="totalCounts.total > 0"
-                class="absolute bottom-0 left-0 h-1 bg-gray-300 dark:bg-gray-700 transition-all duration-500"
+                class="absolute bottom-0 left-0 h-1 bg-muted-foreground/30 transition-all duration-500"
                 :style="{ width: `${getPercentage(activities.length, totalCounts.total)}%` }"
               ></div>
             </Card>
 
             <Card class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
-                <div class="text-2xl font-bold text-green-600">
+                <div class="text-2xl font-bold text-success">
                   {{ totalCounts.delivered.toLocaleString() }}
                 </div>
                 <div class="text-xs t-text-secondary uppercase tracking-wide">
@@ -449,14 +449,14 @@ useSeoMeta({
               </CardContent>
               <div
                 v-if="totalCounts.total > 0"
-                class="absolute bottom-0 left-0 h-1 bg-green-500 transition-all duration-500"
+                class="absolute bottom-0 left-0 h-1 bg-success transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.delivered, totalCounts.total)}%` }"
               ></div>
             </Card>
 
             <Card class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
-                <div class="text-2xl font-bold text-blue-600">
+                <div class="text-2xl font-bold text-blue-700 dark:text-blue-200">
                   {{ totalCounts.open.toLocaleString() }}
                 </div>
                 <div class="text-xs t-text-secondary uppercase tracking-wide">Opens</div>
@@ -473,7 +473,7 @@ useSeoMeta({
 
             <Card class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
-                <div class="text-2xl font-bold text-purple-600">
+                <div class="text-2xl font-bold text-purple-700 dark:text-purple-200">
                   {{ totalCounts.click.toLocaleString() }}
                 </div>
                 <div class="text-xs t-text-secondary uppercase tracking-wide">Clicks</div>
@@ -490,7 +490,7 @@ useSeoMeta({
 
             <Card class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
-                <div class="text-2xl font-bold text-red-600">
+                <div class="text-2xl font-bold text-warning">
                   {{ totalCounts.bounce.toLocaleString() }}
                 </div>
                 <div class="text-xs t-text-secondary uppercase tracking-wide">Bounces</div>
@@ -504,7 +504,7 @@ useSeoMeta({
               </CardContent>
               <div
                 v-if="totalCounts.total > 0"
-                class="absolute bottom-0 left-0 h-1 bg-red-500 transition-all duration-500"
+                class="absolute bottom-0 left-0 h-1 bg-warning transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.bounce, totalCounts.total)}%` }"
               ></div>
             </Card>

@@ -434,7 +434,7 @@ const {
                         <span class="text-sm font-medium t-text truncate">{{ s.label }}</span>
                         <span
                           v-if="s.to === '/admin/approvals' && pendingApprovals > 0"
-                          class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold"
+                          class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-warning text-warning-foreground text-[11px] font-semibold"
                           >{{ pendingApprovals }}</span
                         >
                       </NuxtLink>
@@ -470,7 +470,7 @@ const {
                         <p class="text-xs t-text-muted mt-0.5">Total Sent</p>
                       </div>
                       <div class="ios-card p-4 text-center">
-                        <p class="text-2xl font-semibold tabular-nums text-emerald-600">{{ emailEngagementStats.totalDelivered }}</p>
+                        <p class="text-2xl font-semibold tabular-nums text-success">{{ emailEngagementStats.totalDelivered }}</p>
                         <p class="text-xs t-text-muted mt-0.5">Delivered</p>
                       </div>
                       <div class="ios-card p-4 text-center">

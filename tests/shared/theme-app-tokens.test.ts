@@ -95,6 +95,65 @@ describe("theme-app token completeness", () => {
     return { light: m[1], dark: m[2] };
   }
 
+  // The status tokens went untested until `--destructive` was found sitting at
+  // 1.70:1 on the dark card. It was never declared in theme-app at all, so it
+  // inherited shadcn's stock pair — which is built for a FILL (deep red, white
+  // on top) and is unusable as the text colour the workspace mostly uses it as.
+  // Nothing failed; the red simply stopped being visible when the lights went
+  // out. These two tests are the tripwire for the whole status family.
+  const STATUS = ["--destructive", "--success", "--warning", "--info"] as const;
+
+  // theme-app.css opens `html.theme-app {` TWICE — once for the `--theme-*` set
+  // and again lower down for the shadcn bridge, which is where the status
+  // tokens live. `pair()` above reads the first block only, so it cannot see
+  // them. Search the whole file instead; the regex demands a light-dark() hex
+  // pair, which the @supports fallback block does not have, so there is nothing
+  // else it can match.
+  function statusPair(token: string): { light: string; dark: string } {
+    const m = THEME_APP_CSS.match(
+      new RegExp(`${token}\\s*:\\s*light-dark\\(\\s*(#[0-9a-f]{6})\\s*,\\s*(#[0-9a-f]{6})\\s*\\)`, "i"),
+    );
+    if (!m) throw new Error(`no light-dark() hex pair for ${token}`);
+    return { light: m[1], dark: m[2] };
+  }
+
+  it("clears WCAG AA for every status token used as text", () => {
+    const page = pair("--theme-bg-primary");
+    const card = pair("--theme-card-bg");
+
+    const failures: string[] = [];
+    for (const token of STATUS) {
+      const ink = statusPair(token);
+      for (const [mode, ground] of [
+        ["light/page", page.light],
+        ["light/card", card.light],
+        ["dark/page", page.dark],
+        ["dark/card", card.dark],
+      ] as const) {
+        const fg = mode.startsWith("light") ? ink.light : ink.dark;
+        const r = contrast(fg, ground);
+        if (r < 4.5) failures.push(`${token} on ${mode}: ${r.toFixed(2)}:1`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("keeps every status token legible against its own foreground", () => {
+    // Each of these is also painted solid with `--<token>-foreground` on top —
+    // a destructive button, a warning badge. Both readings have to work, which
+    // is only possible because the foreground flips with the token.
+    const failures: string[] = [];
+    for (const token of STATUS) {
+      const fill = statusPair(token);
+      const on = statusPair(`${token}-foreground`);
+      for (const mode of ["light", "dark"] as const) {
+        const r = contrast(fill[mode], on[mode]);
+        if (r < 4.5) failures.push(`${token} fill vs foreground (${mode}): ${r.toFixed(2)}:1`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
   it("clears WCAG AA for every text rung, on the page and on a card", () => {
     const page = pair("--theme-bg-primary");
     const card = pair("--theme-card-bg");

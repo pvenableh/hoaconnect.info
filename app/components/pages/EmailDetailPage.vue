@@ -210,13 +210,17 @@ const formatShortDate = (date: string | null | undefined) => {
   });
 };
 
+// Delivery state is SEMANTIC colour, so it rides the status tokens rather than
+// a hand-picked hue — same map EmailPage already uses, so a send reads the same
+// in the list and on its detail page. The tokens are `light-dark()` pairs, so
+// dark mode needs no second class.
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
     draft: "t-bg-subtle t-text-secondary",
-    scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
-    sending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-200",
-    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
-    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+    scheduled: "bg-info/15 text-info",
+    sending: "bg-warning/15 text-warning",
+    sent: "bg-success/15 text-success",
+    failed: "bg-destructive/15 text-destructive",
   };
   return classes[status] || classes.draft;
 };
@@ -224,10 +228,12 @@ const getStatusBadgeClass = (status: string) => {
 const getRecipientStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
     pending: "t-bg-subtle t-text-secondary",
-    sent: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
-    delivered: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200",
-    failed: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
-    bounced: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+    sent: "bg-success/15 text-success",
+    delivered: "bg-success/15 text-success",
+    failed: "bg-destructive/15 text-destructive",
+    // A bounce is recoverable in a way a hard failure is not, so it warns
+    // rather than alarms.
+    bounced: "bg-warning/15 text-warning",
   };
   return classes[status] || classes.pending;
 };
@@ -253,17 +259,25 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 };
 
+// Opens and clicks are CATEGORICAL colour: the hue separates two kinds of
+// engagement and carries no judgement, so they keep arbitrary hues. They do
+// need a dark pair — these were light-only, which is dark ink on a near-white
+// chip once the workspace goes dark. Everything else here is a delivery
+// outcome, which is semantic, so it takes a status token.
+const ENGAGEMENT_OPEN = "text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-500/20";
+const ENGAGEMENT_CLICK = "text-purple-700 bg-purple-100 dark:text-purple-200 dark:bg-purple-500/20";
+
 const getActivityEventInfo = (event: string) => {
   const events: Record<string, { icon: string; color: string; label: string }> = {
-    open: { icon: "lucide:eye", color: "text-blue-600 bg-blue-100", label: "Opened" },
-    click: { icon: "lucide:mouse-pointer-click", color: "text-purple-600 bg-purple-100", label: "Clicked" },
-    delivered: { icon: "lucide:check-circle", color: "text-green-600 bg-green-100", label: "Delivered" },
-    bounce: { icon: "lucide:alert-triangle", color: "text-orange-600 bg-orange-100", label: "Bounced" },
-    dropped: { icon: "lucide:x-circle", color: "text-red-600 bg-red-100", label: "Dropped" },
-    spam_report: { icon: "lucide:shield-alert", color: "text-red-600 bg-red-100", label: "Spam Report" },
-    unsubscribe: { icon: "lucide:user-minus", color: "text-amber-600 bg-amber-100", label: "Unsubscribed" },
+    open: { icon: "lucide:eye", color: ENGAGEMENT_OPEN, label: "Opened" },
+    click: { icon: "lucide:mouse-pointer-click", color: ENGAGEMENT_CLICK, label: "Clicked" },
+    delivered: { icon: "lucide:check-circle", color: "text-success bg-success/15", label: "Delivered" },
+    bounce: { icon: "lucide:alert-triangle", color: "text-warning bg-warning/15", label: "Bounced" },
+    dropped: { icon: "lucide:x-circle", color: "text-destructive bg-destructive/15", label: "Dropped" },
+    spam_report: { icon: "lucide:shield-alert", color: "text-destructive bg-destructive/15", label: "Spam Report" },
+    unsubscribe: { icon: "lucide:user-minus", color: "text-warning bg-warning/15", label: "Unsubscribed" },
     processed: { icon: "lucide:send", color: "t-text-secondary t-bg-subtle", label: "Processed" },
-    deferred: { icon: "lucide:clock", color: "text-yellow-600 bg-yellow-100", label: "Deferred" },
+    deferred: { icon: "lucide:clock", color: "text-warning bg-warning/15", label: "Deferred" },
   };
   return events[event] || { icon: "lucide:mail", color: "t-text-secondary t-bg-subtle", label: event };
 };
@@ -371,19 +385,19 @@ useSeoMeta({
               </Card>
               <Card class="p-3">
                 <div class="text-center">
-                  <p class="text-xl font-bold text-green-600">{{ email.delivered_count || 0 }}</p>
+                  <p class="text-xl font-bold text-success">{{ email.delivered_count || 0 }}</p>
                   <p class="text-xs t-text-muted">Delivered</p>
                 </div>
               </Card>
               <Card class="p-3">
                 <div class="text-center">
-                  <p class="text-xl font-bold text-red-600">{{ email.failed_count || 0 }}</p>
+                  <p class="text-xl font-bold text-destructive">{{ email.failed_count || 0 }}</p>
                   <p class="text-xs t-text-muted">Failed</p>
                 </div>
               </Card>
               <Card class="p-3">
                 <div class="text-center">
-                  <p class="text-xl font-bold text-emerald-600">
+                  <p class="text-xl font-bold text-success">
                     {{ email.recipient_count ? Math.round(((email.delivered_count || 0) / email.recipient_count) * 100) : 0 }}%
                   </p>
                   <p class="text-xs t-text-muted">Rate</p>
@@ -503,21 +517,21 @@ useSeoMeta({
                       v-if="activityStats"
                       class="grid grid-cols-4 gap-2 mb-4"
                     >
-                      <div class="text-center p-2 bg-blue-50 rounded-lg">
-                        <p class="text-lg font-bold text-blue-600">{{ activityStats.uniqueOpens }}</p>
-                        <p class="text-xs text-blue-600">Opens</p>
+                      <div class="text-center p-2 rounded-lg bg-blue-100 dark:bg-blue-500/15">
+                        <p class="text-lg font-bold text-blue-700 dark:text-blue-200">{{ activityStats.uniqueOpens }}</p>
+                        <p class="text-xs text-blue-700 dark:text-blue-200">Opens</p>
                       </div>
-                      <div class="text-center p-2 bg-purple-50 rounded-lg">
-                        <p class="text-lg font-bold text-purple-600">{{ activityStats.uniqueClicks }}</p>
-                        <p class="text-xs text-purple-600">Clicks</p>
+                      <div class="text-center p-2 rounded-lg bg-purple-100 dark:bg-purple-500/15">
+                        <p class="text-lg font-bold text-purple-700 dark:text-purple-200">{{ activityStats.uniqueClicks }}</p>
+                        <p class="text-xs text-purple-700 dark:text-purple-200">Clicks</p>
                       </div>
-                      <div class="text-center p-2 bg-orange-50 rounded-lg">
-                        <p class="text-lg font-bold text-orange-600">{{ activityStats.bounces }}</p>
-                        <p class="text-xs text-orange-600">Bounces</p>
+                      <div class="text-center p-2 rounded-lg bg-warning/15">
+                        <p class="text-lg font-bold text-warning">{{ activityStats.bounces }}</p>
+                        <p class="text-xs text-warning">Bounces</p>
                       </div>
-                      <div class="text-center p-2 bg-red-50 rounded-lg">
-                        <p class="text-lg font-bold text-red-600">{{ activityStats.spamReports }}</p>
-                        <p class="text-xs text-red-600">Spam</p>
+                      <div class="text-center p-2 rounded-lg bg-destructive/15">
+                        <p class="text-lg font-bold text-destructive">{{ activityStats.spamReports }}</p>
+                        <p class="text-xs text-destructive">Spam</p>
                       </div>
                     </div>
 
@@ -536,7 +550,7 @@ useSeoMeta({
                           <a
                             :href="link.url"
                             target="_blank"
-                            class="text-blue-600 hover:underline truncate max-w-[70%]"
+                            class="text-primary hover:underline truncate max-w-[70%]"
                           >
                             {{ link.url }}
                           </a>
@@ -572,7 +586,7 @@ useSeoMeta({
                                 - {{ activity.recipientName }}
                               </span>
                             </div>
-                            <div v-if="activity.clickedUrl" class="text-xs text-blue-600 truncate">
+                            <div v-if="activity.clickedUrl" class="text-xs text-primary truncate">
                               {{ activity.clickedUrl }}
                             </div>
                           </div>
@@ -673,17 +687,21 @@ useSeoMeta({
 
                     <!-- Rates Summary -->
                     <div v-if="activityStats && email.delivered_count" class="mt-6 grid grid-cols-2 gap-4">
-                      <div class="text-center p-4 bg-cyan-50 rounded-lg">
-                        <p class="text-2xl font-bold text-cyan-600">
+                      <!-- These two rates measure the Opens and Clicks tiles above,
+                           so they take the same two hues. They used to be cyan and
+                           indigo, which tied them to nothing and put cyan — the
+                           workspace accent — on something that is not an action. -->
+                      <div class="text-center p-4 rounded-lg bg-blue-100 dark:bg-blue-500/15">
+                        <p class="text-2xl font-bold text-blue-700 dark:text-blue-200">
                           {{ Math.round((activityStats.uniqueOpens / email.delivered_count) * 100) }}%
                         </p>
-                        <p class="text-sm text-cyan-600">Open Rate</p>
+                        <p class="text-sm text-blue-700 dark:text-blue-200">Open Rate</p>
                       </div>
-                      <div class="text-center p-4 bg-indigo-50 rounded-lg">
-                        <p class="text-2xl font-bold text-indigo-600">
+                      <div class="text-center p-4 rounded-lg bg-purple-100 dark:bg-purple-500/15">
+                        <p class="text-2xl font-bold text-purple-700 dark:text-purple-200">
                           {{ activityStats.uniqueOpens ? Math.round((activityStats.uniqueClicks / activityStats.uniqueOpens) * 100) : 0 }}%
                         </p>
-                        <p class="text-sm text-indigo-600">Click-to-Open</p>
+                        <p class="text-sm text-purple-700 dark:text-purple-200">Click-to-Open</p>
                       </div>
                     </div>
                   </div>

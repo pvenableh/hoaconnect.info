@@ -370,7 +370,13 @@
 /* ---- Auto-upgrade shadcn <Card> inside .ui-kit pages to the iOS look ----
  * Scoped to .ui-kit so pages that haven't opted in are untouched. Selector
  * specificity (0,2,0) beats Tailwind's single-class utilities, so the card's
- * own `rounded-xl border shadow-sm` are overridden without !important. */
+ * own `rounded-xl border shadow-sm` are overridden without !important.
+ *
+ * CAVEAT, measured: that also means a `border-*` utility written at a CALL SITE
+ * on a <Card> is silently inert — `<Card class="border-destructive/50">` renders
+ * the ordinary hairline. Tailwind emits this block into the utilities layer too,
+ * after the single-class utilities, so specificity decides and (0,2,0) wins.
+ * To tint a card's edge, use a ring, or a plain <div> instead of <Card>. */
 .ui-kit [data-slot='card'] {
 	border-radius: 1rem;
 	border-color: color-mix(in srgb, var(--theme-border-primary, #e5e5e5) 50%, transparent);

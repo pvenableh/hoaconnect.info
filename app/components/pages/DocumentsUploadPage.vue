@@ -195,7 +195,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-50">
+  <div class="min-h-screen t-bg">
     <PageContainer class="space-y-6">
         <AppPageHeader
           :back-to="buildOrgPath('/admin/documents')"
@@ -228,7 +228,7 @@ const handleSubmit = async () => {
                   {{ cat.name }}
                 </option>
               </select>
-              <p v-else class="text-sm text-stone-500 p-2 border rounded bg-stone-50">
+              <p v-else class="text-sm t-text-muted p-2 border rounded t-bg-subtle">
                 No categories available.
                 <NuxtLink to="/documents" class="text-primary hover:underline">
                   Create categories
@@ -260,10 +260,10 @@ const handleSubmit = async () => {
               <label class="text-sm font-medium mb-2 block">File *</label>
               <div
                 ref="dropZoneRef"
-                class="relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50"
+                class="relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer hover:border-primary/60 hover:bg-primary/5"
                 :class="{
-                  'border-blue-500 bg-blue-50': isOverDropZone,
-                  'border-stone-300 bg-stone-50': !isOverDropZone,
+                  'border-primary bg-primary/10': isOverDropZone,
+                  't-border t-bg-subtle': !isOverDropZone,
                 }"
                 @click="triggerFileInput"
               >
@@ -271,16 +271,16 @@ const handleSubmit = async () => {
                   <div
                     class="w-16 h-16 rounded-full flex items-center justify-center transition-colors"
                     :class="{
-                      'bg-blue-100': isOverDropZone,
-                      'bg-stone-200': !isOverDropZone,
+                      'bg-primary/15': isOverDropZone,
+                      't-bg-alt': !isOverDropZone,
                     }"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       class="h-8 w-8"
                       :class="{
-                        'text-blue-600': isOverDropZone,
-                        'text-stone-600': !isOverDropZone,
+                        'text-primary': isOverDropZone,
+                        't-text-secondary': !isOverDropZone,
                       }"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -296,19 +296,19 @@ const handleSubmit = async () => {
                   </div>
 
                   <div>
-                    <p class="text-lg font-medium text-stone-700">
+                    <p class="text-lg font-medium t-text">
                       {{ isOverDropZone ? 'Drop your file here' : 'Drag and drop your file here' }}
                     </p>
-                    <p class="text-sm text-stone-500 mt-1">
+                    <p class="text-sm t-text-muted mt-1">
                       or click to browse
                     </p>
                   </div>
 
-                  <div v-if="form.file" class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div v-if="form.file" class="mt-2 p-3 bg-success/10 border border-success/30 rounded-lg">
                     <div class="flex items-center gap-2">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5 text-green-600"
+                        class="h-5 w-5 text-success"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -320,16 +320,16 @@ const handleSubmit = async () => {
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <span class="text-sm font-medium text-green-700">
+                      <span class="text-sm font-medium text-success">
                         {{ form.file.name }}
                       </span>
-                      <span class="text-xs text-green-600">
+                      <span class="text-xs text-success">
                         ({{ (form.file.size / 1024 / 1024).toFixed(2) }} MB)
                       </span>
                     </div>
                   </div>
 
-                  <p class="text-xs text-stone-400 mt-2">
+                  <p class="text-xs t-text-muted mt-2">
                     Accepted: PDF, Word, Excel
                   </p>
                 </div>

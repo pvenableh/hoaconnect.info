@@ -621,9 +621,9 @@ useSeoMeta({
             <!-- Join Requests Tab -->
             <div v-if="activeTab === 'requests'" class="space-y-4">
               <!-- Info Box -->
-              <Card class="bg-amber-50 border-amber-200">
+              <Card class="bg-info/10">
                 <CardContent class="pt-6">
-                  <p class="text-sm text-amber-900">
+                  <p class="text-sm t-text">
                     <strong>Join Requests:</strong>
                     Users who have registered and requested to join your HOA will appear here.
                     Review their details and approve or reject their request.
@@ -718,9 +718,9 @@ useSeoMeta({
             <!-- Connect Users Tab -->
             <div v-if="activeTab === 'connect'" class="space-y-4">
               <!-- Info Box -->
-              <Card class="bg-blue-50 border-blue-200">
+              <Card class="bg-info/10">
                 <CardContent class="pt-6">
-                  <p class="text-sm text-blue-900">
+                  <p class="text-sm t-text">
                     <strong>Connect Users:</strong>
                     These are member records that don't have a linked user account.
                     You can connect them to existing user accounts so members can log in.
@@ -745,7 +745,7 @@ useSeoMeta({
                     >
                       <div class="flex items-center gap-3">
                         <div
-                          class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold t-text-secondary"
+                          class="w-10 h-10 rounded-full t-bg-alt flex items-center justify-center text-sm font-semibold t-text-secondary"
                         >
                           {{ member.first_name?.[0] || '' }}{{ member.last_name?.[0] || '' }}
                         </div>
@@ -793,7 +793,7 @@ useSeoMeta({
               </DialogHeader>
               <div v-if="selectedRequest" class="grid gap-4 py-4">
                 <!-- User Info -->
-                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-4 p-4 t-bg-subtle rounded-lg">
                   <div
                     class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-semibold text-primary"
                   >
@@ -890,9 +890,9 @@ useSeoMeta({
               </DialogHeader>
               <div v-if="selectedMemberForConnect" class="grid gap-4 py-4">
                 <!-- Member Info -->
-                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-4 p-4 t-bg-subtle rounded-lg">
                   <div
-                    class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold t-text-secondary"
+                    class="w-12 h-12 rounded-full t-bg-alt flex items-center justify-center text-lg font-semibold t-text-secondary"
                   >
                     {{ selectedMemberForConnect.first_name?.[0] || '' }}{{ selectedMemberForConnect.last_name?.[0] || '' }}
                   </div>

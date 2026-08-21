@@ -355,7 +355,7 @@ const meterBarClass = computed(() =>
   storagePct.value >= 90
     ? "bg-destructive"
     : storagePct.value >= 75
-      ? "bg-amber-500"
+      ? "bg-warning"
       : "bg-primary"
 );
 
@@ -609,7 +609,7 @@ async function loadFolderSize(id: string) {
           @dblclick="openFolder(folder)"
           @click="openFolder(folder)"
         >
-          <Icon name="lucide:folder" class="h-12 w-12 text-amber-400" />
+          <Icon name="lucide:folder" class="h-12 w-12 text-amber-600 dark:text-amber-400" />
           <span class="line-clamp-2 w-full break-words text-xs font-medium">{{ folder.name }}</span>
           <div v-if="canManage" class="absolute right-1 top-1 opacity-0 transition group-hover:opacity-100" @click.stop>
             <DropdownMenu>
@@ -898,7 +898,7 @@ async function loadFolderSize(id: string) {
             <Icon name="lucide:image" class="mt-0.5 h-5 w-5 text-primary" />
             <div>
               <p class="text-sm font-medium">Optimize as WebP (smaller)</p>
-              <p class="text-xs text-amber-600">Smaller files, but WebP doesn't display in Outlook or Gmail email.</p>
+              <p class="text-xs text-warning">Smaller files, but WebP doesn't display in Outlook or Gmail email.</p>
             </div>
           </button>
           <p v-if="optimizeBusy" class="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
@@ -908,7 +908,7 @@ async function loadFolderSize(id: string) {
 
         <div v-else class="rounded-xl border bg-muted/30 p-4 text-center">
           <template v-if="optimizeResult.optimized">
-            <p class="text-sm font-medium text-green-600">
+            <p class="text-sm font-medium text-success">
               Saved {{ formatFileSize(Math.max(0, optimizeResult.before - optimizeResult.after)) }}
             </p>
             <p class="mt-1 text-xs text-muted-foreground">
@@ -942,7 +942,7 @@ async function loadFolderSize(id: string) {
             Optimizing… {{ sweepProcessed }} processed
           </p>
           <template v-else>
-            <p class="text-sm font-medium text-green-600">
+            <p class="text-sm font-medium text-success">
               Reclaimed {{ formatFileSize(sweepReclaimed) }}
             </p>
             <p class="mt-1 text-xs text-muted-foreground">
@@ -988,7 +988,7 @@ async function loadFolderSize(id: string) {
               :class="folder.id === moveTarget?.id ? 'cursor-not-allowed opacity-40' : ''"
               @click="loadMoveNav(folder.id)"
             >
-              <Icon name="lucide:folder" class="h-4 w-4 text-amber-400" />
+              <Icon name="lucide:folder" class="h-4 w-4 text-amber-600 dark:text-amber-400" />
               {{ folder.name }}
               <Icon name="lucide:chevron-right" class="ml-auto h-4 w-4 opacity-40" />
             </button>

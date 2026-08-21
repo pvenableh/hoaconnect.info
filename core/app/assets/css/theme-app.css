@@ -198,12 +198,25 @@ html.theme-app {
 	--border: var(--theme-border-primary);
 	--input: var(--theme-border-primary);
 	--ring: var(--theme-accent-primary);
-	/* --destructive stays the shared red so danger reads the same everywhere. */
-
 	/* Status colours. These existed only as hardcoded Tailwind palette classes
 	   before (text-emerald-600, text-rose-600 and friends), which is why status
 	   never followed the theme. */
-	--success: light-dark(#0f8a4c, #34d399);
+
+	/* `--destructive` used to be left alone here, inheriting shadcn's stock
+	   pair. That pair is built for a FILL — a deep red with white on top — so
+	   its dark value is #7f1d1d, and the workspace uses `text-destructive` far
+	   more than it uses a destructive button. Measured on the dark card:
+	   1.70:1. Invisible. It is now a light-dark() pair like its three siblings,
+	   which means the ~90 `text-destructive` / `bg-destructive/15` call sites
+	   come good without being touched. The one place that paints it solid (the
+	   destructive button) swaps `text-white` for `--destructive-foreground`,
+	   which flips with it. */
+	--destructive: light-dark(#c62828, #f87171);
+	--destructive-foreground: light-dark(#ffffff, #200606);
+
+	/* Nudged from #0f8a4c, which measured 4.41:1 on a white card — under AA,
+	   and now caught by the token test rather than by someone squinting. */
+	--success: light-dark(#0e8248, #34d399);
 	--success-foreground: light-dark(#ffffff, #04170e);
 	--warning: light-dark(#a16207, #fbbf24);
 	--warning-foreground: light-dark(#ffffff, #1a1204);
@@ -490,6 +503,8 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		--theme-focus-ring: 0 0 0 2px rgba(56, 207, 240, 0.35);
 		--theme-divider: #232e38;
 		--theme-divider-light: #1a232c;
+		--destructive: #f87171;
+		--destructive-foreground: #200606;
 		--success: #34d399;
 		--success-foreground: #04170e;
 		--warning: #fbbf24;

@@ -78,7 +78,7 @@ function daysLeft(iso: string | null): number | null {
 const STATUS_VISUAL: Record<ExportRow["status"], { label: string; icon: string; class: string }> = {
   queued: { label: "Queued", icon: "lucide:clock", class: "text-muted-foreground" },
   running: { label: "Preparing", icon: "lucide:loader-2", class: "text-muted-foreground" },
-  ready: { label: "Ready", icon: "lucide:check-circle-2", class: "text-green-600" },
+  ready: { label: "Ready", icon: "lucide:check-circle-2", class: "text-success" },
   failed: { label: "Failed", icon: "lucide:alert-circle", class: "text-destructive" },
   expired: { label: "Expired", icon: "lucide:archive-x", class: "text-muted-foreground" },
 };

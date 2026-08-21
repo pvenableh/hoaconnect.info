@@ -611,7 +611,7 @@ const handleDelete = async (id: string) => {
                     <option value="excused">Excused</option>
                     <option value="proxy">Proxy</option>
                   </select>
-                  <button type="button" class="t-text-muted hover:text-red-500" @click="removeAttendeeRow(idx)">
+                  <button type="button" class="t-text-muted hover:text-destructive" @click="removeAttendeeRow(idx)">
                     <Icon name="i-lucide-x" class="size-4" />
                   </button>
                 </span>

@@ -18,7 +18,7 @@ export const buttonVariants = cva(
         default:
           "glass-btn-primary bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "glass-btn-destructive bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+          "glass-btn-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
           "glass-btn-soft hover:text-accent-foreground",
         secondary:

@@ -99,7 +99,7 @@ const statusLabel = computed(() => {
 });
 const statusClass = computed(() => {
   if (!hasDomain.value) return "t-bg-subtle t-text-secondary";
-  return isVerified.value ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
+  return isVerified.value ? "bg-success/15 text-success" : "bg-warning/15 text-warning";
 });
 
 const connect = async () => {
@@ -315,7 +315,7 @@ useSeoMeta({ title: "Public site" });
                 Disconnect
               </Button>
             </div>
-            <p v-if="isVerified" class="text-sm text-green-700 flex items-center gap-1.5">
+            <p v-if="isVerified" class="text-sm text-success flex items-center gap-1.5">
               <Icon name="lucide:check-circle" class="w-4 h-4" />
               Verified — your public site is served at this domain.
             </p>

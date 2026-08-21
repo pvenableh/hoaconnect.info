@@ -163,6 +163,10 @@ const getStatusBadgeClass = (status: string) => {
 const getEmailTypeBadgeClass = (type: string) => {
   const classes: Record<string, string> = {
     basic: "t-bg-subtle t-text-secondary",
+    // CATEGORICAL — the hue names the kind of email, not how it went, so these
+    // keep arbitrary hues. `alert` is red because alerts are red, not because
+    // anything failed; it deliberately does NOT use the destructive token,
+    // which on this page means "this send failed".
     alert: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200",
     newsletter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
     announcement: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
@@ -236,8 +240,8 @@ useSeoMeta({
             <Card>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
-                  <div class="p-2 bg-blue-100 rounded-lg">
-                    <Icon name="lucide:mail" class="w-5 h-5 text-blue-600" />
+                  <div class="p-2 bg-primary/15 rounded-lg">
+                    <Icon name="lucide:mail" class="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <p class="text-2xl font-bold">{{ pagination.total }}</p>
@@ -249,8 +253,8 @@ useSeoMeta({
             <Card>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
-                  <div class="p-2 bg-green-100 rounded-lg">
-                    <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600" />
+                  <div class="p-2 bg-success/15 rounded-lg">
+                    <Icon name="lucide:check-circle" class="w-5 h-5 text-success" />
                   </div>
                   <div>
                     <p class="text-2xl font-bold">
@@ -279,8 +283,8 @@ useSeoMeta({
             <Card>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
-                  <div class="p-2 bg-red-100 rounded-lg">
-                    <Icon name="lucide:alert-triangle" class="w-5 h-5 text-red-600" />
+                  <div class="p-2 bg-destructive/15 rounded-lg">
+                    <Icon name="lucide:alert-triangle" class="w-5 h-5 text-destructive" />
                   </div>
                   <div>
                     <p class="text-2xl font-bold">

@@ -316,7 +316,7 @@ useSeoMeta({ title: "Design your site" });
           </Button>
           <h1 class="text-2xl font-semibold t-text flex items-center gap-2">
             Design your site
-            <span v-if="dirty" class="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />
+            <span v-if="dirty" class="w-2 h-2 rounded-full bg-warning" title="Unsaved changes" />
           </h1>
           <p class="text-sm t-text-muted mt-0.5">
             Build your community's public landing page — add sections, drag to reorder, and watch it

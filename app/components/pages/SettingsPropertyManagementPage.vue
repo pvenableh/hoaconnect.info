@@ -425,7 +425,7 @@ watch(orgId, () => {
 </script>
 
 <template>
-  <div class="ui-kit accent-blue min-h-screen t-bg">
+  <div class="min-h-screen t-bg">
     <PageContainer>
       <div class="mb-8">
         <h1 class="text-3xl font-bold t-text">Vendors &amp; management</h1>
@@ -472,11 +472,11 @@ watch(orgId, () => {
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="font-medium t-text truncate">{{ vendorTitle(v) }}</span>
-                      <span class="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0">{{ categoryLabel(v) }}</span>
-                      <span v-if="v.category === 'management' && v.management_role" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">{{ roleLabel(v.management_role) }}</span>
-                      <span v-if="v.show_to_members === false" class="text-xs px-2 py-0.5 rounded-full bg-stone-200 text-stone-600 shrink-0">Hidden</span>
-                      <span v-if="v.status === 'inactive'" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Inactive</span>
-                      <span v-if="v.status === 'archived'" class="text-xs px-2 py-0.5 rounded-full bg-stone-300 text-stone-700 shrink-0">Archived</span>
+                      <span class="text-xs px-2 py-0.5 rounded-full t-bg-subtle t-text-secondary shrink-0">{{ categoryLabel(v) }}</span>
+                      <span v-if="v.category === 'management' && v.management_role" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200 shrink-0">{{ roleLabel(v.management_role) }}</span>
+                      <span v-if="v.show_to_members === false" class="text-xs px-2 py-0.5 rounded-full t-bg-alt t-text-secondary shrink-0">Hidden</span>
+                      <span v-if="v.status === 'inactive'" class="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning shrink-0">Inactive</span>
+                      <span v-if="v.status === 'archived'" class="text-xs px-2 py-0.5 rounded-full t-bg-alt t-text-muted shrink-0">Archived</span>
                     </div>
                     <div class="text-sm t-text-muted truncate">
                       <span v-if="v.company && v.name">{{ v.name }} · </span>{{ v.email || "no email" }}<span v-if="v.phone"> · {{ v.phone }}</span>
@@ -488,7 +488,7 @@ watch(orgId, () => {
                   <Button variant="ghost" size="sm" class="rounded-full" @click="archiveVendor(v)" :title="v.status === 'archived' ? 'Restore' : 'Archive'">
                     <Icon :name="v.status === 'archived' ? 'lucide:archive-restore' : 'lucide:archive'" class="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" class="rounded-full text-rose-600" @click="deleteVendor(v)" title="Delete">
+                  <Button variant="ghost" size="sm" class="rounded-full text-destructive" @click="deleteVendor(v)" title="Delete">
                     <Icon name="lucide:trash-2" class="h-4 w-4" />
                   </Button>
                 </div>
@@ -520,13 +520,13 @@ watch(orgId, () => {
                     <div class="min-w-0">
                       <div class="font-medium t-text truncate flex items-center gap-2">
                         {{ (m.first_name || "") + " " + (m.last_name || "") }}
-                        <span v-if="presetLabel(m)" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0 font-normal">
+                        <span v-if="presetLabel(m)" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200 shrink-0 font-normal">
                           {{ presetLabel(m) }}
                         </span>
                       </div>
                       <div class="text-sm t-text-muted truncate">{{ m.email }}</div>
                     </div>
-                    <span v-if="m.status && m.status !== 'active'" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 capitalize">{{ m.status }}</span>
+                    <span v-if="m.status && m.status !== 'active'" class="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning shrink-0 capitalize">{{ m.status }}</span>
                   </div>
 
                   <div class="flex items-center gap-2 flex-wrap mb-3">
@@ -584,7 +584,7 @@ watch(orgId, () => {
             <CardContent>
               <div v-if="loadingRouting" class="py-10 text-center t-text-muted">Loading…</div>
               <template v-else>
-                <div class="flex items-center justify-between gap-3 p-4 rounded-lg border bg-stone-50 mb-4">
+                <div class="flex items-center justify-between gap-3 p-4 rounded-lg border t-bg-subtle mb-4">
                   <div class="space-y-0.5">
                     <Label class="text-base font-medium">Always notify the board</Label>
                     <p class="text-sm t-text-muted">The board is notified on every inquiry, in addition to the routed vendor.</p>
@@ -617,7 +617,7 @@ watch(orgId, () => {
 
     <!-- Vendor dialog -->
     <Dialog v-model:open="dialogOpen">
-      <DialogContent class="max-h-[90vh] overflow-y-auto">
+      <DialogContent class="ui-kit max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ editing.id ? "Edit vendor" : "Add vendor" }}</DialogTitle>
           <DialogDescription>A service provider for this community.</DialogDescription>
@@ -698,7 +698,7 @@ watch(orgId, () => {
           </div>
 
           <!-- Management-only routing fields -->
-          <div v-if="isManagement" class="rounded-lg border p-3 space-y-3 bg-blue-50/40">
+          <div v-if="isManagement" class="rounded-lg border p-3 space-y-3 bg-info/10">
             <p class="text-sm font-medium t-text">Management settings</p>
             <div class="space-y-1.5">
               <Label class="text-sm">Handles which inquiries</Label>
@@ -732,7 +732,7 @@ watch(orgId, () => {
 
     <!-- Invite dialog -->
     <Dialog v-model:open="inviteOpen">
-      <DialogContent>
+      <DialogContent class="ui-kit">
         <DialogHeader>
           <DialogTitle>Invite property manager</DialogTitle>
           <DialogDescription>Pick what they can do now — it takes effect the moment they accept.</DialogDescription>
@@ -760,14 +760,14 @@ watch(orgId, () => {
                 :key="p.key"
                 type="button"
                 class="w-full flex items-start gap-3 rounded-xl border p-3 text-left"
-                :class="invite.preset === p.key ? 'border-blue-500 bg-blue-50' : 't-border'"
+                :class="invite.preset === p.key ? 'border-primary bg-primary/10' : 't-border'"
                 @click="invite.preset = p.key"
               >
                 <span
                   class="h-4 w-4 mt-0.5 rounded-full border-2 shrink-0 grid place-items-center"
-                  :class="invite.preset === p.key ? 'border-blue-600' : 't-border'"
+                  :class="invite.preset === p.key ? 'border-primary' : 't-border'"
                 >
-                  <span v-if="invite.preset === p.key" class="h-2 w-2 rounded-full bg-blue-600" />
+                  <span v-if="invite.preset === p.key" class="h-2 w-2 rounded-full bg-primary" />
                 </span>
                 <span class="min-w-0">
                   <span class="block text-sm font-medium t-text">{{ p.label }}</span>

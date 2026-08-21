@@ -67,7 +67,9 @@ const getRoleDisplay = (roleId: string | null | undefined): string => {
   return role?.label || "Member";
 };
 
-// Get role badge color
+// Get role badge color. CATEGORICAL — purple marks "this one is an admin"
+// against the neutral default; it is a kind, not a status, so it keeps its hue
+// (with a dark pair) rather than moving onto a status token.
 const getRoleBadgeClass = (roleId: string | null | undefined): string => {
   if (roleId === config.public.directusRoleHoaAdmin) {
     return "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200";
@@ -781,13 +783,13 @@ useSeoMeta({
                       <div class="text-right">
                         <div
                           v-if="isExpired(invitation.expires_at)"
-                          class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded"
+                          class="text-xs bg-destructive/15 text-destructive px-2 py-1 rounded"
                         >
                           Expired
                         </div>
                         <div
                           v-else
-                          class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded"
+                          class="text-xs bg-warning/15 text-warning px-2 py-1 rounded"
                         >
                           Pending
                         </div>
@@ -847,9 +849,9 @@ useSeoMeta({
           <!-- Board Tab -->
           <div v-if="activeTab === 'board'" class="space-y-6">
             <!-- Info Box -->
-            <Card class="bg-amber-50 border-amber-200">
+            <Card class="bg-info/10">
               <CardContent class="pt-6">
-                <p class="text-sm text-amber-900">
+                <p class="text-sm t-text">
                   <strong>Manage your HOA Board:</strong>
                   Assign board positions to members. Active board members will be displayed on the public Board page.
                 </p>
@@ -948,7 +950,7 @@ useSeoMeta({
                   >
                     <div class="flex items-center gap-4">
                       <div
-                        class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-stone-200 t-text-secondary"
+                        class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold t-bg-alt t-text-secondary"
                       >
                         {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
                       </div>

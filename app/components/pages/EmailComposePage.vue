@@ -1212,7 +1212,7 @@ useSeoMeta({
                   <div
                     v-for="attachment in selectedAttachments"
                     :key="attachment.id"
-                    class="flex items-center justify-between p-3 t-bg-subtle rounded-lg border dark:border-stone-700"
+                    class="flex items-center justify-between p-3 t-bg-subtle rounded-lg border"
                   >
                     <div class="flex items-center gap-3 min-w-0">
                       <Icon
@@ -1320,10 +1320,10 @@ useSeoMeta({
                 <!-- Member Selection List -->
                 <div
                   v-if="selectionMode === 'selected'"
-                  class="border dark:border-stone-700 rounded-lg max-h-80 overflow-y-auto"
+                  class="border rounded-lg max-h-80 overflow-y-auto"
                 >
                   <div
-                    class="p-2 border-b dark:border-stone-700 t-bg-subtle flex justify-between items-center sticky top-0"
+                    class="p-2 border-b t-bg-subtle flex justify-between items-center sticky top-0"
                   >
                     <span class="text-sm t-text-secondary">
                       {{ form.recipientIds.length }} selected
@@ -1342,7 +1342,7 @@ useSeoMeta({
                     :key="member.id"
                     @click="toggleMember(member.id)"
                     :class="[
-                      'p-3 border-b dark:border-stone-700 last:border-b-0 cursor-pointer hover:t-bg-subtle flex items-center gap-3',
+                      'p-3 border-b last:border-b-0 cursor-pointer hover:t-bg-subtle flex items-center gap-3',
                       form.recipientIds.includes(member.id)
                         ? 'bg-primary/5'
                         : '',
@@ -1360,8 +1360,8 @@ useSeoMeta({
                           :class="[
                             'text-[10px] px-1.5 py-0.5 rounded-full uppercase font-semibold',
                             member.member_type === 'owner'
-                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
                           ]"
                         >
                           {{ member.member_type }}
@@ -1570,7 +1570,7 @@ useSeoMeta({
                   @click="showTestEmailSection = !showTestEmailSection"
                 >
                   <div class="flex items-center gap-2">
-                    <Icon name="lucide:flask-conical" class="w-5 h-5 text-amber-600" />
+                    <Icon name="lucide:flask-conical" class="w-5 h-5 text-warning" />
                     <CardTitle class="text-base">Test Delivery</CardTitle>
                   </div>
                   <Icon
@@ -1605,11 +1605,11 @@ useSeoMeta({
                   >
                     <Icon
                       :name="result.success ? 'lucide:check-circle' : 'lucide:x-circle'"
-                      :class="result.success ? 'text-green-600' : 'text-red-600'"
+                      :class="result.success ? 'text-success' : 'text-destructive'"
                       class="w-4 h-4 flex-shrink-0"
                     />
                     <span class="truncate">{{ result.email }}</span>
-                    <span v-if="result.error" class="text-red-600 text-xs">
+                    <span v-if="result.error" class="text-destructive text-xs">
                       ({{ result.error }})
                     </span>
                   </div>
@@ -1733,10 +1733,10 @@ useSeoMeta({
               </DialogDescription>
             </DialogHeader>
             <div
-              class="overflow-auto max-h-[70vh] border dark:border-stone-700 rounded-lg t-bg-subtle p-4"
+              class="overflow-auto max-h-[70vh] border rounded-lg t-bg-subtle p-4"
             >
               <div
-                class="bg-white dark:bg-stone-800 rounded shadow-sm"
+                class="bg-white rounded shadow-sm"
                 v-html="previewHtml"
               ></div>
             </div>
@@ -1772,7 +1772,7 @@ useSeoMeta({
             </DialogHeader>
 
             <!-- Breadcrumb Navigation -->
-            <div class="flex items-center gap-1 text-sm border-b dark:border-stone-700 pb-2">
+            <div class="flex items-center gap-1 text-sm border-b pb-2">
               <template v-for="(folder, index) in attachmentFolderPath" :key="folder.id">
                 <button
                   type="button"
@@ -1832,12 +1832,12 @@ useSeoMeta({
                   v-for="folder in attachmentFolders"
                   :key="folder.id"
                   type="button"
-                  class="flex flex-col items-center p-3 rounded-lg border dark:border-stone-700 hover:t-bg-subtle hover:t-border transition-colors"
+                  class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-subtle hover:t-border transition-colors"
                   @click="navigateToAttachmentFolder(folder.id, folder.name || 'Folder')"
                 >
                   <Icon
                     name="lucide:folder"
-                    class="w-10 h-10 text-amber-500 mb-2"
+                    class="w-10 h-10 text-amber-600 dark:text-amber-400 mb-2"
                   />
                   <span class="text-sm text-center truncate w-full">
                     {{ folder.name || "Folder" }}
@@ -1849,7 +1849,7 @@ useSeoMeta({
                   v-for="file in filteredAttachmentFiles"
                   :key="file.id"
                   type="button"
-                  class="flex flex-col items-center p-3 rounded-lg border dark:border-stone-700 hover:t-bg-subtle hover:border-primary transition-colors group"
+                  class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-subtle hover:border-primary transition-colors group"
                   :class="{ 'border-primary bg-primary/5': form.attachmentIds.includes(file.id) }"
                   @click="selectAttachmentFile(file)"
                 >
