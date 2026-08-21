@@ -14,6 +14,11 @@ const { currentOrg, isAdmin, isBoardMember, memberType, selectedOrgId } =
 // the pre-paint script that stops dark-mode users seeing a white flash).
 useWorkspaceAppearance();
 
+// Drag from the left edge to go back, matching the pop transition the route
+// middleware already plays. No-ops in an installed PWA (iOS provides its own
+// and they would double up) and under reduced motion.
+useEdgeSwipeBack();
+
 // Route captured ONCE at setup. Never call useRoute() inside a computed getter —
 // on re-evaluation the getter runs outside a setup/Nuxt context and throws
 // "composable that requires the Nuxt instance was called outside setup".

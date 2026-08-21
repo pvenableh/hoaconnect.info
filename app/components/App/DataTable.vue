@@ -66,14 +66,23 @@ const emit = defineEmits<{ "row-click": [row: Row] }>();
 const sortKey = ref<string | null>(null);
 const sortDir = ref<"asc" | "desc">("asc");
 
-function toggleSort(col: DataTableColumn<Row>) {
+// Sorting reorders the DOM, which the browser cannot transition on its own — so
+// rows would silently swap places and the reader would have to re-read the list
+// to find the one they were looking at. FLIP animates each row from where it was
+// to where it now is, so you can follow your row to its new position.
+const tableEl = ref<HTMLElement | null>(null);
+const flip = useFlipList(tableEl, { itemSelector: "tbody [data-flip-id]" });
+
+async function toggleSort(col: DataTableColumn<Row>) {
   if (!col.sortable) return;
+  flip.capture();
   if (sortKey.value === col.key) {
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
   } else {
     sortKey.value = col.key;
     sortDir.value = "asc";
   }
+  await flip.play();
 }
 
 const cellValue = (row: Row, col: DataTableColumn<Row>) =>
@@ -114,7 +123,11 @@ const alignClass = (col: DataTableColumn<Row>) =>
       <slot name="toolbar" />
     </div>
 
-    <div class="data-table__scroll" :class="{ 'data-table__scroll--sticky': stickyHeader }">
+    <div
+      ref="tableEl"
+      class="data-table__scroll"
+      :class="{ 'data-table__scroll--sticky': stickyHeader }"
+    >
       <Table class="data-table__table">
         <TableHeader>
           <TableRow>
@@ -160,6 +173,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
           <TableRow
             v-for="(row, i) in loading ? [] : sortedRows"
             :key="keyFor(row, i)"
+            :data-flip-id="keyFor(row, i)"
             class="data-table__row stagger-item"
             :class="{ 'data-table__row--clickable': clickable }"
             :tabindex="clickable ? 0 : undefined"

@@ -29,7 +29,13 @@ const replayLoad = () => {
 onMounted(() => setTimeout(() => (demoLoading.value = false), 2600));
 
 // ── Live demos ──────────────────────────────────────────────────────────────
-const segment = ref("overview");
+// The page-level control keeps its selection in `?tab=` via router.replace, so
+// the view is linkable and survives a refresh, but Back still leaves the page
+// instead of walking through tabs the user merely glanced at.
+const segment = useTabQuery({
+  values: ["overview", "activity", "spend", "archived"],
+  fallback: "overview",
+});
 const segmentItems = [
   { value: "overview", label: "Overview", icon: "lucide:layout-dashboard" },
   { value: "activity", label: "Activity", icon: "lucide:activity", count: 12 },
