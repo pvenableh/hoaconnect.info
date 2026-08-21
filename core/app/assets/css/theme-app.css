@@ -210,6 +210,71 @@ html.theme-app {
 }
 
 /* =============================================================================
+   FORM FIELDS — glass in the workspace, editorial underlines in public
+   -----------------------------------------------------------------------------
+   theme.css tags ui/input and ui/textarea with `.field-underline`, an unlayered
+   rule that strips the box and leaves a single bottom hairline. That is the
+   right look for a community's public landing page and the wrong one for a data
+   tool, where fields should read as recessed glass you can aim at.
+
+   Because `.field-underline` is unlayered, a `.glass-field` class added at the
+   call site loses to it (unlayered beats @layer components regardless of order)
+   — so the override has to happen here, and has to out-specify it.
+   `html.theme-app .field-underline` (0,2,1) does, which means every input in the
+   workspace converts without touching a single component or call site.
+============================================================================= */
+html.theme-app .field-underline {
+	border: 0;
+	background: color-mix(in srgb, var(--theme-bg-elevated) 55%, transparent);
+	backdrop-filter: blur(10px) saturate(130%);
+	-webkit-backdrop-filter: blur(10px) saturate(130%);
+	box-shadow: var(--glass-rim-shadow),
+		inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.1);
+	padding-inline: 0.875rem;
+	transition: box-shadow 200ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+html.theme-app.dark .field-underline {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 45%, transparent);
+}
+
+/* Pill for single-line, generous rounding for multi-line — a pill textarea
+   would put its first and last words inside the curve. */
+html.theme-app input.field-underline,
+html.theme-app select.field-underline {
+	border-radius: 999px;
+	height: 2.5rem;
+}
+html.theme-app textarea.field-underline {
+	border-radius: 0.875rem;
+	padding-block: 0.625rem;
+}
+
+/* Focus keeps the rim and adds the accent edge + halo. */
+html.theme-app .field-underline:focus,
+html.theme-app .field-underline:focus-visible {
+	outline: none;
+	box-shadow: var(--glass-rim-shadow),
+		inset 0 0 0 1px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-edge)),
+		0 0 0 3px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-halo));
+}
+html.theme-app .field-underline[aria-invalid="true"] {
+	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(0 72% 51% / 0.28);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	html.theme-app .field-underline {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+		background: var(--theme-bg-elevated);
+	}
+}
+@supports not (backdrop-filter: blur(1px)) {
+	html.theme-app .field-underline {
+		background: var(--theme-bg-elevated);
+	}
+}
+
+/* =============================================================================
    THE TYPE LADDER
    Seven roles, roughly 1.4x apart, sized in rem against the app's 15px root.
    Named `type-*` rather than `t-*` because `t-*` is already the theme-token

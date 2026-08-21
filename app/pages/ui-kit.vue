@@ -1,174 +1,379 @@
 <script setup lang="ts">
-// Earnest design-system showcase / living style guide.
-// View at /ui-kit on the main domain. Standalone (no app shell, no org context).
+/**
+ * The workspace design system, on one page.
+ *
+ * This is the contract: every primitive and composite the admin and auth
+ * surfaces are built from, rendered in the real theme, in both light and dark.
+ * When a phase of the refresh changes a primitive, it changes here in the same
+ * commit — so "did that break anything?" is one page away rather than a crawl
+ * through eighty screens.
+ *
+ * View at /ui-kit on the main domain. Standalone (no app shell, no org context).
+ */
 definePageMeta({ layout: false });
-useHead({ title: 'UI Kit — Earnest design system' });
+useHead({ title: "UI Kit — HOA Connect design system" });
 
 // The showcase renders the real workspace theme, so what you see here is what
 // admin and auth actually get — that is the whole point of it as a contract.
 const appearance = useWorkspaceAppearance();
 
-const accents = ['cyan', 'blue', 'violet', 'emerald', 'amber', 'rose', 'gold'] as const;
+const accents = ["cyan", "blue", "violet", "emerald", "amber", "rose", "gold"] as const;
 type Accent = (typeof accents)[number];
-const accent = ref<Accent>('cyan');
+const accent = ref<Accent>("cyan");
 
 const demoLoading = ref(true);
-
 const replayLoad = () => {
-	demoLoading.value = true;
-	setTimeout(() => (demoLoading.value = false), 2600);
+  demoLoading.value = true;
+  setTimeout(() => (demoLoading.value = false), 2600);
 };
+onMounted(() => setTimeout(() => (demoLoading.value = false), 2600));
 
-onMounted(() => {
-	// Let the river skeletons run for a beat, then reveal the "loaded" state.
-	setTimeout(() => (demoLoading.value = false), 2600);
-});
+// ── Live demos ──────────────────────────────────────────────────────────────
+const segment = ref("overview");
+const segmentItems = [
+  { value: "overview", label: "Overview", icon: "lucide:layout-dashboard" },
+  { value: "activity", label: "Activity", icon: "lucide:activity", count: 12 },
+  { value: "spend", label: "AI spend", icon: "lucide:sparkles" },
+  { value: "archived", label: "Archived", disabled: true },
+];
+
+const filterSegment = ref("all");
+const filterItems = [
+  { value: "all", label: "All" },
+  { value: "owners", label: "Owners" },
+  { value: "tenants", label: "Tenants" },
+];
+
+const sheetOpen = ref(false);
+const switchOn = ref(true);
+const showEmpty = ref(false);
+
+const columns = [
+  { key: "name", label: "Member", sortable: true },
+  { key: "unit", label: "Unit", sortable: true },
+  { key: "type", label: "Type", hideOnMobile: true },
+  { key: "balance", label: "Balance", align: "right" as const, sortable: true },
+];
+const members = [
+  { id: 1, name: "Dana Whitfield", unit: "4B", type: "Owner", balance: 0 },
+  { id: 2, name: "Marcus Lee", unit: "2A", type: "Tenant", balance: 240 },
+  { id: 3, name: "Priya Raman", unit: "7C", type: "Owner", balance: -120 },
+  { id: 4, name: "Tom Alvarez", unit: "1D", type: "Owner", balance: 85 },
+];
 
 const stats = [
-	{ label: 'Collected this month', value: '$18,420', icon: 'lucide:dollar-sign', trend: 8 },
-	{ label: 'Outstanding dues', value: '$4,200', icon: 'lucide:alert-circle', trend: -12 },
-	{ label: 'Active units', value: '28', icon: 'lucide:home', trend: 0 },
-	{ label: 'Open requests', value: '3', icon: 'lucide:inbox', trend: 5 },
+  { label: "Collected this month", value: "$18,420", icon: "lucide:dollar-sign", trend: 8 },
+  { label: "Outstanding dues", value: "$4,200", icon: "lucide:alert-circle", trend: 12, trendPositive: false },
+  { label: "Active units", value: "28", icon: "lucide:home" },
+  { label: "Open requests", value: "3", icon: "lucide:inbox", trend: -5, trendPositive: false },
 ];
 
 const settingsRows = [
-	{ icon: 'lucide:building-2', label: 'Association profile', hint: 'Name, logo, address' },
-	{ icon: 'lucide:credit-card', label: 'Billing & subscription', hint: 'Studio plan' },
-	{ icon: 'lucide:banknote', label: 'Payouts (Stripe Connect)', hint: 'Manage in Org Settings → Payments' },
-	{ icon: 'lucide:users', label: 'Members & roles', hint: '34 members' },
+  { icon: "lucide:building-2", label: "Association profile", hint: "Name, logo, address" },
+  { icon: "lucide:credit-card", label: "Billing & subscription", hint: "Studio plan" },
+  { icon: "lucide:users", label: "Members & roles", hint: "34 members" },
+];
+
+const typeLadder = [
+  { cls: "type-display", name: "type-display", note: "Page title — one per page" },
+  { cls: "type-section", name: "type-section", note: "Section heading" },
+  { cls: "type-card", name: "type-card", note: "Card & panel titles" },
+  { cls: "type-body", name: "type-body", note: "Running text" },
+  { cls: "type-meta", name: "type-meta", note: "Timestamps, secondary lines" },
+  { cls: "type-micro", name: "type-micro", note: "Metadata labels only" },
+  { cls: "type-label", name: "type-label", note: "Form & field labels" },
+];
+
+const materials = [
+  { cls: "glass-surface", label: "glass-surface" },
+  { cls: "glass-surface glass-surface--strong", label: "--strong" },
+  { cls: "ios-card", label: "ios-card" },
+  { cls: "glass-edge", label: "glass-edge" },
+  { cls: "glass glass-edge", label: "glass" },
+  { cls: "glass-active-thumb", label: "active-thumb" },
 ];
 </script>
 
 <template>
-	<div class="ui-kit min-h-screen t-bg t-text" :class="`accent-${accent}`">
-		<div class="mx-auto max-w-5xl px-5 py-10 space-y-10">
-			<!-- Header -->
-			<header class="flex flex-wrap items-center justify-between gap-4">
-				<div>
-					<h1 class="text-2xl font-semibold tracking-tight">Earnest UI Kit</h1>
-					<p class="text-sm t-text-secondary">
-						Liquid glass · river motion · iOS widgets — adapts to the active theme.
-					</p>
-				</div>
-				<div class="flex items-center gap-2">
-					<button
-						class="ios-card px-3 py-2 text-sm flex items-center gap-2"
-						@click="appearance.toggle()"
-					>
-						<Icon :name="appearance.isDark.value ? 'lucide:sun' : 'lucide:moon'" class="w-4 h-4" />
-						{{ appearance.isDark.value ? 'Light' : 'Dark' }}
-					</button>
-					<button class="ios-card px-3 py-2 text-sm flex items-center gap-2" @click="replayLoad">
-						<span class="spinner-ios spinner-ios--sm" />
-						Replay load
-					</button>
-				</div>
-			</header>
+  <div class="ui-kit min-h-screen t-bg t-text" :class="`accent-${accent}`">
+    <div class="mx-auto max-w-5xl px-5 py-10 space-y-12">
+      <!-- ── Header ───────────────────────────────────────────────────── -->
+      <header class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="type-micro type-flush">HOA Connect</p>
+          <h1 class="type-display type-flush">Design system</h1>
+          <p class="type-body type-flush">
+            The workspace surface: liquid glass, one accent, light and dark.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <Button variant="outline" size="sm" @click="appearance.toggle()">
+            <Icon :name="appearance.isDark.value ? 'lucide:sun' : 'lucide:moon'" />
+            {{ appearance.isDark.value ? "Light" : "Dark" }}
+          </Button>
+          <Button variant="outline" size="sm" @click="replayLoad">
+            <span class="spinner-ios spinner-ios--sm" />
+            Replay load
+          </Button>
+        </div>
+      </header>
 
-			<!-- Accent picker -->
-			<section class="flex flex-wrap items-center gap-2">
-				<span class="text-xs uppercase tracking-wider t-text-tertiary mr-1">Accent</span>
-				<button
-					v-for="a in accents"
-					:key="a"
-					class="w-7 h-7 rounded-full border border-black/5 ios-press"
-					:class="[`accent-${a}`, accent === a ? 'ring-2 ring-offset-2 ring-offset-transparent' : '']"
-					:style="{ backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))' }"
-					:title="a"
-					@click="accent = a"
-				/>
-			</section>
+      <!-- ── Accent ───────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Accent</h2>
+        <p class="type-body">
+          The workspace ships one brand accent. These swatches exist to prove the
+          system re-tints cleanly — the seam is <code>getAdminAccent()</code>, so
+          per-organization colour is a one-line change when we want it.
+        </p>
+        <div class="flex flex-wrap items-center gap-2 mt-3 px-5">
+          <button
+            v-for="a in accents"
+            :key="a"
+            class="w-7 h-7 rounded-full ios-press glass-edge"
+            :class="[`accent-${a}`, accent === a ? 'ring-2 ring-offset-2 ring-offset-transparent' : '']"
+            :style="{ backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))' }"
+            :title="a"
+            :aria-label="a"
+            @click="accent = a"
+          />
+        </div>
+      </section>
 
-			<!-- Hero glass surface -->
-			<WidgetGlass strong class="overflow-hidden">
-				<div class="flex flex-wrap items-end justify-between gap-4">
-					<div>
-						<p class="text-xs uppercase tracking-widest t-text-tertiary mb-2">Sunset Villa HOA</p>
-						<h2 class="text-3xl font-semibold tracking-tight">Good afternoon, Peter</h2>
-						<p class="t-text-secondary mt-1">Here's how your community is doing this month.</p>
-					</div>
-					<button
-						class="px-4 py-2 rounded-full text-sm font-medium text-white"
-						:style="{ backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))' }"
-					>
-						New announcement
-					</button>
-				</div>
-			</WidgetGlass>
+      <!-- ── Type ─────────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Type</h2>
+        <p class="type-body">
+          Seven roles. Actions are Title Case, meta-labels are UPPERCASE, prose is
+          sentence case.
+        </p>
+        <div class="ios-card p-5 mt-3 space-y-3">
+          <div v-for="t in typeLadder" :key="t.name" class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span :class="[t.cls, 'type-flush']">The quick brown fox</span>
+            <code class="type-micro">{{ t.name }}</code>
+            <span class="type-meta">{{ t.note }}</span>
+          </div>
+        </div>
+      </section>
 
-			<!-- KPI widgets -->
-			<section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-				<WidgetStat
-					v-for="s in stats"
-					:key="s.label"
-					:label="s.label"
-					:value="s.value"
-					:icon="s.icon"
-					:trend="s.trend || undefined"
-					:loading="demoLoading"
-				/>
-			</section>
+      <!-- ── Buttons ──────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Buttons</h2>
+        <p class="type-body">Pill by default. One primary action per view.</p>
+        <div class="ios-card p-5 mt-3 space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <Button>Primary</Button>
+            <Button variant="secondary">Secondary</Button>
+            <Button variant="outline">Outline</Button>
+            <Button variant="ghost">Ghost</Button>
+            <Button variant="destructive">Delete</Button>
+            <Button variant="link">Link</Button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button size="sm">Small</Button>
+            <Button>Default</Button>
+            <Button size="lg">Large</Button>
+            <Button size="icon" aria-label="Add"><Icon name="lucide:plus" /></Button>
+            <Button size="icon-sm" variant="outline" aria-label="Edit"><Icon name="lucide:pencil" /></Button>
+            <Button disabled>Disabled</Button>
+          </div>
+        </div>
+      </section>
 
-			<!-- Shared DashboardStatsCard (upgraded) -->
-			<section>
-				<h3 class="text-sm font-semibold mb-3 t-text-secondary">DashboardStatsCard (shared component)</h3>
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-					<DashboardStatsCard title="Documents" :value="42" description="Published" icon="heroicons:document-text" accent="blue" />
-					<DashboardStatsCard title="Units" :value="28" description="Total units" icon="heroicons:building-office" accent="violet" />
-					<DashboardStatsCard title="Members" :value="96" description="Owners & Tenants" icon="heroicons:users" accent="emerald" :trend="{ value: 8, positive: true }" />
-					<DashboardStatsCard title="Emails Sent" :value="318" description="This month" icon="heroicons:envelope" accent="amber" :trend="{ value: 4, positive: false }" />
-				</div>
-			</section>
+      <!-- ── Segmented control ────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Segmented control</h2>
+        <p class="type-body">
+          The one way to switch between sibling views. Arrow keys move and select;
+          the thumb slides on the house spring.
+        </p>
+        <div class="ios-card p-5 mt-3 space-y-4">
+          <AppSegmentedControl v-model="segment" :items="segmentItems" label="Sections" />
+          <AppSegmentedControl v-model="filterSegment" :items="filterItems" size="sm" label="Filter" />
+          <AppSegmentedControl v-model="filterSegment" :items="filterItems" fill label="Filter (fill)" />
+          <p class="type-meta">Selected: {{ segment }} / {{ filterSegment }}</p>
+        </div>
+      </section>
 
-			<!-- Two-up: settings group + skeleton demo -->
-			<section class="grid md:grid-cols-2 gap-6">
-				<div>
-					<h3 class="text-sm font-semibold mb-3 t-text-secondary">iOS settings group</h3>
-					<div class="ios-group">
-						<button
-							v-for="row in settingsRows"
-							:key="row.label"
-							class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
-						>
-							<span
-								class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-								:style="{
-									backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l) / 0.12)',
-									color: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))',
-								}"
-							>
-								<Icon :name="row.icon" class="w-4 h-4" />
-							</span>
-							<span class="flex-1 min-w-0">
-								<span class="block text-sm font-medium truncate">{{ row.label }}</span>
-								<span class="block text-xs t-text-tertiary truncate">{{ row.hint }}</span>
-							</span>
-							<Icon name="lucide:chevron-right" class="w-4 h-4 t-text-muted shrink-0" />
-						</button>
-					</div>
-				</div>
+      <!-- ── Stats ────────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Stat cards</h2>
+        <p class="type-body">
+          Direction and goodness are separate: dues going up is an increase and
+          bad news.
+        </p>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+          <AppStatCard
+            v-for="s in stats"
+            :key="s.label"
+            v-bind="s"
+            :loading="demoLoading"
+            class="stagger-item"
+          />
+        </div>
+      </section>
 
-				<div>
-					<h3 class="text-sm font-semibold mb-3 t-text-secondary">River-flow skeleton</h3>
-					<WidgetGlass>
-						<div class="flex items-center gap-3 mb-4">
-							<div class="river-skeleton w-10 h-10 !rounded-full" />
-							<WidgetSkeleton :lines="2" class="flex-1" />
-						</div>
-						<WidgetSkeleton :lines="4" />
-					</WidgetGlass>
-				</div>
-			</section>
+      <!-- ── Data table ───────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Data table</h2>
+        <p class="type-body">
+          Sortable headers, keyboard-reachable rows, and a built-in empty state.
+          Collapses to labelled cards on phones.
+        </p>
+        <div class="ios-card p-5 mt-3">
+          <AppDataTable
+            :columns="columns"
+            :rows="showEmpty ? [] : members"
+            :loading="demoLoading"
+            empty-title="No members yet"
+            empty-description="Invite the first owner to get started."
+            empty-icon="lucide:users"
+            @row-click="() => (sheetOpen = true)"
+          >
+            <template #toolbar>
+              <Button size="sm" variant="outline" @click="showEmpty = !showEmpty">
+                {{ showEmpty ? "Show rows" : "Show empty state" }}
+              </Button>
+            </template>
+            <template #cell-balance="{ value }">
+              <span :class="value < 0 ? 'text-destructive' : ''">
+                {{ value < 0 ? `-$${Math.abs(value as number)}` : `$${value}` }}
+              </span>
+            </template>
+          </AppDataTable>
+        </div>
+      </section>
 
-			<!-- Material reference strip -->
-			<section>
-				<h3 class="text-sm font-semibold mb-3 t-text-secondary">Glass materials</h3>
-				<div class="grid grid-cols-3 gap-4">
-					<div class="glass rounded-2xl h-24 flex items-center justify-center text-sm border t-border">.glass</div>
-					<div class="glass-thin rounded-2xl h-24 flex items-center justify-center text-sm border t-border">.glass-thin</div>
-					<div class="glass-ultra rounded-2xl h-24 flex items-center justify-center text-sm border t-border">.glass-ultra</div>
-				</div>
-			</section>
-		</div>
-	</div>
+      <!-- ── Empty states ─────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Empty states</h2>
+        <div class="grid md:grid-cols-2 gap-4 mt-3">
+          <div class="ios-card">
+            <AppEmptyState
+              title="No documents yet"
+              description="Published documents appear here for every resident."
+              icon="lucide:file-text"
+            >
+              <Button size="sm">Upload a document</Button>
+            </AppEmptyState>
+          </div>
+          <div class="ios-card">
+            <AppEmptyState
+              variant="search"
+              title="No matches"
+              description="Try a different search or clear your filters."
+            >
+              <Button size="sm" variant="outline">Clear filters</Button>
+            </AppEmptyState>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Forms ────────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Forms</h2>
+        <div class="ios-card p-5 mt-3 grid md:grid-cols-2 gap-5">
+          <div class="space-y-3">
+            <div>
+              <Label class="type-label">Email</Label>
+              <Input class="glass-field mt-1" placeholder="you@example.com" />
+            </div>
+            <div>
+              <Label class="type-label">Note</Label>
+              <Textarea class="glass-field mt-1" placeholder="Anything the board should know" />
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="type-card">Email notifications</p>
+                <p class="type-meta">Send a digest every morning.</p>
+              </div>
+              <Switch v-model="switchOn" />
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="type-card">Progress</p>
+                <p class="type-meta">Storage used this month.</p>
+              </div>
+            </div>
+            <Progress :model-value="62" />
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Sheet ────────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Bottom sheet</h2>
+        <p class="type-body">
+          The create/edit surface. Drag the grabber down to dismiss — past 100px
+          or with a flick it goes, otherwise it springs back.
+        </p>
+        <div class="px-5 mt-3">
+          <Button @click="sheetOpen = true">Open sheet</Button>
+        </div>
+      </section>
+
+      <!-- ── Settings group ───────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Grouped rows</h2>
+        <div class="ios-group mt-3">
+          <button
+            v-for="row in settingsRows"
+            :key="row.label"
+            class="w-full flex items-center gap-3 px-4 py-3 text-left ios-press"
+          >
+            <span class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
+              :style="{
+                backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l) / 0.12)',
+                color: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))',
+              }">
+              <Icon :name="row.icon" class="w-4 h-4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block type-card">{{ row.label }}</span>
+              <span class="block type-meta truncate">{{ row.hint }}</span>
+            </span>
+            <Icon name="lucide:chevron-right" class="w-4 h-4 shrink-0 t-text-muted" />
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Materials ────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Materials</h2>
+        <p class="type-body">
+          Glass belongs to floating chrome and cards — never to content
+          backgrounds, and never stacked glass-on-glass.
+        </p>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+          <div
+            v-for="m in materials"
+            :key="m.label"
+            class="h-20 rounded-2xl grid place-items-center"
+            :class="m.cls"
+          >
+            <code class="type-micro">{{ m.label }}</code>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <AppBottomSheet v-model:open="sheetOpen" title="New announcement" description="Everyone in the community will see this.">
+      <div class="space-y-3 pt-1">
+        <div>
+          <Label class="type-label">Subject</Label>
+          <Input class="glass-field mt-1" placeholder="Pool closed Tuesday" />
+        </div>
+        <div>
+          <Label class="type-label">Message</Label>
+          <Textarea class="glass-field mt-1" placeholder="Add the details…" />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="ghost" @click="sheetOpen = false">Cancel</Button>
+        <Button @click="sheetOpen = false">Post</Button>
+      </template>
+    </AppBottomSheet>
+  </div>
 </template>

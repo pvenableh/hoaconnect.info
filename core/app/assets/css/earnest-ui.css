@@ -153,6 +153,86 @@
 	.dark .glass-field {
 		background: color-mix(in srgb, var(--theme-bg-elevated, #1e2227) 45%, transparent);
 	}
+
+	/* ---- Button materials -------------------------------------------------
+	   Deliberately NO backdrop-filter on buttons. Buttons appear in clusters —
+	   a toolbar, a card footer, a table row — and each blurred surface is its
+	   own compositing layer, so a per-button blur is the fastest way to make a
+	   list scroll badly. They get the rim and a light-catch gradient instead,
+	   which is where almost all of the perceived material comes from anyway. */
+
+	/* Filled accent: a lit top edge over the accent fill, plus a coloured lift
+	   so the button glows very slightly onto what is behind it. */
+	.glass-btn-primary {
+		background-image: linear-gradient(
+			to bottom,
+			hsl(0 0% 100% / 0.22) 0%,
+			hsl(0 0% 100% / 0.06) 45%,
+			hsl(0 0% 0% / 0.05) 100%
+		);
+		box-shadow:
+			inset 0 1px 0 0 hsl(0 0% 100% / 0.3),
+			0 1px 2px -1px hsl(var(--app-accent-h, 220) 40% 25% / 0.35),
+			0 6px 16px -8px hsl(var(--app-accent-h, 220) 60% 40% / 0.4);
+	}
+	.glass-btn-destructive {
+		background-image: linear-gradient(
+			to bottom,
+			hsl(0 0% 100% / 0.22) 0%,
+			hsl(0 0% 100% / 0.06) 45%,
+			hsl(0 0% 0% / 0.05) 100%
+		);
+		box-shadow:
+			inset 0 1px 0 0 hsl(0 0% 100% / 0.28),
+			0 1px 2px -1px hsl(0 40% 25% / 0.35),
+			0 6px 16px -8px hsl(0 60% 40% / 0.4);
+	}
+
+	/* The quiet button: a translucent pane with the same rim as every other
+	   surface. This is the workhorse — anything that is not the one primary
+	   action on screen. */
+	.glass-btn-soft {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 62%, transparent);
+		border: 0;
+		box-shadow: var(--glass-edge-shadow);
+	}
+	.glass-btn-soft:hover {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 85%, transparent);
+	}
+	.dark .glass-btn-soft {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #1e2227) 55%, transparent);
+	}
+	.dark .glass-btn-soft:hover {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #1e2227) 80%, transparent);
+	}
+	/* Tinted variant — carries a hint of the accent, for the secondary action
+	   that still belongs to the primary one. */
+	.glass-btn-soft--tinted {
+		background: linear-gradient(
+				to bottom,
+				hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 55% / 0.1),
+				hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 50% / 0.04)
+			),
+			color-mix(in srgb, var(--theme-bg-elevated, #fff) 62%, transparent);
+	}
+
+	/* ---- The active thumb -------------------------------------------------
+	   The floating capsule that sits behind the selected item in a segmented
+	   control, tab bar, or sub-nav. ONE material for all of them, so "this is
+	   the selected one" looks identical everywhere in the app — which is most
+	   of what makes a control feel learned rather than merely present. */
+	.glass-active-thumb {
+		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 92%, transparent);
+		border: 0;
+		box-shadow:
+			inset 0 1px 0 0 hsl(var(--glass-rim-top)),
+			inset 0 0 0 1px hsl(var(--glass-rim-mid)),
+			0 1px 2px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.18),
+			0 4px 10px -6px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.22);
+	}
+	.dark .glass-active-thumb {
+		background: color-mix(in srgb, var(--theme-bg-tertiary, #22262b) 88%, transparent);
+	}
 }
 
 /* Focus keeps the rim and ADDS the accent ring. Deliberately OUTSIDE @layer so it
@@ -542,4 +622,31 @@ a[role='button']:not([data-no-press]):active,
 	   belt-and-suspenders fallback so a badge never animates. */
 	.badge-bounce { animation: none !important; }
 }
-</content>
+
+/* =============================================================================
+   LIST STAGGER — a pure-CSS entrance for lists that arrive together
+   Put `.stagger-item` on each child of a freshly-rendered list. Items enter in
+   sequence, which reads as the list assembling rather than snapping into place.
+   Capped at the 9th child: past that the delay is longer than anyone will wait,
+   and a long list would appear to hang.
+============================================================================= */
+@keyframes stagger-rise {
+	from { opacity: 0; transform: translate3d(0, 8px, 0); }
+	to   { opacity: 1; transform: none; }
+}
+.stagger-item {
+	animation: stagger-rise var(--motion-base, 240ms) var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 40ms; }
+.stagger-item:nth-child(3) { animation-delay: 80ms; }
+.stagger-item:nth-child(4) { animation-delay: 120ms; }
+.stagger-item:nth-child(5) { animation-delay: 160ms; }
+.stagger-item:nth-child(6) { animation-delay: 200ms; }
+.stagger-item:nth-child(7) { animation-delay: 240ms; }
+.stagger-item:nth-child(8) { animation-delay: 280ms; }
+.stagger-item:nth-child(n + 9) { animation-delay: 320ms; }
+
+@media (prefers-reduced-motion: reduce) {
+	.stagger-item { animation: none; opacity: 1; transform: none; }
+}
