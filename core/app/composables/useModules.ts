@@ -12,7 +12,6 @@
 
 export type ModuleKey =
   | "feed"
-  | "announcements"
   | "meetings"
   | "polls"
   | "requests"

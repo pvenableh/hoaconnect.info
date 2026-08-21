@@ -14,7 +14,11 @@
 // have no dedicated route, so they're gated in-page, not here.
 const MODULE_PREFIXES: { module: string; prefixes: string[] }[] = [
   { module: "feed", prefixes: ["/feed"] },
-  { module: "announcements", prefixes: ["/announcements", "/admin/announcements"] },
+  // No "announcements" entry. The module was retired with the pages it gated —
+  // and it was actively harmful while it lasted: the `/announcements` prefix
+  // also matched `/announcements/email/{ref}`, the PUBLIC "view this email on
+  // the web" route that every sent email links back to. An org that switched
+  // announcements off silently broke its own email links.
   { module: "meetings", prefixes: ["/meetings", "/admin/meetings"] },
   { module: "polls", prefixes: ["/polls", "/admin/polls"] },
   { module: "documents", prefixes: ["/documents", "/admin/documents"] },

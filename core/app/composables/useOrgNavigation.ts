@@ -35,6 +35,17 @@ export const useOrgNavigation = () => {
       return normalizedPath;
     }
 
+    // The org ROOT — bare, or carrying a query/hash — would otherwise
+    // concatenate into "/slug/" and "/slug/?tab=building". vue-router matches
+    // both fine, but the stray slash shows in the address bar and in every
+    // shared link, so collapse it onto the slug: "/slug?tab=building".
+    if (normalizedPath === '/') {
+      return `/${orgSlug.value}`;
+    }
+    if (normalizedPath.startsWith('/?') || normalizedPath.startsWith('/#')) {
+      return `/${orgSlug.value}${normalizedPath.slice(1)}`;
+    }
+
     return `/${orgSlug.value}${normalizedPath}`;
   };
 

@@ -116,14 +116,9 @@ const portalSections = computed(() => [
     path: "/meetings",
     available: isEnabled("meetings"),
   },
-  {
-    key: "announcements",
-    label: "Announcements",
-    description: "Community news & past emails",
-    icon: "i-lucide-megaphone",
-    path: "/announcements",
-    available: isEnabled("announcements"),
-  },
+  // No Announcements tile: community news is the Building tab, one control away
+  // at the top of this very page. A tile that only switched the tab beside it
+  // would be a second door into the same room.
   {
     key: "projects",
     label: "Projects",
@@ -509,21 +504,33 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   <CardTitle>Announcements</CardTitle>
                   <CardDescription>Latest community news</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" @click="navigateToOrg('/announcements')">
-                  View All
+                <Button
+                  v-if="feedEnabled"
+                  variant="outline"
+                  size="sm"
+                  @click="activeTab = 'building'"
+                >
+                  Building feed
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <WidgetRowSkeleton v-if="annPending" :rows="4" avatar-shape="square" :trailing="false" />
               <div v-else-if="announcements && announcements.length > 0" class="space-y-3">
-                <button
+                <!-- A row opens the Building tab, which is on this same page —
+                     so it's a tab switch, not a navigation. With the feed module
+                     off there is no tab to open, and the rows render inert
+                     rather than as buttons that do nothing. -->
+                <component
+                  :is="feedEnabled ? 'button' : 'div'"
                   v-for="(a, i) in announcements"
                   :key="a.id"
                   v-motion
                   v-bind="rise(i, { stagger: 35 })"
-                  class="w-full flex items-start gap-3 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left"
-                  @click="navigateToOrg('/announcements')"
+                  :type="feedEnabled ? 'button' : undefined"
+                  class="w-full flex items-start gap-3 p-3 rounded-lg text-left"
+                  :class="feedEnabled ? 'hover:t-bg-subtle transition-colors' : ''"
+                  @click="feedEnabled && (activeTab = 'building')"
                 >
                   <div class="t-icon-chip w-9 h-9 flex-shrink-0">
                     <Icon
@@ -545,7 +552,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                       {{ formatDate(a.publish_date || a.date_created) }}
                     </p>
                   </div>
-                </button>
+                </component>
               </div>
               <div v-else class="py-8 text-center t-text-muted">
                 <Icon name="i-lucide-megaphone" class="h-10 w-10 mx-auto mb-2 opacity-40" />

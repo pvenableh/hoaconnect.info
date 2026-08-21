@@ -6,6 +6,7 @@
 //
 // Operates on a structural subset of `UnifiedNotification` (see
 // app/composables/useNotifications.ts) so this module never depends on app code.
+import { BUILDING_FEED_PATH, emailWebViewPath } from "../app/destinations";
 
 export interface NotificationLike {
   id: string;
@@ -121,16 +122,21 @@ export function notificationTargetPath(n: NotificationLike): string | null {
       return "/meetings";
     case "membership":
       return "/admin/members";
+    // Announcements no longer have a page of their own — they render as cards
+    // in the Building feed, which is where "show me this announcement" goes.
     case "announcement":
-      return "/announcements";
+      return BUILDING_FEED_PATH;
+    // An email is NOT in that feed, so it deep-links to its own web view.
+    // No id means no honest destination: null drops the CTA rather than
+    // dumping the reader somewhere the message isn't. See shared/app/destinations.
     case "email":
-      return "/announcements";
+      return emailWebViewPath(m.emailId as string | undefined);
     case "comment": {
       const routes: Record<string, string> = {
         hoa_requests: m.commentTargetId ? `/requests/${m.commentTargetId}` : "/requests",
         hoa_documents: m.commentTargetId ? `/documents/${m.commentTargetId}` : "/documents",
         hoa_meetings: "/meetings",
-        hoa_announcements: "/announcements",
+        hoa_announcements: BUILDING_FEED_PATH,
         payment_requests: "/payments",
       };
       return routes[m.commentTargetCollection as string] || null;

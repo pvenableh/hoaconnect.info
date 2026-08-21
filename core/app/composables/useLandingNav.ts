@@ -42,7 +42,6 @@ export interface UseLandingNavOptions {
 // enabled (missing/null = enabled, mirroring useModules). Home is always shown.
 const PORTAL: Array<{ label: string; icon: string; key: string }> = [
   { label: "Dashboard", icon: "lucide:layout-dashboard", key: "home" },
-  { label: "Announcements", icon: "lucide:megaphone", key: "announcements" },
   { label: "Documents", icon: "lucide:file-text", key: "documents" },
   { label: "Meetings", icon: "lucide:calendar-days", key: "meetings" },
   { label: "Payments", icon: "lucide:credit-card", key: "payments" },

@@ -4,6 +4,7 @@ import type {
   NotificationType,
 } from "#core/app/composables/useNotifications";
 import { groupByDate } from "#core/shared/notifications/grouping";
+import { BUILDING_FEED_PATH } from "#core/shared/app/destinations";
 
 const {
   notifications,
@@ -22,8 +23,14 @@ type FilterKey = "all" | NotificationType;
 // Get org navigation helpers for building correct paths
 const { buildOrgPath } = useOrgNavigation();
 
-// Build paths for each notification type
-const announcementsPath = computed(() => buildOrgPath("/announcements"));
+// The dropdown's "see everything" footer. Announcements lost their own page in
+// Phase 9 and now render as Building-feed cards, so the footer points there —
+// but only when the org actually has the feed module on, since the Building tab
+// silently falls back to Overview when it doesn't. A link that lands somewhere
+// other than what it says is worse than no link.
+const { isEnabled } = useModules();
+const feedEnabled = computed(() => isEnabled("feed"));
+const buildingFeedPath = computed(() => buildOrgPath(BUILDING_FEED_PATH));
 
 // Dropdown state
 const isOpen = ref(false);
@@ -311,13 +318,13 @@ const getTypeLabel = (type: string) => {
         </div>
 
         <!-- Footer -->
-        <div class="px-4 py-3 border-t t-border-divider t-bg-subtle">
+        <div v-if="feedEnabled" class="px-4 py-3 border-t t-border-divider t-bg-subtle">
           <NuxtLink
-            :to="announcementsPath"
+            :to="buildingFeedPath"
             class="block text-center text-sm t-text-secondary hover:t-text transition-colors"
             @click="isOpen = false"
           >
-            View all announcements
+            Open the building feed
           </NuxtLink>
         </div>
       </div>

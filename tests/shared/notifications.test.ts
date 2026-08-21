@@ -8,6 +8,7 @@ import {
   notificationTargetPath,
   type NotificationLike,
 } from "#core/shared/notifications/grouping";
+import { BUILDING_FEED_PATH, emailWebViewPath } from "#core/shared/app/destinations";
 
 // Fixed "now" so date bucketing is deterministic: Thu 2026-06-11 09:00 local.
 const NOW = new Date(2026, 5, 11, 9, 0, 0);
@@ -122,8 +123,29 @@ describe("notificationTargetPath", () => {
   });
   it("maps simple types and returns null for unknowns", () => {
     expect(notificationTargetPath(n({ type: "payment" }))).toBe("/payments");
-    expect(notificationTargetPath(n({ type: "announcement" }))).toBe("/announcements");
     expect(notificationTargetPath(n({ type: "membership" }))).toBe("/admin/members");
     expect(notificationTargetPath(n({ type: "weird" }))).toBeNull();
+  });
+
+  // The retired-Announcements decision, pinned. `/announcements` is a bare
+  // redirect now, so nothing may resolve to it: announcements live in the
+  // Building feed, and an email deep-links to its own web view.
+  it("sends announcements to the building feed, never back to /announcements", () => {
+    expect(notificationTargetPath(n({ type: "announcement" }))).toBe(BUILDING_FEED_PATH);
+    expect(
+      notificationTargetPath(n({ type: "comment", metadata: { commentTargetCollection: "hoa_announcements" } }))
+    ).toBe(BUILDING_FEED_PATH);
+    expect(BUILDING_FEED_PATH).toBe("/?tab=building");
+  });
+
+  it("sends an email to its own web view, and nowhere at all without an id", () => {
+    expect(notificationTargetPath(n({ type: "email", metadata: { emailId: "e7" } }))).toBe(
+      "/announcements/email/e7"
+    );
+    // No id means no honest destination — the sheet drops its CTA rather than
+    // dumping the reader on a feed that holds no emails.
+    expect(notificationTargetPath(n({ type: "email", metadata: {} }))).toBeNull();
+    expect(emailWebViewPath(null)).toBeNull();
+    expect(emailWebViewPath("")).toBeNull();
   });
 });

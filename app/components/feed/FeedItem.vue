@@ -36,14 +36,19 @@ const viewer = computed(() => ({
 const cap = computed(() => getCommentCapability(props.item.sourceCollection));
 const canReact = computed(() => can(cap.value.react, viewer.value));
 
-const link = computed(() => {
+// Where a card's title points — null when the card has no elsewhere to go.
+// Announcements are the case that matters: they have no detail page any more,
+// and the card in front of you already carries the whole thing (excerpt,
+// reactions, comment thread), so linking it sent you out of the feed you were
+// reading. An unlinked heading is the honest answer.
+const link = computed<string | null>(() => {
   const routes: Record<string, string> = {
-    hoa_announcements: "/announcements",
     hoa_meetings: "/meetings",
     hoa_documents: `/documents/${props.item.sourceId}`,
     hoa_requests: `/requests/${props.item.sourceId}`,
   };
-  return buildOrgPath(routes[props.item.sourceCollection] || "/");
+  const target = routes[props.item.sourceCollection];
+  return target ? buildOrgPath(target) : null;
 });
 
 // Requests have their own detail view + thread, so feed cards link out rather
@@ -93,9 +98,10 @@ const formatDate = (s: string | null | undefined) => {
           <span class="text-xs t-text-muted opacity-60">·</span>
           <span class="text-xs t-text-muted">{{ formatDate(item.date) }}</span>
         </div>
-        <NuxtLink :to="link" class="block mt-0.5">
+        <NuxtLink v-if="link" :to="link" class="block mt-0.5">
           <h3 class="font-semibold t-text hover:underline">{{ item.title }}</h3>
         </NuxtLink>
+        <h3 v-else class="font-semibold t-text mt-0.5">{{ item.title }}</h3>
       </div>
     </div>
 
@@ -125,7 +131,7 @@ const formatDate = (s: string | null | undefined) => {
     </div>
 
     <!-- Request cards link to their detail/timeline -->
-    <div v-else class="mt-3 pt-3 border-t t-border-divider flex justify-end">
+    <div v-else-if="link" class="mt-3 pt-3 border-t t-border-divider flex justify-end">
       <NuxtLink
         :to="link"
         class="inline-flex items-center gap-1.5 text-sm font-medium t-text-secondary hover:t-text transition-colors"

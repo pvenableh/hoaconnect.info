@@ -80,6 +80,10 @@ const ctaLabel = computed(() => {
       return "View task";
     case "comment":
       return "View conversation";
+    case "announcement":
+      return "Open in the building feed";
+    case "email":
+      return "Read this email";
     default:
       return "View";
   }
@@ -295,8 +299,14 @@ const formatFullDate = (dateString: string | null | undefined): string => {
               </p>
             </div>
 
+            <!-- With an emailId we can open the sent message itself; without
+                 one the inbox really is the only place it exists. -->
             <p class="mt-4 text-sm t-text-muted">
-              Check your email inbox for the full message.
+              {{
+                targetPath
+                  ? "Open it below to read the message exactly as it was sent."
+                  : "Check your email inbox for the full message."
+              }}
             </p>
           </template>
 
