@@ -15,7 +15,8 @@ export type LandingWidgetKey =
   | "location"
   | "building"
   | "board"
-  | "amenities";
+  | "amenities"
+  | "announcements";
 
 export type InquiryCategory = "sale" | "rental" | "general";
 export type ListingType = "sale" | "rental";
@@ -418,6 +419,17 @@ export const LANDING_WIDGET_REGISTRY: LandingWidgetDef[] = [
     icon: "lucide:sparkles",
     description: "How many amenities the community offers.",
   },
+  {
+    // Appended rather than slotted in beside `building`, because
+    // normalizeLandingConfig preserves each org's SAVED widget order and only
+    // appends what it has not seen — so a new key added mid-list would still
+    // arrive last for existing orgs, and putting it last keeps this list honest
+    // about that.
+    key: "announcements",
+    label: "Announcements",
+    icon: "lucide:megaphone",
+    description: "How many notices the community has sent, and how often.",
+  },
 ];
 
 export const LANDING_WIDGET_KEYS: LandingWidgetKey[] = LANDING_WIDGET_REGISTRY.map(
@@ -502,10 +514,22 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
     seen.add(p.key);
     widgets.push({ key: p.key, enabled: !!p.enabled });
   }
+  // A widget the org has never seen appends OFF — which is what the comment
+  // above has always claimed and what the code did not do. It read its fallback
+  // from `base.widgets`, and `defaultLandingWidgets()` turns everything on, so
+  // adding a widget to the registry switched it on for every org that already
+  // had a saved list. That is a change to a PUBLIC page nobody asked for; an org
+  // opts in from Site settings instead.
+  //
+  // `alwaysAvailable` is the documented exception — the greeting needs no data
+  // and is part of the hero's furniture.
+  //
+  // Orgs with NO saved list are untouched by this: they fall through to
+  // `defaultLandingConfig()` above and still get the full set, which is the
+  // right first-run experience.
   for (const def of LANDING_WIDGET_REGISTRY) {
     if (seen.has(def.key)) continue;
-    const fallback = base.widgets.find((w) => w.key === def.key);
-    widgets.push({ key: def.key, enabled: fallback?.enabled ?? false });
+    widgets.push({ key: def.key, enabled: def.alwaysAvailable === true });
   }
 
   const places: LandingPlaces = {

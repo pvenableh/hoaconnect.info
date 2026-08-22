@@ -21,6 +21,10 @@
         />
         <LandingWidgetBoard v-else-if="key === 'board'" :slug="slug" />
         <LandingWidgetAmenities v-else-if="key === 'amenities'" :count="amenityCount" />
+        <LandingWidgetAnnouncements
+          v-else-if="key === 'announcements'"
+          :stats="organization?.announcement_stats"
+        />
       </template>
     </div>
   </div>
@@ -33,6 +37,7 @@ import LandingWidgetLocation from "./LandingWidgetLocation.vue";
 import LandingWidgetBuilding from "./LandingWidgetBuilding.vue";
 import LandingWidgetBoard from "./LandingWidgetBoard.vue";
 import LandingWidgetAmenities from "./LandingWidgetAmenities.vue";
+import LandingWidgetAnnouncements from "./LandingWidgetAnnouncements.vue";
 import { normalizeLandingConfig, enabledLandingWidgets } from "#core/shared/utils/landing";
 
 const props = defineProps<{ organization: any; slug: string }>();

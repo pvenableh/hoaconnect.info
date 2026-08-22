@@ -428,8 +428,14 @@ async function migrateAnnouncements(orgId: string) {
   );
   for (const a of rows) {
     const subject = clean(a.title);
-    const content = clean(a.content);
-    if (!subject || !content) {
+    // Four real, dated announcements carry a title and NO body — they were sent
+    // from a SendGrid template, so the copy never lived in this table. Skipping
+    // them lost four genuine notices from the community's record and from the
+    // count on the landing. `content` is NOT NULL here, so they store an empty
+    // body: true to what the source holds, and better than inventing text or
+    // pretending the announcement never happened.
+    const content = clean(a.content) ?? "";
+    if (!subject) {
       tally("emails", "skipped");
       continue;
     }

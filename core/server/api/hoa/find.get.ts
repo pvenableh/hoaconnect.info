@@ -103,6 +103,51 @@ export default defineEventHandler(async (event) => {
       org.unit_stats = null;
     }
 
+    // How much this community actually communicates: how many notices have gone
+    // out, since when, and roughly how often. A count and a cadence only — no
+    // subject lines, no bodies, nothing a visitor could read. Best-effort.
+    try {
+      const emails = await directus.request(
+        readItems("hoa_emails", {
+          filter: {
+            _and: [
+              { organization: { _eq: org.id } },
+              { status: { _eq: "sent" } },
+              { sent_at: { _nnull: true } },
+            ],
+          },
+          fields: ["sent_at"],
+          sort: ["sent_at"],
+          limit: -1,
+        })
+      );
+      const sent = (emails || [])
+        .map((e: any) => (e.sent_at ? new Date(e.sent_at) : null))
+        .filter((d: Date | null): d is Date => !!d && !Number.isNaN(d.getTime()));
+
+      if (sent.length) {
+        const first = sent[0]!;
+        const last = sent[sent.length - 1]!;
+        // Inclusive month span, so a single month reads as 1 rather than 0 and
+        // the average never divides by zero.
+        const months = Math.max(
+          1,
+          (last.getFullYear() - first.getFullYear()) * 12 +
+            (last.getMonth() - first.getMonth()) +
+            1
+        );
+        org.announcement_stats = {
+          total: sent.length,
+          since: first.toISOString(),
+          avg_per_month: Math.round((sent.length / months) * 10) / 10,
+        };
+      } else {
+        org.announcement_stats = null;
+      }
+    } catch {
+      org.announcement_stats = null;
+    }
+
     return org;
   } catch (error: any) {
     // If it's already a createError, rethrow it

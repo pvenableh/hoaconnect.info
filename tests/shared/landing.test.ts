@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeLandingConfig,
   defaultLandingConfig,
+  enabledLandingWidgets,
+  LANDING_WIDGET_REGISTRY,
   narrativeSections,
   resolveLocationConfig,
   hasLocationContent,
@@ -331,5 +333,79 @@ describe("normalizeLandingConfig — image-below and per-image aspect", () => {
     // Unknown and absent both fall back to the layout's default at render time.
     expect(imgs[1]!.aspect).toBeUndefined();
     expect(imgs[2]!.aspect).toBeUndefined();
+  });
+});
+
+describe("landing widgets — the announcements chip", () => {
+  it("is in the registry", () => {
+    const def = LANDING_WIDGET_REGISTRY.find((w) => w.key === "announcements");
+    expect(def).toBeTruthy();
+    expect(def!.label).toBe("Announcements");
+  });
+
+  it("is appended DISABLED to a config saved before it existed", () => {
+    // Every org already has a stored widget list. A new chip must not appear on
+    // their public site on deploy — they opt in.
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "greeting", enabled: true },
+        { key: "weather", enabled: true },
+      ],
+    });
+    const ann = cfg.widgets.find((w) => w.key === "announcements");
+    expect(ann).toBeTruthy();
+    expect(ann!.enabled).toBe(false);
+    expect(enabledLandingWidgets(cfg)).not.toContain("announcements");
+  });
+
+  it("keeps the saved order and only appends what it has not seen", () => {
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "weather", enabled: true },
+        { key: "greeting", enabled: true },
+      ],
+    });
+    // Saved order preserved ahead of the appended ones.
+    expect(cfg.widgets.slice(0, 2).map((w) => w.key)).toEqual(["weather", "greeting"]);
+  });
+
+  it("is enabled when the org has opted in", () => {
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "greeting", enabled: true },
+        { key: "announcements", enabled: true },
+      ],
+    });
+    expect(enabledLandingWidgets(cfg)).toContain("announcements");
+  });
+});
+
+describe("normalizeLandingConfig — appending a brand-new widget", () => {
+  it("leaves an org with a saved list opted OUT of anything new", () => {
+    // The whole registry except the newest key, all on — what a live org looks
+    // like the moment before a new widget ships.
+    const saved = LANDING_WIDGET_REGISTRY.filter((w) => w.key !== "announcements").map((w) => ({
+      key: w.key,
+      enabled: true,
+    }));
+    const cfg = normalizeLandingConfig({ widgets: saved });
+    const enabled = enabledLandingWidgets(cfg);
+    // Everything they had chosen survives...
+    for (const w of saved) expect(enabled).toContain(w.key);
+    // ...and the new one does not switch itself on for them.
+    expect(enabled).not.toContain("announcements");
+  });
+
+  it("still gives an org with NO saved list the full default set", () => {
+    // A fresh org should not start with an empty hero.
+    const enabled = enabledLandingWidgets(normalizeLandingConfig(null));
+    expect(enabled).toContain("announcements");
+    expect(enabled).toContain("weather");
+  });
+
+  it("always appends the always-available ones", () => {
+    const cfg = normalizeLandingConfig({ widgets: [{ key: "weather", enabled: true }] });
+    // `greeting` is alwaysAvailable — it needs no data and is hero furniture.
+    expect(enabledLandingWidgets(cfg)).toContain("greeting");
   });
 });
