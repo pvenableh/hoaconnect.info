@@ -290,6 +290,21 @@ export interface LandingFeature {
 export type FeatureStyle = "list" | "bullets" | "cards" | "tiles";
 export const FEATURE_STYLES: FeatureStyle[] = ["list", "bullets", "cards", "tiles"];
 
+/**
+ * A soft highlighted note at the end of a section — an eyebrow and a paragraph
+ * on a tinted card, sitting after the content and before the tagline.
+ *
+ * The reference closes its Community section with one ("GET INVOLVED — we
+ * welcome professionals who…"), and it is the shape any section wants when it
+ * has a closing invitation that should not read as body copy. Generic: nothing
+ * about it is specific to that section or that org.
+ */
+export interface LandingCallout {
+  /** Small tracked-out label above the text. */
+  eyebrow?: string;
+  body?: string;
+}
+
 export interface LandingBlock {
   id: string; // stable key for reorder
   type: LandingBlockType;
@@ -327,6 +342,8 @@ export interface LandingBlock {
    * Ignored on the first block — there is nothing above it to continue.
    */
   continues?: boolean;
+  /** A tinted closing note, after the content and before the tagline. */
+  callout?: LandingCallout | null;
   /** Surface this content section as a link in the public nav menu (default true). */
   show_in_menu?: boolean;
   /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
@@ -646,6 +663,14 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   if (type !== "content") return block;
 
   block.layout = CONTENT_LAYOUTS.includes(b.layout) ? b.layout : "text-image";
+  // Dropped entirely unless it has something to say, so an empty object from the
+  // builder never renders an empty card.
+  const co = b.callout && typeof b.callout === "object" ? b.callout : null;
+  const coEyebrow = co?.eyebrow ? String(co.eyebrow) : "";
+  const coBody = co?.body ? String(co.body) : "";
+  block.callout =
+    coEyebrow || coBody ? { eyebrow: coEyebrow, body: coBody } : null;
+
   block.show_in_menu = b.show_in_menu !== false; // default: surfaced in the menu
   block.menu_icon = b.menu_icon ? String(b.menu_icon) : "";
   block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";

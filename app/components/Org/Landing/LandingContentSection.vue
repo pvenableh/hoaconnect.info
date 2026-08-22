@@ -60,12 +60,7 @@
                 :feature-style="featureStyle"
                 :columns="featureColumns"
               />
-              <p
-                v-if="block.tagline"
-                class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal"
-              >
-                {{ block.tagline }}
-              </p>
+              <component :is="Closer" />
             </div>
             <div v-if="images[0]" :class="layout === 'image-text' ? 'lg:order-1' : ''">
               <div
@@ -115,9 +110,7 @@
               :feature-style="featureStyle"
               :columns="featureColumns"
             />
-            <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
-              {{ block.tagline }}
-            </p>
+            <component :is="Closer" />
           </template>
 
           <!-- ===================== IMAGE GRID ===================== -->
@@ -148,9 +141,7 @@
               :feature-style="featureStyle"
               :columns="featureColumns"
             />
-            <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
-              {{ block.tagline }}
-            </p>
+            <component :is="Closer" />
           </template>
 
           <!-- ===================== STAT BAND ===================== -->
@@ -170,9 +161,7 @@
               :feature-style="featureStyle"
               :columns="featureColumns"
             />
-            <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
-              {{ block.tagline }}
-            </p>
+            <component :is="Closer" />
           </template>
 
           <!-- ===================== GALLERY ===================== -->
@@ -208,9 +197,7 @@
               :feature-style="featureStyle"
               :columns="featureColumns"
             />
-            <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
-              {{ block.tagline }}
-            </p>
+            <component :is="Closer" />
           </template>
         </div>
       </div>
@@ -295,6 +282,46 @@ const CopyBlock = () =>
         )
       : null,
   ]);
+
+/**
+ * How a section signs off: an optional tinted callout, then the optional italic
+ * tagline. Every layout branch ended with the same tagline markup copy-pasted
+ * five times, so the callout is added once here rather than five more times.
+ */
+const Closer = () => {
+  const co = props.block.callout;
+  const hasCallout = !!(co && (co.eyebrow || co.body));
+  return h("div", { class: "contents" }, [
+    hasCallout
+      ? h("div", { class: "reveal t-bg-subtle p-6 my-8" }, [
+          co.eyebrow
+            ? h(
+                "p",
+                { class: "text-sm tracking-[0.15em] uppercase t-text-accent-tertiary mb-4" },
+                co.eyebrow
+              )
+            : null,
+          co.body
+            ? h(
+                "p",
+                { class: "text-[0.9375rem] t-text-secondary leading-relaxed whitespace-pre-line" },
+                co.body
+              )
+            : null,
+        ])
+      : null,
+    props.block.tagline
+      ? h(
+          "p",
+          {
+            class:
+              "section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal",
+          },
+          props.block.tagline
+        )
+      : null,
+  ]);
+};
 </script>
 
 <style scoped>

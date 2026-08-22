@@ -27,17 +27,17 @@
 
       <!-- Panel -->
       <aside
-        class="landing-drawer fixed top-0 right-0 z-[61] h-full w-[88%] max-w-sm sm:max-w-md flex flex-col text-white transition-transform duration-300 ease-out"
+        class="landing-drawer fixed top-0 right-0 z-[61] h-full w-[88%] max-w-sm sm:max-w-md flex flex-col t-text transition-transform duration-300 ease-out"
         :class="open ? 'translate-x-0 is-open' : 'translate-x-full'"
         :style="{ '--n': navCount }"
         role="dialog"
         aria-modal="true"
       >
-        <div class="flex items-center justify-between px-5 h-16 border-b border-white/10">
+        <div class="flex items-center justify-between px-5 h-16 border-b t-border">
           <span class="text-sm uppercase tracking-ultra-wide truncate">{{ organization?.name }}</span>
           <button
             type="button"
-            class="inline-flex items-center justify-center w-9 h-9 text-white/80 hover:text-white transition-colors"
+            class="inline-flex items-center justify-center w-9 h-9 t-text-secondary hover:t-text transition-colors"
             aria-label="Close menu"
             @click="open = false"
           >
@@ -47,13 +47,13 @@
 
         <nav class="flex-1 overflow-y-auto px-5 py-6">
           <!-- Explore (public sections) -->
-          <p class="px-3 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">Explore</p>
+          <p class="px-3 mb-2 text-[10px] uppercase tracking-[0.22em] t-text-muted">Explore</p>
           <ul class="landing-drawer__list space-y-0.5">
             <li v-for="(link, i) in links" :key="link.label" :style="{ '--i': i }">
               <component
                 :is="link.to ? NuxtLink : 'a'"
                 v-bind="link.to ? { to: link.to } : { href: link.href }"
-                class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] text-white/85 hover:bg-white/10 transition-colors"
+                class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] t-text-secondary hover:t-bg-subtle transition-colors"
                 @click="open = false"
               >
                 <Icon v-if="link.icon" :name="link.icon" class="w-4 h-4 opacity-80" />
@@ -66,14 +66,14 @@
                (PublicLanding only renders for non-members, so a logged-in viewer
                here isn't a member yet — point them at "request access".) -->
           <template v-if="portalLinks.length">
-            <p class="px-3 mt-7 mb-2 text-[10px] uppercase tracking-[0.22em] text-white/40">
+            <p class="px-3 mt-7 mb-2 text-[10px] uppercase tracking-[0.22em] t-text-muted">
               {{ memberNoun.singular }} portal
             </p>
             <ul class="landing-drawer__list space-y-0.5">
               <li v-for="(p, i) in portalLinks" :key="p.key" :style="{ '--i': links.length + i }">
                 <a
                   :href="lockHref"
-                  class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] text-white/55 hover:text-white/80 hover:bg-white/5 transition-colors"
+                  class="landing-drawer__link flex items-center gap-3 px-3 py-3 rounded-lg text-[11px] uppercase tracking-[0.3em] t-text-muted hover:t-text-secondary hover:t-bg-subtle transition-colors"
                   @click="open = false"
                 >
                   <Icon :name="p.icon" class="w-4 h-4 opacity-60" />
@@ -82,7 +82,7 @@
                 </a>
               </li>
             </ul>
-            <p class="px-3 mt-3 text-[11px] normal-case tracking-normal text-white/45 leading-relaxed">
+            <p class="px-3 mt-3 text-[11px] normal-case tracking-normal t-text-muted leading-relaxed">
               <template v-if="user">Request access to unlock the full {{ memberNoun.plural.toLowerCase() }} portal — documents, payments, meetings and more.</template>
               <template v-else>Sign in to unlock the full {{ memberNoun.plural.toLowerCase() }} portal — documents, payments, meetings and more.</template>
             </p>
@@ -90,7 +90,7 @@
         </nav>
 
         <!-- Footer actions -->
-        <div class="px-5 py-5 border-t border-white/10 space-y-2.5">
+        <div class="px-5 py-5 border-t t-border space-y-2.5">
           <a
             v-if="user"
             href="/dashboard"

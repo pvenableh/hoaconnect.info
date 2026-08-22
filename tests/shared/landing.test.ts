@@ -409,3 +409,43 @@ describe("normalizeLandingConfig — appending a brand-new widget", () => {
     expect(enabledLandingWidgets(cfg)).toContain("greeting");
   });
 });
+
+describe("normalizeLandingConfig — section callout", () => {
+  it("keeps an eyebrow and body", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        {
+          id: "a",
+          type: "content",
+          callout: { eyebrow: "Get Involved", body: "We welcome professionals…" },
+        },
+      ],
+    });
+    expect(cfg.blocks[0]!.callout).toEqual({
+      eyebrow: "Get Involved",
+      body: "We welcome professionals…",
+    });
+  });
+
+  it("is null when absent, so no section grows an empty card", () => {
+    expect(normalizeLandingConfig({ blocks: [{ id: "a", type: "content" }] }).blocks[0]!.callout).toBeNull();
+  });
+
+  it("is null for an empty object — the builder saves one of those", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        { id: "a", type: "content", callout: {} },
+        { id: "b", type: "content", callout: { eyebrow: "", body: "" } },
+      ],
+    });
+    expect(cfg.blocks[0]!.callout).toBeNull();
+    expect(cfg.blocks[1]!.callout).toBeNull();
+  });
+
+  it("survives with only one half filled in", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "a", type: "content", callout: { body: "Just the note." } }],
+    });
+    expect(cfg.blocks[0]!.callout).toEqual({ eyebrow: "", body: "Just the note." });
+  });
+});

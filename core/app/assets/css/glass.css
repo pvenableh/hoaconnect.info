@@ -93,12 +93,18 @@
 /* Glass side drawer (logged-out nav) + its toggle + scrim. Always a dark
    frosted tint (independent of theme) so the white nav text stays legible —
    the drawer overlays the photographic landing, not the themed content. */
+/* Token-driven, like the reference's own drawer (`background: var(--theme-drawer-bg)`).
+   It used to hard-code a dark glass panel, which was a slab of near-black
+   sliding onto a cream editorial page — the one piece of chrome that never
+   followed the community's theme. The token already carried the right value for
+   every theme; nothing read it. Text colours in LandingDrawer.vue moved to
+   `t-*` at the same time, since white-on-white would otherwise be invisible. */
 .landing-drawer {
-	background: rgba(16, 16, 20, 0.82);
+	background: var(--theme-drawer-bg, rgba(255, 255, 255, 0.92));
 	backdrop-filter: blur(20px) saturate(150%);
 	-webkit-backdrop-filter: blur(20px) saturate(150%);
-	border-left: 1px solid rgba(255, 255, 255, 0.12);
-	box-shadow: -16px 0 48px rgba(0, 0, 0, 0.4);
+	border-left: 1px solid var(--theme-border-light, rgba(0, 0, 0, 0.08));
+	box-shadow: -16px 0 48px rgba(0, 0, 0, 0.18);
 }
 .landing-glass-btn {
 	display: inline-flex;
