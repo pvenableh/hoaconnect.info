@@ -16,7 +16,6 @@ const {
   formatDate,
 } = useNotifications();
 
-const { rise } = useMotionPresets();
 
 type FilterKey = "all" | NotificationType;
 
@@ -243,10 +242,8 @@ const getTypeLabel = (type: string) => {
                 <button
                   v-for="(notification, ii) in group.items"
                   :key="notification.id"
-                  v-motion
-                  v-bind="rise(group.offset + ii, { stagger: 28, y: 8 })"
                   @click="handleNotificationClick(notification)"
-                  class="w-full px-4 py-3 text-left hover:t-bg-subtle transition-colors flex gap-3"
+                  class="stagger-item w-full px-4 py-3 text-left hover:t-bg-subtle transition-colors flex gap-3"
                   :style="
                     !notification.isRead
                       ? { background: 'color-mix(in srgb, var(--theme-accent-primary) 6%, transparent)' }

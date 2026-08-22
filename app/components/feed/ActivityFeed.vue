@@ -10,7 +10,6 @@ const props = withDefaults(
 );
 
 const { items, isLoading, fetchFeed } = useActivityFeed();
-const { rise } = useMotionPresets();
 
 const KIND_TABS = [
   { key: "all", label: "All" },
@@ -56,10 +55,9 @@ watch(
 
     <div v-else-if="filtered.length" class="space-y-4">
       <div
-        v-for="(item, i) in filtered"
+        v-for="item in filtered"
         :key="item.id"
-        v-motion
-        v-bind="rise(i, { stagger: 35 })"
+        class="stagger-item"
       >
         <FeedFeedItem
           :item="item"

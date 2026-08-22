@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 
 const { list: listMeetings } = useDirectusItems("hoa_meetings");
-const { rise } = useMotionPresets();
 const { currentOrg, selectedOrgId } = await useSelectedOrg();
 const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
@@ -102,12 +101,14 @@ const openDetail = (m: any) => {
 
         <section v-if="upcoming.length" class="space-y-3">
           <h2 class="type-micro t-text-secondary">Upcoming</h2>
+          <!-- The cards get their own container so `.stagger-item`'s :nth-child
+               counts cards and starts the first one at 0ms; as direct children of
+               the section the <h2> would have taken the first slot. -->
+          <div class="grid gap-3">
           <button
-            v-for="(m, i) in upcoming"
+            v-for="m in upcoming"
             :key="m.id"
-            v-motion
-            v-bind="rise(i)"
-            class="ios-card p-4 w-full text-left ios-press"
+            class="stagger-item ios-card p-4 w-full text-left ios-press"
             @click="openDetail(m)"
           >
             <div class="flex items-center gap-2">
@@ -120,16 +121,16 @@ const openDetail = (m: any) => {
               <span v-if="m.location"> · {{ m.location }}</span>
             </p>
           </button>
+          </div>
         </section>
 
         <section v-if="past.length" class="space-y-3">
           <h2 class="type-micro t-text-secondary">Past</h2>
+          <div class="grid gap-3">
           <button
-            v-for="(m, i) in past"
+            v-for="m in past"
             :key="m.id"
-            v-motion
-            v-bind="rise(i)"
-            class="ios-card p-4 w-full text-left ios-press"
+            class="stagger-item ios-card p-4 w-full text-left ios-press"
             @click="openDetail(m)"
           >
             <div class="flex items-center gap-2">
@@ -145,6 +146,7 @@ const openDetail = (m: any) => {
               <span v-if="m.recording_url"><Icon name="i-lucide-video" class="size-3.5 inline -mt-0.5 mr-0.5" />Recording</span>
             </div>
           </button>
+          </div>
         </section>
 
         <!-- The empty state is a sibling of both sections, not a child of Past.

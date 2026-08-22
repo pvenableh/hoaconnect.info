@@ -9,7 +9,6 @@ const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
 const { getUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const { fetchHousehold } = useChangeRequests();
-const { rise } = useMotionPresets();
 
 // Get organization context including member type and board member status
 const {
@@ -444,8 +443,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             <Button
               v-for="(action, i) in primaryActions"
               :key="action.key"
-              v-motion
-              v-bind="rise(i, { stagger: 35 })"
+              class="stagger-item"
               :variant="i === 0 ? 'default' : 'outline'"
               @click="navigateToOrg(action.path)"
             >
@@ -467,12 +465,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           <div class="portal-grid">
             <component
               :is="section.available ? 'button' : 'div'"
-              v-for="(section, i) in portalSections"
+              v-for="section in portalSections"
               :key="section.key"
-              v-motion
-              v-bind="rise(i, { stagger: 35 })"
               :type="section.available ? 'button' : undefined"
-              class="portal-item group"
+              class="stagger-item portal-item group"
               :class="section.available ? 'portal-item--on' : 'portal-item--off'"
               :aria-disabled="section.available ? undefined : 'true'"
               @click="section.available && navigateToOrg(section.path)"
@@ -541,12 +537,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                      rather than as buttons that do nothing. -->
                 <component
                   :is="feedEnabled ? 'button' : 'div'"
-                  v-for="(a, i) in announcements"
+                  v-for="a in announcements"
                   :key="a.id"
-                  v-motion
-                  v-bind="rise(i, { stagger: 35 })"
                   :type="feedEnabled ? 'button' : undefined"
-                  class="w-full flex items-start gap-3 p-3 rounded-lg text-left"
+                  class="stagger-item w-full flex items-start gap-3 p-3 rounded-lg text-left"
                   :class="feedEnabled ? 'hover:t-bg-subtle transition-colors' : ''"
                   @click="feedEnabled && (activeTab = 'building')"
                 >
@@ -596,12 +590,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               <WidgetRowSkeleton v-if="docsLoading" :rows="4" avatar-shape="square" :trailing="false" />
               <div v-else-if="recentDocuments && recentDocuments.length > 0" class="space-y-3">
                 <button
-                  v-for="(doc, i) in recentDocuments"
+                  v-for="doc in recentDocuments"
                   :key="doc.id"
-                  v-motion
-                  v-bind="rise(i, { stagger: 35 })"
                   @click="downloadDocument(doc)"
-                  class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
+                  class="stagger-item w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
                 >
                   <div class="t-icon-chip w-9 h-9 flex-shrink-0">
                     <Icon name="i-lucide-file-text" class="h-4 w-4" />

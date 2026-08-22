@@ -69,7 +69,6 @@ export default defineNuxtConfig({
     "@nuxt/fonts",
     "@nuxtjs/seo",
     "@vueuse/nuxt",
-    "@vueuse/motion/nuxt",
     "@vee-validate/nuxt",
     "shadcn-nuxt",
   ],

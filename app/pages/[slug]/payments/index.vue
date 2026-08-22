@@ -7,7 +7,6 @@ definePageMeta({
 });
 
 const { user } = useDirectusAuth();
-const { rise } = useMotionPresets();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const { list: listRequests } = useDirectusItems<PaymentRequest>("payment_requests");
 const { list: listTransactions } = useDirectusItems<PaymentTransaction>("payment_transactions");
@@ -176,12 +175,13 @@ const TYPE_LABEL: Record<string, string> = {
         <!-- Outstanding -->
         <section v-if="outstanding.length" class="space-y-3">
           <h2 class="text-lg font-semibold t-text">Outstanding</h2>
+          <!-- Own container so `.stagger-item`'s :nth-child counts cards rather
+               than giving the first slot to the <h2>. -->
+          <div class="grid gap-3">
           <div
-            v-for="(request, i) in outstanding"
+            v-for="request in outstanding"
             :key="request.id"
-            v-motion
-            v-bind="rise(i)"
-            class="ios-card p-5 border-l-4"
+            class="stagger-item ios-card p-5 border-l-4"
             :class="{
               'border-red-500': request.status === 'overdue',
               'border-amber-500': request.status === 'active',
@@ -237,6 +237,7 @@ const TYPE_LABEL: Record<string, string> = {
                 <Icon name="heroicons:credit-card" class="mr-2 h-4 w-4" /> Pay Now
               </Button>
             </div>
+          </div>
           </div>
         </section>
 
