@@ -47,6 +47,7 @@
       v-else-if="entry.block.type === 'content'"
       :block="entry.block"
       :alt="entry.alt"
+      :continues="entry.continues"
     />
   </template>
 </template>

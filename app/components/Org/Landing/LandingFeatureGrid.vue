@@ -14,10 +14,16 @@
       <div
         v-for="(f, i) in features"
         :key="i"
-        class="reveal flex gap-4 items-start"
-        :class="[f.wide ? 'sm:col-span-full' : '', columns === 1 ? 'py-4 border-b t-border-divider' : '']"
+        class="reveal flex gap-4"
+        :class="[
+          f.wide ? 'sm:col-span-full' : '',
+          columns === 1 ? 'py-4 border-b t-border-divider' : '',
+          // A one-line row centres on its icon; a row with its own title is a
+          // two-line block and has to hang from the top.
+          f.title ? 'items-start' : 'items-center',
+        ]"
       >
-        <span v-if="f.icon" class="shrink-0 t-text-accent-tertiary"><Icon :name="f.icon" class="w-6 h-6" /></span>
+        <span v-if="f.icon" class="shrink-0 t-text-accent-tertiary"><Icon :name="f.icon" class="w-5 h-5" /></span>
         <div class="min-w-0">
           <p v-if="f.title" class="text-[0.95rem] font-medium t-text mb-0.5">{{ f.title }}</p>
           <p class="text-[0.9375rem] leading-relaxed t-text-secondary">{{ f.text }}</p>
@@ -66,7 +72,7 @@
       >
         <Icon v-if="f.icon" :name="f.icon" class="w-6 h-6 t-text-muted mb-2" />
         <p v-if="f.title" class="text-[10px] tracking-wide uppercase t-text-tertiary font-medium">{{ f.title }}</p>
-        <p class="text-[10px] t-text-muted leading-snug">{{ f.text }}</p>
+        <p class="text-[9px] t-text-muted leading-snug">{{ f.text }}</p>
       </div>
     </template>
   </div>

@@ -8,16 +8,21 @@
   scroll-in.
 -->
 <template>
+  <!-- `continues` makes this block read as part of the section above: same band,
+       no top border, no top padding, and no number of its own. -->
   <section
     :id="block.id"
-    class="landing-section section py-24 lg:py-32 px-6 lg:px-16 border-t t-border"
-    :class="alt ? 't-bg-alt' : 't-bg'"
+    class="landing-section section px-6 lg:px-16"
+    :class="[
+      alt ? 't-bg-alt' : 't-bg',
+      continues ? 'pb-24 lg:pb-32' : 'py-24 lg:py-32 border-t t-border',
+    ]"
   >
     <div class="max-w-6xl mx-auto">
       <div :class="fullWidth ? '' : 'grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16'">
         <!-- Numbered label column (1033 style) — sticks beside the long copy column
              on desktop as you scroll. Empty spacer keeps copy aligned when absent. -->
-        <div v-if="!fullWidth && hasLabel" class="landing-num-label reveal flex flex-col gap-2">
+        <div v-if="!fullWidth && hasLabel && !continues" class="landing-num-label reveal flex flex-col gap-2">
           <span v-if="block.number_label" class="t-heading text-sm lg:text-[26px] lg:leading-6 t-text-accent">
             {{ block.number_label }}
           </span>
@@ -25,10 +30,12 @@
             {{ block.category }}
           </span>
         </div>
+        <!-- The spacer stays even when continuing, so the copy column keeps its
+             alignment with the numbered section it belongs to. -->
         <div v-else-if="!fullWidth" class="hidden lg:block" />
 
         <!-- Full-width: the label sits inline above the content instead of a side column. -->
-        <div v-if="fullWidth && hasLabel" class="reveal flex items-center gap-3 mb-6">
+        <div v-if="fullWidth && hasLabel && !continues" class="reveal flex items-center gap-3 mb-6">
           <span v-if="block.number_label" class="t-heading text-[26px] leading-6 t-text-accent">
             {{ block.number_label }}
           </span>
@@ -62,7 +69,7 @@
             </div>
             <div v-if="images[0]" :class="layout === 'image-text' ? 'lg:order-1' : ''">
               <div
-                class="reveal aspect-[3/4] sm:aspect-[4/3] lg:aspect-[3/4] flex items-end justify-start rounded-sm bg-black/25 bg-blend-darken bg-no-repeat"
+                class="reveal aspect-[3/4] sm:aspect-[4/3] lg:aspect-[3/4] flex items-end justify-start rounded-sm bg-black/30 bg-blend-darken bg-no-repeat"
                 :class="images[0].fit === 'contain' ? 'bg-contain bg-center' : 'bg-cover bg-center'"
                 :style="bgStyle(images[0])"
               >
@@ -78,6 +85,41 @@
             </div>
           </div>
 
+          <!-- ============ IMAGE BELOW (copy, then one wide image) ============
+               The Location shape: the picture spans the copy column underneath
+               the text rather than sitting beside it, so it can be wide instead
+               of cropped tall. -->
+          <template v-else-if="layout === 'image-below'">
+            <component :is="CopyBlock" />
+            <div
+              v-if="images[0]"
+              class="reveal flex items-end justify-start my-8 rounded-sm bg-black/30 bg-blend-darken bg-no-repeat"
+              :class="[
+                aspectClass(images[0]),
+                images[0].fit === 'contain' ? 'bg-contain bg-center' : 'bg-cover bg-center',
+              ]"
+              :style="bgStyle(images[0])"
+            >
+              <div v-if="images[0].caption_title || images[0].caption_body" class="text-left p-6">
+                <p v-if="images[0].caption_title" class="text-sm text-white font-medium mb-2 uppercase tracking-wide">
+                  {{ images[0].caption_title }}
+                </p>
+                <p v-if="images[0].caption_body" class="text-xs text-white/80 leading-relaxed max-w-md">
+                  {{ images[0].caption_body }}
+                </p>
+              </div>
+            </div>
+            <OrgLandingFeatureGrid
+              v-if="features.length"
+              :features="features"
+              :feature-style="featureStyle"
+              :columns="featureColumns"
+            />
+            <p v-if="block.tagline" class="section-tagline t-heading italic text-lg t-text-accent-tertiary pt-8 border-t t-border-divider reveal">
+              {{ block.tagline }}
+            </p>
+          </template>
+
           <!-- ===================== IMAGE GRID ===================== -->
           <template v-else-if="layout === 'image-grid'">
             <component :is="CopyBlock" />
@@ -85,7 +127,7 @@
               <div
                 v-for="(img, i) in images"
                 :key="i"
-                class="reveal aspect-[4/3] flex items-end justify-start rounded-sm bg-black/25 bg-blend-darken bg-no-repeat"
+                class="reveal aspect-[4/3] flex items-end justify-start rounded-sm bg-black/30 bg-blend-darken bg-no-repeat"
                 :class="[
                   img.fit === 'contain' ? 'bg-contain bg-center' : 'bg-cover bg-center',
                   images.length === 3 && i === 0 ? 'md:col-span-2' : '',
@@ -182,6 +224,8 @@ import { h } from "vue";
 const props = defineProps({
   block: { type: Object, required: true },
   alt: { type: Boolean, default: false },
+  /** Render inside the section above instead of opening a new one. */
+  continues: { type: Boolean, default: false },
 });
 
 const config = useRuntimeConfig();
@@ -195,6 +239,17 @@ const features = computed(() =>
 const featureStyle = computed(() => props.block?.feature_style || "list");
 const featureColumns = computed(() => props.block?.feature_columns || 2);
 const fullWidth = computed(() => props.block?.full_width === true);
+
+// Written out rather than interpolated: Tailwind scans source text, so
+// `aspect-[${x}]` would be purged and the frame would collapse to zero height.
+const ASPECTS = {
+  "21/12": "aspect-[21/12]",
+  "16/9": "aspect-video",
+  "4/3": "aspect-[4/3]",
+  "1/1": "aspect-square",
+  "3/4": "aspect-[3/4]",
+};
+const aspectClass = (img) => ASPECTS[img?.aspect] || "aspect-[21/12]";
 const hasLabel = computed(() => !!(props.block?.number_label || props.block?.category));
 
 // Loop the gallery images so the marquee scrolls seamlessly (duplicate once).

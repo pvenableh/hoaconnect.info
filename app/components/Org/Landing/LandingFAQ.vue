@@ -37,7 +37,10 @@
             <summary
               class="flex items-center justify-between gap-6 cursor-pointer list-none py-6 select-none"
             >
-              <span class="landing-heading text-xl sm:text-2xl t-text pr-2">{{ f.question }}</span>
+              <!-- Sans, not the display serif. The reference sets its questions in
+                   Proxima Nova at 15/500 — a serif here reads as another heading
+                   and makes the list harder to scan. -->
+              <span class="text-[0.9375rem] font-medium t-text pr-2">{{ f.question }}</span>
               <Icon
                 name="lucide:plus"
                 class="shrink-0 w-5 h-5 t-text-accent transition-transform duration-300 group-open:rotate-45"

@@ -23,8 +23,20 @@
 .landing-heading {
 	font-family: var(--theme-heading-font);
 	color: var(--theme-text-primary);
-	line-height: 1.05;
 	letter-spacing: var(--theme-tracking-tight);
+}
+/* 1.05 is right for the big display headings that set no leading of their own,
+   and wrong for the two that do. This rule is UNLAYERED, so it was beating
+   `leading-tight` from @layer utilities regardless of specificity — the same
+   trap as the inert `<Card>` border and the inert icon sizes — and a section
+   title asking for `leading-tight` (1.25) rendered at 1.05 instead. Measured
+   against the reference: 60px there, 50.4px here, on a 48px heading.
+
+   Only two call sites name a leading utility (the narrative title and the
+   content-section title) and both are the ones that want 1.25, so opting them
+   out changes exactly those and leaves every other landing heading alone. */
+.landing-heading:not([class*="leading-"]) {
+	line-height: 1.05;
 }
 .landing-lede {
 	color: var(--theme-text-secondary);

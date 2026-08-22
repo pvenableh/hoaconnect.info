@@ -258,3 +258,78 @@ describe("normalizeBlock — the numbered label is not content-only", () => {
     expect(cfg.blocks[0]!.category).toBe("");
   });
 });
+
+describe("narrativeSections — a block that continues the section above", () => {
+  const cfg = (blocks: any[]) => normalizeLandingConfig({ blocks });
+
+  it("takes no number of its own and does not advance the sequence", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content", title: "Location" },
+        { id: "b", type: "content", title: "Walk times", continues: true },
+        { id: "c", type: "content", title: "Design" },
+      ])
+    );
+    expect(out.map((e) => e.number)).toEqual(["01", "", "02"]);
+    expect(out.map((e) => e.continues)).toEqual([false, true, false]);
+  });
+
+  it("inherits the band it joins, so the pair reads as one section", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content" }, // alt false
+        { id: "b", type: "content" }, // alt true
+        { id: "c", type: "content", continues: true }, // must stay with b
+        { id: "d", type: "content" }, // alt false — rhythm resumes
+      ])
+    );
+    expect(out.map((e) => e.alt)).toEqual([false, true, true, false]);
+  });
+
+  it("ignores `continues` on the first block — nothing above it to join", () => {
+    const out = narrativeSections(cfg([{ id: "a", type: "content", continues: true }]));
+    expect(out[0]!.continues).toBe(false);
+    expect(out[0]!.number).toBe("01");
+  });
+
+  it("an explicit number_label still wins over the auto sequence", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content", number_label: "01" },
+        { id: "b", type: "content", continues: true },
+        { id: "c", type: "content", number_label: "02" },
+      ])
+    );
+    expect(out.map((e) => e.number)).toEqual(["01", "", "02"]);
+  });
+});
+
+describe("normalizeLandingConfig — image-below and per-image aspect", () => {
+  it("accepts image-below as a content layout", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "a", type: "content", layout: "image-below" }],
+    });
+    expect(cfg.blocks[0]!.layout).toBe("image-below");
+  });
+
+  it("keeps a known aspect and drops an unknown one", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        {
+          id: "a",
+          type: "content",
+          images: [
+            { file: "f1", aspect: "16/9" },
+            { file: "f2", aspect: "banana" },
+            { file: "f3" },
+          ],
+        },
+      ],
+    });
+    const imgs = cfg.blocks[0]!.images!;
+    expect(imgs[0]!.aspect).toBe("16/9");
+    // Unknown and absent both fall back to the layout's default at render time.
+    expect(imgs[1]!.aspect).toBeUndefined();
+    expect(imgs[2]!.aspect).toBeUndefined();
+  });
+});

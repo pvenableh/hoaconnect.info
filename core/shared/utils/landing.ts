@@ -215,6 +215,7 @@ export const NARRATIVE_BLOCK_TYPES: LandingBlockType[] = ["content", "location",
 export type ContentLayout =
   | "text-image"
   | "image-text"
+  | "image-below"
   | "image-grid"
   | "stats"
   | "gallery";
@@ -222,9 +223,30 @@ export type ContentLayout =
 export const CONTENT_LAYOUTS: ContentLayout[] = [
   "text-image",
   "image-text",
+  /**
+   * Copy first, then ONE wide image beneath it spanning the copy column — the
+   * shape 1033lenox.com uses for its Location section. Distinct from
+   * `text-image`, which sets the picture beside the copy in a second column and
+   * therefore has to crop it tall.
+   */
+  "image-below",
   "image-grid",
   "stats",
   "gallery",
+];
+
+/**
+ * Aspect ratios an editorial image can take. A closed list, not a free string,
+ * because these compile to Tailwind classes and an arbitrary value would be
+ * purged from the stylesheet.
+ */
+export type LandingImageAspect = "21/12" | "16/9" | "4/3" | "1/1" | "3/4";
+export const LANDING_IMAGE_ASPECTS: LandingImageAspect[] = [
+  "21/12",
+  "16/9",
+  "4/3",
+  "1/1",
+  "3/4",
 ];
 
 export interface LandingImage {
@@ -232,6 +254,12 @@ export interface LandingImage {
   caption_title?: string;
   caption_body?: string;
   fit?: "cover" | "contain";
+  /**
+   * Shape of the frame in the `image-below` layout. The reference runs its
+   * Location photo at 21/12 and its Amenities photo at 16/9, so this is a
+   * per-image choice rather than a property of the layout.
+   */
+  aspect?: LandingImageAspect;
 }
 
 export interface LandingStat {
@@ -283,6 +311,21 @@ export interface LandingBlock {
   feature_columns?: number;
   /** Render edge-to-edge (drop the numbered side-label column) like 1033's intro. */
   full_width?: boolean;
+  /**
+   * This block is a CONTINUATION of the section above it, not a new one.
+   *
+   * A long editorial section is often several pieces of content under one
+   * heading and one number — 1033lenox.com's "02 Location" is a heading, a
+   * paragraph, a full-width photo, a six-up walk-time band and a lifestyle
+   * gallery, all inside one band. The builder edits those as separate blocks
+   * (different layouts, independently reorderable), so this is how a block says
+   * "keep me in the section above": it takes no number of its own, does not flip
+   * the alternating background, and drops the band's top border and padding so
+   * the two read as one.
+   *
+   * Ignored on the first block — there is nothing above it to continue.
+   */
+  continues?: boolean;
   /** Surface this content section as a link in the public nav menu (default true). */
   show_in_menu?: boolean;
   /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
@@ -569,6 +612,12 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   // renderer. Empty for every block that does not set one, so nothing else moves.
   block.number_label = b.number_label ? String(b.number_label) : "";
   block.category = b.category ? String(b.category) : "";
+  block.continues = b.continues === true;
+  // Also generic: a built-in section can be renamed ("Common Questions" rather
+  // than the FAQ component's hard-coded "Frequently Asked") without a code
+  // change. Same reason as number_label — these describe the SECTION, not the
+  // content-block layout, and stripping them here is invisible from the outside.
+  block.title = b.title ? String(b.title) : "";
 
   if (type !== "content") return block;
 
@@ -576,7 +625,6 @@ function normalizeBlock(b: any, index: number): LandingBlock {
   block.show_in_menu = b.show_in_menu !== false; // default: surfaced in the menu
   block.menu_icon = b.menu_icon ? String(b.menu_icon) : "";
   block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";
-  block.title = b.title ? String(b.title) : "";
   block.body = b.body ? String(b.body) : "";
   block.tagline = b.tagline ? String(b.tagline) : "";
   block.images = Array.isArray(b.images)
@@ -587,6 +635,7 @@ function normalizeBlock(b: any, index: number): LandingBlock {
           caption_title: im.caption_title ? String(im.caption_title) : undefined,
           caption_body: im.caption_body ? String(im.caption_body) : undefined,
           fit: im.fit === "contain" ? "contain" : "cover",
+          aspect: LANDING_IMAGE_ASPECTS.includes(im.aspect) ? im.aspect : undefined,
         }))
     : [];
   block.stats = Array.isArray(b.stats)
@@ -742,6 +791,8 @@ export interface LandingRenderBlock {
   alt: boolean;
   /** Two-digit narrative number ("01") for narrative-capable sections, else "". */
   number: string;
+  /** Render inside the section above rather than opening a new one. */
+  continues: boolean;
 }
 
 /**
@@ -754,15 +805,27 @@ export interface LandingRenderBlock {
 export function narrativeSections(cfg: LandingConfig): LandingRenderBlock[] {
   let contentIdx = 0;
   let narrIdx = 0;
-  return enabledLandingBlocks(cfg).map((block) => {
+  // A continuing block inherits the band it is joining, so the pair reads as one
+  // section rather than two stripes.
+  let prevAlt = false;
+  return enabledLandingBlocks(cfg).map((block, i) => {
+    // Nothing above the first block to continue into.
+    const continues = i > 0 && block.continues === true;
+
+    if (continues) {
+      return { block, alt: prevAlt, number: "", continues: true };
+    }
+
     const alt = block.type === "content" ? contentIdx++ % 2 === 1 : false;
+    prevAlt = alt;
+
     let number = "";
     if (NARRATIVE_BLOCK_TYPES.includes(block.type)) {
       narrIdx += 1;
       const own = block.number_label?.trim();
       number = own || String(narrIdx).padStart(2, "0");
     }
-    return { block, alt, number };
+    return { block, alt, number, continues: false };
   });
 }
 
