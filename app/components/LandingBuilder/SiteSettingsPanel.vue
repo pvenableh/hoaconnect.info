@@ -122,6 +122,18 @@ watch(
               <span class="block text-[11px] t-text-muted">{{ opt.hint }}</span>
             </button>
           </div>
+
+          <label class="flex items-start gap-3 pt-2 cursor-pointer">
+            <Switch v-model="landing.hero_cta" />
+            <span>
+              <span class="block text-sm font-medium t-text">Hero sign-in buttons</span>
+              <span class="block text-xs t-text-muted">
+                Login, request access and inquire, under the tagline. Turn off for a
+                purely typographic hero — the account icon in the top bar still gets
+                residents in.
+              </span>
+            </span>
+          </label>
         </section>
 
         <!-- Community type -->

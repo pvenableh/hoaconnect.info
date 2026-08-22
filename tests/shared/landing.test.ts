@@ -215,3 +215,19 @@ describe("normalizeLandingConfig — palette", () => {
     expect(darkGold.palette).toBe("gold");
   });
 });
+
+describe("normalizeLandingConfig — hero CTA", () => {
+  it("is opt-OUT, so no existing site loses its only way in", () => {
+    expect(defaultLandingConfig().hero_cta).toBe(true);
+    expect(normalizeLandingConfig(null).hero_cta).toBe(true);
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).hero_cta).toBe(true);
+  });
+
+  it("only an explicit false turns it off", () => {
+    expect(normalizeLandingConfig({ hero_cta: false }).hero_cta).toBe(false);
+    // Not falsy-checked: an absent or junk value must still show the buttons.
+    for (const junk of [0, "", null, undefined, "false"]) {
+      expect(normalizeLandingConfig({ hero_cta: junk }).hero_cta).toBe(true);
+    }
+  });
+});

@@ -294,6 +294,15 @@ export interface LandingConfig {
   mode: LandingMode;
   /** Ink + accent ramp on top of the style. Defaults to the style's own. */
   palette: LandingPalette;
+  /**
+   * Show the login / request-access / inquire cluster in the hero.
+   *
+   * On by default — for most communities the hero is the only place a visitor
+   * is told how to get in. An editorial site that already carries an account
+   * icon in its top bar (1033lenox.com does, and shows nothing in the hero
+   * below the tagline) can turn it off and keep the hero purely typographic.
+   */
+  hero_cta: boolean;
   widgets: LandingWidgetPref[];
   places: LandingPlaces;
   listings: LandingListing[];
@@ -403,6 +412,7 @@ export function defaultLandingConfig(): LandingConfig {
   return {
     mode: "light",
     palette: "default",
+    hero_cta: true,
     widgets: defaultLandingWidgets(),
     places: { neighborhood: "", walk_score: null, bike_score: null, items: [] },
     listings: [],
@@ -435,6 +445,9 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   // Same rule as `mode`: anything unrecognised falls back to the style's own
   // ramp, so no stored site shifts colour because of a typo or a stale value.
   const palette: LandingPalette = r.palette === "gold" ? "gold" : "default";
+  // Opt-OUT, unlike mode and palette: absent means show it, so no existing site
+  // loses the only route it offers a visitor into the portal.
+  const heroCta = r.hero_cta !== false;
 
   // Widgets: keep stored prefs for known keys (in stored order), then append
   // any registry widgets not yet present (default-off, except always-on ones).
@@ -511,6 +524,7 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   return {
     mode,
     palette,
+    hero_cta: heroCta,
     widgets,
     places,
     listings,

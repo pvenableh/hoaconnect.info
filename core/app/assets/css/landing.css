@@ -652,3 +652,22 @@ html.landing-palette-gold.theme-luxury-dark {
 	--app-accent-s: 45%;
 	--app-accent-l: 69%;
 }
+
+/* =============================================================================
+   PUBLIC LANDING TYPE SCALE
+   -----------------------------------------------------------------------------
+   `main.css` sets `html { font-size: 15px }` app-wide — a density choice for the
+   workspace, where it is right. It also reached the public landing, where it is
+   not: every rem-based size there came out 6.25% smaller than the editorial
+   design it was drawn from. Measured against the reference: 16px root there,
+   15px here, so a 3rem heading rendered 45px instead of 48px.
+
+   The six `theme-{style}-{mode}` classes now appear ONLY on public landings —
+   the workspace is `theme-app` — so keying off them scopes this to exactly the
+   surface that wants the browser default back, and leaves the app alone.
+============================================================================= */
+html[class*="theme-classic-"],
+html[class*="theme-modern-"],
+html[class*="theme-luxury-"] {
+	font-size: 16px;
+}
