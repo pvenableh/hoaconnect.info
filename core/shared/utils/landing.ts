@@ -123,6 +123,23 @@ export interface LandingLocationConfig {
 // one of the org's storage folders ("folder", resolved by /api/landing/gallery).
 // ---------------------------------------------------------------------------
 
+/**
+ * Light or dark for the PUBLIC landing. A community property, not a visitor's
+ * preference — 1033lenox.com, the reference this landing imitates, keeps its
+ * dark-mode toggle on an interior page and never offers one on the landing
+ * itself, and neither do we.
+ *
+ * theme.css has always carried all six `theme-{style}-{mode}` blocks and the
+ * landing CSS has a full set of `theme-*-dark` rules, but nothing could reach
+ * them: `forceThemeStyle` defaults to light and every caller passed a style
+ * only. The one path that ever produced a dark landing was accidental —
+ * `initTheme()` reading the signed-in user's WORKSPACE appearance — and closing
+ * that leak (612e338) left the dark half of the stylesheet unreachable. This is
+ * the switch it never had.
+ */
+export type LandingMode = "light" | "dark";
+export const LANDING_MODES: LandingMode[] = ["light", "dark"];
+
 export type LandingGallerySource = "manual" | "folder";
 
 export interface LandingGalleryConfig {
@@ -254,6 +271,8 @@ export interface LandingBlock {
 }
 
 export interface LandingConfig {
+  /** Light or dark for the public site. Defaults to light. See LandingMode. */
+  mode: LandingMode;
   widgets: LandingWidgetPref[];
   places: LandingPlaces;
   listings: LandingListing[];
@@ -361,6 +380,7 @@ export function newBlockId(): string {
 
 export function defaultLandingConfig(): LandingConfig {
   return {
+    mode: "light",
     widgets: defaultLandingWidgets(),
     places: { neighborhood: "", walk_score: null, bike_score: null, items: [] },
     listings: [],
@@ -385,6 +405,11 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   const base = defaultLandingConfig();
   if (!raw || typeof raw !== "object") return base;
   const r = raw as Partial<LandingConfig> & Record<string, any>;
+
+  // Anything that isn't the literal string "dark" is light — an absent key (every
+  // org stored before this existed), a stale value, a typo. Light is what those
+  // sites render today and none of them should change appearance on deploy.
+  const mode: LandingMode = r.mode === "dark" ? "dark" : "light";
 
   // Widgets: keep stored prefs for known keys (in stored order), then append
   // any registry widgets not yet present (default-off, except always-on ones).
@@ -459,6 +484,7 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   const gallery = normalizeGallery(r.gallery);
 
   return {
+    mode,
     widgets,
     places,
     listings,

@@ -173,3 +173,24 @@ describe("normalizeLandingConfig — location & gallery blocks survive a round-t
     expect(cfg.blocks.find((b) => b.type === "gallery")?.enabled).toBe(false);
   });
 });
+
+describe("normalizeLandingConfig — public light/dark mode", () => {
+  it("defaults to light, so no existing site changes appearance on deploy", () => {
+    expect(defaultLandingConfig().mode).toBe("light");
+    expect(normalizeLandingConfig(null).mode).toBe("light");
+    // Every org stored before `mode` existed has a blob without the key.
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).mode).toBe("light");
+  });
+
+  it("only the literal string 'dark' turns a site dark", () => {
+    expect(normalizeLandingConfig({ mode: "dark" }).mode).toBe("dark");
+    for (const junk of ["Dark", "DARK", true, 1, "night", "", null, undefined, {}]) {
+      expect(normalizeLandingConfig({ mode: junk }).mode).toBe("light");
+    }
+  });
+
+  it("survives a round-trip through JSON, which is how it is stored", () => {
+    const cfg = normalizeLandingConfig({ mode: "dark" });
+    expect(normalizeLandingConfig(JSON.parse(JSON.stringify(cfg))).mode).toBe("dark");
+  });
+});

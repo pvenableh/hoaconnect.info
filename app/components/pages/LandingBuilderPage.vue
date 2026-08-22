@@ -392,7 +392,13 @@ useSeoMeta({ title: "Design your site" });
               </button>
             </div>
           </div>
-          <LandingBuilderPreview :slug="slug" :draft="draft" :theme="previewTheme" style="height: calc(100vh - 8rem)" />
+          <LandingBuilderPreview
+            :slug="slug"
+            :draft="draft"
+            :theme="previewTheme"
+            :mode="landing.mode"
+            style="height: calc(100vh - 8rem)"
+          />
         </div>
       </div>
     </PageContainer>

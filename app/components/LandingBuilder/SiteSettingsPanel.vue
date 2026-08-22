@@ -23,6 +23,11 @@ const THEME_OPTIONS = [
   { value: "luxury", label: "Luxury", hint: "Gallery white, brass, refined" },
 ] as const;
 
+const MODE_OPTIONS = [
+  { value: "light", label: "Light", icon: "lucide:sun" },
+  { value: "dark", label: "Dark", icon: "lucide:moon" },
+] as const;
+
 const widgetDef = (k: LandingWidgetKey) => LANDING_WIDGET_REGISTRY.find((w) => w.key === k);
 function moveWidget(i: number, dir: -1 | 1) {
   const arr = landing.value.widgets;
@@ -73,6 +78,28 @@ watch(
               <div class="text-xs t-text-muted mt-0.5">{{ opt.hint }}</div>
             </button>
           </div>
+
+          <!-- Light/dark is a property of the COMMUNITY's site, not of whoever is
+               looking at it: there is no visitor-facing toggle on the landing, by
+               design. A resident's own light/dark preference lives in their
+               account and applies to the workspace. -->
+          <div class="flex items-center gap-2 pt-1">
+            <span class="text-xs t-text-muted mr-1">Appearance</span>
+            <button
+              v-for="opt in MODE_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+              :class="landing.mode === opt.value ? 'border-primary ring-1 ring-primary t-text' : 't-border t-text-muted hover:t-bg-subtle'"
+              @click="landing.mode = opt.value"
+            >
+              <Icon :name="opt.icon" class="w-3.5 h-3.5" />
+              {{ opt.label }}
+            </button>
+          </div>
+          <p class="text-xs t-text-muted">
+            Applies to your public site for everyone who visits it.
+          </p>
         </section>
 
         <!-- Community type -->

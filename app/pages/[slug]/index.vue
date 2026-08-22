@@ -154,11 +154,15 @@ if (
   await navigateTo(user.value ? "/dashboard" : "/auth/login", { replace: true });
 }
 
-// Apply the org's per-tenant landing style (classic | modern | luxury). Stored
-// on settings.theme; forceThemeStyle is SSR-safe (uses useHead) and does not
-// persist to the visitor's preferences.
+// Apply the org's per-tenant landing style (classic | modern | luxury) and its
+// light/dark MODE. Style is `settings.theme`, mode is `settings.landing.mode` —
+// both community properties, neither one the visitor's preference.
+// forceThemeStyle is SSR-safe (uses useHead) and persists nothing.
 const { forceThemeStyle } = useTheme();
 const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
+const landingMode = computed<"light" | "dark">(() =>
+  organization.value?.settings?.landing?.mode === "dark" ? "dark" : "light"
+);
 watchEffect(() => {
   // Only force the theme for the PUBLIC LANDING. When a workspace user renders
   // here (the clean-root dashboard / member preview, in the `auth` layout), that
@@ -167,7 +171,7 @@ watchEffect(() => {
   if (isWorkspaceUser.value) return;
   const style = organization.value?.settings?.theme;
   if (style && VALID_LANDING_STYLES.includes(style)) {
-    forceThemeStyle(style);
+    forceThemeStyle(style, landingMode.value);
   }
 });
 
