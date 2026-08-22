@@ -2,6 +2,7 @@
 // Redirects logged-in users from main pages to their organization's slug path
 
 import { isMarketingHost } from "#core/shared/domains/host";
+import { sessionOrgRedirect } from "#core/shared/domains/org-routes";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // Only run on client side
@@ -28,39 +29,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     : useRequestURL({ xForwardedHost: true }).host;
   if (isMarketingHost(host, useRuntimeConfig().public.mainDomain)) return;
 
-  // Skip redirect for auth pages, setup pages, account page, and other public routes
-  // Account page lives on main domain since user accounts are user-specific, not org-specific
-  const skipPaths = [
-    '/auth/',
-    '/setup',
-    '/api/',
-    '/account',
-    '/ui-kit', // design system showcase (main-domain, no org context)
-    '/approve', // public tokenized milestone-approval link
-    // Main-domain billing screens. Both are reached by a logged-in user WITH a
-    // selected org, so without these they get slug-prefixed into 404s — and the
-    // subscription middleware's own redirect target was one of them, which made
-    // the blocked-subscription screen unreachable by the exact users it exists
-    // for. Found by walking a real transition into its grace window.
-    '/subscription-expired',
-    '/settings/subscription',
-  ];
-
-  if (skipPaths.some(path => to.path.startsWith(path))) {
-    return;
-  }
-
-  // Marketing split: the app root no longer shows platform marketing, so we no
-  // longer skip '/' for logged-in users — fall through and redirect them to
-  // their org's slug path like any other non-slug route
-  // (docs/plan-marketing-split.md §3.2). The index.vue page middleware handles
-  // logged-out visitors (and SSR, where this client-only middleware doesn't run).
-
-  // Skip if already on a slug route (org page)
-  if (to.params.slug) {
-    return;
-  }
-
   // Get user's selected organization
   try {
     const { currentOrg } = await useSelectedOrg();
@@ -77,18 +45,18 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       return;
     }
 
-    // Skip if path already starts with the org slug (prevent redirect loop)
-    if (to.path.startsWith(`/${org.slug}/`) || to.path === `/${org.slug}`) {
-      return;
-    }
-
-    // Redirect to the org's slug path. The clean org root IS the dashboard, so
-    // the slug-agnostic `/` and `/dashboard` entry points both collapse to it
-    // (no `/{slug}/dashboard` — that route no longer exists).
-    const targetPath =
-      to.path === '/' || to.path === '/dashboard'
-        ? `/${org.slug}`
-        : `/${org.slug}${to.path}`;
+    // One shared description of the page tree decides this — the same one the
+    // custom-domain middleware reads. It returns null for "leave this route
+    // alone", which covers the org's own slug (so this can't loop), the
+    // platform's own pages, and anything with no org twin.
+    //
+    // This used to be a denylist that prefixed every unlisted path with the
+    // slug, which meant a main-domain page with no `/{slug}` twin became a 404
+    // for every signed-in user who had an org. `/organizations`, `/members` and
+    // `/units` were all reachable-then-broken that way. An allowlist fails the
+    // other direction: forget to add a page and it simply does not redirect.
+    const targetPath = sessionOrgRedirect(to.path, org.slug);
+    if (!targetPath || targetPath === to.path) return;
     return navigateTo(targetPath);
   } catch (error) {
     // If there's an error fetching org data, don't redirect
