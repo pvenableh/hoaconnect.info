@@ -241,11 +241,25 @@ html.theme-app {
    `html.theme-app .field-underline` (0,2,1) does, which means every input in the
    workspace converts without touching a single component or call site.
 ============================================================================= */
+/* No backdrop-filter here, deliberately — the recessed read comes from the
+   translucent fill and the inset rim, not from a blur.
+   
+   Every field used to carry `blur(10px) saturate(130%)`, which made each input
+   its own compositing surface. That put form pages over the glass budget on
+   count alone: `settings/organization` measured 5 — the top bar, the dock, and
+   three inputs — and a longer form is worse.
+   
+   It bought nothing. A field's backdrop is a flat opaque `bg-card`, with every
+   element between it and the card transparent, and blurring a constant returns
+   the constant. The one place the backdrop is NOT flat is the auth card, whose
+   own glass sits under a gradient — and a side-by-side with the field blur
+   forced on and off there is indistinguishable. Measured, because on this
+   machine it could not be eyeballed: macOS "Reduce transparency" is on, so the
+   `prefers-reduced-transparency` fallback below is what actually renders and
+   both states had to be forced back on to compare them at all. */
 html.theme-app .field-underline {
 	border: 0;
 	background: color-mix(in srgb, var(--theme-bg-elevated) 55%, transparent);
-	backdrop-filter: blur(10px) saturate(130%);
-	-webkit-backdrop-filter: blur(10px) saturate(130%);
 	box-shadow: var(--glass-rim-shadow),
 		inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.1);
 	transition: box-shadow 200ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
@@ -304,14 +318,12 @@ html.theme-app .field-underline[aria-invalid="true"] {
 	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(0 72% 51% / 0.28);
 }
 
+/* Reduced transparency still gets a solid fill — the translucent one above lets
+   the card read through, which is the effect the setting asks us to drop. The
+   `@supports not (backdrop-filter)` twin that used to sit here is gone: this
+   rule no longer depends on backdrop-filter, so there is nothing to fall back
+   from. */
 @media (prefers-reduced-transparency: reduce) {
-	html.theme-app .field-underline {
-		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
-		background: var(--theme-bg-elevated);
-	}
-}
-@supports not (backdrop-filter: blur(1px)) {
 	html.theme-app .field-underline {
 		background: var(--theme-bg-elevated);
 	}
