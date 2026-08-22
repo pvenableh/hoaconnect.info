@@ -560,11 +560,19 @@ function normalizeBlock(b: any, index: number): LandingBlock {
     type,
     enabled: b.enabled !== false,
   };
+
+  // The numbered editorial label ("01" / "Philosophy") is not a content-block
+  // idea — it is how a section announces its place in the sequence, and a
+  // built-in section can want one too. The reference site numbers its FAQ "09".
+  // These used to sit below the early return, so a label stored on any non-
+  // content block was silently dropped in normalization and never reached the
+  // renderer. Empty for every block that does not set one, so nothing else moves.
+  block.number_label = b.number_label ? String(b.number_label) : "";
+  block.category = b.category ? String(b.category) : "";
+
   if (type !== "content") return block;
 
   block.layout = CONTENT_LAYOUTS.includes(b.layout) ? b.layout : "text-image";
-  block.number_label = b.number_label ? String(b.number_label) : "";
-  block.category = b.category ? String(b.category) : "";
   block.show_in_menu = b.show_in_menu !== false; // default: surfaced in the menu
   block.menu_icon = b.menu_icon ? String(b.menu_icon) : "";
   block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";

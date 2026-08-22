@@ -10,7 +10,12 @@
     <OrgLandingAbout v-if="entry.block.type === 'about'" :organization="organization" />
     <OrgLandingAmenities v-else-if="entry.block.type === 'amenities'" :organization="organization" />
     <OrgLandingListings v-else-if="entry.block.type === 'listings'" :listings="effectiveCfg.listings" />
-    <OrgLandingFAQ v-else-if="entry.block.type === 'faq'" :items="effectiveCfg.faq" />
+    <OrgLandingFAQ
+      v-else-if="entry.block.type === 'faq'"
+      :items="effectiveCfg.faq"
+      :block="entry.block"
+      :numbered="isEditorial"
+    />
     <OrgLandingBoard v-else-if="entry.block.type === 'board'" :organization="organization" :slug="slug" />
     <OrgLandingLocation
       v-else-if="entry.block.type === 'location'"

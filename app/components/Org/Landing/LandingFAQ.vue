@@ -8,8 +8,23 @@
     <div class="container mx-auto px-6">
       <div class="max-w-3xl mx-auto">
         <div class="reveal text-center mb-14">
-          <p class="landing-eyebrow mb-5">Questions</p>
-          <h2 class="landing-heading text-4xl sm:text-5xl">Frequently Asked</h2>
+          <!-- On an editorial theme the FAQ can take its place in the numbered
+               sequence ("09 / FAQ") like any content section, if the block names
+               one. Without a label it keeps the plain "Questions" eyebrow, which
+               is what every existing site shows. -->
+          <p
+            v-if="numbered && (block?.number_label || block?.category)"
+            class="mb-5 flex items-center justify-center gap-3"
+          >
+            <span v-if="block?.number_label" class="t-heading text-[26px] leading-6 t-text-accent">
+              {{ block.number_label }}
+            </span>
+            <span v-if="block?.category" class="text-sm tracking-wider uppercase t-text-tertiary">
+              {{ block.category }}
+            </span>
+          </p>
+          <p v-else class="landing-eyebrow mb-5">Questions</p>
+          <h2 class="landing-heading text-4xl sm:text-5xl">{{ block?.title || "Frequently Asked" }}</h2>
           <div class="landing-rule mx-auto mt-8" />
         </div>
 
@@ -39,7 +54,13 @@
 <script setup lang="ts">
 import type { LandingFaqItem } from "#core/shared/utils/landing";
 
-defineProps<{ items: LandingFaqItem[] }>();
+defineProps<{
+  items: LandingFaqItem[];
+  /** The block itself, so the section can carry a number/category/title. */
+  block?: Record<string, any>;
+  /** Editorial themes (classic/luxury) show the numbered chrome; modern does not. */
+  numbered?: boolean;
+}>();
 </script>
 
 <style scoped>

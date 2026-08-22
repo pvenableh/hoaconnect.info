@@ -231,3 +231,30 @@ describe("normalizeLandingConfig — hero CTA", () => {
     }
   });
 });
+
+describe("normalizeBlock — the numbered label is not content-only", () => {
+  it("keeps number_label and category on a built-in block", () => {
+    // The reference site numbers its FAQ "09 / FAQ". These used to sit below an
+    // early return, so any label on a non-content block was dropped silently.
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "f", type: "faq", number_label: "09", category: "FAQ" }],
+    });
+    const faq = cfg.blocks.find((b) => b.type === "faq")!;
+    expect(faq.number_label).toBe("09");
+    expect(faq.category).toBe("FAQ");
+  });
+
+  it("still keeps them on a content block", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "c", type: "content", number_label: "01", category: "Philosophy" }],
+    });
+    expect(cfg.blocks[0]!.number_label).toBe("01");
+    expect(cfg.blocks[0]!.category).toBe("Philosophy");
+  });
+
+  it("defaults them to empty, so an unlabelled section shows no number", () => {
+    const cfg = normalizeLandingConfig({ blocks: [{ id: "f", type: "faq" }] });
+    expect(cfg.blocks[0]!.number_label).toBe("");
+    expect(cfg.blocks[0]!.category).toBe("");
+  });
+});
