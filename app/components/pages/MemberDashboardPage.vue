@@ -493,19 +493,19 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <DashboardStatsCard
+          <AppStatCard
             title="Total Members"
             :value="memberStats?.total || 0"
             description="Active community members"
             icon="i-lucide-users"
           />
-          <DashboardStatsCard
+          <AppStatCard
             title="Owners"
             :value="memberStats?.owners || 0"
             description="Property owners"
             icon="i-lucide-home"
           />
-          <DashboardStatsCard
+          <AppStatCard
             title="Residents"
             :value="memberStats?.tenants || 0"
             description="Tenants"

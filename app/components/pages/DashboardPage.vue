@@ -443,10 +443,10 @@ const {
 
                   <!-- Key Stats -->
                   <div v-else-if="w.key === 'stats'" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <DashboardStatsCard title="Documents" :value="stats.documents" description="Published documents" icon="heroicons:document-text" accent="blue" />
-                    <DashboardStatsCard title="Units" :value="stats.units" description="Total units" icon="heroicons:building-office" accent="violet" />
-                    <DashboardStatsCard title="Members" :value="stats.members" description="Owners & Tenants" icon="heroicons:users" accent="emerald" />
-                    <DashboardStatsCard title="Emails Sent" :value="emailStats.sent" description="Communications sent" icon="heroicons:envelope" accent="amber" />
+                    <AppStatCard title="Documents" :value="stats.documents" description="Published documents" icon="heroicons:document-text" />
+                    <AppStatCard title="Units" :value="stats.units" description="Total units" icon="heroicons:building-office" />
+                    <AppStatCard title="Members" :value="stats.members" description="Owners & Tenants" icon="heroicons:users" />
+                    <AppStatCard title="Emails Sent" :value="emailStats.sent" description="Communications sent" icon="heroicons:envelope" />
                   </div>
 
                   <!-- Owners vs Tenants -->
