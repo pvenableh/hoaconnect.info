@@ -4,11 +4,12 @@
   Picks the nav surface off the active landing theme (the same themeState.style
   that writes html.theme-*):
     • modern          → floating macOS dock (responsive, all viewports)
-    • classic / luxury → a fixed editorial HEADER (imitates 1033lenox.com): an
+    • classic / luxury → a sticky editorial HEADER (imitates 1033lenox.com): an
                          avatar on the left (→ resident portal when signed in,
                          → login otherwise), the centered org logo, and a
-                         notifications + menu cluster on the right. The header is
-                         a frosted bar at all times and retracts on scroll-down.
+                         notifications + menu cluster on the right. It is a SOLID
+                         bar in the document flow — the hero begins beneath it,
+                         not behind it — and retracts on scroll-down.
 
   The centered logo is dynamic: an uploaded SVG is inlined so its paths animate a
   color-fill (like 1033's NewLogo); a raster (PNG, ideally transparent) renders
@@ -33,7 +34,7 @@
     <template v-else>
       <!-- Editorial (classic/luxury): frosted fixed header, retracts on scroll-down. -->
       <header
-        class="landing-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 sm:px-6 h-16"
+        class="landing-header sticky top-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 sm:px-6 h-[59px]"
         :class="[
           isScrollingDown ? '-translate-y-full' : 'translate-y-0',
           isScrolled ? 'landing-header--scrolled' : '',
@@ -164,11 +165,17 @@ const { data: logoSvg } = useAsyncData(
 <style scoped>
 /* Frosted theme-tinted bar at all times (like 1033's always-on header bg);
    scrolling only adds the border + shadow. */
+/* Solid, not frosted. The reference's editorial header is an opaque cream bar
+   with a warm hairline, identical at every scroll position — measured
+   rgb(245,243,239) over rgb(240,235,227), 59px, at scrollY 0 and 1200 alike. It
+   is also IN FLOW (sticky), so the hero starts beneath it rather than behind it;
+   ours was `fixed`, which floated a translucent white pane over the photograph
+   and was the main reason the two headers did not read the same.
+
+   Glass belongs to the modern theme, which uses the dock instead. */
 .landing-header {
-  background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid transparent;
+  background: var(--theme-bg-secondary, #f5f3ef);
+  border-bottom: 1px solid var(--theme-border-light, #f0ebe3);
   /* Tailwind v4 toggles the `translate` property (not `transform`) for
      -translate-y-full, so transition `translate` or the reveal snaps. */
   transition:
@@ -178,6 +185,7 @@ const { data: logoSvg } = useAsyncData(
     box-shadow 0.3s ease;
   will-change: translate;
 }
+/* The hairline is always there now, so scrolling only deepens it slightly. */
 .landing-header--scrolled {
   border-bottom-color: var(--theme-border-primary, rgba(0, 0, 0, 0.06));
   box-shadow: var(--theme-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
