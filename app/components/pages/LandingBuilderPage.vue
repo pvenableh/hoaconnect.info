@@ -397,6 +397,7 @@ useSeoMeta({ title: "Design your site" });
             :draft="draft"
             :theme="previewTheme"
             :mode="landing.mode"
+            :palette="landing.palette"
             style="height: calc(100vh - 8rem)"
           />
         </div>

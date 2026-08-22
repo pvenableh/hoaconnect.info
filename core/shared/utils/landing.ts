@@ -140,6 +140,25 @@ export interface LandingLocationConfig {
 export type LandingMode = "light" | "dark";
 export const LANDING_MODES: LandingMode[] = ["light", "dark"];
 
+/**
+ * An optional palette on top of the chosen style — the ink and accent ramp,
+ * not the layout.
+ *
+ * `classic` began life as 1033lenox.com's theme and was warm: gold `#c9a96e`,
+ * `#454545` text, cream-tinted borders and shadows. The shared copy has since
+ * been re-tinted cool — cyan `#00bfff`, near-black text, neutral borders — so an
+ * org that wants the original editorial warmth can no longer get it from the
+ * style alone. `gold` restores exactly that ramp, in both light and dark, and
+ * leaves every other classic org on what it has today.
+ *
+ * Deliberately a named preset rather than a free hex: the difference is ~20
+ * coordinated tokens (accent, ink ramp, borders, dividers, links, buttons,
+ * warm-tinted shadows), and picking one colour would not derive the other
+ * nineteen. A custom entry can join this union later without changing shape.
+ */
+export type LandingPalette = "default" | "gold";
+export const LANDING_PALETTES: LandingPalette[] = ["default", "gold"];
+
 export type LandingGallerySource = "manual" | "folder";
 
 export interface LandingGalleryConfig {
@@ -273,6 +292,8 @@ export interface LandingBlock {
 export interface LandingConfig {
   /** Light or dark for the public site. Defaults to light. See LandingMode. */
   mode: LandingMode;
+  /** Ink + accent ramp on top of the style. Defaults to the style's own. */
+  palette: LandingPalette;
   widgets: LandingWidgetPref[];
   places: LandingPlaces;
   listings: LandingListing[];
@@ -381,6 +402,7 @@ export function newBlockId(): string {
 export function defaultLandingConfig(): LandingConfig {
   return {
     mode: "light",
+    palette: "default",
     widgets: defaultLandingWidgets(),
     places: { neighborhood: "", walk_score: null, bike_score: null, items: [] },
     listings: [],
@@ -410,6 +432,9 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   // org stored before this existed), a stale value, a typo. Light is what those
   // sites render today and none of them should change appearance on deploy.
   const mode: LandingMode = r.mode === "dark" ? "dark" : "light";
+  // Same rule as `mode`: anything unrecognised falls back to the style's own
+  // ramp, so no stored site shifts colour because of a typo or a stale value.
+  const palette: LandingPalette = r.palette === "gold" ? "gold" : "default";
 
   // Widgets: keep stored prefs for known keys (in stored order), then append
   // any registry widgets not yet present (default-off, except always-on ones).
@@ -485,6 +510,7 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
 
   return {
     mode,
+    palette,
     widgets,
     places,
     listings,

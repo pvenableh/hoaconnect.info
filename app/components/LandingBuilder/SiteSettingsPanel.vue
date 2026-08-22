@@ -28,6 +28,11 @@ const MODE_OPTIONS = [
   { value: "dark", label: "Dark", icon: "lucide:moon" },
 ] as const;
 
+const PALETTE_OPTIONS = [
+  { value: "default", label: "Default", hint: "The style's own ink and accent" },
+  { value: "gold", label: "Warm gold", hint: "Editorial gold and warm greys (1033 Lenox)" },
+] as const;
+
 const widgetDef = (k: LandingWidgetKey) => LANDING_WIDGET_REGISTRY.find((w) => w.key === k);
 function moveWidget(i: number, dir: -1 | 1) {
   const arr = landing.value.widgets;
@@ -100,6 +105,23 @@ watch(
           <p class="text-xs t-text-muted">
             Applies to your public site for everyone who visits it.
           </p>
+
+          <!-- Palette sits apart from the style because it is orthogonal: any of
+               the three styles can wear it. -->
+          <div class="flex items-center gap-2 pt-1">
+            <span class="text-xs t-text-muted mr-1">Palette</span>
+            <button
+              v-for="opt in PALETTE_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="text-left rounded-lg border px-3 py-1.5 transition-colors"
+              :class="landing.palette === opt.value ? 'border-primary ring-1 ring-primary t-text' : 't-border t-text-muted hover:t-bg-subtle'"
+              @click="landing.palette = opt.value"
+            >
+              <span class="block text-xs font-medium">{{ opt.label }}</span>
+              <span class="block text-[11px] t-text-muted">{{ opt.hint }}</span>
+            </button>
+          </div>
         </section>
 
         <!-- Community type -->

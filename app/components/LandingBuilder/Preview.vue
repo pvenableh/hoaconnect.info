@@ -12,6 +12,8 @@ const props = defineProps<{
   theme: string;
   /** Light or dark, from the org's landing config. */
   mode?: string;
+  /** Ink + accent ramp ("default" | "gold"). */
+  palette?: string;
 }>();
 
 const device = ref<"desktop" | "mobile">("desktop");
@@ -30,7 +32,9 @@ const frameHeight = computed(() => (scale.value ? paneH.value / scale.value : pa
 // deterministically. The draft still streams over postMessage (see post()); this
 // just guarantees the theme always applies.
 const src = computed(
-  () => `/${props.slug}/admin/site-preview?theme=${props.theme}&mode=${props.mode || "light"}`
+  () =>
+    `/${props.slug}/admin/site-preview?theme=${props.theme}` +
+    `&mode=${props.mode || "light"}&palette=${props.palette || "default"}`
 );
 
 function post() {

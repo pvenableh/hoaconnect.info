@@ -18,6 +18,9 @@ const { forceThemeStyle } = useTheme();
 const previewMode = computed<"light" | "dark">(() =>
   route.query.mode === "dark" ? "dark" : "light"
 );
+// Palette is a plain html class, so the preview can just carry it in useHead.
+const previewPalette = ref<string>(route.query.palette === "gold" ? "landing-palette-gold" : "");
+useHead({ htmlAttrs: { class: previewPalette } });
 if (route.query.theme) {
   forceThemeStyle(String(route.query.theme) as any, previewMode.value);
 }
@@ -38,6 +41,9 @@ function applyDraft(p: any) {
   if (p.theme) {
     org.settings.theme = p.theme;
     forceThemeStyle(p.theme, p.mode === "dark" ? "dark" : "light");
+  }
+  if (p.landing?.palette !== undefined) {
+    previewPalette.value = p.landing.palette === "gold" ? "landing-palette-gold" : "";
   }
   if (typeof p.description === "string") org.settings.description = p.description;
   if (p.landing) org.settings.landing = p.landing;

@@ -119,6 +119,10 @@ const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
 const landingMode = computed<"light" | "dark">(() =>
   organization.value?.settings?.landing?.mode === "dark" ? "dark" : "light"
 );
+const landingPaletteClass = computed(() =>
+  organization.value?.settings?.landing?.palette === "gold" ? "landing-palette-gold" : ""
+);
+useHead({ htmlAttrs: { class: landingPaletteClass } });
 watchEffect(() => {
   const style = organization.value?.settings?.theme;
   forceThemeStyle(VALID_LANDING_STYLES.includes(style) ? style : "classic", landingMode.value);

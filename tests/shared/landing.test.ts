@@ -194,3 +194,24 @@ describe("normalizeLandingConfig — public light/dark mode", () => {
     expect(normalizeLandingConfig(JSON.parse(JSON.stringify(cfg))).mode).toBe("dark");
   });
 });
+
+describe("normalizeLandingConfig — palette", () => {
+  it("defaults to the style's own ramp", () => {
+    expect(defaultLandingConfig().palette).toBe("default");
+    expect(normalizeLandingConfig(null).palette).toBe("default");
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).palette).toBe("default");
+  });
+
+  it("only the literal string 'gold' opts in", () => {
+    expect(normalizeLandingConfig({ palette: "gold" }).palette).toBe("gold");
+    for (const junk of ["Gold", "GOLD", "warm", true, 1, null, undefined, {}]) {
+      expect(normalizeLandingConfig({ palette: junk }).palette).toBe("default");
+    }
+  });
+
+  it("is independent of mode — either palette works in either mode", () => {
+    const darkGold = normalizeLandingConfig({ mode: "dark", palette: "gold" });
+    expect(darkGold.mode).toBe("dark");
+    expect(darkGold.palette).toBe("gold");
+  });
+});

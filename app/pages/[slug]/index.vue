@@ -163,6 +163,15 @@ const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
 const landingMode = computed<"light" | "dark">(() =>
   organization.value?.settings?.landing?.mode === "dark" ? "dark" : "light"
 );
+// The palette rides on `html` as its own class rather than through
+// forceThemeStyle, because it is orthogonal to the style: any of the three can
+// wear it. useHead merges the two class sources on the same element.
+const landingPaletteClass = computed(() =>
+  !isWorkspaceUser.value && organization.value?.settings?.landing?.palette === "gold"
+    ? "landing-palette-gold"
+    : ""
+);
+useHead({ htmlAttrs: { class: landingPaletteClass } });
 watchEffect(() => {
   // Only force the theme for the PUBLIC LANDING. When a workspace user renders
   // here (the clean-root dashboard / member preview, in the `auth` layout), that
