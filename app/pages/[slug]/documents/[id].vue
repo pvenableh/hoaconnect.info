@@ -11,11 +11,13 @@ const route = useRoute();
 const { buildOrgPath } = useOrgNavigation();
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { getUrl } = useDirectusFiles();
-const { initTheme } = useTheme();
 
-onMounted(() => {
-  initTheme();
-});
+// No initTheme() here. This page is `layout: "auth"` — a workspace surface — and
+// the layout owns the <html> theme. The call used to add `theme-modern-light` on
+// top of `theme-app` and, because it wrote the class directly rather than through
+// useHead, nothing ever took it off again: one visit here left the public theme
+// class on <html> for the rest of the SPA session, including on every admin page
+// you visited afterwards. Measured, not inferred.
 
 const { selectedOrgId, isAdmin, isBoardMember, isMember } = await useSelectedOrg();
 const isBoard = computed(() => isAdmin.value || isBoardMember.value);

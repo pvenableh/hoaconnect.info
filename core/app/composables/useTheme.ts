@@ -1,6 +1,13 @@
-// Theme composable for managing design themes
-// Three themes: 'classic' (cream/serif), 'modern' (white/grey/sans-serif/cyan), 'luxury' (gallery white/brass/premium)
-// Each theme has light and dark mode variants
+// The PUBLIC landing theme: which of the three community styles a visitor sees.
+// 'classic' (cream/serif), 'modern' (white/grey/sans-serif/cyan), 'luxury'
+// (gallery white/brass/premium), each with a light and a dark variant.
+//
+// This composable owns PUBLIC surfaces only. The workspace (admin + auth) is
+// `theme-app` and its light/dark belongs to useAppearance() — see that file's
+// header for the split. The two used to share the user's `appearance` field,
+// which meant a personal light/dark choice and a community's public look could
+// flip each other. They no longer touch the same storage: this file persists
+// `theme_light` (the style), useAppearance persists `appearance` (the mode).
 
 export type ThemeStyle = 'classic' | 'modern' | 'luxury';
 export type ThemeMode = 'light' | 'dark';
@@ -67,27 +74,12 @@ export function useTheme() {
 
 	// Individual computed refs
 	const themeStyle = computed(() => themeState.style);
-	const themeMode = computed(() => themeState.mode);
-	const isDark = computed(() => themeState.mode === 'dark');
+	// NOTE: no `isDark` here on purpose. "Is it dark?" has one answer and it lives
+	// in useAppearance(); a second one reporting the LANDING's mode was a trap.
 	const isClassic = computed(() => themeState.style === 'classic');
 	const isModern = computed(() => themeState.style === 'modern');
 	const isLuxury = computed(() => themeState.style === 'luxury');
 	const isPremiumTheme = computed(() => themeState.style === 'luxury');
-
-	// Set theme class on html element (works with SSR via useHead)
-	function setHtmlThemeClass(style: ThemeStyle, mode: ThemeMode = 'light') {
-		const className = `theme-${style}-${mode}`;
-
-		useHead({
-			htmlAttrs: {
-				class: className,
-			},
-		});
-
-		// Also update state for client-side reactivity
-		themeState.style = style;
-		themeState.mode = mode;
-	}
 
 	// Set theme style (classic, modern, or luxury)
 	async function setThemeStyle(style: ThemeStyle, persist = true) {
@@ -105,53 +97,12 @@ export function useTheme() {
 		}
 	}
 
-	// Set theme mode (light or dark)
-	async function setThemeMode(mode: ThemeMode, persist = true) {
-		themeState.mode = mode;
-		saveThemeLocal();
-		applyTheme();
-
-		// Persist to Directus if user is logged in
-		if (persist && user.value) {
-			try {
-				await updateProfile({ appearance: mode });
-			} catch (e) {
-				console.warn('Failed to save theme mode to server:', e);
-			}
-		}
-	}
-
-	// Toggle between light and dark mode
-	function toggleMode() {
-		setThemeMode(themeState.mode === 'light' ? 'dark' : 'light');
-	}
-
 	// Cycle through theme styles (classic excluded — landing-page only)
 	function cycleStyle() {
 		const styles: ThemeStyle[] = ['modern', 'luxury'];
 		const currentIndex = styles.indexOf(themeState.style);
 		const nextIndex = (currentIndex + 1) % styles.length;
 		setThemeStyle(styles[nextIndex]);
-	}
-
-	// Set full theme (style + mode)
-	async function setTheme(style: ThemeStyle, mode: ThemeMode, persist = true) {
-		themeState.style = style;
-		themeState.mode = mode;
-		saveThemeLocal();
-		applyTheme();
-
-		// Persist to Directus if user is logged in
-		if (persist && user.value) {
-			try {
-				await updateProfile({
-					theme_light: style,
-					appearance: mode,
-				});
-			} catch (e) {
-				console.warn('Failed to save theme to server:', e);
-			}
-		}
 	}
 
 	// Force a specific theme style without persisting (useful for public pages like sell-sheet)
@@ -207,7 +158,12 @@ export function useTheme() {
 		}
 	}
 
-	// Initialize theme on mount - loads from user profile if logged in, otherwise localStorage
+	// Initialize the landing STYLE on mount — from the user's stored preference if
+	// they have one, otherwise localStorage.
+	//
+	// This deliberately does NOT read the user's `appearance` field. It used to,
+	// which is how a personal dark-mode choice leaked onto a community's public
+	// landing page. The mode here is the landing's own, and landings render light.
 	async function initTheme() {
 		if (import.meta.client) {
 			// First, apply stored local theme for immediate display
@@ -216,44 +172,17 @@ export function useTheme() {
 			themeState.mode = stored.mode;
 			applyTheme();
 
-			// If user is logged in, check if they have a saved preference
+			// If user is logged in, check if they have a saved style preference
 			if (user.value) {
-				// Get theme style from user's theme_light field
-				const profile = user.value as typeof user.value & { theme_light?: string; appearance?: string };
+				const profile = user.value as typeof user.value & { theme_light?: string };
 				const userStyle = profile.theme_light as ThemeStyle | undefined;
-				const userMode = profile.appearance as ThemeMode | undefined;
 
 				if (userStyle) {
 					themeState.style = normalizeStyle(userStyle);
+					saveThemeLocal();
+					applyTheme();
 				}
-
-				if (userMode && (userMode === 'light' || userMode === 'dark')) {
-					themeState.mode = userMode;
-				}
-
-				saveThemeLocal();
-				applyTheme();
 			}
-		}
-	}
-
-	// Load user theme from profile (call after login)
-	async function loadUserTheme() {
-		if (user.value) {
-			const profile = user.value as typeof user.value & { theme_light?: string; appearance?: string };
-			const userStyle = profile.theme_light as ThemeStyle | undefined;
-			const userMode = profile.appearance as ThemeMode | undefined;
-
-			if (userStyle) {
-				themeState.style = normalizeStyle(userStyle);
-			}
-
-			if (userMode && (userMode === 'light' || userMode === 'dark')) {
-				themeState.mode = userMode;
-			}
-
-			saveThemeLocal();
-			applyTheme();
 		}
 	}
 
@@ -272,8 +201,6 @@ export function useTheme() {
 		themeState,
 		themeClass,
 		themeStyle,
-		themeMode,
-		isDark,
 		isClassic,
 		isModern,
 		isLuxury,
@@ -284,15 +211,10 @@ export function useTheme() {
 
 		// Actions
 		setThemeStyle,
-		setThemeMode,
-		toggleMode,
 		cycleStyle,
-		setTheme,
 		forceThemeStyle,
-		setHtmlThemeClass,
 		initTheme,
 		applyTheme,
-		loadUserTheme,
 
 		// Premium helpers
 		isPremiumRequired,

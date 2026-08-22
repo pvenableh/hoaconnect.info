@@ -132,8 +132,9 @@ export function useAppearance() {
 
     if (persist && user.value) {
       try {
-        // `theme_light` is dual-written for one release so a stale PWA client
-        // running the old code still finds a preference where it looks.
+        // `appearance` is this composable's field and nothing else writes it.
+        // useTheme() persists `theme_light` — the PUBLIC landing style, a
+        // separate and still-live preference — and the two no longer overlap.
         await updateProfile({ appearance: next });
       } catch (e) {
         console.warn("[appearance] failed to persist preference:", e);
