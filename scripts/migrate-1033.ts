@@ -1,74 +1,60 @@
 /**
- * Migrate 1033 Lenox in as HOA Connect tenant #1.
+ * Migrate 1033 Lenox in as an HOA Connect tenant.
  *
  * 1033 (the Nuxt 3 editorial site at ~/Sites/1033/main, live at 1033lenox.com)
- * runs on its OWN Directus instance (collections: corporation, units, people /
- * persons, junction_directus_users_units, leases, board, …). This script reads
- * from that source Directus and upserts the core records onto the existing
- * HOA Connect hoa_* collections. Its editorial look maps to the `classic` style.
+ * runs on its OWN Directus instance. This reads from there and upserts onto the
+ * HOA Connect `hoa_*` collections.
+ *
+ * The mapping below was VERIFIED against the live 1033 schema on 2026-08-22 —
+ * every collection and field name here was read back from `/fields/*` and every
+ * enum value from a distinct-value sweep of the real rows. An earlier version of
+ * this file was written from the 1033 codebase and guessed; several of its
+ * guesses (`persons`, `junction_directus_users_units` as the membership link,
+ * `is_owner` as the owner signal) were wrong. Notes below record which, and why.
  *
  * The over-engineered 1033 finance engine (assessment_ledger, fiscal_years,
  * budget_*, reconciliation, cash_flow_projections, …) is intentionally LEFT
- * BEHIND (ROADMAP: simple, not QuickBooks). Only dues→payment_requests is
- * optionally carried over.
+ * BEHIND — ROADMAP: simple, not QuickBooks.
  *
- *   Source (1033):   SOURCE_1033_DIRECTUS_URL + SOURCE_1033_TOKEN
+ *   Source (1033):    1033_DIRECTUS_URL + 1033_DIRECTUS_SERVER_TOKEN
  *   Target (Connect): DIRECTUS_URL + DIRECTUS_STATIC_TOKEN
  *
- * Run with:  pnpm run migrate:1033          (writes)
- *            pnpm run migrate:1033 -- --dry  (no writes, just reports)
+ * NOTE those source names begin with a digit, so they are NOT valid shell
+ * identifiers — `$1033_DIRECTUS_URL` is a syntax error and `set -a; . ./.env`
+ * warns on them. Node reads them fine as object keys, which is why they are
+ * addressed as `process.env["1033_…"]` throughout.
  *
- * Idempotent: rows are matched on natural keys (org slug, unit_number, member
- * email, board member+title) so re-running updates rather than duplicates.
+ * Run with:  pnpm run migrate:1033 -- --dry    (reports, writes nothing)
+ *            pnpm run migrate:1033             (writes)
  *
- * ⚠️  CONFIRM BEFORE RUNNING: the 1033 source collection/field names below are
- * best-guesses from the 1033 codebase — verify against the live 1033 Directus
- * schema (and obtain a read token) before trusting the mapping.
+ * Idempotent: every row is matched on a natural key (org + unit number, org +
+ * email, org + subject + sent date, …) so re-running updates instead of
+ * duplicating.
  */
 
 const TARGET_URL = process.env.DIRECTUS_URL;
 const TARGET_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
-const SOURCE_URL = process.env.SOURCE_1033_DIRECTUS_URL;
-const SOURCE_TOKEN = process.env.SOURCE_1033_TOKEN;
+// New names first; the older SOURCE_* pair still works if someone has it set.
+const SOURCE_URL = process.env["1033_DIRECTUS_URL"] || process.env.SOURCE_1033_DIRECTUS_URL;
+const SOURCE_TOKEN =
+  process.env["1033_DIRECTUS_SERVER_TOKEN"] || process.env.SOURCE_1033_TOKEN;
 
 const DRY = process.argv.includes("--dry") || process.argv.includes("--dry-run");
+const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").replace("--only=", "");
 
 if (!TARGET_URL || !TARGET_TOKEN) {
   console.error("❌ Missing target env: DIRECTUS_URL + DIRECTUS_STATIC_TOKEN");
   process.exit(1);
 }
 if (!SOURCE_URL || !SOURCE_TOKEN) {
-  console.error("❌ Missing source env: SOURCE_1033_DIRECTUS_URL + SOURCE_1033_TOKEN");
-  console.error("   (Obtain a read token for the 1033 Directus instance first.)");
+  console.error("❌ Missing source env: 1033_DIRECTUS_URL + 1033_DIRECTUS_SERVER_TOKEN");
   process.exit(1);
 }
 
-// ── Source mapping (CONFIRM against the live 1033 schema) ───────────────────
-const SOURCE = {
-  org: { collection: "corporation", name: "name", legalName: "legal_name" },
-  units: { collection: "units", number: "unit_number", id: "id" },
-  people: {
-    collection: "people", // 1033 also has `persons` — confirm which is canonical
-    first: "first_name",
-    last: "last_name",
-    email: "email",
-    phone: "phone",
-  },
-  membership: {
-    collection: "junction_directus_users_units",
-    unit: "units_id",
-    person: "directus_users_id",
-    primary: "is_primary",
-    ownership: "ownership_percentage",
-  },
-  board: { collection: "board", person: "person", title: "title", start: "term_start", end: "term_end" },
-};
-
 const ORG_SLUG = "1033-lenox";
-const ORG_NAME = "1033 Lenox";
 
-// ── HTTP helpers ────────────────────────────────────────────────────────────
-async function dxFetch(baseUrl: string, token: string, endpoint: string, options: RequestInit = {}): Promise<any> {
+// ── HTTP ────────────────────────────────────────────────────────────────────
+async function dxFetch(baseUrl: string, token: string, endpoint: string, options: RequestInit = {}) {
   const res = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers: {
@@ -77,22 +63,18 @@ async function dxFetch(baseUrl: string, token: string, endpoint: string, options
       ...options.headers,
     },
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`HTTP ${res.status} (${endpoint}): ${err}`);
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status} (${endpoint}): ${await res.text()}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
-const src = (endpoint: string, options?: RequestInit) => dxFetch(SOURCE_URL!, SOURCE_TOKEN!, endpoint, options);
-const tgt = (endpoint: string, options?: RequestInit) => dxFetch(TARGET_URL!, TARGET_TOKEN!, endpoint, options);
+const src = (e: string, o?: RequestInit) => dxFetch(SOURCE_URL!, SOURCE_TOKEN!, e, o);
+const tgt = (e: string, o?: RequestInit) => dxFetch(TARGET_URL!, TARGET_TOKEN!, e, o);
 
-async function readAll(base: typeof src, collection: string, fields = "*"): Promise<any[]> {
+async function readAll(collection: string, fields = "*"): Promise<any[]> {
   const out: any[] = [];
   let page = 1;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
-    const res = await base(`/items/${collection}?fields=${fields}&limit=100&page=${page}`);
+    const res = await src(`/items/${collection}?fields=${fields}&limit=100&page=${page}`);
     const rows = res?.data ?? [];
     out.push(...rows);
     if (rows.length < 100) break;
@@ -101,193 +83,416 @@ async function readAll(base: typeof src, collection: string, fields = "*"): Prom
   return out;
 }
 
-async function findOne(collection: string, filter: Record<string, any>, fields = "id"): Promise<any | null> {
-  const res = await tgt(`/items/${collection}?filter=${encodeURIComponent(JSON.stringify(filter))}&fields=${fields}&limit=1`);
+async function findOne(collection: string, filter: Record<string, any>) {
+  const res = await tgt(
+    `/items/${collection}?filter=${encodeURIComponent(JSON.stringify(filter))}&fields=id&limit=1`
+  );
   return res?.data?.[0] ?? null;
+}
+
+const stats: Record<string, { created: number; updated: number; skipped: number }> = {};
+function tally(k: string, what: "created" | "updated" | "skipped") {
+  stats[k] = stats[k] || { created: 0, updated: 0, skipped: 0 };
+  stats[k][what]++;
 }
 
 async function upsert(
   collection: string,
-  matchFilter: Record<string, any>,
+  match: Record<string, any>,
   data: Record<string, any>,
-  label: string
+  bucket: string
 ): Promise<string | null> {
-  const existing = await findOne(collection, matchFilter);
+  const existing = await findOne(collection, match);
   if (DRY) {
-    console.log(`   ${existing ? "↻ would update" : "+ would create"} ${collection}: ${label}`);
-    return existing?.id ?? "dry-run-id";
+    tally(bucket, existing ? "updated" : "created");
+    // A dry run still has to hand back an id, because later steps filter on it —
+    // and those columns are uuid, so a readable placeholder like "dry-12" makes
+    // Postgres 500 rather than simply missing. Deterministic and well-formed, so
+    // the lookup runs, finds nothing, and reports "would create" like it should.
+    return existing?.id ?? dryUuid(collection, match);
   }
   if (existing) {
-    await tgt(`/items/${collection}/${existing.id}`, { method: "PATCH", body: JSON.stringify(data) });
-    console.log(`   ↻ updated ${collection}: ${label}`);
+    await tgt(`/items/${collection}/${existing.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    tally(bucket, "updated");
     return existing.id;
   }
   const created = await tgt(`/items/${collection}`, { method: "POST", body: JSON.stringify(data) });
-  console.log(`   + created ${collection}: ${label}`);
+  tally(bucket, "created");
   return created?.data?.id ?? null;
 }
 
-// ── Migration steps ─────────────────────────────────────────────────────────
-async function migrateOrg(): Promise<string> {
-  console.log("\n🏢 Organization…");
-  const orgId = await upsert(
-    "hoa_organizations",
-    { slug: { _eq: ORG_SLUG } },
-    { name: ORG_NAME, slug: ORG_SLUG, type: "residential", is_free_account: true },
-    ORG_NAME
-  );
-  if (!orgId) throw new Error("Could not resolve org id");
+const clean = (v: any) => (typeof v === "string" ? v.trim() || null : (v ?? null));
 
-  // Editorial look → classic style on the public landing.
-  const existingSettings = await findOne("block_settings", { organization: { _eq: orgId } }, "id");
-  if (!DRY) {
-    if (existingSettings) {
-      await tgt(`/items/block_settings/${existingSettings.id}`, { method: "PATCH", body: JSON.stringify({ theme: "classic" }) });
-    } else {
-      await tgt(`/items/block_settings`, { method: "POST", body: JSON.stringify({ organization: orgId, theme: "classic" }) });
-    }
-  }
-  console.log("   ✅ settings.theme = classic");
-  return orgId as string;
+/** A well-formed, stable stand-in id for dry runs. Never written anywhere. */
+function dryUuid(collection: string, match: Record<string, any>): string {
+  const seed = `${collection}:${JSON.stringify(match)}`;
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  const hex = (Math.abs(h).toString(16) + "0".repeat(12)).slice(0, 12);
+  return `00000000-0000-4000-8000-${hex}`;
 }
 
-async function migrateUnits(orgId: string): Promise<Map<string, string>> {
-  console.log("\n🏠 Units…");
-  const sourceUnits = await readAll(src, SOURCE.units.collection);
-  const map = new Map<string, string>(); // sourceUnitId → targetUnitId
-  for (const u of sourceUnits) {
-    const number = String(u[SOURCE.units.number] ?? u.name ?? u.id);
+/**
+ * Source stores a mailing address as one flat string; Connect stores JSON and
+ * the profile page reads `{ line1, line2, city, state, zip }` (`fmtAddress`).
+ * Passing the raw string makes Postgres reject the insert outright — "invalid
+ * input syntax for type json" — which is how this was found.
+ *
+ * Anything that does not parse keeps the whole original in `line1`, so no
+ * address is ever dropped on the floor: `fmtAddress` renders on `line1 || city`,
+ * so an unparsed address still displays, just unsplit.
+ */
+function parseAddress(raw: string | null): Record<string, string> | null {
+  const text = (raw || "").trim().replace(/\s+/g, " ");
+  if (!text) return null;
+  const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 3) {
+    const tail = parts[parts.length - 1]!;
+    // "FL 33139" or "FL 33139-1234"
+    const m = /^([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/.exec(tail);
+    if (m) {
+      const city = parts[parts.length - 2]!;
+      const lines = parts.slice(0, parts.length - 2);
+      return {
+        line1: lines[0] || "",
+        ...(lines.length > 1 ? { line2: lines.slice(1).join(", ") } : {}),
+        city,
+        state: m[1]!.toUpperCase(),
+        zip: m[2]!,
+      };
+    }
+  }
+  return { line1: text };
+}
+
+// ── Org ─────────────────────────────────────────────────────────────────────
+async function getOrg(): Promise<string> {
+  const org = await findOne("hoa_organizations", { slug: { _eq: ORG_SLUG } });
+  if (!org) throw new Error(`Target org "${ORG_SLUG}" not found — create it first.`);
+  return org.id;
+}
+
+// ── Units ───────────────────────────────────────────────────────────────────
+/** source unit id → target unit id */
+async function migrateUnits(orgId: string) {
+  const rows = await readAll("units", "id,number,status,occupant");
+  const map = new Map<number, string>();
+  for (const u of rows) {
+    const number = clean(u.number);
+    if (!number) {
+      tally("units", "skipped");
+      continue;
+    }
+    // `occupant` is the source of the building's headline ownership figure — it
+    // reads Owner 18 / Tenant 10 across 28 units, which is exactly the
+    // "18 owner-occupied · 64% ownership" the live site shows. Derived from
+    // member_type it would have come out ~28, because owners own units whether
+    // or not they live in them.
+    const occ = (u.occupant || "").toLowerCase();
+    const occupancy = occ === "owner" ? "owner" : occ === "tenant" ? "tenant" : null;
+
     const id = await upsert(
       "hoa_units",
-      { _and: [{ organization: { _eq: orgId } }, { unit_number: { _eq: number } }] },
-      { organization: orgId, unit_number: number, status: "active" },
-      `Unit ${number}`
+      { organization: { _eq: orgId }, unit_number: { _eq: number } },
+      { organization: orgId, unit_number: number, status: "active", occupancy },
+      "units"
     );
-    if (id) map.set(String(u[SOURCE.units.id]), id);
+    if (id) map.set(u.id, id);
   }
-  console.log(`   ✅ ${sourceUnits.length} unit(s)`);
   return map;
 }
 
-async function migrateMembers(orgId: string): Promise<Map<string, string>> {
-  console.log("\n👥 Members…");
-  const people = await readAll(src, SOURCE.people.collection);
-  const map = new Map<string, string>(); // sourcePersonId → targetMemberId
-  for (const p of people) {
-    const email = p[SOURCE.people.email] || null;
-    const first = p[SOURCE.people.first] || "";
-    const last = p[SOURCE.people.last] || "";
-    if (!email && !first && !last) continue;
+// ── People → members ────────────────────────────────────────────────────────
+/**
+ * `category` is the owner/tenant signal, NOT `is_owner`: that boolean is null on
+ * 84 of 89 rows, so trusting it would have made almost everyone a tenant.
+ * Counts at time of writing: Owner 49 · Tenant 33 · Property Manager 5 ·
+ * vendor 1 · Test User 1.
+ */
+function memberTypeFor(category: string | null): "owner" | "tenant" | null {
+  const c = (category || "").toLowerCase();
+  if (c === "owner") return "owner";
+  if (c === "tenant" || c === "renter") return "tenant";
+  // A property manager is neither, and hoa_members.member_type only offers those
+  // two — so it stays null rather than being forced into a wrong answer. The PM
+  // role in Connect is granted separately (see the vendors/PM notes).
+  return null;
+}
+
+/** source person id → target member id */
+async function migrateMembers(orgId: string) {
+  const rows = await readAll(
+    "people",
+    "id,first_name,last_name,email,phone,mailing_address,category,status"
+  );
+  const map = new Map<number, string>();
+  for (const p of rows) {
+    const cat = (p.category || "").toLowerCase();
+    // Not people: a vendor contact and a leftover test row.
+    if (cat === "vendor" || cat === "test user") {
+      tally("members", "skipped");
+      continue;
+    }
+    const email = clean(p.email)?.toLowerCase() ?? null;
+    const first = clean(p.first_name);
+    const last = clean(p.last_name);
+    if (!first && !last && !email) {
+      tally("members", "skipped");
+      continue;
+    }
+
+    // Email is the natural key where there is one (83 of 89). The rest fall back
+    // to the name, which is why the filter is built rather than fixed.
     const match = email
-      ? { _and: [{ organization: { _eq: orgId } }, { email: { _eq: email } }] }
-      : { _and: [{ organization: { _eq: orgId } }, { first_name: { _eq: first } }, { last_name: { _eq: last } }] };
-    const id = await upsert(
-      "hoa_members",
-      match,
-      {
-        organization: orgId,
-        first_name: first || null,
-        last_name: last || null,
-        email,
-        phone: p[SOURCE.people.phone] || null,
-        status: "active",
-        member_type: "owner",
-      },
-      `${first} ${last}`.trim() || email || "member"
-    );
-    if (id) map.set(String(p.id), id);
+      ? { organization: { _eq: orgId }, email: { _eq: email } }
+      : {
+          organization: { _eq: orgId },
+          first_name: { _eq: first },
+          last_name: { _eq: last },
+        };
+
+    const data: Record<string, any> = {
+      organization: orgId,
+      first_name: first,
+      last_name: last,
+      email,
+      phone: clean(p.phone),
+      mailing_address: parseAddress(p.mailing_address),
+      // 28 of 89 are archived at source; they stay archived here rather than
+      // being resurrected into the directory.
+      status: p.status === "archived" ? "archived" : "active",
+    };
+    const mt = memberTypeFor(p.category);
+    if (mt) data.member_type = mt;
+
+    const id = await upsert("hoa_members", match, data, "members");
+    if (id) map.set(p.id, id);
   }
-  console.log(`   ✅ ${people.length} person/people`);
   return map;
 }
 
-async function migrateMemberships(orgId: string, unitMap: Map<string, string>, memberMap: Map<string, string>): Promise<void> {
-  console.log("\n🔗 Member ↔ Unit links…");
-  let links = 0;
-  try {
-    const junctions = await readAll(src, SOURCE.membership.collection);
-    for (const j of junctions) {
-      const unitId = unitMap.get(String(j[SOURCE.membership.unit]));
-      const memberId = memberMap.get(String(j[SOURCE.membership.person]));
-      if (!unitId || !memberId) continue;
+// ── Unit ↔ member links ─────────────────────────────────────────────────────
+/**
+ * Taken from each unit's own `people` array, NOT from the `units_people`
+ * junction: that table's first rows carry NULL on both sides, so reading it
+ * directly produces orphans.
+ */
+async function migrateMemberships(
+  unitMap: Map<number, string>,
+  memberMap: Map<number, string>
+) {
+  const units = await readAll("units", "id,people");
+  for (const u of units) {
+    const unitId = unitMap.get(u.id);
+    const people: number[] = Array.isArray(u.people) ? u.people : [];
+    if (!unitId || !people.length) continue;
+    for (const [i, personId] of people.entries()) {
+      const memberId = memberMap.get(personId);
+      if (!memberId) {
+        tally("memberships", "skipped");
+        continue;
+      }
       await upsert(
         "hoa_member_units",
-        { _and: [{ member_id: { _eq: memberId } }, { unit_id: { _eq: unitId } }] },
-        {
-          member_id: memberId,
-          unit_id: unitId,
-          is_primary_unit: !!j[SOURCE.membership.primary],
-          ownership_percentage: j[SOURCE.membership.ownership] ?? null,
-          status: "published",
-        },
-        `${memberId.slice(0, 8)}→${unitId.slice(0, 8)}`
+        { member_id: { _eq: memberId }, unit_id: { _eq: unitId } },
+        { member_id: memberId, unit_id: unitId, is_primary_unit: i === 0 },
+        "memberships"
       );
-      links++;
     }
-  } catch (e: any) {
-    console.log(`   ⚠️  membership junction skipped: ${e.message}`);
   }
-  console.log(`   ✅ ${links} link(s)`);
 }
 
-const BOARD_TITLE_MAP: Record<string, "president" | "vice_president" | "secretary" | "treasurer" | "director"> = {
-  president: "president",
-  "vice president": "vice_president",
-  vice_president: "vice_president",
-  secretary: "secretary",
-  treasurer: "treasurer",
-  director: "director",
-};
-
-async function migrateBoard(memberMap: Map<string, string>): Promise<void> {
-  console.log("\n🎖️  Board…");
-  let count = 0;
-  try {
-    const board = await readAll(src, SOURCE.board.collection);
-    for (const b of board) {
-      const memberId = memberMap.get(String(b[SOURCE.board.person]));
-      if (!memberId) continue;
-      const rawTitle = String(b[SOURCE.board.title] ?? "director").toLowerCase().trim();
-      const title = BOARD_TITLE_MAP[rawTitle] ?? "director";
-      await upsert(
-        "hoa_board_members",
-        { _and: [{ hoa_member: { _eq: memberId } }, { title: { _eq: title } }] },
-        {
-          hoa_member: memberId,
-          title,
-          term_start: b[SOURCE.board.start] || null,
-          term_end: b[SOURCE.board.end] || null,
-          status: "published",
-        },
-        `${title}`
-      );
-      count++;
+// ── Vehicles ────────────────────────────────────────────────────────────────
+async function migrateVehicles(orgId: string, unitMap: Map<number, string>) {
+  const rows = await readAll(
+    "vehicles",
+    "id,make,model,year,license_plate,parking_spot,unit_id,status"
+  );
+  for (const v of rows) {
+    const plate = clean(v.license_plate);
+    const unitId = v.unit_id ? unitMap.get(v.unit_id) : null;
+    if (!plate && !unitId) {
+      tally("vehicles", "skipped");
+      continue;
     }
-  } catch (e: any) {
-    console.log(`   ⚠️  board skipped: ${e.message}`);
+    // `color`, `state` and `category` have no home on hoa_vehicles and are
+    // dropped rather than stuffed somewhere they would not be found again.
+    await upsert(
+      "hoa_vehicles",
+      plate
+        ? { organization: { _eq: orgId }, license_plate: { _eq: plate } }
+        : { organization: { _eq: orgId }, unit_id: { _eq: unitId } },
+      {
+        organization: orgId,
+        make: clean(v.make),
+        model: clean(v.model),
+        year: v.year ?? null,
+        license_plate: plate,
+        parking_spot: clean(v.parking_spot),
+        unit_id: unitId,
+        status: v.status === "archived" ? "archived" : v.status === "draft" ? "draft" : "published",
+      },
+      "vehicles"
+    );
   }
-  console.log(`   ✅ ${count} board term(s)`);
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
-async function main(): Promise<void> {
-  console.log(`🚚 Migrating 1033 Lenox → HOA Connect ${DRY ? "(DRY RUN)" : ""}`);
+// ── Pets ────────────────────────────────────────────────────────────────────
+const PET_TYPES = ["dog", "cat", "bird", "reptile", "other"];
+async function migratePets(orgId: string, unitMap: Map<number, string>) {
+  const rows = await readAll("pets", "id,name,breed,weight,category,unit_id,status");
+  for (const p of rows) {
+    const unitId = p.unit_id ? unitMap.get(p.unit_id) : null;
+    const type = PET_TYPES.includes((p.category || "").toLowerCase())
+      ? (p.category as string).toLowerCase()
+      : "other";
+    // Every source pet is unnamed, so the natural key has to be the unit plus
+    // the breed — enough to stop a re-run duplicating them.
+    await upsert(
+      "hoa_pets",
+      {
+        organization: { _eq: orgId },
+        unit_id: { _eq: unitId },
+        breed: { _eq: clean(p.breed) },
+      },
+      {
+        organization: orgId,
+        name: clean(p.name),
+        breed: clean(p.breed),
+        weight: p.weight ?? null,
+        type,
+        unit_id: unitId,
+        status: p.status === "archived" ? "archived" : "published",
+      },
+      "pets"
+    );
+  }
+}
+
+// ── Meetings ────────────────────────────────────────────────────────────────
+/** Source has one category, "Board Meeting"; keep the map so others land right. */
+function meetingType(category: string | null): string {
+  const c = (category || "").toLowerCase();
+  if (c.includes("annual")) return "annual";
+  if (c.includes("special")) return "special";
+  if (c.includes("committee")) return "committee";
+  return "board";
+}
+
+async function migrateMeetings(orgId: string) {
+  const rows = await readAll(
+    "meetings",
+    "id,title,date,time,description,agenda,minutes,location,video_link,recording_link,category,canceled,status"
+  );
+  for (const m of rows) {
+    const title = clean(m.title) || "Board Meeting";
+    // date + time are separate columns at source; Connect stores one timestamp.
+    const when = m.date ? `${m.date}${m.time ? `T${m.time}` : "T00:00:00"}` : null;
+    await upsert(
+      "hoa_meetings",
+      { organization: { _eq: orgId }, title: { _eq: title }, meeting_date: { _eq: when } },
+      {
+        organization: orgId,
+        title,
+        type: meetingType(m.category),
+        meeting_date: when,
+        location: clean(m.location),
+        virtual_url: clean(m.video_link),
+        recording_url: clean(m.recording_link),
+        agenda: clean(m.agenda) || clean(m.description),
+        minutes: clean(m.minutes),
+        status: m.canceled ? "canceled" : "completed",
+        is_published: m.status === "published",
+        target_audience: "all",
+      },
+      "meetings"
+    );
+  }
+}
+
+// ── Announcements → emails ──────────────────────────────────────────────────
+/**
+ * 1033's "announcements" ARE its sent emails — subject, body, greeting, closing,
+ * a template name and a sent date — so they belong on `hoa_emails`, not on
+ * `hoa_announcements`. Status at source is sent (101) / "Sent" (3) / archived
+ * (2); hoa_emails has no archived state, so all of them land as `sent`, which is
+ * true of every one of them.
+ */
+async function migrateAnnouncements(orgId: string) {
+  const rows = await readAll(
+    "announcements",
+    "id,title,subtitle,content,greeting,closing,urgent,date_sent,status,private"
+  );
+  for (const a of rows) {
+    const subject = clean(a.title);
+    const content = clean(a.content);
+    if (!subject || !content) {
+      tally("emails", "skipped");
+      continue;
+    }
+    await upsert(
+      "hoa_emails",
+      {
+        organization: { _eq: orgId },
+        subject: { _eq: subject },
+        sent_at: { _eq: a.date_sent ?? null },
+      },
+      {
+        organization: orgId,
+        subject,
+        subtitle: clean(a.subtitle),
+        content,
+        greeting: clean(a.greeting),
+        salutation: clean(a.closing),
+        urgent: a.urgent === true,
+        sent_at: a.date_sent ?? null,
+        status: "sent",
+        email_type: "announcement",
+        content_mode: "visual",
+      },
+      "emails"
+    );
+  }
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+async function main() {
+  console.log(`\n🏢 1033 Lenox → HOA Connect${DRY ? "  (DRY RUN — no writes)" : ""}`);
   console.log(`   source: ${SOURCE_URL}`);
   console.log(`   target: ${TARGET_URL}`);
-  try {
-    const orgId = await migrateOrg();
-    const unitMap = await migrateUnits(orgId);
-    const memberMap = await migrateMembers(orgId);
-    await migrateMemberships(orgId, unitMap, memberMap);
-    await migrateBoard(memberMap);
+  if (ONLY) console.log(`   only:   ${ONLY}`);
 
-    console.log("\n✅ 1033 core migration complete.");
-    console.log("   (Finance engine intentionally left behind — ROADMAP.)");
-    console.log("\n📌 Next: spot-check units/members/board in HOA Connect, then");
-    console.log("   review the landing at /" + ORG_SLUG + " (classic style).");
+  const want = (name: string) => !ONLY || ONLY.split(",").includes(name);
+
+  try {
+    const orgId = await getOrg();
+    console.log(`   org:    ${ORG_SLUG} (${orgId})\n`);
+
+    // Units and members first — everything else refers to them.
+    const unitMap = want("units") || want("all") || !ONLY ? await migrateUnits(orgId) : new Map();
+    const memberMap = await migrateMembers(orgId);
+    if (want("memberships") || !ONLY) await migrateMemberships(unitMap, memberMap);
+    if (want("vehicles") || !ONLY) await migrateVehicles(orgId, unitMap);
+    if (want("pets") || !ONLY) await migratePets(orgId, unitMap);
+    if (want("meetings") || !ONLY) await migrateMeetings(orgId);
+    if (want("announcements") || !ONLY) await migrateAnnouncements(orgId);
+
+    console.log("\n   what moved");
+    for (const [k, v] of Object.entries(stats)) {
+      console.log(
+        `   ${k.padEnd(13)} created ${String(v.created).padStart(4)}  updated ${String(v.updated).padStart(4)}  skipped ${String(v.skipped).padStart(4)}`
+      );
+    }
+    console.log(
+      DRY
+        ? "\n🔍 Dry run — nothing was written. Re-run without --dry to apply."
+        : "\n✅ Migration complete. Finance engine intentionally left behind."
+    );
   } catch (error: any) {
     console.error("\n❌ Error:", error.message);
-    console.error(error);
     process.exit(1);
   }
 }

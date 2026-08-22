@@ -73,6 +73,36 @@ export default defineEventHandler(async (event) => {
       org.property_manager = null;
     }
 
+    // Unit count + owner-occupancy for the building widget. The reference site
+    // leads with "28 / UNITS · 18 owner-occupied · 64% ownership", and a unit
+    // count is a truer description of a building than the denormalized
+    // `member_count` the widget used to read — that counts people, drifts
+    // whenever a member record changes, and said "1 household" for a 28-unit
+    // building. Best-effort: a failure here must not take the landing down.
+    try {
+      const units = await directus.request(
+        readItems("hoa_units", {
+          filter: {
+            _and: [{ organization: { _eq: org.id } }, { status: { _neq: "archived" } }],
+          },
+          fields: ["occupancy"],
+          limit: -1,
+        })
+      );
+      const total = units?.length || 0;
+      const ownerOccupied = (units || []).filter((u: any) => u.occupancy === "owner").length;
+      org.unit_stats = total
+        ? {
+            total,
+            owner_occupied: ownerOccupied,
+            // Only meaningful once somebody has actually recorded occupancy.
+            ownership_pct: ownerOccupied ? Math.round((ownerOccupied / total) * 100) : null,
+          }
+        : null;
+    } catch {
+      org.unit_stats = null;
+    }
+
     return org;
   } catch (error: any) {
     // If it's already a createError, rethrow it

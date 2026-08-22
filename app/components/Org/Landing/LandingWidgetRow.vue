@@ -16,6 +16,7 @@
         <LandingWidgetBuilding
           v-else-if="key === 'building'"
           :count="organization?.member_count"
+          :unit-stats="organization?.unit_stats"
           :type="organization?.type"
         />
         <LandingWidgetBoard v-else-if="key === 'board'" :slug="slug" />
