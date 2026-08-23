@@ -1,4 +1,4 @@
-import { createItem, readItems } from "@directus/sdk";
+import { createItem } from "@directus/sdk";
 
 /**
  * Create a task. Write access required for project/event/team tasks; a
@@ -20,36 +20,19 @@ export default defineEventHandler(async (event) => {
   // Accept both spellings here rather than making one caller special.
   const projectEvent = body.project_event || body.event || null;
 
-  // Determine category + whether this is a managed (project-linked) task.
-  const linkedToProject = !!(body.project || projectEvent);
+  // Every link is confirmed to belong to THIS community before it is written.
+  // See task-links.ts: an unchecked id is a cross-tenant read, not a dangling
+  // pointer, because the list endpoint expands these into titles.
+  const { teamId, linkedToProject } = await resolveTaskLinks(orgId, {
+    project: body.project,
+    project_event: projectEvent,
+    request: body.request,
+    team: body.team,
+    parent_task: body.parent_task,
+    assigned_to: Array.isArray(body.assigned_to) ? body.assigned_to : null,
+  });
+
   if (linkedToProject || body.team) {
-    // Resolve the owning team for the write check.
-    let teamId: string | null = body.team || null;
-    if (body.project) {
-      const meta = await getProjectMeta(String(body.project));
-      if (meta.organization !== orgId) throw createError({ statusCode: 404, message: "Project not found" });
-      teamId = meta.team;
-    } else if (projectEvent) {
-      // A phase-only task: the phase has to be checked on its own, and until
-      // now it wasn't checked at all. The row is written with THIS org's id
-      // while `project_event` was taken on trust, so an id belonging to
-      // another community would have been stored happily — and the list
-      // endpoint expands `project_event: ["id", "title"]`, which would then
-      // read that community's phase title back out. Resolve it, confirm the
-      // org, and take the write check from its project's team.
-      const rows = (await getTypedDirectus().request(
-        readItems("hoa_project_events", {
-          filter: { id: { _eq: String(projectEvent) } },
-          fields: ["id", "organization", { project: ["id", "team"] }],
-          limit: 1,
-        })
-      )) as any[];
-      const ev = (rows || [])[0];
-      if (!ev || ev.organization !== orgId) {
-        throw createError({ statusCode: 404, message: "Milestone not found" });
-      }
-      teamId = typeof ev.project?.team === "string" ? ev.project.team : ev.project?.team?.id ?? null;
-    }
     await requireProjectsWrite(event, orgId, teamId);
   }
 

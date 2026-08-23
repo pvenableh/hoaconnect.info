@@ -3,6 +3,18 @@ import { readItems, updateItem } from "@directus/sdk";
 /**
  * Update a task. Full edit needs project-write access; an assignee may flip
  * their own task's status/schedule (and mark it done) without it.
+ *
+ * The link fields are re-validated on every patch, because this route can
+ * REASSIGN them and until now checked none of them — not even `project`, which
+ * the create route always checked. Moving a task onto another community's
+ * project, phase or request was a single PATCH away, and the list endpoint
+ * expands those into titles, so the row came back reading as that community's
+ * work. See task-links.ts.
+ *
+ * A move also has to satisfy the DESTINATION, not just the origin. The write
+ * check below runs against the task's current project team; a team lead who
+ * passed it could otherwise push the task into a project they have no rights
+ * over, which is a privilege escalation dressed as an edit.
  */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
@@ -39,6 +51,24 @@ export default defineEventHandler(async (event) => {
   if (wantsFull || !(access.elevated || isAssignee)) {
     const teamId = typeof task.project?.team === "string" ? task.project.team : task.project?.team?.id ?? null;
     await requireProjectsWrite(event, orgId, teamId);
+  }
+
+  // Only the links this patch actually names are resolved — an edit that
+  // touches nothing but the title costs no extra reads.
+  const moving = {
+    project: "project" in body ? body.project : undefined,
+    project_event: "project_event" in body ? body.project_event : undefined,
+    request: "request" in body ? body.request : undefined,
+    team: "team" in body ? body.team : undefined,
+    parent_task: "parent_task" in body ? body.parent_task : undefined,
+    assigned_to: Array.isArray(body.assigned_to) ? body.assigned_to : null,
+  };
+  const destination = await resolveTaskLinks(orgId, moving);
+
+  // Clearing a link (`project: null`) needs no destination check — there is no
+  // destination. Only an actual move does.
+  if (moving.project || moving.project_event || moving.team) {
+    await requireProjectsWrite(event, orgId, destination.teamId);
   }
 
   const patch: Record<string, any> = {};
