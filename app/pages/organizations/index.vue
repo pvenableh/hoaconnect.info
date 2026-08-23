@@ -306,7 +306,7 @@ const handleManageSubscription = (orgId: string, slug: string) => {
                 "
                 :to="`/settings/organization`"
                 @click="handleSelectOrg(membership.organization?.id)"
-                class="p-2 t-text-muted hover:text-stone-700 hover:t-bg-subtle rounded-lg transition"
+                class="p-2 t-text-muted hover:t-text hover:t-bg-subtle rounded-lg transition"
                 title="Settings"
               >
                 <Icon name="i-lucide-settings" class="w-5 h-5" />

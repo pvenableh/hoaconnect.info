@@ -182,7 +182,7 @@ const statusMessage = computed(() => {
               :class="[
                 'block w-full py-3 px-4 text-center font-medium rounded-lg transition',
                 grace?.active
-                  ? 't-bg-subtle hover:bg-stone-200 t-text-secondary'
+                  ? 't-bg-subtle hover:t-bg-alt t-text-secondary'
                   : 'bg-blue-600 hover:bg-blue-700 text-white',
               ]"
             >
@@ -191,7 +191,7 @@ const statusMessage = computed(() => {
 
             <NuxtLink
               to="/auth/logout"
-              class="block w-full py-3 px-4 t-bg-subtle hover:bg-stone-200 t-text-secondary text-center font-medium rounded-lg transition"
+              class="block w-full py-3 px-4 t-bg-subtle hover:t-bg-alt t-text-secondary text-center font-medium rounded-lg transition"
             >
               Sign Out
             </NuxtLink>

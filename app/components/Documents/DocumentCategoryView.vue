@@ -406,7 +406,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
         <div class="p-4 border-b t-border">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-stone-200 flex items-center justify-center">
+              <div class="w-8 h-8 rounded-lg t-bg-subtle flex items-center justify-center">
                 <Icon name="heroicons:inbox" class="h-4 w-4 t-text-secondary" />
               </div>
               <div>

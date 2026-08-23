@@ -62,7 +62,14 @@ export const useStorageFormat = () => {
     return map[kind];
   };
 
-  /** Tailwind text-color class giving each kind a recognizable tint. */
+  /**
+   * Tailwind text-color class giving each kind a recognizable tint.
+   *
+   * Raw palette hues on purpose: ten file kinds need ten distinguishable
+   * colours, and there is exactly one accent. All are mid-500/600 weights,
+   * which carry on both the light and the dark surface — a token sweep here
+   * would collapse ten recognisable icons into one.
+   */
   const colorForKind = (kind: FileKind): string => {
     const map: Record<FileKind, string> = {
       image: "text-emerald-500",

@@ -221,13 +221,13 @@ const onDateChange = () => {
         <!-- Multiple documents indicator -->
         <div
           v-else
-          class="p-3 bg-stone-50 rounded-lg border border-stone-200 text-sm text-stone-600"
+          class="p-3 t-bg-subtle rounded-lg border t-border text-sm t-text-secondary"
         >
           <div class="flex items-center gap-2">
             <Icon name="heroicons:document-duplicate" class="h-5 w-5" />
             <span>{{ documents.length }} documents selected</span>
           </div>
-          <p class="mt-1 text-xs text-stone-500">
+          <p class="mt-1 text-xs t-text-muted">
             Title cannot be edited for multiple documents
           </p>
         </div>
@@ -239,7 +239,7 @@ const onDateChange = () => {
             id="edit-category"
             v-model="selectedCategory"
             @change="onCategoryChange"
-            class="w-full p-2.5 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            class="w-full p-2.5 border t-border rounded-lg t-bg-elevated t-text focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent-primary)] focus:border-[var(--theme-accent-primary)] transition-all"
             :disabled="saving"
           >
             <option value="">No Category</option>
@@ -251,7 +251,7 @@ const onDateChange = () => {
               {{ cat.name }}
             </option>
           </select>
-          <p v-if="!isSingleDocument" class="text-xs text-stone-500">
+          <p v-if="!isSingleDocument" class="text-xs t-text-muted">
             Leave as "No Category" to keep existing values unchanged
           </p>
         </div>
@@ -266,7 +266,7 @@ const onDateChange = () => {
             @change="onDateChange"
             :disabled="saving"
           />
-          <p v-if="!isSingleDocument" class="text-xs text-stone-500">
+          <p v-if="!isSingleDocument" class="text-xs t-text-muted">
             Leave empty to keep existing dates unchanged
           </p>
         </div>

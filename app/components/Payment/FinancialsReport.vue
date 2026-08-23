@@ -189,8 +189,8 @@ const AGING_COLS = [
               v-for="opt in [{ key: '12mo', label: 'Last 12 mo' }, { key: 'all', label: 'All time' }]"
               :key="opt.key"
               @click="range = opt.key as any"
-              class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
-              :class="range === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+              class="filter-pill px-2.5 py-1"
+              :class="{ 'filter-pill--active': range === opt.key }"
             >{{ opt.label }}</button>
           </div>
           <Button variant="outline" size="sm" class="rounded-full" :disabled="!series.length" @click="exportMonthly">

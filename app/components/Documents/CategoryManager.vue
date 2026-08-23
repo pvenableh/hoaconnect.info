@@ -332,7 +332,7 @@ async function createAllPredefinedCategories() {
 
       <!-- Empty state -->
       <div v-else class="text-center py-8 t-text-muted">
-        <Icon name="heroicons:folder" class="h-12 w-12 mx-auto mb-3 text-stone-300" />
+        <Icon name="heroicons:folder" class="h-12 w-12 mx-auto mb-3 t-text-muted opacity-60" />
         <p>No categories yet. Create one to organize your documents.</p>
       </div>
 
@@ -421,7 +421,7 @@ async function createAllPredefinedCategories() {
                 'w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-colors',
                 formData.icon === icon.name
                   ? 'border-primary bg-primary/10'
-                  : 't-border hover:border-stone-300'
+                  : 't-border hover:t-border-accent'
               ]"
               :title="icon.label"
             >

@@ -1,15 +1,15 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-stone-50">
+  <div class="min-h-screen flex items-center justify-center t-bg">
     <div class="text-center max-w-md mx-auto px-6">
       <div class="mb-8">
         <Icon
           name="lucide:alert-triangle"
-          class="w-16 h-16 text-stone-400 mx-auto mb-4"
+          class="w-16 h-16 t-text-muted mx-auto mb-4"
         />
-        <h1 class="text-4xl text-sophisticated text-stone-900 mb-4">
+        <h1 class="text-4xl text-sophisticated t-text mb-4">
           {{ error.statusCode || "Error" }}
         </h1>
-        <p class="text-xl text-elegant text-stone-600 mb-6">
+        <p class="text-xl text-elegant t-text-secondary mb-6">
           {{ error.statusMessage || "Something went wrong" }}
         </p>
       </div>

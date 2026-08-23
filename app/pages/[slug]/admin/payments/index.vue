@@ -440,8 +440,8 @@ const TYPE_FILTERS = [
           v-for="t in [{ key: 'overview', label: 'Overview' }, { key: 'charges', label: 'Charges' }, { key: 'recurring', label: 'Recurring' }, { key: 'reports', label: 'Reports' }]"
           :key="t.key"
           @click="tab = t.key as any"
-          class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-          :class="tab === t.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+          class="filter-pill"
+          :class="{ 'filter-pill--active': tab === t.key }"
         >{{ t.label }}</button>
         <NuxtLink :to="buildOrgPath('/admin/expenses')" class="ml-auto">
           <Button variant="outline" class="rounded-full">
@@ -533,8 +533,8 @@ const TYPE_FILTERS = [
               v-for="opt in TYPE_FILTERS"
               :key="opt.key"
               @click="typeFilter = opt.key"
-              class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              :class="typeFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+              class="filter-pill flex-shrink-0"
+              :class="{ 'filter-pill--active': typeFilter === opt.key }"
             >{{ opt.label }}</button>
           </div>
           <div class="flex gap-1.5 ml-auto">
@@ -542,8 +542,8 @@ const TYPE_FILTERS = [
               v-for="opt in [{ key: 'outstanding', label: 'Outstanding' }, { key: 'paid', label: 'Paid' }, { key: 'all', label: 'All' }]"
               :key="opt.key"
               @click="statusFilter = opt.key as any"
-              class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              :class="statusFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+              class="filter-pill"
+              :class="{ 'filter-pill--active': statusFilter === opt.key }"
             >{{ opt.label }}</button>
           </div>
         </div>

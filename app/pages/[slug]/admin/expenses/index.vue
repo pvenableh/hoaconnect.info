@@ -265,8 +265,8 @@ const expenseColumns = [
           v-for="opt in [{ value: 'all', label: 'All' }, ...EXPENSE_CATEGORIES]"
           :key="opt.value"
           @click="categoryFilter = opt.value"
-          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-          :class="categoryFilter === opt.value ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+          class="filter-pill flex-shrink-0"
+          :class="{ 'filter-pill--active': categoryFilter === opt.value }"
         >{{ opt.label }}</button>
       </div>
 

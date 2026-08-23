@@ -73,9 +73,9 @@ const handleChannelCreated = (channel: any) => {
   <div class="flex h-full min-h-0">
     <!-- Sidebar with Channels List -->
     <aside
-      class="w-64 border-r border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 overflow-y-auto"
+      class="w-64 border-r t-border t-bg-alt overflow-y-auto"
     >
-      <div class="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center gap-2.5">
+      <div class="p-4 border-b t-border flex items-center gap-2.5">
         <NuxtLink
           :to="buildOrgPath('/')"
           class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80 shrink-0"
@@ -98,7 +98,7 @@ const handleChannelCreated = (channel: any) => {
     </aside>
 
     <!-- Main Content - Welcome / Search -->
-    <main class="flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 px-4">
+    <main class="flex-1 flex flex-col items-center justify-center t-bg-elevated px-4">
       <div class="w-full max-w-lg">
         <div class="text-center mb-6">
           <div
@@ -107,7 +107,7 @@ const handleChannelCreated = (channel: any) => {
             <Icon name="lucide:message-square" class="w-8 h-8 text-primary" />
           </div>
           <h2 class="text-2xl font-semibold mb-2">Welcome to Channels</h2>
-          <p class="text-stone-500 mb-6">
+          <p class="t-text-muted mb-6">
             Select a channel from the sidebar, search all channels below, or
             create a new one.
           </p>

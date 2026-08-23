@@ -376,6 +376,48 @@
 	}
 }
 
+/* =============================================================================
+   FILTER PILLS
+============================================================================= */
+/* The little rounded segmented filters above a list (Open / Resolved / All,
+   request types, expense categories, report ranges). Eleven screens had grown
+   their own copy of the same class string, all of them spelling the colours as
+   hardcoded `bg-stone-900 text-white` / `bg-stone-100 text-stone-600` — fixed
+   grey that never followed the theme, so in dark mode the inactive pills read
+   as disabled chips and the active one as a black hole.
+   
+   One class instead. In @layer components so a call site's own utilities still
+   win: several sites want a different size (`text-sm`, `px-2.5`) or need
+   `flex-shrink-0` inside a scroller, and those keep working. */
+@layer components {
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.75rem;
+		border-radius: 999px;
+		font-size: 0.75rem;
+		font-weight: 500;
+		white-space: nowrap;
+		color: var(--theme-text-muted);
+		background-color: var(--theme-bg-secondary);
+		transition: background-color var(--motion-fast, 160ms) ease,
+			color var(--motion-fast, 160ms) ease;
+	}
+	.filter-pill:hover:not(.filter-pill--active) {
+		background-color: var(--theme-bg-tertiary);
+		color: var(--theme-text-secondary);
+	}
+	/* The accent TINT plus accent text, never the solid accent plus accent text
+	   — see the warning in theme.css: both resolve to one variable and the label
+	   disappears into its own pill. */
+	.filter-pill--active {
+		color: var(--theme-accent-primary);
+		background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent);
+		font-weight: 600;
+	}
+}
+
 /* ---- Auto-upgrade shadcn <Card> inside .ui-kit pages to the iOS look ----
  * Scoped to .ui-kit so pages that haven't opted in are untouched.
  *

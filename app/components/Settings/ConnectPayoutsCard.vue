@@ -139,8 +139,10 @@ const statusVisual = computed(() => {
         label: "Not connected",
         hint: "Set up payouts to collect dues into your own bank.",
         icon: "lucide:link",
-        bg: "bg-stone-100",
-        text: "text-stone-500",
+        // The neutral member of a status map — the one case that is not a
+        // colour with a meaning, so it takes the theme's own quiet surface.
+        bg: "t-bg-subtle",
+        text: "t-text-muted",
       };
   }
 });

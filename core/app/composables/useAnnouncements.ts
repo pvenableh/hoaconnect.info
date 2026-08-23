@@ -208,6 +208,11 @@ export const useAnnouncements = () => {
         icon: "bell",
         label: "Reminder",
       },
+      // Deliberately NOT on the theme tokens: this is one member of a
+      // categorical set (urgent / maintenance / event / reminder / general),
+      // and the neutral one has to sit in the same visual family as the four
+      // hues beside it. It carries its own dark pair like they do, so it does
+      // follow light and dark — which is the thing the token sweep was for.
       general: {
         bg: "bg-stone-50 dark:bg-stone-950/30",
         text: "text-stone-700 dark:text-stone-400",

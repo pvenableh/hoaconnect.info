@@ -83,12 +83,8 @@ const submit = async () => {
           :key="t.type"
           type="button"
           @click="form.type = t.type"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors"
-          :class="
-            form.type === t.type
-              ? 'bg-stone-900 text-white border-stone-900'
-              : 'bg-white t-text-secondary t-border hover:t-bg-subtle'
-          "
+          class="filter-pill text-sm"
+          :class="{ 'filter-pill--active': form.type === t.type }"
         >
           <Icon :name="t.icon" class="w-4 h-4" />
           {{ t.label }}

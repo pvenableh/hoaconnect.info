@@ -64,9 +64,9 @@ const backToList = () => router.push(buildOrgPath("/admin/channels"));
       <div class="flex h-full min-h-0">
         <!-- Sidebar with Channels List -->
         <aside
-          class="w-64 border-r border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 overflow-y-auto hidden md:block"
+          class="w-64 border-r t-border t-bg-alt overflow-y-auto hidden md:block"
         >
-          <div class="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center gap-2.5">
+          <div class="p-4 border-b t-border flex items-center gap-2.5">
             <NuxtLink
               :to="buildOrgPath('/')"
               class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80 shrink-0"
