@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeLandingConfig,
   defaultLandingConfig,
+  enabledLandingWidgets,
+  LANDING_WIDGET_REGISTRY,
   narrativeSections,
   resolveLocationConfig,
   hasLocationContent,
@@ -171,5 +173,279 @@ describe("normalizeLandingConfig — location & gallery blocks survive a round-t
     });
     expect(cfg.blocks.map((b) => b.type)).toEqual(["about", "location", "gallery"]);
     expect(cfg.blocks.find((b) => b.type === "gallery")?.enabled).toBe(false);
+  });
+});
+
+describe("normalizeLandingConfig — public light/dark mode", () => {
+  it("defaults to light, so no existing site changes appearance on deploy", () => {
+    expect(defaultLandingConfig().mode).toBe("light");
+    expect(normalizeLandingConfig(null).mode).toBe("light");
+    // Every org stored before `mode` existed has a blob without the key.
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).mode).toBe("light");
+  });
+
+  it("only the literal string 'dark' turns a site dark", () => {
+    expect(normalizeLandingConfig({ mode: "dark" }).mode).toBe("dark");
+    for (const junk of ["Dark", "DARK", true, 1, "night", "", null, undefined, {}]) {
+      expect(normalizeLandingConfig({ mode: junk }).mode).toBe("light");
+    }
+  });
+
+  it("survives a round-trip through JSON, which is how it is stored", () => {
+    const cfg = normalizeLandingConfig({ mode: "dark" });
+    expect(normalizeLandingConfig(JSON.parse(JSON.stringify(cfg))).mode).toBe("dark");
+  });
+});
+
+describe("normalizeLandingConfig — palette", () => {
+  it("defaults to the style's own ramp", () => {
+    expect(defaultLandingConfig().palette).toBe("default");
+    expect(normalizeLandingConfig(null).palette).toBe("default");
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).palette).toBe("default");
+  });
+
+  it("only the literal string 'gold' opts in", () => {
+    expect(normalizeLandingConfig({ palette: "gold" }).palette).toBe("gold");
+    for (const junk of ["Gold", "GOLD", "warm", true, 1, null, undefined, {}]) {
+      expect(normalizeLandingConfig({ palette: junk }).palette).toBe("default");
+    }
+  });
+
+  it("is independent of mode — either palette works in either mode", () => {
+    const darkGold = normalizeLandingConfig({ mode: "dark", palette: "gold" });
+    expect(darkGold.mode).toBe("dark");
+    expect(darkGold.palette).toBe("gold");
+  });
+});
+
+describe("normalizeLandingConfig — hero CTA", () => {
+  it("is opt-OUT, so no existing site loses its only way in", () => {
+    expect(defaultLandingConfig().hero_cta).toBe(true);
+    expect(normalizeLandingConfig(null).hero_cta).toBe(true);
+    expect(normalizeLandingConfig({ widgets: [], blocks: [] }).hero_cta).toBe(true);
+  });
+
+  it("only an explicit false turns it off", () => {
+    expect(normalizeLandingConfig({ hero_cta: false }).hero_cta).toBe(false);
+    // Not falsy-checked: an absent or junk value must still show the buttons.
+    for (const junk of [0, "", null, undefined, "false"]) {
+      expect(normalizeLandingConfig({ hero_cta: junk }).hero_cta).toBe(true);
+    }
+  });
+});
+
+describe("normalizeBlock — the numbered label is not content-only", () => {
+  it("keeps number_label and category on a built-in block", () => {
+    // The reference site numbers its FAQ "09 / FAQ". These used to sit below an
+    // early return, so any label on a non-content block was dropped silently.
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "f", type: "faq", number_label: "09", category: "FAQ" }],
+    });
+    const faq = cfg.blocks.find((b) => b.type === "faq")!;
+    expect(faq.number_label).toBe("09");
+    expect(faq.category).toBe("FAQ");
+  });
+
+  it("still keeps them on a content block", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "c", type: "content", number_label: "01", category: "Philosophy" }],
+    });
+    expect(cfg.blocks[0]!.number_label).toBe("01");
+    expect(cfg.blocks[0]!.category).toBe("Philosophy");
+  });
+
+  it("defaults them to empty, so an unlabelled section shows no number", () => {
+    const cfg = normalizeLandingConfig({ blocks: [{ id: "f", type: "faq" }] });
+    expect(cfg.blocks[0]!.number_label).toBe("");
+    expect(cfg.blocks[0]!.category).toBe("");
+  });
+});
+
+describe("narrativeSections — a block that continues the section above", () => {
+  const cfg = (blocks: any[]) => normalizeLandingConfig({ blocks });
+
+  it("takes no number of its own and does not advance the sequence", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content", title: "Location" },
+        { id: "b", type: "content", title: "Walk times", continues: true },
+        { id: "c", type: "content", title: "Design" },
+      ])
+    );
+    expect(out.map((e) => e.number)).toEqual(["01", "", "02"]);
+    expect(out.map((e) => e.continues)).toEqual([false, true, false]);
+  });
+
+  it("inherits the band it joins, so the pair reads as one section", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content" }, // alt false
+        { id: "b", type: "content" }, // alt true
+        { id: "c", type: "content", continues: true }, // must stay with b
+        { id: "d", type: "content" }, // alt false — rhythm resumes
+      ])
+    );
+    expect(out.map((e) => e.alt)).toEqual([false, true, true, false]);
+  });
+
+  it("ignores `continues` on the first block — nothing above it to join", () => {
+    const out = narrativeSections(cfg([{ id: "a", type: "content", continues: true }]));
+    expect(out[0]!.continues).toBe(false);
+    expect(out[0]!.number).toBe("01");
+  });
+
+  it("an explicit number_label still wins over the auto sequence", () => {
+    const out = narrativeSections(
+      cfg([
+        { id: "a", type: "content", number_label: "01" },
+        { id: "b", type: "content", continues: true },
+        { id: "c", type: "content", number_label: "02" },
+      ])
+    );
+    expect(out.map((e) => e.number)).toEqual(["01", "", "02"]);
+  });
+});
+
+describe("normalizeLandingConfig — image-below and per-image aspect", () => {
+  it("accepts image-below as a content layout", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "a", type: "content", layout: "image-below" }],
+    });
+    expect(cfg.blocks[0]!.layout).toBe("image-below");
+  });
+
+  it("keeps a known aspect and drops an unknown one", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        {
+          id: "a",
+          type: "content",
+          images: [
+            { file: "f1", aspect: "16/9" },
+            { file: "f2", aspect: "banana" },
+            { file: "f3" },
+          ],
+        },
+      ],
+    });
+    const imgs = cfg.blocks[0]!.images!;
+    expect(imgs[0]!.aspect).toBe("16/9");
+    // Unknown and absent both fall back to the layout's default at render time.
+    expect(imgs[1]!.aspect).toBeUndefined();
+    expect(imgs[2]!.aspect).toBeUndefined();
+  });
+});
+
+describe("landing widgets — the announcements chip", () => {
+  it("is in the registry", () => {
+    const def = LANDING_WIDGET_REGISTRY.find((w) => w.key === "announcements");
+    expect(def).toBeTruthy();
+    expect(def!.label).toBe("Announcements");
+  });
+
+  it("is appended DISABLED to a config saved before it existed", () => {
+    // Every org already has a stored widget list. A new chip must not appear on
+    // their public site on deploy — they opt in.
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "greeting", enabled: true },
+        { key: "weather", enabled: true },
+      ],
+    });
+    const ann = cfg.widgets.find((w) => w.key === "announcements");
+    expect(ann).toBeTruthy();
+    expect(ann!.enabled).toBe(false);
+    expect(enabledLandingWidgets(cfg)).not.toContain("announcements");
+  });
+
+  it("keeps the saved order and only appends what it has not seen", () => {
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "weather", enabled: true },
+        { key: "greeting", enabled: true },
+      ],
+    });
+    // Saved order preserved ahead of the appended ones.
+    expect(cfg.widgets.slice(0, 2).map((w) => w.key)).toEqual(["weather", "greeting"]);
+  });
+
+  it("is enabled when the org has opted in", () => {
+    const cfg = normalizeLandingConfig({
+      widgets: [
+        { key: "greeting", enabled: true },
+        { key: "announcements", enabled: true },
+      ],
+    });
+    expect(enabledLandingWidgets(cfg)).toContain("announcements");
+  });
+});
+
+describe("normalizeLandingConfig — appending a brand-new widget", () => {
+  it("leaves an org with a saved list opted OUT of anything new", () => {
+    // The whole registry except the newest key, all on — what a live org looks
+    // like the moment before a new widget ships.
+    const saved = LANDING_WIDGET_REGISTRY.filter((w) => w.key !== "announcements").map((w) => ({
+      key: w.key,
+      enabled: true,
+    }));
+    const cfg = normalizeLandingConfig({ widgets: saved });
+    const enabled = enabledLandingWidgets(cfg);
+    // Everything they had chosen survives...
+    for (const w of saved) expect(enabled).toContain(w.key);
+    // ...and the new one does not switch itself on for them.
+    expect(enabled).not.toContain("announcements");
+  });
+
+  it("still gives an org with NO saved list the full default set", () => {
+    // A fresh org should not start with an empty hero.
+    const enabled = enabledLandingWidgets(normalizeLandingConfig(null));
+    expect(enabled).toContain("announcements");
+    expect(enabled).toContain("weather");
+  });
+
+  it("always appends the always-available ones", () => {
+    const cfg = normalizeLandingConfig({ widgets: [{ key: "weather", enabled: true }] });
+    // `greeting` is alwaysAvailable — it needs no data and is hero furniture.
+    expect(enabledLandingWidgets(cfg)).toContain("greeting");
+  });
+});
+
+describe("normalizeLandingConfig — section callout", () => {
+  it("keeps an eyebrow and body", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        {
+          id: "a",
+          type: "content",
+          callout: { eyebrow: "Get Involved", body: "We welcome professionals…" },
+        },
+      ],
+    });
+    expect(cfg.blocks[0]!.callout).toEqual({
+      eyebrow: "Get Involved",
+      body: "We welcome professionals…",
+    });
+  });
+
+  it("is null when absent, so no section grows an empty card", () => {
+    expect(normalizeLandingConfig({ blocks: [{ id: "a", type: "content" }] }).blocks[0]!.callout).toBeNull();
+  });
+
+  it("is null for an empty object — the builder saves one of those", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [
+        { id: "a", type: "content", callout: {} },
+        { id: "b", type: "content", callout: { eyebrow: "", body: "" } },
+      ],
+    });
+    expect(cfg.blocks[0]!.callout).toBeNull();
+    expect(cfg.blocks[1]!.callout).toBeNull();
+  });
+
+  it("survives with only one half filled in", () => {
+    const cfg = normalizeLandingConfig({
+      blocks: [{ id: "a", type: "content", callout: { body: "Just the note." } }],
+    });
+    expect(cfg.blocks[0]!.callout).toEqual({ eyebrow: "", body: "Just the note." });
   });
 });

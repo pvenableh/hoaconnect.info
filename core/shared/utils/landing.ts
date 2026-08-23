@@ -15,7 +15,8 @@ export type LandingWidgetKey =
   | "location"
   | "building"
   | "board"
-  | "amenities";
+  | "amenities"
+  | "announcements";
 
 export type InquiryCategory = "sale" | "rental" | "general";
 export type ListingType = "sale" | "rental";
@@ -123,6 +124,42 @@ export interface LandingLocationConfig {
 // one of the org's storage folders ("folder", resolved by /api/landing/gallery).
 // ---------------------------------------------------------------------------
 
+/**
+ * Light or dark for the PUBLIC landing. A community property, not a visitor's
+ * preference — 1033lenox.com, the reference this landing imitates, keeps its
+ * dark-mode toggle on an interior page and never offers one on the landing
+ * itself, and neither do we.
+ *
+ * theme.css has always carried all six `theme-{style}-{mode}` blocks and the
+ * landing CSS has a full set of `theme-*-dark` rules, but nothing could reach
+ * them: `forceThemeStyle` defaults to light and every caller passed a style
+ * only. The one path that ever produced a dark landing was accidental —
+ * `initTheme()` reading the signed-in user's WORKSPACE appearance — and closing
+ * that leak (612e338) left the dark half of the stylesheet unreachable. This is
+ * the switch it never had.
+ */
+export type LandingMode = "light" | "dark";
+export const LANDING_MODES: LandingMode[] = ["light", "dark"];
+
+/**
+ * An optional palette on top of the chosen style — the ink and accent ramp,
+ * not the layout.
+ *
+ * `classic` began life as 1033lenox.com's theme and was warm: gold `#c9a96e`,
+ * `#454545` text, cream-tinted borders and shadows. The shared copy has since
+ * been re-tinted cool — cyan `#00bfff`, near-black text, neutral borders — so an
+ * org that wants the original editorial warmth can no longer get it from the
+ * style alone. `gold` restores exactly that ramp, in both light and dark, and
+ * leaves every other classic org on what it has today.
+ *
+ * Deliberately a named preset rather than a free hex: the difference is ~20
+ * coordinated tokens (accent, ink ramp, borders, dividers, links, buttons,
+ * warm-tinted shadows), and picking one colour would not derive the other
+ * nineteen. A custom entry can join this union later without changing shape.
+ */
+export type LandingPalette = "default" | "gold";
+export const LANDING_PALETTES: LandingPalette[] = ["default", "gold"];
+
 export type LandingGallerySource = "manual" | "folder";
 
 export interface LandingGalleryConfig {
@@ -179,6 +216,7 @@ export const NARRATIVE_BLOCK_TYPES: LandingBlockType[] = ["content", "location",
 export type ContentLayout =
   | "text-image"
   | "image-text"
+  | "image-below"
   | "image-grid"
   | "stats"
   | "gallery";
@@ -186,9 +224,30 @@ export type ContentLayout =
 export const CONTENT_LAYOUTS: ContentLayout[] = [
   "text-image",
   "image-text",
+  /**
+   * Copy first, then ONE wide image beneath it spanning the copy column — the
+   * shape 1033lenox.com uses for its Location section. Distinct from
+   * `text-image`, which sets the picture beside the copy in a second column and
+   * therefore has to crop it tall.
+   */
+  "image-below",
   "image-grid",
   "stats",
   "gallery",
+];
+
+/**
+ * Aspect ratios an editorial image can take. A closed list, not a free string,
+ * because these compile to Tailwind classes and an arbitrary value would be
+ * purged from the stylesheet.
+ */
+export type LandingImageAspect = "21/12" | "16/9" | "4/3" | "1/1" | "3/4";
+export const LANDING_IMAGE_ASPECTS: LandingImageAspect[] = [
+  "21/12",
+  "16/9",
+  "4/3",
+  "1/1",
+  "3/4",
 ];
 
 export interface LandingImage {
@@ -196,6 +255,12 @@ export interface LandingImage {
   caption_title?: string;
   caption_body?: string;
   fit?: "cover" | "contain";
+  /**
+   * Shape of the frame in the `image-below` layout. The reference runs its
+   * Location photo at 21/12 and its Amenities photo at 16/9, so this is a
+   * per-image choice rather than a property of the layout.
+   */
+  aspect?: LandingImageAspect;
 }
 
 export interface LandingStat {
@@ -225,6 +290,21 @@ export interface LandingFeature {
 export type FeatureStyle = "list" | "bullets" | "cards" | "tiles";
 export const FEATURE_STYLES: FeatureStyle[] = ["list", "bullets", "cards", "tiles"];
 
+/**
+ * A soft highlighted note at the end of a section — an eyebrow and a paragraph
+ * on a tinted card, sitting after the content and before the tagline.
+ *
+ * The reference closes its Community section with one ("GET INVOLVED — we
+ * welcome professionals who…"), and it is the shape any section wants when it
+ * has a closing invitation that should not read as body copy. Generic: nothing
+ * about it is specific to that section or that org.
+ */
+export interface LandingCallout {
+  /** Small tracked-out label above the text. */
+  eyebrow?: string;
+  body?: string;
+}
+
 export interface LandingBlock {
   id: string; // stable key for reorder
   type: LandingBlockType;
@@ -247,6 +327,23 @@ export interface LandingBlock {
   feature_columns?: number;
   /** Render edge-to-edge (drop the numbered side-label column) like 1033's intro. */
   full_width?: boolean;
+  /**
+   * This block is a CONTINUATION of the section above it, not a new one.
+   *
+   * A long editorial section is often several pieces of content under one
+   * heading and one number — 1033lenox.com's "02 Location" is a heading, a
+   * paragraph, a full-width photo, a six-up walk-time band and a lifestyle
+   * gallery, all inside one band. The builder edits those as separate blocks
+   * (different layouts, independently reorderable), so this is how a block says
+   * "keep me in the section above": it takes no number of its own, does not flip
+   * the alternating background, and drops the band's top border and padding so
+   * the two read as one.
+   *
+   * Ignored on the first block — there is nothing above it to continue.
+   */
+  continues?: boolean;
+  /** A tinted closing note, after the content and before the tagline. */
+  callout?: LandingCallout | null;
   /** Surface this content section as a link in the public nav menu (default true). */
   show_in_menu?: boolean;
   /** Lucide icon for the menu link (e.g. "lucide:sparkles"). Empty = no icon. */
@@ -254,6 +351,19 @@ export interface LandingBlock {
 }
 
 export interface LandingConfig {
+  /** Light or dark for the public site. Defaults to light. See LandingMode. */
+  mode: LandingMode;
+  /** Ink + accent ramp on top of the style. Defaults to the style's own. */
+  palette: LandingPalette;
+  /**
+   * Show the login / request-access / inquire cluster in the hero.
+   *
+   * On by default — for most communities the hero is the only place a visitor
+   * is told how to get in. An editorial site that already carries an account
+   * icon in its top bar (1033lenox.com does, and shows nothing in the hero
+   * below the tagline) can turn it off and keep the hero purely typographic.
+   */
+  hero_cta: boolean;
   widgets: LandingWidgetPref[];
   places: LandingPlaces;
   listings: LandingListing[];
@@ -326,6 +436,17 @@ export const LANDING_WIDGET_REGISTRY: LandingWidgetDef[] = [
     icon: "lucide:sparkles",
     description: "How many amenities the community offers.",
   },
+  {
+    // Appended rather than slotted in beside `building`, because
+    // normalizeLandingConfig preserves each org's SAVED widget order and only
+    // appends what it has not seen — so a new key added mid-list would still
+    // arrive last for existing orgs, and putting it last keeps this list honest
+    // about that.
+    key: "announcements",
+    label: "Announcements",
+    icon: "lucide:megaphone",
+    description: "How many notices the community has sent, and how often.",
+  },
 ];
 
 export const LANDING_WIDGET_KEYS: LandingWidgetKey[] = LANDING_WIDGET_REGISTRY.map(
@@ -361,6 +482,9 @@ export function newBlockId(): string {
 
 export function defaultLandingConfig(): LandingConfig {
   return {
+    mode: "light",
+    palette: "default",
+    hero_cta: true,
     widgets: defaultLandingWidgets(),
     places: { neighborhood: "", walk_score: null, bike_score: null, items: [] },
     listings: [],
@@ -386,6 +510,17 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   if (!raw || typeof raw !== "object") return base;
   const r = raw as Partial<LandingConfig> & Record<string, any>;
 
+  // Anything that isn't the literal string "dark" is light — an absent key (every
+  // org stored before this existed), a stale value, a typo. Light is what those
+  // sites render today and none of them should change appearance on deploy.
+  const mode: LandingMode = r.mode === "dark" ? "dark" : "light";
+  // Same rule as `mode`: anything unrecognised falls back to the style's own
+  // ramp, so no stored site shifts colour because of a typo or a stale value.
+  const palette: LandingPalette = r.palette === "gold" ? "gold" : "default";
+  // Opt-OUT, unlike mode and palette: absent means show it, so no existing site
+  // loses the only route it offers a visitor into the portal.
+  const heroCta = r.hero_cta !== false;
+
   // Widgets: keep stored prefs for known keys (in stored order), then append
   // any registry widgets not yet present (default-off, except always-on ones).
   const storedPrefs = Array.isArray(r.widgets) ? r.widgets : [];
@@ -396,10 +531,22 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
     seen.add(p.key);
     widgets.push({ key: p.key, enabled: !!p.enabled });
   }
+  // A widget the org has never seen appends OFF — which is what the comment
+  // above has always claimed and what the code did not do. It read its fallback
+  // from `base.widgets`, and `defaultLandingWidgets()` turns everything on, so
+  // adding a widget to the registry switched it on for every org that already
+  // had a saved list. That is a change to a PUBLIC page nobody asked for; an org
+  // opts in from Site settings instead.
+  //
+  // `alwaysAvailable` is the documented exception — the greeting needs no data
+  // and is part of the hero's furniture.
+  //
+  // Orgs with NO saved list are untouched by this: they fall through to
+  // `defaultLandingConfig()` above and still get the full set, which is the
+  // right first-run experience.
   for (const def of LANDING_WIDGET_REGISTRY) {
     if (seen.has(def.key)) continue;
-    const fallback = base.widgets.find((w) => w.key === def.key);
-    widgets.push({ key: def.key, enabled: fallback?.enabled ?? false });
+    widgets.push({ key: def.key, enabled: def.alwaysAvailable === true });
   }
 
   const places: LandingPlaces = {
@@ -459,6 +606,9 @@ export function normalizeLandingConfig(raw: unknown): LandingConfig {
   const gallery = normalizeGallery(r.gallery);
 
   return {
+    mode,
+    palette,
+    hero_cta: heroCta,
     widgets,
     places,
     listings,
@@ -494,15 +644,36 @@ function normalizeBlock(b: any, index: number): LandingBlock {
     type,
     enabled: b.enabled !== false,
   };
+
+  // The numbered editorial label ("01" / "Philosophy") is not a content-block
+  // idea — it is how a section announces its place in the sequence, and a
+  // built-in section can want one too. The reference site numbers its FAQ "09".
+  // These used to sit below the early return, so a label stored on any non-
+  // content block was silently dropped in normalization and never reached the
+  // renderer. Empty for every block that does not set one, so nothing else moves.
+  block.number_label = b.number_label ? String(b.number_label) : "";
+  block.category = b.category ? String(b.category) : "";
+  block.continues = b.continues === true;
+  // Also generic: a built-in section can be renamed ("Common Questions" rather
+  // than the FAQ component's hard-coded "Frequently Asked") without a code
+  // change. Same reason as number_label — these describe the SECTION, not the
+  // content-block layout, and stripping them here is invisible from the outside.
+  block.title = b.title ? String(b.title) : "";
+
   if (type !== "content") return block;
 
   block.layout = CONTENT_LAYOUTS.includes(b.layout) ? b.layout : "text-image";
-  block.number_label = b.number_label ? String(b.number_label) : "";
-  block.category = b.category ? String(b.category) : "";
+  // Dropped entirely unless it has something to say, so an empty object from the
+  // builder never renders an empty card.
+  const co = b.callout && typeof b.callout === "object" ? b.callout : null;
+  const coEyebrow = co?.eyebrow ? String(co.eyebrow) : "";
+  const coBody = co?.body ? String(co.body) : "";
+  block.callout =
+    coEyebrow || coBody ? { eyebrow: coEyebrow, body: coBody } : null;
+
   block.show_in_menu = b.show_in_menu !== false; // default: surfaced in the menu
   block.menu_icon = b.menu_icon ? String(b.menu_icon) : "";
   block.eyebrow = b.eyebrow ? String(b.eyebrow) : "";
-  block.title = b.title ? String(b.title) : "";
   block.body = b.body ? String(b.body) : "";
   block.tagline = b.tagline ? String(b.tagline) : "";
   block.images = Array.isArray(b.images)
@@ -513,6 +684,7 @@ function normalizeBlock(b: any, index: number): LandingBlock {
           caption_title: im.caption_title ? String(im.caption_title) : undefined,
           caption_body: im.caption_body ? String(im.caption_body) : undefined,
           fit: im.fit === "contain" ? "contain" : "cover",
+          aspect: LANDING_IMAGE_ASPECTS.includes(im.aspect) ? im.aspect : undefined,
         }))
     : [];
   block.stats = Array.isArray(b.stats)
@@ -668,6 +840,8 @@ export interface LandingRenderBlock {
   alt: boolean;
   /** Two-digit narrative number ("01") for narrative-capable sections, else "". */
   number: string;
+  /** Render inside the section above rather than opening a new one. */
+  continues: boolean;
 }
 
 /**
@@ -680,15 +854,27 @@ export interface LandingRenderBlock {
 export function narrativeSections(cfg: LandingConfig): LandingRenderBlock[] {
   let contentIdx = 0;
   let narrIdx = 0;
-  return enabledLandingBlocks(cfg).map((block) => {
+  // A continuing block inherits the band it is joining, so the pair reads as one
+  // section rather than two stripes.
+  let prevAlt = false;
+  return enabledLandingBlocks(cfg).map((block, i) => {
+    // Nothing above the first block to continue into.
+    const continues = i > 0 && block.continues === true;
+
+    if (continues) {
+      return { block, alt: prevAlt, number: "", continues: true };
+    }
+
     const alt = block.type === "content" ? contentIdx++ % 2 === 1 : false;
+    prevAlt = alt;
+
     let number = "";
     if (NARRATIVE_BLOCK_TYPES.includes(block.type)) {
       narrIdx += 1;
       const own = block.number_label?.trim();
       number = own || String(narrIdx).padStart(2, "0");
     }
-    return { block, alt, number };
+    return { block, alt, number, continues: false };
   });
 }
 

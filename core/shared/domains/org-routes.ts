@@ -101,3 +101,32 @@ export function orgScopedRedirect(
 
   return null;
 }
+
+/**
+ * Where should a SIGNED-IN user on the main app host be sent for this path?
+ *
+ * `org-redirect.global` used to answer this with a denylist of its own: anything
+ * not listed became `/{slug}{path}`, whether or not that route existed. The two
+ * lists then disagreed, and the disagreement was the bug — the custom-domain
+ * path sent `/members` to `/{slug}/admin/members` (correct) while the main host
+ * sent it to `/{slug}/members` (a 404). `/organizations` was worse: no twin at
+ * all, so every signed-in user with an org got a 404 instead of the org picker.
+ *
+ * The page tree is now described once, above, and both callers read it. Because
+ * this is an ALLOWLIST, a new main-domain page defaults to "leave it alone"
+ * rather than to a 404 — the failure mode of forgetting is now harmless.
+ *
+ * Differs from `orgScopedRedirect` in exactly one place: the clean root. On a
+ * custom domain `/` already renders the host org's landing, so it stays put; on
+ * the main host there is nothing there for a signed-in user, so it collapses to
+ * their org — the same place `/dashboard` goes.
+ */
+export function sessionOrgRedirect(
+  path: string,
+  slug?: string | null
+): string | null {
+  const s = (slug || "").trim();
+  if (!s) return null;
+  if (normalizePath(path) === "/") return `/${s}`;
+  return orgScopedRedirect(path, s);
+}

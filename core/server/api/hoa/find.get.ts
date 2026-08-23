@@ -73,6 +73,81 @@ export default defineEventHandler(async (event) => {
       org.property_manager = null;
     }
 
+    // Unit count + owner-occupancy for the building widget. The reference site
+    // leads with "28 / UNITS · 18 owner-occupied · 64% ownership", and a unit
+    // count is a truer description of a building than the denormalized
+    // `member_count` the widget used to read — that counts people, drifts
+    // whenever a member record changes, and said "1 household" for a 28-unit
+    // building. Best-effort: a failure here must not take the landing down.
+    try {
+      const units = await directus.request(
+        readItems("hoa_units", {
+          filter: {
+            _and: [{ organization: { _eq: org.id } }, { status: { _neq: "archived" } }],
+          },
+          fields: ["occupancy"],
+          limit: -1,
+        })
+      );
+      const total = units?.length || 0;
+      const ownerOccupied = (units || []).filter((u: any) => u.occupancy === "owner").length;
+      org.unit_stats = total
+        ? {
+            total,
+            owner_occupied: ownerOccupied,
+            // Only meaningful once somebody has actually recorded occupancy.
+            ownership_pct: ownerOccupied ? Math.round((ownerOccupied / total) * 100) : null,
+          }
+        : null;
+    } catch {
+      org.unit_stats = null;
+    }
+
+    // How much this community actually communicates: how many notices have gone
+    // out, since when, and roughly how often. A count and a cadence only — no
+    // subject lines, no bodies, nothing a visitor could read. Best-effort.
+    try {
+      const emails = await directus.request(
+        readItems("hoa_emails", {
+          filter: {
+            _and: [
+              { organization: { _eq: org.id } },
+              { status: { _eq: "sent" } },
+              { sent_at: { _nnull: true } },
+            ],
+          },
+          fields: ["sent_at"],
+          sort: ["sent_at"],
+          limit: -1,
+        })
+      );
+      const sent = (emails || [])
+        .map((e: any) => (e.sent_at ? new Date(e.sent_at) : null))
+        .filter((d: Date | null): d is Date => !!d && !Number.isNaN(d.getTime()));
+
+      if (sent.length) {
+        const first = sent[0]!;
+        const last = sent[sent.length - 1]!;
+        // Inclusive month span, so a single month reads as 1 rather than 0 and
+        // the average never divides by zero.
+        const months = Math.max(
+          1,
+          (last.getFullYear() - first.getFullYear()) * 12 +
+            (last.getMonth() - first.getMonth()) +
+            1
+        );
+        org.announcement_stats = {
+          total: sent.length,
+          since: first.toISOString(),
+          avg_per_month: Math.round((sent.length / months) * 10) / 10,
+        };
+      } else {
+        org.announcement_stats = null;
+      }
+    } catch {
+      org.announcement_stats = null;
+    }
+
     return org;
   } catch (error: any) {
     // If it's already a createError, rethrow it

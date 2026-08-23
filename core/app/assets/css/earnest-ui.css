@@ -48,10 +48,16 @@
 	backdrop-filter: saturate(150%) blur(12px);
 	-webkit-backdrop-filter: saturate(150%) blur(12px);
 }
+/* 20px, not the 30px this used to carry. The glass budget caps blur at 20px, and
+   this tier is the one that most needs the cap: its only call site is the AI
+   panel's `absolute inset-0` surface, so it is a full-panel blur. It also loses
+   the least by obeying — the tiers differ in background opacity as much as in
+   blur, and at 85% you can barely see through this one anyway, so most of that
+   30px radius was being paid for and not seen. */
 .glass-ultra {
 	background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 85%, transparent);
-	backdrop-filter: saturate(200%) blur(30px);
-	-webkit-backdrop-filter: saturate(200%) blur(30px);
+	backdrop-filter: saturate(200%) blur(20px);
+	-webkit-backdrop-filter: saturate(200%) blur(20px);
 }
 
 /* =============================================================================
@@ -297,9 +303,12 @@
 		0 18px 40px -16px hsl(var(--_h) 40% 25% / 0.40),
 		0 3px 8px -2px hsl(var(--_h) 30% 20% / 0.14);
 }
+/* 20px, down from 24px, to sit inside the glass budget. This is the material
+   under the dock, the bottom sheet, the update prompt and every auth card — the
+   biggest surfaces in the app and the ones on screen most often. */
 .glass-surface--strong {
-	backdrop-filter: blur(24px) saturate(160%);
-	-webkit-backdrop-filter: blur(24px) saturate(160%);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
 	background:
 		linear-gradient(
 			135deg,

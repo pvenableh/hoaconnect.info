@@ -112,12 +112,20 @@ const organization = computed(() => data.value?.org ?? null);
 const orgSlug = computed(() => data.value?.slug ?? "");
 
 // Apply the org's per-tenant landing style (classic | modern | luxury), default
-// classic. forceThemeStyle is SSR-safe and doesn't persist visitor prefs.
+// classic, plus its light/dark mode from `settings.landing.mode`.
+// forceThemeStyle is SSR-safe and doesn't persist visitor prefs.
 const { forceThemeStyle } = useTheme();
 const VALID_LANDING_STYLES = ["classic", "modern", "luxury"];
+const landingMode = computed<"light" | "dark">(() =>
+  organization.value?.settings?.landing?.mode === "dark" ? "dark" : "light"
+);
+const landingPaletteClass = computed(() =>
+  organization.value?.settings?.landing?.palette === "gold" ? "landing-palette-gold" : ""
+);
+useHead({ htmlAttrs: { class: landingPaletteClass } });
 watchEffect(() => {
   const style = organization.value?.settings?.theme;
-  forceThemeStyle(VALID_LANDING_STYLES.includes(style) ? style : "classic");
+  forceThemeStyle(VALID_LANDING_STYLES.includes(style) ? style : "classic", landingMode.value);
 });
 
 useSeoMeta({

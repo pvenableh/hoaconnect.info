@@ -10,6 +10,10 @@ const props = defineProps<{
   draft: Record<string, any>;
   /** Which theme the preview forces (classic | modern | luxury). */
   theme: string;
+  /** Light or dark, from the org's landing config. */
+  mode?: string;
+  /** Ink + accent ramp ("default" | "gold"). */
+  palette?: string;
 }>();
 
 const device = ref<"desktop" | "mobile">("desktop");
@@ -24,16 +28,20 @@ const logicalWidth = computed(() => LOGICAL[device.value]!);
 const scale = computed(() => (paneW.value ? Math.min(1, paneW.value / logicalWidth.value) : 1));
 const frameHeight = computed(() => (scale.value ? paneH.value / scale.value : paneH.value));
 
-// The forced theme rides in the URL (?theme=) — changing the toggle reloads the
-// frame into the right theme deterministically. The draft still streams over
-// postMessage (see post()); this just guarantees the theme always applies.
-const src = computed(() => `/${props.slug}/admin/site-preview?theme=${props.theme}`);
+// The forced theme AND mode ride in the URL — changing either reloads the frame
+// deterministically. The draft still streams over postMessage (see post()); this
+// just guarantees the theme always applies.
+const src = computed(
+  () =>
+    `/${props.slug}/admin/site-preview?theme=${props.theme}` +
+    `&mode=${props.mode || "light"}&palette=${props.palette || "default"}`
+);
 
 function post() {
   const win = iframe.value?.contentWindow;
   if (!win) return;
   win.postMessage(
-    { type: "landing-preview", payload: { ...props.draft, theme: props.theme } },
+    { type: "landing-preview", payload: { ...props.draft, theme: props.theme, mode: props.mode } },
     window.location.origin
   );
 }

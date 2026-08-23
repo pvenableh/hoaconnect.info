@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { orgScopedRedirect } from "#core/shared/domains/org-routes";
+import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  orgScopedRedirect,
+  sessionOrgRedirect,
+} from "#core/shared/domains/org-routes";
 
 const SLUG = "605-lincoln";
 
@@ -112,5 +117,128 @@ describe("orgScopedRedirect", () => {
       expect(orgScopedRedirect("", SLUG)).toBeNull();
       expect(orgScopedRedirect("admin/members", SLUG)).toBeNull();
     });
+  });
+});
+
+describe("sessionOrgRedirect", () => {
+  it("collapses the main host's clean root to the org — the one difference from orgScopedRedirect", () => {
+    expect(sessionOrgRedirect("/", SLUG)).toBe(`/${SLUG}`);
+    // On a custom domain `/` already renders the host org's landing.
+    expect(orgScopedRedirect("/", SLUG)).toBeNull();
+  });
+
+  it("sends /dashboard to the same place", () => {
+    expect(sessionOrgRedirect("/dashboard", SLUG)).toBe(`/${SLUG}`);
+  });
+
+  it("sends the moved twins where the route actually is", () => {
+    // These were the 404s: the old denylist prefixed them blindly.
+    expect(sessionOrgRedirect("/members", SLUG)).toBe(`/${SLUG}/admin/members`);
+    expect(sessionOrgRedirect("/units", SLUG)).toBe(`/${SLUG}/admin/units`);
+  });
+
+  it("leaves the platform's own pages alone instead of 404-ing them", () => {
+    for (const path of [
+      "/organizations",
+      "/accept-invite",
+      "/your-data",
+      "/property-managers",
+      "/experimental",
+      "/account",
+      "/subscription-expired",
+      "/auth/login",
+      "/ui-kit",
+    ]) {
+      expect(sessionOrgRedirect(path, SLUG)).toBeNull();
+    }
+  });
+
+  it("still scopes the paths that DO have a twin", () => {
+    expect(sessionOrgRedirect("/board", SLUG)).toBe(`/${SLUG}/board`);
+    expect(sessionOrgRedirect("/documents", SLUG)).toBe(`/${SLUG}/documents`);
+    expect(sessionOrgRedirect("/admin/members", SLUG)).toBe(`/${SLUG}/admin/members`);
+  });
+
+  it("cannot loop — a path already on this org returns null", () => {
+    expect(sessionOrgRedirect(`/${SLUG}`, SLUG)).toBeNull();
+    expect(sessionOrgRedirect(`/${SLUG}/admin/members`, SLUG)).toBeNull();
+  });
+
+  it("returns null without a slug", () => {
+    expect(sessionOrgRedirect("/", "")).toBeNull();
+    expect(sessionOrgRedirect("/board", null)).toBeNull();
+  });
+});
+
+/**
+ * The page tree changes; this mapping must not silently fall behind it.
+ *
+ * `org-redirect.global` used to be a denylist, so a main-domain page with no
+ * `/{slug}` twin turned into a 404 for every signed-in user with an org — it
+ * shipped that way three times (billing, then `/organizations`, then `/members`
+ * and `/units`). It is an allowlist now, which fails safe, but the other half of
+ * the risk is still live: a route WITH a twin that nobody maps just stops
+ * redirecting. This walks the real page tree so neither drifts unnoticed.
+ */
+describe("the org-route mapping matches the real page tree", () => {
+  const pagesDir = resolve(__dirname, "../../app/pages");
+
+  /** A path is a route only if a .vue actually resolves — `X.vue` or `X/index.vue`. */
+  function isRoute(dir: string, name: string): boolean {
+    return (
+      existsSync(resolve(dir, `${name}.vue`)) ||
+      existsSync(resolve(dir, name, "index.vue"))
+    );
+  }
+
+  /**
+   * Top-level route segments. Both shapes count: `account.vue` AND
+   * `organizations/index.vue`. Counting only files is how the first draft of
+   * this guard passed while `/organizations` — the reported bug — was broken;
+   * counting every folder is how it then flagged `auth/` and `billing/`, which
+   * have no index and are not routes at all.
+   */
+  function topLevelRoutes(): string[] {
+    return readdirSync(pagesDir, { withFileTypes: true })
+      .filter((e) => (e.isFile() && e.name.endsWith(".vue")) || e.isDirectory())
+      .map((e) => (e.isFile() ? e.name.replace(/\.vue$/, "") : e.name))
+      .filter((name) => name !== "index" && name !== "[slug]")
+      .filter((name) => isRoute(pagesDir, name));
+  }
+
+  it("finds the page tree, and both page shapes in it", () => {
+    expect(existsSync(pagesDir)).toBe(true);
+    const routes = topLevelRoutes();
+    expect(routes).toContain("account"); // account.vue
+    expect(routes).toContain("organizations"); // organizations/index.vue
+    // Folders with no index are not routes and must not be counted.
+    expect(routes).not.toContain("auth");
+    expect(routes).not.toContain("billing");
+  });
+
+  it("never sends a signed-in user to a route that does not exist", () => {
+    const slugDir = resolve(pagesDir, "[slug]");
+    const broken = topLevelRoutes()
+      .map((name) => ({ name, target: sessionOrgRedirect(`/${name}`, SLUG) }))
+      .filter(({ target }) => target !== null)
+      // Strip the slug back off to ask whether the target resolves under [slug].
+      .filter(({ target }) => {
+        const rest = target!.slice(`/${SLUG}`.length);
+        if (rest === "") return false; // the org root always exists
+        const parts = rest.replace(/^\//, "").split("/");
+        const dir = parts.length > 1 ? resolve(slugDir, ...parts.slice(0, -1)) : slugDir;
+        return !isRoute(dir, parts[parts.length - 1]!);
+      });
+
+    expect(broken).toEqual([]);
+  });
+
+  it("still redirects every top-level page that HAS a twin", () => {
+    const slugDir = resolve(pagesDir, "[slug]");
+    const missed = topLevelRoutes()
+      .filter((name) => isRoute(slugDir, name))
+      .filter((name) => sessionOrgRedirect(`/${name}`, SLUG) === null);
+
+    expect(missed).toEqual([]);
   });
 });

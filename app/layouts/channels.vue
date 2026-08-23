@@ -49,6 +49,11 @@ onMounted(loadNotifications);
 
     <!-- No dock, no footer, no breadcrumbs — this is a focused workspace. -->
     <ClientOnly>
+      <!-- Channels is the surface people leave open longest, so it is the most
+           likely to be sitting on a build whose chunks are gone. Detection runs
+           in the app-update plugin either way, but with nobody rendering the
+           banner a VISIBLE user here got "prompt" and saw nothing. -->
+      <AppUpdatePrompt />
       <NotificationSheet />
       <NotificationToast
         v-if="notifications.length > 0"

@@ -1500,6 +1500,8 @@ export interface HoaUnit {
 	date_updated?: string | null;
 	organization?: HoaOrganization | string | null;
 	unit_number?: string | null;
+	/** Who lives here. Drives the owner-occupancy figure on the public landing. */
+	occupancy?: 'owner' | 'tenant' | 'vacant' | null;
 	members?: HoaMemberUnit[] | string[];
 	leases?: HoaLease[] | string[];
 }

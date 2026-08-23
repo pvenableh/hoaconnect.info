@@ -33,6 +33,7 @@
 
     <!-- Hero Section -->
     <section
+      ref="heroSection"
       class="relative min-h-screen flex items-center justify-center flex-col bg-cover bg-center bg-no-repeat overflow-hidden"
       :style="
         organization?.hero?.background_image
@@ -74,7 +75,7 @@
         <!-- Eyebrow: neighborhood · city (1033lenox style) -->
         <p
           v-if="heroEyebrow"
-          class="hero-fade text-[11px] sm:text-xs text-white/75 uppercase tracking-[0.3em] sm:tracking-[0.45em] mb-7 sm:mb-10"
+          class="hero-fade text-xs text-white/75 uppercase tracking-[0.3em] lg:tracking-[0.6em] mb-6 lg:mb-12"
         >
           {{ heroEyebrow }}
         </p>
@@ -142,9 +143,10 @@
           <a href="/auth/login" class="landing-cta">Login here to renew your account</a>
         </div>
 
-        <!-- CTAs -->
+        <!-- CTAs. `landing.hero_cta` can turn the whole cluster off for a site
+             whose top bar already carries the account icon — see LandingConfig. -->
         <div
-          v-if="(!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
+          v-if="heroCtaEnabled && (!organization?.maintenance_mode || isAdminOfCurrentDomain) && !isAccountExpired"
           class="hero-fade flex flex-col items-center gap-4 mt-9"
         >
           <!-- Signed-in resident -->
@@ -298,6 +300,7 @@ const cfg = computed(() => normalizeLandingConfig(props.organization?.settings?.
 const memberNoun = computed(() => orgMemberNoun(props.organization?.type));
 
 const inquiryEnabled = computed(() => cfg.value.inquiry.enabled);
+const heroCtaEnabled = computed(() => cfg.value.hero_cta);
 
 // Property manager — the primary active management vendor (attached by /api/hoa/find).
 // Featured only when the admin opted in AND a management vendor exists.
@@ -362,6 +365,7 @@ const onScroll = () => {
 
 // ---- Scroll reveal (hero entrance is pure CSS; see .hero-fade in landing.css) ----
 const rootEl = ref(null);
+const heroSection = ref(null);
 let revealCtx = null; // GSAP context, reverted on unmount
 onMounted(() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -422,6 +426,35 @@ onMounted(() => {
         },
       });
     });
+
+    // ---- Hero parallax ----------------------------------------------------
+    // The brand block and the widget row drift DOWN as the hero scrolls up, so
+    // the photograph behind them is uncovered rather than simply leaving. It is
+    // the effect that makes the reference's hero feel like a title card, and it
+    // was the one piece of its motion we had no equivalent for.
+    //
+    // Scrubbed (tied to scroll position, not a fixed duration) and measured as a
+    // FRACTION of the viewport rather than the reference's flat 350px, so it
+    // reads the same on a laptop and on a tall monitor. `invalidateOnRefresh`
+    // re-reads that on resize.
+    if (heroSection.value) {
+      const drift = () => window.innerHeight * 0.35;
+      const parallax = [heroTitle.value, rootEl.value.querySelector(".hero-fade--widgets")];
+      for (const el of parallax) {
+        if (!el) continue;
+        gsap.to(el, {
+          y: drift,
+          ease: "none",
+          scrollTrigger: {
+            trigger: heroSection.value,
+            start: "top top",
+            end: "bottom top",
+            scrub: true,
+            invalidateOnRefresh: true,
+          },
+        });
+      }
+    }
 
     ScrollTrigger.refresh();
   }, rootEl.value);

@@ -23,8 +23,20 @@
 .landing-heading {
 	font-family: var(--theme-heading-font);
 	color: var(--theme-text-primary);
-	line-height: 1.05;
 	letter-spacing: var(--theme-tracking-tight);
+}
+/* 1.05 is right for the big display headings that set no leading of their own,
+   and wrong for the two that do. This rule is UNLAYERED, so it was beating
+   `leading-tight` from @layer utilities regardless of specificity — the same
+   trap as the inert `<Card>` border and the inert icon sizes — and a section
+   title asking for `leading-tight` (1.25) rendered at 1.05 instead. Measured
+   against the reference: 60px there, 50.4px here, on a 48px heading.
+
+   Only two call sites name a leading utility (the narrative title and the
+   content-section title) and both are the ones that want 1.25, so opting them
+   out changes exactly those and leaves every other landing heading alone. */
+.landing-heading:not([class*="leading-"]) {
+	line-height: 1.05;
 }
 .landing-lede {
 	color: var(--theme-text-secondary);
@@ -557,4 +569,117 @@ html.theme-modern-dark .landing-dock {
 		margin: 0 !important;
 		transition: none;
 	}
+}
+
+/* =============================================================================
+   PALETTE: GOLD — the original warm editorial ramp
+   -----------------------------------------------------------------------------
+   `classic` started as 1033lenox.com's theme and was warm: gold `#c9a96e`,
+   `#454545` ink, cream-tinted borders and shadows. The shared copy has since
+   been re-tinted cool (cyan `#00bfff`, near-black ink, neutral borders), so an
+   org that wants the original warmth can no longer get it from the style alone.
+   Opting into `landing.palette: "gold"` puts it back for that org only.
+
+   Every value below is lifted verbatim from the reference
+   (`~/Sites/1033/main/assets/css/themes.css`), not re-derived by eye — the
+   backgrounds already match token-for-token, so this covers exactly the 20
+   that had drifted: the accent ramp, the ink ramp, borders, dividers, links,
+   buttons and the warm-tinted shadows.
+
+   Anchored on `html` (0,2,0) and loaded after theme.css, so it beats
+   `.theme-classic-light` (0,1,0) on both specificity and order. It must be on
+   `html` rather than a wrapper: custom properties resolve at their DECLARATION
+   site, so re-declaring these on a descendant would re-tint some things and
+   leave buttons and links reading the html-level value.
+============================================================================= */
+html.landing-palette-gold {
+	--theme-text-primary: #454545;
+	--theme-text-secondary: #6c6c6c;
+	--theme-text-tertiary: #8b7355;
+	--theme-text-muted: #9a9a9a;
+
+	--theme-accent-primary: #c9a96e;
+	--theme-accent-secondary: #d4ba8a;
+	--theme-accent-tertiary: #8b7355;
+	--theme-accent-hover: #b89a5f;
+	--theme-accent-active: #1e3d67;
+
+	--theme-border-primary: #e5e0d8;
+	--theme-border-secondary: #d4cfc7;
+	--theme-border-light: #f0ebe3;
+	--theme-divider: #e5e0d8;
+	--theme-divider-light: #f0ebe3;
+
+	--theme-link-color: #8b7355;
+	--theme-link-hover: #c9a96e;
+	--theme-button-bg: #c9a96e;
+	--theme-button-hover-bg: #b89a5f;
+
+	--theme-shadow-sm: 0 1px 2px rgba(139, 115, 85, 0.05);
+	--theme-shadow-md: 0 4px 6px rgba(139, 115, 85, 0.07);
+	--theme-shadow-lg: 0 10px 15px rgba(139, 115, 85, 0.1);
+
+	/* The glass system reads the accent as HSL parts, so the frosted widgets and
+	   the dock pick up the gold too instead of staying cyan. #c9a96e. */
+	--app-accent-h: 37;
+	--app-accent-s: 47%;
+	--app-accent-l: 61%;
+}
+
+/* Dark keeps the same warmth, one step brighter so gold still reads on #1C1915 —
+   again taken verbatim from the reference's own classic-dark block rather than
+   darkened by hand. */
+html.landing-palette-gold.theme-classic-dark,
+html.landing-palette-gold.theme-modern-dark,
+html.landing-palette-gold.theme-luxury-dark {
+	--theme-text-primary: #f5f3ef;
+	--theme-text-secondary: #c9c4ba;
+	--theme-text-tertiary: #d4ba8a;
+	--theme-text-muted: #8a857a;
+
+	--theme-accent-primary: #d4ba8a;
+	--theme-accent-secondary: #c9a96e;
+	--theme-accent-tertiary: #e5d4b3;
+	--theme-accent-hover: #e5d4b3;
+	--theme-accent-active: #8eb5e1;
+
+	--theme-border-primary: #3d372e;
+	--theme-border-secondary: #4a433a;
+	--theme-border-light: #2f2a23;
+	--theme-divider: #3d372e;
+	--theme-divider-light: #2f2a23;
+
+	--theme-link-color: #d4ba8a;
+	--theme-link-hover: #e5d4b3;
+	--theme-button-bg: #c9a96e;
+	--theme-button-text: #1c1915;
+	--theme-button-hover-bg: #d4ba8a;
+
+	--theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+	--theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+	--theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+
+	/* #d4ba8a */
+	--app-accent-h: 37;
+	--app-accent-s: 45%;
+	--app-accent-l: 69%;
+}
+
+/* =============================================================================
+   PUBLIC LANDING TYPE SCALE
+   -----------------------------------------------------------------------------
+   `main.css` sets `html { font-size: 15px }` app-wide — a density choice for the
+   workspace, where it is right. It also reached the public landing, where it is
+   not: every rem-based size there came out 6.25% smaller than the editorial
+   design it was drawn from. Measured against the reference: 16px root there,
+   15px here, so a 3rem heading rendered 45px instead of 48px.
+
+   The six `theme-{style}-{mode}` classes now appear ONLY on public landings —
+   the workspace is `theme-app` — so keying off them scopes this to exactly the
+   surface that wants the browser default back, and leaves the app alone.
+============================================================================= */
+html[class*="theme-classic-"],
+html[class*="theme-modern-"],
+html[class*="theme-luxury-"] {
+	font-size: 16px;
 }

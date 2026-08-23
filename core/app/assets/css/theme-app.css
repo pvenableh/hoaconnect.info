@@ -241,11 +241,25 @@ html.theme-app {
    `html.theme-app .field-underline` (0,2,1) does, which means every input in the
    workspace converts without touching a single component or call site.
 ============================================================================= */
+/* No backdrop-filter here, deliberately — the recessed read comes from the
+   translucent fill and the inset rim, not from a blur.
+   
+   Every field used to carry `blur(10px) saturate(130%)`, which made each input
+   its own compositing surface. That put form pages over the glass budget on
+   count alone: `settings/organization` measured 5 — the top bar, the dock, and
+   three inputs — and a longer form is worse.
+   
+   It bought nothing. A field's backdrop is a flat opaque `bg-card`, with every
+   element between it and the card transparent, and blurring a constant returns
+   the constant. The one place the backdrop is NOT flat is the auth card, whose
+   own glass sits under a gradient — and a side-by-side with the field blur
+   forced on and off there is indistinguishable. Measured, because on this
+   machine it could not be eyeballed: macOS "Reduce transparency" is on, so the
+   `prefers-reduced-transparency` fallback below is what actually renders and
+   both states had to be forced back on to compare them at all. */
 html.theme-app .field-underline {
 	border: 0;
 	background: color-mix(in srgb, var(--theme-bg-elevated) 55%, transparent);
-	backdrop-filter: blur(10px) saturate(130%);
-	-webkit-backdrop-filter: blur(10px) saturate(130%);
 	box-shadow: var(--glass-rim-shadow),
 		inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.1);
 	transition: box-shadow 200ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
@@ -304,14 +318,12 @@ html.theme-app .field-underline[aria-invalid="true"] {
 	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(0 72% 51% / 0.28);
 }
 
+/* Reduced transparency still gets a solid fill — the translucent one above lets
+   the card read through, which is the effect the setting asks us to drop. The
+   `@supports not (backdrop-filter)` twin that used to sit here is gone: this
+   rule no longer depends on backdrop-filter, so there is nothing to fall back
+   from. */
 @media (prefers-reduced-transparency: reduce) {
-	html.theme-app .field-underline {
-		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
-		background: var(--theme-bg-elevated);
-	}
-}
-@supports not (backdrop-filter: blur(1px)) {
 	html.theme-app .field-underline {
 		background: var(--theme-bg-elevated);
 	}
@@ -459,6 +471,89 @@ html.theme-app .field-underline[aria-invalid="true"] {
 		padding-inline-start: var(--surface-inset);
 	}
 }
+
+/* =============================================================================
+   ICON SIZE — make `w-*` / `h-* `/ `size-*` mean something on an <Icon>
+   -----------------------------------------------------------------------------
+   Nuxt Icon runs in CSS mode here, so <Icon> is a masked <span>, never an <svg>,
+   and it is sized by Nuxt Icon's own rule:
+
+       :where(.i-lucide\:home) { width: 1em; height: 1em }
+
+   That rule is UNLAYERED. Tailwind's `.w-5` lives in @layer utilities, and
+   unlayered beats every layer regardless of specificity — so a zero-specificity
+   `:where()` wins against `.w-5` and the icon stays 1em. This is the same trap
+   as the `<Card>` border (see the git log for 72e8057): the losing rule looks
+   like it should win, and checking specificity tells you nothing.
+
+   The consequence is app-wide and was measured, not inferred: on the admin
+   dashboard an `<Icon class="h-10 w-10">` and an `<Icon class="h-3.5 w-3.5">`
+   BOTH rendered at 15px. Every size in the markup was decorative. The size
+   hierarchy the code describes did not exist on screen anywhere.
+
+   Since the box is 1em square, `font-size` is the lever that actually moves it.
+   Mapping the size utilities onto font-size here — unlayered, and specific
+   enough (0,3,0) to beat the `:where()` — makes ~840 existing call sites mean
+   what they already say, without editing one of them. Same move as the
+   `.field-underline` override above.
+
+   Height and width are both mapped because a 1em square has only one dimension;
+   a call site writing `h-4 w-4` gets 1rem either way.
+============================================================================= */
+html.theme-app .iconify.w-2,
+html.theme-app .iconify.h-2,
+html.theme-app .iconify.size-2 { font-size: 0.5rem; }
+html.theme-app .iconify.w-2\.5,
+html.theme-app .iconify.h-2\.5,
+html.theme-app .iconify.size-2\.5 { font-size: 0.625rem; }
+html.theme-app .iconify.w-3,
+html.theme-app .iconify.h-3,
+html.theme-app .iconify.size-3 { font-size: 0.75rem; }
+html.theme-app .iconify.w-3\.5,
+html.theme-app .iconify.h-3\.5,
+html.theme-app .iconify.size-3\.5 { font-size: 0.875rem; }
+html.theme-app .iconify.w-4,
+html.theme-app .iconify.h-4,
+html.theme-app .iconify.size-4 { font-size: 1rem; }
+html.theme-app .iconify.w-4\.5,
+html.theme-app .iconify.h-4\.5,
+html.theme-app .iconify.size-4\.5 { font-size: 1.125rem; }
+html.theme-app .iconify.w-5,
+html.theme-app .iconify.h-5,
+html.theme-app .iconify.size-5 { font-size: 1.25rem; }
+html.theme-app .iconify.w-6,
+html.theme-app .iconify.h-6,
+html.theme-app .iconify.size-6 { font-size: 1.5rem; }
+html.theme-app .iconify.w-7,
+html.theme-app .iconify.h-7,
+html.theme-app .iconify.size-7 { font-size: 1.75rem; }
+html.theme-app .iconify.w-8,
+html.theme-app .iconify.h-8,
+html.theme-app .iconify.size-8 { font-size: 2rem; }
+html.theme-app .iconify.w-9,
+html.theme-app .iconify.h-9,
+html.theme-app .iconify.size-9 { font-size: 2.25rem; }
+html.theme-app .iconify.w-10,
+html.theme-app .iconify.h-10,
+html.theme-app .iconify.size-10 { font-size: 2.5rem; }
+html.theme-app .iconify.w-11,
+html.theme-app .iconify.h-11,
+html.theme-app .iconify.size-11 { font-size: 2.75rem; }
+html.theme-app .iconify.w-12,
+html.theme-app .iconify.h-12,
+html.theme-app .iconify.size-12 { font-size: 3rem; }
+html.theme-app .iconify.w-14,
+html.theme-app .iconify.h-14,
+html.theme-app .iconify.size-14 { font-size: 3.5rem; }
+html.theme-app .iconify.w-16,
+html.theme-app .iconify.h-16,
+html.theme-app .iconify.size-16 { font-size: 4rem; }
+html.theme-app .iconify.w-20,
+html.theme-app .iconify.h-20,
+html.theme-app .iconify.size-20 { font-size: 5rem; }
+html.theme-app .iconify.w-24,
+html.theme-app .iconify.h-24,
+html.theme-app .iconify.size-24 { font-size: 6rem; }
 
 /* =============================================================================
    FALLBACK — browsers without light-dark()

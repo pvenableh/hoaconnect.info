@@ -1,16 +1,16 @@
 <script setup lang="ts">
 /**
- * A single number worth looking at.
+ * A single number worth looking at. The one stat card in the app.
  *
- * Unifies WidgetStat and DashboardStatsCard, which rendered the same card from
- * incompatible props (`label` vs `title`, a signed `trend` number vs a
- * `{value, positive}` object). Both spellings are accepted here so call sites
- * can move over without being rewritten, and both old components are now thin
- * wrappers around this one.
+ * `label` and `title` are the same thing spelled two ways — the two components
+ * this replaced disagreed, and both spellings are still in call sites.
  *
  * Trend direction and trend GOODNESS are separate on purpose: outstanding dues
  * going up is an increase and bad news. `trendPositive` overrides the default
  * assumption that up is good.
+ *
+ * `accent` exists but the workspace has one accent, so leaving it unset is the
+ * norm; it is here for the day an org tints its own admin.
  */
 const props = withDefaults(
   defineProps<{
@@ -22,8 +22,8 @@ const props = withDefaults(
     description?: string;
     icon?: string;
     accent?: "cyan" | "blue" | "violet" | "emerald" | "amber" | "rose" | "gold";
-    /** Signed percentage change, or the legacy `{ value, positive }` object. */
-    trend?: number | { value: number; positive: boolean };
+    /** Signed percentage change. */
+    trend?: number;
     /** Is an increase good news? Defaults to yes. */
     trendPositive?: boolean;
     loading?: boolean;
@@ -33,22 +33,15 @@ const props = withDefaults(
 
 const heading = computed(() => props.label ?? props.title ?? "");
 
-const trendValue = computed(() => {
-  if (props.trend == null) return null;
-  return typeof props.trend === "number" ? props.trend : props.trend.value;
-});
-
 /** Which way the number moved. */
-const trendUp = computed(() => (trendValue.value ?? 0) >= 0);
+const trendUp = computed(() => (props.trend ?? 0) >= 0);
 
 /** Whether that movement is good — which is not the same question. */
-const trendIsGood = computed(() => {
-  if (typeof props.trend === "object" && props.trend) return props.trend.positive;
-  if (props.trendPositive === false) return !trendUp.value;
-  return trendUp.value;
-});
+const trendIsGood = computed(() =>
+  props.trendPositive === false ? !trendUp.value : trendUp.value,
+);
 
-const showTrend = computed(() => trendValue.value != null && trendValue.value !== 0);
+const showTrend = computed(() => props.trend != null && props.trend !== 0);
 </script>
 
 <template>
@@ -78,7 +71,7 @@ const showTrend = computed(() => trendValue.value != null && trendValue.value !=
         :name="trendUp ? 'lucide:trending-up' : 'lucide:trending-down'"
         class="size-3.5"
       />
-      {{ Math.abs(trendValue as number) }}%
+      {{ Math.abs(trend as number) }}%
       <span class="stat-card__trend-note">from last month</span>
     </p>
   </div>

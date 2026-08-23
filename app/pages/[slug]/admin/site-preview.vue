@@ -10,12 +10,20 @@ const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 const { forceThemeStyle } = useTheme();
 
-// Theme is forced via the iframe URL (?theme=classic|modern|luxury) so the
-// preview renders in the selected theme deterministically on load — the builder
-// reloads this frame with the new ?theme when the toggle changes, which is far
-// more reliable than depending on a postMessage arriving. (The draft still
-// arrives over postMessage; only the theme is URL-driven.)
-if (route.query.theme) forceThemeStyle(String(route.query.theme) as any);
+// Theme and mode are forced via the iframe URL (?theme=classic|modern|luxury
+// &mode=light|dark) so the preview renders deterministically on load — the
+// builder reloads this frame when either toggle changes, which is far more
+// reliable than depending on a postMessage arriving. (The draft still arrives
+// over postMessage; theme and mode are URL-driven.)
+const previewMode = computed<"light" | "dark">(() =>
+  route.query.mode === "dark" ? "dark" : "light"
+);
+// Palette is a plain html class, so the preview can just carry it in useHead.
+const previewPalette = ref<string>(route.query.palette === "gold" ? "landing-palette-gold" : "");
+useHead({ htmlAttrs: { class: previewPalette } });
+if (route.query.theme) {
+  forceThemeStyle(String(route.query.theme) as any, previewMode.value);
+}
 
 const previewOrg = ref<any>(null);
 
@@ -32,7 +40,10 @@ function applyDraft(p: any) {
   org.settings = org.settings || {};
   if (p.theme) {
     org.settings.theme = p.theme;
-    forceThemeStyle(p.theme);
+    forceThemeStyle(p.theme, p.mode === "dark" ? "dark" : "light");
+  }
+  if (p.landing?.palette !== undefined) {
+    previewPalette.value = p.landing.palette === "gold" ? "landing-palette-gold" : "";
   }
   if (typeof p.description === "string") org.settings.description = p.description;
   if (p.landing) org.settings.landing = p.landing;
