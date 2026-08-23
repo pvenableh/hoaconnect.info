@@ -621,6 +621,14 @@ useSeoMeta({
         <AppTabPanels :value="activeTab" :items="tabItems">
           <!-- Members Tab -->
           <div v-if="activeTab === 'members'" class="space-y-4">
+            <!--
+              People is where the dock now lands, so the first thing on it should
+              be the community rather than a table. Counts + the two splits
+              (people by type, homes by occupancy — different questions, see the
+              component) before the list.
+            -->
+            <AdminPeopleGlance />
+
             <!-- Info Box — theme-aware accent tint (adapts to light/dark + theme) -->
             <Card class="t-bg-accent/10 t-border-accent">
               <CardContent class="pt-6">
