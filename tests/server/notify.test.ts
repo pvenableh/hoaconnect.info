@@ -3,6 +3,12 @@
 // code before push needed it), and the two channels must degrade in opposite
 // directions when preferences can't be read — keep the durable bell row, drop
 // the interrupting push.
+//
+// Everyone named below is a member of ORG. That is a precondition now, not a
+// detail: notifyUsers filters recipients to the org before it does anything
+// else, so a fixture whose users have no membership would report zero of
+// everything and tell you nothing about preferences. The gate itself is tested
+// in notify-org-scope.test.ts.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 let directusRequest: ReturnType<typeof vi.fn>;
@@ -19,29 +25,6 @@ const { notifyUsers } = await import("#core/server/utils/notify");
 const ORG = "org-1";
 const ORG_ROW = { id: ORG, slug: "605-lincoln", name: "605 Lincoln Road" };
 
-/** Route the fake Directus by what the SDK call looks like. */
-function directus(users: Array<{ id: string; notification_preferences?: unknown }>, opts: { orgFails?: boolean; usersFail?: boolean } = {}) {
-  return vi.fn(async (req: any) => {
-    const kind = describeRequest(req);
-    if (kind === "users") {
-      if (opts.usersFail) throw new Error("perms exploded");
-      return users;
-    }
-    if (kind === "org") {
-      if (opts.orgFails) throw new Error("org read failed");
-      return ORG_ROW;
-    }
-    return {}; // createNotification
-  });
-}
-
-/** The Directus SDK returns opaque thunks; identify them by their serialized shape. */
-function describeRequest(req: any): "users" | "org" | "other" {
-  const s = JSON.stringify(req?.toString?.() ?? "") + String(req);
-  if (s.includes("users")) return "users";
-  return "other";
-}
-
 const base = {
   organizationId: ORG,
   category: "task" as const,
@@ -57,13 +40,28 @@ beforeEach(() => {
   sendPush = vi.fn(async () => 1);
 });
 
+/** The org roster. Every recipient these tests name belongs to ORG. */
+const MEMBER_ROWS = [{ user: "u1" }, { user: "u2" }, { user: "u3" }];
+
 /**
  * The SDK's request thunks aren't introspectable, so drive the fake by call
- * ORDER instead: notifyUsers reads users, then writes N bells, then reads the org.
+ * ORDER instead: notifyUsers checks membership, then reads users, then writes
+ * N bells, then reads the org.
+ *
+ * The membership read is served unconditionally — these tests are about
+ * preferences and push, and a fixture that also had to model tenancy would be
+ * testing two things at once. Note it survives `users instanceof Error`: the
+ * preferences-unreadable case must still know who belongs here, which is the
+ * whole reason the gate sits in front of that fallback rather than inside it.
  */
 function sequencedDirectus(users: unknown, org: unknown = ORG_ROW) {
+  let membershipRead = false;
   let usersRead = false;
   return vi.fn(async () => {
+    if (!membershipRead) {
+      membershipRead = true;
+      return MEMBER_ROWS;
+    }
     if (!usersRead) {
       usersRead = true;
       if (users instanceof Error) throw users;

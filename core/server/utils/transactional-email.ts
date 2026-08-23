@@ -3,6 +3,7 @@ import type { HoaOrganization, BlockSetting } from "#core/types/directus";
 import { resolveEmailBranding } from "./email-branding";
 import { buildEmailHtml, buildEmailText, type EmailType } from "./email-templates-mjml";
 import { sendOrganizationEmail } from "./sendgrid";
+import { scopeRecipientsToOrg } from "./org-members";
 import {
   emailAllowed,
   allMuted,
@@ -60,9 +61,18 @@ const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOptions): Promise<void> {
-  const recipients = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
+  const asked = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
     (id) => id !== opts.excludeUserId
   );
+  if (!asked.length) return;
+
+  // Tenancy gate, same as `notifyUsers` and for a sharper reason: this channel
+  // leaves the building. Everything below renders THIS org's branding — its
+  // name, its logo, its footer photo, its legal line — so an id belonging to
+  // another community produces a real, on-brand email from a community the
+  // recipient has nothing to do with. A stray bell row is noise in an app; this
+  // is a message in someone's inbox that cannot be taken back.
+  const recipients = await scopeRecipientsToOrg(opts.organizationId, asked, "transactional-email");
   if (!recipients.length) return;
 
   const config = useRuntimeConfig();

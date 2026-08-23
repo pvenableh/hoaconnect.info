@@ -16,6 +16,7 @@ import { createNotification, readItem, readUsers } from "@directus/sdk";
 import { bellAllowed, type NotificationCategory } from "#core/shared/notifications/preferences";
 import { buildPushPayload, pushAllowed, type PushOrgContext } from "#core/shared/notifications/push";
 import { sendPushToUser } from "./push";
+import { scopeRecipientsToOrg } from "./org-members";
 
 export interface NotifyOptions {
   /** The community this is about — push payloads and links are org-scoped. */
@@ -42,9 +43,25 @@ export interface NotifyOptions {
  * preference. Never throws.
  */
 export async function notifyUsers(opts: NotifyOptions): Promise<{ bell: number; push: number }> {
-  const recipients = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
+  const asked = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
     (id) => id !== opts.excludeUserId
   );
+  if (!asked.length) return { bell: 0, push: 0 };
+
+  // TENANCY GATE, and it has to come FIRST.
+  //
+  // Every id here arrived from a caller, and some callers derive them from
+  // rows that in turn came from a request body. `organizationId` is used for
+  // the push payload's branding and deep link, so an id from another community
+  // would receive THIS community's message under THIS community's name.
+  //
+  // It sits above the try/catch below on purpose. That block deliberately
+  // fails open — an unreadable preference falls back to notifying everyone —
+  // and if the filter ran inside or after it, a preference read failure would
+  // hand the fallback the unfiltered list and turn a fail-open convenience
+  // into a way around the tenancy check. Filter first; everything downstream
+  // only ever sees people who belong here.
+  const recipients = await scopeRecipientsToOrg(opts.organizationId, asked, "notify");
   if (!recipients.length) return { bell: 0, push: 0 };
 
   const admin = getTypedDirectus();

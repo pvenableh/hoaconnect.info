@@ -23,6 +23,7 @@
  */
 
 import { readItems } from "@directus/sdk";
+import { orgMemberUserIds } from "./org-members";
 
 export interface TaskLinkInput {
   project?: string | null;
@@ -124,10 +125,10 @@ export async function resolveTaskLinks(
  * stranger's inbox with this community's branding on it, which is worse than
  * the read leak the other checks close.
  *
- * Membership means "has an hoa_members row here", any status — the point is
- * which community someone belongs to, not whether their membership is
- * currently active. Tightening it to active-only would make an unrelated edit
- * fail whenever a task still names someone who has since been deactivated.
+ * This is the REJECT face of the same question `scopeRecipientsToOrg` asks on
+ * the notification path, where the right answer is to drop the outsider rather
+ * than fail the action. Both sit on `orgMemberUserIds` so the definition of
+ * membership can't drift between the check and the send.
  */
 export async function requireOrgMembers(
   organizationId: string,
@@ -136,19 +137,7 @@ export async function requireOrgMembers(
   const wanted = [...new Set(userIds.filter(Boolean).map(String))];
   if (!wanted.length) return;
 
-  const rows = (await getTypedDirectus().request(
-    readItems("hoa_members", {
-      filter: { organization: { _eq: organizationId }, user: { _in: wanted } },
-      fields: ["user"],
-      limit: -1,
-    })
-  )) as any[];
-
-  const found = new Set(
-    (rows || [])
-      .map((r) => (typeof r.user === "string" ? r.user : r.user?.id))
-      .filter(Boolean)
-  );
+  const found = await orgMemberUserIds(organizationId, wanted);
   if (wanted.some((id) => !found.has(id))) {
     throw createError({
       statusCode: 404,
