@@ -229,7 +229,7 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
             route requests here.
           </p>
           <template v-else>
-            <ul v-if="requests.length" class="divide-y divide-stone-100">
+            <ul v-if="requests.length" class="divide-y divide-[var(--theme-border-light)]">
               <li
                 v-for="r in requests"
                 :key="r.id"
@@ -248,7 +248,7 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
 
         <!-- Tasks -->
         <div v-show="tab === 'tasks'" class="ios-card p-5">
-          <ul v-if="tasks.length" class="divide-y divide-stone-100">
+          <ul v-if="tasks.length" class="divide-y divide-[var(--theme-border-light)]">
             <li
               v-for="t in tasks"
               :key="t.id"

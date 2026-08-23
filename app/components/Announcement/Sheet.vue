@@ -130,7 +130,7 @@ const handleOpenChange = (open: boolean) => {
           </SheetDescription>
 
           <!-- Meta Info -->
-          <div class="flex flex-wrap items-center gap-3 text-sm text-stone-500">
+          <div class="flex flex-wrap items-center gap-3 text-sm t-text-muted">
             <span class="flex items-center gap-1">
               <Icon name="lucide:calendar" class="w-4 h-4" />
               {{ formatDate(selectedAnnouncement.publish_date || selectedAnnouncement.date_created) }}
@@ -154,33 +154,30 @@ const handleOpenChange = (open: boolean) => {
         <div class="mt-6">
           <div
             v-if="selectedAnnouncement.content"
-            class="prose prose-stone prose-sm max-w-none"
+            class="prose prose-stone dark:prose-invert prose-sm max-w-none"
             v-html="selectedAnnouncement.content"
           />
 
           <!-- CTA Button -->
           <div
             v-if="selectedAnnouncement.button_text && selectedAnnouncement.button_link"
-            class="mt-6 pt-6 border-t border-stone-100"
+            class="mt-6 pt-6 border-t t-border-light"
           >
-            <a
-              v-if="getButtonAttrs"
-              v-bind="getButtonAttrs"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors"
-              @click="handleClose"
-            >
-              {{ selectedAnnouncement.button_text }}
-              <Icon
-                v-if="getButtonAttrs.target === '_blank'"
-                name="lucide:external-link"
-                class="w-4 h-4"
-              />
-              <Icon
-                v-else
-                name="lucide:arrow-right"
-                class="w-4 h-4"
-              />
-            </a>
+            <!-- as-child so the announcement's own href/target/rel survive:
+                 the CTA is a real link, and Button only lends it the theme. -->
+            <Button v-if="getButtonAttrs" as-child>
+              <a v-bind="getButtonAttrs" @click="handleClose">
+                {{ selectedAnnouncement.button_text }}
+                <Icon
+                  :name="
+                    getButtonAttrs.target === '_blank'
+                      ? 'lucide:external-link'
+                      : 'lucide:arrow-right'
+                  "
+                  class="w-4 h-4"
+                />
+              </a>
+            </Button>
           </div>
         </div>
 

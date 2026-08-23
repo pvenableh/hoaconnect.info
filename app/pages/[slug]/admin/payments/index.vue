@@ -345,9 +345,26 @@ const TYPE_FILTERS = [
         </div>
         <div class="ios-card p-5">
           <p class="text-xs uppercase tracking-wide t-text-muted">Collected</p>
-          <p class="text-2xl font-semibold tabular-nums text-emerald-600 mt-1">{{ currency(totalCollected) }}</p>
+          <!-- Status colour from the theme, not a raw palette class, so it
+               follows light/dark like every other positive figure. -->
+          <p class="text-2xl font-semibold tabular-nums mt-1" style="color: var(--success)">
+            {{ currency(totalCollected) }}
+          </p>
         </div>
       </div>
+
+      <!--
+        The two totals above say HOW MUCH. These say whether that is a healthy
+        number: cash in against cash out over the year, and — the one a
+        treasurer is actually asked — how long the outstanding money has been
+        outstanding. $4,200 not yet due and $4,200 ninety days late read
+        identically as a total and are completely different communities.
+      -->
+      <AdminMoneyGlance
+        :charges="(requests as any[]) || []"
+        :expenses="(expenses as any[]) || []"
+        :loading="pending"
+      />
 
       <!-- New charge form -->
       <div v-if="showNew" class="ios-card p-6 space-y-4">
@@ -423,8 +440,8 @@ const TYPE_FILTERS = [
           v-for="t in [{ key: 'overview', label: 'Overview' }, { key: 'charges', label: 'Charges' }, { key: 'recurring', label: 'Recurring' }, { key: 'reports', label: 'Reports' }]"
           :key="t.key"
           @click="tab = t.key as any"
-          class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-          :class="tab === t.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+          class="filter-pill"
+          :class="{ 'filter-pill--active': tab === t.key }"
         >{{ t.label }}</button>
         <NuxtLink :to="buildOrgPath('/admin/expenses')" class="ml-auto">
           <Button variant="outline" class="rounded-full">
@@ -516,8 +533,8 @@ const TYPE_FILTERS = [
               v-for="opt in TYPE_FILTERS"
               :key="opt.key"
               @click="typeFilter = opt.key"
-              class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              :class="typeFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+              class="filter-pill flex-shrink-0"
+              :class="{ 'filter-pill--active': typeFilter === opt.key }"
             >{{ opt.label }}</button>
           </div>
           <div class="flex gap-1.5 ml-auto">
@@ -525,8 +542,8 @@ const TYPE_FILTERS = [
               v-for="opt in [{ key: 'outstanding', label: 'Outstanding' }, { key: 'paid', label: 'Paid' }, { key: 'all', label: 'All' }]"
               :key="opt.key"
               @click="statusFilter = opt.key as any"
-              class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              :class="statusFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+              class="filter-pill"
+              :class="{ 'filter-pill--active': statusFilter === opt.key }"
             >{{ opt.label }}</button>
           </div>
         </div>

@@ -86,7 +86,7 @@ const submit = async () => {
           </button>
         </div>
       </div>
-      <button type="button" class="mt-2 text-sm t-text-muted hover:text-stone-800 inline-flex items-center gap-1" @click="addOption">
+      <button type="button" class="mt-2 text-sm t-text-muted hover:t-text inline-flex items-center gap-1" @click="addOption">
         <Icon name="lucide:plus" class="w-4 h-4" /> Add option
       </button>
     </div>

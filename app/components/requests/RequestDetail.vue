@@ -212,7 +212,7 @@ const doPromote = async () => {
       <div class="flex items-start gap-4">
         <div
           class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ring-1"
-          :class="accentClass[workflow.accent] || 't-bg-subtle t-text-secondary ring-stone-200'"
+          :class="accentClass[workflow.accent] || 't-bg-subtle t-text-secondary ring-[var(--theme-border-primary)]'"
         >
           <Icon :name="workflow.icon" class="w-6 h-6" />
         </div>
@@ -223,7 +223,7 @@ const doPromote = async () => {
             </span>
             <span
               class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1"
-              :class="accentClass[workflow.accent] || 't-bg-subtle t-text-secondary ring-stone-200'"
+              :class="accentClass[workflow.accent] || 't-bg-subtle t-text-secondary ring-[var(--theme-border-primary)]'"
             >
               {{ stateMeta.label }}
             </span>
@@ -247,7 +247,7 @@ const doPromote = async () => {
       <!-- Description -->
       <div
         v-if="local.description"
-        class="prose prose-sm prose-stone max-w-none mt-4 pt-4 border-t t-border"
+        class="prose prose-sm prose-stone dark:prose-invert max-w-none mt-4 pt-4 border-t t-border"
         v-html="local.description"
       />
 

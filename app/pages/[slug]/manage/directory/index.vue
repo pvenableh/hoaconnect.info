@@ -40,7 +40,7 @@ const { data: members, pending } = await useAsyncData(
               {{ m.email || "—" }}<span v-if="m.phone"> · {{ m.phone }}</span>
             </div>
           </div>
-          <span v-if="m.member_type" class="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0 capitalize">{{ m.member_type }}</span>
+          <span v-if="m.member_type" class="text-xs px-2 py-0.5 rounded-full t-bg-subtle t-text-secondary shrink-0 capitalize">{{ m.member_type }}</span>
         </div>
       </div>
     </PageContainer>

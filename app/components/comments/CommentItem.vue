@@ -177,7 +177,7 @@ const onDelete = async () => {
         <!-- Body (greyed when hidden) -->
         <div
           v-if="!isEditing && showBody"
-          class="prose prose-sm prose-stone max-w-none text-sm t-text-secondary"
+          class="prose prose-sm prose-stone dark:prose-invert max-w-none text-sm t-text-secondary"
           :class="{ 'opacity-50': comment.is_hidden }"
           v-html="comment.body"
         />

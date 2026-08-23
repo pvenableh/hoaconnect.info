@@ -124,8 +124,8 @@ const createViolation = async () => {
             v-for="opt in [{ key: 'all', label: 'All types' }, ...requestTypeList.map((t) => ({ key: t.type, label: t.label }))]"
             :key="opt.key"
             @click="typeFilter = opt.key"
-            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="typeFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+            class="filter-pill flex-shrink-0"
+            :class="{ 'filter-pill--active': typeFilter === opt.key }"
           >{{ opt.label }}</button>
         </div>
         <div class="flex gap-1.5 ml-auto">
@@ -133,8 +133,8 @@ const createViolation = async () => {
             v-for="opt in [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]"
             :key="opt.key"
             @click="statusFilter = opt.key"
-            class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="statusFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+            class="filter-pill"
+            :class="{ 'filter-pill--active': statusFilter === opt.key }"
           >{{ opt.label }}</button>
         </div>
       </div>

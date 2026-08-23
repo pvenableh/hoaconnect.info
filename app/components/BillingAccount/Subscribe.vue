@@ -130,7 +130,7 @@ onBeforeUnmount(() => {
 
 <template>
   <form class="space-y-4" @submit.prevent="handleSubmit">
-    <p v-if="subData" class="text-sm text-stone-600">
+    <p v-if="subData" class="text-sm t-text-secondary">
       Billing for <strong>{{ subData.seats }}</strong>
       {{ subData.seats === 1 ? "property" : "properties" }} ({{ billingCycle }}).
     </p>
@@ -142,20 +142,24 @@ onBeforeUnmount(() => {
       {{ error }}
     </div>
 
-    <div v-if="isElementLoading" class="flex items-center gap-2 py-8 text-sm text-stone-500">
-      <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-stone-700" />
+    <div v-if="isElementLoading" class="flex items-center gap-2 py-8 text-sm t-text-muted">
+      <span class="spinner-ios" />
       Loading payment form…
     </div>
 
     <div v-show="!isElementLoading">
       <div id="billing-account-payment-element" class="mb-4 min-h-[100px]" />
-      <button
+      <!-- The shared Button rather than a hand-rolled one: its `default`
+           variant is bg-primary, which IS the theme accent, so it follows the
+           org's colour and both modes. The hand-rolled version was a fixed
+           near-black that stayed near-black on a dark background. -->
+      <Button
         type="submit"
+        class="w-full"
         :disabled="!isElementReady || isSubmitting"
-        class="w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
       >
         {{ submitLabel }}
-      </button>
+      </Button>
     </div>
   </form>
 </template>

@@ -67,7 +67,7 @@ const onReopen = async () => {
 <template>
   <div class="ios-card p-5">
     <div class="flex items-start gap-3">
-      <div class="w-10 h-10 rounded-xl bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center flex-shrink-0">
+      <div class="w-10 h-10 rounded-xl t-bg-accent/15 t-text-accent flex items-center justify-center flex-shrink-0">
         <Icon name="lucide:bar-chart-3" class="w-5 h-5" />
       </div>
       <div class="flex-1 min-w-0">
@@ -81,7 +81,7 @@ const onReopen = async () => {
       <button
         v-if="canManage"
         type="button"
-        class="text-xs t-text-muted hover:text-stone-700 flex-shrink-0"
+        class="text-xs t-text-muted hover:t-text flex-shrink-0"
         @click="isClosed ? onReopen() : onClose()"
       >
         {{ isClosed ? "Reopen" : "Close" }}
@@ -97,15 +97,15 @@ const onReopen = async () => {
         :disabled="isClosed || busy || !results.canVote"
         class="relative w-full text-left rounded-xl border overflow-hidden transition-colors"
         :class="[
-          isMine(opt.id) ? 'border-fuchsia-400' : 't-border',
-          isClosed || !results.canVote ? 'cursor-default' : 'hover:border-stone-300',
+          isMine(opt.id) ? 't-border-accent' : 't-border',
+          isClosed || !results.canVote ? 'cursor-default' : 'hover:t-border-accent',
         ]"
         @click="onVote(opt.id)"
       >
         <!-- Result fill -->
         <div
           v-if="showResults"
-          class="absolute inset-y-0 left-0 bg-fuchsia-50 transition-all"
+          class="absolute inset-y-0 left-0 t-bg-accent/10 transition-all"
           :style="{ width: pct(opt.id) + '%' }"
         />
         <div class="relative flex items-center justify-between px-3 py-2.5">
@@ -114,7 +114,7 @@ const onReopen = async () => {
               v-if="!isClosed && results.canVote"
               :name="isMine(opt.id) ? 'lucide:check-circle-2' : 'lucide:circle'"
               class="w-4 h-4"
-              :class="isMine(opt.id) ? 'text-fuchsia-600' : 'text-stone-300'"
+              :class="isMine(opt.id) ? 't-text-accent' : 't-text-muted'"
             />
             {{ opt.label }}
           </span>

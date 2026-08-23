@@ -91,8 +91,8 @@ const formatDate = (s?: string | null) =>
         v-for="opt in [{ key: 'open', label: 'Open' }, { key: 'all', label: 'All' }]"
         :key="opt.key"
         @click="filter = opt.key as 'open' | 'all'"
-        class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-        :class="filter === opt.key ? 'bg-stone-900 text-white' : 't-bg-subtle t-text-secondary hover:bg-stone-200'"
+        class="filter-pill"
+        :class="{ 'filter-pill--active': filter === opt.key }"
       >{{ opt.label }}</button>
     </div>
 
@@ -129,7 +129,7 @@ const formatDate = (s?: string | null) =>
         <p v-if="r.details" class="text-sm t-text-secondary mt-1 italic">"{{ r.details }}"</p>
 
         <!-- Reported comment preview -->
-        <div class="mt-3 p-3 rounded-xl t-bg-subtle ring-1 ring-stone-100">
+        <div class="mt-3 p-3 rounded-xl t-bg-subtle ring-1 ring-[var(--theme-border-light)]">
           <p class="text-xs t-text-muted mb-1">
             Comment by <span class="font-medium t-text-secondary">{{ authorName(r) }}</span>
           </p>

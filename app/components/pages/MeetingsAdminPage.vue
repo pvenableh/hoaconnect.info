@@ -405,6 +405,13 @@ const handleDelete = async (id: string) => {
           </template>
         </AppPageHeader>
 
+        <!--
+          Records is where the dock now lands, so the first thing on it is the
+          community's year rather than the next item on a list. The gaps in the
+          strip are the point.
+        -->
+        <AdminMeetingsGlance :meetings="(meetings as any[]) || []" />
+
         <!-- Upcoming -->
         <section v-if="upcoming.length" class="space-y-3">
           <h2 class="type-micro t-text-secondary">Upcoming</h2>

@@ -88,8 +88,8 @@ const setStatus = async (id: string, status: string) => {
             { key: 'all', label: 'All' },
           ]"
           :key="opt.key"
-          class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-          :class="statusFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+          class="filter-pill"
+          :class="{ 'filter-pill--active': statusFilter === opt.key }"
           @click="statusFilter = opt.key as any"
         >
           {{ opt.label }}
@@ -111,7 +111,7 @@ const setStatus = async (id: string, status: string) => {
         >
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1.5">
-              <span class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
+              <span class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full t-bg-subtle t-text-secondary">
                 {{ CATEGORY_LABEL[meta(lead).inquiry_category] || "General" }}
               </span>
               <span class="text-xs t-text-muted">{{ fmtDate(lead.date_created) }}</span>

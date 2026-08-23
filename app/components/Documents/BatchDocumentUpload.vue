@@ -414,7 +414,7 @@ const allComplete = computed(
           class="w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200"
           :class="{
             'bg-blue-100 scale-110': isOverDropZone,
-            'bg-stone-200': !isOverDropZone,
+            't-bg-subtle': !isOverDropZone,
           }"
         >
           <Icon
@@ -501,7 +501,7 @@ const allComplete = computed(
                 type="button"
                 @click="showNewCategoryInput = false; newCategoryName = ''"
                 :disabled="creatingCategory"
-                class="px-3 py-2 t-bg-subtle border t-border rounded-lg hover:bg-stone-200 transition-colors t-text-secondary text-sm font-medium"
+                class="px-3 py-2 t-bg-subtle border t-border rounded-lg hover:t-bg-alt transition-colors t-text-secondary text-sm font-medium"
               >
                 Cancel
               </button>
@@ -619,7 +619,7 @@ const allComplete = computed(
             <input
               v-if="queuedFile.status === 'pending'"
               v-model="queuedFile.title"
-              class="w-full font-medium t-text-secondary bg-transparent border-b border-transparent hover:border-stone-300 focus:border-blue-500 focus:outline-none transition-colors"
+              class="w-full font-medium t-text-secondary bg-transparent border-b border-transparent hover:border-[var(--theme-border-primary)] focus:border-[var(--theme-accent-primary)] focus:outline-none transition-colors"
               @click.stop
             />
             <p v-else class="font-medium t-text-secondary truncate">
