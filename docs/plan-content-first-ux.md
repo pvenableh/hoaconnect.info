@@ -134,6 +134,44 @@ onto it.
 
 ## Progress
 
-- [ ] Phase A — hubs resolve to content
-- [ ] Phase B — landing bands
-- [ ] Phase C — chart kit and the charts
+- [x] **Phase A — sections resolve to content** (`61aa706`). People → Members,
+  Records → Meetings, Requests → the queue, /manage → first granted area.
+  Roots kept as redirect shims; `sectionHomeFor` is module-aware and covered by
+  `tests/composables/useSectionNav.test.ts` (6 tests, including a
+  never-redirect-to-itself guard).
+- [x] **Phase C.1 — the chart kit** (`3e274a6`). `AppChartCard` / `Trend` /
+  `Bars` / `Donut` / `Timeline` / `Legend`, colour from `--chart-1…5` via
+  `useChartColors`, all in `/ui-kit` with fixed sample data.
+- [x] **Phase B — landing bands** (`3e274a6`, `af37fc3`). People (counts +
+  members-by-type + homes-by-occupancy), Records (year-in-meetings Gantt +
+  three counts), Requests (queue health + ageing), Money (cash in/out +
+  outstanding by age).
+- [ ] **Settings health strip** — the one screen still landing on pure cards,
+  by design. Needs plan/renewal, modules on, custom-domain status, Stripe
+  payouts connected, last data export.
+- [ ] **Projects** — `ProjectGantt` exists behind a third view toggle. Promote
+  it (default to Timeline when enough projects carry dates) and put progress
+  on the bars.
+- [ ] **Dashboard widgets** for the new charts (`collections`,
+  `requests-health`, `occupancy`) — append **default-off**.
+- [ ] **Retire the three off-system charts** (`dashboard/EmailActivityChart`,
+  `MembershipDonutChart`, `ActivityTimelineChart`) onto `AppChartCard`.
+- [ ] **stone-\* palette sweep** — ~18 components still hardcode grey and
+  don't follow dark mode. Spun out as its own task; the Requests filter pills
+  in `af37fc3` are the reference conversion.
+
+## What running it taught (not readable from the source)
+
+- **A moment is not a span.** A zero-length meeting on a 250-day axis draws as
+  a 2px sliver. Faking a one-day duration lies about the date; unovis'
+  `showEmptySegments` + `lineCap` draws a dot of the line's own width.
+- **`hoa_board_members` has no `organization`.** The scope goes through
+  `hoa_member`, and filtering on the absent field is a FORBIDDEN 500 rather
+  than an empty list. Any band with several independent counts uses
+  `Promise.allSettled` so one gap can't blank the rest.
+- **The Browser pane reports `document.hidden`,** which freezes unovis' rAF
+  transitions mid-enter. A screenshot catches whatever frame the animation
+  stalled on — measure geometry and resolved fills instead.
+- **`--warning` and `--destructive` exist as `light-dark()` pairs,** so
+  `color-mix` between them stays theme-aware. That is where `severe` comes
+  from; there is no orange token.
