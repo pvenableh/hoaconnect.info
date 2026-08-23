@@ -202,11 +202,15 @@ onto it.
 - **The Browser pane reports `document.hidden`,** which freezes unovis' rAF
   transitions mid-enter. A screenshot catches whatever frame the animation
   stalled on — measure geometry and resolved fills instead.
-- **Deleting a project does not delete its tasks.** The confirm says "Its
-  milestones and tasks will be removed"; the events go, the tasks survive with
-  `project: null` and `project_event: null` and `category: "event"`, as
-  un-attributable orphans. Found while clearing up seeded demo data. Spun out
-  as its own task.
+- **Deleting a project did not delete its tasks** — `hoa_tasks.project` and
+  `.project_event` are both SET NULL, so they survived as un-attributable
+  orphans while the confirm promised they'd gone. Found while clearing up
+  seeded demo data; fixed in `8fd425c`. Tasks now go with the project, except
+  one still serving a request; a deleted PHASE rehomes its tasks to the project
+  instead. Two more surfaced on the way: `POST /api/org/tasks` ignored the
+  `event` scope the GET defines (so no UI could ever create the event-linked
+  tasks the Gantt's progress bars read), and wrote `project_event` without
+  checking it belonged to the caller's org.
 - **`--warning` and `--destructive` exist as `light-dark()` pairs,** so
   `color-mix` between them stays theme-aware. That is where `severe` comes
   from; there is no orange token.
