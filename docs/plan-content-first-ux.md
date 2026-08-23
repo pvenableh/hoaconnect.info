@@ -125,7 +125,9 @@ onto it.
   phantom `<svg>` under the real one.
 - Colours come from `--chart-1…5` (defined light and dark in
   `core/app/assets/css/tailwind.css`), never literals.
-- No `t-*` opacity suffixes — `t-bg-accent/15` is a silent no-op.
+- `t-bg-accent` has exactly three opacity suffixes — `/10`, `/15`, `/20`, each
+  written out by hand in `theme.css`. Any other suffix is a silent no-op, and
+  never pair `t-bg-accent` with `t-text-accent` (both resolve to the accent).
 - Measure styles with `getComputedStyle`; reading a rule is not evidence.
 - After every change: `pnpm typecheck && pnpm test && pnpm build`
   (`eval "$(/usr/local/bin/fnm env)"` first — there is no node on PATH in a
