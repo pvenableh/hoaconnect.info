@@ -280,6 +280,63 @@ const { data: announcements, pending: annPending, error: annError } = await useA
   }
 );
 
+/**
+ * Sent emails this resident is allowed to see. The server route owns the rule
+ * (`visibility = 'public'` OR they were a recipient) because the HOA Member
+ * policy cannot read `hoa_emails` at all, and because a filter the client sends
+ * is a filter the client can change.
+ *
+ * Communities that came from an email-first system have their whole history
+ * here rather than in `hoa_announcements` — 1033 has 106 emails and zero
+ * announcements — so without this the card is empty for them no matter how much
+ * the community has actually communicated.
+ */
+const { data: communityNews, pending: newsPending } = await useAsyncData(
+  `community-news-${orgId.value}`,
+  async () => {
+    const s = organization.value?.slug;
+    if (!s) return [];
+    try {
+      return await $fetch<any[]>("/api/hoa/community-news", {
+        query: { slug: s, limit: 6 },
+      });
+    } catch {
+      return [];
+    }
+  },
+  { watch: [orgId], server: false }
+);
+
+/**
+ * One list for the card: announcement posts and sent emails, newest first.
+ * Normalised to a single shape so the template does not branch per source.
+ */
+const newsItems = computed(() => {
+  const posts = (announcements.value || []).map((a: any) => ({
+    key: `announcement-${a.id}`,
+    title: a.title,
+    excerpt: plainText(a.content, 90),
+    date: a.publish_date || a.date_created,
+    pinned: a.is_pinned === true,
+    personal: false,
+  }));
+  const emails = (communityNews.value || []).map((e: any) => ({
+    key: `email-${e.id}`,
+    title: e.subject,
+    excerpt: e.subtitle || "",
+    date: e.sent_at,
+    pinned: false,
+    // Flagged so a resident can tell "sent to me" from "sent to everyone".
+    personal: e.personal === true,
+  }));
+  return [...posts, ...emails]
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+    })
+    .slice(0, 5);
+});
+
 // Fetch the resident's own household summary (vehicles, pets, pending changes).
 // The full editor lives at /profile; here we just surface counts as a teaser.
 const { data: household } = await useAsyncData(
@@ -499,16 +556,16 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
-              <WidgetRowSkeleton v-if="annLoading" :rows="4" avatar-shape="square" :trailing="false" />
-              <div v-else-if="announcements && announcements.length > 0" class="space-y-3">
+              <WidgetRowSkeleton v-if="annLoading || newsPending" :rows="4" avatar-shape="square" :trailing="false" />
+              <div v-else-if="newsItems.length > 0" class="space-y-3">
                 <!-- A row opens the Building tab, which is on this same page —
                      so it's a tab switch, not a navigation. With the feed module
                      off there is no tab to open, and the rows render inert
                      rather than as buttons that do nothing. -->
                 <component
                   :is="feedEnabled ? 'button' : 'div'"
-                  v-for="a in announcements"
-                  :key="a.id"
+                  v-for="a in newsItems"
+                  :key="a.key"
                   :type="feedEnabled ? 'button' : undefined"
                   class="stagger-item w-full flex items-start gap-3 p-3 rounded-lg text-left"
                   :class="feedEnabled ? 'hover:t-bg-subtle transition-colors' : ''"
@@ -516,7 +573,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 >
                   <div class="t-icon-chip w-9 h-9 flex-shrink-0">
                     <Icon
-                      :name="a.is_pinned ? 'i-lucide-pin' : 'i-lucide-megaphone'"
+                      :name="a.pinned ? 'i-lucide-pin' : a.personal ? 'i-lucide-mail' : 'i-lucide-megaphone'"
                       class="h-4 w-4"
                     />
                   </div>
@@ -524,15 +581,20 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     <div class="flex items-center gap-2">
                       <h4 class="font-medium t-text truncate">{{ a.title }}</h4>
                       <span
-                        v-if="a.is_pinned"
+                        v-if="a.pinned"
                         class="text-[10px] uppercase tracking-wide t-text-accent font-semibold"
                         >Pinned</span
                       >
+                      <!-- "Sent to you" rather than to the community — so a
+                           resident can tell the two apart at a glance. -->
+                      <span
+                        v-else-if="a.personal"
+                        class="text-[10px] uppercase tracking-wide t-text-muted font-semibold"
+                        >To you</span
+                      >
                     </div>
-                    <p class="text-sm t-text-muted truncate">{{ plainText(a.content, 90) }}</p>
-                    <p class="text-xs t-text-muted mt-0.5">
-                      {{ formatDate(a.publish_date || a.date_created) }}
-                    </p>
+                    <p v-if="a.excerpt" class="text-sm t-text-muted truncate">{{ a.excerpt }}</p>
+                    <p class="text-xs t-text-muted mt-0.5">{{ formatDate(a.date) }}</p>
                   </div>
                 </component>
               </div>

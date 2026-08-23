@@ -9,6 +9,12 @@
  * Community content (announcements, meetings, documents) is shown to everyone.
  * Requests/tasks are personal — only those assigned to or submitted by the
  * current user appear, so the feed doubles as the user's action list.
+ *
+ * Sent EMAILS are here too, via /api/hoa/community-news. They cannot be read
+ * with a member's own token — the HOA Member policy has no access to
+ * `hoa_emails` — so that route applies the rule (public, or the member was a
+ * recipient) with the service token. Communities migrated from an email-first
+ * system keep their whole history there rather than in `hoa_announcements`.
  */
 import { getWorkflow } from "#core/app/config/requestWorkflows";
 
@@ -16,7 +22,7 @@ export interface FeedItem {
   id: string;
   sourceCollection: string;
   sourceId: string;
-  kind: "announcement" | "meeting" | "document" | "request" | "poll";
+  kind: "announcement" | "meeting" | "document" | "request" | "poll" | "email";
   title: string;
   subtitle?: string;
   excerpt?: string;
@@ -38,6 +44,7 @@ export const useActivityFeed = () => {
   const { list: listRequests } = useDirectusItems("hoa_requests");
   const { list: listPolls } = useDirectusItems("hoa_polls");
 
+  const { orgSlug } = useOrgNavigation();
   const items = ref<FeedItem[]>([]);
   const isLoading = ref(false);
 
@@ -216,6 +223,35 @@ export const useActivityFeed = () => {
       );
     } catch (e) {
       console.warn("Feed: polls failed", e);
+    }
+
+    // Sent emails the member is allowed to see. The route owns the rule and the
+    // permissions; a failure here just means no emails in the feed.
+    try {
+      const slug = unref(orgSlug);
+      if (slug) {
+        const news = await $fetch<any[]>("/api/hoa/community-news", {
+          query: { slug, limit: 30 },
+        });
+        all.push(
+          ...(news || []).map((e) => ({
+            id: `email-${e.id}`,
+            sourceCollection: "hoa_emails",
+            sourceId: String(e.id),
+            kind: "email" as const,
+            title: e.subject,
+            // "Sent to you" reads differently from community news, and a
+            // resident should be able to tell which they are looking at.
+            subtitle: e.personal ? "Sent to you" : "Community email",
+            excerpt: e.subtitle || undefined,
+            date: e.sent_at || "",
+            icon: e.personal ? "lucide:mail" : "lucide:megaphone",
+            accent: e.urgent ? "red" : "sky",
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("Feed: community emails failed", e);
     }
 
     // Pinned announcements first, then newest.
