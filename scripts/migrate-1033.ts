@@ -126,6 +126,18 @@ async function upsert(
 
 const clean = (v: any) => (typeof v === "string" ? v.trim() || null : (v ?? null));
 
+/**
+ * Compare two timestamps that came from different systems by their wall clock.
+ *
+ * Source stores `2023-11-17T09:01:04`; Directus returns the same instant as
+ * `2023-11-17T09:01:04.000Z`. A string compare therefore fails on every dated
+ * row — which is exactly what happened: only the handful with NO date on either
+ * side matched, because "" equalled "". Truncating both to seconds compares the
+ * digits that actually mean the same thing, and avoids `new Date()` guessing a
+ * timezone for the unzoned side.
+ */
+const normTs = (v: any): string => (v ? String(v).replace(" ", "T").slice(0, 19) : "");
+
 /** A well-formed, stable stand-in id for dry runs. Never written anywhere. */
 function dryUuid(collection: string, match: Record<string, any>): string {
   const seed = `${collection}:${JSON.stringify(match)}`;
@@ -464,6 +476,116 @@ async function migrateAnnouncements(orgId: string) {
   }
 }
 
+// ── Email activity (SendGrid events) ────────────────────────────────────────
+/**
+ * ~9,800 delivery events for the migrated notices: processed, delivered,
+ * deferred, open, click, bounce, dropped. All seven source values are already
+ * valid `hoa_email_activity.event` values, so nothing is coerced.
+ *
+ * Two joins have to be rebuilt on this side:
+ *  - `announcement` (a source integer id) → the target email, matched on the
+ *    same natural key the email migration used, subject + sent_at;
+ *  - the recipient → an `hoa_members` row, matched on EMAIL ADDRESS rather than
+ *    the source `person` id, which is both simpler and survives a member being
+ *    re-created.
+ *
+ * `event_timestamp` is SendGrid's own field and is in SECONDS — the reader does
+ * `new Date(event_timestamp * 1000)`, so writing milliseconds here would put
+ * every event in the year 56000.
+ *
+ * Written in batches. One request per row would be ~9,800 round trips.
+ */
+async function migrateEmailActivity(orgId: string) {
+  const rows = await readAll(
+    "email_activity",
+    "id,event,email,sg_message_id,clicked_url,announcement,date_created"
+  );
+  if (!rows.length) return;
+
+  // source announcement id → target email id
+  const srcAnnouncements = await readAll("announcements", "id,title,date_sent");
+  const tgtEmails: any[] = [];
+  for (let page = 1; ; page++) {
+    const res = await tgt(
+      `/items/hoa_emails?filter=${encodeURIComponent(
+        JSON.stringify({ organization: { _eq: orgId } })
+      )}&fields=id,subject,sent_at&limit=100&page=${page}`
+    );
+    const batch = res?.data ?? [];
+    tgtEmails.push(...batch);
+    if (batch.length < 100) break;
+  }
+  const emailByKey = new Map<string, string>();
+  for (const e of tgtEmails) emailByKey.set(`${e.subject}|${normTs(e.sent_at)}`, e.id);
+  const emailBySrcId = new Map<number, string>();
+  for (const a of srcAnnouncements) {
+    const id = emailByKey.get(`${clean(a.title)}|${normTs(a.date_sent)}`);
+    if (id) emailBySrcId.set(a.id, id);
+  }
+
+  // email address → target member id
+  const members: any[] = [];
+  for (let page = 1; ; page++) {
+    const res = await tgt(
+      `/items/hoa_members?filter=${encodeURIComponent(
+        JSON.stringify({ organization: { _eq: orgId } })
+      )}&fields=id,email&limit=100&page=${page}`
+    );
+    const batch = res?.data ?? [];
+    members.push(...batch);
+    if (batch.length < 100) break;
+  }
+  const memberByEmail = new Map<string, string>();
+  for (const m of members) if (m.email) memberByEmail.set(String(m.email).toLowerCase(), m.id);
+
+  // Already imported? Key on the event's own identity so a re-run is a no-op.
+  const seen = new Set<string>();
+  for (let page = 1; ; page++) {
+    const res = await tgt(
+      `/items/hoa_email_activity?filter=${encodeURIComponent(
+        JSON.stringify({ organization: { _eq: orgId } })
+      )}&fields=sg_message_id,event,email,event_timestamp&limit=500&page=${page}`
+    );
+    const batch = res?.data ?? [];
+    for (const a of batch) {
+      seen.add(`${a.sg_message_id}|${a.event}|${a.email}|${a.event_timestamp}`);
+    }
+    if (batch.length < 500) break;
+  }
+
+  const pending: Record<string, any>[] = [];
+  for (const r of rows) {
+    const ts = r.date_created ? Math.floor(new Date(r.date_created).getTime() / 1000) : null;
+    const key = `${r.sg_message_id}|${r.event}|${r.email}|${ts}`;
+    if (seen.has(key)) {
+      tally("activity", "updated");
+      continue;
+    }
+    seen.add(key);
+    pending.push({
+      organization: orgId,
+      event: r.event,
+      email: clean(r.email),
+      sg_message_id: clean(r.sg_message_id),
+      clicked_url: clean(r.clicked_url),
+      event_timestamp: ts,
+      email_record: r.announcement ? emailBySrcId.get(r.announcement) ?? null : null,
+      member: r.email ? memberByEmail.get(String(r.email).toLowerCase()) ?? null : null,
+    });
+  }
+
+  if (DRY) {
+    pending.forEach(() => tally("activity", "created"));
+    return;
+  }
+  const CHUNK = 200;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    const slice = pending.slice(i, i + CHUNK);
+    await tgt(`/items/hoa_email_activity`, { method: "POST", body: JSON.stringify(slice) });
+    slice.forEach(() => tally("activity", "created"));
+  }
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n🏢 1033 Lenox → HOA Connect${DRY ? "  (DRY RUN — no writes)" : ""}`);
@@ -485,6 +607,8 @@ async function main() {
     if (want("pets") || !ONLY) await migratePets(orgId, unitMap);
     if (want("meetings") || !ONLY) await migrateMeetings(orgId);
     if (want("announcements") || !ONLY) await migrateAnnouncements(orgId);
+    // After announcements — it joins onto the emails they create.
+    if (want("activity") || !ONLY) await migrateEmailActivity(orgId);
 
     console.log("\n   what moved");
     for (const [k, v] of Object.entries(stats)) {
