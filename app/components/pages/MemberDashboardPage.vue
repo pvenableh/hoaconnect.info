@@ -457,36 +457,6 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <AppTabPanels :value="activeTab" :items="tabItems" class="mt-8">
           <div v-if="activeTab === 'overview'" class="space-y-10">
-        <!-- Portal sections — the resident hub. All sections are shown; ones the
-             community hasn't enabled render greyed + non-navigating. Classic /
-             luxury render as full-width hairline rows; modern as soft cards. -->
-        <section>
-          <p class="t-eyebrow mb-4">Your portal</p>
-          <div class="portal-grid">
-            <component
-              :is="section.available ? 'button' : 'div'"
-              v-for="section in portalSections"
-              :key="section.key"
-              :type="section.available ? 'button' : undefined"
-              class="stagger-item portal-item group"
-              :class="section.available ? 'portal-item--on' : 'portal-item--off'"
-              :aria-disabled="section.available ? undefined : 'true'"
-              @click="section.available && navigateToOrg(section.path)"
-            >
-              <span class="t-icon-chip portal-item__icon">
-                <Icon :name="section.icon" class="h-5 w-5" />
-              </span>
-              <span class="portal-item__body">
-                <span class="portal-item__label t-heading t-text">{{ section.label }}</span>
-                <span class="portal-item__desc t-text-muted">
-                  {{ section.available ? section.description : "Not available for your community" }}
-                </span>
-              </span>
-              <Icon name="i-lucide-chevron-right" class="portal-item__chev" />
-            </component>
-          </div>
-        </section>
-
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <AppStatCard
@@ -620,6 +590,43 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             </CardContent>
           </Card>
         </div>
+
+        <!-- Portal sections — where to go next, AFTER what is happening.
+             This used to open the Overview tab, so a resident signing in was met
+             by a menu of eight cards and had to pick one before seeing anything.
+             The announcements and documents they came for now come first and the
+             navigation follows, which is also the order the two primary action
+             pills in the hero already imply.
+
+             All sections are shown; ones the community hasn't enabled render
+             greyed + non-navigating. Classic / luxury render as full-width
+             hairline rows; modern as soft cards. -->
+        <section>
+          <p class="t-eyebrow mb-4">Your portal</p>
+          <div class="portal-grid">
+            <component
+              :is="section.available ? 'button' : 'div'"
+              v-for="section in portalSections"
+              :key="section.key"
+              :type="section.available ? 'button' : undefined"
+              class="stagger-item portal-item group"
+              :class="section.available ? 'portal-item--on' : 'portal-item--off'"
+              :aria-disabled="section.available ? undefined : 'true'"
+              @click="section.available && navigateToOrg(section.path)"
+            >
+              <span class="t-icon-chip portal-item__icon">
+                <Icon :name="section.icon" class="h-5 w-5" />
+              </span>
+              <span class="portal-item__body">
+                <span class="portal-item__label t-heading t-text">{{ section.label }}</span>
+                <span class="portal-item__desc t-text-muted">
+                  {{ section.available ? section.description : "Not available for your community" }}
+                </span>
+              </span>
+              <Icon name="i-lucide-chevron-right" class="portal-item__chev" />
+            </component>
+          </div>
+        </section>
 
         <!-- My Household summary -->
         <Card>
