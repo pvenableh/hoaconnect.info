@@ -709,10 +709,27 @@ html.theme-modern-dark {
 .t-bg-accent\/15 { background-color: color-mix(in srgb, var(--theme-accent-primary) 15%, transparent); }
 .t-bg-accent\/10 { background-color: color-mix(in srgb, var(--theme-accent-primary) 10%, transparent); }
 
-/* Hover variants for the t-* utilities. The base t-* are plain classes (not
-   Tailwind utilities), so Tailwind never generated `hover:t-*` rules — they were
-   silent no-ops everywhere (~90 usages) and lost their intended hover feedback.
-   Defining them here makes those hovers actually theme. */
+/* Variants for the t-* utilities.
+
+   ⚠ THIS LIST IS THE COMPLETE SET OF VARIANTS THAT EXIST. The base t-* are
+   plain classes, NOT Tailwind utilities, so Tailwind generates no variants for
+   them at all: any prefix that isn't written out below compiles to nothing and
+   fails silently. `focus:t-text-accent` is not a subtle bug, it is no CSS. If
+   you need a variant that isn't here, add it here — do not assume it works
+   because `hover:` does.
+
+   `hover:` was added first, when ~90 usages turned out to be doing nothing.
+   `group-hover:` was the same discovery a round later: 19 usages across the
+   marketing pages, the member pages and the email composer, every one of them
+   an intended hover that never fired. Both lists cover the same nine
+   utilities, so the rule is statable — these nine have hover and group-hover
+   forms, nothing else has anything.
+
+   Why not `@utility`, which would make Tailwind generate every variant on
+   demand: it emits into the `utilities` layer, and the base t-* here are
+   UNLAYERED. Unlayered beats every layer regardless of specificity, so moving
+   them would quietly change which rule wins on hundreds of surfaces. Not worth
+   it for a list this short. */
 .hover\:t-bg:hover { background-color: var(--theme-bg-primary); }
 .hover\:t-bg-alt:hover { background-color: var(--theme-bg-secondary); }
 .hover\:t-bg-subtle:hover { background-color: var(--theme-bg-tertiary); }
@@ -722,6 +739,20 @@ html.theme-modern-dark {
 .hover\:t-text-accent:hover { color: var(--theme-accent-primary); }
 .hover\:t-border-accent:hover { border-color: var(--theme-accent-primary); }
 .hover\:t-shadow-lg:hover { box-shadow: var(--theme-shadow-lg); }
+
+.group:hover .group-hover\:t-bg { background-color: var(--theme-bg-primary); }
+.group:hover .group-hover\:t-bg-alt { background-color: var(--theme-bg-secondary); }
+.group:hover .group-hover\:t-bg-subtle { background-color: var(--theme-bg-tertiary); }
+.group:hover .group-hover\:t-bg-elevated { background-color: var(--theme-bg-elevated); }
+.group:hover .group-hover\:t-text { color: var(--theme-text-primary); }
+.group:hover .group-hover\:t-text-secondary { color: var(--theme-text-secondary); }
+.group:hover .group-hover\:t-text-accent { color: var(--theme-accent-primary); }
+.group:hover .group-hover\:t-border-accent { border-color: var(--theme-accent-primary); }
+.group:hover .group-hover\:t-shadow-lg { box-shadow: var(--theme-shadow-lg); }
+/* Solid accent fill on hover pairs with `group-hover:text-white` on the icon,
+   never with t-text-accent — one variable used twice is an invisible label.
+   All three current t-bg-accent call sites do it correctly; check any new one. */
+.group:hover .group-hover\:t-bg-accent { background-color: var(--theme-accent-primary); }
 
 /* Header icon buttons (avatar · notifications · channels) — perfect circles with
    a very subtle theme-tinted bg and a theme-accent ring (mirrors the sidebar
