@@ -1,80 +1,45 @@
 <script setup lang="ts">
-import { VisDonut, VisSingleContainer, VisTooltip } from "@unovis/vue"
-import { Donut } from "@unovis/ts"
-import { ChartContainer, ChartTooltipContent, componentToString, type ChartConfig } from "~/components/ui/chart"
-
-interface MembershipData {
-  type: string
-  count: number
-  fill: string
-}
-
+/**
+ * Dashboard widget — owners vs tenants.
+ *
+ * Was a raw shadcn <Card> with text-muted-foreground and a hand-rolled legend,
+ * which is the shadcn palette rather than the workspace theme, so it didn't
+ * follow light/dark with the rest of the app. Now it's AppChartCard like every
+ * other chart, and the donut, the legend, the tooltip and the empty state all
+ * come from the kit.
+ *
+ * Counts PEOPLE. The Occupancy widget counts HOMES, and an owner can own a unit
+ * they don't live in, so the two legitimately disagree.
+ */
 const props = defineProps<{
-  owners: number
-  tenants: number
-}>()
+  owners: number;
+  tenants: number;
+}>();
 
-const data = computed<MembershipData[]>(() => [
-  { type: "Owners", count: props.owners, fill: "var(--chart-1)" },
-  { type: "Tenants", count: props.tenants, fill: "var(--chart-2)" },
-])
+const SERIES = [
+  { key: "owners", label: "Owners", color: "var(--chart-1)" },
+  { key: "tenants", label: "Tenants", color: "var(--chart-2)" },
+];
 
-const total = computed(() => props.owners + props.tenants)
-
-const chartConfig: ChartConfig = {
-  owners: {
-    label: "Owners",
-    color: "var(--chart-1)",
-  },
-  tenants: {
-    label: "Tenants",
-    color: "var(--chart-2)",
-  },
-}
-
-const value = (d: MembershipData) => d.count
-const color = (d: MembershipData) => d.fill
+const values = computed(() => ({ owners: props.owners, tenants: props.tenants }));
+const total = computed(() => props.owners + props.tenants);
 </script>
 
 <template>
-  <Card>
-    <CardHeader class="pb-2">
-      <CardTitle class="text-base">Owners vs Tenants</CardTitle>
-      <CardDescription>Community composition</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <ChartContainer :config="chartConfig" class="mx-auto aspect-square h-[200px]">
-        <VisSingleContainer :data="data">
-          <VisDonut
-            :value="value"
-            :color="color"
-            :arcWidth="40"
-            :padAngle="0.02"
-            :cornerRadius="4"
-          />
-          <VisTooltip>
-            <template #default="{ data: tooltipData }">
-              <div v-if="tooltipData" class="bg-background border rounded-lg p-2 shadow-lg text-sm">
-                <div class="font-medium">{{ tooltipData.type }}</div>
-                <div class="text-muted-foreground">
-                  {{ tooltipData.count }} members
-                  ({{ Math.round((tooltipData.count / total) * 100) }}%)
-                </div>
-              </div>
-            </template>
-          </VisTooltip>
-        </VisSingleContainer>
-      </ChartContainer>
-      <div class="flex justify-center gap-4 mt-2">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
-          <span class="text-xs text-muted-foreground">Owners ({{ owners }})</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
-          <span class="text-xs text-muted-foreground">Tenants ({{ tenants }})</span>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+  <AppChartCard
+    title="Owners vs Tenants"
+    hint="Community composition"
+    icon="lucide:pie-chart"
+    :empty="!total"
+    empty-title="No members yet"
+    empty-hint="Add or invite residents and this fills in."
+    :height="200"
+  >
+    <AppChartDonut
+      :series="SERIES"
+      :values="values"
+      :height="200"
+      center-label="members"
+    />
+  </AppChartCard>
 </template>

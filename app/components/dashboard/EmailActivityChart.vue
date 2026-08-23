@@ -1,108 +1,60 @@
 <script setup lang="ts">
-import { VisXYContainer, VisLine, VisAxis, VisArea, VisCrosshair, VisTooltip } from "@unovis/vue"
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "~/components/ui/chart"
-
+/**
+ * Dashboard widget — sends, deliveries and opens over the last week.
+ *
+ * Was a raw shadcn <Card> with its own axes, crosshair template and a
+ * hand-rolled legend, on the shadcn palette rather than the workspace theme.
+ * Now it's AppChartCard + AppChartTrend; the frame owns loading / empty / drawn
+ * and the ClientOnly that unovis needs, so none of that is repeated here.
+ *
+ * No area fill: three overlapping fills muddy each other, and this chart is
+ * about the gap BETWEEN the three lines — sent against delivered against
+ * opened is a funnel, and a fill hides where it narrows.
+ */
 interface EmailData {
-  date: string
-  sent: number
-  delivered: number
-  opened: number
+  date: string;
+  sent: number;
+  delivered: number;
+  opened: number;
 }
 
 const props = defineProps<{
-  data: EmailData[]
-}>()
+  data: EmailData[];
+}>();
 
-const chartConfig: ChartConfig = {
-  sent: {
-    label: "Sent",
-    color: "var(--chart-1)",
-  },
-  delivered: {
-    label: "Delivered",
-    color: "var(--chart-2)",
-  },
-  opened: {
-    label: "Opened",
-    color: "var(--chart-3)",
-  },
-}
+const SERIES = [
+  { key: "sent", label: "Sent", color: "var(--chart-1)" },
+  { key: "delivered", label: "Delivered", color: "var(--chart-2)" },
+  { key: "opened", label: "Opened", color: "var(--chart-3)" },
+];
 
-const x = (_: EmailData, i: number) => i
-const y = [
-  (d: EmailData) => d.sent,
-  (d: EmailData) => d.delivered,
-  (d: EmailData) => d.opened,
-]
-const color = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]
+// The kit's charts key off `label`; the page supplies `date`.
+const points = computed(() =>
+  (props.data || []).map((d) => ({
+    label: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    sent: d.sent,
+    delivered: d.delivered,
+    opened: d.opened,
+  })),
+);
 
-const tickFormat = (i: number) => {
-  const item = props.data[i]
-  if (!item) return ""
-  return new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
+// A week of zeroes is not a chart. Say "no mail went out" rather than drawing
+// three flat lines along the axis and letting the reader work it out.
+const hasAny = computed(() =>
+  (props.data || []).some((d) => d.sent || d.delivered || d.opened),
+);
 </script>
 
 <template>
-  <Card>
-    <CardHeader class="pb-2">
-      <CardTitle class="text-base">Email Activity</CardTitle>
-      <CardDescription>Last 7 days email performance</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <!-- unovis is not SSR-safe: rendered server-side it leaves an empty
-           duplicate <svg>, so the real chart stacks below the card. Render
-           client-only with a height-reserving fallback to avoid layout shift. -->
-      <ClientOnly>
-        <ChartContainer :config="chartConfig" class="h-[200px] w-full">
-          <VisXYContainer :data="data" :margin="{ top: 8, right: 12, bottom: 24, left: 40 }">
-            <VisLine
-              :x="x"
-              :y="y"
-              :color="color"
-              :lineWidth="2"
-              :curveType="'linear'"
-            />
-            <VisArea
-              :x="x"
-              :y="y"
-              :color="color"
-              :opacity="0.1"
-              :curveType="'linear'"
-            />
-            <VisAxis
-              type="x"
-              :tickFormat="tickFormat"
-              :numTicks="7"
-              :gridLine="false"
-            />
-            <VisAxis
-              type="y"
-              :gridLine="true"
-            />
-            <VisCrosshair
-              :template="(d: EmailData) => `Sent: ${d.sent}, Delivered: ${d.delivered}, Opened: ${d.opened}`"
-            />
-          </VisXYContainer>
-        </ChartContainer>
-        <template #fallback>
-          <div class="h-[200px] w-full" />
-        </template>
-      </ClientOnly>
-      <div class="flex justify-center gap-4 mt-2">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
-          <span class="text-xs text-muted-foreground">Sent</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
-          <span class="text-xs text-muted-foreground">Delivered</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-3)]" />
-          <span class="text-xs text-muted-foreground">Opened</span>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+  <AppChartCard
+    title="Email Activity"
+    hint="Last 7 days email performance"
+    icon="lucide:line-chart"
+    :empty="!hasAny"
+    empty-title="No mail in the last week"
+    empty-hint="Send a broadcast and its delivery shows up here."
+    :height="200"
+  >
+    <AppChartTrend :data="points" :series="SERIES" :height="200" />
+  </AppChartCard>
 </template>

@@ -1,96 +1,53 @@
 <script setup lang="ts">
-import { VisXYContainer, VisStackedBar, VisAxis } from "@unovis/vue"
-import { ChartContainer, type ChartConfig } from "~/components/ui/chart"
-
+/**
+ * Dashboard widget — what happened in the community, by day.
+ *
+ * Was a raw shadcn <Card> with its own axes and a hand-rolled legend on the
+ * shadcn palette rather than the workspace theme. Now it's AppChartCard +
+ * AppChartBars, stacked: the three counts are parts of "how busy was Tuesday",
+ * and the total is the thing worth reading.
+ */
 interface ActivityData {
-  date: string
-  documents: number
-  emails: number
-  members: number
+  date: string;
+  documents: number;
+  emails: number;
+  members: number;
 }
 
 const props = defineProps<{
-  data: ActivityData[]
-}>()
+  data: ActivityData[];
+}>();
 
-const chartConfig: ChartConfig = {
-  documents: {
-    label: "Documents",
-    color: "var(--chart-1)",
-  },
-  emails: {
-    label: "Emails",
-    color: "var(--chart-2)",
-  },
-  members: {
-    label: "New Members",
-    color: "var(--chart-3)",
-  },
-}
+const SERIES = [
+  { key: "documents", label: "Documents", color: "var(--chart-1)" },
+  { key: "emails", label: "Emails", color: "var(--chart-2)" },
+  { key: "members", label: "New Members", color: "var(--chart-3)" },
+];
 
-const x = (_: ActivityData, i: number) => i
-const y = [
-  (d: ActivityData) => d.documents,
-  (d: ActivityData) => d.emails,
-  (d: ActivityData) => d.members,
-]
-const color = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]
+const rows = computed(() =>
+  (props.data || []).map((d) => ({
+    label: new Date(d.date).toLocaleDateString("en-US", { weekday: "short" }),
+    documents: d.documents,
+    emails: d.emails,
+    members: d.members,
+  })),
+);
 
-const tickFormat = (i: number) => {
-  const item = props.data[i]
-  if (!item) return ""
-  return new Date(item.date).toLocaleDateString("en-US", { weekday: "short" })
-}
+const hasAny = computed(() =>
+  (props.data || []).some((d) => d.documents || d.emails || d.members),
+);
 </script>
 
 <template>
-  <Card>
-    <CardHeader class="pb-2">
-      <CardTitle class="text-base">Weekly Activity</CardTitle>
-      <CardDescription>Activity breakdown by day</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <!-- unovis is not SSR-safe (and this data is client-only); render
-           client-only with a height-reserving fallback to avoid layout shift. -->
-      <ClientOnly>
-        <ChartContainer :config="chartConfig" class="h-[200px] w-full">
-          <VisXYContainer :data="data" :margin="{ top: 8, right: 12, bottom: 24, left: 40 }">
-            <VisStackedBar
-              :x="x"
-              :y="y"
-              :color="color"
-              :roundedCorners="4"
-              :barPadding="0.3"
-            />
-            <VisAxis
-              type="x"
-              :tickFormat="tickFormat"
-              :gridLine="false"
-            />
-            <VisAxis
-              type="y"
-              :gridLine="true"
-            />
-          </VisXYContainer>
-        </ChartContainer>
-        <template #fallback>
-          <div class="h-[200px] w-full" />
-        </template>
-      </ClientOnly>
-      <div class="flex justify-center gap-4 mt-2">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-1)]" />
-          <span class="text-xs text-muted-foreground">Documents</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-2)]" />
-          <span class="text-xs text-muted-foreground">Emails</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-[var(--chart-3)]" />
-          <span class="text-xs text-muted-foreground">New Members</span>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+  <AppChartCard
+    title="Weekly Activity"
+    hint="Activity breakdown by day"
+    icon="lucide:activity"
+    :empty="!hasAny"
+    empty-title="A quiet week"
+    empty-hint="Documents, mail and new members show up here as they happen."
+    :height="200"
+  >
+    <AppChartBars :data="rows" :series="SERIES" stacked :height="200" />
+  </AppChartCard>
 </template>
