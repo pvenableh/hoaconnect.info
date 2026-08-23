@@ -739,6 +739,9 @@ export interface HoaEmail {
 	/** @required */
 	organization: HoaOrganization | string;
 	urgent?: boolean | null;
+	/** Public emails appear in the community feed for every member; private ones
+	 *  are visible only to the people they were sent to. */
+	visibility?: 'public' | 'private' | null;
 	subtitle?: string | null;
 	/** @description Template this email was created from (optional) */
 	template?: HoaEmailTemplate | string | null;

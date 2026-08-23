@@ -470,9 +470,124 @@ async function migrateAnnouncements(orgId: string) {
         status: "sent",
         email_type: "announcement",
         content_mode: "visual",
+        // The source's own editorial flag. Two of 106 are private — a
+        // unit-specific window-installation notice and a parking-spot
+        // assignment — and neither belongs in a community feed. Dropping this on
+        // the first pass is what left the member surfaces unable to tell the
+        // difference.
+        visibility: a.private === true ? "private" : "public",
       },
       "emails"
     );
+  }
+}
+
+/** Read every row of a target collection, paginated. */
+async function readAllTarget(
+  collection: string,
+  orgId: string | null,
+  fields: string,
+  filterOverride?: Record<string, any>
+): Promise<any[]> {
+  const filter = filterOverride ?? (orgId ? { organization: { _eq: orgId } } : {});
+  const out: any[] = [];
+  for (let page = 1; ; page++) {
+    const res = await tgt(
+      `/items/${collection}?filter=${encodeURIComponent(
+        JSON.stringify(filter)
+      )}&fields=${fields}&limit=200&page=${page}`
+    );
+    const batch = res?.data ?? [];
+    out.push(...batch);
+    if (batch.length < 200) break;
+  }
+  return out;
+}
+
+/**
+ * source announcement id → target email id, matched on subject + sent_at.
+ * See normTs: the two systems format that timestamp differently.
+ */
+async function sourceAnnouncementToEmail(orgId: string): Promise<Map<number, string>> {
+  const srcAnnouncements = await readAll("announcements", "id,title,date_sent");
+  const tgtEmails = await readAllTarget("hoa_emails", orgId, "id,subject,sent_at");
+  const byKey = new Map<string, string>();
+  for (const e of tgtEmails) byKey.set(`${e.subject}|${normTs(e.sent_at)}`, e.id);
+  const out = new Map<number, string>();
+  for (const a of srcAnnouncements) {
+    const id = byKey.get(`${clean(a.title)}|${normTs(a.date_sent)}`);
+    if (id) out.set(a.id, id);
+  }
+  return out;
+}
+
+// ── Recipients ──────────────────────────────────────────────────────────────
+/**
+ * Who each notice actually went to, from the `announcements_people` junction.
+ *
+ * This is the other half of "show only public emails unless it was sent to you":
+ * without it, a private email has no way to reach the person it was written for.
+ *
+ * Same trap as `units_people`: some junction rows carry NULL on both sides, so
+ * they are filtered rather than trusted.
+ */
+async function migrateEmailRecipients(orgId: string) {
+  const links = await readAll("announcements_people", "id,announcements_id,people_id");
+  const usable = links.filter((l) => l.announcements_id && l.people_id);
+  if (!usable.length) return;
+
+  const emailBySrcId = await sourceAnnouncementToEmail(orgId);
+
+  // source person id → { memberId, email, name }
+  const people = await readAll("people", "id,first_name,last_name,email");
+  const members = await readAllTarget("hoa_members", orgId, "id,email");
+  const memberByEmail = new Map<string, string>();
+  for (const m of members) if (m.email) memberByEmail.set(String(m.email).toLowerCase(), m.id);
+  const personById = new Map<number, any>();
+  for (const p of people) personById.set(p.id, p);
+
+  // Existing rows, so a re-run updates rather than duplicating.
+  const seen = new Set<string>();
+  for (const r of await readAllTarget("hoa_email_recipients", null, "email,recipient_email", {
+    email: { organization: { _eq: orgId } },
+  })) {
+    seen.add(`${r.email}|${(r.recipient_email || "").toLowerCase()}`);
+  }
+
+  const pending: Record<string, any>[] = [];
+  for (const l of usable) {
+    const emailId = emailBySrcId.get(l.announcements_id);
+    const person = personById.get(l.people_id);
+    if (!emailId || !person) {
+      tally("recipients", "skipped");
+      continue;
+    }
+    const addr = clean(person.email)?.toLowerCase() ?? null;
+    const key = `${emailId}|${addr ?? ""}`;
+    if (seen.has(key)) {
+      tally("recipients", "updated");
+      continue;
+    }
+    seen.add(key);
+    pending.push({
+      email: emailId,
+      member: addr ? memberByEmail.get(addr) ?? null : null,
+      recipient_email: addr,
+      recipient_name:
+        [clean(person.first_name), clean(person.last_name)].filter(Boolean).join(" ") || null,
+      status: "sent",
+    });
+  }
+
+  if (DRY) {
+    pending.forEach(() => tally("recipients", "created"));
+    return;
+  }
+  const CHUNK = 200;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    const slice = pending.slice(i, i + CHUNK);
+    await tgt(`/items/hoa_email_recipients`, { method: "POST", body: JSON.stringify(slice) });
+    slice.forEach(() => tally("recipients", "created"));
   }
 }
 
@@ -607,7 +722,8 @@ async function main() {
     if (want("pets") || !ONLY) await migratePets(orgId, unitMap);
     if (want("meetings") || !ONLY) await migrateMeetings(orgId);
     if (want("announcements") || !ONLY) await migrateAnnouncements(orgId);
-    // After announcements — it joins onto the emails they create.
+    // Both join onto the emails announcements created, so they run after it.
+    if (want("recipients") || !ONLY) await migrateEmailRecipients(orgId);
     if (want("activity") || !ONLY) await migrateEmailActivity(orgId);
 
     console.log("\n   what moved");
