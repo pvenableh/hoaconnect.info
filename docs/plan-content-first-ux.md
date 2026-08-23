@@ -148,21 +148,46 @@ onto it.
   members-by-type + homes-by-occupancy), Records (year-in-meetings Gantt +
   three counts), Requests (queue health + ageing), Money (cash in/out +
   outstanding by age).
-- [ ] **Settings health strip** — the one screen still landing on pure cards,
-  by design. Needs plan/renewal, modules on, custom-domain status, Stripe
-  payouts connected, last data export.
-- [ ] **Projects** — `ProjectGantt` exists behind a third view toggle. Promote
-  it (default to Timeline when enough projects carry dates) and put progress
-  on the bars.
-- [ ] **Dashboard widgets** for the new charts (`collections`,
-  `requests-health`, `occupancy`) — append **default-off**.
-- [ ] **Retire the three off-system charts** (`dashboard/EmailActivityChart`,
-  `MembershipDonutChart`, `ActivityTimelineChart`) onto `AppChartCard`.
+- [x] **Settings health strip** (`7348904`). `Admin/SettingsGlance.vue` above
+  the cards, in a new `intro` slot on `AdminSectionHub`: plan, modules on,
+  public-site/domain status, Stripe payouts, last data export — each tile
+  linking to the tab that fixes it. The module catalogue moved out of
+  `ModulesForm` into `useModules` as `MODULE_GROUPS` so both count the same
+  list.
+- [x] **Projects** (`906e70f`). A project with two dated milestones opens on
+  the Gantt; the index opens on the timeline when two non-archived projects
+  carry dates. Both rules live in `core/shared/projects/timeline.ts` with 14
+  tests. Bars carry task progress — length is WHEN, fill is HOW FAR.
+- [x] **Dashboard widgets** (`2f88f7f`). `collections`, `requests-health`,
+  `occupancy`, appended default-off, each fetching its own data, and
+  `WidgetDef` grew a `modules` gate so a community with Payments off is never
+  offered a Collections card. 8 tests.
+- [x] **Retire the three off-system charts** (`5f86137`). All three on
+  `AppChartCard`, each with a real empty state; props unchanged so
+  `DashboardPage` needed no edits.
 - [ ] **stone-\* palette sweep** — ~18 components still hardcode grey and
   don't follow dark mode. Spun out as its own task; the Requests filter pills
   in `af37fc3` are the reference conversion.
 
 ## What running it taught (not readable from the source)
+
+- **`<component :is="'NuxtLink'">` renders a literal `<nuxtlink>` element.** A
+  string `is` only resolves against LOCALLY registered components, and Nuxt's
+  auto-import is not that. It looks correct on screen while every tile has
+  silently stopped being a link. `resolveComponent("NuxtLink")` once, up front.
+- **`server: false` means the first client paint has `pending === false` and
+  `data === null`.** The Settings strip spent one frame confidently reporting
+  "No plan" and a landing URL with no slug for a community that was fully set
+  up. Gate on `pending || !data`, and give a failed read its own state rather
+  than letting five tiles compute off a null.
+- **`--theme-bg-secondary` against `--theme-bg-elevated` is three points per
+  channel in dark mode.** A recessed tile inside a card needs
+  `--theme-border-primary`; `--theme-border-light` disappears.
+- **Nothing stores a subscription renewal date.** Stripe holds the period end;
+  there is no `current_period_end` anywhere in the repo. The org row carries
+  `billing_cycle`, `trial_ends_at` and `grace_ends_at`, and grace has to be
+  checked BEFORE status — the status underneath still reads `canceled` by
+  design.
 
 - **A moment is not a span.** A zero-length meeting on a 250-day axis draws as
   a 2px sliver. Faking a one-day duration lies about the date; unovis'
