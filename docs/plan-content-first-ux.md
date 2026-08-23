@@ -165,6 +165,9 @@ onto it.
 - [x] **Retire the three off-system charts** (`5f86137`). All three on
   `AppChartCard`, each with a real empty state; props unchanged so
   `DashboardPage` needed no edits.
+- [x] **`group-hover:t-*` was dead** (`9a2943a`). 19 usages compiling to
+  nothing; the nine variants are now written out beside the `hover:` ones
+  rather than stripped from the call sites, which were right.
 - [ ] **stone-\* palette sweep** — ~18 components still hardcode grey and
   don't follow dark mode. Spun out as its own task; the Requests filter pills
   in `af37fc3` are the reference conversion.
@@ -199,6 +202,11 @@ onto it.
 - **The Browser pane reports `document.hidden`,** which freezes unovis' rAF
   transitions mid-enter. A screenshot catches whatever frame the animation
   stalled on — measure geometry and resolved fills instead.
+- **Deleting a project does not delete its tasks.** The confirm says "Its
+  milestones and tasks will be removed"; the events go, the tasks survive with
+  `project: null` and `project_event: null` and `category: "event"`, as
+  un-attributable orphans. Found while clearing up seeded demo data. Spun out
+  as its own task.
 - **`--warning` and `--destructive` exist as `light-dark()` pairs,** so
   `color-mix` between them stays theme-aware. That is where `severe` comes
   from; there is no orange token.
