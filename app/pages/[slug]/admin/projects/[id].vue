@@ -90,8 +90,28 @@ async function changeStatus(s: string) {
   refresh();
 }
 
+/**
+ * The confirmation names the whole blast radius, because the old one named
+ * only half of it and got that half wrong: it promised the tasks would be
+ * removed while the schema was quietly detaching them, and it said nothing
+ * about sub-projects, which survive. Both clauses now match what
+ * `projects/[id].delete.ts` actually does.
+ *
+ * The sub-project line only appears when there are sub-projects — a standing
+ * caveat about something this project doesn't have is noise in a dialog whose
+ * whole job is to be read.
+ */
+const deleteWarning = computed(() => {
+  const name = project.value?.title ? `"${project.value.title}"` : "this project";
+  const kids = project.value?.children?.length || 0;
+  const subs = kids
+    ? ` Its ${kids === 1 ? "sub-project is" : `${kids} sub-projects are`} kept, and ${kids === 1 ? "becomes a" : "become"} top-level project${kids === 1 ? "" : "s"}.`
+    : "";
+  return `Delete ${name}? Its milestones and tasks are deleted with it.${subs}`;
+});
+
 async function onDelete() {
-  if (!confirm("Delete this project? Its milestones and tasks will be removed.")) return;
+  if (!confirm(deleteWarning.value)) return;
   await remove(projectId.value);
   navigateTo(buildOrgPath("/admin/projects"));
 }
