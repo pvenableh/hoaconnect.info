@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectRow } from "#core/app/composables/useProjects";
 import { useProjects } from "#core/app/composables/useProjects";
+import { listOpensOnTimeline } from "#core/shared/projects/timeline";
 
 definePageMeta({
   middleware: ["admin", "subscription"],
@@ -12,6 +13,8 @@ const { selectedOrgId } = await useSelectedOrg();
 const { list } = useProjects();
 
 const view = ref<"board" | "list" | "timeline">("board");
+// Set once the person picks a view themselves, so a refresh never overrides it.
+const viewPicked = ref(false);
 const statusFilter = ref<string>("active-set");
 const showNew = ref(false);
 
@@ -19,6 +22,22 @@ const { data: projects, pending, refresh } = await useAsyncData(
   `admin-projects-${selectedOrgId.value}`,
   () => list({ parent: "none" }),
   { watch: [selectedOrgId], server: false, default: () => [] as ProjectRow[] }
+);
+
+/**
+ * Land on the timeline when there is a timeline to land on. Two scheduled
+ * projects is the bar — one bar on a date axis says less than a board column
+ * does, and a community that never fills in dates should keep the board.
+ * Archived projects don't count towards it; an archive full of finished work
+ * shouldn't decide where today's work opens.
+ */
+watch(
+  projects,
+  (rows) => {
+    if (viewPicked.value) return;
+    view.value = listOpensOnTimeline(rows as any) ? "timeline" : "board";
+  },
+  { immediate: true }
 );
 
 const filtered = computed(() => {
@@ -71,7 +90,7 @@ useHead({ bodyAttrs: { class: "" } });
             :key="opt.k"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors"
             :class="view === opt.k ? 't-bg-elevated t-text shadow-sm' : 't-text-muted'"
-            @click="view = opt.k as 'board' | 'list' | 'timeline'"
+            @click="view = opt.k as 'board' | 'list' | 'timeline'; viewPicked = true"
           >
             <Icon :name="opt.i" class="w-4 h-4" />{{ opt.l }}
           </button>

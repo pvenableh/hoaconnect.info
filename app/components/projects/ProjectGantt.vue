@@ -15,6 +15,7 @@ import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
 import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
 import type { ScheduleShift } from "#core/shared/projects/schedule";
 import { parseDateOnly } from "#core/shared/projects/schedule";
+import { eventProgress } from "#core/shared/projects/timeline";
 
 const props = defineProps<{ projectId: string; canWrite?: boolean }>();
 const emit = defineEmits<{ (e: "changed"): void }>();
@@ -95,7 +96,15 @@ const rows = computed(() =>
   dated.value.map((e, i) => {
     const startX = xOf(e.event_date);
     const endX = Math.max(startX + 10, xOf(e.end_date || e.event_date));
-    return { e, i, y: i * ROW_H, startX, endX, isMilestone: !!e.is_milestone || endX - startX < 12 };
+    return {
+      e,
+      i,
+      y: i * ROW_H,
+      startX,
+      endX,
+      isMilestone: !!e.is_milestone || endX - startX < 12,
+      progress: eventProgress(e),
+    };
   })
 );
 
@@ -276,6 +285,9 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
             >
               <Icon :name="EVENT_TYPE_META[(r.e.type as string) || 'phase']?.icon" class="w-3.5 h-3.5 t-text-muted shrink-0" />
               <span class="text-xs font-medium t-text truncate" :class="r.e.status === 'completed' ? 'line-through t-text-muted' : ''">{{ r.e.title }}</span>
+              <span v-if="r.progress" class="text-[10px] t-text-muted tabular-nums shrink-0">
+                {{ r.progress.done }}/{{ r.progress.total }}
+              </span>
             </button>
           </div>
 
@@ -348,7 +360,11 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                       background: r.e.status === 'completed' ? 'var(--theme-accent-primary)' : 'var(--theme-bg-elevated)',
                       ...(selectedId === r.e.id ? { '--tw-ring-color': 'var(--theme-accent-primary)' } : {}),
                     }"
-                    :aria-label="r.e.title || 'Milestone'"
+                    :aria-label="
+                      r.progress
+                        ? `${r.e.title || 'Milestone'} — ${r.progress.done} of ${r.progress.total} tasks done`
+                        : r.e.title || 'Milestone'
+                    "
                     @click="selectEvent(r.e.id)"
                   >
                     <span
@@ -356,11 +372,35 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                       class="w-2.5 h-2.5 rotate-45 shrink-0"
                       :style="{ background: r.e.status === 'completed' ? '#fff' : 'var(--theme-accent-primary)' }"
                     />
+                    <!--
+                      No tasks on the phase → the solid line it always had.
+                      Tasks → a track with the completed share filled, so the
+                      length of the bar is WHEN and the fill is HOW FAR.
+                    -->
                     <span
-                      v-else
+                      v-else-if="!r.progress"
                       class="h-1.5 rounded-full flex-1"
                       :style="{ background: r.e.status === 'completed' ? '#fff' : 'var(--theme-accent-primary)', minWidth: '6px' }"
                     />
+                    <span
+                      v-else
+                      class="relative h-1.5 rounded-full flex-1 overflow-hidden"
+                      :style="{
+                        background:
+                          r.e.status === 'completed'
+                            ? 'rgba(255,255,255,0.35)'
+                            : 'color-mix(in srgb, var(--theme-accent-primary) 20%, transparent)',
+                        minWidth: '6px',
+                      }"
+                    >
+                      <span
+                        class="absolute inset-y-0 left-0 rounded-full"
+                        :style="{
+                          width: r.progress.pct + '%',
+                          background: r.e.status === 'completed' ? '#fff' : 'var(--theme-accent-primary)',
+                        }"
+                      />
+                    </span>
                   </button>
                   <!-- spawned-project branch chips -->
                   <div

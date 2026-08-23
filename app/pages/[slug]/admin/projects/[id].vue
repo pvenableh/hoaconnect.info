@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectRow } from "#core/app/composables/useProjects";
 import { useProjects, PROJECT_STATUS_META } from "#core/app/composables/useProjects";
+import { projectOpensOnTimeline } from "#core/shared/projects/timeline";
 
 definePageMeta({
   middleware: ["admin", "subscription"],
@@ -14,12 +15,33 @@ const { getOne, setStatus, remove } = useProjects();
 
 const projectId = computed(() => route.params.id as string);
 const tab = ref<"overview" | "tasks" | "timeline" | "files">("overview");
+// Set once the person picks a tab themselves, so a background refresh never
+// yanks them back to the default.
+const tabPicked = ref(false);
 const editing = ref(false);
 
 const { data: project, pending, refresh } = await useAsyncData(
   `admin-project-${projectId.value}`,
   () => getOne(projectId.value),
   { watch: [projectId], server: false }
+);
+
+/**
+ * A project with a real schedule opens ON the schedule. The Gantt has always
+ * been the best thing on this page — dependency connectors, drag-to-reschedule,
+ * approvals — and it was the third of four tabs, so most people never saw it.
+ *
+ * Two dated milestones is the bar: one bar on a date axis is a fact, not a
+ * timeline, and Overview says it better. Everything else still lands on
+ * Overview, and the tab is one click away either way.
+ */
+watch(
+  project,
+  (p) => {
+    if (!p || tabPicked.value) return;
+    tab.value = projectOpensOnTimeline(p as any) ? "timeline" : "overview";
+  },
+  { immediate: true }
 );
 
 // Anchor the AI assistant to this project while the page is open, so it answers
@@ -152,7 +174,7 @@ const TABS = [
             :key="t.key"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
             :class="tab === t.key ? 't-bg-elevated t-text shadow-sm' : 't-text-muted'"
-            @click="tab = t.key"
+            @click="tab = t.key; tabPicked = true"
           >
             <Icon :name="t.icon" class="w-4 h-4" />{{ t.label }}
           </button>

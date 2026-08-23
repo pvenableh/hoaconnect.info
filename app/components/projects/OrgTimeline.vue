@@ -19,10 +19,20 @@ const LANE_H = 52;
 const MS_DAY = 86_400_000;
 const LABEL_W = 176;
 
-const { data: projects, pending } = await useAsyncData("org-timeline", () => timeline(), {
-  server: false,
-  default: () => [] as ProjectRow[],
-});
+// Keyed and watched on the org. This is now the DEFAULT view for any community
+// with a schedule, so a property manager switching orgs would otherwise sit
+// looking at the previous community's projects under the new community's name.
+const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+
+const { data: projects, pending } = await useAsyncData(
+  `org-timeline-${selectedOrgId.value}`,
+  () => timeline(),
+  {
+    watch: [selectedOrgId],
+    server: false,
+    default: () => [] as ProjectRow[],
+  },
+);
 
 const laneRef = ref<HTMLElement | null>(null);
 
