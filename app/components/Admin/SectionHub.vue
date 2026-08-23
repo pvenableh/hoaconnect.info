@@ -41,6 +41,13 @@ const visibleGroups = computed(() =>
     <PageContainer class="space-y-8">
       <AppPageHeader :eyebrow="eyebrow" :title="title" :description="subtitle" />
 
+      <!--
+        Anything a hub wants to SAY before it lists where to go. Settings is the
+        one hub that still lands on cards by design, and this is where it earns
+        the visit — see Admin/SettingsGlance.vue.
+      -->
+      <slot name="intro" />
+
       <!-- Every card in this hub is gated off for this community. -->
       <div v-if="!visibleGroups.length" class="ios-card">
         <AppEmptyState

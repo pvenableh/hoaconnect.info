@@ -68,5 +68,9 @@ const groups = computed<HubGroup[]>(() => [
     title="Settings"
     subtitle="Everything to configure your community — organization, public site, access, features, and billing."
     :groups="groups"
-  />
+  >
+    <template #intro>
+      <AdminSettingsGlance />
+    </template>
+  </AdminSectionHub>
 </template>
