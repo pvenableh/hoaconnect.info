@@ -456,6 +456,15 @@ const {
                   <!-- Email Activity -->
                   <DashboardEmailActivityChart v-else-if="w.key === 'email-activity'" :data="emailActivityData" />
 
+                  <!--
+                    The chart widgets fetch their own data. They are default-off,
+                    so pushing their queries up to this page would make every
+                    admin pay for three charts most of them never switch on.
+                  -->
+                  <DashboardCollectionsWidget v-else-if="w.key === 'collections'" />
+                  <DashboardRequestsHealthWidget v-else-if="w.key === 'requests-health'" />
+                  <DashboardOccupancyWidget v-else-if="w.key === 'occupancy'" />
+
                   <!-- Email Engagement -->
                   <div v-else-if="w.key === 'email-engagement'">
                     <div v-if="emailEngagementStats.totalSent > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">

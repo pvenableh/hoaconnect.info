@@ -19,6 +19,13 @@ export interface WidgetDef {
   span: WidgetSpan;
   /** Roles that may see this widget. Empty/undefined = everyone on the page. */
   roles?: WidgetRole[];
+  /**
+   * Optional modules this widget needs. A community with Payments switched off
+   * shouldn't be offered a Collections card in the gallery, let alone shown one
+   * — the widget would render an empty state for a feature they turned off on
+   * purpose. Undefined = always available.
+   */
+  modules?: string[];
   /** Whether it's shown by default in a fresh layout. */
   defaultVisible: boolean;
 }
@@ -41,6 +48,13 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "recent-emails", title: "Recent Emails", description: "Your latest communications and their status.", icon: "mail", span: "sm", defaultVisible: true },
   { key: "email-engagement", title: "Email Engagement", description: "Open and click rates from delivered mail.", icon: "bar-chart-3", span: "full", defaultVisible: false },
   { key: "channels", title: "Channels", description: "Jump into your internal board/admin chat.", icon: "messages-square", span: "full", defaultVisible: false },
+  // Appended default-OFF, and appended rather than inserted. A saved layout
+  // merges new widgets in at their default visibility, so shipping one
+  // default-on rearranges every dashboard in the product without being asked —
+  // the exact bug the landing widget registry already made once.
+  { key: "collections", title: "Collections", description: "Money collected each month over the last year.", icon: "trending-up", span: "lg", modules: ["payments"], defaultVisible: false },
+  { key: "requests-health", title: "Requests Health", description: "How long open requests have been waiting.", icon: "hourglass", span: "sm", modules: ["requests"], defaultVisible: false },
+  { key: "occupancy", title: "Occupancy", description: "Homes by owner-occupied, tenanted, or vacant.", icon: "house", span: "sm", modules: ["directory"], defaultVisible: false },
 ];
 
 const STORAGE_KEY = "dashboard-widgets-admin-v1";
@@ -94,22 +108,30 @@ export function useDashboardWidgets(opts?: { roles?: WidgetRole[] }) {
   loadLayout();
 
   const userRoles = opts?.roles ?? ["admin"];
+  const { isEnabled } = useModules();
   const defByKey = (key: string) => DASHBOARD_WIDGETS.find((w) => w.key === key);
   const roleOk = (w: WidgetDef) =>
     !w.roles || w.roles.length === 0 || w.roles.some((r) => userRoles.includes(r));
+  // Every named module has to be on. A widget gated on a module the community
+  // switched off disappears from the grid AND the gallery, rather than sitting
+  // there rendering an empty state for a feature nobody wants.
+  const moduleOk = (w: WidgetDef) =>
+    !w.modules || w.modules.length === 0 || w.modules.every((m) => isEnabled(m));
+  const allowed = (w: WidgetDef | undefined): w is WidgetDef =>
+    !!w && roleOk(w) && moduleOk(w);
 
   const visible = computed<WidgetDef[]>(() =>
     layout.value
       .filter((e) => e.visible)
       .map((e) => defByKey(e.key))
-      .filter((w): w is WidgetDef => !!w && roleOk(w))
+      .filter(allowed)
   );
 
   const hidden = computed<WidgetDef[]>(() =>
     layout.value
       .filter((e) => !e.visible)
       .map((e) => defByKey(e.key))
-      .filter((w): w is WidgetDef => !!w && roleOk(w))
+      .filter(allowed)
   );
 
   const toggleEdit = () => {
