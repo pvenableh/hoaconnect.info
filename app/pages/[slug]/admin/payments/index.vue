@@ -345,9 +345,26 @@ const TYPE_FILTERS = [
         </div>
         <div class="ios-card p-5">
           <p class="text-xs uppercase tracking-wide t-text-muted">Collected</p>
-          <p class="text-2xl font-semibold tabular-nums text-emerald-600 mt-1">{{ currency(totalCollected) }}</p>
+          <!-- Status colour from the theme, not a raw palette class, so it
+               follows light/dark like every other positive figure. -->
+          <p class="text-2xl font-semibold tabular-nums mt-1" style="color: var(--success)">
+            {{ currency(totalCollected) }}
+          </p>
         </div>
       </div>
+
+      <!--
+        The two totals above say HOW MUCH. These say whether that is a healthy
+        number: cash in against cash out over the year, and — the one a
+        treasurer is actually asked — how long the outstanding money has been
+        outstanding. $4,200 not yet due and $4,200 ninety days late read
+        identically as a total and are completely different communities.
+      -->
+      <AdminMoneyGlance
+        :charges="(requests as any[]) || []"
+        :expenses="(expenses as any[]) || []"
+        :loading="pending"
+      />
 
       <!-- New charge form -->
       <div v-if="showNew" class="ios-card p-6 space-y-4">

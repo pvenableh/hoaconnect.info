@@ -118,6 +118,80 @@ const members = [
   { id: 4, name: "Tom Alvarez", unit: "1D", type: "Owner", balance: 85 },
 ];
 
+// ── Charts ──────────────────────────────────────────────────────────────────
+// Fixed sample data, not random: the point of the page is that a change to a
+// chart primitive is visible as a DIFF, and a chart that redraws itself
+// differently on every reload can't show you one.
+const chartCurrency = (v: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(v);
+
+const trendSeries = [
+  { key: "sent", label: "Sent" },
+  { key: "opened", label: "Opened" },
+];
+const trendData = [
+  { label: "Mon", sent: 120, opened: 58 },
+  { label: "Tue", sent: 96, opened: 61 },
+  { label: "Wed", sent: 141, opened: 84 },
+  { label: "Thu", sent: 88, opened: 40 },
+  { label: "Fri", sent: 132, opened: 77 },
+  { label: "Sat", sent: 41, opened: 19 },
+  { label: "Sun", sent: 36, opened: 22 },
+];
+
+const barSeries = [
+  { key: "untouched", label: "Not started", color: "var(--chart-3)" },
+  { key: "working", label: "In progress", color: "var(--chart-1)" },
+  { key: "waiting", label: "Waiting", color: CHART_STATUS_VARS.muted },
+];
+const barData = [
+  { label: "Maintenance", untouched: 6, working: 3, waiting: 1 },
+  { label: "ARC", untouched: 2, working: 4, waiting: 2 },
+  { label: "Violation", untouched: 1, working: 0, waiting: 0 },
+  { label: "Complaint", untouched: 3, working: 1, waiting: 0 },
+];
+
+// One series, coloured per bar: the bucket IS the category, and the two oldest
+// buckets ride the status tokens because red here means overdue, not "the
+// fifth thing".
+const ageingSeries = [{ key: "amount", label: "Outstanding" }];
+const ageingData = [
+  { label: "Not yet due", amount: 4200, color: CHART_STATUS_VARS.muted },
+  { label: "1–30 days", amount: 2400, color: "var(--chart-3)" },
+  { label: "31–60 days", amount: 900, color: CHART_STATUS_VARS.warn },
+  { label: "61–90 days", amount: 450, color: CHART_STATUS_VARS.severe },
+  { label: "90 days +", amount: 1250, color: CHART_STATUS_VARS.bad },
+];
+
+const donutSeries = [
+  { key: "owner", label: "Owner-occupied", color: "var(--chart-1)" },
+  { key: "tenant", label: "Tenanted", color: "var(--chart-3)" },
+  { key: "vacant", label: "Vacant", color: CHART_STATUS_VARS.muted },
+];
+const donutValues = { owner: 18, tenant: 9, vacant: 1 };
+
+// Dates are built from a fixed anchor rather than "today", for the same
+// no-moving-diff reason. The Today marker only draws when it falls in range,
+// so it is present here by construction.
+const timelineAnchor = new Date();
+const dayOffset = (days: number) => {
+  const d = new Date(timelineAnchor);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+const timelineItems = [
+  { id: "1", label: "Q1 board meeting", row: "Board", start: dayOffset(-150), color: "var(--chart-1)" },
+  { id: "2", label: "Q2 board meeting", row: "Board", start: dayOffset(-60), color: "var(--chart-1)" },
+  { id: "3", label: "Q3 board meeting", row: "Board", start: dayOffset(30), color: "var(--chart-3)" },
+  { id: "4", label: "Annual meeting", row: "Annual", start: dayOffset(-120), color: "var(--chart-1)" },
+  { id: "5", label: "Roof replacement", row: "Projects", start: dayOffset(-40), end: dayOffset(25), color: "var(--chart-4)" },
+  { id: "6", label: "Lobby refresh", row: "Projects", start: dayOffset(45), end: dayOffset(95), color: "var(--chart-5)" },
+];
+
 const stats = [
   { label: "Collected this month", value: "$18,420", icon: "lucide:dollar-sign", trend: 8 },
   { label: "Outstanding dues", value: "$4,200", icon: "lucide:alert-circle", trend: 12, trendPositive: false },
@@ -304,6 +378,94 @@ const materials = [
               </span>
             </template>
           </AppDataTable>
+        </div>
+      </section>
+
+      <!-- ── Charts ───────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Charts</h2>
+        <p class="type-body">
+          Every chart sits in an <code>AppChartCard</code>, which owns the three
+          states a chart really has — loading, empty, drawn. Colour comes from
+          <code>--chart-1…5</code>, declared light and dark, so a chart follows
+          the theme without being told. A colour that MEANS something (overdue,
+          failed) leaves the categorical ramp for the status tokens instead.
+        </p>
+
+        <div class="grid gap-4 lg:grid-cols-2 mt-3">
+          <AppChartCard
+            title="Email activity"
+            hint="Sends and opens over the week"
+            icon="lucide:line-chart"
+            :loading="demoLoading"
+            :height="200"
+          >
+            <AppChartTrend :data="trendData" :series="trendSeries" area :height="200" />
+          </AppChartCard>
+
+          <AppChartCard
+            title="Open work by type"
+            hint="Stacked — the parts sum to something worth knowing"
+            icon="lucide:bar-chart-3"
+            :loading="demoLoading"
+            :height="200"
+          >
+            <AppChartBars :data="barData" :series="barSeries" stacked :height="200" />
+          </AppChartCard>
+
+          <AppChartCard
+            title="Outstanding by age"
+            hint="One series, coloured per bar, past-due on the status tokens"
+            icon="lucide:hourglass"
+            :loading="demoLoading"
+            :height="200"
+          >
+            <AppChartBars
+              :data="ageingData"
+              :series="ageingSeries"
+              :height="200"
+              :format="chartCurrency"
+              :color-by-row="(row) => String(row.color)"
+              hide-legend
+            />
+          </AppChartCard>
+
+          <AppChartCard
+            title="Homes by occupancy"
+            hint="Composition, with the whole in the hole"
+            icon="lucide:pie-chart"
+            :loading="demoLoading"
+            :height="200"
+          >
+            <AppChartDonut
+              :series="donutSeries"
+              :values="donutValues"
+              :height="200"
+              center-label="homes"
+            />
+          </AppChartCard>
+
+          <AppChartCard
+            class="lg:col-span-2"
+            title="The year in meetings and projects"
+            hint="A Gantt strip — a moment gets a dot, a span gets a bar"
+            icon="lucide:gantt-chart"
+            :loading="demoLoading"
+            :height="160"
+          >
+            <AppChartTimeline :items="timelineItems" :height="160" :row-height="30" />
+          </AppChartCard>
+
+          <AppChartCard
+            title="Empty is a state"
+            hint="Not an accident, and not bare axes"
+            icon="lucide:chart-no-axes-column"
+            :loading="false"
+            empty
+            empty-title="No dues history yet"
+            empty-hint="Once a charge is paid, the months fill in."
+            :height="200"
+          />
         </div>
       </section>
 

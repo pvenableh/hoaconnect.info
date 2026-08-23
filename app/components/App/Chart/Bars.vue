@@ -27,6 +27,12 @@ const props = withDefaults(
     format?: (n: number) => string;
     /** Hide the legend when a single series makes it redundant. */
     hideLegend?: boolean;
+    /**
+     * Colour each BAR instead of each series. Only meaningful with one series,
+     * where the category is the x value rather than the stack — an ageing
+     * chart, where "90 days +" should be red because of what it means.
+     */
+    colorByRow?: (row: Row, index: number) => string;
   }>(),
   { height: 200, stacked: true },
 );
@@ -37,7 +43,13 @@ const resolved = computed(() => resolveSeries(props.series));
 
 const x = (_: Row, i: number) => i;
 const y = computed(() => resolved.value.map((s) => (d: Row) => Number(d[s.key] ?? 0)));
-const color = computed(() => resolved.value.map((s) => s.color));
+// One series + colorByRow → a per-datum accessor; otherwise one colour per
+// series, which is what unovis expects for a stack.
+const color = computed(() =>
+  props.colorByRow && resolved.value.length === 1
+    ? (d: Row, i: number) => props.colorByRow!(d, i)
+    : resolved.value.map((s) => s.color),
+);
 
 const tickFormat = (i: number) => props.data[Math.round(i)]?.label ?? "";
 

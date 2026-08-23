@@ -50,8 +50,11 @@ watch(
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
-      <div class="flex items-center justify-between gap-2">
-        <h1 class="text-2xl font-semibold t-text">Requests</h1>
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1">Action queue</p>
+          <h1 class="text-3xl font-semibold tracking-tight t-text">Requests</h1>
+        </div>
         <div class="flex items-center gap-2">
           <NuxtLink :to="buildOrgPath('/admin/leads')">
             <Button variant="outline" class="rounded-full">
@@ -72,6 +75,14 @@ watch(
         </div>
       </div>
 
+      <!--
+        Requests is where the dock now lands. The list says what is in the
+        queue; this says whether the queue is being worked. Deliberately reads
+        the UNFILTERED set — the health of the queue is not a property of the
+        filter you happen to have on.
+      -->
+      <AdminRequestsGlance :requests="requests || []" :loading="pending" />
+
       <!-- New request inline -->
       <div v-if="showNew" class="ios-card p-6">
         <RequestsRequestForm
@@ -90,7 +101,7 @@ watch(
             :key="opt.key"
             @click="typeFilter = opt.key"
             class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="typeFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+            :class="typeFilter === opt.key ? 't-bg-accent/20 t-text-accent' : 't-bg-alt t-text-muted hover:t-bg-subtle'"
           >{{ opt.label }}</button>
         </div>
         <div class="flex gap-1.5 ml-auto">
@@ -99,7 +110,7 @@ watch(
             :key="opt.key"
             @click="statusFilter = opt.key"
             class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="statusFilter === opt.key ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
+            :class="statusFilter === opt.key ? 't-bg-accent/20 t-text-accent' : 't-bg-alt t-text-muted hover:t-bg-subtle'"
           >{{ opt.label }}</button>
         </div>
       </div>

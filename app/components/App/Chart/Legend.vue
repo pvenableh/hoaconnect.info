@@ -20,8 +20,11 @@ defineProps<{
         :style="{ backgroundColor: s.color }"
         aria-hidden="true"
       />
-      <span class="type-micro t-text-secondary">{{ s.label }}</span>
-      <span v-if="s.value != null" class="type-micro t-text tabular-nums font-medium">
+      <!-- type-meta, not type-micro: micro is the UPPERCASE metadata role, and
+           a legend shouting "OWNER-OCCUPIED" reads as a label for the chart
+           rather than as part of it. -->
+      <span class="type-meta t-text-secondary">{{ s.label }}</span>
+      <span v-if="s.value != null" class="type-meta t-text tabular-nums font-medium">
         {{ s.value }}
       </span>
     </div>

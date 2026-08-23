@@ -23,10 +23,19 @@ export function chartColor(index: number): string {
   return CHART_SERIES_VARS[index % CHART_SERIES_VARS.length]!;
 }
 
-/** Status colours that mean something specific, so they don't come off the ramp. */
+/**
+ * Status colours that mean something specific, so they don't come off the
+ * categorical ramp. Red here means "overdue", not "the fifth thing".
+ *
+ * `severe` is the step between amber and red that no token provides. Mixing
+ * two real tokens keeps it theme-aware in both modes, which a hard-coded
+ * orange would not be — and an escalation that runs grey → blue → amber → RED
+ * with nothing in between makes a 61-day debt look identical to a 200-day one.
+ */
 export const CHART_STATUS_VARS = {
   good: "var(--success)",
-  warn: "var(--warning, var(--chart-5))",
+  warn: "var(--warning)",
+  severe: "color-mix(in srgb, var(--destructive) 55%, var(--warning))",
   bad: "var(--destructive)",
   muted: "var(--theme-text-muted)",
 } as const;

@@ -54,7 +54,7 @@ withDefaults(
     >
       <Icon name="lucide:chart-no-axes-column" class="w-8 h-8 t-text-muted opacity-50" />
       <p class="type-meta">{{ emptyTitle }}</p>
-      <p v-if="emptyHint" class="type-micro t-text-muted max-w-[28ch]">{{ emptyHint }}</p>
+      <p v-if="emptyHint" class="type-meta t-text-muted max-w-[34ch]">{{ emptyHint }}</p>
     </div>
 
     <!--

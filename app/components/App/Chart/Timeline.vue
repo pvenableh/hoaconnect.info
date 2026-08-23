@@ -9,9 +9,12 @@
  * project spawning, none of which generalise to "show me the year". Two
  * components, because they answer two different questions.
  *
- * A zero-length item (a meeting is a moment, not a span) still needs to be
- * visible, so `minDurationDays` gives every bar a floor and `lineCap` rounds it
- * into a dot.
+ * A meeting is a moment, not a span, and a zero-length bar on a 250-day axis
+ * draws as a 2px sliver you cannot see or hover. unovis has the answer:
+ * `showEmptySegments` floors a segment at one pixel and, with `lineCap`, draws
+ * it as a circle of the line's own width. So a moment is a dot and a span is a
+ * bar, with no fake duration invented to make the moment visible — which is
+ * what `minDurationDays` was doing, and it lied about the dates.
  */
 import { VisXYContainer, VisTimeline, VisAxis, VisPlotline, VisTooltip } from "@unovis/vue";
 import { Timeline } from "@unovis/ts";
@@ -49,14 +52,11 @@ const props = withDefaults(
     rowLabelWidth?: number;
     /** Draw a dashed line at now. */
     showToday?: boolean;
-    minDurationDays?: number;
   }>(),
-  { height: 240, rowHeight: 28, rowLabelWidth: 120, showToday: true, minDurationDays: 1 },
+  { height: 240, rowHeight: 28, rowLabelWidth: 120, showToday: true },
 );
 
 const emit = defineEmits<{ (e: "select", id: string): void }>();
-
-const MS_DAY = 86_400_000;
 
 const toMs = (v: string | Date | null | undefined): number | null => {
   if (!v) return null;
@@ -74,6 +74,7 @@ const bars = computed<Bar[]>(() =>
     // is the honest move — placing it at epoch would stretch the axis to 1970.
     if (start == null) return [];
     const end = toMs(item.end);
+    // Genuinely zero for a moment — showEmptySegments turns that into a dot.
     const span = end != null && end > start ? end - start : 0;
     return [
       {
@@ -81,7 +82,7 @@ const bars = computed<Bar[]>(() =>
         label: item.label,
         row: item.row ?? item.label,
         start,
-        duration: Math.max(span, props.minDurationDays * MS_DAY),
+        duration: span,
         color: item.color ?? chartColor(i),
         detail: item.detail,
         startLabel: dateLabel(start),
@@ -130,6 +131,7 @@ const axisFormat = (ms: number) =>
       :color="color"
       :lineWidth="10"
       :lineCap="true"
+      :showEmptySegments="true"
       :rowHeight="rowHeight"
       :showRowLabels="true"
       :rowMaxLabelWidth="rowLabelWidth"
