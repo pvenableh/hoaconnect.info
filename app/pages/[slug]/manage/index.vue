@@ -1,8 +1,14 @@
 <script setup lang="ts">
 /**
- * Property manager portal home. Shows only the capabilities the admin granted
- * this manager (admins see everything and keep the full admin UI — the nav
- * branches on admin ∪ grants). Each card links into a scoped area.
+ * Property manager portal root. Not a screen — it sends the manager straight
+ * into the first area their admin granted them.
+ *
+ * It used to be a grid of cards, one per granted capability. For the common
+ * case that is a click to choose from a list of one: most managers hold a
+ * single grant, and the nav already carries the rest for those who hold more.
+ * So the root resolves instead of asking. The only thing it still renders is
+ * the two dead ends — no grants, or not a manager here at all — which are the
+ * one case where there is genuinely nowhere to send anyone.
  *
  * NOTE: a dedicated agency multi-property switcher is deferred — there's no
  * cross-org PM mechanism yet; a PM works within one community via its slug.
@@ -14,86 +20,28 @@ definePageMeta({
 
 const { buildOrgPath } = useOrgNavigation();
 const { managerCan, isPropertyManagerOfCurrentDomain } = useCurrentDomainAccess();
-const { currentOrg } = await useSelectedOrg();
 
-const orgName = computed(() => currentOrg.value?.organization?.name || "this community");
+// Order is the landing priority: inquiries is the manager's actual inbox, so a
+// manager who holds it lands there whatever else they were granted.
+const MANAGER_AREAS = [
+  { key: "inquiries", path: "/manage/inquiries" },
+  { key: "directory", path: "/manage/directory" },
+  { key: "communications", path: "/manage/communications" },
+  { key: "documents", path: "/documents" },
+] as const;
 
-const cards = computed(() =>
-  [
-    managerCan("inquiries") && {
-      key: "inquiries",
-      label: "Inquiries",
-      desc: "View and respond to community inquiries.",
-      icon: "lucide:inbox",
-      to: buildOrgPath("/manage/inquiries"),
-    },
-    managerCan("directory") && {
-      key: "directory",
-      label: "Directory",
-      desc: "Browse the member directory.",
-      icon: "lucide:users",
-      to: buildOrgPath("/manage/directory"),
-    },
-    managerCan("documents") && {
-      key: "documents",
-      label: "Documents",
-      desc: "Access community documents.",
-      icon: "lucide:file-text",
-      to: buildOrgPath("/documents"),
-    },
-    managerCan("communications") && {
-      key: "communications",
-      label: "Communications",
-      desc: "Send emails to members.",
-      icon: "lucide:mail",
-      to: buildOrgPath("/manage/communications"),
-    },
-  ].filter(Boolean) as {
-    key: string;
-    label: string;
-    desc: string;
-    icon: string;
-    to: string;
-  }[],
+const home = computed(
+  () => MANAGER_AREAS.find((a) => managerCan(a.key))?.path ?? null
 );
+
+// `replace` so Back leaves the portal rather than bouncing through this root.
+if (home.value) await navigateTo(buildOrgPath(home.value), { replace: true });
 </script>
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <PageContainer class="space-y-6">
-      <WidgetGlass strong>
-        <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Property management</p>
-        <h1 class="text-3xl font-semibold tracking-tight t-text">{{ orgName }}</h1>
-        <p class="t-text-secondary mt-1">
-          Your management tools for this community.
-        </p>
-      </WidgetGlass>
-
-      <StaggerList
-        v-if="cards.length"
-        :items="cards"
-        class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        v-slot="{ item: c }"
-      >
-        <NuxtLink
-          :to="c.to"
-          class="group ios-card p-5 flex flex-col h-full hover:shadow-md hover:-translate-y-0.5 transition-all tappable"
-        >
-          <span class="flex h-11 w-11 items-center justify-center rounded-xl t-bg-accent/15 t-text-accent mb-3">
-            <Icon :name="c.icon" class="h-5 w-5" />
-          </span>
-          <div class="flex items-center gap-2">
-            <span class="font-medium t-text">{{ c.label }}</span>
-            <Icon
-              name="lucide:arrow-right"
-              class="h-4 w-4 ml-auto t-text-muted transition-transform group-hover:translate-x-0.5"
-            />
-          </div>
-          <p class="text-sm t-text-muted mt-1">{{ c.desc }}</p>
-        </NuxtLink>
-      </StaggerList>
-
-      <div v-else class="ios-card p-10 text-center t-text-muted">
+    <PageContainer>
+      <div class="ios-card p-10 text-center t-text-muted">
         <Icon name="lucide:lock" class="h-8 w-8 mx-auto mb-3 opacity-50" />
         <p v-if="isPropertyManagerOfCurrentDomain">
           You don't have any permissions yet. Ask the community admin to grant you access.

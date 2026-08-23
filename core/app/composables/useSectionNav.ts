@@ -1,15 +1,16 @@
-// useSectionNav — the single source of truth for a section's child links
-// (each admin hub's sub-pages). The classic grouped sidebar (App/Sidebar.vue),
-// the modern secondary sub-nav bar (App/SubNav.vue), AND the hub landing pages
-// (PeopleHubPage / ReportingHubPage / MoreHubPage) all read from here, so they
-// can never drift apart. Keyed by the hub `key` in useAppNav's ADMIN_APPS
+// useSectionNav — the single source of truth for a section's child links (each
+// admin section's sub-pages). The sub-nav pill bar (App/SubNav.vue), the mobile
+// nav sheet, and the dock's section-home resolution all read from here, so they
+// can never drift apart. Keyed by the section `key` in useAppNav's ADMIN_APPS
 // (people / comms / records / payments / requests / settings).
 //
-// `module` is the module-gate key (omit for always-on links like Teams/Approvals
-// /Activity). `group` lets a section split into labelled groups on its hub page
-// (the flat sidebar/sub-nav ignores it). `path` is org-relative — consumers run
-// it through buildOrgPath. NOTE: Board (/board) and Rules (/rules) are member
-// routes (not /admin/*); they render workspace chrome via their layout:auth.
+// ORDER MATTERS: the first module-enabled link in a section is where the dock
+// lands (sectionHomeFor), so put the section's main screen first.
+//
+// `module` is the module-gate key (omit for always-on links like Teams /
+// Approvals / Activity). `path` is org-relative — consumers run it through
+// buildOrgPath. NOTE: Board (/board) and Rules (/rules) are member routes (not
+// /admin/*); they render workspace chrome via their layout:auth.
 
 export interface SectionLink {
   label: string;
@@ -17,12 +18,6 @@ export interface SectionLink {
   icon: string; // lucide name (no i-lucide- prefix)
   description?: string;
   module?: string;
-  group?: string;
-}
-
-export interface SectionGroup {
-  label?: string;
-  items: SectionLink[];
 }
 
 const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
@@ -60,13 +55,14 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
     { label: "Expenses", path: "/admin/expenses", icon: "receipt", description: "Track and categorize community expenses.", module: "expenses" },
   ],
   requests: [
-    { label: "Requests", path: "/admin/requests", icon: "clipboard-list", description: "Resident maintenance, architectural, and general requests.", module: "requests", group: "Work" },
-    { label: "Projects", path: "/admin/projects", icon: "kanban-square", description: "Track community projects and tasks to completion.", module: "projects", group: "Work" },
-    { label: "Approvals", path: "/admin/approvals", icon: "clipboard-check", description: "Review resident-submitted changes to contact info, mailing address, vehicles, and pets.", group: "Review queues" },
-    { label: "Moderation", path: "/admin/moderation", icon: "shield-alert", description: "Review flagged posts, comments, and reports.", module: "moderation", group: "Review queues" },
+    { label: "Requests", path: "/admin/requests", icon: "clipboard-list", description: "Resident maintenance, architectural, and general requests.", module: "requests" },
+    { label: "Projects", path: "/admin/projects", icon: "kanban-square", description: "Track community projects and tasks to completion.", module: "projects" },
+    { label: "Approvals", path: "/admin/approvals", icon: "clipboard-check", description: "Review resident-submitted changes to contact info, mailing address, vehicles, and pets." },
+    { label: "Moderation", path: "/admin/moderation", icon: "shield-alert", description: "Review flagged posts, comments, and reports.", module: "moderation" },
   ],
-  // Settings keeps its bespoke grouped hub page (SettingsHubPage); this curated
-  // flat list is only for the sidebar/sub-nav (the top destinations).
+  // Settings is the one section that keeps a real landing page of its own
+  // (SettingsHubPage — a twelve-destination map). This curated flat list is the
+  // sub-nav's top five, not that whole map.
   settings: [
     { label: "Organization", path: "/admin/settings/organization", icon: "building-2", description: "Identity, branding, and SEO." },
     { label: "Public site", path: "/admin/settings/domains", icon: "globe", description: "Landing page and custom domain." },
@@ -87,23 +83,6 @@ export function useSectionNav() {
     return (ADMIN_SECTION_LINKS[key] || []).filter((l) => !l.module || isEnabled(l.module));
   };
 
-  // Same links, split into labelled groups (for the hub landing pages). A
-  // section with no `group` on its links collapses to one unlabelled group.
-  const sectionGroupsFor = (key: string | null | undefined): SectionGroup[] => {
-    const links = sectionLinksFor(key);
-    const order: string[] = [];
-    const byGroup = new Map<string, SectionLink[]>();
-    for (const l of links) {
-      const g = l.group ?? "";
-      if (!byGroup.has(g)) {
-        byGroup.set(g, []);
-        order.push(g);
-      }
-      byGroup.get(g)!.push(l);
-    }
-    return order.map((g) => ({ label: g || undefined, items: byGroup.get(g)! }));
-  };
-
   // Is this section link the current page? Compare against the org-scoped path,
   // query stripped, by prefix (so /admin/projects/123 keeps Projects active).
   const isLinkActive = (path: string): boolean => {
@@ -121,25 +100,52 @@ export function useSectionNav() {
   const hasChildren = (key: string | null | undefined): boolean =>
     sectionLinksFor(key).length > 0;
 
-  return { sectionLinksFor, sectionGroupsFor, isLinkActive, hasChildren, buildOrgPath };
+  // Org-relative landing route for a section (see sectionHomeFor below).
+  const resolveSectionHome = (key: string | null | undefined): string | null =>
+    sectionHomeFor(key, isEnabled);
+
+  return {
+    sectionLinksFor,
+    isLinkActive,
+    hasChildren,
+    resolveSectionHome,
+    buildOrgPath,
+  };
 }
 
-// Convenience for the hub landing pages: the section's groups already mapped to
-// the SectionHub card shape (label/description/icon/to/show), org paths built.
-// Structurally compatible with Admin/SectionHub's HubGroup[] without coupling
-// the core layer to an app-level type.
-export function useSectionHubGroups(key: string) {
-  const { sectionGroupsFor, buildOrgPath } = useSectionNav();
-  return computed(() =>
-    sectionGroupsFor(key).map((g) => ({
-      label: g.label,
-      items: g.items.map((l) => ({
-        label: l.label,
-        description: l.description || "",
-        icon: l.icon,
-        to: buildOrgPath(l.path),
-        show: true,
-      })),
-    }))
-  );
+// The route a dock/sidebar section slot should actually open. A section used to
+// land on a card grid (AdminSectionHub) whose links were IDENTICAL to the pills
+// AppSubNav already shows on every workspace page — a whole screen of clicking
+// for a menu the user could see anyway. So a section opens its first
+// module-enabled child instead, and the sub-nav keeps doing the disclosure.
+//
+// Module-aware by construction: an org with Directory off lands on Board rather
+// than a dead Members link. Sections in SECTION_HOME_OVERRIDE keep a real
+// landing page of their own — Settings is a genuine map (twelve destinations
+// against the sub-nav's five curated ones), so it stays put.
+const SECTION_HOME_OVERRIDE: Record<string, string> = {
+  dashboard: "/",
+  settings: "/admin/settings",
+};
+
+export function sectionHomeFor(
+  key: string | null | undefined,
+  isEnabled: (module: string) => boolean
+): string | null {
+  if (!key) return null;
+  const override = SECTION_HOME_OVERRIDE[key];
+  if (override) return override;
+  const first = (ADMIN_SECTION_LINKS[key] || []).find((l) => !l.module || isEnabled(l.module));
+  return first?.path ?? null;
 }
+
+// The section-root routes that used to render an AdminSectionHub card grid.
+// Kept as real routes (bookmarks, org-redirect.global's allowlist, and the
+// custom-domain orgScopedRedirect map all point at them) but redirected onto
+// the section's home by the `section-home` middleware. Mapped to the section
+// key so the middleware doesn't need a second copy of the dock registry.
+export const SECTION_ROOT_ROUTES: Record<string, string> = {
+  "/admin/people": "people",
+  "/admin/reporting": "records",
+  "/admin/more": "requests",
+};

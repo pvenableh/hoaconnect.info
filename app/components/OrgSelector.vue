@@ -119,6 +119,9 @@ const manageLinks = computed(() => {
     {
       label: "People & members",
       icon: "i-lucide-users-round",
+      // The section root, which `section-home` bounces to Members. Named here
+      // rather than /admin/members so an org with Directory off still gets a
+      // live destination instead of a link into a disabled module.
       to: orgPath("/admin/people"),
       adminOnly: true,
     },

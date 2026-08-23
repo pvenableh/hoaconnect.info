@@ -1,0 +1,139 @@
+# Plan — content-first navigation, and visuals that say something
+
+**Status:** in progress · started 2026-08-23 · branch `feat/content-first-ux`
+**Supersedes the open items in** `~/.claude/plans/hoaconnect-next-session-prompt.md`
+(the UX refresh's nine phases, PR #305, and the 1033 landing work are all
+merged; `origin/main` is at `6cc82d6`).
+
+## The two complaints this answers
+
+Peter, 2026-08-23:
+
+1. **"On some of the app pages it lands to just cards that navigate to the
+   inner app pages — I don't like this because it is unnecessary clicking.
+   Make the app land on meaningful content for that app, or the first of the
+   inner content."**
+2. **"Improve the overall UX to be more informative and visually appealing —
+   can we use charts and Gantt charts or some type of modern visuals?"**
+
+## Why the card hubs exist, and why they can go
+
+The dock was consolidated 12 slots → 6 section hubs (People · Comms · Records ·
+Money · Requests · Settings). Each consolidated slot needed *somewhere* to land,
+so `AdminSectionHub` was written: a glass hero plus grouped cards that drill in.
+
+That was the right call **before** `AppSubNav` existed. It doesn't hold now:
+`app/layouts/auth.vue:98` renders `AppSubNav` on every workspace page, and that
+bar already lists the active section's children as pills (Members · Units ·
+Board · Teams · Vendors). Both read the same `useSectionNav` source, so **the
+hub page and the sub-nav bar show the identical link set**. One of them is a
+full screen the user must click through; the other is always on screen anyway.
+
+So the hub card grid is pure toll. Removing it costs no discoverability.
+
+### Which surfaces are affected
+
+| Dock slot | Route today | Renders | Verdict |
+|---|---|---|---|
+| People | `/admin/people` | `PeopleHubPage` — cards only | **replace** → Members |
+| Records | `/admin/reporting` | `ReportingHubPage` — cards only | **replace** → Meetings |
+| Requests | `/admin/more` | `MoreHubPage` — cards only | **replace** → Requests |
+| Comms | `/admin/communications` | `EmailPage` — real content | fine |
+| Money | `/admin/payments` | payments page — real content | fine |
+| Settings | `/admin/settings` | `SettingsHubPage` — 12 grouped cards | **keep, but make it informative** |
+| PM portal | `/manage` | card grid of granted capabilities | **replace** → first granted area |
+
+**Settings is the deliberate exception.** A settings index *is* a map, and its
+hub lists twelve destinations against the sub-nav's five curated ones — landing
+straight on "Organization → General" would hide the other seven. Instead of
+deleting it, the plan gives it something to say: a configuration-health strip
+above the cards (plan and renewal, modules on, custom-domain status, Stripe
+payouts connected, last data export). Cards stay; the screen stops being *only*
+cards. Flagged here because it's the one place the plan declines the blunt fix.
+
+## Phase A — no dock slot lands on a menu
+
+1. **`resolveSectionHome(key)` in `useSectionNav`.** Returns the section's real
+   landing route: an explicit `home` override on the section if one is declared,
+   otherwise the first module-enabled child. Module-aware by construction, so an
+   org with Directory off lands on Board rather than a dead Members link.
+2. **The dock and sidebar route through it.** `useAppNav`'s hub `path` resolves
+   via `resolveSectionHome`, so a click goes straight to content — no redirect
+   flash. `match` is untouched, so the active-slot highlight still covers every
+   route in the section.
+3. **The old hub routes become redirects,** not deletions: `/admin/people`,
+   `/admin/reporting`, `/admin/more` `navigateTo(..., { replace: true })` onto
+   the resolved home. Typed URLs, bookmarks, `org-redirect.global`, and the
+   custom-domain `orgScopedRedirect` map all keep working, and `replace: true`
+   keeps the back button from bouncing.
+   *Reachability is enforced by a test — the same walk-`app/pages` test that
+   guards the allowlist regression.*
+4. **`/manage`** resolves to the first granted capability the same way. The
+   "no permissions yet" state stays exactly as it is.
+5. **Delete** `PeopleHubPage`, `ReportingHubPage`, `MoreHubPage`.
+   `Admin/SectionHub.vue` survives — Settings still renders it.
+
+**Net effect:** four screens' worth of clicking removed; nothing becomes
+unreachable; the sub-nav does the job it was already doing.
+
+## Phase B — the landing screens earn the visit
+
+Landing on the first child is the floor, not the ceiling. Each new landing gets
+an at-a-glance band above its existing content — small, factual, and drawn from
+data the page already loads where possible.
+
+- **People → Members.** Occupancy donut off `hoa_units.occupancy`
+  (owner / tenant / vacant — the field the 1033 migration added), plus counts:
+  members, units, board seats filled.
+- **Records → Meetings.** A twelve-month meeting strip (held · scheduled ·
+  minutes published), so the year is legible without opening anything.
+- **Requests → Requests.** Open by type as a stacked bar, and an ageing
+  breakdown (<7d · 7–30d · 30d+) — the queue's health in one row.
+- **Settings.** The configuration-health strip described above.
+
+## Phase C — a chart kit, then charts that answer a question
+
+The three charts that exist (`dashboard/EmailActivityChart`,
+`MembershipDonutChart`, `ActivityTimelineChart`) are off-system: raw `<Card>`
+and `text-muted-foreground` instead of `ios-card` and the `t-*` tokens. They
+predate the UX refresh. So Phase C starts by building the kit, then moves them
+onto it.
+
+1. **`App/Chart/*` kit**, themed and `ClientOnly` by construction (unovis leaves
+   a duplicate empty `<svg>` under SSR — see `unovis-charts-client-only`):
+   `ChartCard` (glass frame, title, hint, empty state), `Trend` (line/area),
+   `Bars` (grouped/stacked), `Donut`, `Sparkline`, and `Timeline` — a
+   Gantt-style row renderer generalised out of `Projects/ProjectGantt.vue`,
+   which today only knows about projects.
+2. **Money.** Collections trend by month, paid vs outstanding donut, ageing
+   buckets. This is the screen where a chart is worth the most and there is
+   currently none.
+3. **Requests.** The Phase B band, plus resolution-time distribution.
+4. **Meetings.** The year strip, on the shared `Timeline`.
+5. **Projects.** The Gantt already exists behind a third view toggle; promote it
+   — default to Timeline when enough projects carry dates — and add progress
+   bars to the bars themselves.
+6. **Dashboard.** New widgets for the above (`collections`, `requests-health`,
+   `occupancy`), appended to `DASHBOARD_WIDGETS` **default-off** — appending a
+   widget default-on is exactly the bug the landing widget registry already
+   made once (`1033-landing-migration`, "a bug worth remembering").
+7. **Retire the off-system originals** onto `ChartCard`.
+
+## Rules this work runs under
+
+- Every chart is `ClientOnly` with a height-reserving fallback, or it stacks a
+  phantom `<svg>` under the real one.
+- Colours come from `--chart-1…5` (defined light and dark in
+  `core/app/assets/css/tailwind.css`), never literals.
+- No `t-*` opacity suffixes — `t-bg-accent/15` is a silent no-op.
+- Measure styles with `getComputedStyle`; reading a rule is not evidence.
+- After every change: `pnpm typecheck && pnpm test && pnpm build`
+  (`eval "$(/usr/local/bin/fnm env)"` first — there is no node on PATH in a
+  tool shell). A template restructure needs the real build; typecheck does not
+  catch a broken `v-if`/`v-else` chain.
+
+## Progress
+
+- [ ] Phase A — hubs resolve to content
+- [ ] Phase B — landing bands
+- [ ] Phase C — chart kit and the charts

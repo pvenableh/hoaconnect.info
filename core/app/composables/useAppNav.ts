@@ -173,12 +173,11 @@ export function useAppNav() {
 
   loadPrefs();
 
-  // Admin dock — job-based "section hubs" rather than a flat tool list. Seven
-  // slots: Home + five content sections (People, Communications, Records, Money,
-  // Requests) + Settings. Each hub fronts several modules and opens an
-  // AdminSectionHub that discloses its tools — so the dock and the hubs are no
-  // longer two competing nav models with the same items in both. A hub slot's
-  // `children` are its module keys; the slot shows iff any child is on
+  // Admin dock — job-based sections rather than a flat tool list. Seven slots:
+  // Home + five content sections (People, Communications, Records, Money,
+  // Requests) + Settings. Each section fronts several modules and opens on the
+  // first of them (see appsFor); AppSubNav discloses the rest as pills. A
+  // section's `children` are its module keys; the slot shows iff any child is on
   // (anyEnabled). Leaf slots (dashboard, settings) gate on their own `key` and
   // are core (always shown). `match[]` covers every child route so the
   // longest-prefix activeKeyFor highlights the right section. Channels is still
@@ -237,10 +236,21 @@ export function useAppNav() {
   // ANY of its children is enabled (anyEnabled); a leaf slot gates on its own
   // `key` (which doubles as its module key — core apps like dashboard/home/
   // settings aren't in any module map, so isEnabled() returns true for them).
+  //
+  // A hub's declared `path` is its section ROOT (/admin/people, /admin/more…),
+  // which used to render a grid of cards listing exactly what AppSubNav already
+  // shows as pills. The dock now opens the section's first enabled child
+  // directly, so the click lands on content instead of on a menu. Resolving
+  // here — rather than redirecting from the root page — means no navigation
+  // flash and no history entry to back out of. `match` is deliberately left
+  // alone: it still covers the root, so the slot highlights either way, and the
+  // root route keeps a redirect shim for typed URLs and old links.
   const appsFor = (isAdmin: boolean): AppDef[] =>
-    (isAdmin ? ADMIN_APPS : MEMBER_APPS).filter((app) =>
-      app.children ? anyEnabled(app.children) : isEnabled(app.key)
-    );
+    (isAdmin ? ADMIN_APPS : MEMBER_APPS)
+      .filter((app) => (app.children ? anyEnabled(app.children) : isEnabled(app.key)))
+      .map((app) =>
+        app.children ? { ...app, path: sectionHomeFor(app.key, isEnabled) ?? app.path } : app
+      );
 
   // Per-app accent sampled from the active palette ramp by the app's position
   const accentsForApps = (apps: AppDef[], paletteId: PaletteId = palette.value): HSL[] => {

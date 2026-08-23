@@ -305,8 +305,8 @@ const adminNavItems = computed(() =>
 );
 
 // Lower-frequency admin destinations that aren't dock icons (reached on desktop
-// via dashboard launcher widgets / hub cards). Listed here so the mobile sheet
-// still has a stable, complete path to them.
+// via the section sub-nav or a dashboard launcher widget). Listed here so the
+// mobile sheet still has a stable, complete path to them.
 const adminExtraItems = computed(() =>
   [
     { label: "Requests", path: buildPath("/admin/requests"), icon: "clipboard-list", show: isModuleEnabled("requests") },
