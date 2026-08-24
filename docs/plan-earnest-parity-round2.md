@@ -14,7 +14,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [x] | `feat/parity2-p1-versioning` | Ratchet at **26**, not 0 — Phase 8 flips it. |
 | 2 | Phase 2a — WS manager + adapter shims | [x] | `feat/parity2-p2a-ws-manager` | All three composables kept as adapters; deletion deferred one release, as planned. |
 | 3 | Phase 2b/2c — Notification unification + bell cutover | [x] | `main` | Bell is on the WS manager; **one** socket with bell + channels, verified. |
-| 4 | Phase 3 — Channels round 2 | [ ] | `main` | |
+| 4 | Phase 3 — Channels round 2 | [x] | `main` | Ships with **two blocking findings outside the phase** — see Session 4. Channels are write-broken and mentions unpickable on this Directus. |
 | 5 | Phase 4 — Notices engine + attention scoring | [ ] | `main` | |
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `main` | |
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `main` | |
@@ -313,6 +313,160 @@ same recipient, subject, collection and item, still unread; the change request
 it points at is still `pending`, so the notification is still accurate. Only its
 timestamp differs (now, instead of the original). Nothing else was touched.
 
+**Session 4 — Phase 3** (2026-08-24) — 2 commits straight onto `main`
+(`219100a`, `7e4632f`), not pushed.
+
+Shipped:
+
+- `core/server/utils/channel-unread.ts` + **GET `/api/hoa/channels/unread`**.
+  Earnest's two-bucket algorithm, adapted. `hoa_channel_members.last_read_at`
+  has been in the schema since channels shipped and had **never once been
+  written**, which is why every unread surface in the app was either absent or
+  guessing.
+- **POST `/api/hoa/channels/:channel/read`** — the write half, auto-joining like
+  Earnest's, with a monotonic cursor (`nextReadCursor`; see deviation 3).
+- **GET `/api/hoa/channels/search`** + `core/server/utils/channel-scope.ts`.
+- `core/app/composables/useChannelUnread.ts` — `useState` singleton, in-flight
+  guard, optimistic `markRead`, live over the Phase 2a socket rather than
+  Earnest's 45s poll.
+- `useChannelSearch.ts` repointed at the route; unchanged signatures, so its
+  three call sites did not move. Results now carry the author.
+- `ChannelThread.vue`: the **"New" divider** anchored to the cursor as it stood
+  when the channel opened (captured before `markRead`); the **enter/leave
+  reconciler** (`enteringIds` / `leavingIds` / `_snapshots` / `_settled`);
+  **`moderatedIds`** local eviction; jump-to-message.
+- `ChannelsList.vue`: **roster folders** off a new `hoa_channels.category`,
+  falling back to the project / request / vendor a channel already points at,
+  with a "Move to folder" dialog. Per-row unread badges.
+- Unread rolls into the **Communications dock badge** (`badgeCountsFor` gained a
+  `channelUnread` argument), the **top-nav chat button**, and **`useAppBadge`**
+  alongside the bell's count.
+- `scripts/add-channel-category-field.ts` + `pnpm add:channel-category`
+  (idempotent; run against prod, `generate:types` re-run).
+- Tests: `tests/server/channel-unread.test.ts` (18), `channel-scope.test.ts` (9),
+  `tests/composables/useChannelUnread.test.ts` (10).
+
+Also fixed here, all pre-existing:
+
+- **`useDirectusSubscription.handleEvent`'s `delete` branch** — the key-vs-object
+  bug Session 3 left as a TODO. Deletes never left the list.
+- **The thread rendered its descending array verbatim**, so the newest message
+  sat at the TOP while the pane scrolled to the bottom — i.e. to the oldest thing
+  in the channel.
+- **A duplicate `id="msg-<id>"`**: `ChannelMessage` already carries it, so
+  `getElementById` was resolving by luck.
+
+Deviations from the plan, all deliberate:
+
+1. **Earnest's `role: null` audience gate is dropped, and bucket 2 is narrowed.**
+   Earnest keeps a `channel_members` row after revoking access so it survives as
+   a read cursor; HOA has no such state — the row IS the grant. More
+   importantly, HOA's member policy is *membership-scoped*, so a plain member
+   with no row cannot open the channel at all. Bucket 2 (readable without a row)
+   therefore applies only to **org admins and seated board members**, whose
+   policy is org-scoped. Badging anyone else would point at a door that will not
+   open.
+2. **No org-join floor recorded → count nothing, not everything.** A missing
+   `hoa_members.date_created` is not a licence to badge an entire history.
+3. **The cursor is monotonic; there is no future-timestamp clamp.** The first
+   version clamped a "future" cursor to the server's `now`. That was wrong in a
+   way only the browser could show: the timestamp a client sends is not its
+   clock, it is `date_created` off the row it just rendered, stamped by
+   **Directus, on a different machine**. Directus ran ~3.5s ahead of the app
+   server here, so the clamp rewrote the cursor to just *before* the message it
+   was acknowledging and the badge never cleared while you read. Forward-only
+   also covers what the clamp was reaching for.
+4. **`useChannelSearch.ts` was not orphaned** (the plan said it was) — it had
+   three call sites doing client-side `_icontains` through the Directus proxy.
+   Access was correct *by accident* there: the caller's own token carried the
+   membership-scoped policy. Moving it server-side spends the admin token, so
+   `channel-scope.ts` now reproduces that rule explicitly and the query is fenced
+   to the result. Two-character minimum centralised in the route.
+5. **`category` is a string, not a collection.** A folder is a label someone
+   types while organising their own sidebar; a collection would mean a second
+   admin surface and would turn renaming into something other than a rename.
+6. **`scroll-behavior: smooth` removed from the pane, and jump-to-message is
+   instant.** Easing is the first thing an environment drops — it is a no-op
+   under reduced motion and in headless Chrome — and both jumps were silently
+   doing nothing because of it.
+7. **No `muted` UI.** `notifications_enabled` is honoured by the computation
+   (count reported, excluded from the total) but has no toggle yet; the members
+   panel is the natural home and it is not in this phase.
+
+Quality gate: typecheck **0 errors** · vitest **1035/1035 in 66 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope tests on
+both new surfaces.
+
+Browser-verified on the demo org (headless, dev server via the preview tool),
+then every fixture deleted — see the cleanup note below:
+
+- **Cross-user badge, live.** Three messages authored by another user raised the
+  chat-button badge to **3** and the Communications dock badge to **3** with no
+  reload, from the dashboard.
+- **The divider lands and stays put.** It rendered directly above the first
+  unread message, and stayed there while a fourth, then a seventh, message
+  arrived beneath it.
+- **The cursor keeps up while you read**: after the monotonic fix, a message
+  arriving with the channel open left the badge at zero and the server cursor
+  ahead of it.
+- **Search jumps mid-history**: "roof inspection" → one hit carrying its author,
+  click → scrollTop 362 → 0 with the target ring-highlighted and the popover
+  closed.
+- **A new member sees zero backlog.** A member created *after* nine messages saw
+  `total: 0` — and then exactly **1**, anchored to their join date, once a single
+  message landed after they joined. Bucket 2 is live, not merely silent.
+- **Roster folders**: `phase3-ungrouped` (ungrouped, first) above a
+  `Building 2027` folder holding `phase3-verify`, appearing live over the socket.
+- **Moderation eviction**: a hidden message left the pane immediately.
+- **Exactly one WebSocket.** One `/api/websocket/token` request for the whole
+  session with the bell, the roster, a thread, the slide-over panel, and three
+  badge watchers mounted; a post-load `window.WebSocket` counter recorded **zero**
+  further sockets across a live message arrival, opening the bell, and opening
+  and closing the channels panel.
+
+**The mention path is verified — and two things block it in the UI.**
+
+Session 3's open item is closed at the level that matters: a
+`hoa_channel_mentions` row plus the exact `POST /api/org/notify-event` call
+`announce()` makes, sent with the demo admin's own session, returned
+`{ok: true, bell: 1}` and wrote a real `directus_notifications` row for the
+mentioned user — `status: "inbox"`, subject **"Demo Admin mentioned you"**,
+message excerpting the channel and the content, `collection`/`item` pointing at
+the mention. Channel creation through the UI also worked, so that half of
+Session 3's blocker is gone.
+
+But driving it from the composer is impossible today, for two **pre-existing,
+out-of-phase** reasons. Neither is caused by Phase 3; both are live on prod
+Directus and both deserve their own fix:
+
+1. **Nobody can post a channel message.** `hoa_channel_messages.create`
+   validation is `{channel: {organization: {_in: "$CURRENT_USER.hoa_members.organization"}}}`
+   for BOTH the HOA Admin and HOA Member policies. On create, Directus evaluates
+   that against the submitted payload, where `channel` is a bare uuid it cannot
+   traverse — so every send fails with `Validation failed for field "channel".
+   Value is required.` Reproduced through the composer, through
+   `/api/directus/items`, and through raw REST with each role's own token; only
+   the static admin token (which bypasses validation) succeeds. That is why
+   Session 2 could create messages "out-of-band" and why nobody noticed. The
+   org check belongs in `permissions`, not `validation`, on this collection.
+2. **The @-mention picker can never offer anyone.** `directus_users` read is
+   scoped to `{id: {_eq: "$CURRENT_USER.id"}}` on every app policy, so
+   `hoa_members.user` expands to `null` for everyone except yourself. The picker
+   filters on `m.user` and so always shows "No users found" — and every message
+   from another person renders as **"Unknown User"**. Both need a users-read
+   scope covering people who share an organisation (id / first_name / last_name /
+   avatar only). That is a platform-wide access decision, so it is written down
+   here rather than changed quietly.
+
+**Cleanup, stated precisely.** Everything created for this verification was
+deleted afterwards: two channels (`phase3-verify`, `phase3-ungrouped`) with all
+14 messages, 1 mention, 2 moderation-log rows and 4 membership rows; two
+`hoa_members` rows and two `directus_users` (`phase3.tester@example.com`,
+`phase3.newcomer@example.com`); and **only** notification id 8, the one this
+session created — id 7, the pre-existing "Profile change to review" row, was
+listed first and left alone. The demo org is back to 0 channels and its original
+6 members. The one intended residue is the new `hoa_channels.category` field.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -340,10 +494,27 @@ timestamp differs (now, instead of the original). Nothing else was touched.
       release after 2c ships**, together with the 2a adapter deletions above.
 - [ ] **Mount `useMarkItemRead()` on the request / document / meeting detail
       pages** when Phases 4–7 next touch them (deviation 5 above).
-- [ ] `useDirectusSubscription.handleEvent`'s `delete` branch has the same
-      key-vs-object bug fixed in `useRealtimeSubscription` this session
-      (`items.map(d => d.id)` over bare ids). Left alone as out of Phase 2a's scope —
-      fix it when that composable is retired or next touched.
+- [x] ~~`useDirectusSubscription.handleEvent`'s `delete` branch key-vs-object bug~~
+      — fixed in Session 4.
+- [x] **Phase 3 schema: `pnpm add:channel-category` — already run against prod**
+      (idempotent, re-run is a no-op) and `pnpm generate:types` committed. No new
+      env vars. The roster renders ungrouped if it is ever run against a fresh
+      Directus without it.
+- [ ] **Fix `hoa_channel_messages.create` — channels are write-broken on prod.**
+      The create *validation* traverses `channel.organization`, which Directus
+      cannot resolve from a create payload, so every send fails for every role.
+      Move the org check to `permissions` (or drop the create validation and gate
+      server-side). Reproduced live in Session 4; see that entry for the full
+      diagnosis. **This is the highest-priority item in this file.**
+- [ ] **Widen `directus_users` read to people who share an organisation**
+      (id / first_name / last_name / avatar only). Today it is
+      `{id: {_eq: "$CURRENT_USER.id"}}` on every policy, which makes the
+      @-mention picker permanently empty and renders every other person's
+      messages as "Unknown User". Needs Peter's call because it is a
+      platform-wide access change, not a channels one.
+- [ ] **Mute UI for channels.** `notifications_enabled` is honoured by
+      `/api/hoa/channels/unread` (count reported, excluded from the total) but
+      has no toggle; the members panel is its natural home.
 
 ## Context
 
