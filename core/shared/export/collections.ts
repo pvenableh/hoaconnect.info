@@ -341,6 +341,11 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("ai_actions", "AI action queue", FULL_ONLY),
   direct("ai_context_snapshots", "AI context snapshots", FULL_ONLY),
   direct("ai_doc_chunks", "AI document index", FULL_ONLY),
+  // The community ledger re-indexed for retrieval. Derived from org_audit_log
+  // and re-derivable from it, but it carries each entry's summary verbatim and
+  // is org-scoped, so it follows the rest of the ai_* family into `full` rather
+  // than being excluded as platform machinery.
+  direct("ai_ledger_chunks", "AI ledger index", FULL_ONLY),
 ];
 
 const BY_COLLECTION: ReadonlyMap<string, ExportEntry> = new Map(
