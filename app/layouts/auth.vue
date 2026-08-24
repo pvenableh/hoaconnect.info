@@ -164,6 +164,12 @@ onMounted(() => {
       <AppUpdatePrompt />
     </ClientOnly>
 
+    <!-- The other half of that handoff: once the refresh lands on a new release
+         line, this shows what the refresh was for. Silent otherwise. -->
+    <ClientOnly>
+      <AppWhatsNew />
+    </ClientOnly>
+
     <!-- Global Notification Components -->
     <ClientOnly>
       <NotificationSheet />

@@ -54,6 +54,7 @@ onMounted(loadNotifications);
            in the app-update plugin either way, but with nobody rendering the
            banner a VISIBLE user here got "prompt" and saw nothing. -->
       <AppUpdatePrompt />
+      <AppWhatsNew />
       <NotificationSheet />
       <NotificationToast
         v-if="notifications.length > 0"

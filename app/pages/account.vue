@@ -499,6 +499,37 @@
           </div>
         </CardContent>
       </Card>
+
+      <!-- About / version -->
+      <Card>
+        <CardHeader>
+          <CardTitle>About</CardTitle>
+          <CardDescription>Which build of HOA Connect you're running.</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="font-medium">Version</p>
+              <p class="text-sm text-muted-foreground">
+                The third number counts commits, so it moves with every deploy.
+              </p>
+            </div>
+            <!-- Tabular figures so the number doesn't jitter between builds. -->
+            <span class="font-mono text-sm tabular-nums text-muted-foreground">{{ appVersion }}</span>
+          </div>
+
+          <template v-if="releaseNote">
+            <Separator />
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="font-medium">What's new</p>
+                <p class="text-sm text-muted-foreground">{{ releaseNote.title }}</p>
+              </div>
+              <Button size="sm" variant="outline" @click="openWhatsNew()">View</Button>
+            </div>
+          </template>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
@@ -525,6 +556,11 @@ definePageMeta({
   middleware: ["auth"],
   layout: "auth",
 });
+
+// About card — the running build, and the sheet describing this release line.
+// `openWhatsNew` drives the single <AppWhatsNew> mounted in the layout rather
+// than a second copy here, so the seen-marker stays consistent either way.
+const { version: appVersion, releaseNote, openWhatsNew } = useAppVersion();
 
 // Auth & user data
 const { user, refreshUser } = useDirectusAuth();

@@ -15,6 +15,18 @@ const { updateAvailable, version, dismissed, reloadForUpdate } = useAppVersion()
 // across route changes (this component remounts), and the plugin clears the
 // decision by reloading when the user next backgrounds the app.
 const show = computed(() => updateAvailable.value && !dismissed.value);
+
+// POST-REFRESH HANDOFF. Tapping Refresh does a full document navigation, so the
+// tab comes back on the new bundle with the new baked `appVersion`. If that
+// crossed a release LINE (MAJOR.MINOR), <AppWhatsNew> — mounted right beside
+// this banner in the layout — finds its stored marker stale and opens once,
+// unprompted. That is the whole wiring: this component asks for the refresh, the
+// sheet justifies it.
+//
+// Deliberately NOT a link on this banner. The note worth reading is the one for
+// the version you are ABOUT to get, and this bundle only carries notes for the
+// version it already is — a link here could only show the old release.
+// A patch-only deploy (same line) correctly shows nothing at all.
 </script>
 
 <template>
