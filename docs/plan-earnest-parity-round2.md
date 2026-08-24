@@ -38,7 +38,8 @@ _Each session appends here: what shipped, deviations from the plan, and operator
   refreshes on `hoa_emails.visibility` and `hoa_units.occupancy`. No removals.
 - This plan committed to the repo as the source of truth.
 
-**Session 1 — Phase 1** (2026-08-24) — branch `feat/parity2-p1-versioning`, 6 commits, **not pushed**
+**Session 1 — Phase 1** (2026-08-24) — 6 commits, fast-forwarded from
+`feat/parity2-p1-versioning` into `main` and pushed to `origin/main`
 
 Shipped:
 
@@ -86,13 +87,11 @@ green · hairline audit green at baseline. Browser-verified on the demo org: Abo
 re-fire on reload, and reopened from About → What's new. No scroll-lock or DOM residue
 after dismissal.
 
-Stopping point: branch is green and unpushed. **Peter has not yet approved a push.**
+Landed on `main` as a fast-forward (linear history, no merge commit) and pushed.
 
 ### Operator TODOs (carried forward until done)
 
-- [ ] **Push `main` + `feat/parity2-p1-versioning`** — nothing from Session 1 is on the
-      remote yet (Phase 0's docs/types commit is on local `main`; Phase 1 is on its
-      branch).
+- [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
 - [ ] **`pnpm install` on every machine/clone** once this lands — the new `prepare`
       script is what installs the husky hooks; without a fresh install the pre-commit
       audit silently does not run.
