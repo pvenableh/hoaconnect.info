@@ -2133,6 +2133,8 @@ export interface DirectusUser {
 	hoa_members?: HoaMember[] | string[];
 	/** @description Reverse of billing_account_members.user. Required by permission filters that scope on $CURRENT_USER.billing_account_members. */
 	billing_account_members?: BillingAccountMember[] | string[];
+	/** @description Channels this user belongs to. Exists so permission filters can resolve $CURRENT_USER.channel_memberships.channel. */
+	channel_memberships?: HoaChannelMember[] | string[];
 	policies?: DirectusAccess[] | string[];
 }
 
