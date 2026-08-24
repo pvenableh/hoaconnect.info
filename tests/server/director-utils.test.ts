@@ -331,6 +331,17 @@ describe("splitTldr — prose and slide bullets never disagree", () => {
     ]);
   });
 
+  it("reads the marker when it LEADS, which is the shape the planner asks for", async () => {
+    // Asked for last, the live model finishes its prose and goes straight to
+    // emitting tool calls — the line never arrives. Asked first, it always does.
+    const { splitTldr } = await briefings();
+    const { intro, points } = splitTldr(
+      "TL;DR: Leak open 45 days | Nobody owns it\n\nThe east gate valve has sat open."
+    );
+    expect(points).toEqual(["Leak open 45 days", "Nobody owns it"]);
+    expect(intro).toBe("The east gate valve has sat open.");
+  });
+
   it("degrades to prose-with-no-bullets when the model ignores the instruction", async () => {
     const { splitTldr } = await briefings();
     const { intro, points } = splitTldr("Everything is quiet this month.");

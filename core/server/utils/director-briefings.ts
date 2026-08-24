@@ -1,7 +1,7 @@
 // Persistence for the Board Room's thinking (Round 2, Phase 6).
 //
 // A briefing is one saved plan for one section: the narrative the model wrote,
-// the TL;DR bullets it ended on, the money snapshot it reasoned over, and a
+// the TL;DR bullets it led with, the money snapshot it reasoned over, and a
 // `plan_id` that links to the proposed steps (rows in `ai_actions` where
 // `session_id === plan_id`). Reopening a section inside the TTL serves the
 // saved briefing instead of calling — and re-billing — the model for the same
@@ -181,17 +181,22 @@ export async function loadLatestDirectorBriefing(
   }
 }
 
-/** The marker the model is told to end on, and the only one this parser trusts. */
+/** The marker the planner asks for, and the only one this parser trusts. */
 export const TLDR_MARKER = "TL;DR:";
 
 /**
  * Split the model's reply into the briefing prose and its slide bullets.
  *
- * The planner asks for one final line beginning `TL;DR:` with takeaways
- * separated by ` | `. Parsing it here rather than in the page keeps the prose
- * and the bullets from ever disagreeing about which sentences are which, and
- * means a model that ignores the instruction degrades to "prose, no bullets"
- * instead of leaving a stray `TL;DR:` line rendered as body copy.
+ * The planner asks for one line beginning `TL;DR:` with takeaways separated by
+ * ` | `. Parsing it here rather than in the page keeps the prose and the bullets
+ * from ever disagreeing about which sentences are which, and means a model that
+ * ignores the instruction degrades to "prose, no bullets" instead of leaving a
+ * stray `TL;DR:` line rendered as body copy.
+ *
+ * Position-agnostic on purpose. The planner asks for the line FIRST (asked for
+ * last, the live model drops it and goes straight to emitting tool calls), but
+ * prose either side of the marker is kept and rejoined, so moving the
+ * instruction again never needs a change here.
  *
  * The LAST marker wins: a briefing that mentions the phrase mid-paragraph
  * should not lose everything after it.

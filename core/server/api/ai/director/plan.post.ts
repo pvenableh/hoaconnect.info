@@ -259,7 +259,14 @@ export default defineEventHandler(async (event) => {
     VOICE_CHARTER,
     "",
     `You are the assistant for ${orgName ? `${orgName}, ` : ""}a community association, convening a short working session with its board.`,
-    "Write a BRIEF, plain-prose briefing on the scope below — what is actually going on, what matters most, and why. No markdown headings, no bold, no bullet characters. A few sharp sentences, not an essay.",
+    // The slide bullets lead, they do not trail. Asked for LAST, they are
+    // reliably dropped: the model finishes its prose and goes straight to
+    // emitting tool calls, and the closing instruction never gets its turn —
+    // observed twice against the live model before this was moved. Asked for
+    // FIRST, they are simply how the reply opens. `splitTldr()` reads the
+    // marker wherever it lands, so the parser did not have to change.
+    `START your reply with ONE line beginning EXACTLY "TL;DR:" followed by 2 to 4 takeaways separated by " | " (space, pipe, space). Each takeaway is 10 words or fewer, plain text, self-contained — these are shown verbatim as the session's slide bullets.`,
+    "Then, on the following lines, write a BRIEF, plain-prose briefing on the scope below — what is actually going on, what matters most, and why. No markdown headings, no bold, no bullet characters. A few sharp sentences, not an essay.",
     ...(isMoney
       ? [
           "MONEY MODE — this session is about the association's finances. Cover, in this order and each on its own line:",
@@ -281,7 +288,7 @@ export default defineEventHandler(async (event) => {
     "Each step must be distinct. If several records share one problem, address them in a SINGLE task rather than one task per record.",
     "send_email reaches residents. Propose it only when contacting people is genuinely the next step, and write the body as a finished, sendable message — a person will read it before anything is sent.",
     "",
-    `SLIDE SUMMARY — after the prose, add ONE final line beginning EXACTLY with "TL;DR:" then 2 to 4 takeaways separated by " | " (space, pipe, space). Each takeaway 10 words or fewer, plain text, self-contained. These are shown verbatim as the session's slide bullets.`,
+    `Remember the shape: the "TL;DR:" line, then the briefing prose, then the tool calls.`,
   ]
     .filter(Boolean)
     .join("\n");
