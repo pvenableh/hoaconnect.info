@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+
+# Hairline-surface RATCHET + the `@apply glass-*` GATE.
+#
+# Two rules, one script (scripts/audit-hairline-surfaces.ts):
+#
+#   1. Hand-rolled card surfaces — `rounded-xl border t-border t-bg-subtle`
+#      instead of the shared `.ios-card`. The liquid-glass sweep replaced the 1px
+#      card border with a refracted rim, but it did that work INSIDE `.ios-card`,
+#      so every component painting its own box kept the pre-glass look and
+#      nothing flagged it. Currently a RATCHET at 26: it blocks NEW debt while
+#      the 361-border sweep happens component by component. Phase 8 of
+#      docs/plan-earnest-parity-round2.md flips it to a gate at 0.
+#      ⚠️ Never raise BASELINE to make a commit pass — that is the one rule.
+#
+#   2. A `glass-*` class inside an `@apply`. These are plain CSS, not Tailwind
+#      utilities: the dev server tolerates them and `pnpm build` fails with
+#      "Cannot apply unknown utility class". A GATE from day one — there is no
+#      legacy pile to drain, and every one is a broken production deploy that
+#      only shows up on Vercel. This is why the check runs here rather than
+#      living in someone's memory.
+#
+# Deliberately NOT `npm test` (husky's default), which would put a 30-second
+# vitest run in front of every commit. CI already runs the suite.
+pnpm audit:hairline-surfaces
