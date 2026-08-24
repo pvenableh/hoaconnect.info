@@ -12,8 +12,11 @@
  *                           `useAINotices` so dismissal keeps working.
  *   · /api/ai/actions     — the HITL queue, read and resolved by `useAiActions`
  *                           so approve/reject/undo is never reimplemented.
- *   · /api/ai/notices/propose — the new door: a notice's `proposedAction`
- *                           becomes a real pending row, through `proposeAction`.
+ *   · /api/ai/notices/propose — a notice's `proposedAction` becomes a real
+ *                           pending row, through `proposeAction`.
+ *   · /api/ai/director/plan — the Board Room (P6): a briefing plus several
+ *                           proposed steps in one turn, every step a real row
+ *                           through the same `proposeAction`.
  *
  * ── The one boundary this composable owns ───────────────────────────────────
  * Earnest's version exists to reconcile a singular/plural split (`client` in
@@ -92,6 +95,39 @@ const SCOPE_NAME: Record<string, string> = {
   documents: "Documents",
   settings: "Settings",
 };
+
+/** One step of a plan, as the Board Room endpoint returns it. */
+export interface DirectorPlanStep {
+  id: string;
+  actionType: string;
+  title: string;
+  preview: any;
+  status: string;
+  outbound: boolean;
+  entityType: string | null;
+  entityId: string | null;
+  errorMessage: string | null;
+  dateCreated: string | null;
+}
+
+/** What `POST /api/ai/director/plan` hands back — briefing, bullets, steps. */
+export interface DirectorPlan {
+  planId: string | null;
+  cacheKey: string;
+  cached: boolean;
+  savedAt: string | null;
+  subject: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  intro: string;
+  points: string[];
+  money: any;
+  agenda: any;
+  steps: DirectorPlanStep[];
+  stepCount: number;
+  credits?: number;
+  balanceCredits?: number;
+}
 
 export interface DirectorLayerScope {
   entityType?: string | null;
@@ -282,22 +318,61 @@ export function useDirectorLayer(scope?: MaybeRefOrGetter<DirectorLayerScope | u
     }
   }
 
-  // ── Asking ─────────────────────────────────────────────────────────────────
+  // ── Planning ───────────────────────────────────────────────────────────────
+  const planning = ref(false);
+  const plan = ref<DirectorPlan | null>(null);
+  const planError = ref<string | null>(null);
+
   /**
-   * The pill's outline button. Phase 6 replaces this with a POST to
-   * `/api/ai/director/plan`; until the Board Room exists, "draft a plan" opens
-   * the assistant with a grounded planning prompt — the same wallet, the same
-   * HITL queue for anything it proposes, and still nothing drafted until a
-   * person clicks.
+   * The pill's outline button, and the ONE handler that reaches the Board Room.
+   *
+   * Phase 5 shipped this opening the assistant panel with a planning prompt,
+   * because `/api/ai/director/plan` did not exist yet and a button wired to a
+   * 404 is worse than a button wired to a workaround. It exists now, so this
+   * calls it — and everything the workaround was careful about still holds:
+   * the same wallet meters it, and every step it drafts is a real `ai_actions`
+   * row through `proposeAction()`, which is where the trust dial and the
+   * outbound cap live. Nothing here decides what runs.
+   *
+   * The steps land in the queue this same pill already counts, so the approvals
+   * chip grows by the number of steps drafted and expands to the real cards.
+   * The briefing prose is returned and held in `plan` for the Board Room page
+   * to render; a surface that has nowhere to put it simply ignores it.
+   *
+   * Still nothing without a click — this is only ever called from the button.
    */
-  function planThis() {
-    const what = hasEntity.value
-      ? `“${resolved.value.label || resolved.value.entityType}”`
-      : scopeName.value;
-    openWith(
-      `Look at what needs attention in ${what} and propose a short plan — the two or three ` +
-        `things worth doing next, and why. Check with me before anything that reaches residents.`
-    );
+  async function planThis(): Promise<DirectorPlan | null> {
+    if (!orgId.value || planning.value) return null;
+    planning.value = true;
+    planError.value = null;
+    try {
+      const body: Record<string, unknown> = { orgId: orgId.value };
+      if (hasEntity.value && groundedType.value) {
+        body.entityType = groundedType.value;
+        body.entityId = String(resolved.value.entityId);
+      } else if (scopeSubject.value) {
+        body.subject = scopeSubject.value;
+      }
+      const res = await $fetch<DirectorPlan & { error?: string }>("/api/ai/director/plan", {
+        method: "POST",
+        body,
+      });
+      // A 402 comes back as a body, not a throw — the same shape chat uses.
+      if ((res as any)?.error === "insufficient_credits") {
+        planError.value = "You are out of AI credits. Top up to draft a plan.";
+        return null;
+      }
+      plan.value = res;
+      // Steps are proposals in the queue this pill already shows.
+      await Promise.all([afterDecision(), loadQueue()]);
+      return res;
+    } catch (e: any) {
+      planError.value =
+        e?.data?.message || e?.statusMessage || e?.message || "Could not draft a plan.";
+      return null;
+    } finally {
+      planning.value = false;
+    }
   }
 
   return {
@@ -329,9 +404,13 @@ export function useDirectorLayer(scope?: MaybeRefOrGetter<DirectorLayerScope | u
     proposeError,
     decideMany,
     bulkBusy,
+    // planning
+    planThis,
+    planning,
+    plan,
+    planError,
     // asking
     ask: openWith,
     openAssistant,
-    planThis,
   };
 }

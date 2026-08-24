@@ -20,6 +20,9 @@ let routePath: string;
 let context: any;
 let noticesRefreshCalls: any[];
 let actionQueries: any[];
+let planPosts: any[];
+let planResponse: any;
+let planThrows: any;
 
 beforeEach(() => {
   vi.resetModules();
@@ -27,6 +30,24 @@ beforeEach(() => {
   context = { route: routePath, scope: "requests", focus: "requests, tickets, and violations" };
   noticesRefreshCalls = [];
   actionQueries = [];
+  planPosts = [];
+  planThrows = null;
+  planResponse = {
+    planId: "plan-1",
+    cacheKey: "org::requests::",
+    cached: false,
+    savedAt: null,
+    subject: "requests",
+    entityType: null,
+    entityId: null,
+    intro: "Two things are overdue.",
+    points: ["Chase the roofer"],
+    money: null,
+    agenda: null,
+    steps: [],
+    stepCount: 2,
+    credits: 12,
+  };
 
   vi.stubGlobal("useRoute", () => ({ path: routePath, fullPath: routePath, params: {} }));
   vi.stubGlobal("useAiContext", () => ({ currentContext: computed(() => context) }));
@@ -53,7 +74,12 @@ beforeEach(() => {
     edit: vi.fn(),
     undo: vi.fn(),
   }));
-  vi.stubGlobal("$fetch", async (_url: string, opts: any) => {
+  vi.stubGlobal("$fetch", async (url: string, opts: any) => {
+    if (url === "/api/ai/director/plan") {
+      planPosts.push(opts?.body);
+      if (planThrows) throw planThrows;
+      return planResponse;
+    }
     actionQueries.push(opts?.query);
     return { actions: [] };
   });
@@ -205,5 +231,103 @@ describe("it does nothing without a community", () => {
     expect(noticesRefreshCalls).toEqual([]);
     expect(actionQueries).toEqual([]);
     expect(await d.proposeFromNotice("request-aged-r1")).toBeNull();
+  });
+});
+
+/**
+ * planThis is the single handler that reaches the Board Room. Phase 5 shipped it
+ * opening the assistant panel because the endpoint did not exist; Phase 6 points
+ * it at the real one. Two things must stay true through that swap:
+ *
+ *   · it still drafts NOTHING until someone clicks — the pill is ambient, and a
+ *     surface that spends credits on mount is a surface nobody trusts;
+ *   · it asks about the thing the page is actually about, in the vocabulary the
+ *     server understands (`request`, never `violation`).
+ */
+describe("planThis — the one handler that reaches the Board Room", () => {
+  it("drafts nothing on its own — only a call reaches the endpoint", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    useDirectorLayer();
+    await Promise.resolve();
+    expect(planPosts).toEqual([]);
+  });
+
+  it("plans the hub's own subject when nothing is in focus", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    const plan = await d.planThis();
+    expect(planPosts).toEqual([{ orgId: "org-1", subject: "requests" }]);
+    expect(plan?.intro).toBe("Two things are overdue.");
+    expect(d.plan.value?.planId).toBe("plan-1");
+  });
+
+  it("pins to the record in view, translated into the server's vocabulary", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer(() => ({ entityType: "violation", entityId: "r1", label: "Fence" }));
+    await d.planThis();
+    expect(planPosts).toEqual([
+      { orgId: "org-1", entityType: "request", entityId: "r1" },
+    ]);
+  });
+
+  it("refreshes the approvals queue, because the steps ARE the queue", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis();
+    expect(d.actions.refreshPendingCount).toHaveBeenCalled();
+    expect(d.actions.fetchActions).toHaveBeenCalled();
+  });
+
+  it("holds the button while the model works, and lets it go afterwards", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    const inFlight = d.planThis();
+    expect(d.planning.value).toBe(true);
+    await inFlight;
+    expect(d.planning.value).toBe(false);
+  });
+
+  it("refuses to start a second draft over the first", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    const first = d.planThis();
+    const second = await d.planThis();
+    await first;
+    expect(second).toBeNull();
+    expect(planPosts).toHaveLength(1);
+  });
+
+  it("says so plainly when the community is out of credits", async () => {
+    planResponse = { error: "insufficient_credits", balanceCredits: 0 };
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    expect(await d.planThis()).toBeNull();
+    expect(d.planError.value).toMatch(/credits/i);
+    expect(d.plan.value).toBeNull();
+  });
+
+  it("surfaces the server's own message when the draft fails", async () => {
+    planThrows = { data: { message: "Admin or board access required" } };
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    expect(await d.planThis()).toBeNull();
+    expect(d.planError.value).toBe("Admin or board access required");
+    expect(d.planning.value).toBe(false);
+  });
+
+  it("does nothing at all without a community", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("");
+    const d = useDirectorLayer();
+    expect(await d.planThis()).toBeNull();
+    expect(planPosts).toEqual([]);
   });
 });

@@ -79,6 +79,8 @@ const {
   decideMany,
   bulkBusy,
   planThis,
+  planning,
+  planError,
 } = director;
 
 const router = useRouter();
@@ -228,9 +230,21 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
               />
             </button>
 
-            <Button variant="outline" size="sm" class="rounded-full shrink-0" @click="planThis">
-              <Icon name="i-lucide-list-checks" class="w-4 h-4 mr-1.5" />
-              Draft a plan
+            <!-- Drafting is a real model call now (P6), so the button says so
+                 while it runs. Its steps land in the approvals chip beside it. -->
+            <Button
+              variant="outline"
+              size="sm"
+              class="rounded-full shrink-0"
+              :disabled="planning"
+              @click="planThis"
+            >
+              <Icon
+                :name="planning ? 'i-lucide-loader-2' : 'i-lucide-list-checks'"
+                class="w-4 h-4 mr-1.5"
+                :class="planning ? 'animate-spin' : ''"
+              />
+              {{ planning ? "Drafting…" : "Draft a plan" }}
             </Button>
 
             <button
@@ -246,6 +260,13 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
           </div>
         </div>
       </div>
+
+      <!-- A plan that could not be drafted (no credits, a provider hiccup) says
+           so here rather than inside the notices block, which is absent on
+           exactly the quiet hub where someone is most likely to press it. -->
+      <p v-if="planError" class="text-xs text-red-600 dark:text-red-400 px-4">
+        {{ planError }}
+      </p>
 
       <!-- Advisory notices. Deterministic, free, and never an LLM call. -->
       <div v-if="showNoticeBlock" class="space-y-2">
