@@ -48,6 +48,13 @@ const exitMemberPreview = () => {
 // Unified notification system
 const { fetchNotifications, notifications } = useNotifications();
 
+// Mirror the unread count onto the installed app's icon. Here rather than in a
+// component: the service worker raises the badge blind when a push lands with
+// no page open, and an open page is the only thing that knows the real number —
+// so wherever a page IS open, it corrects the worker's guess. Once, high up, or
+// several components would write the same number on every change.
+useAppBadge().trackUnread();
+
 // Build audience filter based on member type and role
 const audienceFilter = computed(() => {
   const audiences: string[] = ["all"];

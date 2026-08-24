@@ -84,6 +84,7 @@
     "create:transition": "dotenv -- tsx scripts/create-transition-collections.ts",
     "fix:org-filters": "dotenv -- tsx scripts/fix-org-filter-permissions.ts",
     "digest:worker": "dotenv -- tsx scripts/notification-digest-worker.ts",
+    "backfill:notifications": "dotenv -- tsx scripts/backfill-notifications.ts",
     "export:worker": "dotenv -- tsx scripts/data-export-worker.ts",
     "setup:permissions": "dotenv -- tsx scripts/setup-directus-permissions.ts",
     "setup:permissions:audit": "dotenv -- tsx scripts/setup-directus-permissions.ts --audit"

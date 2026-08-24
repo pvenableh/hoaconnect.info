@@ -6,6 +6,7 @@ import type {
 import { groupByDate } from "#core/shared/notifications/grouping";
 import { BUILDING_FEED_PATH } from "#core/shared/app/destinations";
 
+const bell = useNotifications();
 const {
   notifications,
   getUnseenCount,
@@ -14,7 +15,32 @@ const {
   markAllAsSeen,
   getNotificationStyle,
   formatDate,
-} = useNotifications();
+} = bell;
+
+// Read history and the inline preference switches are v2 only — the aggregator
+// had no history to page through (localStorage held ids, not rows) and no way
+// to honour a per-category switch, since nothing on its path ever consulted one.
+// Both surfaces hide themselves rather than render dead controls.
+const hasArchive = "archivedNotifications" in bell;
+const archived = computed<UnifiedNotification[]>(() =>
+  hasArchive ? ((bell as any).archivedNotifications.value as UnifiedNotification[]) : []
+);
+const archivedHasMore = computed(() => (hasArchive ? (bell as any).archivedHasMore.value : false));
+const isLoadingArchived = computed(() =>
+  hasArchive ? (bell as any).isLoadingArchived.value : false
+);
+
+/** Inbox is what's unread; Archive is everything already dealt with. */
+const view = ref<"inbox" | "archive">("inbox");
+const showPrefs = ref(false);
+
+const prefs = useNotificationPreferences();
+
+watch(view, (mode) => {
+  if (mode === "archive" && hasArchive && !archived.value.length) {
+    void (bell as any).fetchArchived(true);
+  }
+});
 
 
 type FilterKey = "all" | NotificationType;
@@ -39,12 +65,15 @@ const buttonRef = ref<HTMLElement | null>(null);
 // Active filter tab
 const activeFilter = ref<FilterKey>("all");
 
-// Filter notifications by type
+// Filter the visible list by type. Which list that is depends on the view:
+// the live inbox, or the paged read history.
+const visibleNotifications = computed<UnifiedNotification[]>(() =>
+  view.value === "archive" ? archived.value : (notifications.value as UnifiedNotification[])
+);
+
 const filteredNotifications = computed(() => {
-  if (activeFilter.value === "all") {
-    return notifications.value;
-  }
-  return notifications.value.filter((n) => n.type === activeFilter.value);
+  if (activeFilter.value === "all") return visibleNotifications.value;
+  return visibleNotifications.value.filter((n) => n.type === activeFilter.value);
 });
 
 // Date-grouped sections (Today / Yesterday / Earlier this week / Older), each
@@ -79,7 +108,7 @@ const tabs = computed(() =>
   TAB_DEFS.filter(
     (t) =>
       t.key === "all" ||
-      notifications.value.some((n) => n.type === t.key)
+      visibleNotifications.value.some((n) => n.type === t.key)
   ).map((t) => ({
     ...t,
     count:
@@ -115,6 +144,17 @@ const handleMarkAllAsRead = async () => {
 // Toggle dropdown
 const toggleDropdown = () => {
   isOpen.value = !isOpen.value;
+  if (isOpen.value) void prefs.load();
+};
+
+const togglePrefs = () => {
+  showPrefs.value = !showPrefs.value;
+  if (showPrefs.value) void prefs.load();
+};
+
+const onTogglePref = async (key: string) => {
+  const ok = await prefs.toggleBell(key as never);
+  if (!ok) console.warn("[bell] could not save the preference for", key);
 };
 
 // Setup event listeners
@@ -185,12 +225,67 @@ const getTypeLabel = (type: string) => {
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b t-border-divider">
           <h3 class="font-semibold t-text">Notifications</h3>
+          <div class="flex items-center gap-3">
+            <button
+              v-if="getUnseenCount > 0 && view === 'inbox'"
+              @click="handleMarkAllAsRead"
+              class="text-xs t-text-muted hover:t-text transition-colors"
+            >
+              Mark all as read
+            </button>
+            <button
+              v-if="hasArchive"
+              @click="togglePrefs"
+              class="t-text-muted hover:t-text transition-colors"
+              :aria-label="showPrefs ? 'Close notification settings' : 'Notification settings'"
+              :aria-pressed="showPrefs"
+            >
+              <Icon :name="showPrefs ? 'lucide:x' : 'lucide:settings-2'" class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Which switches are on. Right here, because the moment someone wants
+             to silence a category is the moment it just interrupted them. -->
+        <div v-if="showPrefs" class="px-4 py-3 border-b t-border-divider t-bg-subtle">
+          <p class="text-[11px] font-semibold uppercase tracking-wider t-text-muted mb-2">
+            Show me notifications for
+          </p>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <label
+              v-for="c in prefs.categories"
+              :key="c.key"
+              class="flex items-center gap-2 py-1 text-sm t-text-secondary cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                class="rounded"
+                :checked="prefs.bellEnabled(c.key)"
+                @change="onTogglePref(c.key)"
+              />
+              <span>{{ c.label }}</span>
+            </label>
+          </div>
+          <p class="mt-2 text-[11px] t-text-muted">
+            Email and digest settings live on your account page.
+          </p>
+        </div>
+
+        <!-- Unread vs. history. Read state lives on the row now, so history is
+             a real, cross-device list rather than whatever this browser
+             remembered. -->
+        <div v-if="hasArchive" class="flex gap-1 px-3 pt-2">
           <button
-            v-if="getUnseenCount > 0"
-            @click="handleMarkAllAsRead"
-            class="text-xs t-text-muted hover:t-text transition-colors"
+            v-for="mode in (['inbox', 'archive'] as const)"
+            :key="mode"
+            @click="view = mode"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            :class="view === mode ? 't-bg-subtle t-text' : 't-text-muted hover:t-text'"
           >
-            Mark all as read
+            {{ mode === 'inbox' ? 'Unread' : 'Earlier' }}
+            <span v-if="mode === 'inbox' && getUnseenCount > 0" class="ml-1 t-text-accent">
+              {{ getUnseenCount > 9 ? "9+" : getUnseenCount }}
+            </span>
           </button>
         </div>
 
@@ -226,8 +321,13 @@ const getTypeLabel = (type: string) => {
         <!-- Notifications List -->
         <div class="max-h-[420px] overflow-y-auto">
           <div v-if="filteredNotifications.length === 0" class="px-4 py-8 text-center">
-            <Icon name="lucide:inbox" class="w-8 h-8 t-text-muted mx-auto mb-2 opacity-60" />
-            <p class="text-sm t-text-muted">No notifications</p>
+            <Icon
+              :name="view === 'archive' ? 'lucide:archive' : 'lucide:inbox'"
+              class="w-8 h-8 t-text-muted mx-auto mb-2 opacity-60"
+            />
+            <p class="text-sm t-text-muted">
+              {{ view === "archive" ? "Nothing here yet" : "You're all caught up" }}
+            </p>
           </div>
 
           <template v-else>
@@ -311,6 +411,16 @@ const getTypeLabel = (type: string) => {
                 </button>
               </div>
             </section>
+
+            <div v-if="view === 'archive' && archivedHasMore" class="px-4 py-3 text-center">
+              <button
+                class="text-xs t-text-secondary hover:t-text transition-colors disabled:opacity-50"
+                :disabled="isLoadingArchived"
+                @click="(bell as any).loadMoreArchived()"
+              >
+                {{ isLoadingArchived ? "Loading…" : "Load more" }}
+              </button>
+            </div>
           </template>
         </div>
 

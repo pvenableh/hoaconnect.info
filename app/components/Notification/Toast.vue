@@ -17,12 +17,24 @@ const props = withDefaults(
   }
 );
 
+const bell = useNotifications();
 const {
   notifications,
   openNotification,
   markAsSeen,
   getNotificationStyle,
-} = useNotifications();
+} = bell;
+
+// The v2 bell hands us the row that just ARRIVED over the socket. That single
+// signal replaces two pieces of guesswork the aggregator needed: diffing the
+// list to work out what was new, and toasting the unread backlog on mount.
+//
+// The backlog one mattered more than it looks. Read state used to be per-device
+// localStorage, so "unread" often just meant "new browser"; now it is durable,
+// and toasting three real unread rows on every page load would be nagging, not
+// notifying. Under v2 a toast means "this happened while you were looking".
+const lastIncoming = "lastIncoming" in bell ? (bell as any).lastIncoming : null;
+const isV2 = !!lastIncoming;
 
 // Track which toasts have been shown this session
 const shownToastIds = ref<Set<string>>(new Set());
@@ -66,12 +78,15 @@ const showNotificationToast = (notification: UnifiedNotification) => {
         openNotification(notification);
       },
     },
-    onDismiss: () => {
-      markAsSeen(notification);
-    },
-    onAutoClose: () => {
-      markAsSeen(notification);
-    },
+    // Legacy only. Under v2, "read" archives a durable row, and a toast that
+    // times out unwatched is not evidence the member read anything — it is
+    // evidence they were elsewhere. Only opening it counts.
+    ...(isV2
+      ? {}
+      : {
+          onDismiss: () => markAsSeen(notification),
+          onAutoClose: () => markAsSeen(notification),
+        }),
   });
 };
 
@@ -102,33 +117,40 @@ const showToasts = () => {
   });
 };
 
-// Watch for new notifications
-watch(
-  () => notifications.value,
-  (newNotifications, oldNotifications) => {
-    // Only show toasts for truly new notifications (not on initial load)
-    if (oldNotifications && oldNotifications.length > 0) {
-      const oldIds = new Set(oldNotifications.map((n) => n.id));
-      const newOnes = newNotifications.filter((n) => !oldIds.has(n.id) && !n.isRead);
+if (isV2) {
+  // One toast per genuinely new row, announced by the store itself.
+  watch(lastIncoming, (row: { id?: string } | null) => {
+    if (!row?.id) return;
+    const match = notifications.value.find((n) => n.id === String(row.id));
+    if (match) showNotificationToast(match);
+  });
+} else {
+  // Legacy: infer arrivals by diffing the list, and toast the backlog on mount.
+  watch(
+    () => notifications.value,
+    (newNotifications, oldNotifications) => {
+      if (oldNotifications && oldNotifications.length > 0) {
+        const oldIds = new Set(oldNotifications.map((n) => n.id));
+        const newOnes = newNotifications.filter((n) => !oldIds.has(n.id) && !n.isRead);
 
-      newOnes.slice(0, props.maxToasts).forEach((notification, index) => {
-        setTimeout(() => {
-          showNotificationToast(notification);
-        }, props.staggerDelay * index);
-      });
+        newOnes.slice(0, props.maxToasts).forEach((notification, index) => {
+          setTimeout(() => {
+            showNotificationToast(notification);
+          }, props.staggerDelay * index);
+        });
+      }
+    },
+    { deep: true }
+  );
+
+  onMounted(() => {
+    if (notifications.value.length > 0) {
+      setTimeout(() => {
+        showToasts();
+      }, props.initialDelay);
     }
-  },
-  { deep: true }
-);
-
-// Show initial toasts after delay
-onMounted(() => {
-  if (notifications.value.length > 0) {
-    setTimeout(() => {
-      showToasts();
-    }, props.initialDelay);
-  }
-});
+  });
+}
 </script>
 
 <template>

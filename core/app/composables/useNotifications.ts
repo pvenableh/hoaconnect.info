@@ -111,13 +111,122 @@ export interface UnifiedNotification {
 // Storage key prefix for seen tracking
 const STORAGE_KEY_PREFIX = "hoa-notifications";
 
+// ── Presentation, shared by both bell implementations ────────────────────────
+// Pure functions of one notification, lifted out of the aggregator's closure
+// when the v2 store arrived: the SOURCE of a notification changed, how it looks
+// did not, and the three surfaces should not have to care which one fed them.
+
+// Get icon and color for notification type
+const getNotificationStyle = (notification: UnifiedNotification) => {
+  if (notification.type === "announcement") {
+    const typeStyles: Record<
+      string,
+      { bg: string; text: string; icon: string }
+    > = {
+      urgent: {
+        bg: "bg-red-50",
+        text: "text-red-700",
+        icon: "alert-triangle",
+      },
+      maintenance: {
+        bg: "bg-amber-50",
+        text: "text-amber-700",
+        icon: "wrench",
+      },
+      event: { bg: "bg-blue-50", text: "text-blue-700", icon: "calendar" },
+      reminder: { bg: "bg-purple-50", text: "text-purple-700", icon: "bell" },
+      general: {
+        bg: "t-bg-subtle",
+        text: "t-text-secondary",
+        icon: "megaphone",
+      },
+    };
+    return (
+      typeStyles[notification.metadata.announcementType || "general"] ||
+      typeStyles.general
+    );
+  }
+
+  if (notification.type === "mention") {
+    return { bg: "bg-blue-50", text: "text-blue-700", icon: "at-sign" };
+  }
+
+  if (notification.type === "email") {
+    return notification.metadata.isUrgent
+      ? { bg: "bg-red-50", text: "text-red-700", icon: "mail" }
+      : { bg: "bg-green-50", text: "text-green-700", icon: "mail" };
+  }
+
+  if (notification.type === "meeting") {
+    return { bg: "bg-violet-50", text: "text-violet-700", icon: "users" };
+  }
+
+  if (notification.type === "payment") {
+    return notification.priority === "urgent"
+      ? { bg: "bg-red-50", text: "text-red-700", icon: "credit-card" }
+      : { bg: "bg-emerald-50", text: "text-emerald-700", icon: "credit-card" };
+  }
+
+  if (notification.type === "document") {
+    return { bg: "bg-sky-50", text: "text-sky-700", icon: "file-text" };
+  }
+
+  if (notification.type === "membership") {
+    return { bg: "bg-indigo-50", text: "text-indigo-700", icon: "user-plus" };
+  }
+
+  if (notification.type === "comment") {
+    return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "message-circle" };
+  }
+
+  if (notification.type === "request") {
+    return notification.priority === "urgent"
+      ? { bg: "bg-red-50", text: "text-red-700", icon: "clipboard-list" }
+      : { bg: "bg-amber-50", text: "text-amber-700", icon: "clipboard-list" };
+  }
+
+  if (notification.type === "task") {
+    return notification.priority === "urgent"
+      ? { bg: "bg-red-50", text: "text-red-700", icon: "check-circle" }
+      : { bg: "bg-violet-50", text: "text-violet-700", icon: "check-circle" };
+  }
+
+  return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "bell" };
+};
+
+// Format date for display
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
 // Global state
 const selectedNotification = ref<UnifiedNotification | null>(null);
 const isSheetOpen = ref(false);
 const notifications = ref<UnifiedNotification[]>([]);
 const isLoading = ref(false);
 
-export const useNotifications = () => {
+/**
+ * The pre-2c aggregator: ten collection scans per open, unread state in
+ * localStorage. Kept whole, behind `NUXT_PUBLIC_BELL_V2=false`, for one release
+ * — see the note on `useNotifications` below — and deleted after that.
+ */
+const useLegacyAggregator = () => {
   const { user } = useDirectusAuth();
   const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
   const { list: listMentions, update: updateMention } =
@@ -935,105 +1044,6 @@ export const useNotifications = () => {
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
-  // Get icon and color for notification type
-  const getNotificationStyle = (notification: UnifiedNotification) => {
-    if (notification.type === "announcement") {
-      const typeStyles: Record<
-        string,
-        { bg: string; text: string; icon: string }
-      > = {
-        urgent: {
-          bg: "bg-red-50",
-          text: "text-red-700",
-          icon: "alert-triangle",
-        },
-        maintenance: {
-          bg: "bg-amber-50",
-          text: "text-amber-700",
-          icon: "wrench",
-        },
-        event: { bg: "bg-blue-50", text: "text-blue-700", icon: "calendar" },
-        reminder: { bg: "bg-purple-50", text: "text-purple-700", icon: "bell" },
-        general: {
-          bg: "t-bg-subtle",
-          text: "t-text-secondary",
-          icon: "megaphone",
-        },
-      };
-      return (
-        typeStyles[notification.metadata.announcementType || "general"] ||
-        typeStyles.general
-      );
-    }
-
-    if (notification.type === "mention") {
-      return { bg: "bg-blue-50", text: "text-blue-700", icon: "at-sign" };
-    }
-
-    if (notification.type === "email") {
-      return notification.metadata.isUrgent
-        ? { bg: "bg-red-50", text: "text-red-700", icon: "mail" }
-        : { bg: "bg-green-50", text: "text-green-700", icon: "mail" };
-    }
-
-    if (notification.type === "meeting") {
-      return { bg: "bg-violet-50", text: "text-violet-700", icon: "users" };
-    }
-
-    if (notification.type === "payment") {
-      return notification.priority === "urgent"
-        ? { bg: "bg-red-50", text: "text-red-700", icon: "credit-card" }
-        : { bg: "bg-emerald-50", text: "text-emerald-700", icon: "credit-card" };
-    }
-
-    if (notification.type === "document") {
-      return { bg: "bg-sky-50", text: "text-sky-700", icon: "file-text" };
-    }
-
-    if (notification.type === "membership") {
-      return { bg: "bg-indigo-50", text: "text-indigo-700", icon: "user-plus" };
-    }
-
-    if (notification.type === "comment") {
-      return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "message-circle" };
-    }
-
-    if (notification.type === "request") {
-      return notification.priority === "urgent"
-        ? { bg: "bg-red-50", text: "text-red-700", icon: "clipboard-list" }
-        : { bg: "bg-amber-50", text: "text-amber-700", icon: "clipboard-list" };
-    }
-
-    if (notification.type === "task") {
-      return notification.priority === "urgent"
-        ? { bg: "bg-red-50", text: "text-red-700", icon: "check-circle" }
-        : { bg: "bg-violet-50", text: "text-violet-700", icon: "check-circle" };
-    }
-
-    return { bg: "t-bg-subtle", text: "t-text-secondary", icon: "bell" };
-  };
-
-  // Format date for display
-  const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   return {
     // State
     notifications: readonly(notifications),
@@ -1058,4 +1068,114 @@ export const useNotifications = () => {
     getNotificationStyle,
     formatDate,
   };
+};
+
+// ── v2: the bell over `directus_notifications` ───────────────────────────────
+
+/**
+ * The same public surface, served from the durable rows the server has been
+ * writing all along (`useDirectusNotifications`, rewritten in Phase 2c as the
+ * store over the shared WebSocket).
+ *
+ * Deliberately an adapter rather than a rewrite of the three surfaces. `Bell`,
+ * `Sheet` and `Toast` are not the interesting part of this cutover — WHERE a
+ * notification comes from and WHERE "read" lives are — so they keep speaking the
+ * shape they already speak, and the retirement of the aggregator becomes the
+ * deletion of one branch instead of a diff across every component.
+ *
+ * What genuinely changes for a member:
+ *
+ * - Read state is a row status, not a localStorage key, so reading on a laptop
+ *   clears the badge on a phone.
+ * - The list arrives live over one socket instead of on every open.
+ * - `clearSeenNotifications` has nothing left to clear — read state is no longer
+ *   local — so it is a documented no-op rather than a removed method.
+ */
+const useBellStoreAdapter = () => {
+  const store = useDirectusNotifications();
+
+  const list = computed(() => store.notifications.value as unknown as UnifiedNotification[]);
+
+  const markAsSeen = async (notification: UnifiedNotification) => {
+    if (!notification?.id) return;
+    await store.markAsRead(String(notification.id));
+  };
+
+  const openNotification = (notification: UnifiedNotification) => {
+    selectedNotification.value = notification;
+    isSheetOpen.value = true;
+    void markAsSeen(notification);
+  };
+
+  const closeNotification = () => {
+    isSheetOpen.value = false;
+    setTimeout(() => {
+      selectedNotification.value = null;
+    }, 300);
+  };
+
+  return {
+    // State
+    notifications: list,
+    isLoading: store.isLoading,
+    selectedNotification: readonly(selectedNotification),
+    isSheetOpen: readonly(isSheetOpen),
+
+    // Actions
+    // The audience filter the aggregator took is gone by construction: the
+    // server decided who each row was for when it wrote it, so there is nothing
+    // left for the client to filter by.
+    // The audience filter is accepted and ignored: the server decided who each
+    // row was for when it wrote it, so there is nothing left for the client to
+    // filter by. Kept in the signature so the layouts don't churn on the flag.
+    fetchNotifications: async (_audienceFilter?: string[]) => {
+      await store.refresh(true);
+      return list.value;
+    },
+    markAsSeen,
+    markAllAsSeen: () => store.markAllAsRead(),
+    openNotification,
+    closeNotification,
+    /** No-op: read state lives on the row now, not in this browser. */
+    clearSeenNotifications: () => {},
+
+    // Computed
+    getUnseenCount: store.unreadCount,
+    getUnseenCountByType: (type: NotificationType) => store.countsByType.value[type] ?? 0,
+    getNotificationsByType: (type: NotificationType) =>
+      list.value.filter((n) => n.type === type),
+
+    // Helpers
+    getNotificationStyle,
+    formatDate,
+
+    // v2 only — the archived tab. Absent on the legacy branch, which had no
+    // history to page through (localStorage held ids, not rows).
+    archivedNotifications: store.archivedNotifications,
+    isLoadingArchived: store.isLoadingArchived,
+    archivedHasMore: store.archivedHasMore,
+    fetchArchived: store.fetchArchived,
+    loadMoreArchived: store.loadMoreArchived,
+    markAsUnread: store.markAsUnread,
+    isConnected: store.isConnected,
+    lastIncoming: store.lastIncoming,
+  };
+};
+
+/**
+ * The bell, whichever implementation is switched on.
+ *
+ * `NUXT_PUBLIC_BELL_V2` defaults to ON — the v2 store is the shipping bell. The
+ * flag exists for the one risk this cutover carries that testing can't retire:
+ * read state moves from per-device localStorage to a row status, and those two
+ * are unmergeable. The backfill writes the last 30 days ARCHIVED so nobody meets
+ * a wall of unread history, but if something about the switch is wrong in a way
+ * we only find in front of real members, `NUXT_PUBLIC_BELL_V2=false` puts the
+ * old bell back without a deploy of new code.
+ *
+ * Set it, verify, and delete `useLegacyAggregator` one release later.
+ */
+export const useNotifications = () => {
+  const config = useRuntimeConfig();
+  return config.public.bellV2 === false ? useLegacyAggregator() : useBellStoreAdapter();
 };
