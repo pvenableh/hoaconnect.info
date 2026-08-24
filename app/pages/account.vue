@@ -499,38 +499,40 @@
           </div>
         </CardContent>
       </Card>
+    </div>
 
-      <!-- About / version -->
-      <Card>
-        <CardHeader>
-          <CardTitle>About</CardTitle>
-          <CardDescription>Which build of HOA Connect you're running.</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
+    <!-- About — outside the tabs on purpose. Which build you are running is not
+         a preference, and iOS puts About at the bottom of Settings for the same
+         reason: it is the answer to "what am I looking at", not a setting. -->
+    <Card class="mt-6">
+      <CardHeader>
+        <CardTitle>About</CardTitle>
+        <CardDescription>Which build of HOA Connect you're running.</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="font-medium">Version</p>
+            <p class="text-sm text-muted-foreground">
+              The third number counts commits, so it moves with every deploy.
+            </p>
+          </div>
+          <!-- Tabular figures so the number doesn't jitter between builds. -->
+          <span class="font-mono text-sm tabular-nums text-muted-foreground">{{ appVersion }}</span>
+        </div>
+
+        <template v-if="releaseNote">
+          <Separator />
           <div class="flex items-center justify-between gap-3">
             <div>
-              <p class="font-medium">Version</p>
-              <p class="text-sm text-muted-foreground">
-                The third number counts commits, so it moves with every deploy.
-              </p>
+              <p class="font-medium">What's new</p>
+              <p class="text-sm text-muted-foreground">{{ releaseNote.title }}</p>
             </div>
-            <!-- Tabular figures so the number doesn't jitter between builds. -->
-            <span class="font-mono text-sm tabular-nums text-muted-foreground">{{ appVersion }}</span>
+            <Button size="sm" variant="outline" @click="openWhatsNew()">View</Button>
           </div>
-
-          <template v-if="releaseNote">
-            <Separator />
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <p class="font-medium">What's new</p>
-                <p class="text-sm text-muted-foreground">{{ releaseNote.title }}</p>
-              </div>
-              <Button size="sm" variant="outline" @click="openWhatsNew()">View</Button>
-            </div>
-          </template>
-        </CardContent>
-      </Card>
-    </div>
+        </template>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
