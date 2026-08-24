@@ -339,6 +339,8 @@ export interface PlanStep {
   actionType: string;
   title: string;
   preview: any;
+  /** The executor's own record — what `AiActionCard` reads to offer Undo. */
+  result: any;
   status: string;
   outbound: boolean;
   entityType: string | null;
@@ -375,6 +377,7 @@ export async function loadPlanSteps(
           "action_type",
           "title",
           "preview",
+          "result",
           "status",
           "outbound",
           "entity_type",
@@ -393,6 +396,7 @@ export async function loadPlanSteps(
         actionType: parsed.action_type,
         title: parsed.title || parsed.action_type,
         preview: parsed.preview ?? null,
+        result: (parsed as any).result ?? null,
         status: parsed.status || "pending",
         outbound: parsed.outbound === true,
         entityType: parsed.entity_type ?? null,
