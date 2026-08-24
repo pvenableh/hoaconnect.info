@@ -1407,8 +1407,9 @@ branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
 node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
 straight on main, so run the quality gate before each commit — never leave
 main red. Check `git status` is clean first and report rather than commit over
-anything you find. Note: main is 21 commits ahead of origin and deliberately
-unpushed — do not push without asking.
+anything you find. Note: main is well ahead of origin and deliberately
+unpushed — check with `git rev-list --count origin/main..main` and do not push
+without asking.
 
 Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
 the deviations Sessions 1–8 recorded there.
