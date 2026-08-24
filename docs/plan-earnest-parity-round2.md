@@ -18,7 +18,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 5 | Phase 4 — Notices engine + attention scoring | [x] | `main` | Also fixed Session 4's two carried blockers. `permissions` is **ignored on create** in Directus 11 — proved, then routed around. |
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [x] | `main` | Earnest's singular/plural boundary **does not exist here**; HOA's is `violation`/`ticket` → `request`. `preview` is a text column — every proposal card was rendering character-by-character. |
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [x] | `main` | Slide bullets had to LEAD the briefing — asked for last, the live model never wrote them. Money mode needed a fourth util. |
-| 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `main` | |
+| 8 | Phase 6 UI — Boardroom page + components + nav | [x] | `main` | Multiplayer is a POLL, per Peter's call. The 403 probe wrote two rows into `demo-classic` — the diff caught it. |
 | 9 | Phase 7 core — stacks home | [ ] | `main` | |
 | 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `main` | |
 | 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `main` | |
@@ -935,6 +935,152 @@ to be zero by diffing against `demo-classic`, which was never touched: both
 demo orgs carry members and nothing else. Next time, filter the delete the same
 way the create was filtered.
 
+**Session 8 — Phase 6 UI** (2026-08-24) — 2 commits straight onto `main`
+(`ca2d03f`, `3f722c1`), not pushed.
+
+Shipped:
+
+- Eight HTTP doors on Session 7's three utils:
+  `GET|POST /api/ai/director/sessions`, `GET|POST /api/ai/director/sessions/[id]`,
+  `GET|POST /api/ai/director/minutes`, `GET|POST /api/ai/director/minutes/[id]`.
+- `core/app/composables/useBoardroomSession.ts` — convene / join / leave /
+  attach a plan / present / report a decision / end, plus the poll.
+- `core/app/composables/useBoardroomMinutes.ts` — list / record / load / share.
+- `app/components/Boardroom/{Header,Slides,Briefing,Steps,Agenda,LiveSessions,MinutesStrip}.vue`.
+- `app/components/pages/BoardroomPage.vue` + `app/pages/[slug]/admin/boardroom/index.vue`.
+- `app/components/pages/BoardroomMinutesPage.vue` +
+  `app/pages/[slug]/admin/meetings/minutes/[id].vue`, and the decision-records
+  strip mounted on the meetings hub.
+- `planThis()` gained an options argument (subject / topic / entity / refresh).
+- `loadPlanSteps()` now carries `result`, so a plan step that executed offers
+  Undo in the room the same way it does in the queue.
+- Nav: "Board Room" in the Dashboard section of `useSectionNav`, and
+  `/admin/boardroom` on the dashboard slot's `match` in `useAppNav`.
+- Tests: 49 endpoint + 23 composable + 6 on the planner overrides.
+
+**Peter's decision, asked before any of it was built.** Multiplayer is a POLL
+against a session-state endpoint, not a scoped read policy on
+`hoa_director_sessions`. No prod script, no widened read. The page's contract is
+the socket's contract either way — "the revision moved, re-read the steps" — so
+the WS upgrade stays a drop-in if the policy is ever run. The operator TODO is
+resolved.
+
+Deviations from the plan, all deliberate:
+
+1. **Two doors per resource, not six.** Earnest has
+   `sessions/[id]/{join,leave,plan,present,end,step,qa,invite,presence}.post.ts`.
+   Join, leave, attach-a-plan, present, report-a-decision and end are not six
+   resources — they are six things that happen to one meeting, and every one of
+   them ends in the same `revision` bump. `POST /sessions/[id]` carries them all
+   behind an `op`, which means one authorization gate, one org check, and one
+   place a seventh op can forget neither. Minutes share the shape (`op: "share"`).
+2. **The minutes route has no field for a step list.** The plan says minutes are
+   a durable decision record; a record whose tally arrived from the screen that
+   was displaying it can be wrong in exactly the way nobody notices. The browser
+   sends the plan id, the server re-reads the steps and rolls them up with
+   `summarizeMinutesSteps()`. Same reasoning made `op: "activity"` read the step
+   back before writing the room's activity line — a client cannot tell the room
+   an approval happened.
+3. **Minutes live under Meetings** (kickoff item 2), at
+   `/{slug}/admin/meetings/minutes/[id]`, with the strip on the meetings hub.
+   The Board Room shows the same strip so the person who recorded a set sees it
+   land, but the canonical home is Records → Meetings.
+4. **The Board Room joins the Dashboard section, not the dock.** The dock is
+   seven deliberate slots; the Board Room plans the WHOLE association, so filing
+   it under any one content section would misstate its scope. It sits beside AI
+   spend, where the assistant's other surfaces already are.
+5. **A page-owned `drafting` flag, not `layer.planning`.** Re-syncing the plan
+   after a decision goes through the same composable (cached, free), and showing
+   "Drafting…" while nothing is being drafted would be a small lie told several
+   times a session.
+6. **`planThis(opts)` — a caller that passes options owns the scope, including
+   by leaving it empty.** "The whole association" is the ABSENCE of a subject.
+   Falling back to the route would have made that chip silently plan Requests
+   whenever the room was opened from a Requests page. Caught by writing the test
+   first and disliking the assertion it produced.
+7. **`.glass-refract` on the Boardroom header now** (kickoff item 3), not swept
+   later — verified painting in the browser: the `::before` band, the three-stop
+   gradient, `mask-composite: exclude`, and dark alphas that drop from
+   .65/.24/.04 to .26/.10/.02.
+8. **`import.meta.server`, not `!import.meta.client`,** guards the poll — the
+   same guard `useWebSocketManager` uses, and the one that reads correctly in a
+   plain vitest run. Written the other way first, the poll silently never
+   started under test and four tests passed vacuously.
+
+**The thing the tests could not have caught.** Probing the eight doors for a
+403, I used `demo-classic` as the "other community" — and the demo login is an
+admin of BOTH demo orgs, so two POSTs returned 200 and **wrote a session and a
+set of minutes into the control org I was using to prove blast radius**. The
+diff caught it, both rows were deleted, and the refusal was re-tested against
+1033 Lenox, where all eight doors returned 403 with zero rows written. A control
+org is only a control if you never write to it.
+
+Quality gate: typecheck **0 errors** · vitest **1394/1394 in 79 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope test on all
+eight new endpoints (refused, and refused before a row is read).
+
+Browser-verified headlessly on the demo org (Harborview Lofts), through a real
+session (`/api/demo/login`) on this session's own dev server:
+
+- **A briefing generates, grounded.** A request backdated 45 days produced a
+  briefing that opened "This single request — the leaking irrigation valve at
+  the east gate — has been sitting open for 45 days with no one named as owner",
+  four TL;DR bullets in the slide strip, and two steps carrying the real request
+  id.
+- **Credits decrement.** 7863 → 7840 on the draft (23 credits), and the spend
+  breakdown moved `plan` 124 → 147. Nothing else moved.
+- **The cached reopen makes no model call.** Balance 7840 → 7840, call count
+  20 → 20, and the page said so: "This briefing was already written, so
+  reopening it cost nothing."
+- **A step approved from the plan shows in recently-handled.** Approving step 1
+  flipped it to `executed` in the room, moved the counter to "1 of 2 decided",
+  and `GET /api/ai/actions?status=executed` — the exact query the trust bar's
+  recently-handled list runs — returned it, attributed to Demo Admin and
+  undoable. The Undo button appearing is also what proves `result` now reaches
+  the card.
+- **Multiplayer, end to end.** Room convened ("1 at the table · Demo Admin
+  opened the room"); a second browser context saw it under "Live now", joined
+  for **zero credits** (7839 → 7839, calls 21 → 21) and was handed the same plan
+  with the same statuses. Approving the second step in the first context bumped
+  the revision 3 → 4 and wrote `{type: "decision", status: "executed", label:
+  "Set request status to in_progress"}` — the status and label read back from
+  the row, not taken from the client. The follower's poll picked it up on its
+  own: "1 of 2 decided" → "2 of 2 decided", `PENDING` → `EXECUTED`, and the
+  header line changed to "Demo Admin approved …". **Stated precisely:** the two
+  contexts are the same demo login, because the demo org has one admin account;
+  the transport under test is user-agnostic (a session id and a revision), and
+  the two-people case — a second attendee seated without unseating the host — is
+  the unit test.
+  The headless pane reports every tab as `hidden`, and the poll deliberately
+  stands down when hidden, so `visibilityState` was overridden on the follower.
+  That is the only thing faked; the timer, the request and the merge are real.
+- **Minutes.** Recorded from the room with server-computed stats
+  (`done: 2, total: 2`), rendered at
+  `/demo/admin/meetings/minutes/{id}` under the Meetings sub-nav with the
+  tallies, the bullets, the briefing and "the steps, as they stood", shared to
+  `SHARED`, and listed on the meetings hub as
+  "Requests · Association-wide · 2 approved of 2 · Demo Admin".
+- **Ending the meeting** from the header cleared the live list to zero.
+- **Refusals through the real auth path**: all eight doors 403 against
+  1033 Lenox with zero rows written; 400 without an `orgId`; and 404 — not a
+  leak — when a real session/minutes id is asked for from a community it does
+  not belong to.
+- **Dark and mobile**: rim alphas swap correctly, no horizontal overflow at
+  375px, no new console errors and every API call 200.
+
+**Cleanup, stated precisely.** Deleted: two `ai_actions` (filtered by
+`session_id = <planId>`, not by org), one briefing (by `plan_id`), the one task
+the approved step created (by `result.taskId`), the one seeded request (by id),
+one session and one set of minutes in the demo org (by id), the **two rows the
+403 probe wrongly wrote into `demo-classic`** (by id), and two `org_audit_log`
+rows with their two `ai_ledger_chunks` (by id). Every filter mirrors the create
+that made the row — Session 7's correction, applied from the start. The demo org
+now matches `demo-classic` exactly on all fourteen collections, and
+`ai_autonomy_tier` is 0, where it started. **Deliberately NOT reverted**: the
+wallet is 25 credits lower and three `ai_transactions` debits remain, because
+those tokens were really bought and deleting the ledger would make it disagree
+with the balance.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -1019,14 +1165,18 @@ way the create was filtered.
       as an override for demos and should stay unset (defaults to 6 hours).
       `ANTHROPIC_API_KEY` is already required by chat; the planner needs no
       more than chat does.
-- [ ] **Decide Session 8's multiplayer transport.** The three Board Room
-      collections are admin-only, per the plan, so nothing in a browser can
-      subscribe to `hoa_director_sessions` and be pushed a `revision` bump.
-      Either (a) poll a session-state endpoint, or (b) add a scoped READ policy
-      for org members on that ONE collection and put it on the WS manager. (b)
-      is the idiomatic path and is safe — the create-rule trap below is about
-      `create`, not `read` — but it is a prod script run, so it is Peter's call.
-      Nothing else in Phase 6 depends on the answer.
+- [x] ~~**Decide Session 8's multiplayer transport.**~~ — Peter chose **(a)
+      poll a session-state endpoint**, asked before anything was built.
+      `GET /api/ai/director/sessions/[id]?since=<revision>` returns the session
+      row always and the steps only when the revision has moved, and the poll
+      stands down while the tab is hidden. **No prod script, no widened read.**
+      The WS upgrade stays available: the page's contract is already "the
+      revision moved, re-read the steps", so putting `hoa_director_sessions` on
+      the manager later would not change the page.
+- [ ] **Phase 6 UI: nothing to run on prod.** No schema changes, no new
+      collections, no new fields, no new env vars, no `generate:types`.
+      `pnpm create:boardroom` was already run in Session 7; without it the room
+      and the minutes are inert (and say so) rather than broken.
 - [ ] **Beware `permissions` on a `create` rule anywhere in this Directus.**
       It is silently ignored (11.13.4, verified). A create rule must express its
       constraint as `validation` over payload SCALARS, resolving dynamic lists
@@ -1245,6 +1395,83 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 9 (Phase 7 core — stacks home, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find. Note: main is 20 commits ahead of origin and deliberately
+unpushed — do not push without asking.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1–8 recorded there.
+
+This session = Phase 7 CORE: `useStackItems`, `Home/Stack.vue`,
+`StackItemRow.vue`, `StackClearWizard.vue`, and the rework of
+app/pages/[slug]/admin/index.vue. Session 10 does the polish — GlanceRail,
+ChartRail, AmbientBackground, mobile/dark tuning — so do NOT start those.
+Earnest reference repo: ~/Sites/earnest/earnest.
+
+Every source the stacks read already exists and is verified live. Compose
+them; do not re-derive them:
+
+- Decide = pending `ai_actions` (via `useAiActions(orgId)` — `pending`,
+  `approve`, `reject`, `undo`, `busyId`) plus notices carrying a
+  `proposedAction` (via `useAINotices`, whose localStorage dismissal must keep
+  working).
+- Do = actionable notices + overdue operational items, plus unread channels
+  from `/api/hoa/channels/unread` (Phase 3).
+- Know = insights + Boardroom briefing headlines. The Board Room's `points`
+  ARE the headlines: `POST /api/ai/director/plan` without `refresh` serves the
+  saved briefing for six hours and charges nothing, so the home page may read
+  one — but it must NEVER draft. A home page that spends credits on mount is
+  the one thing this phase can get catastrophically wrong. If you cannot read a
+  briefing without risking a draft, show nothing in Know rather than guess.
+- A fact appears exactly ONCE across the three piles. That de-duplication is
+  the composable's job and deserves its own tests.
+
+Reuse `<AiActionCard>` inside `StackItemRow` for proposals — Session 8 made
+the same call for the Board Room's steps, and a third proposal card would be a
+third place the outbound warning and the Undo affordance can drift.
+`send_email` proposals get an expandable preview: never approve outbound
+blind.
+
+Motion policy, from the plan: dynamic GSAP import, reduced-motion guard FIRST,
+height tween alongside the row stagger (`expo.out`), `clearProps`, a `closing`
+flag that keeps rows mounted through the fold, `defineExpose({collapse})`, and
+a win state when a pile is cleared. Transform-only.
+
+Phase 8 names the stacks home as a `.glass-refract` first adopter alongside
+the Boardroom header — build it that way now rather than sweeping it later.
+`app/components/Boardroom/Header.vue` is the worked example.
+
+Quality gate: typecheck 0, vitest green, build green, org-scope test for every
+new endpoint, and in-browser verification: the fan runs transform-only, an
+approve-from-stack round-trips, empty piles reach the win state, the existing
+`useDashboardWidgets` grid still works below the fold, and — assert this
+explicitly — landing on the dashboard makes ZERO billable AI calls.
+
+Verify with a REAL session on your own dev server (`/api/demo/login`), and
+clean up every row you create afterwards — diff the demo org against
+`demo-classic` to prove the blast radius, and filter your deletes the same way
+you filtered your creates. Two warnings from Session 8: `demo-classic` is a
+CONTROL, so never write to it (the demo login is an admin of both demo orgs,
+which is how a 403 probe accidentally wrote two rows into it); and the headless
+browser pane reports every tab as `hidden`, so anything gated on
+`document.visibilityState` needs that overridden to be testable.
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs)
+and give me the kickoff prompt for Session 10. Ask before pushing.
 ```
 
 ### Kickoff prompt — Session 8 (Phase 6 UI, ready to paste)
