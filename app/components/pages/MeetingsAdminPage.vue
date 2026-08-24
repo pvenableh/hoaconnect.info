@@ -24,6 +24,17 @@ const {
 const { list: listMembers } = useDirectusItems("hoa_members");
 const { list: listBoardTerms } = useDirectusItems("hoa_board_members");
 
+// Board Room decision records live HERE, not only inside the Board Room: an
+// HOA already keeps its record of itself under Meetings, and minutes you had to
+// know about an AI feature to find would not be a governance record at all.
+// Wired before the await below — a composable called after one has lost the
+// Nuxt context by the time it runs.
+const { buildOrgPath } = useOrgNavigation();
+const boardroomOrgId = useState<string | null>("selectedOrgId", () => null);
+const boardroomMinutes = useBoardroomMinutes(boardroomOrgId);
+const minutesHref = computed(() => buildOrgPath("/admin/meetings/minutes"));
+watch(boardroomOrgId, (id) => id && boardroomMinutes.refresh(6), { immediate: true });
+
 const { currentOrg, selectedOrgId } = await useSelectedOrg();
 const organization = computed(() => currentOrg.value?.organization || null);
 const orgId = computed(() => selectedOrgId.value);
@@ -419,6 +430,13 @@ const handleDelete = async (id: string) => {
         <AdminMeetingsGlance :meetings="(meetings as any[]) || []" />
 
         <DirectorLayer />
+
+        <BoardroomMinutesStrip
+          :minutes="boardroomMinutes.list.value"
+          :loading="boardroomMinutes.loading.value"
+          :href-base="minutesHref"
+          hide-when-empty
+        />
 
         <!-- Upcoming -->
         <section v-if="upcoming.length" class="space-y-3">

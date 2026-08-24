@@ -191,7 +191,7 @@ export function useAppNav() {
   // longest-prefix activeKeyFor highlights the right section. Channels is still
   // reached via the top-nav chat button (deliberately off the dock).
   const ADMIN_APPS: AppDef[] = [
-    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__", "/admin/activity", "/admin/ai-spend"] },
+    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__", "/admin/boardroom", "/admin/activity", "/admin/ai-spend"] },
     {
       key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
       // Vendors is a People-area route (/admin/vendors). It used to live under

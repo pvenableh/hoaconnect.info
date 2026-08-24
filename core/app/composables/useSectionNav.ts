@@ -26,6 +26,12 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
   // association's materials in Records.
   dashboard: [
     { label: "Overview", path: "/", icon: "layout-dashboard", description: "Your community at a glance." },
+    // The Board Room sits with the assistant's other surfaces rather than
+    // earning an eighth dock slot: it plans the WHOLE association, so filing it
+    // under any one content section would have been a lie about its scope. Its
+    // minutes are filed under Records → Meetings, where a governance record
+    // belongs.
+    { label: "Board Room", path: "/admin/boardroom", icon: "gavel", description: "Have the assistant brief the board and draft a plan you approve step by step." },
     { label: "Activity", path: "/admin/activity", icon: "activity", description: "Resident page views, downloads, and logins." },
     { label: "AI spend", path: "/admin/ai-spend", icon: "sparkles", description: "How the assistant and AI features use the credit wallet." },
   ],

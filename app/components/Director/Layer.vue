@@ -237,7 +237,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
               size="sm"
               class="rounded-full shrink-0"
               :disabled="planning"
-              @click="planThis"
+              @click="planThis()"
             >
               <Icon
                 :name="planning ? 'i-lucide-loader-2' : 'i-lucide-list-checks'"

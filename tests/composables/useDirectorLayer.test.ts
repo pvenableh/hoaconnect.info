@@ -331,3 +331,66 @@ describe("planThis — the one handler that reaches the Board Room", () => {
     expect(planPosts).toEqual([]);
   });
 });
+
+/**
+ * The Board Room (P6) plans a subject the USER picked, not the one the route
+ * implies, and can redraft on demand. That is one composable reaching one
+ * endpoint from two surfaces — the pill and the room — so the override must not
+ * quietly change what the pill does when it passes nothing.
+ */
+describe("planThis — the Board Room's overrides", () => {
+  it("plans the subject it was handed instead of the route's", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis({ subject: "money" });
+    expect(planPosts).toEqual([{ orgId: "org-1", subject: "money" }]);
+  });
+
+  it("carries a free-text steer alongside the subject", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis({ subject: "money", topic: "the pool resurfacing bids" });
+    expect(planPosts).toEqual([
+      { orgId: "org-1", subject: "money", topic: "the pool resurfacing bids" },
+    ]);
+  });
+
+  it("asks for a redraft only when told to — reopening must stay free", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis({ subject: "money" });
+    expect(planPosts[0]).not.toHaveProperty("refresh");
+    await d.planThis({ subject: "money", refresh: true });
+    expect(planPosts[1]).toMatchObject({ refresh: true });
+  });
+
+  it("translates an overridden entity into the server's vocabulary too", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis({ entityType: "ticket", entityId: "r9" });
+    expect(planPosts).toEqual([{ orgId: "org-1", entityType: "request", entityId: "r9" }]);
+  });
+
+  it("an empty subject means the whole association, not the route's guess", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    // The Board Room's "The whole association" chip is the ABSENCE of a
+    // subject. Falling through to the route here would make that chip silently
+    // plan Requests whenever the room was opened from a Requests page.
+    await d.planThis({ subject: "", topic: "" });
+    expect(planPosts).toEqual([{ orgId: "org-1" }]);
+  });
+
+  it("still plans the page's own area when it is handed nothing", async () => {
+    const useDirectorLayer = await load();
+    selectOrg("org-1");
+    const d = useDirectorLayer();
+    await d.planThis();
+    expect(planPosts).toEqual([{ orgId: "org-1", subject: "requests" }]);
+  });
+});

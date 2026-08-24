@@ -102,6 +102,7 @@ export interface DirectorPlanStep {
   actionType: string;
   title: string;
   preview: any;
+  result: any;
   status: string;
   outbound: boolean;
   entityType: string | null;
@@ -127,6 +128,20 @@ export interface DirectorPlan {
   stepCount: number;
   credits?: number;
   balanceCredits?: number;
+}
+
+/**
+ * What a caller may override when it asks for a plan. Every field is optional:
+ * given none, the pill's behaviour is exactly what it was — plan whatever this
+ * page is about.
+ */
+export interface DirectorPlanRequest {
+  subject?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  topic?: string | null;
+  /** Redraw and re-bill instead of serving the six-hour cache. */
+  refresh?: boolean;
 }
 
 export interface DirectorLayerScope {
@@ -340,19 +355,37 @@ export function useDirectorLayer(scope?: MaybeRefOrGetter<DirectorLayerScope | u
    * to render; a surface that has nowhere to put it simply ignores it.
    *
    * Still nothing without a click — this is only ever called from the button.
+   *
+   * The Board Room (P6) plans a subject the *user* picked rather than the one
+   * the route implies, and can redraft on demand, so the caller may override
+   * the derived body. Nothing else about the call changes — one composable
+   * reaches this endpoint, from the pill and from the room alike.
    */
-  async function planThis(): Promise<DirectorPlan | null> {
+  async function planThis(opts?: DirectorPlanRequest): Promise<DirectorPlan | null> {
     if (!orgId.value || planning.value) return null;
     planning.value = true;
     planError.value = null;
     try {
       const body: Record<string, unknown> = { orgId: orgId.value };
-      if (hasEntity.value && groundedType.value) {
+      // A caller that passes options OWNS the scope — including by leaving it
+      // empty. The Board Room's "The whole association" chip is the ABSENCE of
+      // a subject, and falling back to the route here would have let that chip
+      // silently plan whatever section the page happened to be filed under.
+      if (opts) {
+        if (opts.entityType && opts.entityId) {
+          body.entityType = GROUNDED_TYPE[opts.entityType] ?? opts.entityType;
+          body.entityId = String(opts.entityId);
+        } else if (opts.subject) {
+          body.subject = opts.subject;
+        }
+      } else if (hasEntity.value && groundedType.value) {
         body.entityType = groundedType.value;
         body.entityId = String(resolved.value.entityId);
       } else if (scopeSubject.value) {
         body.subject = scopeSubject.value;
       }
+      if (opts?.topic) body.topic = opts.topic;
+      if (opts?.refresh) body.refresh = true;
       const res = await $fetch<DirectorPlan & { error?: string }>("/api/ai/director/plan", {
         method: "POST",
         body,
