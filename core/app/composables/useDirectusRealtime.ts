@@ -1,301 +1,135 @@
 /**
  * useDirectusRealtime - WebSocket subscriptions composable
  *
- * Handles realtime subscriptions to Directus collections
- * Uses Directus WebSocket API for live updates
- * Includes automatic reconnection with exponential backoff
+ * ADAPTER (Parity Round 2, Phase 2a). The public surface below is unchanged, but
+ * the implementation is now a thin shim over `useWebSocketManager()` — every
+ * caller in the app multiplexes over ONE shared socket instead of building its
+ * own Directus SDK client per composable instance.
  *
- * Usage:
+ * Two behaviours necessarily changed with the shared connection:
+ *
+ * - `connect()` no longer opens a socket eagerly. The manager connects lazily on
+ *   the first `subscribe()` and keeps the socket alive for 30s after the last
+ *   subscriber leaves. `connect()` still rejects when logged out, so callers
+ *   that guard on it behave the same.
+ * - `disconnect()` releases only THIS instance's subscriptions; it cannot close
+ *   a socket other components are using. The manager tears down on its own once
+ *   nothing is subscribed (or immediately on logout).
+ *
+ * Usage (unchanged):
  * const { subscribe, unsubscribe, isConnected } = useDirectusRealtime()
  */
-
-import { createDirectus, realtime, rest, authentication } from "@directus/sdk"
-import type { Schema } from "#core/types/directus"
 
 interface SubscriptionCallback {
   (event: "create" | "update" | "delete", data: any): void
 }
 
+interface RealtimeSubscribeOptions {
+  filter?: Record<string, any>
+  fields?: string[]
+}
+
 export const useDirectusRealtime = () => {
-  const config = useRuntimeConfig()
+  const manager = useWebSocketManager()
   const { loggedIn } = useUserSession()
 
-  // Connection state
-  const isConnected = ref(false)
-  const isConnecting = ref(false)
-  const connectionError = ref<string | null>(null)
-  const reconnectAttempts = ref(0)
-  const maxReconnectAttempts = 10
+  // Subscriptions owned by THIS composable instance, keyed the same way the
+  // pre-adapter implementation keyed them so `unsubscribe(key)` still works.
+  const owned = new Map<string, () => void>()
 
-  const client = ref<any>(null)
-  const subscriptions = ref<Map<string, any>>(new Map())
-
-  // Store pending subscriptions for reconnection
-  const pendingSubscriptions = ref<Map<string, { collection: string; callback: SubscriptionCallback; options?: any }>>(new Map())
-
-  /**
-   * Schedule reconnection with exponential backoff
-   */
-  const scheduleReconnect = () => {
-    if (reconnectAttempts.value >= maxReconnectAttempts) {
-      connectionError.value = "Max reconnection attempts reached"
-      return
-    }
-
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 30000)
-    reconnectAttempts.value++
-
-    console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value}/${maxReconnectAttempts})`)
-    setTimeout(() => connect(), delay)
-  }
-
-  /**
-   * Restore subscriptions after reconnection
-   */
-  const restoreSubscriptions = async () => {
-    for (const [key, sub] of pendingSubscriptions.value) {
-      try {
-        await subscribe(sub.collection, sub.callback, sub.options)
-      } catch (error) {
-        console.error(`Failed to restore subscription ${key}:`, error)
-      }
-    }
-  }
-
-  /**
-   * Initialize WebSocket connection
-   */
   const connect = async () => {
-    if (isConnecting.value) return
-    if (isConnected.value && client.value) return
-
     if (!loggedIn.value) {
-      connectionError.value = "Authentication required for realtime subscriptions"
       throw new Error("Authentication required for realtime subscriptions")
     }
-
-    isConnecting.value = true
-    connectionError.value = null
-
-    try {
-      // Get fresh token from server using the new endpoint
-      const { token } = await $fetch<{ token: string }>('/api/websocket/token')
-
-      if (!token) {
-        throw new Error("No access token available")
-      }
-
-      // Create WebSocket client
-      const wsUrl =
-        config.public.directus.websocketUrl ||
-        config.public.directus.url.replace("http", "ws")
-
-      client.value = createDirectus<Schema>(wsUrl)
-        .with(realtime())
-        .with(rest())
-        .with(authentication("json"))
-
-      // Set the token
-      await client.value.setToken(token)
-
-      // Connect to WebSocket
-      await client.value.connect()
-
-      isConnected.value = true
-      isConnecting.value = false
-      reconnectAttempts.value = 0
-      connectionError.value = null
-
-      console.log("WebSocket connected")
-
-      // Restore any pending subscriptions
-      if (pendingSubscriptions.value.size > 0) {
-        await restoreSubscriptions()
-      }
-    } catch (error: any) {
-      console.error("WebSocket connection error:", error)
-      isConnected.value = false
-      isConnecting.value = false
-      connectionError.value = error.message || "Connection failed"
-      scheduleReconnect()
-    }
+    // The shared connection is opened lazily by the manager on first subscribe.
   }
 
-  /**
-   * Disconnect WebSocket
-   */
+  /** Release every subscription this instance owns. Never closes the shared socket. */
   const disconnect = async () => {
-    if (!client.value) return
-
-    try {
-      // Unsubscribe from all active subscriptions
-      for (const [key, sub] of subscriptions.value) {
-        if (sub?.unsubscribe) {
-          sub.unsubscribe()
-        }
+    for (const release of owned.values()) {
+      try {
+        release()
+      } catch {
+        // Ignore
       }
-
-      subscriptions.value.clear()
-      pendingSubscriptions.value.clear()
-
-      // Disconnect client
-      await client.value.disconnect()
-      client.value = null
-      isConnected.value = false
-      isConnecting.value = false
-
-      console.log("WebSocket disconnected")
-    } catch (error: any) {
-      console.error("WebSocket disconnect error:", error)
     }
+    owned.clear()
   }
 
-  /**
-   * Subscribe to collection changes
-   */
-  const subscribe = async (
-    collection: string,
-    callback: SubscriptionCallback,
-    options?: {
-      filter?: Record<string, any>
-      fields?: string[]
-    }
-  ) => {
-    if (!isConnected.value) {
-      await connect()
-    }
-
-    if (!client.value) {
-      throw new Error("WebSocket not connected")
-    }
-
-    try {
-      // Use toRaw to unwrap reactive objects before stringifying
-      const rawOptions = options ? toRaw(unref(options)) : {}
-      const key = `${collection}-${JSON.stringify(rawOptions)}`
-
-      // Check if already subscribed
-      if (subscriptions.value.has(key)) {
-        console.warn(`Already subscribed to ${collection}`)
-        return () => unsubscribe(key)
-      }
-
-      // Store for reconnection
-      pendingSubscriptions.value.set(key, { collection, callback, options: rawOptions })
-
-      // Create subscription - Directus SDK v20+ returns { subscription, unsubscribe }
-      const { subscription, unsubscribe: unsub } = await client.value.subscribe(
-        collection,
-        {
-          query: {
-            ...rawOptions,
-          },
-        }
-      )
-
-      // Store the unsubscribe function
-      subscriptions.value.set(key, { unsubscribe: unsub })
-
-      // Start processing subscription events in background
-      ;(async () => {
-        try {
-          for await (const message of subscription) {
-            // Directus SDK v20+ sends messages with event and data properties
-            if (message.event === "init") {
-              // Initial data load - skip for now as we fetch data separately
-              continue
-            }
-
-            const eventType = message.event as "create" | "update" | "delete"
-            const data = message.data?.[0] || message.data
-
-            if (eventType && data) {
-              callback(eventType, data)
-            }
-          }
-        } catch (err) {
-          // Subscription ended or error occurred
-          console.log(`Subscription to ${collection} ended`)
-          subscriptions.value.delete(key)
-
-          // Attempt reconnection if connection was lost
-          if (!isConnected.value && pendingSubscriptions.value.has(key)) {
-            scheduleReconnect()
-          }
-        }
-      })()
-
-      console.log(`Subscribed to ${collection}`)
-
-      return () => unsubscribe(key)
-    } catch (error: any) {
-      console.error("Subscription error:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Unsubscribe from a specific subscription
-   */
   const unsubscribe = async (key: string) => {
-    const sub = subscriptions.value.get(key)
-
-    if (!sub) {
+    const release = owned.get(key)
+    if (!release) {
       console.warn(`No subscription found for ${key}`)
       return
     }
-
-    try {
-      if (sub?.unsubscribe) {
-        sub.unsubscribe()
-      }
-      subscriptions.value.delete(key)
-      pendingSubscriptions.value.delete(key)
-
-      console.log(`Unsubscribed from ${key}`)
-    } catch (error: any) {
-      console.error("Unsubscribe error:", error)
-    }
+    release()
+    owned.delete(key)
   }
 
-  /**
-   * Subscribe to specific item changes
-   */
+  const subscribe = async (
+    collection: string,
+    callback: SubscriptionCallback,
+    options?: RealtimeSubscribeOptions
+  ) => {
+    if (!loggedIn.value) {
+      throw new Error("Authentication required for realtime subscriptions")
+    }
+
+    // toRaw/unref so a reactive filter stringifies to a stable key.
+    const rawOptions = options ? toRaw(unref(options)) : {}
+    const key = `${collection}-${JSON.stringify(rawOptions)}`
+
+    if (owned.has(key)) {
+      console.warn(`Already subscribed to ${collection}`)
+      return () => unsubscribe(key)
+    }
+
+    const { unsubscribe: release } = manager.subscribe(
+      collection,
+      {
+        fields: rawOptions.fields || ["*"],
+        filter: rawOptions.filter || null,
+        sort: null,
+      },
+      (event, data) => {
+        // `init` is the subscription's initial payload; callers of this
+        // composable fetch their baseline over REST, so it is skipped (matching
+        // the pre-adapter behaviour).
+        if (event === "init") return
+        const items = Array.isArray(data) ? data : [data]
+        for (const item of items) {
+          if (item == null) continue
+          callback(event as "create" | "update" | "delete", item)
+        }
+      }
+    )
+
+    owned.set(key, release)
+    return () => unsubscribe(key)
+  }
+
   const subscribeToItem = async (
     collection: string,
     itemId: string,
     callback: SubscriptionCallback
   ) => {
     return subscribe(collection, callback, {
-      filter: {
-        id: { _eq: itemId },
-      },
+      filter: { id: { _eq: itemId } },
     })
   }
 
-  /**
-   * Get current subscription count
-   */
-  const getSubscriptionCount = () => subscriptions.value.size
+  const getSubscriptionCount = () => owned.size
+  const isSubscribed = (key: string) => owned.has(key)
 
-  /**
-   * Check if subscribed to a key
-   */
-  const isSubscribed = (key: string) => subscriptions.value.has(key)
-
-  /**
-   * Auto-cleanup on unmount
-   */
-  onUnmounted(() => {
-    disconnect()
-  })
+  // Auto-cleanup: drop this instance's subscriptions when its scope ends.
+  if (getCurrentScope()) onScopeDispose(() => void disconnect())
 
   return {
-    // State
-    isConnected: readonly(isConnected),
-    isConnecting: readonly(isConnecting),
-    connectionError: readonly(connectionError),
-    reconnectAttempts: readonly(reconnectAttempts),
+    // State (shared across every instance — there is one connection now)
+    isConnected: manager.isConnected,
+    isConnecting: manager.isConnecting,
+    connectionError: manager.connectionError,
+    reconnectAttempts: manager.reconnectAttempts,
 
     // Connection
     connect,
@@ -309,31 +143,3 @@ export const useDirectusRealtime = () => {
     isSubscribed,
   }
 }
-
-/**
- * Example Usage:
- *
- * <script setup>
- * const { subscribe, isConnected, connectionError } = useDirectusRealtime()
- *
- * onMounted(async () => {
- *   // Subscribe to members collection
- *   await subscribe('hoa_members', (event, data) => {
- *     if (event === 'create') {
- *       console.log('New member created:', data)
- *       // Refresh your data...
- *     }
- *     if (event === 'update') {
- *       console.log('Member updated:', data)
- *     }
- *     if (event === 'delete') {
- *       console.log('Member deleted:', data)
- *     }
- *   }, {
- *     filter: {
- *       status: { _eq: 'active' }
- *     }
- *   })
- * })
- * </script>
- */

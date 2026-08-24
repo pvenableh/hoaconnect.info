@@ -1,10 +1,21 @@
 /**
  * useRealtimeSubscription - Reactive realtime data composable
  *
- * Provides a reactive wrapper around Directus realtime subscriptions
- * Returns reactive data that auto-updates when changes occur
+ * Fetches the baseline over REST, then keeps it live off the shared WebSocket.
  *
- * Usage:
+ * ADAPTER (Parity Round 2, Phase 2a). Public surface unchanged; it now talks to
+ * `useWebSocketManager()` directly instead of building its own connection via
+ * `useDirectusRealtime()`. Two consequences worth knowing:
+ *
+ * - Identical collection+fields+filter+sort across components share ONE
+ *   server-side subscription (the manager deduplicates), so mounting the same
+ *   thread twice no longer doubles the server's work.
+ * - A changing filter now RELEASES the previous subscription before opening the
+ *   next one. Pre-adapter, switching channels left the old subscription live for
+ *   the lifetime of the connection — the leak that made a long session
+ *   accumulate subscriptions it no longer read.
+ *
+ * Usage (unchanged):
  * const { data, isLoading, isConnected, error, refresh } = useRealtimeSubscription(
  *   'hoa_channel_messages',
  *   ['id', 'content', 'user_created.first_name'],
@@ -38,7 +49,7 @@ export const useRealtimeSubscription = <T = any>(
   options: SubscriptionOptions<T> = {}
 ) => {
   const { list } = useDirectusItems(collection);
-  const { subscribe, isConnected, connect } = useDirectusRealtime();
+  const manager = useWebSocketManager();
 
   const data = ref<T[]>(options.initialData || []) as Ref<T[]>;
   const isLoading = ref(true);
@@ -51,6 +62,21 @@ export const useRealtimeSubscription = <T = any>(
       ? sort
       : [sort]
     : ["-date_created"];
+
+  // Handle on the live subscription, so a filter change (or unmount) can drop
+  // it rather than stacking a second one on top.
+  let release: (() => void) | null = null;
+
+  const releaseSubscription = () => {
+    if (!release) return;
+    try {
+      release();
+    } catch {
+      // Ignore
+    }
+    release = null;
+    subscriptionKey.value = null;
+  };
 
   // Fetch initial data
   const fetchData = async () => {
@@ -92,60 +118,73 @@ export const useRealtimeSubscription = <T = any>(
     }
   };
 
-  // Set up realtime subscription
-  const setupSubscription = async () => {
-    try {
-      // Ensure connection
-      if (!isConnected.value) {
-        await connect();
+  const applyEvent = (event: string, item: T) => {
+    switch (event) {
+      case "create": {
+        // Skip anything the REST baseline already carries, so a create that
+        // races the initial fetch cannot render twice.
+        const exists = data.value.some(
+          (existing: any) => existing?.id != null && existing.id === (item as any)?.id
+        );
+        if (!exists) {
+          // Newest-first lists prepend; ascending lists append.
+          data.value = sortArray[0]?.startsWith("-")
+            ? [item, ...data.value]
+            : [...data.value, item];
+        }
+        options.onCreate?.(item);
+        break;
       }
 
-      // Unwrap filter if it's reactive for subscription
+      case "update": {
+        const updateIndex = data.value.findIndex(
+          (existing: any) => existing.id === (item as any).id
+        );
+        if (updateIndex !== -1) {
+          data.value = [
+            ...data.value.slice(0, updateIndex),
+            item,
+            ...data.value.slice(updateIndex + 1),
+          ];
+        }
+        options.onUpdate?.(item);
+        break;
+      }
+
+      case "delete": {
+        data.value = data.value.filter(
+          (existing: any) => existing.id !== (item as any).id
+        );
+        options.onDelete?.(item);
+        break;
+      }
+    }
+  };
+
+  // Set up realtime subscription on the shared connection
+  const setupSubscription = () => {
+    // Any previous subscription belongs to a stale filter — drop it first.
+    releaseSubscription();
+
+    try {
       const rawFilter = filter ? toRaw(unref(filter)) : undefined;
 
-      // Subscribe to collection changes
-      const unsubscribe = await subscribe(
-        collection,
-        (event, eventData) => {
-          switch (event) {
-            case "create":
-              // Add new item to the beginning (assuming newest first)
-              data.value = [eventData as T, ...data.value];
-              options.onCreate?.(eventData as T);
-              break;
-
-            case "update":
-              // Update existing item
-              const updateIndex = data.value.findIndex(
-                (item: any) => item.id === eventData.id
-              );
-              if (updateIndex !== -1) {
-                data.value = [
-                  ...data.value.slice(0, updateIndex),
-                  eventData as T,
-                  ...data.value.slice(updateIndex + 1),
-                ];
-              }
-              options.onUpdate?.(eventData as T);
-              break;
-
-            case "delete":
-              // Remove deleted item
-              data.value = data.value.filter(
-                (item: any) => item.id !== eventData.id
-              );
-              options.onDelete?.(eventData as T);
-              break;
+      const sub = manager.subscribe(
+        collection as string,
+        { fields, filter: rawFilter || null, sort: sortArray },
+        (event, items) => {
+          // `init` is the subscription's own baseline; we already fetched ours
+          // over REST with the same filter, so it is ignored.
+          if (event === "init") return;
+          for (const item of items || []) {
+            if (item == null) continue;
+            applyEvent(event, item as T);
           }
-        },
-        {
-          filter: rawFilter,
-          fields,
         }
       );
 
-      // Set subscription key (rawFilter already defined above)
-      subscriptionKey.value = `${collection}-${JSON.stringify({ filter: rawFilter, fields })}`;
+      release = sub.unsubscribe;
+      subscriptionKey.value = sub.uid;
     } catch (err: any) {
       console.error(
         `[useRealtimeSubscription] Error subscribing to ${collection}:`,
@@ -169,7 +208,7 @@ export const useRealtimeSubscription = <T = any>(
 
     // Only set up realtime subscription on client
     if (import.meta.client) {
-      await setupSubscription();
+      setupSubscription();
     }
   };
 
@@ -179,7 +218,6 @@ export const useRealtimeSubscription = <T = any>(
   };
 
   // Watch for enabled changes and filter changes together
-  // Using watchEffect for immediate execution and automatic dependency tracking
   watch(
     [
       isEnabled,
@@ -191,6 +229,8 @@ export const useRealtimeSubscription = <T = any>(
     async ([enabled]) => {
       if (enabled) {
         await initialize();
+      } else {
+        releaseSubscription();
       }
     },
     { immediate: true }
@@ -207,10 +247,13 @@ export const useRealtimeSubscription = <T = any>(
     });
   }
 
+  // Hand the shared subscription back when this scope ends.
+  if (getCurrentScope()) onScopeDispose(releaseSubscription);
+
   return {
     data: readonly(data),
     isLoading: readonly(isLoading),
-    isConnected,
+    isConnected: manager.isConnected,
     error: readonly(error),
     refresh,
   };
@@ -225,11 +268,23 @@ export const useRealtimeItem = <T = any>(
   fields: string[]
 ) => {
   const { get } = useDirectusItems(collection);
-  const { subscribeToItem, isConnected, connect } = useDirectusRealtime();
+  const manager = useWebSocketManager();
 
   const data = ref<T | null>(null) as Ref<T | null>;
   const isLoading = ref(true);
   const error = ref<string | null>(null);
+
+  let release: (() => void) | null = null;
+
+  const releaseSubscription = () => {
+    if (!release) return;
+    try {
+      release();
+    } catch {
+      // Ignore
+    }
+    release = null;
+  };
 
   const fetchItem = async () => {
     const id = unref(itemId);
@@ -252,22 +307,25 @@ export const useRealtimeItem = <T = any>(
     }
   };
 
-  const setupSubscription = async () => {
+  const setupSubscription = () => {
+    // The previous subscription tracked the previous id.
+    releaseSubscription();
+
     const id = unref(itemId);
     if (!id) return;
 
     try {
-      if (!isConnected.value) {
-        await connect();
-      }
-
-      await subscribeToItem(collection, id, (event, eventData) => {
-        if (event === "update") {
-          data.value = eventData as T;
-        } else if (event === "delete") {
-          data.value = null;
+      const sub = manager.subscribe(
+        collection as string,
+        { fields, filter: { id: { _eq: id } }, sort: null },
+        (event, items) => {
+          if (event === "init") return;
+          const item = (items || [])[0];
+          if (event === "update" && item) data.value = item as T;
+          else if (event === "delete") data.value = null;
         }
-      });
+      );
+      release = sub.unsubscribe;
     } catch (err: any) {
       console.error(
         `[useRealtimeItem] Error subscribing to ${collection}/${id}:`,
@@ -280,7 +338,7 @@ export const useRealtimeItem = <T = any>(
     await fetchItem();
 
     if (import.meta.client) {
-      await setupSubscription();
+      setupSubscription();
     }
   };
 
@@ -290,15 +348,19 @@ export const useRealtimeItem = <T = any>(
     async (newId) => {
       if (newId) {
         await initialize();
+      } else {
+        releaseSubscription();
       }
     },
     { immediate: true }
   );
 
+  if (getCurrentScope()) onScopeDispose(releaseSubscription);
+
   return {
     data: readonly(data),
     isLoading: readonly(isLoading),
-    isConnected,
+    isConnected: manager.isConnected,
     error: readonly(error),
     refresh: fetchItem,
   };
