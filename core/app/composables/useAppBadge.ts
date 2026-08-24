@@ -77,7 +77,17 @@ export function useAppBadge() {
   function trackUnread() {
     if (!import.meta.client) return;
     const { unreadCount } = useDirectusNotifications();
-    watch(unreadCount, (n) => setBadge(n), { immediate: true });
+    // Channel messages count too. An unread @-mention already produces a bell
+    // row, but an ordinary message in a channel you follow does not — and a
+    // phone icon that stays clean while a conversation is waiting is the same
+    // lie in the other direction. Both are absolute counts, so the badge is
+    // their sum, written whenever either moves.
+    const channels = useChannelUnread();
+    channels.watchLive();
+    void channels.refresh();
+    watch([unreadCount, channels.total], ([bell, chan]) => setBadge(Number(bell || 0) + Number(chan || 0)), {
+      immediate: true,
+    });
   }
 
   return { setBadge, trackUnread, supported };

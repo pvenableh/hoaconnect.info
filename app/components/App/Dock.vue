@@ -43,7 +43,12 @@ const accentVars = (a: HSL) =>
 // lives in useAppNav (badgeCountsFor) so the dock and the sidebar can't drift —
 // it fans each notification onto both the admin hub key and the member leaf key.
 const { notifications } = useNotifications();
-const badges = computed<Record<string, number>>(() => badgeCountsFor(notifications.value));
+const channelUnread = useChannelUnread();
+channelUnread.watchLive();
+onMounted(() => channelUnread.refresh());
+const badges = computed<Record<string, number>>(() =>
+  badgeCountsFor(notifications.value, channelUnread.total.value)
+);
 
 // Keep the document default accent synced to the active app
 watch(

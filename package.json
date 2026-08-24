@@ -35,6 +35,7 @@
     "create:scheduled-flow": "dotenv -- tsx scripts/create-scheduled-email-flow.ts",
     "restrict:channels": "dotenv -- tsx scripts/restrict-channel-access.ts",
     "channels:pin-softdelete": "dotenv -- tsx scripts/add-channel-pin-softdelete.ts",
+    "add:channel-category": "dotenv -- tsx scripts/add-channel-category-field.ts",
     "link:requests-channels": "dotenv -- tsx scripts/link-requests-channels.ts",
     "create:meetings": "dotenv -- tsx scripts/create-meetings-collections.ts",
     "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",

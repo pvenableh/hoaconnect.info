@@ -130,7 +130,13 @@ const NOTIF_BADGE_KEYS: Record<string, string[]> = {
 };
 
 export function badgeCountsFor(
-  notifications: readonly { readonly type?: string | null; readonly isRead?: boolean }[] | null | undefined
+  notifications: readonly { readonly type?: string | null; readonly isRead?: boolean }[] | null | undefined,
+  // Unread channel messages. Channels are deliberately off the dock (they open
+  // as a slide-over from the top nav), but they live UNDER Communications, so
+  // their unread rolls into that section's badge — otherwise the one surface
+  // that counts unread messages is the one place the dock stays silent about.
+  // Passed in rather than read here so this stays a pure mapping function.
+  channelUnread = 0
 ): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const n of notifications || []) {
@@ -139,6 +145,8 @@ export function badgeCountsFor(
       counts[key] = (counts[key] || 0) + 1;
     }
   }
+  const channels = Math.max(0, Math.floor(Number(channelUnread) || 0));
+  if (channels) counts.comms = (counts.comms || 0) + channels;
   return counts;
 }
 

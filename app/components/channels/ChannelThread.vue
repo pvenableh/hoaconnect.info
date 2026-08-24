@@ -67,14 +67,16 @@ const toggleSearch = () => {
 
 watch(searchQuery, runSearch);
 
+// Jump-to-message. The target is usually mid-history rather than on screen, and
+// on a fresh channel open it may not be rendered yet at all, so this is driven
+// by a reactive id + a watcher on the rendered list (below) rather than a
+// one-shot scroll — the same reason Earnest waits for the element instead of
+// firing on a timer.
+const highlightId = ref<string | null>(null);
+let highlightClearTimer: ReturnType<typeof setTimeout> | null = null;
+
 const highlightMessage = (id: string) => {
-  nextTick(() => {
-    const el = document.getElementById(`msg-${id}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("ring-2", "ring-primary/50");
-    setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 2000);
-  });
+  highlightId.value = id;
 };
 
 const goToResult = (id: string) => {
@@ -228,9 +230,180 @@ type ThreadMessage = HoaChannelMessage & {
   };
 };
 
-const messageList = computed(
-  () => ((messages.value || []) as unknown) as ThreadMessage[]
+// The subscription sorts newest-first (so a realtime create prepends); the pane
+// reads oldest-at-top, newest-at-bottom, which is also what makes scrollToBottom
+// and the "New" divider mean what they say. Before this it rendered the
+// descending array verbatim, so the newest message sat at the TOP while the
+// pane scrolled to the bottom — i.e. to the oldest thing in the channel.
+const orderedMessages = computed<ThreadMessage[]>(() =>
+  [...(((messages.value || []) as unknown) as ThreadMessage[])].sort(
+    (a, b) =>
+      new Date(a.date_created || 0).getTime() - new Date(b.date_created || 0).getTime()
+  )
 );
+
+// ── Enter/leave reconciler ───────────────────────────────────────────────────
+// The pane renders from `visibleMessages`, reconciled against the live source,
+// so a delta can play a transition while a backlog snaps into place. Two things
+// this buys, both of which the thread lacked:
+//   · `moderatedIds` evicts a hidden/removed message immediately. A filtered
+//     realtime subscription reports rows entering the filter, not rows leaving
+//     it, so a moderated message used to sit on screen looking published.
+//   · `_settled` gates the enter animation, so first load and channel switches
+//     never stagger-animate an entire history.
+// Compositor-driven: a reactive class plus a CSS transition, not <Transition>.
+const moderatedIds = ref<Set<string>>(new Set());
+const sourceMessages = computed<ThreadMessage[]>(() =>
+  orderedMessages.value.filter(
+    (m) => m.status === "published" && !moderatedIds.value.has(m.id)
+  )
+);
+const newestMessageId = computed(
+  () => sourceMessages.value[sourceMessages.value.length - 1]?.id || null
+);
+const newestMessageAt = computed(
+  () => sourceMessages.value[sourceMessages.value.length - 1]?.date_created || null
+);
+
+const visibleMessages = ref<ThreadMessage[]>([]);
+const enteringIds = ref<Set<string>>(new Set());
+const leavingIds = ref<Set<string>>(new Set());
+const snapshots = new Map<string, ThreadMessage>();
+const leaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let settled = false;
+const LEAVE_MS = 200;
+
+const byDate = (list: ThreadMessage[]): ThreadMessage[] =>
+  [...list].sort(
+    (a, b) =>
+      new Date(a.date_created || 0).getTime() - new Date(b.date_created || 0).getTime()
+  );
+
+/** Snap the pane to the current source with no animation. */
+const resetVisible = () => {
+  for (const t of leaveTimers.values()) clearTimeout(t);
+  leaveTimers.clear();
+  enteringIds.value = new Set();
+  leavingIds.value = new Set();
+  snapshots.clear();
+  for (const m of sourceMessages.value) snapshots.set(m.id, m);
+  visibleMessages.value = byDate(sourceMessages.value);
+};
+
+const reconcile = () => {
+  const src = sourceMessages.value;
+  const bySrc = new Map(src.map((m) => [m.id, m]));
+  const visIds = new Set(visibleMessages.value.map((m) => m.id));
+
+  for (const m of src) {
+    snapshots.set(m.id, m);
+    if (!visIds.has(m.id) && !leavingIds.value.has(m.id) && settled) {
+      const s = new Set(enteringIds.value);
+      s.add(m.id);
+      enteringIds.value = s;
+      // A macrotask, not rAF: rAF is throttled in headless browsers, and the
+      // from-pose has to paint before it flips.
+      setTimeout(() => {
+        const s2 = new Set(enteringIds.value);
+        s2.delete(m.id);
+        enteringIds.value = s2;
+      }, 16);
+    }
+  }
+
+  for (const m of visibleMessages.value) {
+    if (!bySrc.has(m.id) && !leavingIds.value.has(m.id)) {
+      const l = new Set(leavingIds.value);
+      l.add(m.id);
+      leavingIds.value = l;
+      leaveTimers.set(
+        m.id,
+        setTimeout(() => {
+          const l2 = new Set(leavingIds.value);
+          l2.delete(m.id);
+          leavingIds.value = l2;
+          leaveTimers.delete(m.id);
+          snapshots.delete(m.id);
+          visibleMessages.value = visibleMessages.value.filter((x) => x.id !== m.id);
+        }, LEAVE_MS + 20)
+      );
+    }
+  }
+
+  // Rebuild from source (fresh objects carry content edits) plus the rows still
+  // playing their leave.
+  const merged: ThreadMessage[] = [];
+  for (const m of visibleMessages.value) {
+    const live = bySrc.get(m.id);
+    if (live) merged.push(live);
+    else if (leavingIds.value.has(m.id)) merged.push(snapshots.get(m.id) || m);
+  }
+  for (const m of src) if (!merged.some((x) => x.id === m.id)) merged.push(m);
+  visibleMessages.value = byDate(merged);
+};
+
+watch(sourceMessages, () => {
+  if (settled) reconcile();
+  else resetVisible();
+});
+
+watch(
+  messagesLoading,
+  (loading) => {
+    if (loading) return;
+    resetVisible();
+    setTimeout(() => {
+      settled = true;
+    }, 60);
+  },
+  { immediate: true }
+);
+
+/** Locally evict a message the moment it is deleted / hidden / removed. */
+const onModerated = (id: string) => {
+  if (!id) return;
+  const s = new Set(moderatedIds.value);
+  s.add(id);
+  moderatedIds.value = s;
+};
+
+// ── Unread cursor + "New" divider ────────────────────────────────────────────
+// The divider is anchored to the cursor as it stood when the channel OPENED,
+// captured before marking it read. Reading the cursor after markRead would
+// always yield "now", so the line would either never appear or jump to the
+// bottom while you were still reading — which is exactly the failure that makes
+// unread dividers untrustworthy elsewhere.
+const unread = useChannelUnread();
+unread.watchLive();
+
+const dividerAt = ref<string | null>(null);
+const firstUnreadId = computed(() => {
+  if (!dividerAt.value) return null;
+  const cut = new Date(dividerAt.value).getTime();
+  return (
+    sourceMessages.value.find((m) => new Date(m.date_created || 0).getTime() > cut)?.id ||
+    null
+  );
+});
+
+const openChannel = async (channelId?: string | null) => {
+  if (!channelId) {
+    dividerAt.value = null;
+    return;
+  }
+  await unread.refresh();
+  dividerAt.value = unread.lastReadAtFor(channelId);
+  await unread.markRead(channelId, newestMessageAt.value);
+};
+
+watch(() => currentChannel.value?.id, (id) => openChannel(id), { immediate: true });
+
+// Keep the open channel read as messages land in it, without touching the
+// divider — the line marks where you were when you arrived, not where you are.
+watch(newestMessageAt, (at) => {
+  const id = currentChannel.value?.id;
+  if (id && at) void unread.markRead(id, at);
+});
 
 // Pending mentions to be saved after message creation
 const pendingMentions = ref<Array<{ id: string; label: string }>>([]);
@@ -292,16 +465,17 @@ const scrollToBottom = () => {
 };
 
 watch(
-  messages,
-  (newMessages, oldMessages) => {
-    if (newMessages?.length > (oldMessages?.length || 0)) scrollToBottom();
-  },
-  { deep: true }
+  () => visibleMessages.value.length,
+  (now, before) => {
+    if (now > (before || 0)) scrollToBottom();
+  }
 );
 
 onMounted(() => scrollToBottom());
 
-// Reset transient state when switching channels
+// Reset transient state when switching channels. `settled` goes back off so the
+// next channel's backlog snaps in rather than stagger-animating, and the local
+// moderation evictions are dropped — they belong to the channel we just left.
 watch(channelSlug, () => {
   newMessage.value = "";
   messageAttachments.value = [];
@@ -309,17 +483,43 @@ watch(channelSlug, () => {
   searchQuery.value = "";
   searchResults.value = [];
   showSearch.value = false;
+  settled = false;
+  moderatedIds.value = new Set();
+  dividerAt.value = null;
+  highlightId.value = null;
 });
 
-// Deep-link highlight: scroll to a specific message once loaded
+// Deep-link highlight (?message=<id> from search or a notification).
 watch(
-  () => [messagesLoading.value, props.highlightMessageId] as const,
-  ([loading]) => {
-    const target = props.highlightMessageId;
-    if (!loading && target && messages.value?.length) highlightMessage(target);
+  () => props.highlightMessageId,
+  (id) => {
+    if (id) highlightId.value = String(id);
   },
   { immediate: true }
 );
+
+// Scroll to whatever is highlighted once it is actually on the page — a fresh
+// channel open loads messages async, so firing on a timer would miss.
+watch(
+  [highlightId, visibleMessages],
+  () => {
+    const id = highlightId.value;
+    if (!id || !visibleMessages.value.some((m) => m.id === id)) return;
+    nextTick(() => {
+      document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    if (highlightClearTimer) clearTimeout(highlightClearTimer);
+    highlightClearTimer = setTimeout(() => {
+      if (highlightId.value === id) highlightId.value = null;
+    }, 2800);
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  if (highlightClearTimer) clearTimeout(highlightClearTimer);
+  for (const t of leaveTimers.values()) clearTimeout(t);
+});
 </script>
 
 <template>
@@ -408,6 +608,10 @@ watch(
                   @click="goToResult(r.id)"
                 >
                   <p class="text-sm t-text line-clamp-2">{{ r.snippet }}</p>
+                  <p class="text-[11px] t-text-muted mt-0.5">
+                    {{ [r.author?.first_name, r.author?.last_name].filter(Boolean).join(" ") }}
+                    <span v-if="r.date_created">· {{ new Date(r.date_created).toLocaleDateString() }}</span>
+                  </p>
                 </button>
               </template>
               <p v-else-if="searchQuery.trim()" class="text-sm t-text-muted py-3 text-center">No matches.</p>
@@ -481,15 +685,38 @@ watch(
         </div>
       </div>
 
-      <template v-else-if="messages?.length">
-        <ChannelsChannelMessage
-          v-for="message in messageList"
-          :key="message.id"
-          :message="message"
-          :channel-id="currentChannel?.id"
-          :organization-id="orgId || undefined"
-          :can-moderate="canManageMembers"
-        />
+      <template v-else-if="visibleMessages.length">
+        <template v-for="message in visibleMessages" :key="message.id">
+          <!-- Where you were when you opened the channel. Anchored to the
+               pre-read cursor, so it stays put while you read. -->
+          <div v-if="message.id === firstUnreadId" class="flex items-center gap-2 py-1">
+            <div class="flex-1 h-px bg-destructive/40" />
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-destructive shrink-0">
+              New
+            </span>
+            <div class="flex-1 h-px bg-destructive/40" />
+          </div>
+          <div
+            class="msg-slot"
+            :class="{ entering: enteringIds.has(message.id), leaving: leavingIds.has(message.id) }"
+          >
+            <div class="msg-slot-inner">
+              <div
+                :id="`msg-${message.id}`"
+                class="rounded-lg transition-shadow"
+                :class="highlightId === message.id ? 'ring-2 ring-primary/50 bg-primary/5' : ''"
+              >
+                <ChannelsChannelMessage
+                  :message="message"
+                  :channel-id="currentChannel?.id"
+                  :organization-id="orgId || undefined"
+                  :can-moderate="canManageMembers"
+                  @moderated="onModerated"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
       </template>
 
       <div v-else-if="!messagesLoading && currentChannel" class="flex flex-col items-center justify-center h-full t-text-muted">
@@ -589,6 +816,43 @@ watch(
 
 <style scoped>
 @reference "#core/app/assets/css/tailwind.css";
+
+/* Message enter/leave — a reactive class plus a CSS transition, so the work
+   stays on the compositor. Enter is a brief opacity + translate from-pose that
+   flips to natural; height is untouched so it cannot fight scrollToBottom or
+   the "New" divider. Leave fades and collapses the grid row, so a moderated
+   message closes deliberately instead of popping out from under the cursor. */
+.msg-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 200ms ease,
+    opacity 200ms ease-out,
+    transform 180ms ease-out;
+}
+.msg-slot-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.msg-slot.entering {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.msg-slot.leaving {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg-slot {
+    transition: none;
+  }
+  .msg-slot.entering {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .overflow-y-auto {
   scroll-behavior: smooth;
 }

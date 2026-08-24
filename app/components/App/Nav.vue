@@ -92,6 +92,12 @@ const { isEnabled: isModuleEnabled } = useModules();
 // as a slide-over (useChannelsPanel) over the current page. Shown to admins,
 // active board members, and any member invited into at least one channel.
 const channelsPanel = useChannelsPanel();
+// Unread messages on the chat button. Channels is off the dock, so without this
+// the only entry point to a conversation is also the only one with no signal
+// that a conversation is waiting.
+const channelUnread = useChannelUnread();
+channelUnread.watchLive();
+onMounted(() => channelUnread.refresh());
 // Contextual AI assistant — a slide-over (useAiAssistant) over the current page,
 // like Channels. Staff-only at launch (admin / board / property manager).
 const aiAssistant = useAiAssistant();
@@ -437,12 +443,18 @@ watch(
           <button
             v-if="showChat"
             type="button"
-            class="hidden sm:inline-flex items-center justify-center header-pill"
-            title="Channels"
+            class="hidden sm:inline-flex items-center justify-center header-pill relative"
+            :title="channelUnread.total.value ? `${channelUnread.total.value} unread message${channelUnread.total.value > 1 ? 's' : ''}` : 'Channels'"
             aria-label="Open channels"
             @click="channelsPanel.toggle()"
           >
             <Icon name="i-lucide-messages-square" class="w-4 h-4" />
+            <span
+              v-if="channelUnread.total.value > 0"
+              class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center"
+            >
+              {{ channelUnread.total.value > 9 ? "9+" : channelUnread.total.value }}
+            </span>
           </button>
           <!-- Notification Bell - show on org pages/custom domains -->
           <NotificationBell
@@ -605,6 +617,12 @@ watch(
                 >
                   <Icon name="i-lucide-messages-square" class="w-5 h-5 t-text-secondary" />
                   <span class="text-sm">Channels</span>
+                  <span
+                    v-if="channelUnread.total.value > 0"
+                    class="ml-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold inline-flex items-center justify-center"
+                  >
+                    {{ channelUnread.total.value > 99 ? "99+" : channelUnread.total.value }}
+                  </span>
                 </button>
               </div>
 

@@ -18,6 +18,14 @@ const props = defineProps<{
   canModerate?: boolean;
 }>();
 
+// Raised the moment this message stops belonging in the thread — an author's
+// own delete, or a moderator's hide/remove. The parent evicts it locally
+// (`moderatedIds`) rather than waiting for the realtime subscription: a
+// filtered subscription reliably reports rows ENTERING its filter and not rows
+// leaving it, so a hidden message would otherwise sit there looking published
+// until a refetch.
+const emit = defineEmits<{ (e: "moderated", id: string): void }>();
+
 const config = useRuntimeConfig();
 const { user: currentUser } = useDirectusAuth();
 const { create: createMessage, remove: deleteMessage } = useDirectusItems(
@@ -118,6 +126,7 @@ const handleDelete = async () => {
   isDeleting.value = true;
   try {
     await deleteMessage(props.message.id);
+    emit("moderated", props.message.id);
     toast.success("Message deleted");
   } catch (error) {
     console.error("Error deleting message:", error);
@@ -144,6 +153,7 @@ async function moderate(action: "hide" | "remove") {
       method: "POST",
       body: { channel: channelRef.value, messageId: props.message.id, action },
     });
+    emit("moderated", props.message.id);
     toast.success(action === "hide" ? "Message hidden" : "Message removed");
   } catch (err: any) {
     toast.error(err?.data?.message || "Moderation failed");

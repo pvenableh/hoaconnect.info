@@ -543,6 +543,8 @@ export interface HoaChannel {
 	project?: HoaProject | string | null;
 	/** @description Optional: the vendor this channel discusses. */
 	vendor?: HoaVendor | string | null;
+	/** @description Optional folder name. Channels sharing a category group together in the roster sidebar; empty means ungrouped. */
+	category?: string | null;
 	/** @description Members enrolled in / invited to this channel. */
 	channel_members?: HoaChannelMember[] | string[];
 }

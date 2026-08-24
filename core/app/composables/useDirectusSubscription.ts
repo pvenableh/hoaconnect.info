@@ -110,11 +110,16 @@ export function useDirectusSubscription<T = any>(
         })
         break
 
-      case 'delete':
-        // Remove deleted items
-        const deletedIds = items.map((d: any) => d.id)
+      case 'delete': {
+        // Directus sends deletes as bare KEYS (`data: ["id-1"]`), not items, so
+        // reading `.id` off a string yielded undefined and nothing was ever
+        // removed. Same bug fixed in useRealtimeSubscription in Phase 2a.
+        const deletedIds = items.map((d: any) =>
+          d != null && typeof d === 'object' ? d.id : d
+        )
         data.value = data.value.filter((item: any) => !deletedIds.includes(item.id))
         break
+      }
     }
   }
 
