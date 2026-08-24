@@ -34,6 +34,13 @@ export interface ProposeContext {
   orgId: string;
   userId: string | null;
   conversationId?: string | null;
+  /**
+   * The Board Room plan this action is a step of (Phase 6). Written verbatim to
+   * `ai_actions.session_id`, which is how a briefing finds its own steps again:
+   * `plan_id === session_id`. A plain string because the plan id is minted
+   * before any row exists to relate to.
+   */
+  sessionId?: string | null;
   /** What the user is looking at — used to resolve omitted target ids. */
   entityType?: string | null;
   entityId?: string | null;
@@ -424,6 +431,7 @@ export async function proposeAction(
       entity_type: ent.type,
       entity_id: ent.id,
       conversation: ctx.conversationId ?? null,
+      session_id: ctx.sessionId ?? null,
       requested_by: ctx.userId ?? null,
     });
 

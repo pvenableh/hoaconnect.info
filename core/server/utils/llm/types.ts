@@ -73,6 +73,15 @@ export interface LlmUsage {
   cache_creation_input_tokens?: number | null;
 }
 
+/**
+ * How hard the model is pushed toward calling a tool.
+ *   "auto" — may answer in prose instead (the default, and what a briefing needs).
+ *   "any"  — MUST call at least one tool; emits no prose.
+ * The Board Room planner uses both: `auto` first so the briefing leads with its
+ * analysis, then `any` on a second pass when the first emitted no steps at all.
+ */
+export type ToolChoice = "auto" | "any";
+
 export interface ToolCompletionParams {
   model: string;
   system?: SystemInput;
@@ -83,6 +92,8 @@ export interface ToolCompletionParams {
   messages: Anthropic.MessageParam[];
   maxTokens?: number;
   tools?: ToolDefinition[];
+  /** Omitted = the API default ("auto" whenever tools are present). */
+  toolChoice?: ToolChoice;
 }
 
 export interface ToolCompletion {

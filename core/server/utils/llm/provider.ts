@@ -43,6 +43,11 @@ export class AnthropicProvider {
       system: buildSystemBlocks(params.system) as any,
       messages: params.messages,
       tools: tools.length ? tools : undefined,
+      // Only sent when the caller asked for it, and only alongside tools — a
+      // tool_choice with no tools is a 400 from the API.
+      ...(params.toolChoice && tools.length
+        ? { tool_choice: { type: params.toolChoice } as Anthropic.ToolChoice }
+        : {}),
     });
     const text = res.content
       .filter((b) => b.type === "text")

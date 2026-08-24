@@ -75,6 +75,25 @@ export function isAutoExpired(row: { status?: string | null; error_message?: str
   );
 }
 
+/**
+ * `ai_actions.preview` is a `text` column, so Directus hands it back as a JSON
+ * STRING while `payload` and `result` (real json columns) come back as objects.
+ * Every consumer renders the preview generically, and on a string that
+ * enumerates CHARACTERS — which is exactly how every proposal card turned into
+ * a numbered list of letters until Session 6 caught it.
+ *
+ * So the parse lives here, once, shared by every reader. Left as a string if it
+ * will not parse: a card with one odd line beats a 500 on the review queue.
+ */
+export function parseActionPreview<T extends { preview?: unknown }>(row: T): T {
+  if (typeof row?.preview !== "string") return row;
+  try {
+    return { ...row, preview: JSON.parse(row.preview) };
+  } catch {
+    return row;
+  }
+}
+
 export function actionByKey(key: string): ActionDef | undefined {
   return ACTION_CATALOG.find((a) => a.key === key);
 }

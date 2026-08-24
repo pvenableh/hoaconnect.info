@@ -39,6 +39,7 @@
     "fix:channel-writes": "dotenv -- tsx scripts/fix-channel-message-write.ts",
     "widen:users-read": "dotenv -- tsx scripts/widen-users-read-to-org.ts",
     "create:ai-notice-history": "dotenv -- tsx scripts/create-ai-notice-history.ts",
+    "create:boardroom": "dotenv -- tsx scripts/create-boardroom-collections.ts",
     "link:requests-channels": "dotenv -- tsx scripts/link-requests-channels.ts",
     "create:meetings": "dotenv -- tsx scripts/create-meetings-collections.ts",
     "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",

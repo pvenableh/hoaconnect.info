@@ -353,6 +353,14 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   // "member-balance, urgent" names one household's standing to anyone holding
   // the archive.
   direct("ai_notice_history", "AI notice history", FULL_ONLY),
+  // The Board Room. A briefing is the assistant's advice to THIS board about
+  // this community's own affairs, and minutes are the record of what the board
+  // then decided — both squarely the community's property, and both naming
+  // individual households' arrears and complaints in plain text. So: in the
+  // community's full export, out of anything shareable.
+  direct("hoa_director_briefings", "Board Room briefings", FULL_ONLY),
+  direct("hoa_director_sessions", "Board Room sessions", FULL_ONLY),
+  direct("hoa_director_minutes", "Board Room minutes", FULL_ONLY),
 ];
 
 const BY_COLLECTION: ReadonlyMap<string, ExportEntry> = new Map(

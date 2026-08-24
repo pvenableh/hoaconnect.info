@@ -144,7 +144,19 @@ export async function getWalletSummary(orgId: string): Promise<WalletSummary> {
   };
 }
 
-export type AiFeature = "draft" | "rewrite" | "summarize" | "ask" | "chat" | "embed";
+/**
+ * What a debit was FOR. "plan" is the Board Room's briefing+planner turn
+ * (Phase 6) — metered like any other completion, and named separately so a
+ * board can see what the planning sessions cost them.
+ */
+export type AiFeature =
+  | "draft"
+  | "rewrite"
+  | "summarize"
+  | "ask"
+  | "chat"
+  | "embed"
+  | "plan";
 
 /**
  * Meter a completion's real token usage: compute credits (cost × margin),

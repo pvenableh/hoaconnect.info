@@ -46,6 +46,8 @@ export interface AiAction {
 	date_updated?: string | null;
 	/** @description Human one-line summary of the proposed action. */
 	title?: string | null;
+	/** @description Board Room plan id — every step of one plan shares it (plan_id). */
+	session_id?: string | null;
 }
 
 export interface AiContextSnapshot {
@@ -184,7 +186,7 @@ export interface AiTransaction {
 	type: 'debit' | 'purchase' | 'grant' | 'refund';
 	/** @description Positive magnitude of credits. @required */
 	credits: number;
-	feature?: 'draft' | 'rewrite' | 'summarize' | 'ask' | 'chat' | null;
+	feature?: 'draft' | 'rewrite' | 'summarize' | 'ask' | 'chat' | 'plan' | null;
 	/** @description Anthropic model id used (for debits). */
 	model?: string | null;
 	input_tokens?: number | null;
@@ -653,6 +655,114 @@ export interface HoaDataExport {
 	date_started?: string | null;
 	date_completed?: string | null;
 	date_created?: string | null;
+}
+
+export interface HoaDirectorBriefing {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Who asked for this briefing. */
+	user?: DirectusUser | string | null;
+	scope_type?: 'org' | 'entity' | null;
+	/** @description Singular: request | member | project | … */
+	entity_type?: string | null;
+	entity_id?: string | null;
+	/** @description Agenda subject: requests | money | projects | community | vendors | meetings | operations. */
+	subject?: string | null;
+	/** @description Free-text steer the person typed, if any. */
+	topic?: string | null;
+	/** @description The plan's shared thread — equals ai_actions.session_id for its steps. */
+	plan_id?: string | null;
+	/** @description scope::subject::topic — derived by directorBriefingCacheKey(); do not hand-edit. */
+	cache_key?: string | null;
+	/** @description The briefing prose, TL;DR line already split off. */
+	intro?: string | null;
+	/** @description TL;DR bullets, in order. */
+	points?: Record<string, any> | null;
+	/** @description Money-mode snapshot, when the subject was money. */
+	money?: Record<string, any> | null;
+	/** @description Compact agenda the plan was grounded in. */
+	agenda?: Record<string, any> | null;
+	/** @description How many steps this plan proposed. */
+	step_count?: number | null;
+	date_created?: string | null;
+}
+
+export interface HoaDirectorMinute {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Who recorded these minutes. */
+	author?: DirectusUser | string | null;
+	scope_type?: 'org' | 'entity' | null;
+	/** @description Singular: request | member | project | … */
+	entity_type?: string | null;
+	entity_id?: string | null;
+	/** @description Agenda subject: requests | money | projects | community | vendors | meetings | operations. */
+	subject?: string | null;
+	/** @description Free-text steer the person typed, if any. */
+	topic?: string | null;
+	/** @description The plan's shared thread — equals ai_actions.session_id for its steps. */
+	plan_id?: string | null;
+	session?: HoaDirectorSession | string | null;
+	title?: string | null;
+	/** @description One-paragraph recap. */
+	summary?: string | null;
+	/** @description The briefing as it stood when the meeting ended. */
+	intro?: string | null;
+	/** @description TL;DR bullets. */
+	points?: Record<string, any> | null;
+	money?: Record<string, any> | null;
+	/** @description Each proposed step and how it was decided. */
+	steps?: Record<string, any> | null;
+	/** @description Action items captured in the room. */
+	captured?: Record<string, any> | null;
+	/** @description The shared question thread. */
+	qa?: Record<string, any> | null;
+	/** @description { done, skipped, failed, open, total, captured } */
+	stats?: Record<string, any> | null;
+	/** @required */
+	status: 'recorded' | 'shared';
+	date_created?: string | null;
+}
+
+export interface HoaDirectorSession {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description Who convened the meeting. */
+	host?: DirectusUser | string | null;
+	/** @description Whose screen everyone is following. */
+	presenter?: DirectusUser | string | null;
+	scope_type?: 'org' | 'entity' | null;
+	/** @description Singular: request | member | project | … */
+	entity_type?: string | null;
+	entity_id?: string | null;
+	/** @description Agenda subject: requests | money | projects | community | vendors | meetings | operations. */
+	subject?: string | null;
+	/** @description Free-text steer the person typed, if any. */
+	topic?: string | null;
+	/** @description The plan's shared thread — equals ai_actions.session_id for its steps. */
+	plan_id?: string | null;
+	/** @description What this meeting is called. */
+	title?: string | null;
+	/** @required */
+	status: 'live' | 'ended';
+	/** @description Which step the presenter is on. */
+	current_slide?: number | null;
+	/** @description Bumped on every step decision — the signal to re-fetch ai_actions. */
+	revision?: number;
+	/** @description What caused the last revision bump. */
+	last_activity?: Record<string, any> | null;
+	/** @description [{ userId, name, role, status, lastSeen }] */
+	attendees?: Record<string, any> | null;
+	/** @description Attendees follow along but cannot decide steps. */
+	view_only?: boolean | null;
+	date_created?: string | null;
+	date_updated?: string | null;
 }
 
 export interface HoaDocumentCategory {
@@ -2331,6 +2441,9 @@ export interface Schema {
 	hoa_comment_reports: HoaCommentReport[];
 	hoa_comments: HoaComment[];
 	hoa_data_exports: HoaDataExport[];
+	hoa_director_briefings: HoaDirectorBriefing[];
+	hoa_director_minutes: HoaDirectorMinute[];
+	hoa_director_sessions: HoaDirectorSession[];
 	hoa_document_categories: HoaDocumentCategory[];
 	hoa_documents: HoaDocument[];
 	hoa_email_activity: HoaEmailActivity[];
@@ -2438,6 +2551,9 @@ export enum CollectionNames {
 	hoa_comment_reports = 'hoa_comment_reports',
 	hoa_comments = 'hoa_comments',
 	hoa_data_exports = 'hoa_data_exports',
+	hoa_director_briefings = 'hoa_director_briefings',
+	hoa_director_minutes = 'hoa_director_minutes',
+	hoa_director_sessions = 'hoa_director_sessions',
 	hoa_document_categories = 'hoa_document_categories',
 	hoa_documents = 'hoa_documents',
 	hoa_email_activity = 'hoa_email_activity',
