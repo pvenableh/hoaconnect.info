@@ -89,8 +89,8 @@ after dismissal.
 
 Landed on `main` as a fast-forward (linear history, no merge commit) and pushed.
 
-**Session 2 — Phase 2a** (2026-08-24) — 2 commits on `feat/parity2-p2a-ws-manager`,
-NOT pushed
+**Session 2 — Phase 2a** (2026-08-24) — 3 commits, fast-forwarded from
+`feat/parity2-p2a-ws-manager` into local `main`. **NOT pushed to origin.**
 
 Shipped:
 
