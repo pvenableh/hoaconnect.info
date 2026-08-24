@@ -76,6 +76,10 @@ useHead({ bodyAttrs: { class: "" } });
         </Button>
       </div>
 
+      <!-- The assistant's advisory strip: what needs looking at here, and
+           anything waiting for a decision. Self-hides when it has nothing. -->
+      <DirectorLayer />
+
       <!-- New project inline -->
       <div v-if="showNew" class="ios-card p-6 max-w-2xl">
         <h2 class="font-semibold t-text mb-4">New project</h2>

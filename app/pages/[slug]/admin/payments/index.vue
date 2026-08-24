@@ -337,6 +337,10 @@ const TYPE_FILTERS = [
         </Button>
       </div>
 
+      <!-- The assistant's advisory strip: what needs looking at here, and
+           anything waiting for a decision. Self-hides when it has nothing. -->
+      <DirectorLayer />
+
       <!-- Stats -->
       <div class="grid grid-cols-2 gap-4">
         <div class="ios-card p-5">

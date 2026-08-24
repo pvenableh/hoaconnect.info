@@ -597,6 +597,8 @@ useSeoMeta({
           description="Invite new members and manage existing memberships."
         />
 
+        <DirectorLayer />
+
         <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center py-12 gap-3">
           <span class="spinner-ios" />

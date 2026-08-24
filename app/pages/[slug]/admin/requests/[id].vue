@@ -65,6 +65,16 @@ onBeforeUnmount(clearContext);
         @updated="refresh"
       />
 
+      <!-- Notices about THIS request, plus anything proposed on it awaiting a
+           decision. `violation` is the page's word; the layer translates it to
+           the `request` the notices engine and ai_actions both use. -->
+      <DirectorLayer
+        v-if="request"
+        :entity-type="(request as any).type === 'violation' ? 'violation' : 'request'"
+        :entity-id="String(request.id)"
+        :label="request.title"
+      />
+
       <AiEntityCard
         v-if="request"
         :entity-type="(request as any).type === 'violation' ? 'violation' : 'request'"

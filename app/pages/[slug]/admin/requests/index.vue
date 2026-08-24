@@ -75,6 +75,10 @@ watch(
         </div>
       </div>
 
+      <!-- The assistant's advisory strip: what needs looking at here, and
+           anything waiting for a decision. Self-hides when it has nothing. -->
+      <DirectorLayer />
+
       <!--
         Requests is where the dock now lands. The list says what is in the
         queue; this says whether the queue is being worked. Deliberately reads

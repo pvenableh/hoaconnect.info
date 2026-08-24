@@ -65,14 +65,22 @@ function writeDismissed(orgId: string, ids: string[]): void {
   }
 }
 
-export function useAINotices(organizationId: MaybeRefOrGetter<string | null | undefined>) {
+export function useAINotices(
+  organizationId: MaybeRefOrGetter<string | null | undefined>,
+  opts?: { stateKey?: string }
+) {
   const orgId = computed(() => toValue(organizationId) || "");
 
-  const all = useState<AINoticeView[]>("ai-notices:all", () => []);
-  const generatedAt = useState<string | null>("ai-notices:at", () => null);
-  const loading = useState<boolean>("ai-notices:loading", () => false);
-  const error = useState<string | null>("ai-notices:error", () => null);
-  const dismissed = useState<string[]>("ai-notices:dismissed", () => []);
+  // Shared state by default — the org-wide feed is one feed, and the badge, the
+  // hub banner and the panel should all see the same list. An entity-scoped
+  // caller (Phase 5's Director layer on a detail page) passes its own key so a
+  // single record's notices never overwrite the community's.
+  const ns = opts?.stateKey ? `ai-notices:${opts.stateKey}` : "ai-notices";
+  const all = useState<AINoticeView[]>(`${ns}:all`, () => []);
+  const generatedAt = useState<string | null>(`${ns}:at`, () => null);
+  const loading = useState<boolean>(`${ns}:loading`, () => false);
+  const error = useState<string | null>(`${ns}:error`, () => null);
+  const dismissed = useState<string[]>(`${ns}:dismissed`, () => []);
 
   /** Everything the server sent, minus what this browser has dismissed. */
   const notices = computed(() => {
@@ -102,17 +110,27 @@ export function useAINotices(organizationId: MaybeRefOrGetter<string | null | un
         query.entityType = opts.entityType;
         query.entityId = opts.entityId;
       }
+      const scoped = !!(opts?.entityType && opts?.entityId);
       const res = await $fetch<NoticesResponse>("/api/ai/notices", { query });
       all.value = res.notices || [];
       generatedAt.value = res.generatedAt || null;
 
       // Prune dismissals against what still exists. Without this the key grows
       // forever — every resolved request leaves its dismissal behind.
-      const live = new Set(all.value.map((n) => n.id));
+      //
+      // ONLY on an org-wide fetch. A response about one record is not evidence
+      // about any other, and pruning against it would delete every dismissal in
+      // the community the moment somebody opened a request — the notices you
+      // hid this morning reappearing because you clicked into a ticket.
       const stored = readDismissed(orgId.value);
-      const kept = stored.filter((id) => live.has(id));
-      dismissed.value = kept;
-      if (kept.length !== stored.length) writeDismissed(orgId.value, kept);
+      if (scoped) {
+        dismissed.value = stored;
+      } else {
+        const live = new Set(all.value.map((n) => n.id));
+        const kept = stored.filter((id) => live.has(id));
+        dismissed.value = kept;
+        if (kept.length !== stored.length) writeDismissed(orgId.value, kept);
+      }
     } catch (e: any) {
       // A member without board standing gets a 403 here, which is correct and
       // not worth surfacing as a failure — they simply have no feed.

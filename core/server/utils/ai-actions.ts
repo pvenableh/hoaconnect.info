@@ -529,7 +529,13 @@ export async function decideAiAction(input: DecideInput): Promise<DecideResult> 
     throw createError({ statusCode: 409, message: `Action already ${row.status}` });
   }
 
-  const nowStamp = { approved_by: userId ?? null };
+  // `approved_by` means "the person who decided", and on an auto-run there
+  // wasn't one — the org's dial decided. Attributing it to whoever's chat turn
+  // happened to propose it would be a small lie with a real consequence: the
+  // trust streak in `core/shared/ai/trust.ts` counts these rows, so a tier-2 org
+  // would bootstrap itself toward tier 3 on the strength of its own automation.
+  // The ledger records auto-runs separately and says "automatic" out loud.
+  const nowStamp = { approved_by: input.autoApproved ? null : (userId ?? null) };
 
   if (decision === "reject") {
     await directus().request(updateItem("ai_actions", id, { status: "rejected", ...nowStamp } as any));

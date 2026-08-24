@@ -295,6 +295,12 @@ const TABS = [
             </a>
           </div>
         </div>
+        <DirectorLayer
+          entity-type="project"
+          :entity-id="String(project.id)"
+          :label="project.title"
+        />
+
         <AiEntityCard entity-type="project" :label="project.title" />
       </template>
 

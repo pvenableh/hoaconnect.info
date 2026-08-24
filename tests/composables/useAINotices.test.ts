@@ -180,3 +180,58 @@ describe("fetching", () => {
     expect(fetches[0].opts.query).toEqual({ orgId: ORG, entityType: "request", entityId: "r1" });
   });
 });
+
+/**
+ * Phase 5 mounts this composable in two places at once — a hub page reading the
+ * community feed, and a detail page reading one record's notices. That surfaced
+ * a landmine in the pruning logic that had never fired while only the org-wide
+ * caller existed.
+ */
+describe("an entity-scoped read is not evidence about anything else", () => {
+  it("does not wipe the community's dismissals when focused on one record", async () => {
+    const useAINotices = await load();
+
+    // Dismiss two things from the community feed.
+    payload = { notices: [notice("a"), notice("b"), notice("c")], total: 3, generatedAt: "x" };
+    const n = useAINotices(ORG);
+    await n.refresh();
+    n.dismiss("a");
+    n.dismiss("b");
+    expect(JSON.parse(window.localStorage.getItem(KEY)!)).toEqual(["a", "b"]);
+
+    // Then open a request. Its notices are a different, tiny set — and pruning
+    // against them would delete every dismissal in the community.
+    payload = { notices: [notice("request-aged-r1")], total: 1, generatedAt: "x" };
+    await n.refresh({ entityType: "request", entityId: "r1" });
+
+    expect(JSON.parse(window.localStorage.getItem(KEY)!)).toEqual(["a", "b"]);
+    expect(n.dismissed.value).toEqual(["a", "b"]);
+  });
+
+  it("still prunes on an org-wide read, which is where the fact is knowable", async () => {
+    const useAINotices = await load();
+    payload = { notices: [notice("a"), notice("b")], total: 2, generatedAt: "x" };
+    const n = useAINotices(ORG);
+    await n.refresh();
+    n.dismiss("a");
+    n.dismiss("b");
+
+    payload = { notices: [notice("a")], total: 1, generatedAt: "x" };
+    await n.refresh();
+    expect(JSON.parse(window.localStorage.getItem(KEY)!)).toEqual(["a"]);
+  });
+
+  it("keeps a named state bucket separate from the shared one", async () => {
+    const useAINotices = await load();
+    payload = { notices: [notice("a"), notice("b")], total: 2, generatedAt: "x" };
+    const shared = useAINotices(ORG);
+    await shared.refresh();
+
+    payload = { notices: [notice("request-aged-r1")], total: 1, generatedAt: "x" };
+    const scoped = useAINotices(ORG, { stateKey: "entity:request:r1" });
+    await scoped.refresh({ entityType: "request", entityId: "r1" });
+
+    expect(scoped.notices.value.map((x) => x.id)).toEqual(["request-aged-r1"]);
+    expect(shared.notices.value.map((x) => x.id)).toEqual(["a", "b"]);
+  });
+});

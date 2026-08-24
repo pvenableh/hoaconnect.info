@@ -418,6 +418,12 @@ watch(
 
         <!-- User Menu (Authenticated) -->
         <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-1.5">
+          <!-- How much the assistant runs on its own, always visible rather than
+               buried in settings. Client-only: the tier, the pending count and
+               the recently-handled list are all client state. -->
+          <ClientOnly>
+            <DirectorTrustBar v-if="showAssistant" class="hidden sm:block" />
+          </ClientOnly>
           <!-- AI assistant quick-peek — staff only; pops a slide-over like Channels. -->
           <button
             v-if="showAssistant"

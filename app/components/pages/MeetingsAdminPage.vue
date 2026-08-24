@@ -418,6 +418,8 @@ const handleDelete = async (id: string) => {
         -->
         <AdminMeetingsGlance :meetings="(meetings as any[]) || []" />
 
+        <DirectorLayer />
+
         <!-- Upcoming -->
         <section v-if="upcoming.length" class="space-y-3">
           <h2 class="type-micro t-text-secondary">Upcoming</h2>

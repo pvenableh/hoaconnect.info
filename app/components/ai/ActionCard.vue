@@ -50,6 +50,22 @@ const isUndoable = computed(
 );
 const wasUndone = computed(() => props.action.status === "executed" && props.action.result?._undone);
 
+// A proposal nobody ever answered is `rejected` — the expiry sweep flips it
+// rather than adding an `expired` value to the status enum (see
+// server/api/ai/actions/expire-stale.post.ts). The human distinction is real
+// though: "rejected" says someone looked and said no, and that is not what
+// happened. The tag the sweep writes is what tells the two apart.
+const wasExpired = computed(
+  () =>
+    props.action.status === "rejected" &&
+    String(props.action.error_message || "").startsWith("auto-expired")
+);
+const statusLabel = computed(() => {
+  if (wasUndone.value) return "undone";
+  if (wasExpired.value) return "expired";
+  return props.action.status;
+});
+
 // ── inline edit (pending only) ──────────────────────────────────────────────
 const EDIT_KEYS = ["title", "subject", "body_html", "body", "content", "description", "value", "due_date", "meeting_date", "agenda", "priority", "status"];
 const editing = ref(false);
@@ -77,7 +93,7 @@ const showBody = ref(false);
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-sm font-medium t-text">{{ action.title || action.action_type }}</span>
           <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded" :class="STATUS_STYLE[action.status] || 't-bg-subtle'">
-            {{ wasUndone ? "undone" : action.status }}
+            {{ statusLabel }}
           </span>
           <span v-if="action.outbound" class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-500/15" title="Reaches residents or the board — always needs approval">
             outbound
