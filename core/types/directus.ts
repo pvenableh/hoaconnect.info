@@ -108,6 +108,32 @@ export interface AiDocChunk {
 	date_created?: string | null;
 }
 
+export interface AiLedgerChunk {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description The org_audit_log row this chunk indexes. Unique — one chunk per entry. @required */
+	entry: string;
+	/** @description Copied from the entry at index time. Defaults to the NARROWER tier so a bad write withholds rather than leaks. @required */
+	visibility: 'owners' | 'board';
+	/** @description The entry's event type, for filtering and display. */
+	event_type?: string | null;
+	/** @description The entry's own timestamp — retrieval's recency floor sorts on this. */
+	occurred_at?: string | null;
+	/** @description The entry's one-sentence summary, denormalized for citation display. */
+	summary?: string | null;
+	/** @description Exactly what was embedded (embeddableLedgerText) — what the lexical fallback matches on too. */
+	chunk_text?: string | null;
+	/** @description Voyage embedding vector (unit-normalized float array). */
+	embedding?: Record<string, any> | null;
+	/** @description Voyage tokens billed for this chunk. */
+	tokens?: number | null;
+	/** @description sha256 of chunk_text — a re-index skips an entry whose text is unchanged. */
+	content_hash?: string | null;
+	date_created?: string | null;
+}
+
 export interface AiMessage {
 	/** @primaryKey */
 	id: string;
@@ -739,9 +765,6 @@ export interface HoaEmail {
 	/** @required */
 	organization: HoaOrganization | string;
 	urgent?: boolean | null;
-	/** Public emails appear in the community feed for every member; private ones
-	 *  are visible only to the people they were sent to. */
-	visibility?: 'public' | 'private' | null;
 	subtitle?: string | null;
 	/** @description Template this email was created from (optional) */
 	template?: HoaEmailTemplate | string | null;
@@ -767,6 +790,8 @@ export interface HoaEmail {
 	cc?: string[] | null;
 	/** @description BCC recipients — emails and/or group tokens (@board, @property_manager) */
 	bcc?: string[] | null;
+	/** @description Public emails appear in the community feed for every member. Private ones are only visible to the people they were sent to. */
+	visibility?: 'public' | 'private' | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -1503,7 +1528,7 @@ export interface HoaUnit {
 	date_updated?: string | null;
 	organization?: HoaOrganization | string | null;
 	unit_number?: string | null;
-	/** Who lives here. Drives the owner-occupancy figure on the public landing. */
+	/** @description Who lives in this unit — drives the owner-occupancy stat on the public landing. */
 	occupancy?: 'owner' | 'tenant' | 'vacant' | null;
 	members?: HoaMemberUnit[] | string[];
 	leases?: HoaLease[] | string[];
@@ -2257,6 +2282,7 @@ export interface Schema {
 	ai_context_snapshots: AiContextSnapshot[];
 	ai_conversations: AiConversation[];
 	ai_doc_chunks: AiDocChunk[];
+	ai_ledger_chunks: AiLedgerChunk[];
 	ai_messages: AiMessage[];
 	ai_transactions: AiTransaction[];
 	ai_wallets: AiWallet[];
@@ -2362,6 +2388,7 @@ export enum CollectionNames {
 	ai_context_snapshots = 'ai_context_snapshots',
 	ai_conversations = 'ai_conversations',
 	ai_doc_chunks = 'ai_doc_chunks',
+	ai_ledger_chunks = 'ai_ledger_chunks',
 	ai_messages = 'ai_messages',
 	ai_transactions = 'ai_transactions',
 	ai_wallets = 'ai_wallets',
