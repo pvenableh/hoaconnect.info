@@ -17,7 +17,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 4 | Phase 3 — Channels round 2 | [x] | `main` | Ships with **two blocking findings outside the phase** — see Session 4. Channels are write-broken and mentions unpickable on this Directus. |
 | 5 | Phase 4 — Notices engine + attention scoring | [x] | `main` | Also fixed Session 4's two carried blockers. `permissions` is **ignored on create** in Directus 11 — proved, then routed around. |
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [x] | `main` | Earnest's singular/plural boundary **does not exist here**; HOA's is `violation`/`ticket` → `request`. `preview` is a text column — every proposal card was rendering character-by-character. |
-| 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `main` | |
+| 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [x] | `main` | Slide bullets had to LEAD the briefing — asked for last, the live model never wrote them. Money mode needed a fourth util. |
 | 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `main` | |
 | 9 | Phase 7 core — stacks home | [ ] | `main` | |
 | 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `main` | |
@@ -793,6 +793,148 @@ entries with their four `ai_ledger_chunks`. Both demo orgs are back to
 is no intended residue — this phase adds no collections, no fields and no env
 vars.
 
+**Session 7 — Phase 6 server** (2026-08-24) — 3 commits straight onto `main`
+(`5232b7f`, `a497010`, `85bf74b`), not pushed.
+
+Shipped:
+
+- `scripts/create-boardroom-collections.ts` (`pnpm create:boardroom`) →
+  `hoa_director_briefings`, `hoa_director_sessions`, `hoa_director_minutes`,
+  plus `ai_actions.session_id` and a `plan` choice on
+  `ai_transactions.feature`. **Already run against prod**; a re-run creates
+  nothing. `generate:types` committed.
+- `core/server/api/ai/director/plan.post.ts` — the planner. Grounded in
+  `collectDirectorAgenda()` *before* the model; `completeWithTools` with
+  exactly four tools; zero tool calls → forced `toolChoice:"any"` second pass
+  keeping the first pass's prose; steps created through the existing
+  `proposeAction()` with `sessionId = planId`; metered like chat; refused at a
+  zero balance before a token is spent.
+- `core/server/utils/director-briefings.ts` — `directorBriefingCacheKey()` (the
+  ONE derivation both writer and reader use), a 6h TTL overridable via
+  `NUXT_DIRECTOR_BRIEFING_TTL_HOURS`, and `splitTldr()`.
+- `core/server/utils/director-sessions.ts` — create/end, attendees as a JSON
+  list on the row, `recordActivity()` bumping `revision` (the sync clock), and
+  `loadPlanSteps()` — `plan_id === ai_actions.session_id` is the whole link.
+- `core/server/utils/director-minutes.ts` — save/load/list/share, with
+  `summarizeMinutesSteps()` so the rollup cannot contradict the steps under it.
+- `core/server/utils/director-intel.ts` — the money block, built from the same
+  pure `shared/reporting/ledger.ts` the Finances tab renders.
+- `parseActionPreview()` lifted into `core/shared/ai/actions.ts` — Session 6's
+  fix, now shared by `actions/index.get.ts` and `loadPlanSteps()`.
+- `toolChoice` on the LLM provider (`auto` | `any`), sent only alongside tools.
+- `useDirectorLayer.planThis()` now POSTs to `/api/ai/director/plan` (the
+  Session 6 TODO), with `planning` / `plan` / `planError` state, a "Drafting…"
+  button and an error line outside the notices block.
+- The three new collections classified in the export map (`FULL_ONLY`).
+- Tests: 86 new across three files (37 endpoint, 40 utils, 9 composable).
+
+Deviations from the plan, all deliberate:
+
+1. **A fourth util, `director-intel.ts`.** The plan says "ground in
+   `collectDirectorAgenda()` + mode intel", and HOA had no server-side money
+   snapshot to be that intel. The agenda reports *exceptions* — this invoice is
+   41 days late — which is not a financial position, so a planner asked "how are
+   we doing" would have had to guess at a balance to say anything about one. It
+   reuses `shared/reporting/ledger.ts` rather than reimplementing the
+   arithmetic, so the briefing and the Finances tab cannot disagree.
+2. **No `briefing.get.ts`.** The cache read lives on the plan endpoint itself:
+   a POST without `refresh` serves the saved briefing, re-reads its steps live,
+   and charges nothing. One door, and the TTL contract has one owner. Session 8
+   needs no extra route to reopen a section.
+3. **The four tools are one per `ACTION_CATALOG` category** — `create_task`
+   (internal), `update_request_status` (record_update), `schedule_meeting`
+   (scheduling), `send_email` (comms/outbound). Principled rather than
+   favourite-picking, and the outbound one is what makes the cap testable on
+   this path at all. Everything else in the catalog needs context a plan does
+   not reliably have (a vendor id, a staff email address), and a step that
+   cannot execute on approval is worse than one never proposed.
+4. **`ai_actions.session_id` had to be added** — the plan specifies
+   `plan_id = ai_actions.session_id` and HOA's `ai_actions` had no such column
+   (Earnest's does). A plain string, not a relation: the plan id is minted
+   before any row exists to point at. `proposeAction()` gained one passthrough
+   field and nothing else.
+5. **Attendees ride on the session row as JSON.** Earnest has
+   `director_participants` and `director_qa` as separate collections; the plan
+   here names three collections, and attendance is small, bounded, and
+   meaningless apart from its session.
+6. **All three collections are admin-only, as the plan specifies.** That means
+   nothing in a browser can subscribe to the session row yet, so Session 8's
+   "second admin sees the revision update" is a POLL against a state endpoint
+   unless it first adds a scoped read policy. Flagged as an operator TODO
+   rather than decided here — and Directus's create-rule trap does not apply,
+   because a read policy is all it would need.
+7. **`plan` added to the `AiFeature` union** and to the field's dropdown
+   choices, so a board can see what planning costs rather than having it
+   disappear into "chat".
+
+**The thing the tests could not have caught.** Asked for at the END of the
+prompt — exactly as Earnest asks for it — the `TL;DR:` line never arrived.
+Twice, against the live model: the planner wrote its briefing, went straight to
+emitting tool calls, and simply never came back for the closing instruction.
+`points` was empty both times, and Session 8 would have rendered a slide deck
+with no slides off a prompt that reads as though it should work. Asked for
+FIRST, it is simply how the reply opens. `splitTldr()` already read the marker
+wherever it landed, so only the prompt moved.
+
+Quality gate: typecheck **0 errors** · vitest **1316/1316 in 76 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope test on
+the new endpoint · schema script run against prod (idempotent) with
+`generate:types` committed · cache_key writer/reader identity asserted through
+the real save and load · TTL expiry both sides · wallet charged per plan · and
+an outbound plan step landing `pending` at autonomy tier 3.
+
+Browser-verified headlessly on the demo org (Harborview Lofts), through a real
+session (`/api/demo/login`) on this session's own dev server:
+
+- **A real briefing, really grounded.** A request backdated 45 days produced
+  `request-aged` and `request-unassigned`; the plan opened "This single ticket
+  (irrigation valve leaking at the east gate) has sat open for 45 days with
+  nobody assigned", proposed two steps, and both carried the real request id.
+- **Metering is exact.** 7996 → 7981 on the first draft (15 credits), and every
+  subsequent draft moved the balance by exactly what it returned. The debits
+  carry `feature: "plan"`, `model: claude-sonnet-5`, and real token channels.
+- **The cache holds.** Reopening the same section returned `cached: true`,
+  `credits: 0`, the same `planId` and the same bullets — and its steps were
+  re-read LIVE, so a step approved in between showed as `executed` on reopen
+  rather than replaying the saved snapshot.
+- **A plan step is an ordinary queue row.** Approving one through the existing
+  `/api/ai/actions/[id]/approve` executed it and created the real task.
+- **Tier 3, in one plan, all three at once.** With the dial at 3: `create_task`
+  **executed**, `update_request_status` **executed**, `send_email`
+  **pending** — and `hoa_emails` stayed at **0**. The auto-runs recorded
+  `approved_by: null`; the person-approved step recorded the real user id.
+  This is Risk 4 proved on the plan path, with the internal steps beside it
+  proving tier 3 was genuinely on.
+- **The anti-hallucination rule, tested against its own worst case.** The demo
+  org had no financial records at all, so `buildMoneyIntel` returned null and
+  the prompt said so. The briefing answered "Collected: Not on record… Spent:
+  Not on record… the association is flying blind financially" and proposed
+  bookkeeping steps — it invented no balance, no trend, and no arrears figure.
+- **And with real figures.** Seeded two payment requests and one expense with
+  Directus's string decimals ("750.50"): the block reported income $601,
+  expenses $325, outstanding $751 in the 61–90 day bucket, named Ava Bennett
+  as carrying all of it, and flagged the missing opening balance. No NaN, no
+  silent $0.00 — the decimal-as-string trap does not reach this path.
+- **All three refusals through the real auth path**: 403 on 1033 Lenox with
+  **zero** rows read before the refusal, 400 without an `orgId`.
+
+**Cleanup, stated precisely.** Everything created for this verification was
+deleted: the backdated request, five tasks, one meeting, three payment rows,
+all `ai_actions`, all four briefings, and nine `org_audit_log` entries with
+their nine `ai_ledger_chunks`. The demo org now matches the untouched
+`demo-classic` control exactly on every collection, and `ai_autonomy_tier` is
+back to 0. **Two things were deliberately NOT reverted**: the wallet is 133
+credits lower and the `ai_transactions` debits remain, because those tokens
+were really bought — deleting the ledger would make it disagree with the
+balance.
+
+**A cleanup bug worth recording.** The first cleanup script deleted `hoa_tasks`
+for the whole org rather than only its own rows, and threw before resetting the
+trust dial. Both were caught and corrected, and the blast radius was confirmed
+to be zero by diffing against `demo-classic`, which was never touched: both
+demo orgs carry members and nothing else. Next time, filter the delete the same
+way the create was filtered.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -864,9 +1006,27 @@ vars.
       boundary. The parse is correct and defensive either way, so this is
       tidiness rather than a fix — but a `json` column would make the shape
       match `payload` and `result`, which are already json.
-- [ ] **Wire "Draft a plan" to `/api/ai/director/plan` in Phase 6.** It opens
-      the assistant panel today (deviation 2 above); `useDirectorLayer.planThis`
-      is the single handler to swap, and the comment on it says so.
+- [x] ~~**Wire "Draft a plan" to `/api/ai/director/plan` in Phase 6.**~~ — done
+      in Session 7. `planThis()` posts to the endpoint, holds the button while
+      it runs, and refreshes the approvals queue the steps land in.
+- [x] **Phase 6 schema: `pnpm create:boardroom` — already run against prod**
+      (idempotent; a re-run creates nothing) and `pnpm generate:types`
+      committed. It adds three collections plus `ai_actions.session_id` and a
+      `plan` choice on `ai_transactions.feature`. Without it the Board Room
+      still drafts and still queues steps — the briefing cache is simply inert,
+      so every reopen redraws and re-bills.
+- [ ] **Phase 6: no new env vars.** `NUXT_DIRECTOR_BRIEFING_TTL_HOURS` exists
+      as an override for demos and should stay unset (defaults to 6 hours).
+      `ANTHROPIC_API_KEY` is already required by chat; the planner needs no
+      more than chat does.
+- [ ] **Decide Session 8's multiplayer transport.** The three Board Room
+      collections are admin-only, per the plan, so nothing in a browser can
+      subscribe to `hoa_director_sessions` and be pushed a `revision` bump.
+      Either (a) poll a session-state endpoint, or (b) add a scoped READ policy
+      for org members on that ONE collection and put it on the WS manager. (b)
+      is the idiomatic path and is safe — the create-rule trap below is about
+      `create`, not `read` — but it is a prod script run, so it is Peter's call.
+      Nothing else in Phase 6 depends on the answer.
 - [ ] **Beware `permissions` on a `create` rule anywhere in this Directus.**
       It is silently ignored (11.13.4, verified). A create rule must express its
       constraint as `validation` over payload SCALARS, resolving dynamic lists
@@ -1085,6 +1245,76 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 8 (Phase 6 UI, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1-7 recorded there.
+
+This session = Phase 6 UI: the Boardroom page, its components, and the nav
+entry. Phase 7's stacks home is Session 9 — do not start it. Earnest reference
+repo: ~/Sites/earnest/earnest.
+
+The whole server half exists and is verified live, so build against it rather
+than re-deriving it:
+
+- POST /api/ai/director/plan takes { orgId, subject?, entityType?, entityId?,
+  topic?, refresh? } and returns { planId, cacheKey, cached, savedAt, intro,
+  points, money, agenda, steps, stepCount, skipped, credits, balanceCredits }.
+  Without `refresh` it serves the saved briefing for six hours and charges
+  nothing, re-reading its steps LIVE — so a reopen is free and still truthful.
+  `refresh: true` redraws and bills. A zero balance comes back as a 402 BODY,
+  not a throw: { error: "insufficient_credits" }.
+- `points` is the TL;DR strip, already split off the prose. `intro` is the
+  briefing. `steps` are ai_actions rows with a PARSED preview — render them
+  with the existing proposal row components, never a second card.
+- useDirectorLayer already calls it: planThis() / planning / plan / planError.
+  Reuse that composable rather than fetching from the page.
+- The three director-* utils are on the server and tested but have no HTTP
+  door yet. Sessions and minutes need routes when you know what the page wants;
+  `loadPlanSteps`, `recordActivity`, `saveMinutes`, `listMinutes` and
+  `summarizeMinutesSteps` are the functions to build them on.
+
+Three things the plan asks for that need a decision from you:
+
+1. Multiplayer. The Board Room collections are ADMIN-ONLY, so nothing in the
+   browser can be pushed a `revision` bump. The plan's verification point is
+   "a second admin sees the revision update" — pick polling a session-state
+   endpoint, or ask Peter before adding a scoped READ policy on
+   hoa_director_sessions and putting it on the WS manager. It is a prod script
+   run either way, so ask first. See the operator TODO.
+2. Minutes belong on the meetings hub, not only inside the Board Room — that
+   is the natural HOA fit and it is why the collection exists.
+3. Phase 8 names the Boardroom header as a first adopter of `.glass-refract`.
+   Build it that way now rather than sweeping it later.
+
+Quality gate: typecheck 0, vitest green, build green, org-scope test for every
+new endpoint, and in-browser verification: a briefing generates, credits
+decrement, a step approved from the plan shows in recently-handled, and the
+cached reopen makes no model call.
+
+Verify with a REAL session on your own dev server (`/api/demo/login`), and
+clean up every row you create afterwards — diff the demo org against
+`demo-classic` to prove the blast radius, and filter your deletes the same way
+you filtered your creates. Session 7's cleanup script did not, and had to be
+corrected.
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs)
+and give me the kickoff prompt for Session 9. Ask before pushing.
 ```
 
 ### Kickoff prompt — Session 7 (Phase 6 server, ready to paste)
