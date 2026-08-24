@@ -12,7 +12,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 |---|---|---|---|---|
 | 1 | Phase 0 — Pre-flight | [x] | `main` | Push was a no-op — local `main` already equalled `origin/main`. Types regenerated. |
 | 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [x] | `feat/parity2-p1-versioning` | Ratchet at **26**, not 0 — Phase 8 flips it. |
-| 2 | Phase 2a — WS manager + adapter shims | [ ] | `feat/parity2-p2a-ws-manager` | |
+| 2 | Phase 2a — WS manager + adapter shims | [x] | `feat/parity2-p2a-ws-manager` | All three composables kept as adapters; deletion deferred one release, as planned. |
 | 3 | Phase 2b/2c — Notification unification + bell cutover | [ ] | `feat/parity2-p2-notifications` | |
 | 4 | Phase 3 — Channels round 2 | [ ] | `feat/parity2-p3-channels` | |
 | 5 | Phase 4 — Notices engine + attention scoring | [ ] | `feat/parity2-p4-notices` | |
@@ -89,6 +89,89 @@ after dismissal.
 
 Landed on `main` as a fast-forward (linear history, no merge commit) and pushed.
 
+**Session 2 — Phase 2a** (2026-08-24) — 2 commits on `feat/parity2-p2a-ws-manager`,
+NOT pushed
+
+Shipped:
+
+- `core/app/composables/useWebSocketManager.ts` ← Earnest `useWebSocketManager.ts`.
+  N→1 multiplexed singleton: uid routing, dedupe by
+  `collection:filter:fields:sort`, exponential backoff (base 1s → cap 16s, 5
+  attempts), 30s idle teardown, `online`/`visibilitychange` revive that resets the
+  attempt counter, stale-socket guards on every listener, ping→pong.
+- The three overlapping composables are now thin adapters with unchanged public
+  signatures: `useDirectusRealtime.ts`, `useDirectusWebSocket.ts`,
+  `useRealtimeSubscription.ts` (+ `useRealtimeItem`). None deleted — that is next
+  release, per the plan's Risk 2. `useDirectusSubscription.ts` and
+  `useOrgItems().useSubscription()` ride the change for free through
+  `useDirectusRealtime`.
+- `tests/composables/useWebSocketManager.test.ts` — 24 tests over multiplexing,
+  dedupe, uid routing, auth ordering, backoff/give-up/revive, idle teardown and
+  session lifecycle. `tests/setup.ts` gained `getCurrentScope`/`toRaw`/`unref`.
+
+Deviations from the plan, all deliberate:
+
+1. **Raw `WebSocket`, not the Directus SDK's `realtime()`.** The SDK gives each
+   subscription its own async iterator pulling off one shared connection, so
+   concurrent subscriptions compete for frames — the exact failure the manager
+   exists to prevent. The manager speaks the Directus WS protocol directly.
+   `DIRECTUS_WEBSOCKET_URL` already points at `/websocket`, so the URL is used
+   verbatim (with the old `url.replace('http','ws')` fallback kept).
+2. **Two Earnest bugs fixed in the port.** (a) `_teardown()` cleared the shared-sub
+   registry but left the uid routing table populated, so anything resubscribed
+   after a teardown — `reconnect()` included — fanned out to an empty registry and
+   went silently dead. Teardown now keeps both registries and only logout clears
+   them. (b) A stale release closure could delete a shared subscription that had
+   since been unsubscribed and re-created by another component; `_release` now
+   checks registry identity first.
+3. **Earnest's `resubscribe(uid, query)` was not ported.** It mutated the entry's
+   query without touching the dedupe key, so the registry would then lie about what
+   that subscription watches. The adapters release and re-subscribe instead.
+4. **Adapter semantics that had to change,** documented in each file: `connect()`
+   no longer opens a socket eagerly (the manager connects lazily on first
+   subscribe; it still rejects when logged out), and `disconnect()` releases only
+   that instance's subscriptions rather than closing a socket other components are
+   using. Cleanup moved from `onUnmounted` to `onScopeDispose`.
+5. **`useRealtimeSubscription` stopped leaking.** A changing filter previously left
+   the old subscription live for the connection's lifetime — switching channels
+   accumulated subscriptions nobody read. It now releases the previous one first
+   and hands its subscription back on scope dispose.
+6. **Two list-behaviour fixes in the same file**, both pre-existing and both
+   user-visible: `create` now appends on ascending sorts instead of always
+   prepending (comments and reactions sort `date_created` ascending, so new items
+   landed at the top until a refetch), and skips an item the REST baseline already
+   carries; and `delete` now reads the payload as a KEY. Directus sends deletes as
+   bare ids (`data: ["id-1"]`), so reading `.id` off a string matched nothing and
+   deleted rows stayed on screen. Channel messages soft-delete via `status` and hide
+   this; hard-deleted reactions do not.
+7. **`useDirectusWebSocket`'s callback now matches its own declared type**
+   (`{type, data[]}`). It previously forwarded the raw SDK frame, which did not.
+   Zero call sites, so nothing churns.
+
+Quality gate: typecheck **0 errors** · vitest **934/934 in 60 files** · `pnpm build`
+green · hairline audit green at baseline 26.
+
+Browser-verified on the demo org, with `window.WebSocket` wrapped by a counter
+installed *before* the socket under test existed:
+
+- Sat on a page with no realtime subscribers for ~38s → the idle teardown closed the
+  socket. Returning to channels opened **exactly one** socket
+  (`wss://admin.hoaconnect.info/websocket`), and it stayed at one with the channels
+  roster, a channel thread (two subscriptions) and the notification bell all open
+  simultaneously. `/api/websocket/token` — fetched once per socket — was requested
+  **once** for the whole session.
+- Switching channels (filter change → release + re-subscribe) still ended at one
+  socket.
+- Subscriptions fire: a message created out-of-band via the Directus REST API
+  appeared in the thread live; editing it updated in place; deleting it removed it;
+  a channel created out-of-band appeared in the roster and deleting both removed
+  them — all without a refetch, all over the one socket.
+
+Note for Session 3: the bell (`useNotifications.ts`, the 1061-LOC aggregator) opens
+no socket at all today — it polls. So "one connection with bell + channels open" is
+currently a channels-side count; Phase 2c is what puts the bell on the manager, and
+should re-run this proof after the cutover.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -97,6 +180,16 @@ Landed on `main` as a fast-forward (linear history, no merge commit) and pushed.
       audit silently does not run.
 - [ ] Nothing to run on prod for this phase. No schema changes, no new env vars.
       (`NUXT_PUBLIC_APP_VERSION` exists as an override but should stay unset.)
+- [ ] **Phase 2a: nothing to run on prod.** No schema changes, no new env vars —
+      `DIRECTUS_WEBSOCKET_URL` was already set and is unchanged.
+- [ ] **Delete `useDirectusWebSocket.ts` and `useDirectusRealtime.ts` one release
+      after 2a ships** (Risk 2: adapter coexistence). `useDirectusRealtime` still has
+      one real importer, `useDirectusSubscription.ts`; retire that first or point it
+      at the manager directly.
+- [ ] `useDirectusSubscription.handleEvent`'s `delete` branch has the same
+      key-vs-object bug fixed in `useRealtimeSubscription` this session
+      (`items.map(d => d.id)` over bare ids). Left alone as out of Phase 2a's scope —
+      fix it when that composable is retired or next touched.
 
 ## Context
 
