@@ -118,6 +118,14 @@ export const useRealtimeSubscription = <T = any>(
     }
   };
 
+  // Directus sends `create`/`update` payloads as item objects but `delete`
+  // payloads as bare KEYS (`data: ["id-1", "id-2"]`). Reading `.id` off a string
+  // yields undefined, which is why deletes never used to disappear from a list —
+  // hard-deleted reactions being the visible case, since channel messages
+  // soft-delete via `status` and ride the update path instead.
+  const keyOf = (item: any): any =>
+    item != null && typeof item === "object" ? item.id : item;
+
   const applyEvent = (event: string, item: T) => {
     switch (event) {
       case "create": {
@@ -152,9 +160,8 @@ export const useRealtimeSubscription = <T = any>(
       }
 
       case "delete": {
-        data.value = data.value.filter(
-          (existing: any) => existing.id !== (item as any).id
-        );
+        const key = keyOf(item);
+        data.value = data.value.filter((existing: any) => existing.id !== key);
         options.onDelete?.(item);
         break;
       }
