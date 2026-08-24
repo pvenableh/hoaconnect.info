@@ -16,7 +16,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 3 | Phase 2b/2c — Notification unification + bell cutover | [x] | `main` | Bell is on the WS manager; **one** socket with bell + channels, verified. |
 | 4 | Phase 3 — Channels round 2 | [x] | `main` | Ships with **two blocking findings outside the phase** — see Session 4. Channels are write-broken and mentions unpickable on this Directus. |
 | 5 | Phase 4 — Notices engine + attention scoring | [x] | `main` | Also fixed Session 4's two carried blockers. `permissions` is **ignored on create** in Directus 11 — proved, then routed around. |
-| 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `main` | |
+| 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [x] | `main` | Earnest's singular/plural boundary **does not exist here**; HOA's is `violation`/`ticket` → `request`. `preview` is a text column — every proposal card was rendering character-by-character. |
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `main` | |
 | 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `main` | |
 | 9 | Phase 7 core — stacks home | [ ] | `main` | |
@@ -638,6 +638,161 @@ deleted immediately. The demo org is back to 0 channels, 0 requests and 0 notice
 history. The intended residue is: the `ai_notice_history` collection, the
 `directus_users.channel_memberships` alias, and the rewritten permission rules.
 
+**Session 6 — Phase 5** (2026-08-24) — 2 commits straight onto `main`
+(`299200a`, `b23af9b`), not pushed.
+
+Shipped:
+
+- `core/shared/ai/trust.ts` — the earned-trust arithmetic. Milestones 3/10/25 →
+  tiers 1/2/3, gated on approvals outnumbering rejections 2:1. Every function
+  returns a *recommendation*; nothing in this phase writes `ai_autonomy_tier`.
+- `core/app/composables/useDirectorLayer.ts` — composes `useAiContext` +
+  `useAINotices` (P4) + `useAiActions`, owns the vocabulary boundary, and holds
+  the scope→subject map for the HOA hubs.
+- `app/components/Director/Layer.vue` — one component, two shapes. Scope mode is
+  a rounded-full pill with an **outline** button and a collapsed approvals chip;
+  entity mode pins to a record. `<ClientOnly>`, self-hides when empty,
+  localStorage dismissal on the scope banner only. Mounted on six hubs
+  (requests, projects, payments, meetings, members, and both detail pages) —
+  which is what fixes `AiEntityCard`'s 2-of-8 reach.
+- `app/components/Director/TrustBar.vue` — tier ring in the top chrome on every
+  workspace page; popover mounts the existing `<AiTrustDial>` (not a second
+  dial) plus recently-handled with one-click Undo, and the nudge sentence.
+- `core/server/api/ai/actions/bulk.post.ts` — per-row results, cross-org rows
+  refused as that row's 404, batch capped at 200, ids de-duped. **Every id goes
+  through the real `decideAiAction`.**
+- `core/server/api/ai/actions/expire-stale.post.ts` — pending past
+  `AI_ACTION_EXPIRY_DAYS` (default 14) → `rejected` tagged `auto-expired`.
+  Cron secret sweeps everything; a session must name an org it is authorized
+  for. Idempotent, with a working `dryRun`.
+- `core/server/api/ai/actions/trust.get.ts` — this person's clean-approval
+  record in this community, the org's tier, and the nudge computed from both.
+  Writes nothing; fails soft to zeros, which produce no nudge.
+- `core/server/api/ai/notices/propose.post.ts` — **the new door.** A notice's
+  `proposedAction` becomes a real pending row. The body carries a notice id and
+  nothing else; the server re-derives the action and payload from the same
+  generators and routes them through `proposeAction()`.
+- `AUTO_EXPIRED_PREFIX` / `isAutoExpired()` in `core/shared/ai/actions.ts`, so
+  the sweep and the card cannot drift over one string.
+- `docs/ai-action-expiry-cron.md`.
+- Tests: 86 new across five files (trust math, the three lifecycle endpoints,
+  the propose endpoint, the layer's vocabulary boundary, and the notices-scope
+  regression).
+
+Deviations from the plan, all deliberate:
+
+1. **Earnest's singular/plural boundary is not ported, because HOA does not
+   have one.** Notices, page context and `ai_actions.entity_type` all speak the
+   same singular words. What HOA has instead is a *vocabulary* split: a
+   violation page announces itself as `violation` and a ticket page as `ticket`,
+   but both are rows in `hoa_requests`, so the generators and `entityRefFor()`
+   both say `request`. Ask the notices endpoint about a `violation` and you get
+   an empty list, silently, forever. `groundedType` is that translation, in one
+   place, with tests.
+2. **"Draft a plan" opens the assistant; it does not call
+   `/api/ai/director/plan`.** That endpoint is Phase 6. Wiring the button to a
+   route that does not exist yet would ship a 404 behind a button. It opens the
+   panel with a scope-grounded planning prompt instead — same wallet, same HITL
+   queue for anything it proposes — and Phase 6 swaps the one handler. The
+   phase's verification point stands either way: **the pill drafts nothing
+   without a click**, confirmed by the network log on a cold load.
+3. **A fourth endpoint the plan did not list.** Phase 5's brief is "proposals
+   escape the assistant panel", and the kickoff explicitly asks that a notice's
+   `proposedAction` become a real row through `proposeAction()`. That needs a
+   route, so `notices/propose.post.ts` exists. It takes an id, never a payload.
+4. **Auto-approved runs no longer record an approver.** `decideAiAction` was
+   stamping `approved_by` with whoever's chat turn proposed the action. Nobody
+   approved those — the org's dial did — and counting them would let a tier-2
+   org bootstrap itself toward tier 3 on the strength of its own automation.
+   `approved_by` now means "the person who decided", full stop. The ledger
+   already distinguishes the two out loud ("ran automatically under the
+   community's trust settings" vs "Demo Admin approved").
+5. **"Approve all" excludes outbound rows.** The server does not care — bulk
+   routes through the same approval path either way and would happily execute
+   them — so this is a UI judgement, stated in the component so nobody later
+   "fixes" it: approving an email one at a time is a decision; approving nine at
+   once, sight unseen, is a different act wearing the same name.
+6. **The nudge is per-person, the dial stays per-org**, exactly as the plan
+   specifies. What the endpoint returns is a sentence for the person who earned
+   it, suggesting the *association's* dial could move, actionable only by an
+   administrator through the existing `autonomy.post.ts`.
+
+Two things the plan did not anticipate, both found by the browser rather than by
+review:
+
+- **Every proposal card rendered as a numbered list of letters.**
+  `ai_actions.preview` is a `text` column, so Directus hands it back as a JSON
+  *string* while `payload` and `result` (real json columns) come back as
+  objects. `ActionCard` renders the preview generically with `Object.entries`,
+  and on a string that enumerates CHARACTERS: `185: r · 186: e · 187: · 188: i`.
+  This has been broken since Phase 4 of the July round and was invisible while
+  the only way to see a card was to open the assistant panel; Phase 5 put the
+  review queue on six hub pages. Parsed once at the API boundary
+  (`actions/index.get.ts`) so every consumer sees the object the writer wrote.
+- **`useAINotices` pruned its dismissal list against whatever the last fetch
+  returned.** Correct while only the org-wide caller existed. The moment an
+  entity-scoped caller appeared, opening a single request would prune the whole
+  community's dismissals — everything you hid this morning back tomorrow because
+  you clicked into a ticket. A scoped read no longer prunes; it is not evidence
+  about anything but its own record. The composable also gained an optional
+  `stateKey` so a detail page's feed does not overwrite the hub's.
+
+Quality gate: typecheck **0 errors** · vitest **1230/1230 in 74 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope tests on
+all four new endpoints · and an explicit test that an outbound proposal stays
+`pending` at autonomy tier 3, asserted against the live `ACTION_CATALOG` rather
+than a copied list (Risk 4).
+
+Browser-verified headlessly on the demo org, through a real session
+(`/api/demo/login`) on this session's own dev server:
+
+- **A notice became a proposal, and the proposal became work.** A request
+  backdated 45 days produced `request-aged` and `request-unassigned`, both
+  urgent; the first carried a "Follow up on …" button, the second correctly
+  carried none (choosing an assignee is not the assistant's call). One click
+  wrote a pending `create_task` row scoped to that request; the chip appeared
+  reading "1 approval waiting"; expanding it rendered the real card; Approve
+  executed it and created the task; Undo from the trust popover deleted the
+  task and struck the row through.
+- **Entity mode.** The request detail page read "The assistant is watching P5
+  probe — irrigation valve leaking", fetched notices with
+  `entityType=request`, and queried its pending queue with the same word.
+- **The pill drafts nothing without a click.** A cold load fired
+  `/api/ai/notices`, `/api/ai/actions/pending-count` and `/api/ai/actions` —
+  and no `/api/ai/chat` or `/api/ai/draft` at any point.
+- **Tier 3, both halves.** With the dial at 3, the notice proposal
+  auto-executed through `proposeAction` and recorded **no approver**. An
+  outbound proposal in the same community at the same tier still required a
+  person: bulk-approving it executed under that person's name and produced a
+  `status: draft` email — nothing sent.
+- **Bulk is per-row.** A batch of two, one of which belonged to the other demo
+  community, returned `approved: 1, failed: 1` with "Action not found" against
+  the foreign id, which stayed `pending`.
+- **The sweep.** Dry run on a community with one stale row counted 1 and
+  changed nothing; the real run expired it with
+  `error_message: "auto-expired (stale 14 days)"` and `result: {expired: true}`;
+  the second run reported **0**. A session with no `orgId` got 400.
+- **All four endpoints 403 on a foreign community** (1033 Lenox), through the
+  real auth path.
+- **No hydration mismatch.** A cold load of a Director-mounted hub in a fresh
+  tab is clean; the only 404 is the pre-existing dev-only
+  `_nuxt/vue-sonner/style.css`.
+
+**Not verified by clicking, and why.** The "Expired" label renders in the
+assistant panel's history view, which would not open under synthetic clicks
+(the reka-ui gotcha). Rather than assert it by eye, the magic string was made
+one shared export — `isAutoExpired()` — and the sweep's test now asserts the
+real reader against the real writer, plus a companion test that a genuinely
+rejected proposal is *not* called expired.
+
+**Cleanup, stated precisely.** Everything created for this verification was
+deleted afterwards: the backdated request, all four `ai_actions` rows (both
+communities), both created tasks, the draft email, and the four `org_audit_log`
+entries with their four `ai_ledger_chunks`. Both demo orgs are back to
+`ai_autonomy_tier: 0` with zero actions, zero tasks and zero ledger rows. There
+is no intended residue — this phase adds no collections, no fields and no env
+vars.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -696,6 +851,22 @@ history. The intended residue is: the `ai_notice_history` collection, the
       `CRON_SECRET` is already set.
 - [ ] **Phase 4: no new env vars.** `ANTHROPIC_API_KEY` is irrelevant here —
       the notices engine makes no LLM call at any point.
+- [ ] **Add the stale-proposal sweep to the droplet crontab** — a WEEKLY `curl`
+      at `POST /api/ai/actions/expire-stale` with the `x-cron-secret` header.
+      Exact line, the dry-run check, and why weekly rather than nightly:
+      `docs/ai-action-expiry-cron.md`. **No new env var** — `CRON_SECRET` is
+      already set. `AI_ACTION_EXPIRY_DAYS` is optional and defaults to 14.
+- [ ] **Phase 5: nothing to run on prod.** No schema changes, no new
+      collections, no new fields, no `generate:types`.
+- [ ] **Consider making `ai_actions.preview` a `json` column.** It is `text`
+      today, which is why Directus returns it as a string and why every proposal
+      card rendered character-by-character until Session 6 parsed it at the API
+      boundary. The parse is correct and defensive either way, so this is
+      tidiness rather than a fix — but a `json` column would make the shape
+      match `payload` and `result`, which are already json.
+- [ ] **Wire "Draft a plan" to `/api/ai/director/plan` in Phase 6.** It opens
+      the assistant panel today (deviation 2 above); `useDirectorLayer.planThis`
+      is the single handler to swap, and the comment on it says so.
 - [ ] **Beware `permissions` on a `create` rule anywhere in this Directus.**
       It is silently ignored (11.13.4, verified). A create rule must express its
       constraint as `validation` over payload SCALARS, resolving dynamic lists
@@ -914,6 +1085,54 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 7 (Phase 6 server, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1–6 recorded there.
+
+This session = Phase 6 SERVER ONLY (Boardroom collections, the plan endpoint,
+the three director-* utils). The Boardroom PAGE and components are Session 8 —
+do not start them. Earnest reference repo: ~/Sites/earnest/earnest.
+
+Build on what Phases 4 and 5 shipped rather than re-deriving it:
+`collectDirectorAgenda()` in core/server/utils/ai-notices.ts is the grounding
+packet and already buckets into seven subjects; `completeWithTools` lives in
+core/server/utils/llm/provider.ts; the wallet metering is the same path chat
+uses. Plan steps MUST be created through the existing `proposeAction()` so
+`shouldAutoApprove` and the outbound cap apply unchanged — Risk 4 is
+specifically that the cap gets reimplemented somewhere it can drift, and
+Session 6 has an explicit tier-3 test you should extend rather than replace.
+`plan_id = ai_actions.session_id`.
+
+Two things Session 6 left for you, both noted in the plan's operator TODOs:
+useDirectorLayer.planThis() currently opens the assistant panel and is the
+single handler to point at /api/ai/director/plan; and HOA speaks SINGULAR
+entity types everywhere (`request`, not `requests`) — the boundary that exists
+here is `violation`/`ticket` → `request`, already handled by `groundedType`.
+
+Quality gate: typecheck 0, vitest green, build green, org-scope test for every
+new endpoint, the schema script run against prod plus `generate:types`
+committed, cache_key writer/reader identity, TTL expiry, wallet charged per
+plan, and an explicit test that an outbound plan step lands pending at
+autonomy tier 3.
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs)
+and give me the kickoff prompt for Session 8. Ask before pushing.
 ```
 
 ### Kickoff prompt — Session 6 (Phase 5, ready to paste)
