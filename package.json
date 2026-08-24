@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "typecheck": "nuxt typecheck",
     "generate:types": "dotenv -- sh -c 'directus-sdk-typegen -u $DIRECTUS_URL -t $DIRECTUS_STATIC_TOKEN -o ./core/types/directus.ts'",
+    "release:minor": "node scripts/bump-version.mjs minor",
+    "release:major": "node scripts/bump-version.mjs major",
     "generate-icons": "node scripts/generate-icons.js",
     "seed:605-content": "dotenv -- tsx scripts/seed-605-content.ts",
     "seed:demo": "dotenv -- tsx scripts/seed-demo.ts",

@@ -1,0 +1,38 @@
+# Lightweight releases — one GitHub Release per version tag.
+#
+# The deliberate middle ground: no rolling Release PR, no CHANGELOG.md to
+# maintain. The in-app version is auto-counted from git at build time
+# (core/nuxt.config.ts → resolveAppVersion), so a "release" is just tagging a new
+# vX.Y. This workflow reacts to that tag push and files a GitHub Release whose
+# notes are generated from the commits/PRs since the previous tag — a dated,
+# clickable "when did each version ship" timeline for free.
+#
+# Cut a release:
+#   pnpm release:minor         # bumps package.json + creates tag v2.1
+#   git push origin v2.1       # ← this push is what triggers the Release below
+#
+# See docs/releasing.md.
+name: release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*" # v2.1, v3.0, …
+
+permissions:
+  contents: write # required to create a Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history + tags, so the generated notes can diff against the
+          # previous tag rather than against the shallow clone's floor.
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes

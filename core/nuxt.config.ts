@@ -7,6 +7,7 @@
 // This layer is never built or deployed on its own.
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -46,6 +47,94 @@ function resolveBuildId(): string {
   }
 }
 const buildId = resolveBuildId();
+
+// ---------------------------------------------------------------------------
+// Human-facing app version — the "Property Flow v2.1.1027" label.
+//
+// MAJOR.MINOR come from the consuming app's package.json; the PATCH is the git
+// commit count (`git rev-list --count HEAD`), so the visible number moves on
+// every deploy without anyone editing a file. That movement is the point: it is
+// the at-a-glance signal that a fresh build shipped.
+//
+// TAG-FREE BY DESIGN (ported from Earnest, which learned this the hard way). An
+// earlier scheme there used `git describe --tags`; Vercel's authenticated clone
+// fetches commits but NOT tags, so `describe` failed on every deploy and the
+// version silently froze at the static package.json value. Counting commits
+// needs only commit history, which `--unshallow` can restore — never tags.
+//
+// ⚠️ This is only the LABEL. Deploy freshness — the "a new version is
+// available" prompt — is driven by `buildId` above and is untouched by any of
+// this. Nothing parses `version` as numeric semver, which is what makes the
+// sha7 fallback below safe.
+function tryGit(cmd: string): string | null {
+  try {
+    return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"], timeout: 30_000 })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+// Read rather than `import ... from "./package.json"`: this layer has no
+// package.json of its own, so the version belongs to whichever app extends it,
+// and a static import would bake the repo-root path into the layer.
+function readPkgVersion(): string {
+  try {
+    const raw = readFileSync(resolve(coreDir, "..", "package.json"), "utf8");
+    return String(JSON.parse(raw).version || "0.0.0");
+  } catch {
+    return "0.0.0";
+  }
+}
+
+function resolveAppVersion(): string {
+  // Explicit override always wins (CI, a manual lever, a Vercel env var).
+  const envVer = process.env.NUXT_PUBLIC_APP_VERSION?.trim();
+  if (envVer) return envVer;
+
+  const pkgVersion = readPkgVersion();
+  // MAJOR.MINOR base from package.json; its static patch is deliberately ignored.
+  const [major = "0", minor = "0"] = pkgVersion.split(".");
+  const base = `${major}.${minor}`;
+
+  // Vercel/CI usually hand us a shallow clone (the tip N commits only), which
+  // would undercount. Try to complete the COMMIT history first — a no-op on a
+  // full clone. On Vercel's build container the unshallow typically CANNOT
+  // succeed, so re-check afterwards rather than trusting the count blindly.
+  let shallow = tryGit("git rev-parse --is-shallow-repository") === "true";
+  if (shallow) {
+    tryGit("git fetch --unshallow --quiet");
+    tryGit("git fetch --deepen=2147483647 --quiet");
+    shallow = tryGit("git rev-parse --is-shallow-repository") === "true";
+  }
+
+  // Only trust the count when the history is actually COMPLETE. A shallow clone
+  // would freeze the label at the clone depth — the "stuck at 2.0.10" bug.
+  if (!shallow) {
+    const count = tryGit("git rev-list --count HEAD");
+    if (count && /^\d+$/.test(count)) return `${base}.${count}`;
+  }
+
+  // Shallow and un-deepenable, or no git at all: fall back to the deploy's
+  // commit SHA as the patch. It is honest and it CHANGES every deploy, which
+  // the frozen count would not.
+  const sha = (
+    process.env.NUXT_PUBLIC_BUILD_ID ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GITHUB_SHA ||
+    tryGit("git rev-parse HEAD") ||
+    ""
+  ).slice(0, 7);
+  if (sha) return `${base}.${sha}`;
+
+  // Last resort — the static package.json version, so the app still boots.
+  return pkgVersion;
+}
+
+const appVersion = resolveAppVersion();
+// Surface the resolved version in build/deploy logs for at-a-glance sanity.
+console.log(`[version] app version resolved to ${appVersion}`);
 
 export default defineNuxtConfig({
   // Nuxt 4 compatibility
@@ -231,9 +320,11 @@ export default defineNuxtConfig({
       // These are used when no organization is active or org has no custom branding
       defaultIconId: process.env.NUXT_PUBLIC_DEFAULT_ICON_ID || "",
       defaultLogoId: process.env.NUXT_PUBLIC_DEFAULT_LOGO_ID || "",
-      // Human-facing release line (shown in the update prompt / About). Bump on each
-      // major UX release. Detection itself keys off buildId, not this string.
-      appVersion: "2.0.0",
+      // Human-facing release line (shown in the update prompt / About). Derived at
+      // build time by resolveAppVersion() above — MAJOR.MINOR from package.json,
+      // patch counted from git — so it is never hand-edited. Detection itself keys
+      // off buildId, not this string.
+      appVersion,
       // Per-deploy build identity baked into the client bundle. Compared against the
       // live value from GET /api/version to detect that a new version has shipped.
       buildId,
