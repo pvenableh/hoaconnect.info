@@ -56,6 +56,35 @@ const idOf = (v: any): string | null =>
  */
 export type OrgWideAccessCheck = (orgId: string) => boolean | Promise<boolean>;
 
+/**
+ * The next value of a read cursor. Exported and pure because the rule it
+ * encodes is easy to get wrong and was, once: the cursor only ever moves
+ * FORWARD.
+ *
+ * The obvious rule — clamp a future timestamp to "now" — is the wrong one. The
+ * timestamp a client sends is not its own clock; it is `date_created` off the
+ * row it just rendered, stamped by DIRECTUS, on a different machine. When
+ * Directus ran a few seconds ahead of the app server, clamping rewrote the
+ * cursor to just BEFORE the message it was acknowledging, and that message
+ * stayed unread while the reader sat there watching it.
+ *
+ * Monotonicity also covers what the clamp was reaching for: a late markRead
+ * from a stale render cannot un-read newer messages.
+ */
+export function nextReadCursor(
+  existing: string | null | undefined,
+  requested: string | null | undefined,
+  now: () => Date = () => new Date()
+): string {
+  const parsed = requested ? new Date(requested) : null;
+  const want =
+    parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : now().toISOString();
+
+  const prev = existing ? new Date(existing) : null;
+  if (!prev || Number.isNaN(prev.getTime())) return want;
+  return prev.getTime() > new Date(want).getTime() ? prev.toISOString() : want;
+}
+
 export async function computeChannelUnread(opts: {
   directus: ReturnType<typeof getTypedDirectus>;
   userId: string;

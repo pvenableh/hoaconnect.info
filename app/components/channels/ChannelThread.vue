@@ -352,6 +352,10 @@ watch(
   (loading) => {
     if (loading) return;
     resetVisible();
+    // A backlog opens at its live end, always — that is where the conversation
+    // is. The divider is what marks where you left off; the scroll position is
+    // not asked to do that job as well.
+    scrollToBottom();
     setTimeout(() => {
       settled = true;
     }, 60);
@@ -456,22 +460,44 @@ const sendMessage = async () => {
   }
 };
 
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
-    nextTick(() => {
-      messagesContainer.value!.scrollTop = messagesContainer.value!.scrollHeight;
-    });
-  }
+/** Is the reader at the live end of the conversation, or back in history? */
+const isNearBottom = (): boolean => {
+  const el = messagesContainer.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
 };
 
+// The pane has `scroll-behavior: smooth`, which is right for a user scrolling
+// and wrong for us: a smooth jump to the bottom can still be in flight when the
+// next layout pass changes the height, and it lands mid-history. So these jumps
+// are explicitly instant, and they run twice — once after Vue patches the DOM,
+// once after avatars and link previews have settled the row heights.
+const scrollToBottom = () => {
+  // The element is resolved INSIDE nextTick, not before it: the first call
+  // comes from the loading watcher, which flushes before the DOM patch that
+  // creates the pane, so reading the ref up front bails on exactly the call
+  // that matters — the one that opens a channel at its live end.
+  nextTick(() => {
+    const jump = () => {
+      const el = messagesContainer.value;
+      if (el) el.scrollTop = el.scrollHeight;
+    };
+    jump();
+    // Again once avatars and link previews have settled the row heights; a
+    // jump that lands mid-history is worse than no jump at all.
+    setTimeout(jump, 80);
+  });
+};
+
+// Watchers flush BEFORE the DOM patch, so this reads where the reader was
+// standing when the message arrived, not where the new row pushed them. Someone
+// scrolled back through history stays there; someone at the live end follows.
 watch(
   () => visibleMessages.value.length,
   (now, before) => {
-    if (now > (before || 0)) scrollToBottom();
+    if (now > (before || 0) && isNearBottom()) scrollToBottom();
   }
 );
-
-onMounted(() => scrollToBottom());
 
 // Reset transient state when switching channels. `settled` goes back off so the
 // next channel's backlog snaps in rather than stagger-animating, and the local
@@ -506,7 +532,11 @@ watch(
     const id = highlightId.value;
     if (!id || !visibleMessages.value.some((m) => m.id === id)) return;
     nextTick(() => {
-      document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Instant, not smooth. A smooth scroll is easing, and easing is the first
+      // thing an environment drops — it is a no-op under reduced motion and in
+      // headless Chrome — which would leave the jump silently doing nothing.
+      // The ring below is what says "here it is"; the scroll only has to land.
+      document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: "auto", block: "center" });
     });
     if (highlightClearTimer) clearTimeout(highlightClearTimer);
     highlightClearTimer = setTimeout(() => {
@@ -701,8 +731,10 @@ onBeforeUnmount(() => {
             :class="{ entering: enteringIds.has(message.id), leaving: leavingIds.has(message.id) }"
           >
             <div class="msg-slot-inner">
+              <!-- No id here: ChannelMessage's own root already carries
+                   `msg-<id>`, and a second element with the same id is invalid
+                   HTML that getElementById resolves by luck. -->
               <div
-                :id="`msg-${message.id}`"
                 class="rounded-lg transition-shadow"
                 :class="highlightId === message.id ? 'ring-2 ring-primary/50 bg-primary/5' : ''"
               >
@@ -853,9 +885,12 @@ onBeforeUnmount(() => {
   }
 }
 
-.overflow-y-auto {
-  scroll-behavior: smooth;
-}
+/* No `scroll-behavior: smooth` here, deliberately. It applied to every scroll
+   of this pane including ours, and a smooth jump issued right after a layout
+   change is cancelled by the next one — which is why opening a channel used to
+   land on the OLDEST message with the newest ones below the fold. Jump-to-
+   message asks for smooth on the call itself, which is the only place it was
+   ever wanted. */
 .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }

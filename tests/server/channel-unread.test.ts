@@ -110,6 +110,7 @@ const directus = {
 } as any;
 
 const load = async () => (await import("#core/server/utils/channel-unread")).computeChannelUnread;
+const loadCursor = async () => (await import("#core/server/utils/channel-unread")).nextReadCursor;
 
 const run = (hasOrgWideAccess?: (orgId: string) => boolean) =>
   load().then((fn) => fn({ directus, userId: ME, hasOrgWideAccess }));
@@ -266,5 +267,51 @@ describe("org scope", () => {
     const channelQuery = ops.find((o) => o.collection === "hoa_channels");
     const orgClause = channelQuery?.query?.filter?._and?.find((c: any) => c.organization);
     expect(orgClause.organization._in).toEqual([HOME]);
+  });
+});
+
+describe("nextReadCursor", () => {
+  const NOW = "2026-08-24T18:50:14.000Z";
+  const now = () => new Date(NOW);
+
+  it("accepts a timestamp AHEAD of the app server's clock", async () => {
+    // The regression this exists for. The value is `date_created` off a row
+    // Directus stamped, on a machine whose clock ran a few seconds ahead;
+    // clamping it to "now" put the cursor just before the message it was
+    // acknowledging, so that message stayed unread while it sat on screen.
+    const nextReadCursor = await loadCursor();
+    const ahead = "2026-08-24T18:50:18.530Z";
+    expect(nextReadCursor(null, ahead, now)).toBe(ahead);
+  });
+
+  it("never moves backwards", async () => {
+    const nextReadCursor = await loadCursor();
+    const held = "2026-08-24T18:50:00.000Z";
+    expect(nextReadCursor(held, "2026-08-24T12:00:00.000Z", now)).toBe(held);
+  });
+
+  it("moves forward when the request is newer", async () => {
+    const nextReadCursor = await loadCursor();
+    const next = "2026-08-24T19:00:00.000Z";
+    expect(nextReadCursor("2026-08-24T18:50:00.000Z", next, now)).toBe(next);
+  });
+
+  it("falls back to now when no timestamp is offered", async () => {
+    const nextReadCursor = await loadCursor();
+    expect(nextReadCursor(null, null, now)).toBe(NOW);
+    expect(nextReadCursor(null, "not a date", now)).toBe(NOW);
+  });
+
+  it("still refuses to go backwards when falling back to now", async () => {
+    const nextReadCursor = await loadCursor();
+    const future = "2026-08-24T23:00:00.000Z";
+    expect(nextReadCursor(future, null, now)).toBe(future);
+  });
+
+  it("ignores an unparseable stored cursor rather than sticking on it", async () => {
+    const nextReadCursor = await loadCursor();
+    expect(nextReadCursor("garbage", "2026-08-24T18:00:00.000Z", now)).toBe(
+      "2026-08-24T18:00:00.000Z"
+    );
   });
 });

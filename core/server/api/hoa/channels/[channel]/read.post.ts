@@ -18,8 +18,11 @@
  * a non-private channel in a community you administer or sit on the board of.
  * A cursor is not a grant; nothing here can widen what you can see.
  *
- * Body: { last_read_at?: string } — omitted means now. A client that has just
- * rendered a backlog may pass the timestamp it actually rendered up to.
+ * Body: { last_read_at?: string } — omitted means now. Callers pass the
+ * `date_created` of the newest message they have rendered, so the cursor
+ * acknowledges an actual row rather than a wall-clock guess. The cursor is
+ * monotonic; see the comment on `lastReadAt` below for why that, and not a
+ * future-timestamp clamp, is the rule that holds.
  */
 
 import { readItems, createItem, updateItem } from "@directus/sdk";
@@ -51,7 +54,7 @@ export default defineEventHandler(async (event) => {
     (await directus.request(
       readItems("hoa_channel_members", {
         filter: { channel: { _eq: channelId }, user: { _eq: userId } },
-        fields: ["id"],
+        fields: ["id", "last_read_at"],
         limit: 1,
       })
     )) as any[]
@@ -71,19 +74,16 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody(event).catch(() => ({} as any));
   const raw = typeof body?.last_read_at === "string" ? body.last_read_at : null;
-  const parsed = raw ? new Date(raw) : null;
-  const now = new Date();
-  // A client clock ahead of ours would silently swallow messages that land in
-  // the gap, so a future cursor is clamped rather than trusted.
-  const lastReadAt =
-    parsed && !Number.isNaN(parsed.getTime()) && parsed <= now
-      ? parsed.toISOString()
-      : now.toISOString();
+  // Monotonic — see `nextReadCursor`, which is where that rule and the reason
+  // for it live.
+  const lastReadAt = nextReadCursor(existing?.last_read_at, raw);
 
   if (existing) {
-    await directus.request(
-      updateItem("hoa_channel_members", existing.id, { last_read_at: lastReadAt })
-    );
+    if (lastReadAt !== existing.last_read_at) {
+      await directus.request(
+        updateItem("hoa_channel_members", existing.id, { last_read_at: lastReadAt })
+      );
+    }
   } else {
     await directus.request(
       createItem("hoa_channel_members", {
