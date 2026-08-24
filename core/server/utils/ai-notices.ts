@@ -163,26 +163,42 @@ function calendarDelta(at: unknown, now: Date): number | null {
     const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     return Math.round((t - todayUtc) / 86_400_000);
   }
-  return Math.floor((t - now.getTime()) / 86_400_000);
+  // Deliberately fractional. Rounding here would have to pick a direction, and
+  // the two callers below need opposite ones — see `ageInDays`.
+  return (t - now.getTime()) / 86_400_000;
 }
 
 /**
  * Days since a stored value, floored at 0. Null/invalid → null.
  *
- * The floor is load-bearing, not defensive tidiness: Directus writes timestamps
- * from its own machine and has been measured running seconds ahead of the app
- * server, so a row created "just now" can legitimately carry a future stamp. A
- * negative age would flow straight into the attention curve.
+ * Both roundings here are load-bearing.
+ *
+ * **Floor the magnitude, not the signed delta.** A row created 31 days and 45
+ * seconds ago has a delta of −31.0005, and `Math.floor` of that is −32 — so
+ * negating a floored delta reports a 31-day-old request as 32 days old.
+ * Flooring the elapsed time instead gives 31, which is what a person counting
+ * on a calendar would say. This was caught in the browser, not by the unit
+ * tests, because a fixture built from `now − 31 days` is exact and real rows
+ * never are.
+ *
+ * **Floor at zero.** Directus writes timestamps from its own machine and has
+ * been measured running seconds ahead of the app server, so a row created "just
+ * now" can legitimately carry a future stamp. A negative age would flow
+ * straight into the attention curve.
  */
 function ageInDays(at: unknown, now: Date): number | null {
   const delta = calendarDelta(at, now);
   if (delta === null) return null;
-  return delta >= 0 ? 0 : -delta;
+  return delta >= 0 ? 0 : Math.floor(-delta);
 }
 
-/** Days from `now` until a future date. Negative means it has passed. */
+/**
+ * Days from `now` until a future date. Negative means it has passed. Floored,
+ * so "in 5 days" means at least five whole days remain.
+ */
 function daysUntil(at: unknown, now: Date): number | null {
-  return calendarDelta(at, now);
+  const delta = calendarDelta(at, now);
+  return delta === null ? null : Math.floor(delta);
 }
 
 /** Assemble a notice, scoring it once so `score` and `priority` cannot disagree. */

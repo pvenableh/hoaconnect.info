@@ -192,6 +192,23 @@ describe("requests", () => {
     { id: "r1", organization: ORG, status: "open", title: "Leak in B2", assigned_to: "u1", ...over },
   ];
 
+  it("counts whole elapsed days — a 31-day-old row is 31, not 32", async () => {
+    // Real rows are never an exact multiple of a day old. Negating a floored
+    // negative delta rounds ages UP, so a request seeded 31 days and 45 seconds
+    // ago reported "Open 32 days". The browser found this; a fixture built from
+    // `now - 31 days` is exact and cannot.
+    rows.hoa_requests = req({
+      date_created: new Date(NOW.getTime() - (31 * 86_400_000 + 45_000)).toISOString(),
+    });
+    const [aged] = await generateRequestNotices(directus, "r1", ORG, NOW);
+    expect(aged.title).toContain("Open 31 days");
+  });
+
+  it("does not age a row Directus stamped a moment into the future", async () => {
+    rows.hoa_requests = req({ date_created: new Date(NOW.getTime() + 4_000).toISOString() });
+    expect(await generateRequestNotices(directus, "r1", ORG, NOW)).toEqual([]);
+  });
+
   it("is silent the day before the aged threshold and speaks the day after", async () => {
     rows.hoa_requests = req({ date_created: daysAgo(NOTICE_THRESHOLDS.REQUEST_AGED_DAYS - 1) });
     expect(ids(await generateRequestNotices(directus, "r1", ORG, NOW))).not.toContain("request-aged-r1");
