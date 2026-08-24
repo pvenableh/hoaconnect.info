@@ -23,6 +23,13 @@ export const NOTIFICATION_CATEGORIES = [
   { key: "mention", label: "Mentions" },
   { key: "comment", label: "Comments" },
   { key: "membership", label: "Membership" },
+  // Proactive notices from the assistant (Parity Round 2, Phase 4). Added to
+  // the shared list rather than special-cased, so the account Sheet renders a
+  // toggle for it and the digest picks it up for free. A missing key means ON,
+  // which is what puts existing members in without a backfill — and the notices
+  // cron only ever escalates `urgent`/`high`, so defaulting in is a handful of
+  // messages a month, not a feed.
+  { key: "ai_insight", label: "Assistant insights" },
 ] as const;
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]["key"];

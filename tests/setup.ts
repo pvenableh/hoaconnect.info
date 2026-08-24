@@ -1,5 +1,5 @@
 import { vi, beforeEach } from "vitest";
-import { computed, ref, readonly, reactive, watch, watchEffect, nextTick, onScopeDispose, getCurrentScope, toRaw, unref } from "vue";
+import { computed, ref, readonly, reactive, watch, watchEffect, nextTick, onScopeDispose, getCurrentScope, toRaw, toValue, unref } from "vue";
 
 // Provide Nuxt auto-imports as globals so composables/utils import cleanly in
 // plain vitest (no Nuxt runtime). Anything session/Directus-shaped is stubbed
@@ -14,6 +14,7 @@ vi.stubGlobal("readonly", readonly);
 vi.stubGlobal("onScopeDispose", onScopeDispose);
 vi.stubGlobal("getCurrentScope", getCurrentScope);
 vi.stubGlobal("toRaw", toRaw);
+vi.stubGlobal("toValue", toValue);
 vi.stubGlobal("unref", unref);
 
 // useState dedupes by key like real Nuxt (two callers of useState("x") share

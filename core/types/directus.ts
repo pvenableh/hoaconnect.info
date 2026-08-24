@@ -154,6 +154,27 @@ export interface AiMessage {
 	date_created?: string | null;
 }
 
+export interface AiNoticeHistory {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description sha256 of noticeType:entityType:entityId:YYYY-MM — the once-a-month key. @required */
+	notice_hash: string;
+	/** @description e.g. request-aged, invoice-overdue. */
+	notice_type?: string | null;
+	entity_type?: string | null;
+	entity_id?: string | null;
+	priority?: 'urgent' | 'high' | 'medium' | 'low' | null;
+	/** @description Calendar month, YYYY-MM. */
+	period?: string | null;
+	/** @description The notice's headline, as sent. */
+	title?: string | null;
+	/** @description How many people the bell row reached. */
+	recipients?: number | null;
+	date_created?: string | null;
+}
+
 export interface AiTransaction {
 	/** @primaryKey */
 	id: string;
@@ -2288,6 +2309,7 @@ export interface Schema {
 	ai_doc_chunks: AiDocChunk[];
 	ai_ledger_chunks: AiLedgerChunk[];
 	ai_messages: AiMessage[];
+	ai_notice_history: AiNoticeHistory[];
 	ai_transactions: AiTransaction[];
 	ai_wallets: AiWallet[];
 	billing_account_members: BillingAccountMember[];
@@ -2394,6 +2416,7 @@ export enum CollectionNames {
 	ai_doc_chunks = 'ai_doc_chunks',
 	ai_ledger_chunks = 'ai_ledger_chunks',
 	ai_messages = 'ai_messages',
+	ai_notice_history = 'ai_notice_history',
 	ai_transactions = 'ai_transactions',
 	ai_wallets = 'ai_wallets',
 	billing_account_members = 'billing_account_members',

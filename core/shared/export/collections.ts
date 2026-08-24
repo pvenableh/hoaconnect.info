@@ -346,6 +346,13 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   // is org-scoped, so it follows the rest of the ai_* family into `full` rather
   // than being excluded as platform machinery.
   direct("ai_ledger_chunks", "AI ledger index", FULL_ONLY),
+  // Which proactive notices this community has already been told about, and
+  // when. Org-scoped and human-readable (it keeps the notice's title, entity
+  // and priority beside the hash), so it belongs in the community's own full
+  // export with the rest of the ai_* family. It is not shareable: a row like
+  // "member-balance, urgent" names one household's standing to anyone holding
+  // the archive.
+  direct("ai_notice_history", "AI notice history", FULL_ONLY),
 ];
 
 const BY_COLLECTION: ReadonlyMap<string, ExportEntry> = new Map(
