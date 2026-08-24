@@ -4,6 +4,7 @@
 // Renders generically from the proposal's preview so every action type is
 // covered without a per-type template. (Phase 4.)
 import type { AiActionRow } from "#core/app/composables/useAiActions";
+import { isAutoExpired } from "#core/shared/ai/actions";
 
 const props = defineProps<{ action: AiActionRow; busy?: boolean }>();
 const emit = defineEmits<{
@@ -55,11 +56,7 @@ const wasUndone = computed(() => props.action.status === "executed" && props.act
 // server/api/ai/actions/expire-stale.post.ts). The human distinction is real
 // though: "rejected" says someone looked and said no, and that is not what
 // happened. The tag the sweep writes is what tells the two apart.
-const wasExpired = computed(
-  () =>
-    props.action.status === "rejected" &&
-    String(props.action.error_message || "").startsWith("auto-expired")
-);
+const wasExpired = computed(() => isAutoExpired(props.action));
 const statusLabel = computed(() => {
   if (wasUndone.value) return "undone";
   if (wasExpired.value) return "expired";

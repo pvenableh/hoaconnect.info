@@ -38,6 +38,7 @@
  */
 
 import { readItems, updateItems } from "@directus/sdk";
+import { AUTO_EXPIRED_PREFIX } from "#core/shared/ai/actions";
 
 /** How long a proposal may sit unanswered. Override with AI_ACTION_EXPIRY_DAYS. */
 export const DEFAULT_EXPIRY_DAYS = 14;
@@ -49,9 +50,6 @@ export function expiryDays(): number {
   const raw = Number(process.env.AI_ACTION_EXPIRY_DAYS);
   return Number.isFinite(raw) && raw >= 1 ? Math.trunc(raw) : DEFAULT_EXPIRY_DAYS;
 }
-
-/** The tag the activity card reads to say "Expired" rather than "Rejected". */
-export const AUTO_EXPIRED_PREFIX = "auto-expired";
 
 export default defineEventHandler(async (event) => {
   const body = ((await readBody(event).catch(() => ({}))) || {}) as {

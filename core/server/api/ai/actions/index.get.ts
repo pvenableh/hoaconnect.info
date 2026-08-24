@@ -34,5 +34,21 @@ export default defineEventHandler(async (event) => {
     })
   )) as any[];
 
-  return { actions: rows };
+  // `preview` is a `text` column, so Directus hands it back as a JSON STRING
+  // while `payload` and `result` (real json columns) come back as objects. The
+  // proposal card renders the preview generically with `Object.entries`, and on
+  // a string that enumerates CHARACTERS — every card turning into a numbered
+  // list of letters. Parse it here, once, so every consumer sees the object the
+  // writer put in. Left as a string if it will not parse: a card with one odd
+  // line beats a 500 on the review queue.
+  const withParsedPreview = rows.map((row) => {
+    if (typeof row?.preview !== "string") return row;
+    try {
+      return { ...row, preview: JSON.parse(row.preview) };
+    } catch {
+      return row;
+    }
+  });
+
+  return { actions: withParsedPreview };
 });

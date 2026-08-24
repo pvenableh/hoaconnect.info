@@ -174,10 +174,9 @@ function reviewPending() {
 
     <Transition name="trustbar-pop">
       <div v-if="open" class="trustbar__panel" @click.stop>
-        <p class="text-[10px] font-semibold uppercase tracking-wide t-text-muted text-center">
-          How much the assistant handles on its own
-        </p>
-
+        <!-- No heading of our own: <AiTrustDial> already carries "How much the
+             assistant handles on its own", and two copies of the same sentence
+             stacked was exactly what the browser showed. -->
         <AiTrustDial :org-id="orgId" :can-edit="isAdminOfCurrentDomain" />
 
         <!-- Earned trust — a sentence, never a switch. -->

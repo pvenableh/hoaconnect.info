@@ -55,6 +55,26 @@ export const ACTION_CATALOG: readonly ActionDef[] = [
   { key: "notify_board", label: "Notify the board", category: "comms", risk: "high", outbound: true, description: "Send a notification to the board members." },
 ] as const;
 
+/**
+ * The tag the stale-proposal sweep writes into `error_message`
+ * (`server/api/ai/actions/expire-stale.post.ts`).
+ *
+ * A proposal nobody ever answered becomes `rejected` rather than gaining an
+ * `expired` status value — no schema change, and no existing status switch
+ * quietly missing a case. But the human distinction is real: "rejected" says a
+ * person looked and said no, and that is not what happened. This prefix is how
+ * the two are told apart, and it lives HERE, shared, so the writer and the card
+ * that reads it cannot drift into disagreeing about one string.
+ */
+export const AUTO_EXPIRED_PREFIX = "auto-expired";
+
+/** Whether a row was retired by the sweep rather than refused by a person. */
+export function isAutoExpired(row: { status?: string | null; error_message?: string | null }): boolean {
+  return (
+    row?.status === "rejected" && String(row?.error_message || "").startsWith(AUTO_EXPIRED_PREFIX)
+  );
+}
+
 export function actionByKey(key: string): ActionDef | undefined {
   return ACTION_CATALOG.find((a) => a.key === key);
 }

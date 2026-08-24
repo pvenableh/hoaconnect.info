@@ -459,13 +459,28 @@ describe("POST /api/ai/actions/expire-stale — what it is allowed to touch", ()
   });
 
   it("tags the row so the card can say Expired rather than Rejected", async () => {
+    // The predicate the card renders from is `isAutoExpired`, shared, so this
+    // asserts the actual reader against the actual writer rather than restating
+    // a magic string in two places and hoping they stay equal.
+    const { isAutoExpired } = await import("#core/shared/ai/actions");
     rows.ai_actions = [{ ...pendingAction(), date_created: daysAgo(60) }];
     const handler = await loadExpire();
     await handler({ __body: { orgId: HOME } });
     const row = rows.ai_actions[0];
     expect(row.status).toBe("rejected");
-    expect(row.error_message).toMatch(/^auto-expired \(stale 14 days\)$/);
+    expect(row.error_message).toBe("auto-expired (stale 14 days)");
     expect(row.result).toEqual({ expired: true });
+    expect(isAutoExpired(row)).toBe(true);
+  });
+
+  it("does not call a genuinely rejected proposal expired", async () => {
+    const { isAutoExpired } = await import("#core/shared/ai/actions");
+    const a = pendingAction();
+    rows.ai_actions = [a];
+    const bulk = await loadBulk();
+    await bulk({ __body: { orgId: HOME, ids: [a.id], decision: "reject" } });
+    expect(rows.ai_actions[0].status).toBe("rejected");
+    expect(isAutoExpired(rows.ai_actions[0])).toBe(false);
   });
 
   it("is idempotent — the second run finds nothing left to do", async () => {
