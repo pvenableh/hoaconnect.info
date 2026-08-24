@@ -15,7 +15,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 2 | Phase 2a — WS manager + adapter shims | [x] | `feat/parity2-p2a-ws-manager` | All three composables kept as adapters; deletion deferred one release, as planned. |
 | 3 | Phase 2b/2c — Notification unification + bell cutover | [x] | `main` | Bell is on the WS manager; **one** socket with bell + channels, verified. |
 | 4 | Phase 3 — Channels round 2 | [x] | `main` | Ships with **two blocking findings outside the phase** — see Session 4. Channels are write-broken and mentions unpickable on this Directus. |
-| 5 | Phase 4 — Notices engine + attention scoring | [ ] | `main` | |
+| 5 | Phase 4 — Notices engine + attention scoring | [x] | `main` | Also fixed Session 4's two carried blockers. `permissions` is **ignored on create** in Directus 11 — proved, then routed around. |
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `main` | |
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `main` | |
 | 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `main` | |
@@ -467,6 +467,177 @@ session created — id 7, the pre-existing "Profile change to review" row, was
 listed first and left alone. The demo org is back to 0 channels and its original
 6 members. The one intended residue is the new `hoa_channels.category` field.
 
+**Session 5 — Phase 4** (2026-08-24) — 3 commits straight onto `main`
+(`a1869b0`, `cc587b8`, `0e2ca2c`), not pushed.
+
+### First: Session 4's two carried blockers, both fixed (Peter approved both)
+
+**Channels are writable again — but not the way the TODO said.** The TODO's
+first suggestion was "move the org check from `validation` to `permissions`".
+That was tried, and **it opens a cross-org write hole: Directus 11 ignores
+`permissions` on the `create` action.** With the org rule moved there, the demo
+admin successfully created a message in a channel belonging to 605 Lincoln Road,
+an organisation they are not a member of. The row was deleted, the permission
+reverted, and the approach abandoned before anything shipped. **Anyone reaching
+for `permissions` on a create rule in this Directus should read this paragraph
+first.**
+
+What works is keeping the rule in `validation` and writing it so Directus can
+evaluate it against a *payload*. The original failed because
+`{channel: {organization: {_in: "$CURRENT_USER.hoa_members.organization"}}}`
+asks Directus to traverse `channel.organization` on a payload whose `channel` is
+a bare uuid — so it reported the nested key as a missing required field
+(`Validation failed for field "channel". Value is required.`). The fix validates
+the payload's `channel` **scalar** against a dynamic list instead:
+
+    { channel: { _in: "$CURRENT_USER.channel_memberships.channel" } }
+
+`$CURRENT_USER.channel_memberships` needs a reverse O2M alias on
+`directus_users` before Directus can resolve it — the same prerequisite
+`hoa_members` already satisfies for the org filter. `scripts/fix-channel-message-write.ts`
+(`pnpm fix:channel-writes`) creates it and rewrites the rules.
+
+This is **membership-scoped rather than org-scoped**, i.e. tighter than what was
+originally intended, and it matches the model channels already use: the
+`hoa_channel_members` row IS the grant. Nobody loses the ability to post, because
+opening a channel auto-joins — `ChannelThread.openChannel()` awaits `markRead()`,
+which POSTs `/api/hoa/channels/:channel/read`, which creates the row before the
+composer is usable. `hoa_channel_mentions.create` carried the identical broken
+filter; HOA Member had no create row for it at all, so a member's @-mention
+silently wrote nothing, and now has one.
+
+`update` was checked and deliberately left alone: it carries the same traversal
+and works, because an update has an existing row to resolve against.
+
+**Everyone else is no longer "Unknown User".** `directus_users` read was
+`{id: {_eq: "$CURRENT_USER.id"}}` on all three app policies. A second read rule
+per policy now matches people who share an organisation, exposing
+`id / first_name / last_name / avatar` and nothing else
+(`scripts/widen-users-read-to-org.ts`, `pnpm widen:users-read`). The self rule is
+untouched, and that is what makes it safe: **Directus 11 applies field
+permissions per matching rule, not as a union across rules** — verified before
+writing the script, and again after. An org peer's `email`, `role`, `status`,
+`provider`, `password` and `tfa_secret` all come back `null`; `token`,
+`last_access` and `external_identifier` are refused outright; own records still
+read complete through the self rule.
+
+Verified live against prod Directus 11.13.4 with each role's own token: a member
+with no channel row is refused; with a row, the send succeeds and is attributed
+to *them*, not the service account; a cross-org send is refused for both admin
+and member. Both scripts are idempotent and were re-run to prove it.
+
+### Then: Phase 4 proper
+
+Shipped:
+
+- `core/shared/ai/attention.ts` — Earnest's curve, ported unchanged in shape and
+  constants: base 40, overdue ramp to 14d, hot to 45d, decay to 120d, stale floor
+  0.22, log10 money to a cap of 22, buckets 82/64/46. Every dial is a named
+  export so the tests assert constants rather than magic numbers.
+- `core/server/utils/ai-notices.ts` — eight generators over HOA's entities
+  (requests aged / overdue / unowned, member balances, projects stale / overdue /
+  over budget, unanswered channels, vendor cover expiring or lapsed, meetings
+  without minutes, unpaid `payment_requests`, low AI credits), `collectOrgNotices()`,
+  and `collectDirectorAgenda()` with seven subjects — built now because Phase 6
+  depends on it.
+- `core/server/api/ai/notices/index.get.ts` — org-scoped, admin/board only.
+- `core/app/composables/useAINotices.ts` — localStorage dismissal, scoped per
+  org and pruned against what the server still returns.
+- `core/server/api/ai/notices/check.post.ts` — cron-secret-guarded; urgent/high
+  only, deduped by an `ai_notice_history` hash to one fire per notice-type per
+  entity per calendar month; degrades loudly (warn, skip dedup, still send) when
+  the ledger is absent.
+- `ai_insight` in `core/shared/notifications/preferences.ts`; the account sheet
+  and the digest pick it up from the shared list with no other change.
+- `scripts/create-ai-notice-history.ts` (`pnpm create:ai-notice-history`) —
+  **already run against prod** — plus `generate:types` committed.
+- `docs/ai-notices-cron.md`.
+- Tests: 109 new across four files.
+
+Deviations from the plan, all deliberate:
+
+1. **No vendor *insurance* field exists.** `hoa_vendors` has no insurance column;
+   `active_until` is the only cover/contract end date in the schema, so the
+   generator uses it and the copy says "contract/insurance" rather than claiming
+   a distinction the data cannot make.
+2. **"Unpaid invoices" means `payment_requests`.** There is no invoice
+   collection. `amount_remaining` is preferred over `amount` so a partial payment
+   is reported honestly.
+3. **A member who has never paid is not scored as ancient.** Nothing records when
+   a balance first went unpaid, so `last_payment_date` is the only honest anchor
+   — and its absence means "no anchor", not "infinitely overdue". Inventing an
+   age is exactly how a nine-year-old account pins itself to the top of a feed.
+4. **`proposedAction` is guarded twice, not once.** An allow-list
+   (`PROACTIVE_ACTIONS`) *and* a check against `ACTION_CATALOG`'s own `outbound`
+   flag. The second is what holds if someone later adds an outbound key to the
+   list by mistake or flips an existing action's flag; the catalog stays the
+   single source of truth for what leaves the building. Asserted in tests
+   against the live catalog rather than a copied list.
+5. **The cron is daily, not hourly, and is a bare `curl`.** The thresholds are
+   measured in days, so a second run the same day can only find what the first
+   handled. Being a `curl` at a deployed URL, it structurally avoids the
+   digest worker's documented checkout-path hazard — it has no checkout to keep
+   in step with the repo layout. `docs/ai-notices-cron.md` says so explicitly so
+   nobody models it on the digest line.
+6. **Dismissal is per-browser, and that is a decision.** The server is
+   deterministic and will return the same notice tomorrow, so "I have seen this"
+   is a fact about the reader. A shared row would let one board member hide a
+   notice from the treasurer. The cost — dismissals don't roam, and clearing site
+   data restores them — is acceptable because the notice is never the record.
+
+Two things the plan did not anticipate, both caught by the work rather than by
+review:
+
+- **Date-only columns were off by one, then ages were off by one the other way.**
+  `hoa_projects.due_date` and `hoa_vendors.active_until` parse as UTC midnight,
+  so measuring them in elapsed milliseconds against a mid-day `now` lost up to a
+  day ("expires in 30 days" read as 29) — caught by the unit tests. Then the
+  browser caught the opposite: `ageInDays` negated a floored *signed* delta, and
+  `Math.floor(-31.0005)` is `-32`, so a request seeded 31 days ago reported
+  "Open 32 days". Unit fixtures built from `now − N days` are exact multiples and
+  cannot catch this; real rows never are. Both fixed, both with regression tests.
+- **`ai_notice_history` needed an export decision.** Phase 3's Data Trust guard
+  (`tests/shared/export-collections.test.ts`) failed the build until the new
+  collection was placed deliberately — full export, not shareable, because a row
+  reading "member-balance, urgent" names one household's standing to anyone
+  holding the archive. The guard did exactly what it was built for.
+
+Quality gate: typecheck **0 errors** · vitest **1144/1144 in 70 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope tests on
+both new endpoints.
+
+Browser-verified headlessly on the demo org (this session's own dev server,
+logged in through `/api/demo/login` — a real session, not a token):
+
+- **The seeded notice appears.** A request backdated 31 days produced
+  `request-aged` and `request-unassigned`, both scored **84 → urgent**, the first
+  carrying a `create_task` proposal with the request id in its payload.
+- **Org scope holds through the real auth path.** `orgId` for a community the
+  caller has no standing in → **403**; no `orgId` → **400**.
+- **The cron fires once.** Run 1: escalated 2, notified 2, two
+  `ai_notice_history` rows and two real `directus_notifications` rows. Run 2,
+  same day: escalated **0**, skipped 2, notified **0**. Ageing the ledger rows
+  into the previous month re-opened the gate — run 3 escalated 2 again. No
+  secret and a wrong secret both **401**.
+- **A human sent a channel message from the composer** — the thing Session 4
+  could not do — and it rendered as "Demo Admin · just now".
+- **The @-mention picker offered a person** ("P4 Probe"), where it was previously
+  always empty, and that person's earlier message rendered under their real name
+  rather than "Unknown User".
+- **"Assistant insights" appears** in the account Preferences sheet beside
+  Mentions / Comments / Membership, with no UI change.
+
+**Cleanup, stated precisely.** Everything created for this verification was
+deleted afterwards: the `p4-perm-probe` channel with all 4 messages and both
+membership rows; the backdated request; the 4 `ai_notice_history` rows; the
+probe `hoa_members` row and `directus_users` (`p4.probe@example.com`); and
+**only** notifications 9–12, the ones these runs created — id 7, the pre-existing
+"Profile change to review" row, was listed first and left alone. The cross-org
+message written while disproving the `permissions`-on-create approach was
+deleted immediately. The demo org is back to 0 channels, 0 requests and 0 notice
+history. The intended residue is: the `ai_notice_history` collection, the
+`directus_users.channel_memberships` alias, and the rewritten permission rules.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -500,21 +671,36 @@ listed first and left alone. The demo org is back to 0 channels and its original
       (idempotent, re-run is a no-op) and `pnpm generate:types` committed. No new
       env vars. The roster renders ungrouped if it is ever run against a fresh
       Directus without it.
-- [ ] **Fix `hoa_channel_messages.create` — channels are write-broken on prod.**
-      The create *validation* traverses `channel.organization`, which Directus
-      cannot resolve from a create payload, so every send fails for every role.
-      Move the org check to `permissions` (or drop the create validation and gate
-      server-side). Reproduced live in Session 4; see that entry for the full
-      diagnosis. **This is the highest-priority item in this file.**
-- [ ] **Widen `directus_users` read to people who share an organisation**
-      (id / first_name / last_name / avatar only). Today it is
-      `{id: {_eq: "$CURRENT_USER.id"}}` on every policy, which makes the
-      @-mention picker permanently empty and renders every other person's
-      messages as "Unknown User". Needs Peter's call because it is a
-      platform-wide access change, not a channels one.
+- [x] ~~**Fix `hoa_channel_messages.create`**~~ — done in Session 5, and **not**
+      the way this TODO proposed. Moving the check to `permissions` was tried
+      and **opens a cross-org write hole: Directus 11 ignores `permissions` on
+      the `create` action** (proved live, then reverted). The rule stays in
+      `validation`, rewritten to be payload-evaluable. `pnpm fix:channel-writes`
+      — **already run against prod**, idempotent. See the Session 5 entry.
+- [x] ~~**Widen `directus_users` read to same-org people**~~ — done in Session 5
+      with Peter's approval. `pnpm widen:users-read` — **already run against
+      prod**, idempotent. Adds a SECOND read rule per policy
+      (id / first_name / last_name / avatar); the self rule is untouched, which
+      is what keeps it safe.
 - [ ] **Mute UI for channels.** `notifications_enabled` is honoured by
       `/api/hoa/channels/unread` (count reported, excluded from the total) but
       has no toggle; the members panel is its natural home.
+- [x] **Phase 4 schema: `pnpm create:ai-notice-history` — already run against
+      prod** (idempotent) and `pnpm generate:types` committed. Without it the
+      notices cron still sends but repeats every run; it warns loudly when the
+      collection is missing.
+- [ ] **Add the notices cron to the droplet crontab** — a nightly `curl` at
+      `POST /api/ai/notices/check` with the `x-cron-secret` header. Exact line,
+      the dry-run check, and why this one is immune to the digest worker's
+      checkout-path hazard: `docs/ai-notices-cron.md`. **No new env var** —
+      `CRON_SECRET` is already set.
+- [ ] **Phase 4: no new env vars.** `ANTHROPIC_API_KEY` is irrelevant here —
+      the notices engine makes no LLM call at any point.
+- [ ] **Beware `permissions` on a `create` rule anywhere in this Directus.**
+      It is silently ignored (11.13.4, verified). A create rule must express its
+      constraint as `validation` over payload SCALARS, resolving dynamic lists
+      through a reverse O2M alias on `directus_users` — the
+      `channel_memberships` alias added in Session 5 is the worked example.
 
 ## Context
 
@@ -728,6 +914,47 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 6 (Phase 5, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1–5 recorded there.
+
+This session = Phase 5 (Ambient Director layer + trust surfaces + action
+lifecycle) ONLY. Earnest reference repo: ~/Sites/earnest/earnest.
+
+Phase 4 shipped the grounding you build on, so reuse it rather than
+re-deriving it: `collectOrgNotices()` / `collectDirectorAgenda()` in
+core/server/utils/ai-notices.ts, the curve in core/shared/ai/attention.ts
+(every notice already carries a `score` as well as a `priority`), and
+`useAINotices()` with its localStorage dismissal. The proposed-action
+allow-list lives in `PROACTIVE_ACTIONS` and is guarded against
+ACTION_CATALOG's own `outbound` flag — when Phase 5 turns a notice's
+`proposedAction` into a real pending `ai_actions` row, route it through the
+existing `proposeAction()` and the one `shouldAutoApprove` path. Do not add a
+second approval lane; Risk 4 in the plan is specifically that the outbound cap
+gets reimplemented somewhere it can drift.
+
+Quality gate: typecheck 0, vitest green, build green, org-scope test for every
+new endpoint, plus the phase's browser verification — and an explicit test
+that the outbound cap survives bulk/plan paths at autonomy tier 3.
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs)
+and give me the kickoff prompt for Session 7. Ask before pushing.
 ```
 
 ### Kickoff prompt — template for Sessions 3+
