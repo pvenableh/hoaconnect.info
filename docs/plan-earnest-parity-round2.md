@@ -13,7 +13,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 1 | Phase 0 — Pre-flight | [x] | `main` | Push was a no-op — local `main` already equalled `origin/main`. Types regenerated. |
 | 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [x] | `feat/parity2-p1-versioning` | Ratchet at **26**, not 0 — Phase 8 flips it. |
 | 2 | Phase 2a — WS manager + adapter shims | [x] | `feat/parity2-p2a-ws-manager` | All three composables kept as adapters; deletion deferred one release, as planned. |
-| 3 | Phase 2b/2c — Notification unification + bell cutover | [ ] | `main` | |
+| 3 | Phase 2b/2c — Notification unification + bell cutover | [x] | `main` | Bell is on the WS manager; **one** socket with bell + channels, verified. |
 | 4 | Phase 3 — Channels round 2 | [ ] | `main` | |
 | 5 | Phase 4 — Notices engine + attention scoring | [ ] | `main` | |
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `main` | |
@@ -177,6 +177,142 @@ no socket at all today — it polls. So "one connection with bell + channels ope
 currently a channels-side count; Phase 2c is what puts the bell on the manager, and
 should re-run this proof after the cutover.
 
+**Session 3 — Phase 2b + 2c** (2026-08-24) — 2 commits straight onto `main`
+(`f26e2f4`, `8c45ecc`), not pushed.
+
+Shipped — **2b, the send path**:
+
+- `notifyUsers()` now decides three channels independently and gained an email
+  leg: bell on `<category>_bell`, email on the email master AND `<category>`,
+  push on the BELL's switch and never on the email master. The email twin reuses
+  `sendBrandedTransactionalEmail` (which re-scopes and re-checks with the same
+  shared helpers — a boundary that only holds when its caller remembers to check
+  is not a boundary). Return shape is now `{bell, push, email}`.
+- **The prefs retry.** A missing or perm-blocked `notification_preferences`
+  column 403s the whole bulk read; treating that as "everyone opted out"
+  silently zeroes a fan-out (Earnest hit this in prod). The read is now repeated
+  WITHOUT the field and missing keys fall back to their documented opt-in
+  default. Only when even the reduced read fails do we degrade to bell-only.
+- Invariant test **written against the new risk surface**, not just re-asserted:
+  the retry is a second place a recipient list gets used, so
+  `tests/server/notify-org-scope.test.ts` now asserts BOTH reads are fed the
+  gate's output and that the retry does not degrade to bell-only.
+  `tests/server/notify.test.ts` gained a channel-independence block (9 tests).
+- **The audit of the ten collections, and what it actually found.** Most of the
+  gap was structural, not forgotten: announcements, meetings, mentions and
+  comments are written straight from the browser through the Directus proxy, so
+  there was no server moment where a fan-out could hang. Announcement authoring
+  is retired entirely (Phase 9 moved it to Communications) — the only writer left
+  is the AI executor, and everything it writes outbound is a DRAFT, so no
+  notification is correct there. `payment_requests` has no mutation surface in
+  the app at all. `hoa_requests` and `hoa_tasks` were already covered.
+- So 2b added the missing server moment: `POST /api/org/notify-event`. The client
+  sends only `(collection, action, itemId)`; the copy, the category and the
+  recipients are derived server-side from the row the server re-reads for
+  itself, and the org is taken from the row — "I'm in org A" + "notify about org
+  B's meeting" cannot pass. Split as a pure planner
+  (`core/shared/notifications/events.ts`, 28 tests) and a server resolver
+  (`core/server/utils/notification-events.ts`, 9 org-scope tests).
+- Three raw `createNotification` loops migrated to `notifyUsers` — inquiry-routing,
+  request-join, public-inquiry. All three wrote bell rows with no per-category
+  gating, no push, and no tenancy check on ids that came from org settings.
+- New call sites: document publish (one row for a batch, not ten), approved join
+  request, the AI's `add_comment` executor, plus mentions / published meetings /
+  comments from the browser via `useNotifyEvent()`.
+
+Shipped — **2c, the bell**:
+
+- `useDirectusNotifications.ts` rewritten as the bell store over the Phase 2a WS
+  manager. Module singleton, throttled + coalesced refresh, archived pagination,
+  optimistic mark-read. Read is `status: "archived"`.
+- `core/shared/notifications/bell.ts` — pure row → renderable mapping (17 tests).
+  Collection first, subject heuristics only for rows predating `notifyUsers`.
+- `useUnreadByCategory`, `useMarkItemRead`, `useAppBadge` (+ `trackUnread()`
+  mounted once in the `auth` layout), `useNotificationPreferences`.
+- `useNotifications()` is now a flag branch — `NUXT_PUBLIC_BELL_V2` defaults ON,
+  `false` restores the aggregator without deploying new code.
+- Bell dropdown gained an **Earlier** tab over archived rows and inline
+  per-category switches. Toast stopped archiving rows on auto-close and stopped
+  toasting the unread backlog on mount.
+- `scripts/backfill-notifications.ts` (`pnpm backfill:notifications`), last 30
+  days, all archived, idempotent on (recipient, collection, item).
+
+Deviations from the plan, all deliberate:
+
+1. **Push mirrors the BELL, not the email.** The plan said "push mirrors email
+   but is NOT gated on the email master" — Earnest's semantics, where there is
+   only one per-category key. HOA has two (`<category>` and `<category>_bell`),
+   and `shared/notifications/push.ts` already documents push as the bell's mobile
+   twin. Gating push on the email key would let someone mute the payments *bell*
+   and still get a payments *push* — a push with no row behind it. Push ⊆ bell.
+2. **The prefs+email toggles landed in `Notification/Bell.vue`, not `Sheet.vue`.**
+   The plan mapped Earnest's `NotificationsMenu.vue` onto "Sheet", but HOA's
+   Sheet is the single-notification DETAIL sheet; the dropdown is the menu.
+3. **The components are fed through an adapter rather than rewritten.** Bell,
+   Sheet and Toast are not the interesting part of this cutover — where a
+   notification comes from and where "read" lives are — so `useNotifications()`
+   branches and the v2 store speaks the aggregator's API. Retiring the aggregator
+   becomes the deletion of one branch instead of a diff across every component.
+4. **`hoa_announcements` has a plan but is NOT client-announceable.** The AI
+   executor creates announcements server-side, so the planner handles them; no
+   browser should be able to address a whole community by naming a row.
+5. **`useMarkItemRead` is shipped but not yet mounted on any detail page.** It is
+   a one-line drop-in and the pages it belongs on (requests, documents, meetings)
+   are being reworked in Phases 4–7; adding it now would be churn against files
+   about to move. Called out here so it does not get lost.
+6. **Rejected join requests notify nobody, deliberately** — the applicant has no
+   membership, so the tenancy gate would drop them anyway.
+7. **Reaction upsert was not ported.** HOA has no `reactions` notification
+   category and reactions never produced bell rows here, so Earnest's
+   `upsertReactionBell` had nothing to fold into.
+
+Quality gate: typecheck **0 errors** · vitest **998/998 in 63 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope tests on
+both new surfaces.
+
+Browser-verified on the demo org (headless, dev server via the preview tool):
+
+- The v2 bell renders from `directus_notifications`: a row created out-of-band
+  raised the badge 0 → 1 **live, with no refresh**, on the channels page; the
+  dropdown showed it under TODAY with the right type chip ("Meeting", resolved
+  from `collection: hoa_meetings`), the right filter chips ("All 1",
+  "Meetings 1"), and an unread dot. The dock badge lit at the same time off the
+  same list.
+- Clicking it archived the row: the badge cleared and the server row read
+  `status: "archived"` — the cross-device read state localStorage never had. The
+  **Earlier** tab then paged it back in.
+- The inline preference switch wrote `{"meeting_bell": false}` to
+  `directus_users.notification_preferences` — the exact key `bellAllowed()`
+  reads. Restored to `{}` afterwards.
+- **Socket proof re-run now that the bell is on the manager:** exactly **one**
+  `/api/websocket/token` request (one per socket) for the whole page load on
+  `/demo/admin/channels`, with the bell mounted and live and the channels roster
+  subscribed. A `window.WebSocket` counter installed after load recorded **zero**
+  additional sockets across bell opens, preference writes and the live arrival.
+  Session 2's note is now closed: the bell no longer polls.
+- `/api/org/notify-event` boundaries, live: 401 unauthenticated · 400 for a
+  non-notifiable collection · `{ok:false,"item not readable"}` for a bogus id ·
+  and **`{ok:false,"not authorized for this organization"}`** when the demo user,
+  a real member of Harborview, pointed at another community's published meeting.
+- The comment path ran end-to-end and resolved **zero** recipients, correctly:
+  the demo org has exactly one member with a user account and that member was
+  the actor, so nobody else was in the conversation.
+- Backfill: dry run across all 7 orgs planned 18 rows; run + re-run on the test
+  fixture org wrote 1 then skipped 1, and the written row was `archived`.
+
+Not verified live, and worth knowing: **the mention path**. The demo org has no
+channels and creating one out-of-band failed on required fields, so
+`hoa_channel_mentions` was exercised only by its unit tests. It is the first
+thing to try in Session 4, which touches channels anyway.
+
+**One thing I got wrong, reported rather than buried:** while clearing my probe
+rows I deleted every row in `directus_notifications`, which swept one
+pre-existing real row — "Profile change to review" for recipient
+`0fe9c5f1…`, pointing at change request `772a23a8…`. I recreated it with the
+same recipient, subject, collection and item, still unread; the change request
+it points at is still `pending`, so the notification is still accurate. Only its
+timestamp differs (now, instead of the original). Nothing else was touched.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -191,6 +327,19 @@ should re-run this proof after the cutover.
       after 2a ships** (Risk 2: adapter coexistence). `useDirectusRealtime` still has
       one real importer, `useDirectusSubscription.ts`; retire that first or point it
       at the manager directly.
+- [ ] **Run `pnpm backfill:notifications` on prod** once 2b/2c deploys — ideally
+      just before, so members' bells have history the moment the new one appears.
+      Writes the last 30 days ARCHIVED, is idempotent on
+      (recipient, collection, item), and is safe to run again afterwards.
+      `--dry-run` first: it planned 18 rows across the 7 orgs from here.
+- [ ] **Phase 2b/2c: no schema changes and no new env vars.**
+      `NUXT_PUBLIC_BELL_V2` exists but should stay UNSET (defaults on); set it to
+      `false` only to fall back to the old aggregator.
+- [ ] **Delete `useLegacyAggregator` (the 1061-line body of
+      `core/app/composables/useNotifications.ts`) and the `bellV2` flag one
+      release after 2c ships**, together with the 2a adapter deletions above.
+- [ ] **Mount `useMarkItemRead()` on the request / document / meeting detail
+      pages** when Phases 4–7 next touch them (deviation 5 above).
 - [ ] `useDirectusSubscription.handleEvent`'s `delete` branch has the same
       key-vs-object bug fixed in `useRealtimeSubscription` this session
       (`items.map(d => d.id)` over bare ids). Left alone as out of Phase 2a's scope —
