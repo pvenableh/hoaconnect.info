@@ -13,15 +13,15 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 1 | Phase 0 — Pre-flight | [x] | `main` | Push was a no-op — local `main` already equalled `origin/main`. Types regenerated. |
 | 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [x] | `feat/parity2-p1-versioning` | Ratchet at **26**, not 0 — Phase 8 flips it. |
 | 2 | Phase 2a — WS manager + adapter shims | [x] | `feat/parity2-p2a-ws-manager` | All three composables kept as adapters; deletion deferred one release, as planned. |
-| 3 | Phase 2b/2c — Notification unification + bell cutover | [ ] | `feat/parity2-p2-notifications` | |
-| 4 | Phase 3 — Channels round 2 | [ ] | `feat/parity2-p3-channels` | |
-| 5 | Phase 4 — Notices engine + attention scoring | [ ] | `feat/parity2-p4-notices` | |
-| 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `feat/parity2-p5-director` | |
-| 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `feat/parity2-p6-boardroom-server` | |
-| 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `feat/parity2-p6-boardroom-ui` | |
-| 9 | Phase 7 core — stacks home | [ ] | `feat/parity2-p7-stacks` | |
-| 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `feat/parity2-p7-polish` | |
-| 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `feat/parity2-p8-glass` | |
+| 3 | Phase 2b/2c — Notification unification + bell cutover | [ ] | `main` | |
+| 4 | Phase 3 — Channels round 2 | [ ] | `main` | |
+| 5 | Phase 4 — Notices engine + attention scoring | [ ] | `main` | |
+| 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [ ] | `main` | |
+| 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [ ] | `main` | |
+| 8 | Phase 6 UI — Boardroom page + components + nav | [ ] | `main` | |
+| 9 | Phase 7 core — stacks home | [ ] | `main` | |
+| 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `main` | |
+| 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `main` | |
 
 ### Session log
 
@@ -89,8 +89,13 @@ after dismissal.
 
 Landed on `main` as a fast-forward (linear history, no merge commit) and pushed.
 
-**Session 2 — Phase 2a** (2026-08-24) — 3 commits, fast-forwarded from
-`feat/parity2-p2a-ws-manager` into local `main`. **NOT pushed to origin.**
+**Session 2 — Phase 2a** (2026-08-24) — 4 commits, fast-forwarded from
+`feat/parity2-p2a-ws-manager` into `main`, branch deleted, pushed to `origin/main`
+(`5ce1d5f..e2f2a27`).
+
+**Workflow change from here on:** Peter's standing instruction is to work on `main`
+in the main checkout — no phase branches, no worktrees. Rule 2 above is rewritten
+accordingly and the Status table's Branch column reads `main` for Sessions 3–11.
 
 Shipped:
 
@@ -346,9 +351,19 @@ Typecheck 0 · vitest green · build green · schema scripts run on prod + `gene
 **One phase ≈ one session** (two where noted). Rules for every session:
 
 1. Start from the repo plan (`docs/plan-earnest-parity-round2.md`), not chat memory.
-2. Work on a branch (`feat/parity2-p<N>-<slug>`); commit in reviewable chunks; **ask before pushing**.
+2. **Work on `main`, in the main checkout (`~/Sites/hoaconnect`) — no phase branch, no
+   worktree.** Peter's standing instruction as of Session 3; it supersedes the
+   `feat/parity2-p<N>-<slug>` convention Sessions 1 and 2 used (both of which ended by
+   fast-forwarding into `main` and deleting the branch anyway, which is what made the
+   branch step ceremony). Start every session with `git pull --ff-only`, commit in
+   reviewable chunks, and **ask before pushing**. A worktree is the wrong tool here for
+   a second reason: `.env` is gitignored, so a fresh worktree has no Directus
+   credentials and cannot run the dev server or any browser verification.
 3. End by: quality gate green → update the plan's `## Status` checklist (what shipped, deviations, operator TODOs like "run `pnpm create:X` on prod") → tell Peter the exact kickoff prompt for the next session.
-4. If a session runs long, stop at a green commit and record the stopping point in `## Status` — never leave the branch red.
+4. If a session runs long, stop at a green commit and record the stopping point in
+   `## Status` — **never leave `main` red.** Since work now lands directly on `main`,
+   run the quality gate before each commit rather than only at session end; recovery
+   from a bad commit is a `git reset`, not deleting a branch.
 
 | Session | Scope | Notes |
 |---|---|---|
@@ -395,7 +410,7 @@ plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
 ```
 
-### Kickoff prompt — template for Sessions 2+
+### Kickoff prompt — template for Sessions 3+
 
 ```
 Continue the Earnest Parity Round 2 program. Read
@@ -403,14 +418,18 @@ docs/plan-earnest-parity-round2.md (plan + Status checklist) first —
 it is the source of truth, including any deviations recorded by
 earlier sessions.
 
-This session = Phase <N> (<name>) ONLY, on branch
-feat/parity2-p<N>-<slug>. Earnest reference repo: ~/Sites/earnest/earnest.
-Port patterns per the plan; reuse the existing HOA functions the plan
-names instead of duplicating them.
+Work on `main`, in ~/Sites/hoaconnect — no phase branch, no worktree.
+Start with `git pull --ff-only`. Since commits land straight on main,
+run the quality gate before each commit, not just at session end.
+
+This session = Phase <N> (<name>) ONLY. Earnest reference repo:
+~/Sites/earnest/earnest. Port patterns per the plan; reuse the existing
+HOA functions the plan names instead of duplicating them.
 
 Quality gate: typecheck 0, vitest green, build green, org-scope tests
-for every new endpoint, plus the phase's browser verification. When
-done: update the Status checklist (shipped items, deviations, operator
-TODOs), and give me the kickoff prompt for the next session. Ask
-before pushing.
+for every new endpoint, plus the phase's browser verification. Drive
+the browser verification headlessly — do not ask me to look at a
+screen, I supervise from a different device. When done: update the
+Status checklist (shipped items, deviations, operator TODOs), and give
+me the kickoff prompt for the next session. Ask before pushing.
 ```
