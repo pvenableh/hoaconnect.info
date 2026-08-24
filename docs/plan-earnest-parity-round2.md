@@ -11,7 +11,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | Session | Phase | State | Branch | Notes |
 |---|---|---|---|---|
 | 1 | Phase 0 — Pre-flight | [x] | `main` | Push was a no-op — local `main` already equalled `origin/main`. Types regenerated. |
-| 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [ ] | `feat/parity2-p1-versioning` | |
+| 1 | Phase 1 — Versioning, releases, "What's new", audit tooling | [x] | `feat/parity2-p1-versioning` | Ratchet at **26**, not 0 — Phase 8 flips it. |
 | 2 | Phase 2a — WS manager + adapter shims | [ ] | `feat/parity2-p2a-ws-manager` | |
 | 3 | Phase 2b/2c — Notification unification + bell cutover | [ ] | `feat/parity2-p2-notifications` | |
 | 4 | Phase 3 — Channels round 2 | [ ] | `feat/parity2-p3-channels` | |
@@ -38,9 +38,66 @@ _Each session appends here: what shipped, deviations from the plan, and operator
   refreshes on `hoa_emails.visibility` and `hoa_units.occupancy`. No removals.
 - This plan committed to the repo as the source of truth.
 
+**Session 1 — Phase 1** (2026-08-24) — branch `feat/parity2-p1-versioning`, 6 commits, **not pushed**
+
+Shipped:
+
+- `resolveAppVersion()` in `core/nuxt.config.ts` — MAJOR.MINOR from package.json,
+  patch from `git rev-list --count HEAD`, unshallow-then-re-check, sha7 fallback.
+  Verified: build log prints `[version] app version resolved to 2.0.1032`, and the
+  value is baked into `.output`. `buildId` untouched.
+- `scripts/bump-version.mjs` + `pnpm release:minor|major`, `.github/workflows/release.yml`
+  (tag `v[0-9]*` → GitHub Release with generated notes), `docs/releasing.md`.
+- "What's new": `core/shared/app/release-notes.ts`, `app/components/App/WhatsNew.vue`,
+  `useAppVersion()` extended with `releaseNote` / `whatsNewOpen` / `maybeShowWhatsNew` /
+  `openWhatsNew` / `closeWhatsNew`. Mounted in the `auth` and `channels` layouts beside
+  `<AppUpdatePrompt>`; About card on `app/pages/account.vue`.
+- `scripts/audit-hairline-surfaces.ts` (ratchet **26**) + `findApplyGlass` (gate, no
+  baseline), husky 9 + `.husky/pre-commit` → `pnpm audit:hairline-surfaces`. The repo had
+  no hooks at all before this.
+- `tests/shared/release-notes.test.ts` (8 tests).
+
+Deviations from the plan, all deliberate:
+
+1. **Phase 0's push was a no-op** — already on origin (see above).
+2. **`core/shared/app/release-notes.ts`, not `core/shared/release-notes.ts`** — every
+   other shared module lives in a subfolder, and `core/shared/app/` already holds
+   `update-policy.ts`, the other half of the versioning story.
+3. **The sheet is an `AppBottomSheet`, not a bespoke `ios-card`** — that component is
+   the app's established sheet (drag-dismiss on mobile, centred dialog above `md`), so
+   reusing it beats a second surface with its own motion.
+4. **No "What's new" link on `<AppUpdatePrompt>`** — the note worth reading is for the
+   version you are *about* to get, and the running bundle only carries notes for the
+   version it already is. The wiring is the post-refresh auto-open instead, documented
+   in the component.
+5. **The hairline regex is rewritten, not ported.** Earnest matches `border
+   border-border`, which appears in ONE file here; this app writes `border t-border`
+   (361 hits / 102 files). Also fixed two bugs found in the port: `\bborder\b` matches
+   the tail of `t-border`, making the bare-utility test vacuous, and `findApplyGlass`
+   computed its line offset against already-blanked text so every reported line was one
+   short.
+6. **`ai_ledger_chunks` classified in the export map** — Phase 0's `generate:types` made
+   `tests/shared/export-collections.test.ts` red, exactly as that gate is designed to.
+   Fixed on this branch (commit `704b728`) rather than left for later.
+
+Quality gate: typecheck **0 errors** · vitest **910/910 in 59 files** · `pnpm build`
+green · hairline audit green at baseline. Browser-verified on the demo org: About shows
+`2.0.1031`, the sheet auto-opened once, wrote `hoa:whats-new-seen-line = "2.0"`, did not
+re-fire on reload, and reopened from About → What's new. No scroll-lock or DOM residue
+after dismissal.
+
+Stopping point: branch is green and unpushed. **Peter has not yet approved a push.**
+
 ### Operator TODOs (carried forward until done)
 
-- [ ] _none yet_
+- [ ] **Push `main` + `feat/parity2-p1-versioning`** — nothing from Session 1 is on the
+      remote yet (Phase 0's docs/types commit is on local `main`; Phase 1 is on its
+      branch).
+- [ ] **`pnpm install` on every machine/clone** once this lands — the new `prepare`
+      script is what installs the husky hooks; without a fresh install the pre-commit
+      audit silently does not run.
+- [ ] Nothing to run on prod for this phase. No schema changes, no new env vars.
+      (`NUXT_PUBLIC_APP_VERSION` exists as an override but should stay unset.)
 
 ## Context
 
