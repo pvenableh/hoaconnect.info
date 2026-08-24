@@ -15,6 +15,7 @@ const {
   update: updateMeeting,
   remove: removeMeeting,
 } = useDirectusItems("hoa_meetings");
+const { announce } = useNotifyEvent();
 const {
   list: listAttendees,
   create: createAttendee,
@@ -364,6 +365,11 @@ const handleSubmit = async () => {
         });
       }
     }
+
+    // A published meeting is news to the audience it targets. The server
+    // re-reads the row, so an unpublished save says nothing and a republish
+    // stays quiet (`once`) rather than pinging the community twice.
+    if (form.is_published) announce("hoa_meetings", meetingId, editingId.value ? "update" : "create");
 
     toast.success(editingId.value ? "Meeting updated" : "Meeting created");
     await refreshMeetings();

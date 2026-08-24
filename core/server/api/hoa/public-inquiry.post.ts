@@ -5,7 +5,7 @@
 // hoa_requests row (so it shows in the admin requests inbox) and notify whoever
 // the admin configured in settings.landing.inquiry — an email address or a
 // specific user. Mirrors the admin-token pattern of requests/manager-create.
-import { readItems, createItem, createNotification, readUsers } from "@directus/sdk";
+import { readItems, createItem, readUsers } from "@directus/sdk";
 import { normalizeLandingConfig, type InquiryCategory } from "#core/shared/utils/landing";
 
 const CATEGORY_LABEL: Record<InquiryCategory, string> = {
@@ -97,19 +97,19 @@ export default defineEventHandler(async (event) => {
   let toEmail: string | null = null;
   if (cfg.inquiry.recipient_type === "user" && cfg.inquiry.user) {
     // In-app notification to the chosen user; also email them if we can.
-    try {
-      await directus.request(
-        createNotification({
-          recipient: cfg.inquiry.user,
-          subject,
-          message: `${visitorName} (${visitorEmail}) — ${label}.`,
-          collection: "hoa_requests",
-          item: created.id,
-        })
-      );
-    } catch (e) {
-      console.warn("[public-inquiry] in-app notify failed", e);
-    }
+    // `notifyUsers`, not a raw row: the routed user is read from org settings,
+    // so it gets the same tenancy gate as every other recipient — and this
+    // reaches their phone, which is the point of a routed inquiry.
+    await notifyUsers({
+      organizationId: org.id,
+      recipientUserIds: [cfg.inquiry.user],
+      category: "request",
+      subject,
+      message: `${visitorName} (${visitorEmail}) — ${label}.`,
+      collection: "hoa_requests",
+      item: created.id,
+      path: `/admin/requests/${created.id}`,
+    }).catch((e) => console.warn("[public-inquiry] in-app notify failed", e));
     try {
       const users = await directus.request(
         readUsers({ filter: { id: { _eq: cfg.inquiry.user } }, fields: ["email"], limit: 1 })

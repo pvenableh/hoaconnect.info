@@ -104,6 +104,21 @@ export default defineEventHandler(async (event) => {
     // Keep the org's denormalized member_count in sync.
     await recomputeMemberCount(organization.id, directus);
 
+    // Tell the new member in the app, not only by email — they may well be
+    // looking at the portal waiting for exactly this. Category "membership",
+    // the same switch that governs the admins' join-request alert.
+    await notifyUsers({
+      organizationId: organization.id,
+      recipientUserIds: [user.id],
+      category: "membership",
+      subject: `Welcome to ${organization.name}`,
+      message: "Your request to join was approved — you now have access to the portal.",
+      collection: "hoa_members",
+      item: String(newMember.id),
+      path: "/",
+      origin: await safeRequestOrigin(event),
+    }).catch((e) => console.warn("[approve-join-request] notify failed:", (e as Error).message));
+
     // Welcome the approved member (best-effort).
     if (user.email) {
       try {

@@ -28,6 +28,7 @@ const { buildOrgPath } = useOrgNavigation();
 const { user: currentUser } = useDirectusAuth();
 const { create: createMessage } = useDirectusItems("hoa_channel_messages");
 const { create: createMention } = useDirectusItems("hoa_channel_mentions");
+const { announce } = useNotifyEvent();
 
 const orgId = computed(() => props.organizationId);
 const channelSlug = computed(() => props.channelSlug);
@@ -253,13 +254,18 @@ const sendMessage = async () => {
     if (pendingMentions.value.length > 0 && createdMessage) {
       for (const mention of pendingMentions.value) {
         try {
-          await createMention({
+          const createdMention = await createMention({
             message: (createdMessage as any).id,
             mentioned_user: mention.id,
             mentioned_by: currentUser.value?.id,
             channel: currentChannel.value.id,
             is_read: false,
           });
+          // The mention row is written from the browser, so nothing server-side
+          // would otherwise notice it. This is what turns "@you" into a bell row
+          // and a push on the mentioned member's phone; the server re-reads the
+          // row and derives everything, so the ping carries no copy of its own.
+          announce("hoa_channel_mentions", (createdMention as any)?.id);
         } catch (error) {
           console.error("Error creating mention record:", error);
         }

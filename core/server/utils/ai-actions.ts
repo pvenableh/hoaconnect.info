@@ -101,7 +101,7 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
     return { result: { taskId: created.id }, undo: { kind: "delete", collection: "hoa_tasks", id: created.id } };
   },
 
-  async add_comment({ payload, orgId }) {
+  async add_comment({ payload, orgId, userId }) {
     const created = (await directus().request(
       createItem("hoa_comments", {
         organization: orgId,
@@ -112,6 +112,17 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
         status: "published",
       } as any)
     )) as { id: string };
+    // An approved action writes a real, published comment — the same event a
+    // person typing in the box produces, so it reaches the same people. The
+    // browser path pings /api/org/notify-event; here we are already on the
+    // server, so call the resolver directly. Best-effort: a missing bell row
+    // must never fail an action that already wrote its row.
+    void announceEvent({
+      collection: "hoa_comments",
+      action: "create",
+      itemId: created.id,
+      actorId: userId,
+    }).catch(() => {});
     return { result: { commentId: created.id }, undo: { kind: "delete", collection: "hoa_comments", id: created.id } };
   },
 

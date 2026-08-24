@@ -73,6 +73,7 @@ export const useComments = (
   const { user } = useDirectusAuth();
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
   const { create, update } = useDirectusItems<Comment>("hoa_comments");
+  const { announce } = useNotifyEvent();
 
   const tid = computed(() => toValue(targetId));
 
@@ -146,6 +147,10 @@ export const useComments = (
       organization: selectedOrgId.value,
     };
     const created = await create(payload as Comment);
+    // Comments are written from the browser, so this is the only place the
+    // server can learn a conversation moved. It reaches the people already in
+    // that conversation — and, for an internal note, staff only.
+    announce("hoa_comments", (created as Comment | undefined)?.id);
     await refresh();
     return created;
   };

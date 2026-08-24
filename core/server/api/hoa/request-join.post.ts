@@ -1,4 +1,4 @@
-import { createItem, readItems, readItem, readUser, createNotification } from "@directus/sdk";
+import { createItem, readItems, readItem, readUser } from "@directus/sdk";
 
 const esc = (s: string) =>
   String(s).replace(/[&<>"']/g, (c) =>
@@ -64,19 +64,21 @@ async function notifyAdminsOfJoinRequest(
     `<p>${esc(detail)}${applicant?.email ? ` · <a href="mailto:${esc(applicant.email)}">${esc(applicant.email)}</a>` : ""}</p>` +
     (reviewUrl ? `<p><a href="${reviewUrl}">Review the request →</a></p>` : "");
 
-  for (const uid of userIds) {
-    await directus
-      .request(
-        createNotification({
-          recipient: uid,
-          subject,
-          message: `${applicantName} requested to join (${detail}).`,
-          collection: "hoa_join_requests",
-          item: joinRequestId,
-        })
-      )
-      .catch((e) => console.warn("[request-join] in-app notify failed", e));
-  }
+  // Through `notifyUsers` rather than a raw createNotification loop, so the
+  // admins' Membership switch is honored and the alert also reaches their phone.
+  // The org-scope gate inside it is the reason this is safe to feed from an
+  // admin roster read: an id that is no longer a member of this community is
+  // dropped rather than notified about it.
+  await notifyUsers({
+    organizationId: org.id,
+    recipientUserIds: userIds as string[],
+    category: "membership",
+    subject,
+    message: `${applicantName} requested to join (${detail}).`,
+    collection: "hoa_join_requests",
+    item: joinRequestId,
+    path: "/admin/users",
+  }).catch((e) => console.warn("[request-join] in-app notify failed", e));
   for (const to of emails) {
     await sendEmail({ to, subject, text, html }).catch((e) =>
       console.warn("[request-join] email failed", e)

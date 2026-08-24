@@ -16,7 +16,7 @@
  * an email + notify_email). This runs with the admin token (elevated) — the
  * caller is authorized in the route.
  */
-import { readItem, readItems, createNotification } from "@directus/sdk";
+import { readItem, readItems } from "@directus/sdk";
 
 export type InquiryKind = "rental_sales" | "violations" | "general";
 
@@ -153,23 +153,22 @@ export async function routeInquiryNotifications(requestId: string): Promise<Rout
   const appUrl = (config.public.appUrl || "").replace(/\/$/, "");
   const detailUrl = org?.slug ? `${appUrl}/${org.slug}/admin/requests/${req.id}` : "";
 
-  let inApp = 0;
-  for (const uid of userRecipients.keys()) {
-    try {
-      await directus.request(
-        createNotification({
-          recipient: uid,
-          subject,
-          message,
-          collection: "hoa_requests",
-          item: req.id,
-        })
-      );
-      inApp++;
-    } catch (e) {
-      console.warn("[inquiry-routing] in-app notify failed for", uid, e);
-    }
-  }
+  // Through `notifyUsers`, not a raw createNotification loop: that loop wrote a
+  // bell row for everyone regardless of their per-category switch, sent no push
+  // at all, and trusted routing-configured user ids without a tenancy check.
+  // The email leg below stays separate — it addresses raw addresses (board
+  // contacts who may have no user account), which notifyUsers cannot express.
+  const { bell: inApp } = await notifyUsers({
+    organizationId: orgId,
+    recipientUserIds: [...userRecipients.keys()],
+    category: "request",
+    subject,
+    message,
+    collection: "hoa_requests",
+    item: req.id,
+    path: `/admin/requests/${req.id}`,
+    excludeUserId: submitterId,
+  });
 
   let emails = 0;
   if (emailRecipients.size) {

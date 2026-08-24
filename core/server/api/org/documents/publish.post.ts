@@ -142,6 +142,28 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // The community learns its library grew. Batched into ONE notification: a
+  // ten-document upload is one event to a member, not ten bell rows — and the
+  // bell's deep link points at the single document when there is only one.
+  if (published.length) {
+    const first = rows.find((r: any) => String(r.id) === published[0]);
+    await notifyUsers({
+      organizationId: orgId,
+      recipientUserIds: await orgAudienceUserIds(orgId, "all"),
+      category: "document",
+      subject: published.length === 1 ? "New document available" : `${published.length} new documents available`,
+      message:
+        published.length === 1
+          ? `"${(first as any)?.title || "A document"}" was published to the document library.`
+          : `${published.length} documents were published to the document library.`,
+      collection: "hoa_documents",
+      item: published.length === 1 ? published[0] : null,
+      path: published.length === 1 ? `/documents/${published[0]}` : "/documents",
+      origin: await safeRequestOrigin(event),
+      excludeUserId: session.user?.id ?? null,
+    }).catch((e) => console.warn("[documents/publish] notify failed", (e as Error).message));
+  }
+
   return {
     published,
     /** How many of the requested ids were already published — a no-op, not a failure. */

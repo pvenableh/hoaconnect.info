@@ -1,8 +1,15 @@
-// The shared in-app notify path. Two things matter here and both are easy to get
+// The shared notify path. Three things matter here and all are easy to get
 // wrong: the per-category bell preference must actually be enforced (it was dead
-// code before push needed it), and the two channels must degrade in opposite
-// directions when preferences can't be read — keep the durable bell row, drop
-// the interrupting push.
+// code before push needed it), the three channels must gate INDEPENDENTLY (bell
+// on `<category>_bell`, email on the email master + `<category>`, push on the
+// bell's switch and never on the email master), and they must degrade in
+// opposite directions when preferences can't be read — keep the durable bell
+// row, drop the interrupting push.
+//
+// The preference read has a retry (Phase 2b): a 403 on the
+// `notification_preferences` field alone must not zero a fan-out, so the read is
+// repeated WITHOUT that field and missing keys fall back to their documented
+// opt-in default. "Unreadable" now means both reads failed.
 //
 // Everyone named below is a member of ORG. That is a precondition now, not a
 // detail: notifyUsers filters recipients to the org before it does anything
@@ -16,6 +23,11 @@ let sendPush: ReturnType<typeof vi.fn>;
 
 vi.mock("#core/server/utils/push", () => ({
   sendPushToUser: (...a: unknown[]) => sendPush(...a),
+}));
+
+let sendEmail: ReturnType<typeof vi.fn>;
+vi.mock("#core/server/utils/transactional-email", () => ({
+  sendBrandedTransactionalEmail: (...a: unknown[]) => sendEmail(...a),
 }));
 
 vi.stubGlobal("getTypedDirectus", () => ({ request: (...a: unknown[]) => directusRequest(...a) }));
@@ -38,7 +50,16 @@ const base = {
 beforeEach(() => {
   vi.clearAllMocks();
   sendPush = vi.fn(async () => 1);
+  sendEmail = vi.fn(async () => undefined);
 });
+
+/** The email twin a caller opts into. Omitted, notifyUsers stays bell + push. */
+const EMAIL = { bodyHtml: "<p>You were assigned something.</p>" };
+
+/** Who the email twin actually went to, in call order. */
+const emailedIds = (): string[] =>
+  (sendEmail.mock.calls[0]?.[0] as { recipientUserIds: string[] } | undefined)
+    ?.recipientUserIds ?? [];
 
 /** The org roster. Every recipient these tests name belongs to ORG. */
 const MEMBER_ROWS = [{ user: "u1" }, { user: "u2" }, { user: "u3" }];
@@ -54,9 +75,10 @@ const MEMBER_ROWS = [{ user: "u1" }, { user: "u2" }, { user: "u3" }];
  * preferences-unreadable case must still know who belongs here, which is the
  * whole reason the gate sits in front of that fallback rather than inside it.
  */
-function sequencedDirectus(users: unknown, org: unknown = ORG_ROW) {
+function sequencedDirectus(users: unknown, org: unknown = ORG_ROW, retryUsers?: unknown) {
   let membershipRead = false;
   let usersRead = false;
+  let retryRead = false;
   return vi.fn(async () => {
     if (!membershipRead) {
       membershipRead = true;
@@ -66,6 +88,16 @@ function sequencedDirectus(users: unknown, org: unknown = ORG_ROW) {
       usersRead = true;
       if (users instanceof Error) throw users;
       return users;
+    }
+    // The full-field read threw, so notifyUsers retries without the prefs
+    // field. `retryUsers` is what that reduced read returns (an Error means
+    // even that failed, which is the only true "unreadable" case).
+    if (users instanceof Error && !retryRead) {
+      retryRead = true;
+      if (retryUsers instanceof Error || retryUsers === undefined) {
+        throw retryUsers instanceof Error ? retryUsers : new Error("retry failed too");
+      }
+      return retryUsers;
     }
     // Everything after: bell writes return nothing meaningful; the org read is
     // the only other read and tolerates the same shape.
@@ -122,18 +154,40 @@ describe("notifyUsers", () => {
   it("does nothing, and touches nothing, with no recipients", async () => {
     directusRequest = sequencedDirectus([]);
     const res = await notifyUsers({ ...base, recipientUserIds: [] });
-    expect(res).toEqual({ bell: 0, push: 0 });
+    expect(res).toEqual({ bell: 0, push: 0, email: 0 });
     expect(directusRequest).not.toHaveBeenCalled();
   });
 
-  it("keeps the durable bell but sends NO push when preferences are unreadable", async () => {
+  it("retries WITHOUT the prefs field when that field alone is unreadable", async () => {
+    // The prod failure this exists for: a missing or perm-blocked
+    // `notification_preferences` column 403s the whole bulk read, and treating
+    // that as "everyone opted out" silently zeroes the fan-out. Missing keys
+    // mean opt-IN, so the reduced read is the documented default, not a guess —
+    // and all three channels proceed.
+    directusRequest = sequencedDirectus(new Error("field 403"), ORG_ROW, [
+      { id: "u1" },
+      { id: "u2" },
+    ]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2"], email: EMAIL });
+    expect(res.bell).toBe(2);
+    expect(sendPush).toHaveBeenCalledTimes(2);
+    expect(emailedIds()).toEqual(["u1", "u2"]);
+  });
+
+  it("keeps the durable bell but sends NO push or email when BOTH reads fail", async () => {
     // Losing the record is worse than showing a muted category; interrupting
     // someone whose consent we just failed to read is worse than staying quiet.
-    directusRequest = sequencedDirectus(new Error("perms exploded"));
-    const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2"] });
+    directusRequest = sequencedDirectus(
+      new Error("perms exploded"),
+      ORG_ROW,
+      new Error("still exploded")
+    );
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2"], email: EMAIL });
     expect(res.bell).toBe(2);
     expect(res.push).toBe(0);
+    expect(res.email).toBe(0);
     expect(sendPush).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("skips push when the org has no slug — an unscoped push is useless", async () => {
@@ -164,5 +218,81 @@ describe("notifyUsers", () => {
     const res = await notifyUsers({ ...base, recipientUserIds: ["u1"] });
     expect(res.bell).toBe(1);
     expect(res.push).toBe(0);
+  });
+});
+
+/**
+ * Three switches, three answers. The failure mode this guards is a chain: gate
+ * push behind the email master and "turn off emails" silences someone's phone;
+ * gate email behind the bell and muting a noisy in-app category stops the
+ * receipt that person actually needed.
+ */
+describe("the three channels gate independently", () => {
+  it("sends no email at all unless the caller asked for one", async () => {
+    directusRequest = sequencedDirectus([{ id: "u1" }]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"] });
+    expect(res.email).toBe(0);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("emails, bells and pushes someone with no preferences at all", async () => {
+    directusRequest = sequencedDirectus([{ id: "u1" }]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(res).toEqual({ bell: 1, push: 1, email: 1 });
+  });
+
+  it("the EMAIL master toggle silences email and nothing else", async () => {
+    // "Stop emailing me" is not "stop notifying me".
+    directusRequest = sequencedDirectus([{ id: "u1", email_notifications: false }]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(res).toEqual({ bell: 1, push: 1, email: 0 });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("the per-category EMAIL opt-out silences email and nothing else", async () => {
+    directusRequest = sequencedDirectus([{ id: "u1", notification_preferences: { task: false } }]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(res).toEqual({ bell: 1, push: 1, email: 0 });
+  });
+
+  it("the per-category BELL opt-out silences bell AND push, but not email", async () => {
+    // Push is the bell's mobile twin — no row, no push. Email is its own
+    // channel and a quiet app is not a request for a quiet inbox.
+    directusRequest = sequencedDirectus([
+      { id: "u1", notification_preferences: { task_bell: false } },
+    ]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(res).toEqual({ bell: 0, push: 0, email: 1 });
+    expect(emailedIds()).toEqual(["u1"]);
+  });
+
+  it("the master mute silences all three", async () => {
+    directusRequest = sequencedDirectus([{ id: "u1", notification_preferences: { _all: false } }]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(res).toEqual({ bell: 0, push: 0, email: 0 });
+  });
+
+  it("routes each recipient by their own preferences on one fan-out", async () => {
+    directusRequest = sequencedDirectus([
+      { id: "u1", notification_preferences: { task_bell: false } }, // email only
+      { id: "u2", notification_preferences: { task: false } }, // bell + push only
+      { id: "u3" }, // everything
+    ]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2", "u3"], email: EMAIL });
+    expect(res).toEqual({ bell: 2, push: 2, email: 2 });
+    expect(emailedIds()).toEqual(["u1", "u3"]);
+  });
+
+  it("passes the category down so the email path re-checks the same switch", async () => {
+    // sendBrandedTransactionalEmail is also called directly from other paths,
+    // so it re-scopes and re-checks. A boundary that only holds when its caller
+    // remembers to check is not a boundary.
+    directusRequest = sequencedDirectus([{ id: "u1" }]);
+    await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
+    expect(sendEmail.mock.calls[0][0]).toMatchObject({
+      organizationId: ORG,
+      category: "task",
+      subject: base.subject,
+    });
   });
 });

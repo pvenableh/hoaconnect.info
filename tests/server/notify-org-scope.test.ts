@@ -42,6 +42,9 @@ let ops: Op[];
 let members: string[];
 let failMembershipRead: boolean;
 let failPreferenceRead: boolean;
+/** Fail only the read that asks for `notification_preferences` (the 403 the
+ *  retry exists for), so the reduced retry read succeeds. */
+let failPreferenceFieldOnly: boolean;
 let logs: { warn: unknown[][]; error: unknown[][] };
 
 beforeEach(() => {
@@ -51,6 +54,7 @@ beforeEach(() => {
   members = [];
   failMembershipRead = false;
   failPreferenceRead = false;
+  failPreferenceFieldOnly = false;
   logs = { warn: [], error: [] };
 
   vi.stubGlobal("getTypedDirectus", () => ({
@@ -63,6 +67,10 @@ beforeEach(() => {
       }
       if (desc.op === "readUsers") {
         if (failPreferenceRead) throw new Error("preferences unreadable");
+        const fields: string[] = desc.query?.fields ?? [];
+        if (failPreferenceFieldOnly && fields.includes("notification_preferences")) {
+          throw new Error("field 403");
+        }
         const wanted: string[] = desc.query?.filter?.id?._in ?? [];
         // No stored preferences → every category allowed by default.
         return wanted.map((id) => ({ id, notification_preferences: null }));
@@ -126,7 +134,7 @@ describe("who actually receives a notification", () => {
     const notifyUsers = await load();
     const res = await notifyUsers(send(["outsider"]));
 
-    expect(res).toEqual({ bell: 0, push: 0 });
+    expect(res).toEqual({ bell: 0, push: 0, email: 0 });
     expect(ops.some((o) => o.op === "bell")).toBe(false);
     // And it stops before spending a preferences read on people it won't notify.
     expect(ops.some((o) => o.op === "readUsers")).toBe(false);
@@ -152,7 +160,7 @@ describe("the gate cannot be bypassed by the fail-open preferences path", () => 
     const res = await notifyUsers(send(["insider", "outsider"]));
 
     expect(bellRecipients()).toEqual(["insider"]);
-    expect(res).toEqual({ bell: 1, push: 0 });
+    expect(res).toEqual({ bell: 1, push: 0, email: 0 });
     expect(logs.warn.flat().join(" ")).toMatch(/bell-only fallback/);
   });
 
@@ -167,6 +175,32 @@ describe("the gate cannot be bypassed by the fail-open preferences path", () => 
     const prefRead = ops.find((o) => o.op === "readUsers")!;
     expect(prefRead.query.filter.id._in).toEqual(["insider"]);
   });
+
+  it("the RETRY read inherits the same scoped list", async () => {
+    // Phase 2b added a second read: when the `notification_preferences` field
+    // alone 403s, the read is repeated without it rather than zeroing the
+    // fan-out. That retry is a NEW place a recipient list gets used, and it
+    // must be fed by the gate's output — not by the caller's `asked` list.
+    // Structurally that holds because the gate is above the whole block; this
+    // asserts it, so a later refactor that hoists the read can't quietly widen
+    // the audience.
+    members = ["insider"];
+    failPreferenceFieldOnly = true;
+
+    const notifyUsers = await load();
+    const res = await notifyUsers(send(["insider", "outsider"]));
+
+    const reads = ops.filter((o) => o.op === "readUsers");
+    expect(reads).toHaveLength(2);
+    expect(reads[1]!.query.fields).not.toContain("notification_preferences");
+    for (const r of reads) expect(r.query.filter.id._in).toEqual(["insider"]);
+
+    // And the retry's opt-in default really does reach both channels — the
+    // point of the retry is that it does NOT degrade to bell-only.
+    expect(bellRecipients()).toEqual(["insider"]);
+    expect(pushed.map((p) => p.userId)).toEqual(["insider"]);
+    expect(res.bell).toBe(1);
+  });
 });
 
 describe("when the membership lookup itself fails", () => {
@@ -180,7 +214,7 @@ describe("when the membership lookup itself fails", () => {
     const notifyUsers = await load();
     const res = await notifyUsers(send(["insider", "outsider"]));
 
-    expect(res).toEqual({ bell: 0, push: 0 });
+    expect(res).toEqual({ bell: 0, push: 0, email: 0 });
     expect(ops.some((o) => o.op === "bell")).toBe(false);
     expect(pushed).toHaveLength(0);
   });
