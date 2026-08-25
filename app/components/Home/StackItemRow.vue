@@ -75,7 +75,11 @@ function openRoute() {
   />
 
   <div v-else class="ios-card" :class="big ? 'p-5' : 'p-3.5'">
-    <div class="flex items-start gap-3">
+    <!-- `flex-wrap` plus a full-width action group is the whole mobile fix: on a
+         375px screen the verb column was taking two fifths of the row and
+         squeezing a one-line title into three. Below `sm` the controls drop to
+         their own line, right-aligned; from `sm` up they sit back alongside. -->
+    <div class="flex items-start gap-3 flex-wrap">
       <span
         class="mt-1.5 w-2 h-2 rounded-full shrink-0"
         :class="dotClass"
@@ -92,7 +96,10 @@ function openRoute() {
       </div>
 
       <!-- One primary verb; the escape stays quiet. -->
-      <div class="flex items-center gap-1.5 shrink-0" @click.stop>
+      <div
+        class="flex items-center gap-1.5 shrink-0 w-full justify-end sm:w-auto sm:justify-start"
+        @click.stop
+      >
         <template v-if="item.kind === 'notice'">
           <Button
             v-if="item.notice?.proposedAction"

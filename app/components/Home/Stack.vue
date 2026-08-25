@@ -290,7 +290,14 @@ function onPileClick(e: MouseEvent) {
   position: relative;
 }
 /* The pile: two ghost cards peeking beneath the top row. Pure CSS — they are a
-   depth cue, not a thing to animate. */
+   depth cue, not a thing to animate.
+
+   Light and dark carry their own alphas rather than one value scaled, for the
+   same reason the ambient field does: the ghost has to read as a CARD EDGE
+   against the ground behind it, and near-white at 3.5% over #151d25 is a
+   seven-unit shift nobody can see, where near-black at 3.5% over #ffffff is
+   comfortably visible. `light-dark()` carries both off the `color-scheme` that
+   `html.theme-app` already sets. */
 .home-stack__pile::before,
 .home-stack__pile::after {
   content: "";
@@ -300,8 +307,15 @@ function onPileClick(e: MouseEvent) {
   bottom: -7px;
   height: 20px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--theme-text-primary, #000) 3.5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--theme-text-primary, #000) 6%, transparent);
+  background: light-dark(
+    color-mix(in srgb, var(--theme-text-primary, #000) 3.5%, transparent),
+    color-mix(in srgb, var(--theme-text-primary, #fff) 7%, transparent)
+  );
+  border: 1px solid
+    light-dark(
+      color-mix(in srgb, var(--theme-text-primary, #000) 6%, transparent),
+      color-mix(in srgb, var(--theme-text-primary, #fff) 12%, transparent)
+    );
   z-index: 0;
   transition: opacity 0.25s ease;
 }
@@ -309,7 +323,10 @@ function onPileClick(e: MouseEvent) {
   left: 20px;
   right: 20px;
   bottom: -13px;
-  background: color-mix(in srgb, var(--theme-text-primary, #000) 2%, transparent);
+  background: light-dark(
+    color-mix(in srgb, var(--theme-text-primary, #000) 2%, transparent),
+    color-mix(in srgb, var(--theme-text-primary, #fff) 4%, transparent)
+  );
 }
 .home-stack__pile.single::before,
 .home-stack__pile.single::after,
