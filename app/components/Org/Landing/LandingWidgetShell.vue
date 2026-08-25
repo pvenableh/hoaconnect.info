@@ -1,7 +1,9 @@
 <!--
   Frosted glass-widget shell shared by every landing widget. Renders the
   headline row (value / label / icon chip) + optional sub line; extra content
-  goes in the default slot. Styling lives in app/assets/css/glass.css.
+  goes in the default slot. Styling lives in core/app/assets/css/earnest-ui.css
+  (the "LANDING GLASS SYSTEM" block at the end; it was its own glass.css until
+  the Phase 8 consolidation).
 -->
 <template>
   <div class="glass-widget min-w-[8.5rem]">

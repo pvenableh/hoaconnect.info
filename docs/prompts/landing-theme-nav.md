@@ -30,7 +30,7 @@ must not interfere with the chromeless layout (the landing renders under the
   `theme-luxury-*`, `theme-modern-*` (set by `useTheme().forceThemeStyle` from
   `org.settings.theme`). Drive the nav variant off the same signal. Tokens live
   in `app/assets/css/theme.css`; landing aesthetic layer in
-  `app/assets/css/landing.css`; glass utilities in `app/assets/css/glass.css`.
+  `app/assets/css/landing.css`; glass utilities in `core/app/assets/css/earnest-ui.css` (was `glass.css` until Phase 8).
 - **Nav content & behavior** already in `LandingDrawer.vue`:
   - Explore anchors (Home/Amenities/Listings/Board/Contact, conditionally shown).
   - The **locked "Member portal"** section (Dashboard, Announcements, Documents,

@@ -2,7 +2,6 @@
 @import "./fonts.css";
 @import "./variables.css";
 @import "./theme.css";
-@import "./glass.css";
 @import "./landing.css";
 @import "./earnest-ui.css";
 /* Last: the workspace's own theme block gets final say over the public themes
