@@ -1424,16 +1424,12 @@ a frozen mid-transition sample.
 > `docs/notification-digest-cron.md`, `docs/data-export-cron.md`,
 > `docs/ai-notices-cron.md`, `docs/ai-action-expiry-cron.md` and go-live §3/§3b.
 
-- [ ] **Set three GitHub repository secrets** at *Settings → Secrets and
-      variables → Actions*: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`,
-      `CRON_SECRET`. **Nothing scheduled runs until this is done** — every
-      other value is a non-secret literal in the workflow files. This is the
-      only remaining setup step for all four jobs.
-- [ ] **Set `GITHUB_DISPATCH_TOKEN` in Vercel env** — a fine-grained PAT scoped
-      to this repo with **Contents: Read and write**, which is what
-      `POST /repos/{owner}/{repo}/dispatches` requires. Without it exports still
-      build, just on the hourly schedule rather than in seconds; the log says
-      so explicitly rather than looking like a fault.
+- [x] ~~**Set three GitHub repository secrets**~~ — done by Peter 2026-08-25.
+      `DIRECTUS_STATIC_TOKEN` is proven by the dispatch runs, which reach
+      Directus and would throw on a bad token. `SENDGRID_API_KEY` is not yet
+      exercised — the first digest run is its first real use.
+- [x] ~~**Set `GITHUB_DISPATCH_TOKEN` in Vercel env**~~ — done by Peter and
+      proven working 2026-08-25 (see the end-to-end entry above).
 - [x] ~~**Confirm both Vercel crons appear**~~ — done 2026-08-25. Both show in
       the Cron Jobs tab: `10 7 * * *` and `40 7 * * 0`, times in UTC. The weekly
       one surviving proves the project is on **Vercel Pro**; Hobby caps crons at
@@ -1444,9 +1440,16 @@ a frozen mid-transition sample.
       proves the `DIRECTUS_STATIC_TOKEN` secret. Both AI endpoints answer `401`
       to a GET carrying a wrong Bearer token, which is Vercel Cron's exact
       request shape: route accepts GET, auth enforced, no side effects.
-      ⚠️ Still unproven from a terminal: `GITHUB_DISPATCH_TOKEN`. The only test
-      is requesting an export in the app and watching it finish in seconds
-      rather than on the hour.
+- [x] **`GITHUB_DISPATCH_TOKEN` proven end to end 2026-08-25.** Queued an export
+      on `demo` (Harborview Lofts) through the deployed app as the demo user:
+      row created **17:42:02**, `repository_dispatch` run created **17:42:15**
+      (13s), archive ready **17:42:55**, run ended 17:42:59. **53 seconds from
+      request to downloadable archive**, against up to 15 minutes under the old
+      polling. Every row created was then deleted — export row, archive file and
+      notification 35 — and both demo orgs were diffed before and after:
+      `demo` exports 0→0 / activity 449→449, `demo-classic` 0→0 / 13→13, the
+      `Data exports` folder back to its single transition-test archive. API
+      calls do not write `hoa_activity` rows; browsing does.
 - [ ] **Watch the first run of each of the four jobs go green.**
       A failed Actions run emails you; a *green* digest run that sends nothing is
       expected — see the `candidates=1` note below.
