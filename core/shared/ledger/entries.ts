@@ -32,7 +32,7 @@ import {
   matchPreset,
   normalizeGrants,
   type ManagerGrantKey,
-} from "#core/shared/transition/grants";
+} from "../transition/grants";
 
 
 export interface GrantChangeSubject {

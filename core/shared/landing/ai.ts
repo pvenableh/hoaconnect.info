@@ -22,7 +22,7 @@ import {
   type LandingBlockType,
   type LandingFaqItem,
   type LandingLocationConfig,
-} from "#core/shared/utils/landing";
+} from "../utils/landing";
 
 /** Block types the wizard may position. Built-ins carry no copy of their own. */
 export const AI_SECTION_TYPES: LandingBlockType[] = [

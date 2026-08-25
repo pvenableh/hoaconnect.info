@@ -23,7 +23,7 @@
  * Pure: no Directus, no fs, no H3.
  */
 
-import { visibleTiersFor, type LedgerViewer } from "#core/shared/ledger/visibility";
+import { visibleTiersFor, type LedgerViewer } from "../ledger/visibility";
 
 /**
  * `full` — everything, for the community's own board.

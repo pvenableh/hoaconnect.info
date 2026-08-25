@@ -930,6 +930,11 @@ async function failStaleJobs(): Promise<void> {
  * treated as stale and taken over, so a killed worker cannot block the queue.
  */
 async function acquireLock(): Promise<(() => Promise<void>) | null> {
+  // EXPORT_WORK_DIR is configuration, not something that already exists — a
+  // fresh CI runner or a newly pointed-at disk has no such directory, and the
+  // lock is the FIRST thing to touch it. A dry run skips the lock entirely, so
+  // without this the failure only ever shows up on a real run.
+  await mkdir(WORK_ROOT, { recursive: true });
   const path = join(WORK_ROOT, "hoa-data-export.lock");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {

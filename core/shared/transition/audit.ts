@@ -29,8 +29,8 @@
  */
 
 import type { TransitionPlan } from "./plan";
-import { LEDGER_SCHEMA_VERSION } from "#core/shared/ledger/entry";
-import { defaultVisibilityFor } from "#core/shared/ledger/events";
+import { LEDGER_SCHEMA_VERSION } from "../ledger/entry";
+import { defaultVisibilityFor } from "../ledger/events";
 
 /**
  * Phase 5 moved these definitions into `core/shared/ledger/` — the row shape,
@@ -39,12 +39,12 @@ import { defaultVisibilityFor } from "#core/shared/ledger/events";
  * Re-exported here under their original names so Phase 4's callers are
  * unchanged; the ledger module is the source of truth.
  */
-export type { LedgerVisibility as AuditVisibility } from "#core/shared/ledger/entry";
-export type { LedgerActor as AuditActor } from "#core/shared/ledger/entry";
-export type { LedgerEntry as AuditEntry } from "#core/shared/ledger/entry";
-export type { LedgerEventType as AuditEventType } from "#core/shared/ledger/events";
-import type { LedgerActor as AuditActor } from "#core/shared/ledger/entry";
-import type { LedgerEntry as AuditEntry } from "#core/shared/ledger/entry";
+export type { LedgerVisibility as AuditVisibility } from "../ledger/entry";
+export type { LedgerActor as AuditActor } from "../ledger/entry";
+export type { LedgerEntry as AuditEntry } from "../ledger/entry";
+export type { LedgerEventType as AuditEventType } from "../ledger/events";
+import type { LedgerActor as AuditActor } from "../ledger/entry";
+import type { LedgerEntry as AuditEntry } from "../ledger/entry";
 
 export const AUDIT_SCHEMA_VERSION = LEDGER_SCHEMA_VERSION;
 
