@@ -53,6 +53,7 @@
     "create:ai-ledger-chunks": "dotenv -- tsx scripts/create-ai-ledger-chunks.ts",
     "create:ai-context-snapshots": "dotenv -- tsx scripts/create-ai-context-snapshots.ts",
     "add:ai-conversation-context": "dotenv -- tsx scripts/add-ai-conversation-context.ts",
+  "convert:preview-json": "dotenv -- tsx scripts/convert-ai-action-preview-json.ts",
     "create:ai-actions": "dotenv -- tsx scripts/create-ai-actions-collection.ts",
     "create:email-blocks": "dotenv -- tsx scripts/create-email-blocks-collections.ts",
     "create:channel-moderation": "dotenv -- tsx scripts/create-channel-moderation.ts",
