@@ -69,8 +69,6 @@
 	--theme-border-light: #eeedea;
 
 	/* Component-specific */
-	--theme-header-bg: #f5f3ef;
-	--theme-footer-bg: #fdfcfa;
 	--theme-card-bg: #ffffff;
 	--theme-nav-bg: rgba(255, 255, 255, 0.85);
 	--theme-drawer-bg: rgba(255, 255, 255, 0.92);
@@ -94,7 +92,6 @@
 
 	/* Dividers */
 	--theme-divider: #e2e1de;
-	--theme-divider-light: #eeedea;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -155,8 +152,6 @@
 	--theme-border-light: #2F2A23;
 
 	/* Component-specific */
-	--theme-header-bg: #252219;
-	--theme-footer-bg: #1C1915;
 	--theme-card-bg: #2A2620;
 	--theme-nav-bg: rgba(37, 34, 25, 0.92);
 	--theme-drawer-bg: rgba(42, 38, 32, 0.95);
@@ -179,7 +174,6 @@
 
 	/* Dividers */
 	--theme-divider: #3D372E;
-	--theme-divider-light: #2F2A23;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -241,8 +235,6 @@
 	--theme-border-light: #F2F3F5;
 
 	/* Component-specific */
-	--theme-header-bg: rgba(255, 255, 255, 0.72);
-	--theme-footer-bg: #F3F4F6;
 	--theme-card-bg: #FFFFFF;
 	--theme-nav-bg: rgba(255, 255, 255, 0.72);
 	--theme-drawer-bg: rgba(255, 255, 255, 0.95);
@@ -265,7 +257,6 @@
 
 	/* Dividers */
 	--theme-divider: #EAECEF;
-	--theme-divider-light: #F2F3F5;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -326,8 +317,6 @@
 	--theme-border-light: #22262B;
 
 	/* Component-specific */
-	--theme-header-bg: #1A1D21;
-	--theme-footer-bg: #121417;
 	--theme-card-bg: #1E2227;
 	--theme-nav-bg: rgba(26, 29, 33, 0.95);
 	--theme-drawer-bg: rgba(30, 34, 39, 0.98);
@@ -350,7 +339,6 @@
 
 	/* Dividers */
 	--theme-divider: #2D3239;
-	--theme-divider-light: #22262B;
 
 	/* Standard transitions */
 	--theme-transition-fast: 150ms ease;
@@ -412,8 +400,6 @@
 	--theme-border-light: #F0EDE6;
 
 	/* Component-specific */
-	--theme-header-bg: #FAF9F7;
-	--theme-footer-bg: #FAF9F7;
 	--theme-card-bg: #FFFFFF;
 	--theme-nav-bg: rgba(250, 249, 247, 0.92);
 	--theme-drawer-bg: rgba(255, 255, 255, 0.97);
@@ -436,7 +422,6 @@
 
 	/* Dividers */
 	--theme-divider: #E8E4DC;
-	--theme-divider-light: #F0EDE6;
 
 	/* LUXURY: Slower, more elegant transitions */
 	--theme-transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -503,8 +488,6 @@
 	--theme-border-light: #2E2A28;
 
 	/* Component-specific */
-	--theme-header-bg: #242120;
-	--theme-footer-bg: #1A1816;
 	--theme-card-bg: #282422;
 	--theme-nav-bg: rgba(36, 33, 32, 0.95);
 	--theme-drawer-bg: rgba(40, 36, 34, 0.97);
@@ -527,7 +510,6 @@
 
 	/* Dividers */
 	--theme-divider: #3A3632;
-	--theme-divider-light: #2E2A28;
 
 	/* LUXURY: Slower, more elegant transitions */
 	--theme-transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -814,16 +796,8 @@ html.theme-modern-dark {
 .t-shadow-lg { box-shadow: var(--theme-shadow-lg); }
 
 /* Section utilities (combined bg + text) */
-.t-section {
-	background-color: var(--theme-bg-primary);
-	color: var(--theme-text-primary);
-}
 .t-section-alt {
 	background-color: var(--theme-bg-secondary);
-	color: var(--theme-text-primary);
-}
-.t-section-elevated {
-	background-color: var(--theme-bg-elevated);
 	color: var(--theme-text-primary);
 }
 
@@ -887,10 +861,6 @@ html.theme-modern-dark {
 	border-top: 1px solid var(--theme-divider);
 	margin: var(--theme-space-lg) 0;
 }
-.t-divider-light {
-	border: none;
-	border-top: 1px solid var(--theme-divider-light);
-}
 
 /* Transition utilities */
 .t-transition { transition: all var(--theme-transition-base); }
@@ -900,31 +870,6 @@ html.theme-modern-dark {
 /* =============================================================================
    COMPONENT-SPECIFIC STYLES
 ============================================================================= */
-
-/* Navigation */
-.t-nav {
-	background-color: var(--theme-nav-bg);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
-	border-bottom: 1px solid var(--theme-border-light);
-}
-
-/* Drawer/Sidebar */
-.t-drawer {
-	background-color: var(--theme-drawer-bg);
-	backdrop-filter: blur(16px);
-	-webkit-backdrop-filter: blur(16px);
-}
-
-/* Header */
-.t-header {
-	background-color: var(--theme-header-bg);
-}
-
-/* Footer */
-.t-footer {
-	background-color: var(--theme-footer-bg);
-}
 
 /* Input fields */
 .t-input {
@@ -1250,7 +1195,6 @@ html.theme-marketing {
 	--theme-border-secondary: #d4cfc7;
 	--theme-border-light: #f0ebe3;
 	--theme-divider: #e5e0d8;
-	--theme-divider-light: #f0ebe3;
 
 	/* Buttons ride the gold accent instead of the app's near-black. */
 	--theme-button-bg: #c9a96e;

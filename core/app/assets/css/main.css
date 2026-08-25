@@ -8,47 +8,18 @@
    and over the shared glass layer it builds on. */
 @import "./theme-app.css";
 
-/* Premium Typography Classes */
-.text-ultra-light {
-  font-weight: 200;
-  letter-spacing: 0.05em;
-}
-
+/* Premium Typography Classes. `.text-ultra-light` (200) and `.text-refined`
+   (400) used to sit alongside these two and were never applied to anything. */
 .text-elegant {
   font-weight: 300;
   letter-spacing: 0.03em;
   line-height: 1.6;
 }
 
-.text-refined {
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  line-height: 1.5;
-}
-
 .text-sophisticated {
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.4;
-}
-
-.glass-container {
-  /* Base styles for large screens (1024px+) */
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 3px;
-  padding: 1rem 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-
-  @media (max-width: theme("screens.xl")) {
-  }
-
-  @media (max-width: theme("screens.sm")) {
-  }
 }
 
 /* Smooth scrolling + slightly tighter global type scale for a cleaner,
@@ -99,24 +70,11 @@ img {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* GSAP helper classes */
-.reveal-element {
-  opacity: 0;
-  transform: translateY(40px);
-}
-
+/* GSAP helper class. `.reveal-element`, `.fade-in-element` and
+   `.scale-in-element` sat here as its unused siblings. */
 .stagger-item {
   opacity: 0;
   transform: translateY(20px);
-}
-
-.fade-in-element {
-  opacity: 0;
-}
-
-.scale-in-element {
-  opacity: 0;
-  transform: scale(0.95);
 }
 
 /* Page Transitions — direction-aware iOS push/pop.

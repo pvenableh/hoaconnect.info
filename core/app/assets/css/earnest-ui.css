@@ -43,11 +43,6 @@
 	backdrop-filter: saturate(180%) blur(20px);
 	-webkit-backdrop-filter: saturate(180%) blur(20px);
 }
-.glass-thin {
-	background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 45%, transparent);
-	backdrop-filter: saturate(150%) blur(12px);
-	-webkit-backdrop-filter: saturate(150%) blur(12px);
-}
 /* 20px, not the 30px this used to carry. The glass budget caps blur at 20px, and
    this tier is the one that most needs the cap: its only call site is the AI
    panel's `absolute inset-0` surface, so it is a full-panel blur. It also loses
@@ -141,7 +136,6 @@
  * has nowhere to show.
  */
 .glass-edge,
-.glass-edge--flush,
 .glass-field,
 .glass-surface,
 .glass-active-thumb,
@@ -168,9 +162,6 @@ select,
    a deliberate Tailwind `border-*` state utility (utilities layer sits above). */
 @layer components {
 	.glass-edge { border: 0; box-shadow: var(--glass-edge-shadow); }
-	/* Flush variant — rim only, no lift. For chrome docked to an edge (toolbars,
-	   slide-overs, the AI takeover) where a drop shadow would look detached. */
-	.glass-edge--flush { border: 0; box-shadow: var(--glass-rim-shadow); }
 
 	/* True gradient rim — a 1px band whose colour actually travels from the bright
 	   top edge to nothing, masked to the border ring only. Containers only. */
@@ -395,14 +386,14 @@ select,
 
 /* Graceful fallback when backdrop-filter / transparency is unavailable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-	.glass, .glass-thin, .glass-ultra, .glass-surface { background: var(--theme-card-bg, #fff); }
+	.glass, .glass-ultra, .glass-surface { background: var(--theme-card-bg, #fff); }
 }
 @media (prefers-reduced-transparency: reduce) {
-	.glass, .glass-thin, .glass-ultra, .glass-surface, .glass-body, .glass-field {
+	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field {
 		backdrop-filter: none;
 		-webkit-backdrop-filter: none;
 	}
-	.glass, .glass-thin, .glass-ultra, .glass-surface {
+	.glass, .glass-ultra, .glass-surface {
 		background: var(--theme-card-bg, #fff);
 	}
 	.glass-field { background: var(--theme-bg-elevated, #fff); }
@@ -668,22 +659,6 @@ a[role='button']:not([data-no-press]):active,
 }
 
 /* =============================================================================
-   ROUTE TRANSITION — page-fade-up (opt in via <NuxtPage transition>)
-============================================================================= */
-.page-fade-up-enter-active,
-.page-fade-up-leave-active {
-	transition:
-		opacity var(--motion-base, 240ms) var(--spring),
-		transform var(--motion-base, 240ms) var(--spring);
-}
-.page-fade-up-enter-from { opacity: 0; transform: translateY(8px); }
-.page-fade-up-leave-to   { opacity: 0; transform: translateY(-4px); }
-@media (prefers-reduced-motion: reduce) {
-	.page-fade-up-enter-active, .page-fade-up-leave-active { transition: opacity 120ms ease; }
-	.page-fade-up-enter-from, .page-fade-up-leave-to { transform: none; }
-}
-
-/* =============================================================================
    SHADCN DIALOG / SHEET — match the slide-over stack's feel
    The base components (ui/dialog, ui/sheet) animate via tw-animate-css
    (animate-in/out keyframes). These unlayered rules retime them onto the
@@ -790,58 +765,6 @@ a[role='button']:not([data-no-press]):active,
 @keyframes stagger-rise {
 	from { opacity: 0; transform: translate3d(0, 8px, 0); }
 	to   { opacity: 1; transform: none; }
-}
-
-/* =============================================================================
-   LATERAL TAB TRAVEL
-   The same directional language as the route-level push/pop in main.css, one
-   level down. Moving to a tab on the RIGHT slides content in from the right;
-   moving back leftward reverses it. Sibling views are laid out side by side, so
-   switching between them should look like moving along that row rather than a
-   cut — which is what tells you at a glance whether you went forward or back.
-
-   Shorter than a route change (that is a bigger move, and it deserves more
-   weight) and a smaller travel distance, because the surrounding page chrome
-   stays put and only the panel moves.
-============================================================================= */
-.tab-forward-enter-active,
-.tab-forward-leave-active,
-.tab-back-enter-active,
-.tab-back-leave-active {
-	transition:
-		transform 180ms var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)),
-		opacity 140ms ease;
-}
-.tab-forward-enter-from {
-	opacity: 0;
-	transform: translate3d(22px, 0, 0);
-}
-.tab-forward-leave-to {
-	opacity: 0;
-	transform: translate3d(-14px, 0, 0);
-}
-.tab-back-enter-from {
-	opacity: 0;
-	transform: translate3d(-22px, 0, 0);
-}
-.tab-back-leave-to {
-	opacity: 0;
-	transform: translate3d(14px, 0, 0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.tab-forward-enter-active,
-	.tab-forward-leave-active,
-	.tab-back-enter-active,
-	.tab-back-leave-active {
-		transition: opacity 120ms ease;
-	}
-	.tab-forward-enter-from,
-	.tab-forward-leave-to,
-	.tab-back-enter-from,
-	.tab-back-leave-to {
-		transform: none;
-	}
 }
 
 /* A single element arriving — the same motion as one stagger item, for things

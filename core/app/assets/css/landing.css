@@ -111,8 +111,7 @@
 }
 
 /* ---- Hero CTAs (sit on the dark hero — always light text) ------------------ */
-.landing-cta,
-.landing-cta--ghost {
+.landing-cta {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -132,16 +131,10 @@
 	background: rgba(255, 255, 255, 0.16);
 	border: 1px solid rgba(255, 255, 255, 0.28);
 }
-.landing-cta--ghost {
-	background: rgba(255, 255, 255, 0.06);
-	border: 1px solid rgba(255, 255, 255, 0.22);
-}
-.landing-cta:hover,
-.landing-cta--ghost:hover {
+.landing-cta:hover {
 	background: rgba(255, 255, 255, 0.26);
 }
-.landing-cta:active,
-.landing-cta--ghost:active {
+.landing-cta:active {
 	transform: scale(0.97);
 }
 
@@ -209,11 +202,7 @@ html.theme-luxury-dark .landing-eyebrow {
 html.theme-classic-light .landing-cta,
 html.theme-classic-dark .landing-cta,
 html.theme-luxury-light .landing-cta,
-html.theme-luxury-dark .landing-cta,
-html.theme-classic-light .landing-cta--ghost,
-html.theme-classic-dark .landing-cta--ghost,
-html.theme-luxury-light .landing-cta--ghost,
-html.theme-luxury-dark .landing-cta--ghost {
+html.theme-luxury-dark .landing-cta {
 	border-radius: 0;
 	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
 	font-weight: 600;
@@ -233,13 +222,6 @@ html.theme-luxury-dark .landing-btn-outline {
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.2em;
-}
-html.theme-classic-light .landing-sidebar__cta,
-html.theme-classic-dark .landing-sidebar__cta,
-html.theme-luxury-light .landing-sidebar__cta,
-html.theme-luxury-dark .landing-sidebar__cta {
-	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
-	font-weight: 600;
 }
 html.theme-classic-light .landing-card,
 html.theme-classic-dark .landing-card,
@@ -279,8 +261,6 @@ html.theme-modern-dark .landing-eyebrow {
 /* Pill buttons, spring press. */
 html.theme-modern-light .landing-cta,
 html.theme-modern-dark .landing-cta,
-html.theme-modern-light .landing-cta--ghost,
-html.theme-modern-dark .landing-cta--ghost,
 html.theme-modern-light .landing-btn,
 html.theme-modern-dark .landing-btn,
 html.theme-modern-light .landing-btn-outline,
@@ -318,92 +298,6 @@ html.theme-modern-dark .glass-widget {
 	border-radius: 1rem;
 	backdrop-filter: blur(16px) saturate(150%);
 	-webkit-backdrop-filter: blur(16px) saturate(150%);
-}
-
-/* =============================================================================
-   EDITORIAL SIDEBAR (classic / luxury) — persistent left rail à la 1033lenox
-============================================================================= */
-.landing-sidebar {
-	box-shadow: var(--theme-shadow-sm);
-}
-.landing-sidebar__link {
-	display: flex;
-	align-items: center;
-	gap: 0.625rem;
-	padding: 0.5rem 0;
-	/* Sans-serif (Proxima) like the CTAs — nav links read as crisp UI, not body
-	   serif, across every theme. */
-	font-family: 'Proxima Nova W01 Regular', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
-	font-size: 0.6875rem;
-	text-transform: uppercase;
-	letter-spacing: 0.18em;
-	color: var(--theme-text-secondary);
-	transition: color 0.2s ease, opacity 0.2s ease;
-}
-.landing-sidebar__link:hover {
-	color: var(--theme-text-primary);
-}
-.landing-sidebar__link--locked {
-	color: var(--theme-text-muted);
-}
-.landing-sidebar__link--locked:hover {
-	color: var(--theme-text-secondary);
-}
-.landing-sidebar__link--action {
-	letter-spacing: 0.14em;
-}
-.landing-sidebar__cta {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.5rem;
-	width: 100%;
-	padding: 0.7rem 1rem;
-	font-family: var(--theme-body-font);
-	font-size: 0.6875rem;
-	text-transform: uppercase;
-	letter-spacing: 0.2em;
-	background: var(--theme-accent-primary);
-	color: var(--theme-text-inverse);
-	border-radius: 0;
-	transition: background 0.25s ease;
-}
-.landing-sidebar__cta:hover {
-	background: var(--theme-accent-hover);
-}
-
-/* Collapse / expand toggle (sits top of the rail) */
-.landing-sidebar__toggle {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 30px;
-	height: 30px;
-	border-radius: 9999px;
-	color: var(--theme-text-secondary);
-	border: 1px solid var(--theme-border-primary);
-	background: transparent;
-	transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-}
-.landing-sidebar__toggle:hover {
-	color: var(--theme-text-primary);
-	border-color: var(--theme-accent-primary);
-}
-
-/* Collapsed-rail icon login button */
-.landing-sidebar__icon-cta {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 34px;
-	height: 34px;
-	border-radius: 9999px;
-	background: var(--theme-accent-primary);
-	color: var(--theme-text-inverse);
-	transition: background 0.25s ease;
-}
-.landing-sidebar__icon-cta:hover {
-	background: var(--theme-accent-hover);
 }
 
 /* =============================================================================
@@ -507,22 +401,9 @@ html.theme-modern-dark .landing-dock {
 	border-color: transparent;
 	padding: 0;
 }
-/* Locked portal chips keep the accent hue (so the row stays cohesive) but read
-   quieter via reduced opacity; the lock badge signals the gated state. */
-.landing-dock__icon--locked {
-	opacity: 0.72;
-}
 .landing-dock__glyph {
 	width: 1.4rem;
 	height: 1.4rem;
-}
-.landing-dock__lock {
-	position: absolute;
-	right: 0.28rem;
-	bottom: 0.28rem;
-	width: 0.7rem;
-	height: 0.7rem;
-	opacity: 0.6;
 }
 .landing-dock__label {
 	position: absolute;
@@ -608,7 +489,6 @@ html.landing-palette-gold {
 	--theme-border-secondary: #d4cfc7;
 	--theme-border-light: #f0ebe3;
 	--theme-divider: #e5e0d8;
-	--theme-divider-light: #f0ebe3;
 
 	--theme-link-color: #8b7355;
 	--theme-link-hover: #c9a96e;
@@ -647,7 +527,6 @@ html.landing-palette-gold.theme-luxury-dark {
 	--theme-border-secondary: #4a433a;
 	--theme-border-light: #2f2a23;
 	--theme-divider: #3d372e;
-	--theme-divider-light: #2f2a23;
 
 	--theme-link-color: #d4ba8a;
 	--theme-link-hover: #e5d4b3;
