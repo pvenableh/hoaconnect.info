@@ -26,9 +26,10 @@
  * sends. Degrading loud-but-working is the right failure here: the collection's
  * absence must not silence a genuinely urgent notice.
  *
- * Auth: `x-cron-secret` matching CRON_SECRET, or an authenticated session (so a
- * developer can trigger a run without the secret). Invoked from the droplet
- * crontab — see docs/ai-notices-cron.md.
+ * Auth: the cron secret (`x-cron-secret`, or `Authorization: Bearer` from
+ * Vercel Cron — see `cronSecretMatches`), or an authenticated session (so a
+ * developer can trigger a run without the secret). Invoked by Vercel Cron —
+ * see docs/ai-notices-cron.md.
  *
  * Body (all optional):
  *   orgId    — restrict to one community
@@ -71,9 +72,7 @@ export function noticeHash(notice: AINotice, period: string): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const secret = process.env.CRON_SECRET;
-  const provided = getHeader(event, "x-cron-secret");
-  let authorized = !!secret && !!provided && provided === secret;
+  let authorized = cronSecretMatches(event);
   if (!authorized) {
     try {
       await requireUserSession(event);

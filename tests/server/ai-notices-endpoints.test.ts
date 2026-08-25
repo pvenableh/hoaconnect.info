@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { cronSecretMatches } from "#core/server/utils/cron-auth";
 
 vi.mock("@directus/sdk", () => ({
   readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
@@ -81,6 +82,10 @@ beforeEach(() => {
   vi.stubGlobal("getQuery", (e: any) => e?.__query ?? {});
   vi.stubGlobal("readBody", async (e: any) => e?.__body ?? {});
   vi.stubGlobal("getHeader", (e: any, k: string) => e?.__headers?.[k]);
+  // The REAL implementation, not a stand-in: these are auth tests, and a
+  // stubbed-true helper would assert nothing. It reads through the stubbed
+  // getHeader above.
+  vi.stubGlobal("cronSecretMatches", cronSecretMatches);
   vi.stubGlobal("createError", (o: any) => Object.assign(new Error(o.message), o));
   vi.stubGlobal("requireAuthenticatedUser", async () => ({ userId: ME }));
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: ME } }));
@@ -129,7 +134,7 @@ beforeEach(() => {
 const loadNotices = async () =>
   (await import("#core/server/api/ai/notices/index.get")).default as any;
 const loadCheck = async () =>
-  (await import("#core/server/api/ai/notices/check.post")).default as any;
+  (await import("#core/server/api/ai/notices/check")).default as any;
 
 /** A request old enough to be urgent, in whichever org is named. */
 const agedRequest = (id: string, org: string) => ({
@@ -250,6 +255,29 @@ describe("POST /api/ai/notices/check — the cron", () => {
     ).rejects.toMatchObject({ statusCode: 401 });
   });
 
+  // Vercel Cron sends `Authorization: Bearer <secret>` and cannot be told to
+  // send a custom header, so this form IS the production caller. Without it the
+  // cron gets a 401 and the sweep silently never runs.
+  it("accepts the Bearer form Vercel Cron sends", async () => {
+    vi.stubGlobal("requireUserSession", async () => {
+      throw new Error("no session");
+    });
+    const handler = await loadCheck();
+    await expect(
+      handler({ __headers: { authorization: "Bearer s3cret" }, __body: {} })
+    ).resolves.toBeTruthy();
+  });
+
+  it("refuses a Bearer token that is not the secret", async () => {
+    vi.stubGlobal("requireUserSession", async () => {
+      throw new Error("no session");
+    });
+    const handler = await loadCheck();
+    await expect(
+      handler({ __headers: { authorization: "Bearer not-it" }, __body: {} })
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
   it("notifies once, then never again that month", async () => {
     rows.hoa_requests = [agedRequest("r1", HOME)];
     const handler = await loadCheck();
@@ -366,7 +394,7 @@ describe("POST /api/ai/notices/check — the cron", () => {
 describe("the dedup key itself", () => {
   it("strips the entity id to get a stable type, and survives a retitle", async () => {
     const { noticeTypeOf, noticeHash, periodKey } = await import(
-      "#core/server/api/ai/notices/check.post"
+      "#core/server/api/ai/notices/check"
     );
     const base = { id: "request-aged-abc", entityType: "request", entityId: "abc" } as any;
     expect(noticeTypeOf(base)).toBe("request-aged");
@@ -379,7 +407,7 @@ describe("the dedup key itself", () => {
   });
 
   it("gives different entities and different months different keys", async () => {
-    const { noticeHash } = await import("#core/server/api/ai/notices/check.post");
+    const { noticeHash } = await import("#core/server/api/ai/notices/check");
     const a = { id: "request-aged-abc", entityType: "request", entityId: "abc" } as any;
     const b = { id: "request-aged-def", entityType: "request", entityId: "def" } as any;
     expect(noticeHash(a, "2026-08")).not.toBe(noticeHash(b, "2026-08"));
@@ -387,7 +415,7 @@ describe("the dedup key itself", () => {
   });
 
   it("rolls the period on the calendar boundary, not 30 days later", async () => {
-    const { periodKey } = await import("#core/server/api/ai/notices/check.post");
+    const { periodKey } = await import("#core/server/api/ai/notices/check");
     expect(periodKey(new Date("2026-08-31T23:59:59Z"))).toBe("2026-08");
     expect(periodKey(new Date("2026-09-01T00:00:00Z"))).toBe("2026-09");
   });

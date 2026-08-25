@@ -26,6 +26,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { cronSecretMatches } from "#core/server/utils/cron-auth";
 
 vi.mock("@directus/sdk", () => ({
   readItem: (collection: string, id: string, query?: unknown) => ({
@@ -120,6 +121,10 @@ beforeEach(() => {
   vi.stubGlobal("getQuery", (e: any) => e?.__query ?? {});
   vi.stubGlobal("readBody", async (e: any) => e?.__body ?? {});
   vi.stubGlobal("getHeader", (e: any, k: string) => e?.__headers?.[k]);
+  // The REAL implementation, not a stand-in: these are auth tests, and a
+  // stubbed-true helper would assert nothing. It reads through the stubbed
+  // getHeader above.
+  vi.stubGlobal("cronSecretMatches", cronSecretMatches);
   vi.stubGlobal("createError", (o: any) => Object.assign(new Error(o.message), o));
   vi.stubGlobal("requireUserSession", async (e: any) => {
     if (e?.__anonymous) throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
@@ -186,7 +191,7 @@ beforeEach(() => {
 
 const loadBulk = async () => (await import("#core/server/api/ai/actions/bulk.post")).default as any;
 const loadExpire = async () =>
-  (await import("#core/server/api/ai/actions/expire-stale.post")).default as any;
+  (await import("#core/server/api/ai/actions/expire-stale")).default as any;
 const loadTrust = async () =>
   (await import("#core/server/api/ai/actions/trust.get")).default as any;
 

@@ -7,11 +7,16 @@
 #
 # Weekly, not nightly: the window is a fortnight, so a nightly run can only ever
 # find the handful of rows that crossed the line in the last 24 hours.
+#
+# Its schedule lives in `vercel.json` — this file is the manual runner.
 name: ai action expiry
 
+# ⚠️ The SCHEDULE for this job now lives in `vercel.json`, not here. Vercel Cron
+# invokes the endpoint directly — no runner, no checkout — which is the right
+# shape for a job that is one HTTP request. This file is kept as the MANUAL
+# runner (and as the fallback if the Vercel cron ever needs to move back: add
+# a `schedule:` block with `cron: "40 7 * * 0"` under `on:` and it works again).
 on:
-  schedule:
-    - cron: "40 7 * * 0" # Sundays, 07:40 UTC
   workflow_dispatch:
     inputs:
       dry_run:

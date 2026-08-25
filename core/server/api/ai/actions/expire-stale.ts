@@ -26,8 +26,9 @@
  * `expired: 0` rather than doing anything again.
  *
  * Auth, and why it differs by caller:
- *   · `x-cron-secret` matching CRON_SECRET → may sweep every community, or one
- *     if `orgId` is given. This is the droplet crontab.
+ *   · the cron secret (`x-cron-secret`, or `Authorization: Bearer` from Vercel
+ *     Cron) → may sweep every community, or one
+ *     if `orgId` is given. This is the Vercel Cron caller.
  *   · an authenticated session → `orgId` is REQUIRED and compose-gated. A
  *     person may retire their own community's stale queue and no one else's.
  *     There is no "sweep everything" for a logged-in user at any role.
@@ -59,9 +60,7 @@ export default defineEventHandler(async (event) => {
   const orgId = String(body.orgId || "").trim();
   const dryRun = body.dryRun === true;
 
-  const secret = process.env.CRON_SECRET;
-  const provided = getHeader(event, "x-cron-secret");
-  const viaCron = !!secret && !!provided && provided === secret;
+  const viaCron = cronSecretMatches(event);
 
   if (!viaCron) {
     await requireUserSession(event);

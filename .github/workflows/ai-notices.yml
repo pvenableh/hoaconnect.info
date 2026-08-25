@@ -4,16 +4,16 @@
 # does arithmetic, with NO LLM call anywhere, so a nightly sweep of every org
 # spends no AI credits. See docs/ai-notices-cron.md.
 #
-# This one never needed a checkout — it is a curl at the deployed app. It lives
-# here rather than on the droplet only so that all four scheduled jobs are in
-# one place, with one run history to read when something did not fire.
+# This one never needed a checkout — it is a curl at the deployed app, which is
+# exactly why its schedule moved to Vercel Cron (see below).
 name: ai notices sweep
 
+# ⚠️ The SCHEDULE for this job now lives in `vercel.json`, not here. Vercel Cron
+# invokes the endpoint directly — no runner, no checkout — which is the right
+# shape for a job that is one HTTP request. This file is kept as the MANUAL
+# runner (and as the fallback if the Vercel cron ever needs to move back: add
+# a `schedule:` block with `cron: "10 7 * * *"` under `on:` and it works again).
 on:
-  schedule:
-    # Nightly at 07:10 UTC. Nightly and not hourly: the thresholds are measured
-    # in days, so a second run the same day can only find what the first handled.
-    - cron: "10 7 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

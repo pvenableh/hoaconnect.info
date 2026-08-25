@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/ai/notices/check",
+      "schedule": "10 7 * * *"
+    },
+    {
+      "path": "/api/ai/actions/expire-stale",
+      "schedule": "40 7 * * 0"
+    }
+  ]
+}
