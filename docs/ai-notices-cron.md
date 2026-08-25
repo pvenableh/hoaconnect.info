@@ -1,4 +1,4 @@
-# Notices cron — scheduled on GitHub Actions
+# Notices cron — scheduled on Vercel Cron
 
 The notices engine is deterministic and free to run: it reads the community's
 own rows and does arithmetic, with **no LLM call anywhere**. A nightly sweep of
@@ -43,15 +43,31 @@ checkout, no `node_modules`, nothing to keep in step with the repo layout.
    reset both use it), and as a **GitHub repository secret**, where the caller
    reads it. No new variable, one new place to paste it.
 
-3. Nothing else to set up. The schedule is
-   [`.github/workflows/ai-notices.yml`](../.github/workflows/ai-notices.yml),
-   **nightly at 07:10 UTC**, already in the repo. Nightly and not hourly: the
-   thresholds are measured in days, so a second run the same day can only ever
-   find what the first one already handled.
+3. Nothing else to set up. The schedule is [`vercel.json`](../vercel.json),
+   **daily at 07:10 UTC**. Nightly and not hourly: the thresholds are measured
+   in days, so a second run the same day can only ever find what the first one
+   already handled.
 
-   To run it by hand: Actions → *ai notices sweep* → **Run workflow**. The
-   `dry_run` input defaults to **true**, which computes and reports without
-   notifying anyone or writing history.
+   ⚠️ **Vercel Hobby allows 2 cron jobs, at daily granularity only.** This one
+   fits either plan; the weekly expiry sweep does not, and degrades to daily.
+
+   > **Why Vercel Cron and not GitHub Actions.** This job is a single HTTP
+   > request at an endpoint that already exists. Booting an Ubuntu runner,
+   > checking out the repo and installing dependencies in order to send it is
+   > pure overhead — Vercel invokes the function directly. The digest and export
+   > workers stay on Actions because they genuinely need the repo. The split is
+   > "does this need a checkout", not "which system do we like".
+
+   ⚠️ **Vercel Cron issues GET, and only GET, and cannot send a custom header.**
+   That is why this route is `check.ts` and not `check.post.ts`, and why it
+   accepts `Authorization: Bearer $CRON_SECRET` as well as `x-cron-secret` —
+   see `core/server/utils/cron-auth.ts`. A `.post.ts` route on a Vercel cron
+   answers **405 and the job silently never runs**. POST still works for every
+   existing caller.
+
+   To run it by hand from the browser: Actions → *ai notices sweep* →
+   **Run workflow**. That workflow is now the manual runner only — its schedule
+   moved here — and its `dry_run` input defaults to **true**.
 
    To run it from a laptop:
 
@@ -60,14 +76,6 @@ checkout, no `node_modules`, nothing to keep in step with the repo layout.
      -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' \
      -d '{"dryRun": true}'
    ```
-
-   > **This never lived on the droplet, and could not have.** That machine runs
-   > three containers — postgis, redis, directus — with no node service, no
-   > checkout and no crontab, which is why the digest and export workers moved
-   > to Actions too; see
-   > [notification-digest-cron.md](notification-digest-cron.md). Those two need
-   > a checkout and this one does not, but they now share a run history, which
-   > is the thing you actually want when something did not fire.
 
 ## Members opting out
 

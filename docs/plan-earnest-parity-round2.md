@@ -1413,17 +1413,33 @@ a frozen mid-transition sample.
 
 ### Operator TODOs (carried forward until done)
 
-> **2026-08-25 — the droplet thread is closed.** All four scheduled jobs are
-> GitHub Actions workflows. See the rewritten `docs/notification-digest-cron.md`,
-> `docs/data-export-cron.md` and go-live §3/§3b.
+> **2026-08-25 — the droplet thread is closed.** The four scheduled jobs now sit
+> in **two** systems, split on whether the job needs a checkout of this repo:
+> the digest and export workers on **GitHub Actions**, the two AI crons on
+> **Vercel Cron** (`vercel.json`), because each is a single HTTP request at an
+> endpoint that already exists and booting a runner to send it is pure overhead.
+> The export is additionally **dispatch-driven** — queuing one wakes the
+> workflow immediately, and the hourly schedule is only the net. This mirrors
+> how Earnest runs the identical endpoints. See the rewritten
+> `docs/notification-digest-cron.md`, `docs/data-export-cron.md`,
+> `docs/ai-notices-cron.md`, `docs/ai-action-expiry-cron.md` and go-live §3/§3b.
 
 - [ ] **Set three GitHub repository secrets** at *Settings → Secrets and
       variables → Actions*: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`,
       `CRON_SECRET`. **Nothing scheduled runs until this is done** — every
       other value is a non-secret literal in the workflow files. This is the
       only remaining setup step for all four jobs.
-- [ ] **Watch the first scheduled run of each of the four workflows go green.**
-      A failed run emails you; a *green* digest run that sends nothing is
+- [ ] **Set `GITHUB_DISPATCH_TOKEN` in Vercel env** — a fine-grained PAT scoped
+      to this repo with **Contents: Read and write**, which is what
+      `POST /repos/{owner}/{repo}/dispatches` requires. Without it exports still
+      build, just on the hourly schedule rather than in seconds; the log says
+      so explicitly rather than looking like a fault.
+- [ ] **Confirm both Vercel crons appear** under the project's *Cron Jobs* tab
+      after the next deploy. ⚠️ **Vercel Hobby allows 2 crons at daily
+      granularity only** — the weekly expiry sweep needs Pro, and on Hobby
+      degrades to daily (harmless: it is idempotent and reports `expired: 0`).
+- [ ] **Watch the first run of each of the four jobs go green.**
+      A failed Actions run emails you; a *green* digest run that sends nothing is
       expected — see the `candidates=1` note below.
 - [ ] **`candidates=1` platform-wide** (2026-08-25): exactly one user across
       every org has a non-null `notification_preferences`. The digest will
@@ -1444,6 +1460,14 @@ a frozen mid-transition sample.
       `ERR_PACKAGE_IMPORT_NOT_DEFINED`. `core/shared/` is imported by the app,
       by vitest AND by scripts; keep its intra-package imports relative. This
       is what actually kept the export worker dead, not the missing droplet.
+- [ ] **Vercel Cron issues GET, and only GET, and cannot send a custom header.**
+      A `.post.ts` route on a Vercel cron answers **405 and the job silently
+      never runs**. That is why `check.post.ts` / `expire-stale.post.ts` became
+      `.ts`, and why both accept `Authorization: Bearer $CRON_SECRET` alongside
+      `x-cron-secret` via `core/server/utils/cron-auth.ts`. Three other routes
+      still read the header directly — `demo/reset`,
+      `internal/recompute-member-counts`, `email/process-scheduled` — and would
+      need the same treatment before any of them could move to Vercel Cron.
 - [ ] **`app/lib/directus.ts` exports a `useDirectusRealtime()` that nothing
       imports**, with a different shape from the auto-imported composable of the
       same name. Noticed while surveying the post-deploy cleanup; harmless

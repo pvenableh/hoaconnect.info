@@ -48,12 +48,42 @@ and this worker is what makes that true.
    the manifest onto the row and drops a bell notification for the admin who
    asked.
 
+## How it is triggered
+
+**Fast path — dispatch.** Queuing an export POSTs a `repository_dispatch` at
+GitHub from `core/server/utils/export-dispatch.ts`, wired into both places a row
+can be created: `POST /api/org/export` and the management-transition step in
+`transition-execute.ts`. A build starts in seconds.
+
+This is **best-effort by design**. No token, a revoked token, GitHub down, a
+network blip — every failure costs latency and nothing else, because the hourly
+run still builds the row. It never throws and never blocks the response: a queue
+request that succeeded must not report failure because a notification did. When
+`GITHUB_DISPATCH_TOKEN` is unset it logs *"will be built by the hourly run"*,
+which is a statement of fact rather than an error.
+
+**Safety net — the hourly schedule** (`23 * * * *`): purges, stale-job release,
+and anything a dispatch missed.
+
+> **Why not just poll faster?** It was `*/15` — about **2,880 runs a month**,
+> nearly all of them booting a runner, checking out the repo and installing
+> dependencies to discover an empty queue, and *still* leaving someone waiting
+> up to 15 minutes for an archive that builds in ten seconds. Hourly plus
+> dispatch is ~730 runs and exports start sooner. Polling frequency was buying
+> latency at enormous cost, and the dispatch buys better latency for free.
+
+The dispatch payload carries an `exportId` for tracing only. The workflow
+deliberately runs the queue **normally** rather than building that id — so a
+dispatch can never disagree with what is actually waiting, and a duplicate
+dispatch is a no-op rather than a double build.
+
 ## What stops two runs colliding
 
 The worker takes a pid lock in `EXPORT_WORK_DIR`, which guards **one machine**.
 On ephemeral runners every run is a fresh machine, so that lock can never see a
 sibling. What actually prevents overlap on Actions is the workflow's
-`concurrency: { group: data-export-worker, cancel-in-progress: false }`. Keep
+`concurrency: { group: data-export-worker, cancel-in-progress: false }` — which
+matters more now that a dispatch and a scheduled tick can land together. Keep
 both: the lock still earns its place for laptop runs against prod.
 
 The job's `timeout-minutes: 60` is deliberately well under the worker's own
@@ -81,10 +111,16 @@ Which collections appear, and what the `shareable` tier withholds, is decided in
 
 ## Setup
 
-One repository secret beyond what the digest already needs:
+One GitHub repository secret beyond what the digest already needs:
 `DIRECTUS_STATIC_TOKEN`. See
 [notification-digest-cron.md](notification-digest-cron.md#setup) for the full
 secret list and where to paste them.
+
+One **Vercel** env var for the dispatch: `GITHUB_DISPATCH_TOKEN`, a fine-grained
+PAT scoped to this repo with **Contents: Read and write** — the permission
+`POST /repos/{owner}/{repo}/dispatches` requires. `GITHUB_DISPATCH_REPO`
+overrides the target repo and is only needed if it is renamed. Leave the token
+unset and everything still works on the hourly schedule.
 
 The workflow pins the rest inline:
 

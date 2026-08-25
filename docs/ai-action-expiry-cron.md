@@ -1,4 +1,4 @@
-# Stale-proposal expiry — scheduled on GitHub Actions
+# Stale-proposal expiry — scheduled on Vercel Cron
 
 The review queue fills without anyone asking it to. The notices cron proposes,
 the assistant proposes during a chat turn, and from Phase 5 the Director layer
@@ -67,22 +67,28 @@ their own community's stale queue and nobody else's.
      -d '{"dryRun": true}'
    ```
 
-4. Nothing else to set up. The schedule is
-   [`.github/workflows/ai-action-expiry.yml`](../.github/workflows/ai-action-expiry.yml),
-   **Sundays at 07:40 UTC**, already in the repo. Weekly, not nightly: the
-   window is a fortnight, so a run every night can only ever find the handful of
-   rows that crossed the line in the last 24 hours, and the sweep is cheapest
-   when it has something to do.
+4. Nothing else to set up. The schedule is [`vercel.json`](../vercel.json),
+   **Sundays at 07:40 UTC**. Weekly, not nightly: the window is a fortnight, so
+   a run every night can only ever find the handful of rows that crossed the
+   line in the last 24 hours.
 
-   To run it by hand: Actions → *ai action expiry* → **Run workflow**, with
-   `dry_run` left at its default **true** to count without changing anything.
+   ⚠️ **A weekly cron needs Vercel Pro.** Hobby allows 2 crons at daily
+   granularity only, so on Hobby this runs daily instead — harmless, because the
+   sweep is idempotent by construction and simply reports `expired: 0` on the
+   days it finds nothing.
 
-   It runs after the nightly notices sweep on the days they coincide, but the
-   two are independent: the notices cron proposes nothing itself — it only
-   notifies — so there is no ordering requirement between them.
+   ⚠️ Vercel Cron issues **GET only** and cannot send a custom header, which is
+   why this route is `expire-stale.ts` rather than `.post.ts` and why it accepts
+   `Authorization: Bearer` alongside `x-cron-secret`. See
+   [ai-notices-cron.md](ai-notices-cron.md) for the full note — the same trap
+   applies to both.
 
-   `CRON_SECRET` must be a **GitHub repository secret** as well as an app env
-   var; see [ai-notices-cron.md](ai-notices-cron.md) for the same note.
+   It runs after the notices sweep on the days they coincide, but the two are
+   independent: the notices cron proposes nothing itself — it only notifies —
+   so there is no ordering requirement between them.
+
+   To run it by hand: Actions → *ai action expiry* → **Run workflow** (manual
+   runner only now), with `dry_run` left at its default **true**.
 
 ## Reading the log
 

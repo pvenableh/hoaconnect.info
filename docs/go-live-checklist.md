@@ -92,30 +92,55 @@ first.**
 **Full steps: [notification-digest-cron.md](notification-digest-cron.md) and
 [data-export-cron.md](data-export-cron.md).**
 
-Four jobs run on a schedule. None of them runs on the droplet, and none of them
-needs to:
+Four scheduled jobs, in **two** systems — split on whether the job needs a
+checkout of this repo:
 
-| workflow | schedule | what it does |
-|---|---|---|
-| [`notification-digest.yml`](../.github/workflows/notification-digest.yml) | hourly, `:07` | daily/weekly member digests via SendGrid |
-| [`data-export.yml`](../.github/workflows/data-export.yml) | every 15 min | builds queued Data Trust archives, purges expired ones |
-| [`ai-notices.yml`](../.github/workflows/ai-notices.yml) | nightly, 07:10 UTC | `POST /api/ai/notices/check` — deterministic, no LLM call, no AI credits |
-| [`ai-action-expiry.yml`](../.github/workflows/ai-action-expiry.yml) | Sundays, 07:40 UTC | `POST /api/ai/actions/expire-stale` |
+| job | where | schedule | what it does |
+|---|---|---|---|
+| [`notification-digest.yml`](../.github/workflows/notification-digest.yml) | GitHub Actions | hourly, `:07` | daily/weekly member digests via SendGrid |
+| [`data-export.yml`](../.github/workflows/data-export.yml) | GitHub Actions | on dispatch + hourly `:23` | builds queued Data Trust archives, purges expired ones |
+| `/api/ai/notices/check` | **Vercel Cron** | 07:10 UTC daily | deterministic sweep, no LLM call, no AI credits |
+| `/api/ai/actions/expire-stale` | **Vercel Cron** | Sundays 07:40 UTC | retires stale AI proposals |
 
-The first two check out the repo and run a worker script; the last two are a
-`curl` at the deployed app and need no checkout at all.
+The first two run a worker script and need the repo. The last two are one HTTP
+request each, so they are [`vercel.json`](../vercel.json) crons — Vercel invokes
+the endpoint directly, with no runner to boot and nothing to check out. Their
+GitHub workflows still exist as **manual runners** (`workflow_dispatch`), which
+is also the fallback if a schedule ever has to move back.
 
-- [ ] Set three repository secrets at **Settings → Secrets and variables →
-      Actions**: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`, `CRON_SECRET`.
-      Every other value is a non-secret literal in the workflow files.
-- [ ] Confirm each workflow appears under **Actions** and can be dispatched.
-      All four have a `workflow_dispatch` whose `dry_run` input defaults to
-      **true**, so the obvious button is the safe one.
-- [ ] Watch the first real hourly digest run and the first export tick go green.
+**The export is dispatch-driven.** Queuing an export POSTs a
+`repository_dispatch` from the app, so a build starts in seconds. The hourly
+schedule is the safety net — purges, stale-job release, and anything a dispatch
+missed. It is deliberately not the primary trigger: polling every 15 minutes
+meant ~2,880 runs a month booting a runner to find an empty queue.
+
+- [ ] Set three **GitHub** repository secrets at *Settings → Secrets and
+      variables → Actions*: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`,
+      `CRON_SECRET`. The two Actions workflows do nothing until this is done.
+- [ ] Set `GITHUB_DISPATCH_TOKEN` in **Vercel** env — a fine-grained PAT scoped
+      to this repo with **Contents: Read and write** (what
+      `POST /repos/{owner}/{repo}/dispatches` requires). Optional:
+      `GITHUB_DISPATCH_REPO` if the repo is ever renamed. Without it, exports
+      still build — just on the hourly schedule instead of immediately, which
+      is what the log line says when it is missing.
+- [ ] Confirm both Vercel crons appear under the project's **Cron Jobs** tab
+      after the next deploy. ⚠️ **Vercel Hobby allows 2 cron jobs at
+      daily granularity only** — a weekly schedule needs Pro. On Hobby the
+      expiry sweep will effectively run daily, which is harmless: it is
+      idempotent and simply finds nothing most days.
+- [ ] Watch the first run of each of the four go green.
+
+⚠️ **Vercel Cron issues GET, and only GET**, and cannot send a custom header.
+That is why `check.post.ts` / `expire-stale.post.ts` were renamed to `.ts` and
+why both now accept `Authorization: Bearer $CRON_SECRET` alongside
+`x-cron-secret` (see `core/server/utils/cron-auth.ts`). A `.post.ts` route on a
+Vercel cron answers 405 and the job silently never runs.
 
 > `CRON_SECRET` is **not** used by the digest or export workers — they talk to
 > Directus directly rather than through an HTTP endpoint. It guards the two AI
-> endpoints and the scheduled-email Directus flow.
+> endpoints and the scheduled-email Directus flow, and it must exist in the
+> app's env (for the endpoint to check) as well as in GitHub secrets (for the
+> manual runners).
 
 ---
 
