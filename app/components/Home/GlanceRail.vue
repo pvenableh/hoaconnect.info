@@ -26,10 +26,12 @@ const { isEnabled } = useModules();
 const { buildOrgPath } = useOrgNavigation();
 const channelsPanel = useChannelsPanel();
 
-const money = await useMoneyGlance();
-const requests = await useRequestsGlance();
-const units = await useUnitsGlance();
-const members = await useMembersGlance();
+const { selectedOrgId } = await useSelectedOrg();
+
+const money = await useMoneyGlance(selectedOrgId);
+const requests = await useRequestsGlance(selectedOrgId);
+const units = await useUnitsGlance(selectedOrgId);
+const members = await useMembersGlance(selectedOrgId);
 const { total: unreadTotal, refresh: refreshUnread } = useChannelUnread();
 
 onMounted(() => {

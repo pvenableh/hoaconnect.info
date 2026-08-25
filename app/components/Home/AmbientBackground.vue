@@ -65,11 +65,15 @@ const gradId = (key: string) => `ambient-wave-${uid}-${key}`;
 // Softness is the gradient's own transparent stop, never `filter: blur()`: a
 // blur on a 66vmax element re-rasterises on every drift frame, which is the one
 // thing that would make this expensive.
+// Light and dark alphas are two independent numbers here for the same reason
+// the wave bands carry two: what eats a light-mode wash is CONTRAST against the
+// ground, not opacity, so halving the dark value would leave the light field a
+// whisper. Measured against both grounds, not derived from one.
 const ORBS = [
-  { key: "1", color: "var(--theme-accent-primary)", light: 0.14, dark: 0.24, pos: "top:-22vmax;left:-14vmax;" },
-  { key: "2", color: "var(--chart-2)", light: 0.12, dark: 0.2, pos: "top:-10vmax;right:-20vmax;" },
-  { key: "3", color: "var(--chart-4)", light: 0.1, dark: 0.18, pos: "bottom:-24vmax;left:8vmax;" },
-  { key: "4", color: "var(--chart-1)", light: 0.09, dark: 0.16, pos: "bottom:-18vmax;right:-12vmax;" },
+  { key: "1", color: "var(--theme-accent-primary)", light: 0.2, dark: 0.24, pos: "top:-22vmax;left:-14vmax;" },
+  { key: "2", color: "var(--chart-2)", light: 0.17, dark: 0.2, pos: "top:-10vmax;right:-20vmax;" },
+  { key: "3", color: "var(--chart-4)", light: 0.15, dark: 0.18, pos: "bottom:-24vmax;left:8vmax;" },
+  { key: "4", color: "var(--chart-1)", light: 0.13, dark: 0.16, pos: "bottom:-18vmax;right:-12vmax;" },
 ];
 
 const orbs = computed(() =>

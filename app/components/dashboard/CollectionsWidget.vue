@@ -11,7 +11,8 @@
  */
 import { money } from "#core/shared/home/glances";
 
-const { months, collected12mo, hasCollections, pending } = await useMoneyGlance();
+const { selectedOrgId } = await useSelectedOrg();
+const { months, collected12mo, hasCollections, pending } = await useMoneyGlance(selectedOrgId);
 
 const SERIES = [{ key: "collected", label: "Collected", color: "var(--chart-1)" }];
 </script>

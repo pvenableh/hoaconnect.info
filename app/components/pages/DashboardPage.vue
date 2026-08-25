@@ -73,9 +73,9 @@ const {
   total: memberTotal,
   owners: memberOwners,
   tenants: memberTenants,
-} = await useMembersGlance();
+} = await useMembersGlance(orgId);
 
-const { total: unitTotal } = await useUnitsGlance();
+const { total: unitTotal } = await useUnitsGlance(orgId);
 
 // Fetch recent emails
 const { data: emails } = await useAsyncData(
@@ -190,7 +190,7 @@ const emailStats = computed(() => {
 const {
   days: emailActivityData,
   stats: emailActivityStats,
-} = await useEmailActivityGlance();
+} = await useEmailActivityGlance(orgId);
 
 const emailEngagementStats = computed(
   () =>

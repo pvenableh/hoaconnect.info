@@ -19,6 +19,19 @@
 // ── What each one does NOT do ───────────────────────────────────────────────
 // Nothing here calls an AI route, and nothing here writes. Landing on the
 // dashboard must stay free.
+//
+// ── Why the org id is a PARAMETER ───────────────────────────────────────────
+// `useSelectedOrg()` is async, and these live in a plain `.ts` module rather
+// than an SFC. `<script setup>` wraps its top-level awaits in Vue's
+// `withAsyncContext`, which restores the Nuxt instance afterwards; a plain
+// function gets no such wrapper, so `await useSelectedOrg()` HERE would strip
+// the instance from every Nuxt composable called after it — `useDirectusItems`,
+// `useAsyncData`, all of it — and the page 500s on SSR with "a composable that
+// requires access to the Nuxt instance was called outside of a plugin". So the
+// caller, which is an SFC and does have the wrapper, awaits the org and hands
+// the ref down. For the same reason the `await useAsyncData(...)` below is
+// always the LAST instance-dependent call in each function; only plain
+// `computed()` follows it.
 
 import {
   collectionMonths,
@@ -46,11 +59,10 @@ import {
  * newest-first so the truncation, if it ever happens, drops the oldest history
  * rather than this month's facts.
  */
-export async function useMoneyGlance() {
-  const { selectedOrgId } = await useSelectedOrg();
+export async function useMoneyGlance(org: MaybeRefOrGetter<string | null | undefined>) {
   const { list } = useDirectusItems("payment_requests");
   const { isEnabled } = useModules();
-  const orgId = computed(() => selectedOrgId.value);
+  const orgId = computed(() => toValue(org) || null);
 
   const { data, pending } = await useAsyncData(
     `home-money-glance-${orgId.value}`,
@@ -99,11 +111,10 @@ export async function useMoneyGlance() {
 }
 
 /** The open request queue. Closed rows are filtered server-side — nothing here needs them. */
-export async function useRequestsGlance() {
-  const { selectedOrgId } = await useSelectedOrg();
+export async function useRequestsGlance(org: MaybeRefOrGetter<string | null | undefined>) {
   const { list } = useDirectusItems("hoa_requests");
   const { isEnabled } = useModules();
-  const orgId = computed(() => selectedOrgId.value);
+  const orgId = computed(() => toValue(org) || null);
 
   const { data, pending } = await useAsyncData(
     `dash-requests-health-${orgId.value}`,
@@ -143,10 +154,9 @@ export async function useRequestsGlance() {
  * and `summariseOccupancy` narrows to active — so each number keeps exactly the
  * meaning it had before the extraction.
  */
-export async function useUnitsGlance() {
-  const { selectedOrgId } = await useSelectedOrg();
+export async function useUnitsGlance(org: MaybeRefOrGetter<string | null | undefined>) {
   const { list } = useDirectusItems("hoa_units");
-  const orgId = computed(() => selectedOrgId.value);
+  const orgId = computed(() => toValue(org) || null);
 
   const { data, pending } = await useAsyncData(
     `home-units-glance-${orgId.value}`,
@@ -185,10 +195,9 @@ interface MemberRowLite {
 }
 
 /** The directory, as the dashboard has always asked for it. */
-export async function useMembersGlance() {
-  const { selectedOrgId } = await useSelectedOrg();
+export async function useMembersGlance(org: MaybeRefOrGetter<string | null | undefined>) {
   const { list } = useDirectusItems("hoa_members");
-  const orgId = computed(() => selectedOrgId.value);
+  const orgId = computed(() => toValue(org) || null);
 
   const { data, pending } = await useAsyncData(
     `dashboard-members-${orgId.value}`,
@@ -228,9 +237,8 @@ export interface EmailActivityDay {
  * already performs, under the key it already uses, so the rail's send-rate
  * glance rides that one request rather than adding another.
  */
-export async function useEmailActivityGlance() {
-  const { selectedOrgId } = await useSelectedOrg();
-  const orgId = computed(() => selectedOrgId.value);
+export async function useEmailActivityGlance(org: MaybeRefOrGetter<string | null | undefined>) {
+  const orgId = computed(() => toValue(org) || null);
 
   const { data, pending } = await useAsyncData(
     `dashboard-email-activity-${orgId.value}`,

@@ -16,7 +16,8 @@
  * active-only narrowing that this chart depends on happens in
  * `summariseOccupancy`, so the split it shows is unchanged.
  */
-const { occupancy, recorded, ownerPct, pending } = await useUnitsGlance();
+const { selectedOrgId } = await useSelectedOrg();
+const { occupancy, recorded, ownerPct, pending } = await useUnitsGlance(selectedOrgId);
 
 const SERIES = [
   { key: "owner", label: "Owner-occupied", color: "var(--chart-1)" },

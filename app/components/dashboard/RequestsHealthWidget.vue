@@ -12,7 +12,8 @@
  * `hoa_requests` — and so a rail bar and this chart can never disagree about
  * what "30–90 days" means or what colour it is.
  */
-const { buckets, open, stale, pending } = await useRequestsGlance();
+const { selectedOrgId } = await useSelectedOrg();
+const { buckets, open, stale, pending } = await useRequestsGlance(selectedOrgId);
 
 const SERIES = [{ key: "count", label: "Open requests", color: "var(--chart-1)" }];
 

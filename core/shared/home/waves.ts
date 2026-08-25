@@ -48,6 +48,13 @@ export interface WaveSpec {
    * problem: over #0b1015 a low alpha simply disappears, and over #f6f8fb the
    * same alpha that reads as light in dark mode goes muddy. Dialling one
    * number for both always loses one of them.
+   *
+   * Measured, not guessed. The first pass ran light at roughly half of dark and
+   * the field was a whisper over the white ground — visible only with the blur
+   * removed. The light set is now within a few points of the dark one, because
+   * the thing that eats a light-mode wash is CONTRAST against the ground, not
+   * opacity: cyan at 0.20 over near-black is a 40-unit shift, and the same
+   * alpha over near-white is barely 10.
    */
   alphaLight: number;
   alphaDark: number;
@@ -64,7 +71,7 @@ export const WAVE_BANDS: WaveSpec[] = [
     bob: 11,
     dir: -1,
     color: "var(--theme-accent-primary)",
-    alphaLight: 0.1,
+    alphaLight: 0.17,
     alphaDark: 0.2,
     harmonics: [
       { mult: 1, weight: 1, phase: 0 },
@@ -81,7 +88,7 @@ export const WAVE_BANDS: WaveSpec[] = [
     bob: 8,
     dir: 1,
     color: "var(--chart-2)",
-    alphaLight: 0.09,
+    alphaLight: 0.15,
     alphaDark: 0.17,
     harmonics: [
       { mult: 1, weight: 1, phase: 2.1 },
@@ -97,7 +104,7 @@ export const WAVE_BANDS: WaveSpec[] = [
     bob: 13,
     dir: -1,
     color: "var(--chart-4)",
-    alphaLight: 0.075,
+    alphaLight: 0.125,
     alphaDark: 0.15,
     harmonics: [
       { mult: 1, weight: 1, phase: 0.8 },
@@ -114,7 +121,7 @@ export const WAVE_BANDS: WaveSpec[] = [
     bob: 6,
     dir: 1,
     color: "var(--chart-1)",
-    alphaLight: 0.07,
+    alphaLight: 0.11,
     alphaDark: 0.13,
     harmonics: [
       { mult: 1, weight: 1, phase: 1.4 },
@@ -131,7 +138,7 @@ export const WAVE_BANDS: WaveSpec[] = [
     bob: 15,
     dir: -1,
     color: "var(--theme-accent-primary)",
-    alphaLight: 0.055,
+    alphaLight: 0.09,
     alphaDark: 0.11,
     harmonics: [
       { mult: 1, weight: 1, phase: 2.7 },

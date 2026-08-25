@@ -33,10 +33,12 @@ const HIDDEN_KEY = "hoa.home.rail-hidden";
 const { isEnabled } = useModules();
 const { buildOrgPath } = useOrgNavigation();
 
-const moneyGlance = await useMoneyGlance();
-const requests = await useRequestsGlance();
-const units = await useUnitsGlance();
-const email = await useEmailActivityGlance();
+const { selectedOrgId } = await useSelectedOrg();
+
+const moneyGlance = await useMoneyGlance(selectedOrgId);
+const requests = await useRequestsGlance(selectedOrgId);
+const units = await useUnitsGlance(selectedOrgId);
+const email = await useEmailActivityGlance(selectedOrgId);
 
 // ── Visibility (per-device) ──────────────────────────────────────────────────
 const hidden = ref(false);
