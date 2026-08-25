@@ -355,9 +355,24 @@ const {
         <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Dashboard views" />
 
         <AppTabPanels :value="activeTab" :items="tabItems">
-          <div v-if="activeTab === 'overview'" class="space-y-4">
+          <div v-if="activeTab === 'overview'" class="space-y-6">
+            <!--
+              Above the fold: the stacks. Phase 7 of the Round 2 plan reframes
+              this page from "a widget per data source" to "grouped by the kind
+              of attention it wants" — the same overdue request stops being a
+              stat AND a chart bar AND a notice AND a pending proposal, and
+              becomes one row in one pile.
+
+              The grid below is untouched. It is still the customizable home
+              screen, still driven by `useDashboardWidgets` and its registry;
+              it simply no longer has to be the first thing you read.
+            -->
+            <ClientOnly>
+              <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
+            </ClientOnly>
+
             <!-- Edit toolbar — toggle the iOS-home-screen-style customization -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between pt-2">
               <p class="text-sm t-text-muted">
                 {{ isEditing ? "Drag cards to rearrange, or use the arrows. Tap × to remove." : "Your dashboard, your way." }}
               </p>
