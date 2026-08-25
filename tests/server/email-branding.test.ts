@@ -16,6 +16,7 @@ import {
 } from "#core/server/utils/email-branding";
 import {
   resolveEmailTypeStyle,
+  resolveEmailFonts,
   buildEmailHtml,
   type EmailType,
 } from "#core/server/utils/email-templates-mjml";
@@ -175,6 +176,113 @@ describe("resolveEmailTypeStyle", () => {
       colors: [{ primary: "#0f172a", secondary: "#64748b", accent: "#7c3aed" }],
     } as any);
     expect(style).toMatchObject({ ...PLATFORM_STYLES.basic, ...DARK_OVERLAYS });
+  });
+});
+
+// The stack every email used before typography became per-org.
+const DEFAULT_STACK =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+describe("resolveEmailFonts", () => {
+  it("an org with no theme keeps the historical stack and requests no web font", () => {
+    for (const settings of [null, undefined, {}, { theme: null }, { theme: "nonsense" }]) {
+      const f = resolveEmailFonts(settings as any);
+      expect(f.heading).toBe(DEFAULT_STACK);
+      expect(f.body).toBe(DEFAULT_STACK);
+      expect(f.webFonts).toEqual([]);
+    }
+  });
+
+  it("classic pairs Playfair Display with Mulish", () => {
+    const f = resolveEmailFonts({ theme: "classic" } as any);
+    expect(f.heading).toContain("Playfair Display");
+    expect(f.body).toContain("Mulish");
+    expect(f.webFonts.map((w) => w.name)).toEqual(["Playfair Display", "Mulish"]);
+  });
+
+  it("modern uses Inter for both roles", () => {
+    const f = resolveEmailFonts({ theme: "modern" } as any);
+    expect(f.heading).toContain("Inter");
+    expect(f.body).toContain("Inter");
+    expect(f.webFonts.map((w) => w.name)).toEqual(["Inter"]);
+  });
+
+  it("luxury pairs Bodoni Moda with Jost", () => {
+    const f = resolveEmailFonts({ theme: "luxury" } as any);
+    expect(f.heading).toContain("Bodoni Moda");
+    expect(f.body).toContain("Jost");
+    expect(f.webFonts.map((w) => w.name)).toEqual(["Bodoni Moda", "Jost"]);
+  });
+
+  it("every stack ends in a face that exists on every machine", () => {
+    // Gmail and Outlook strip the web font, so the tail IS what most people see.
+    for (const theme of ["classic", "modern", "luxury", null]) {
+      const f = resolveEmailFonts({ theme } as any);
+      for (const stack of [f.heading, f.body]) {
+        expect(stack).toMatch(/(Arial, sans-serif|Times, serif)$/);
+      }
+    }
+  });
+
+  it("web fonts are requested from Google over https", () => {
+    for (const theme of ["classic", "modern", "luxury"]) {
+      for (const w of resolveEmailFonts({ theme } as any).webFonts) {
+        expect(w.href).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?family=/);
+        expect(w.href).toContain("display=swap");
+      }
+    }
+  });
+});
+
+describe("buildEmailHtml applies the theme's typography", () => {
+  const common = {
+    subject: "Test",
+    content: "<h2>A heading</h2><p>Body</p>",
+    directusUrl: "https://directus.example",
+    emailType: "notice" as EmailType,
+  };
+
+  it("classic requests both fonts and sets the heading face on content headings", () => {
+    const html = buildEmailHtml({
+      ...common,
+      organization: org({ theme: "classic" }),
+    });
+    expect(html).toContain("fonts.googleapis.com");
+    expect(html).toContain("Playfair+Display");
+    expect(html).toContain("Mulish");
+    // the <h2> in the body carries the heading stack, not the body stack
+    expect(html).toMatch(/<h2[^>]*font-family: 'Playfair Display'/);
+  });
+
+  it("modern requests Inter only", () => {
+    const html = buildEmailHtml({ ...common, organization: org({ theme: "modern" }) });
+    expect(html).toContain("Inter");
+    expect(html).not.toContain("Playfair");
+    expect(html).not.toContain("Bodoni");
+  });
+
+  it("an unthemed org requests no THEME font", () => {
+    const html = buildEmailHtml({ ...common, organization: org() });
+    for (const family of ["Playfair", "Mulish", "Inter", "Bodoni", "Jost"]) {
+      expect(html).not.toContain(family);
+    }
+    // NOT `not.toContain("fonts.googleapis.com")`: MJML injects its own
+    // Roboto link into every email it compiles, and always has. That request
+    // predates this feature — see the note in the plan.
+    expect(html).toContain("family=Roboto");
+  });
+
+  it("typography and palette are independent — an org can have one without the other", () => {
+    const fontsOnly = buildEmailHtml({ ...common, organization: org({ theme: "classic" }) });
+    expect(fontsOnly).toContain("Playfair+Display");
+    expect(fontsOnly).toContain("#14532d"); // still the platform palette
+
+    const paletteOnly = buildEmailHtml({
+      ...common,
+      organization: org({ colors: [{ primary: "#0f172a", secondary: "#64748b", accent: "#7c3aed" }] }),
+    });
+    expect(paletteOnly).toContain("#0f172a");
+    expect(paletteOnly).not.toContain("Playfair");
   });
 });
 

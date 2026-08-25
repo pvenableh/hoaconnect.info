@@ -97,7 +97,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
   const organization = (await directus.request(
     readItem("hoa_organizations", organizationId, {
       fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url",
-        { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors"] }],
+        { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"] }],
     })
   )) as HoaOrganization & { settings: BlockSetting | null };
 

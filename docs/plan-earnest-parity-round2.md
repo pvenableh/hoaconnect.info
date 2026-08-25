@@ -2903,6 +2903,62 @@ Old value backed up in the session scratchpad; rollback is one PATCH of
 defaults" in the branding form. demo / demo-classic / 605-lincoln were diffed
 after the write and are untouched.
 
+## Per-org email typography — DONE 2026-08-25
+
+The deferred font item, un-deferred by Peter the same day. Typography is now
+per-org, keyed on the **theme the org already chose** — no new field, no new
+UI. `resolveEmailFonts(settings)` in `email-templates-mjml.ts`:
+
+| theme | heading | body |
+|---|---|---|
+| classic | Playfair Display → Georgia → Times | Mulish → system |
+| modern | Inter → system | Inter → system |
+| luxury | Bodoni Moda → Georgia → Times | Jost → system |
+| *no theme* | unchanged default stack, **no web font requested** | same |
+
+Playfair rather than a true Didone for classic because Bodoni's hairlines break
+up at 20px on a low-DPI screen; luxury takes the real Bodoni since that theme is
+opting into the risk. Every stack ends in Georgia or Arial — a test asserts
+this — because **Gmail on every platform and Outlook on Windows strip web fonts
+entirely**, so the tail of the stack is what most recipients actually see.
+
+Byte-identity re-proven against the SAME pre-colour-change baseline: all 72
+hashes still match for unthemed orgs, including after adding an explicit
+`font-family` attribute to the org-name text.
+
+**Three things this session learned the hard way:**
+
+1. **The field-list trap bit again.** `theme` was missing from all six email
+   settings field lists exactly as `colors` had been, so the unit tests passed
+   while every real render fell back to the default stack. Caught only by
+   rendering against real data. **When adding a settings-driven feature to
+   email, the field lists are the first place to look, not the last.**
+2. **MJML emits a font link only when the face is actually used** — a nice
+   optimisation, but it means the display face silently never loads if nothing
+   in the email is an `<h*>`. Transactional email had exactly that shape: its
+   lead line is a styled `<p>`, so classic/luxury would have shipped a display
+   font no one ever saw. `transactional-email.ts` now puts the heading face on
+   that line.
+3. **MJML has always injected its own `fonts.googleapis.com` Roboto link** into
+   every email it compiles, long before this feature. Left alone (removing it
+   would break byte-identity) but worth knowing: "we don't use Google Fonts in
+   email" was never true.
+
+Deliberately NOT done: a blanket `<!--[if mso]>* { font-family }` override.
+It would flatten the heading/body split in Outlook, and Word falls through a
+properly quoted stack on its own.
+
+`heading_font` / `body_font` on `block_settings` remain unused — they hold only
+`serif | sans-serif`, which is not a pairing. The theme is the better key.
+`buildWebViewHtml` still uses its own Avenir stack; the "view in browser" page
+is a deliberate imitation of the 1033/SendGrid layout and changing it is a
+separate design decision.
+
+⚠️ `BlockSetting["theme"]` is generated as `"classic" | "modern"` but the column
+really holds `"luxury"` (605 Lincoln is on it, and the branding form offers it).
+Cast at the boundary in `resolveEmailFonts`; the generated type is stale and
+worth regenerating.
+
 ### Operator TODOs — per-org email branding
 
 - [x] Nothing operational: no new env vars, no migrations, no crons. The

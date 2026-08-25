@@ -24,7 +24,11 @@ vi.mock("#core/server/utils/sendgrid", () => ({
 vi.mock("#core/server/utils/email-branding", () => ({
   resolveEmailBranding: () => ({ headerText: null, footerImage: null, homepageUrl: null }),
 }));
-vi.mock("#core/server/utils/email-templates-mjml", () => ({
+// Only the two builders are stubbed — `resolveEmailFonts` comes through real,
+// so the font stack this module puts on the heading line is the true one rather
+// than a stand-in that would assert nothing.
+vi.mock("#core/server/utils/email-templates-mjml", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#core/server/utils/email-templates-mjml")>()),
   buildEmailHtml: () => "<html>x</html>",
   buildEmailText: () => "x",
 }));

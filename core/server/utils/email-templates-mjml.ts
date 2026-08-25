@@ -178,6 +178,89 @@ export function resolveEmailTypeStyle(
   };
 }
 
+/**
+ * The stack every email used before typography became per-org. It is still what
+ * an org with no theme gets, byte for byte.
+ */
+const DEFAULT_FONT_STACK =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+export interface ResolvedEmailFonts {
+  /** CSS stack for the org name and any heading in the body. */
+  heading: string;
+  /** CSS stack for everything else. */
+  body: string;
+  /** Google Fonts to request via <mj-font>; empty for the default pairing. */
+  webFonts: Array<{ name: string; href: string }>;
+}
+
+const googleFont = (family: string, spec: string) => ({
+  name: family,
+  href: `https://fonts.googleapis.com/css2?family=${spec}&display=swap`,
+});
+
+/**
+ * Typography per org, keyed on the theme it already chose in branding settings.
+ *
+ * ⚠️ Email typography is not web typography. Apple Mail (Mac + iOS), Outlook for
+ * Mac, Samsung Mail and Thunderbird load a linked web font; **Gmail on every
+ * platform, Outlook on Windows, Outlook.com and Yahoo strip it** and resolve the
+ * rest of the stack. So each pairing names a real, installed-everywhere face
+ * behind the web font, and NOTHING may depend on the web font arriving —
+ * these are the same faces the theme uses on the web, degrading to their
+ * nearest system relative rather than to whatever the client picks.
+ *
+ * Deliberately NOT using a blanket `<!--[if mso]>* { font-family }` override:
+ * it would flatten the heading/body distinction in Outlook. Word falls through
+ * a properly quoted stack on its own, and every stack below ends in Georgia or
+ * Arial, so Outlook lands on a real face without help.
+ *
+ * An org with no theme keeps `DEFAULT_FONT_STACK` and requests no web font.
+ */
+export function resolveEmailFonts(settings?: BlockSetting | null): ResolvedEmailFonts {
+  // `BlockSetting["theme"]` is generated as `"classic" | "modern"`, but the
+  // column really holds "luxury" too (605 Lincoln is on it, and the branding
+  // form offers it). Widen at the boundary rather than switch on a type that
+  // is narrower than the data.
+  const theme = (settings?.theme as string | null | undefined) ?? null;
+  switch (theme) {
+    case "classic":
+      // Bauer Bodoni + Proxima Nova on the web. Playfair keeps the editorial
+      // voice but survives 20px on a low-DPI screen, where a true Didone's
+      // hairlines break up; Mulish is the closest free relative to Proxima and
+      // has genuine light weights.
+      return {
+        heading: "'Playfair Display', Georgia, 'Times New Roman', Times, serif",
+        body: `Mulish, ${DEFAULT_FONT_STACK}`,
+        webFonts: [
+          googleFont("Playfair Display", "Playfair+Display:wght@500;600"),
+          googleFont("Mulish", "Mulish:wght@300;400;600"),
+        ],
+      };
+    case "modern":
+      // Proxima Nova throughout on the web. Inter was drawn as a San Francisco
+      // analogue, and the fallback here is already -apple-system — so the gap
+      // between web font and fallback is nearly invisible.
+      return {
+        heading: `Inter, ${DEFAULT_FONT_STACK}`,
+        body: `Inter, ${DEFAULT_FONT_STACK}`,
+        webFonts: [googleFont("Inter", "Inter:wght@400;500;600")],
+      };
+    case "luxury":
+      // The literal Didone, paired with a Futura relative for the body.
+      return {
+        heading: "'Bodoni Moda', Georgia, 'Times New Roman', Times, serif",
+        body: `Jost, ${DEFAULT_FONT_STACK}`,
+        webFonts: [
+          googleFont("Bodoni Moda", "Bodoni+Moda:opsz,wght@6..96,500;6..96,600"),
+          googleFont("Jost", "Jost:wght@300;400;500"),
+        ],
+      };
+    default:
+      return { heading: DEFAULT_FONT_STACK, body: DEFAULT_FONT_STACK, webFonts: [] };
+  }
+}
+
 // Default salutations based on email type
 const defaultSalutations: Record<EmailType, string> = {
   basic: "Best regards",
@@ -298,7 +381,10 @@ function isHtmlContent(content: string): boolean {
  * Process HTML content for email compatibility
  * Handles tables, blockquotes, links, and images for proper MJML rendering
  */
-export function processHtmlForEmail(content: string): string {
+export function processHtmlForEmail(content: string, headingFont?: string): string {
+  // Appended to every h1-h6 inline style. Empty when no font is passed, which
+  // is what keeps an unthemed org's output byte-identical.
+  const headingCss = headingFont ? ` font-family: ${headingFont};` : "";
   let processed = content;
 
   // Add email-safe inline styles to links
@@ -357,27 +443,27 @@ export function processHtmlForEmail(content: string): string {
   // Style headings for email - with bottom padding as requested
   processed = processed.replace(
     /<h1([^>]*)>/gi,
-    '<h1$1 style="margin: 0; padding: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.3;">'
+    `<h1$1 style="margin: 0; padding: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.3;${headingCss}">`
   );
   processed = processed.replace(
     /<h2([^>]*)>/gi,
-    '<h2$1 style="margin: 0; padding: 0 0 18px 0; font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.3;">'
+    `<h2$1 style="margin: 0; padding: 0 0 18px 0; font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.3;${headingCss}">`
   );
   processed = processed.replace(
     /<h3([^>]*)>/gi,
-    '<h3$1 style="margin: 0; padding: 0 0 16px 0; font-size: 20px; font-weight: 600; color: #374151; line-height: 1.4;">'
+    `<h3$1 style="margin: 0; padding: 0 0 16px 0; font-size: 20px; font-weight: 600; color: #374151; line-height: 1.4;${headingCss}">`
   );
   processed = processed.replace(
     /<h4([^>]*)>/gi,
-    '<h4$1 style="margin: 0; padding: 0 0 14px 0; font-size: 18px; font-weight: 600; color: #374151; line-height: 1.4;">'
+    `<h4$1 style="margin: 0; padding: 0 0 14px 0; font-size: 18px; font-weight: 600; color: #374151; line-height: 1.4;${headingCss}">`
   );
   processed = processed.replace(
     /<h5([^>]*)>/gi,
-    '<h5$1 style="margin: 0; padding: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+    `<h5$1 style="margin: 0; padding: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #4b5563; line-height: 1.4;${headingCss}">`
   );
   processed = processed.replace(
     /<h6([^>]*)>/gi,
-    '<h6$1 style="margin: 0; padding: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #4b5563; line-height: 1.4;">'
+    `<h6$1 style="margin: 0; padding: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #4b5563; line-height: 1.4;${headingCss}">`
   );
 
   // Style paragraphs for email - with bottom padding as requested
@@ -393,7 +479,7 @@ export function processHtmlForEmail(content: string): string {
  * Convert HTML content from Tiptap editor to MJML-safe content
  * This processes the content and wraps it properly for MJML
  */
-function processContentForMjml(content: string): string {
+function processContentForMjml(content: string, headingFont?: string): string {
   console.log(`[MJML] processContentForMjml input (${content.length} chars): "${content.substring(0, 300)}..."`);
 
   if (!isHtmlContent(content)) {
@@ -411,7 +497,7 @@ function processContentForMjml(content: string): string {
   console.log(`[MJML] Content IS HTML, applying email styles`);
 
   // First, apply email-safe styling to HTML elements
-  let processed = processHtmlForEmail(content);
+  let processed = processHtmlForEmail(content, headingFont);
   console.log(`[MJML] After processHtmlForEmail: "${processed.substring(0, 300)}..."`);
 
   // Convert <img> tags to MJML image markers
@@ -529,6 +615,7 @@ export function buildEmailHtml(
   const orgName = organization.name || "Organization";
   const legalName = organization.legal_name || orgName;
   const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
+  const fonts = resolveEmailFonts(organization.settings ?? null);
   const logoUrl = getLogoUrl(organization, directusUrl);
   const finalSalutation = salutation || defaultSalutations[emailType];
   const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
@@ -546,7 +633,7 @@ export function buildEmailHtml(
   console.log(`[MJML] buildEmailHtml called with emailType: ${emailType}`);
   console.log(`[MJML] Content input (${content.length} chars): "${content.substring(0, 200)}..."`);
 
-  const processedContent = processContentForMjml(content);
+  const processedContent = processContentForMjml(content, fonts.heading);
   const contentMjml = contentToMjml(processedContent, emailType);
 
   console.log(`[MJML] Generated contentMjml (${contentMjml.length} chars)`);
@@ -621,8 +708,9 @@ export function buildEmailHtml(
   <mj-head>
     <mj-title>${subject}</mj-title>
     <mj-preview>${content.replace(/<[^>]*>/g, "").substring(0, 100).trim()}...</mj-preview>
+    ${fonts.webFonts.map((f) => `<mj-font name="${f.name}" href="${f.href}" />`).join("\n    ")}
     <mj-attributes>
-      <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" />
+      <mj-all font-family="${fonts.body}" />
       <mj-text font-size="16px" color="#374151" line-height="1.6" />
     </mj-attributes>
     <mj-style>
@@ -641,8 +729,8 @@ export function buildEmailHtml(
             logoUrl
               ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="center" />`
               : isBasic
-                ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
-                : `<mj-text align="center" font-size="24px" font-weight="600" color="${style.headerTextColor}">${orgName}</mj-text>`
+                ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937" font-family="${fonts.heading}">${orgName}</mj-text>`
+                : `<mj-text align="center" font-size="24px" font-weight="600" color="${style.headerTextColor}" font-family="${fonts.heading}">${orgName}</mj-text>`
           }
           ${
             processedHeaderText
@@ -738,7 +826,7 @@ export function buildEmailHtml(
     const bodyContent = bodyMatch?.[1];
     if (bodyContent !== undefined) {
       console.log(`[MJML] Preview mode: extracted body content (${bodyContent.length} chars)`);
-      return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">${bodyContent}</div>`;
+      return `<div style="font-family: ${fonts.body};">${bodyContent}</div>`;
     } else {
       console.warn(`[MJML] Preview mode: could not extract body content, returning full HTML`);
     }

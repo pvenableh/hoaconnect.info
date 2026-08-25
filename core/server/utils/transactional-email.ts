@@ -1,7 +1,12 @@
 import { readItems, readUsers } from "@directus/sdk";
 import type { HoaOrganization, BlockSetting } from "#core/types/directus";
 import { resolveEmailBranding } from "./email-branding";
-import { buildEmailHtml, buildEmailText, type EmailType } from "./email-templates-mjml";
+import {
+  buildEmailHtml,
+  buildEmailText,
+  resolveEmailFonts,
+  type EmailType,
+} from "./email-templates-mjml";
 import { sendOrganizationEmail } from "./sendgrid";
 import { scopeRecipientsToOrg } from "./org-members";
 import {
@@ -131,8 +136,12 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     opts.cta && appUrl && slug
       ? `<p style="margin:24px 0 4px"><a href="${escapeHtml(`${appUrl}/${slug}${opts.cta.path}`)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-weight:600;font-size:15px">${escapeHtml(opts.cta.label)}</a></p>`
       : "";
+  // The lead line is this email's heading in every sense but the tag, so it
+  // takes the theme's heading face. Without this the classic and luxury display
+  // fonts would go unseen in transactional mail, which never carries an <h*>.
+  const fonts = resolveEmailFonts(orgForEmail.settings);
   const headingHtml = opts.heading
-    ? `<p style="font-weight:600;font-size:17px;margin:0 0 12px">${escapeHtml(opts.heading)}</p>`
+    ? `<p style="font-weight:600;font-size:17px;margin:0 0 12px;font-family:${fonts.heading}">${escapeHtml(opts.heading)}</p>`
     : "";
   const content = `${headingHtml}${opts.bodyHtml}${ctaHtml}`;
 
