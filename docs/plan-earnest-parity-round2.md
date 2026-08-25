@@ -3172,3 +3172,275 @@ after to prove it.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ```
+
+---
+
+## Round outcome — branding defect, the logo, the cutover (2026-08-25)
+
+### 1 — `block_settings.organization` backfilled. DONE.
+
+Peter approved the write. Both rows patched with the static token:
+
+```
+9b87c106  →  5f00fc6d  (1033 Lenox)
+b8c8956c  →  36ea2d56  (605 Lincoln)
+```
+
+A full before/after diff of all five `block_settings` rows shows **exactly
+those two fields changed** and nothing else; `hoa_organizations.settings` is
+untouched, as expected — the two columns are independent M2Os with no
+`one_field` pairing, so this is purely the back-reference the permission
+filters read.
+
+**The blast radius was wider than "the Branding form."** HOA Admin's `read`,
+`update` AND `delete` rules all filter on `organization`, and the collection
+is also read by SEO settings, the Landing Builder, org settings, the compose
+page's CC/BCC threshold lookup (`filter: {organization: {_eq}}`, so it silently
+fell back to the default 5), and the "take your data" export — which scopes
+`block_settings` by `organization`, so both real orgs were exporting an EMPTY
+branding table.
+
+**Proved, not argued.** A throwaway Directus user in the HOA Admin role with an
+`hoa_members` row on 1033 was created, and with its own token:
+
+| call | before | after |
+|---|---|---|
+| `PATCH block_settings/9b87c106` (1033's own) | 403 | **200** |
+| `PATCH block_settings/b8c8956c` (605's) | 403 | **403** |
+
+So the save works and cross-org isolation still holds. The probe user and
+member row were deleted (1033 back to 86 members, no residue), and
+`user_updated` on the row was restored to the original admin with one
+static-token PATCH afterwards.
+
+**The orphan, `26cd0c25`, was deliberately left null.** It is a superseded
+`status: draft` row from 2025-11-13 carrying 1033's old SEO title
+("1033 Lenox - Boutique Living Experience in Miami Beach") and the same icon
+file — the first settings row for that org, replaced by `9b87c106`
+(2026-06-07). No org references it. **Linking it would be actively harmful**:
+two rows with the same `organization` would break every `limit: 1` lookup
+(the CC/BCC threshold would pick one at random) and duplicate the row in the
+data export. Delete-or-leave are the only sound options; leaving it costs
+nothing because `draft` is already inert.
+
+⚠️ **Noticed in passing, not fixed:** the `public` policy has an **unfiltered
+read** on `block_settings` — `filter: null`, every org's row, no session. It
+exposes `from_email`, `email_domain_dns`, `seo` and `landing` cross-tenant.
+Public landing pages presumably need some of it, but "all fields, all orgs,
+no filter" is broader than that need. Worth a scoped read policy.
+
+### 2 — The logo gets a plate. DONE (`5623b86`).
+
+The defect had two faces, which is what proved it was a renderer problem and
+not a bad file: 1033's logo is an **opaque white square** app icon (a white box
+on their ink band) and 605's is a **grey wordmark** on their grey band
+(invisible). One is too light, one is too close — and no small association
+reliably has a transparent, correctly-coloured wordmark.
+
+**The treatment.** The logo sits on a white plate whenever the band is not
+already white. It is band-colour independent, so it fixes every org at once,
+and it swaps an impossible rule for a satisfiable one:
+
+> before: your logo must read on your brand colour **and** on `basic`'s white band
+> after:  your logo must read on white
+
+`basic`'s band IS `#ffffff`, so the plate is skipped there. The check is a
+literal white test (`#fff` and `#ffffff` both), not a brightness threshold, so
+a pale-but-not-white brand band still gets the plate — which turns a raw white
+box into a deliberate card rather than leaving it a box.
+
+**The size cap is part of the same defect.** An app-icon-shaped upload rendered
+200px square, dominating the header. The cap is **200×120 in the asset URL**,
+not CSS: Outlook ignores `max-height`, and the `<img>` carries **no width
+attribute**, so natural size IS display size. `fit=inside` gives 1033's square
+120×120 and leaves 605's 200×75 wordmark untouched — the cap only bites on tall
+logos. 90px was tried first and rejected: 1033's icon has heavy internal
+padding, so "LENOX AVENUE" fell to ~4px. **120 is a tunable number, arrived at
+by eye against real files** — it lives at one call site in `buildEmailHtml`.
+
+Both branches (plate / no plate) now render the same hand-rolled centred
+`<table>`, because keeping `mj-image` for the no-plate case forced `width=200px`
+and **upscaled the capped 120px bitmap back to 200**, which was worse than
+before.
+
+The **web view deliberately keeps the uncapped URL and needs no plate** — it is
+a white page with room to spare — so that surface is byte-identical.
+
+**Byte-identity, rebuilt and run:** 4 org variants × 6 types × html/text/webview
+= 72 hashes before and after. **60/72 identical.** The 12 that moved are exactly
+the HTML emails of the two orgs that have a logo; orgs with no logo are
+untouched in all 18 of their renders, and every `text` and `webview` render is
+untouched. Harness deleted before commit.
+
+Logo precedence is unchanged: the slot wins, the org name stands in only when
+there is no logo.
+
+**Two things found only by rendering against real data:**
+
+- `test.post.ts` and `debug-html.post.ts` fetched a thinner settings field list
+  than the real send **and never passed** header line / footer photo / homepage
+  link to the renderer at all — so widening the field list alone would have
+  changed nothing. Both now resolve branding exactly as `send.post.ts` does.
+  **A test send that isn't the real send isn't a test.**
+- The branding preview's sample content had no `<h*>`, and MJML emits a web-font
+  link only for a face it sees *used* — so an admin on classic or luxury
+  previewed their body font and **never saw their display face**, which is the
+  one thing the preview exists to show. The sample has a heading now. Verified
+  through the live endpoint: 1033 → Playfair + Mulish, 605 → Bodoni + Jost,
+  demo → Inter, plate present for the first two and absent for demo.
+
+Gate: typecheck 0 · vitest **1511** (1503 + 8 new) · build green · hairline 0.
+demo activity 449 → 456 → **449** (7 rows deleted), demo-classic **13 → 13**.
+
+### 3 — The 1033 cutover. The blocker in the last section was WRONG.
+
+**Emails-as-community-news is already built, and built carefully.**
+`GET /api/hoa/community-news` applies the rule the plan asked to have decided:
+
+> `visibility = 'public'` **OR** the member was one of its recipients
+
+It runs on the service token (the HOA Member policy cannot read `hoa_emails` or
+`hoa_email_recipients` at all), takes the caller's identity from the session
+rather than a query parameter, and fails closed at every step — no session, not
+a member, or any lookup error all return an empty list rather than "show
+everything". `MemberDashboardPage` merges those into one list with
+announcements and badges the personal ones **"To you"**.
+
+**The migrated data cooperates**, so the `recipient_filter` leak the plan worried
+about has no surface here: of 1033's 106 emails, **104 are `public`, 2 are
+`private`, all 106 are `status: sent` with `recipient_filter: all`** — nothing
+targeted, nothing board-only. A resident will land on 104 items of real
+community history, not two empty cards.
+
+Verified live on production: a real 1033 email renders its logo, Playfair and
+the ink subject, and its public page resolves fine by id (the route takes
+`web_slug-or-id`, and all 106 have a null `web_slug`).
+
+**What actually blocks residents, then:**
+
+1. **The domain.** `1033-lenox.custom_domain` was null.
+2. **Logins.** **85 of 86 member rows have no Directus user**, so exactly one
+   person can sign in. 80 have an email on file. This is the real gate, and
+   clearing it is a bulk mailing to 80 real people.
+
+Peter's call this session: **domain first, invites later.**
+
+#### The cutover runbook
+
+The shape is not a registrar migration — **both sites are already on Vercel, in
+the same team.** `1033lenox.com` + `www.1033lenox.com` sit on project `1033`
+(`prj_075AoMZABg0ULz5sLHwQLTRPRkKs`), apex redirecting to www. That is the same
+shape `605lincolnroad.com` has on the `hoaconnect` project, which is the working
+precedent for every step below.
+
+| | 605 (live, on HOA Connect) | 1033 (still on the old project) |
+|---|---|---|
+| apex A | `216.150.1.1` | `76.76.21.21` *(Vercel legacy IP)* |
+| www CNAME | `4b4616422fb7bad4.vercel-dns-017.com` | `cname.vercel-dns.com` |
+| `_hoaconnect` TXT | present | **to be added** |
+
+**Step 1 — claim the domain in HOA Connect. DONE this session.** Written with
+the static token in the exact shape `connect.post.ts` produces (there is no
+1033 admin session to call the endpoint with):
+
+```
+custom_domain    1033lenox.com
+domain_verified  false
+domain_type      apex
+domain_config    { verification_token: b86c58546e9e46a6a2af6f089d54ff78,
+                   status: "pending", record_type: "TXT",
+                   record_name:  _hoaconnect.1033lenox.com,
+                   record_value: hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78 }
+```
+
+**Proved inert before moving on** — this routes nothing, because `origin.ts` and
+`host-resolver.ts` both require `domain_verified: true`:
+
+- `GET /api/domains/ask?domain=1033lenox.com` → **404** (Caddy refuses to mint a
+  cert), while `605lincolnroad.com` → **200**.
+- `https://1033lenox.com` → **200**, still served by the old project.
+- No other org's domain fields changed.
+
+Rollback is one PATCH of the four fields back to null, or `POST
+/api/domains/disconnect`.
+
+**Step 2 — Peter, at name.com** (`1033lenox.com` NS is `ns{1..4}*.name.com`).
+Add one TXT record. **This does not move any traffic**; the live site keeps
+serving throughout:
+
+```
+_hoaconnect.1033lenox.com    TXT    hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78
+```
+
+**Step 3 — verify.** `POST /api/domains/verify { organizationId }` as a 1033
+admin does a real `resolveTxt` lookup and flips `domain_verified: true`. Still
+no traffic moves — DNS still points at the old project. After this the cert
+gate answers 200 for the host.
+
+**Step 4 — the actual switch** (Peter's moment, all four together, ~5 min of
+downtime on the apex at most):
+
+1. Vercel → project `1033` → remove `1033lenox.com` and `www.1033lenox.com`.
+2. Vercel → project `hoaconnect` → add both; set the apex to redirect to `www`,
+   matching 605. **Vercel prints the exact `www` CNAME target here** — it is a
+   per-domain hash (`<hash>.vercel-dns-017.com`), so it cannot be written down
+   in advance.
+3. name.com → apex `A` from `76.76.21.21` → **`216.150.1.1`**; `www` CNAME →
+   the target from step 2.
+4. Watch `https://1033lenox.com` and `/api/domains/ask?domain=1033lenox.com`.
+
+Rollback is the same four steps in reverse; the old project keeps its build.
+
+**Step 5 — the invitations. NOT DONE, and deliberately not started.** 85 member
+rows need Directus users. ⚠️ This is a **bulk mailing to 80 real people** and
+wants its own session, its own explicit go-ahead, and a look at the exact
+template and recipient list first. Note that a write to `directus_notifications`
+emails from inside Directus — one row is one mail.
+
+### 4 — The AI crons. Not a defect: they cannot have run yet.
+
+`vercel.json` registers two: `/api/ai/notices/check` daily at 07:10 UTC and
+`/api/ai/actions/expire-stale` Sundays at 07:40 UTC. Vercel's project API
+confirms crons **enabled** (`disabledAt: null`) with both definitions attached
+to the current production deployment.
+
+`ai_notice_history` being empty looked alarming for a while — today's dry run
+reports 5 escalations pending (3 on 1033, 2 on 605) with `skipped: 0`, which is
+what you'd see if the cron had never delivered anything this month. **The git
+log settles it**: `1aa71b4` *"the two AI crons move to Vercel Cron"* landed
+**2026-08-25 — today**. The daily has not reached 07:10 UTC once since it was
+registered. There is nothing wrong.
+
+What was verified instead — that they *will* work when they fire:
+
+- `expire-stale`: called with **GET, exactly as Vercel Cron calls it**, on
+  production, with the real cron secret → **200**, `{expired: 0, scope: "all"}`.
+  Safe to run for real because there are 0 `pending` `ai_actions` platform-wide,
+  so a live run is a provable no-op.
+- `notices/check`: **POST + `dryRun: true`** (a GET would have no body, so
+  `dryRun` would be false and it would have **sent** — do not probe it that way)
+  → **200**, `dedup: "on"` (so `ai_notice_history` is provisioned), all 7 orgs
+  swept. `dryRun` `continue`s before both `notifyUsers` and the history write;
+  that was read in the source before firing at production.
+
+**The falsifiable follow-up, for whoever picks this up next:** after 07:10 UTC
+on 2026-08-26, `ai_notice_history` should hold **5 rows** and the same dry probe
+should report `skipped: 3` for 1033 and `skipped: 2` for 605. If it still
+reports `skipped: 0` against an empty table, *then* the cron is not firing.
+
+### Operator TODOs
+
+- [x] `block_settings.organization` backfilled on both real orgs; saves proven
+      to work and cross-org isolation proven to hold.
+- [x] 1033lenox.com claimed in HOA Connect, unverified and proven inert.
+- [ ] **Peter — one DNS record at name.com** (step 2 above). Moves no traffic.
+- [ ] **Peter — the Vercel project move + DNS switch** (step 4). This is the
+      cutover; `1033lenox.com` starts serving HOA Connect.
+- [ ] **Its own session — the 85 resident invitations** (step 5). Bulk mail to
+      80 real people; needs the template and list reviewed first.
+- [ ] After 07:10 UTC 2026-08-26, confirm `ai_notice_history` has 5 rows.
+- [ ] Consider scoping the `public` read policy on `block_settings` — it is
+      currently unfiltered across every org.
+- [ ] Cosmetic: all 106 of 1033's emails have a null `web_slug`, so their public
+      URLs are raw ids. `slugifyEmailSubject` already exists; a backfill would
+      make them readable. Not blocking — the route accepts `web_slug-or-id`.
