@@ -145,9 +145,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
       <div
         v-if="data?.pendingRequests?.length"
-        class="rounded-xl border t-border bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-2"
+        class="rounded-xl border border-warning/30 bg-warning/10 t-text px-4 py-3 text-sm flex items-center gap-2"
       >
-        <Icon name="i-lucide-clock" class="size-4 text-amber-600 shrink-0" />
+        <Icon name="i-lucide-clock" class="size-4 text-warning shrink-0" />
         You have {{ data.pendingRequests.length }} change{{ data.pendingRequests.length > 1 ? "s" : "" }} awaiting review.
       </div>
 
@@ -155,7 +155,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
       <template v-else>
         <!-- Contact -->
-        <section class="rounded-xl border t-border t-bg-elevated p-5">
+        <section class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="font-medium flex items-center gap-2">
@@ -171,7 +171,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </section>
 
         <!-- Mailing address -->
-        <section class="rounded-xl border t-border t-bg-elevated p-5">
+        <section class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="font-medium flex items-center gap-2">
@@ -187,7 +187,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </section>
 
         <!-- Vehicles -->
-        <section v-if="vehiclesEnabled" class="rounded-xl border t-border t-bg-elevated p-5">
+        <section v-if="vehiclesEnabled" class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Vehicles</h2>
             <Button variant="outline" size="sm" @click="openAddVehicle">
@@ -211,7 +211,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </section>
 
         <!-- Pets -->
-        <section v-if="petsEnabled" class="rounded-xl border t-border t-bg-elevated p-5">
+        <section v-if="petsEnabled" class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Pets</h2>
             <Button variant="outline" size="sm" @click="openAddPet">
@@ -283,7 +283,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             <div class="grid grid-cols-2 gap-2">
               <div class="space-y-1.5">
                 <Label>Type</Label>
-                <select v-model="editor.fields.type" class="w-full h-9 rounded-md border t-border bg-transparent px-2 text-sm capitalize">
+                <select v-model="editor.fields.type" class="w-full h-9 rounded-md px-2 text-sm capitalize">
                   <option v-for="t in PET_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
                 </select>
               </div>

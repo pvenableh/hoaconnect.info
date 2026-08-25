@@ -459,7 +459,7 @@ const allComplete = computed(
           <div v-if="!showNewCategoryInput" class="space-y-2">
             <select
               v-model="selectedCategory"
-              class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="w-full p-2.5 rounded-lg transition-all"
               :disabled="isUploading"
             >
               <option value="">No Category</option>
@@ -483,7 +483,7 @@ const allComplete = computed(
               v-model="newCategoryName"
               type="text"
               placeholder="Category name"
-              class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="glass-field w-full p-2.5 rounded-lg transition-all"
               :disabled="creatingCategory"
               @keyup.enter="handleCreateCategory"
             />
@@ -514,7 +514,7 @@ const allComplete = computed(
         <label class="text-sm font-medium mb-2 block t-text-secondary">Folder</label>
         <select
           v-model="selectedFolder"
-          class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          class="w-full p-2.5 rounded-lg transition-all"
           :disabled="isUploading"
         >
           <option :value="orgFolder">{{ organization?.name }} (Root)</option>
@@ -528,7 +528,7 @@ const allComplete = computed(
         <label class="text-sm font-medium mb-2 block t-text-secondary">Status</label>
         <select
           v-model="documentStatus"
-          class="w-full p-2.5 border t-border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          class="w-full p-2.5 rounded-lg transition-all"
           :disabled="isUploading"
         >
           <option value="draft">Draft (Review First)</option>

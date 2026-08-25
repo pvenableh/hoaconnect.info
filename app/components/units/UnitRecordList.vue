@@ -40,7 +40,7 @@ const showHistory = ref(false);
       <div
         v-for="item in current"
         :key="item.id"
-        class="group flex items-center gap-3 rounded-xl border t-border px-3 py-2.5 t-bg-subtle"
+        class="ios-card group flex items-center gap-3 rounded-xl px-3 py-2.5 t-bg-subtle"
       >
         <div class="flex-1 min-w-0">
           <slot name="item" :item="item" :is-history="false" />

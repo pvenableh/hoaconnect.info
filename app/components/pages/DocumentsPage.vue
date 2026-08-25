@@ -601,7 +601,7 @@ const handleBatchUploadComplete = async () => {
           </div>
 
           <!-- Filters -->
-          <div class="t-bg-elevated rounded-xl border t-border p-6 mb-6">
+          <div class="ios-card t-bg-elevated rounded-xl p-6 mb-6">
             <TooltipProvider>
               <div class="flex flex-col md:flex-row justify-between gap-6">
                 <!-- Category Filters -->
@@ -756,7 +756,7 @@ const handleBatchUploadComplete = async () => {
           </div>
 
           <!-- Document Tree -->
-          <div class="t-bg-elevated rounded-xl border t-border overflow-hidden">
+          <div class="ios-card t-bg-elevated rounded-xl overflow-hidden">
             <div class="p-6 border-b t-border-divider">
               <h3 class="t-heading text-lg font-medium tracking-wide mb-1">Documents & Folders</h3>
               <p class="t-text-secondary text-sm">

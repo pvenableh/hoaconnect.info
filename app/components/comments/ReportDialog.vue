@@ -61,7 +61,7 @@ const submit = () => {
           <textarea
             v-model="details"
             rows="3"
-            class="w-full px-3 py-2 border t-border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent-primary)]"
+            class="glass-field w-full px-3 py-2 rounded-xl text-sm resize-none"
             placeholder="Add any context…"
           />
         </div>

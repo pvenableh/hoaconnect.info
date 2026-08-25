@@ -273,7 +273,7 @@ watch(
             <h3 class="font-semibold t-text">Property management</h3>
             <p class="text-sm t-text-muted mt-0.5">Surface your management company on the landing (from the primary active Management vendor).</p>
           </div>
-          <div v-if="!site.hasManagementVendor" class="rounded-lg border t-border bg-amber-50 text-amber-800 text-sm px-3 py-2">
+          <div v-if="!site.hasManagementVendor" class="rounded-lg border border-warning/30 bg-warning/10 t-text text-sm px-3 py-2">
             No active management vendor found yet. Add one under Vendors to use these options.
           </div>
           <div class="flex items-center justify-between">

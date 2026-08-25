@@ -62,6 +62,12 @@ const submit = () => {
 <template>
   <div class="space-y-4">
     <div class="flex items-center gap-3">
+      <!-- allow-hairline-surface — a 64px photo WELL, not a card. The hairline is
+           what shows the well is empty before a photo lands in it (the sibling
+           empty state next to it is the same box, dashed). Swapping it for the
+           refracted rim would put an inner top highlight across the top of the
+           uploaded photo, which reads as glare on the image rather than an edge
+           around the box. -->
       <div class="w-16 h-16 rounded-xl overflow-hidden t-bg-subtle flex items-center justify-center shrink-0 border t-border">
         <img v-if="imageUrl" :src="imageUrl" alt="" class="w-full h-full object-cover" />
         <Icon v-else name="lucide:car" class="w-6 h-6 t-text-muted" />

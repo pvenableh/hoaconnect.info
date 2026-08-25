@@ -1506,7 +1506,7 @@ useSeoMeta({
                         id="sched-at"
                         v-model="scheduledAt"
                         type="datetime-local"
-                        class="w-full text-sm rounded-md border t-border bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        class="glass-field w-full text-sm rounded-md px-3 py-2"
                       />
                     </div>
                     <div class="space-y-1.5">
@@ -1514,7 +1514,7 @@ useSeoMeta({
                       <select
                         id="sched-repeat"
                         v-model="recurrenceRule"
-                        class="w-full text-sm rounded-md border t-border bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        class="glass-field w-full text-sm rounded-md px-3 py-2"
                       >
                         <option value="none">Does not repeat</option>
                         <option value="weekly">Weekly</option>

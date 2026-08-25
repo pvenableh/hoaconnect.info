@@ -186,7 +186,7 @@ const fmtDate = (v?: string | null) =>
           v-model="query"
           type="search"
           placeholder="Search rules…"
-          class="w-full pl-9 pr-3 py-2.5 rounded-full border t-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+          class="glass-field w-full pl-9 pr-3 py-2.5 rounded-full text-sm"
         />
       </div>
 

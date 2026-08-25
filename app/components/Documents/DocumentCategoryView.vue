@@ -348,7 +348,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           <label class="text-sm font-medium t-text-secondary">Status:</label>
           <select
             v-model="statusFilter"
-            class="px-3 py-1.5 border t-border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="px-3 py-1.5 rounded-lg text-sm"
           >
             <option value="published">Published</option>
             <option value="draft">Draft</option>

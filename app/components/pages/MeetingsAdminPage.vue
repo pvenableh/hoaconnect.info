@@ -551,20 +551,20 @@ const handleDelete = async (id: string) => {
               v-model="form.title"
               type="text"
               placeholder="e.g. March Board Meeting"
-              class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text"
+              class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium t-text">Type</label>
-              <select v-model="form.type" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text">
+              <select v-model="form.type" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
                 <option v-for="o in TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
             <div>
               <label class="text-sm font-medium t-text">Status</label>
-              <select v-model="form.status" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text">
+              <select v-model="form.status" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
                 <option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
@@ -573,43 +573,43 @@ const handleDelete = async (id: string) => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium t-text">Date</label>
-              <input v-model="form.meeting_date_date" type="date" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+              <input v-model="form.meeting_date_date" type="date" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
             </div>
             <div>
               <label class="text-sm font-medium t-text">Time</label>
-              <input v-model="form.meeting_date_time" type="time" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+              <input v-model="form.meeting_date_time" type="time" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium t-text">Location</label>
-              <input v-model="form.location" type="text" placeholder="Clubhouse / Zoom" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+              <input v-model="form.location" type="text" placeholder="Clubhouse / Zoom" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
             </div>
             <div>
               <label class="text-sm font-medium t-text">Virtual URL</label>
-              <input v-model="form.virtual_url" type="url" placeholder="https://" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+              <input v-model="form.virtual_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
             </div>
           </div>
 
           <div>
             <label class="text-sm font-medium t-text">Agenda</label>
-            <textarea v-model="form.agenda" rows="3" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+            <textarea v-model="form.agenda" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
           </div>
 
           <div>
             <label class="text-sm font-medium t-text">Minutes</label>
-            <textarea v-model="form.minutes" rows="3" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+            <textarea v-model="form.minutes" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium t-text">Recording URL</label>
-              <input v-model="form.recording_url" type="url" placeholder="https://" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text" />
+              <input v-model="form.recording_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
             </div>
             <div>
               <label class="text-sm font-medium t-text">Audience</label>
-              <select v-model="form.target_audience" class="mt-1 w-full rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text">
+              <select v-model="form.target_audience" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
                 <option v-for="o in AUDIENCE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
@@ -622,7 +622,7 @@ const handleDelete = async (id: string) => {
               Board roles are captured as of the meeting date and frozen for the record.
             </p>
             <div class="flex gap-2">
-              <select v-model="attendeePick" class="flex-1 rounded-lg border t-border bg-transparent px-3 py-2 text-sm t-text">
+              <select v-model="attendeePick" class="flex-1 rounded-lg px-3 py-2 text-sm t-text">
                 <option value="">Add a person…</option>
                 <option v-for="mem in members || []" :key="mem.id" :value="mem.id">
                   {{ mem.first_name }} {{ mem.last_name }}
@@ -637,7 +637,7 @@ const handleDelete = async (id: string) => {
                   <span v-if="a.is_board_member" class="rounded-full px-2 py-0.5 text-[10px] font-medium t-bg-accent/20 t-text-accent">
                     {{ a.role_at_meeting }}
                   </span>
-                  <select v-model="a.attendance" class="rounded border t-border bg-transparent px-1.5 py-1 text-xs t-text">
+                  <select v-model="a.attendance" class="rounded px-1.5 py-1 text-xs t-text">
                     <option value="present">Present</option>
                     <option value="absent">Absent</option>
                     <option value="excused">Excused</option>

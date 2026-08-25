@@ -221,7 +221,7 @@ const onDateChange = () => {
         <!-- Multiple documents indicator -->
         <div
           v-else
-          class="p-3 t-bg-subtle rounded-lg border t-border text-sm t-text-secondary"
+          class="ios-card p-3 t-bg-subtle rounded-lg text-sm t-text-secondary"
         >
           <div class="flex items-center gap-2">
             <Icon name="heroicons:document-duplicate" class="h-5 w-5" />
@@ -239,7 +239,7 @@ const onDateChange = () => {
             id="edit-category"
             v-model="selectedCategory"
             @change="onCategoryChange"
-            class="w-full p-2.5 border t-border rounded-lg t-bg-elevated t-text focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent-primary)] focus:border-[var(--theme-accent-primary)] transition-all"
+            class="w-full p-2.5 rounded-lg t-text transition-all"
             :disabled="saving"
           >
             <option value="">No Category</option>

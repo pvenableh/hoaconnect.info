@@ -61,7 +61,7 @@ function colorValue(v: any): string {
         v-else-if="field.type === 'html'"
         :value="variables[field.key] ?? ''"
         rows="3"
-        class="w-full rounded-lg border t-border t-bg-subtle p-2 text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/40"
+        class="glass-field w-full rounded-lg p-2 text-xs font-mono leading-relaxed"
         :placeholder="field.description || 'Text or basic HTML…'"
         @input="debounced(field.key, ($event.target as HTMLTextAreaElement).value)"
       />

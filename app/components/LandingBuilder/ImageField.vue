@@ -46,6 +46,11 @@ function onPick(files: PickedFile[]) {
 
 <template>
   <div class="flex items-center gap-3">
+    <!-- An image WELL, not a card: `bg-cover` is the thumbnail itself, and the
+         hairline is what frames a light image against a light panel. The `v-else`
+         twin below is the same box in dashed form — that is the tell that this
+         border is the empty-state affordance and not decoration. -->
+    <!-- allow-hairline-surface -->
     <div
       v-if="src"
       class="rounded-lg bg-cover bg-center border t-border shrink-0"

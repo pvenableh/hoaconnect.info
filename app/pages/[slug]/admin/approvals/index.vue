@@ -98,19 +98,19 @@ const reject = async (r: any) => {
         <p class="t-text-muted text-sm">Resident-submitted changes to contact info, mailing addresses, vehicles, and pets.</p>
       </header>
 
-      <div v-if="denied" class="rounded-xl border t-border bg-red-500/10 px-4 py-3 text-sm">
+      <div v-if="denied" class="rounded-xl border border-destructive/30 bg-destructive/10 t-text px-4 py-3 text-sm">
         You don't have access to review changes for this organization.
       </div>
 
       <div v-else-if="pending" class="t-text-muted text-sm">Loading…</div>
 
-      <div v-else-if="!requests.length" class="rounded-xl border t-border t-bg-elevated p-8 text-center">
+      <div v-else-if="!requests.length" class="ios-card rounded-xl t-bg-elevated p-8 text-center">
         <Icon name="i-lucide-check-check" class="size-6 mx-auto t-text-muted mb-2" />
         <p class="t-text-muted text-sm">Nothing to review. You're all caught up.</p>
       </div>
 
       <ul v-else class="space-y-3">
-        <li v-for="r in requests" :key="r.id" class="rounded-xl border t-border t-bg-elevated p-4">
+        <li v-for="r in requests" :key="r.id" class="ios-card rounded-xl t-bg-elevated p-4">
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <div class="flex items-center gap-2 text-sm">
