@@ -187,6 +187,7 @@ export async function executeTransitionPlan(input: {
             } as any)
           )) as { id: string };
           exportId = row.id;
+          await requestExportBuild(row.id);
           results.push({ ...base(step), status: "done" });
           break;
         }

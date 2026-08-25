@@ -124,6 +124,10 @@ beforeEach(() => {
     seatSyncs.push(accountId);
     return { seats: 4 };
   });
+  // Queuing an export now wakes the builder. It is an auto-imported server util,
+  // so it does not exist in this environment unless stubbed — and the executor
+  // awaits it, which is what turned a missing symbol into two failed steps.
+  vi.stubGlobal("requestExportBuild", async () => {});
   vi.stubGlobal("writeAuditEntry", async (entry: any) => {
     auditEntries.push(entry);
     return "audit-1";

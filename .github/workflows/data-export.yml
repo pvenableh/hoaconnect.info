@@ -8,13 +8,27 @@
 # service and no checkout. The worker needs neither: it reaches Directus over
 # REST, so it only needs a machine with the repo, node and scratch disk.
 # See docs/data-export-cron.md.
+#
+# Triggered two ways: a repository_dispatch the moment a row is queued (fast),
+# and an hourly schedule as the net (complete).
 name: data export worker
 
 on:
+  # The FAST PATH. Queuing an export POSTs a repository_dispatch from the app
+  # (core/server/utils/export-dispatch.ts), so a build starts in seconds rather
+  # than waiting for the next tick. The payload carries an exportId for tracing
+  # only — the worker runs the queue normally, so a dispatch can never disagree
+  # with what is actually waiting.
+  repository_dispatch:
+    types: [data-export-queued]
   schedule:
-    # Every 15 minutes. The run exits in about a second when the queue is empty,
-    # so the cost of a quiet tick is the checkout and install, not the worker.
-    - cron: "*/15 * * * *"
+    # The SAFETY NET, not the primary trigger: purges, stale-job release, and
+    # anything a dispatch missed (no token, GitHub down, a network blip).
+    # This was every 15 minutes, which meant ~2,880 runs a month booting a
+    # runner and installing dependencies to discover an empty queue. Hourly
+    # costs ~730 and, with the dispatch above, exports start SOONER than they
+    # did at 15-minute polling.
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -65,6 +79,9 @@ jobs:
         # NOT --prod: the worker runs through tsx and uses archiver, both
         # devDependencies.
         run: pnpm install --frozen-lockfile
+
+      - name: Show what triggered this run
+        run: echo "trigger=${{ github.event_name }} exportId=${{ github.event.client_payload.exportId || 'n/a' }}"
 
       - name: Run the export worker
         # Inputs go through env and stay quoted: interpolating ${{ inputs.job }}

@@ -6,10 +6,11 @@
  * board's private material, so this is deliberately NOT open to board members or
  * to property managers holding grants.
  *
- * The route only writes the job row. The archive is built by the droplet worker
- * (scripts/data-export-worker.ts), because org storage runs to hundreds of
- * gigabytes and because a board triggering an export mid-dispute has to get it
- * whether or not they keep the tab open.
+ * The route only writes the job row. The archive is built by
+ * scripts/data-export-worker.ts, running as a GitHub Actions workflow, because
+ * org storage runs to hundreds of gigabytes and because a board triggering an
+ * export mid-dispute has to get it whether or not they keep the tab open.
+ * Queuing dispatches that workflow immediately; an hourly schedule is the net.
  */
 
 import { createItem, readItems } from "@directus/sdk";
@@ -71,6 +72,10 @@ export default defineEventHandler(async (event) => {
       include_files: includeFiles,
     })
   )) as { id: string };
+
+  // Wake the builder now rather than waiting for the hourly run. Best-effort by
+  // design: if it fails, the schedule still builds this row.
+  await requestExportBuild(created.id);
 
   return {
     id: created.id,
