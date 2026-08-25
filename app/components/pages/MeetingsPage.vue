@@ -88,6 +88,15 @@ const openDetail = (m: any) => {
   selected.value = m;
   showDetail.value = true;
 };
+
+// A meeting has no detail PAGE — `notificationTargetPath` sends a meeting
+// notification to this list, not to a deep link — so the detail DIALOG is the
+// moment the member has actually opened the thing they were told about. The
+// getter returns null while the dialog is shut, so merely scrolling past a
+// meeting in the list never clears its badge.
+useMarkItemRead("hoa_meetings", () =>
+  showDetail.value ? (selected.value?.id ? String(selected.value.id) : null) : null,
+);
 </script>
 
 <template>

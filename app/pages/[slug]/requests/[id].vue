@@ -13,6 +13,11 @@ const { loadMyDomains, canManageRequestType } = useTeams();
 
 const requestId = computed(() => route.params.id as string);
 
+// Opening the thing marks the bell row about it read. `status: "archived"` is
+// durable, so this clears on the member's phone too, and the dock badge and the
+// bell both recompute off the same list.
+useMarkItemRead("hoa_requests", requestId);
+
 const { data: request, pending, refresh } = await useAsyncData(
   `request-${requestId.value}`,
   () => getOne(requestId.value),

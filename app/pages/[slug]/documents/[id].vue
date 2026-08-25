@@ -23,6 +23,11 @@ const { selectedOrgId, isAdmin, isBoardMember, isMember } = await useSelectedOrg
 const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 const documentId = computed(() => route.params.id as string);
 
+// Opening the thing marks the bell row about it read. `status: "archived"` is
+// durable, so this clears on the member's phone too, and the dock badge and the
+// bell both recompute off the same list.
+useMarkItemRead("hoa_documents", documentId);
+
 const { data: doc, pending } = await useAsyncData(
   `document-${documentId.value}`,
   async () => {
