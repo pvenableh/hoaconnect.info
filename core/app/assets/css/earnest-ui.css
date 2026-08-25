@@ -126,7 +126,14 @@
  * `var(--glass-edge-shadow)`, `var(--glass-lift-shadow)` or `var(--glass-shadow-h)`
  * must add its selector here, or it silently gets the root accent again.
  * `tests/shared/glass-accent-tokens.test.ts` is the tripwire — it scans the CSS
- * for consumers and fails on any that this list does not cover.
+ * for consumers and fails on any that this list does not cover. It has already
+ * earned its keep once: `html.theme-app select` was added to theme-app.css and
+ * the test failed the same minute, naming the rule.
+ *
+ * `select` is in the list bare, not as `html.theme-app select`. A public-theme
+ * select never reads these tokens (theme.css gives it `box-shadow: none`), and
+ * an unread custom property costs nothing — so the narrower selector would only
+ * be a second thing to keep in sync.
  *
  * The hue is now the accent in BOTH modes; dark no longer pins it to 220. That
  * is not a behaviour change anyone can see: dark's shade ring is alpha 0, and
@@ -142,6 +149,7 @@
 .ios-card,
 .header-pill,
 .field-underline,
+select,
 :root {
 	--glass-shade: var(--app-accent-h, 220) var(--glass-shade-s) var(--glass-shade-l) / var(--glass-shade-a);
 	--glass-shadow-h: var(--app-accent-h, 220);
@@ -205,6 +213,13 @@
 	 * app during the Phase 8 sweep, on a `<select>`, an `<input>`, a `<textarea>`
 	 * and a `<div>` side by side; the select was the only one that did not take
 	 * the rim. Inputs, textareas and plain containers are all fine.
+	 *
+	 * You do not need it on a select anyway: `html.theme-app select` in
+	 * theme-app.css gives every native select in the workspace this same
+	 * material, from one rule, the way `html.theme-app .field-underline` already
+	 * does for every input and textarea. Public pages keep the editorial
+	 * underline, which is the whole reason that override is scoped to the
+	 * workspace theme rather than applied here.
 	 */
 	.glass-field {
 		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 55%, transparent);

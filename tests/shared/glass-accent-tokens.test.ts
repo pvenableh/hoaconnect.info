@@ -93,24 +93,37 @@ describe("glass accent tokens", () => {
     expect(EDGE!.selector.split(",").length).toBeGreaterThan(1);
   });
 
-  /** The classes the redeclaration block covers, `:root` aside. */
+  /** What the redeclaration block covers, `:root` aside — classes and bare
+   *  element selectors alike (`select` is in the list as an element). */
   const covered = (EDGE?.selector ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter((s) => s.startsWith("."))
-    .map((s) => s.slice(1));
+    .filter((s) => s && s !== ":root");
 
   it("covers every rule that consumes an accent-bearing edge token", () => {
     const CONSUMES =
       /var\(\s*--glass-(rim-shadow|edge-shadow|lift-shadow|shadow-h|shade)\b/;
 
+    // A selector whose SUBJECT is the html element itself gets the root accent
+    // by definition — there is nothing above it to inherit wrongly from. That
+    // means a single compound with no descendant part: `:root`, `.dark`,
+    // `html.theme-app`. It does NOT mean anything merely starting with `html`.
+    // An earlier version tested `/^html\b[^,]*$/`, which waved through
+    // `html.theme-app select` — a rule targeting a descendant, and the exact
+    // rule this test exists to catch. It only failed at all because the
+    // neighbouring `:focus` rule happened to carry a comma.
+    const isHtmlItself = (sel: string) => /^(:root|\.dark|html[.\w-]*)$/.test(sel.trim());
+
     const uncovered = RULES.filter((r) => {
       if (r === EDGE) return false; // the block builds them; it does not inherit them
       if (!CONSUMES.test(r.body)) return false;
-      // `:root` / `.dark` are the html element itself — they get the root accent
-      // by definition and there is nothing above them to inherit wrongly from.
-      if (/^(:root|\.dark|html)\b[^,]*$/.test(r.selector.trim())) return false;
-      return !covered.some((c) => r.selector.includes(`.${c}`));
+      // Every comma-separated part has to be covered, not just the first.
+      return r.selector.split(",").some((part) => {
+        const sel = part.trim();
+        if (!sel) return false;
+        if (isHtmlItself(sel)) return false;
+        return !covered.some((c) => sel.includes(c));
+      });
     }).map((r) => `${r.file}  ${r.selector.replace(/\s+/g, " ").slice(0, 90)}`);
 
     expect(uncovered).toEqual([]);

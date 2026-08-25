@@ -91,8 +91,6 @@ html.theme-app {
 
 	/* --- Component surfaces -------------------------------------------------
 	   The translucent ones are what `.glass-bar` and the dock sit on. */
-	--theme-header-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(21, 29, 37, 0.72));
-	--theme-footer-bg: light-dark(#edf1f6, #0b1015);
 	--theme-card-bg: light-dark(#ffffff, #151d25);
 	--theme-nav-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(21, 29, 37, 0.72));
 	--theme-drawer-bg: light-dark(rgba(255, 255, 255, 0.95), rgba(21, 29, 37, 0.96));
@@ -120,7 +118,6 @@ html.theme-app {
 
 	/* --- Dividers ------------------------------------------------------------ */
 	--theme-divider: light-dark(#e3e9f0, #232e38);
-	--theme-divider-light: light-dark(#eff3f7, #1a232c);
 
 	/* --- Transitions ---------------------------------------------------------
 	   Mode-independent. The house spring lives in variables.css (--spring); these
@@ -325,6 +322,68 @@ html.theme-app .field-underline[aria-invalid="true"] {
    from. */
 @media (prefers-reduced-transparency: reduce) {
 	html.theme-app .field-underline {
+		background: var(--theme-bg-elevated);
+	}
+}
+
+/* ---- Native <select>, the one control the block above could not reach -------
+   `.field-underline` is a class the shadcn Input and Textarea carry, so the
+   override above catches every input and textarea in the workspace. Native
+   selects are swept by a different rule — theme.css's bare `select { … }` — and
+   nothing was overriding THAT, so a select stayed on the pre-glass underline
+   while every field beside it became glass.
+
+   ⚠️ And a `.glass-field` class at the call site cannot fix it, for the same
+   reason `.glass-field` cannot fix an input: `select { … }` is unlayered and
+   beats `@layer components` on layer order no matter how specific the class is.
+   All the class achieves on a select is an opaque fill behind the underline.
+   Measured on a select, an input, a textarea and a div side by side; the select
+   was the only one that refused the rim. So this override goes here, next to
+   the one it mirrors, and every select in the workspace converts without a call
+   site changing.
+
+   Specificity: `html.theme-app select` is (0,1,2) against the bare rule's
+   (0,0,1), and both are unlayered, so this wins on specificity alone. */
+html.theme-app select {
+	border: 0;
+	border-radius: 0.625rem;
+	background: color-mix(in srgb, var(--theme-bg-elevated) 55%, transparent);
+	box-shadow: var(--glass-rim-shadow),
+		inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.1);
+	padding-inline: 0.75rem;
+	transition: box-shadow 200ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+}
+/* Deliberately NOT the `border-radius: 999px; height: 2.5rem` pill that
+   `select.field-underline` gets. That pill is for a select sized like an input;
+   these are call-site-sized, and one of them is an `h-6`-ish attendance picker
+   in a table row that a forced 2.5rem would break. `revert-layer` hands radius
+   and inline padding back to the utilities layer whenever the call site names
+   one — the same escape the `.field-underline` padding rules above use, for the
+   same reason. */
+html.theme-app select[class*="rounded"] {
+	border-radius: revert-layer;
+}
+html.theme-app select[class*="px-"],
+html.theme-app select[class*="p-"],
+html.theme-app select[class*="ps-"],
+html.theme-app select[class*="pe-"] {
+	padding-inline: revert-layer;
+}
+html.theme-app.dark select {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 45%, transparent);
+}
+html.theme-app select:focus,
+html.theme-app select:focus-visible {
+	outline: none;
+	box-shadow: var(--glass-rim-shadow),
+		inset 0 0 0 1px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-edge)),
+		0 0 0 3px hsl(var(--app-accent-h, 220) var(--glass-focus-s) var(--glass-focus-l) / var(--glass-focus-halo));
+}
+html.theme-app select[aria-invalid="true"] {
+	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(0 72% 51% / 0.28);
+}
+@media (prefers-reduced-transparency: reduce) {
+	html.theme-app select {
 		background: var(--theme-bg-elevated);
 	}
 }
@@ -582,8 +641,6 @@ html.theme-app .iconify.size-24 { font-size: 6rem; }
 		--theme-border-primary: #232e38;
 		--theme-border-secondary: #2f3c48;
 		--theme-border-light: #1a232c;
-		--theme-header-bg: rgba(21, 29, 37, 0.72);
-		--theme-footer-bg: #0b1015;
 		--theme-card-bg: #151d25;
 		--theme-nav-bg: rgba(21, 29, 37, 0.72);
 		--theme-drawer-bg: rgba(21, 29, 37, 0.96);
@@ -597,7 +654,6 @@ html.theme-app .iconify.size-24 { font-size: 6rem; }
 		--theme-button-hover-bg: #6fe0fa;
 		--theme-focus-ring: 0 0 0 2px rgba(56, 207, 240, 0.35);
 		--theme-divider: #232e38;
-		--theme-divider-light: #1a232c;
 		--destructive: #f87171;
 		--destructive-foreground: #200606;
 		--success: #34d399;
