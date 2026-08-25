@@ -1,6 +1,7 @@
 import { readItem, readItems, readFiles } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
 import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { resolveEmailBranding } from "../../utils/email-branding";
 import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
 
@@ -158,7 +159,7 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", {
-          settings: ["id", "logo", "title", "description", "colors", "theme"],
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -398,6 +399,12 @@ export default defineEventHandler(async (event) => {
           });
         } else {
           // Fall back to MJML-generated HTML
+          // A test send has to be the real send, or it is not a test: resolve
+          // the header line / footer photo / homepage link exactly as
+          // send.post.ts does.
+          const branding = resolveEmailBranding(organization, null, {
+            appUrl: config.public.appUrl as string,
+          });
           const html = buildEmailHtml({
             organization,
             subject: `[TEST] ${mergedSubject}`,
@@ -409,6 +416,9 @@ export default defineEventHandler(async (event) => {
             recipientFirstName: "Test Recipient",
             directusUrl: config.directus.url,
             appUrl: config.public.appUrl as string,
+            headerText: branding.headerText,
+            footerImage: branding.footerImage,
+            homepageUrl: branding.homepageUrl,
           });
 
           console.log(`[test.post] HTML built successfully (${html.length} chars)`);

@@ -1,5 +1,6 @@
 import { readItem, readItems } from "@directus/sdk";
 import { buildEmailHtml, type EmailType } from "../../utils/email-templates-mjml";
+import { resolveEmailBranding } from "../../utils/email-branding";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting } from "#core/types/directus";
 
 interface DebugEmailBody {
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["id", "name", "email", "street_address", "city", "state", "zip", {
-          settings: ["id", "logo", "title", "description", "colors", "theme"],
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -83,6 +84,12 @@ export default defineEventHandler(async (event) => {
     }
 
     // Build full email HTML (not preview mode)
+    // Same branding resolution the real send uses — a debug render that omits
+    // the header line and footer photo is not a render of the real email.
+    const branding = resolveEmailBranding(organization, null, {
+      appUrl: config.public.appUrl as string,
+    });
+
     const html = buildEmailHtml({
       organization,
       subject,
@@ -94,6 +101,9 @@ export default defineEventHandler(async (event) => {
       recipientFirstName: "Test Recipient",
       directusUrl: config.directus.url,
       appUrl: config.public.appUrl as string,
+      headerText: branding.headerText,
+      footerImage: branding.footerImage,
+      homepageUrl: branding.homepageUrl,
       forPreview: false, // Get full HTML document
     });
 

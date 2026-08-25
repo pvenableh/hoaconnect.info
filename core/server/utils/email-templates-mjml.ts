@@ -119,6 +119,19 @@ function normalizeHexColor(value: unknown): string | null {
   return HEX_COLOR_RE.test(v) ? v : null;
 }
 
+/** Expand `#abc` to `#aabbcc` so colours can be compared literally. */
+function expandHexColor(hex: string): string {
+  const h = hex.slice(1);
+  return h.length === 3
+    ? `#${h.split("").map((c) => c + c).join("")}`.toLowerCase()
+    : `#${h}`.toLowerCase();
+}
+
+/** Is this colour pure white? (i.e. a band a white logo plate would vanish into) */
+function isWhiteColor(hex: string): boolean {
+  return expandHexColor(hex) === "#ffffff";
+}
+
 /** YIQ brightness test: is white text readable on this colour? */
 function isDarkColor(hex: string): boolean {
   let h = hex.slice(1);
@@ -307,7 +320,14 @@ function processGreeting(
  */
 function getLogoUrl(
   organization: EmailTemplateOptions["organization"],
-  directusUrl: string
+  directusUrl: string,
+  /**
+   * Optional height cap. Without it the asset is only width-constrained, which
+   * is right for a wordmark but renders an app-icon-shaped upload as a 200px
+   * square. Constraining the BITMAP (rather than styling the `<img>`) is what
+   * makes the cap hold in Outlook, which ignores `max-height`.
+   */
+  maxHeight?: number
 ): string | null {
   const settings = organization.settings as BlockSetting | undefined;
   if (!settings?.logo) return null;
@@ -318,7 +338,8 @@ function getLogoUrl(
       : (settings.logo as DirectusFile)?.id;
   if (!logoId) return null;
 
-  return `${directusUrl}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
+  const height = maxHeight ? `&height=${maxHeight}` : "";
+  return `${directusUrl}/assets/${logoId}?width=200${height}&format=png&fit=inside&quality=80`;
 }
 
 /**
@@ -616,7 +637,12 @@ export function buildEmailHtml(
   const legalName = organization.legal_name || orgName;
   const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
   const fonts = resolveEmailFonts(organization.settings ?? null);
-  const logoUrl = getLogoUrl(organization, directusUrl);
+  // 120px is the height cap. It only bites on TALL logos: a wide wordmark
+  // (605's is 200x75) is already width-constrained and comes back unchanged,
+  // while a square app-icon upload (1033's) stops being a 200px poster. The
+  // web view deliberately does NOT cap height — it is a real page with room to
+  // spare, and staying on the old URL keeps that surface byte-identical.
+  const logoUrl = getLogoUrl(organization, directusUrl, 120);
   const finalSalutation = salutation || defaultSalutations[emailType];
   const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
   const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
@@ -703,6 +729,43 @@ export function buildEmailHtml(
   const footerPadding = isBasic ? "16px" : "24px 32px";
   const bottomPadding = isBasic ? "12px 16px" : "16px 32px";
 
+  // ── The logo lockup ───────────────────────────────────────────────────────
+  // An org's logo is whatever they uploaded, and it lands on a coloured band
+  // we choose. No small association reliably has a transparent, correctly
+  // -coloured wordmark: 1033's is an opaque white square (a white box on their
+  // ink band) and 605's is a grey wordmark on their grey band (invisible).
+  //
+  // So the renderer puts the logo on a white plate whenever the band is not
+  // already white. That is band-colour independent, so it fixes every org at
+  // once, and it replaces today's impossible requirement ("your logo must read
+  // on both your brand colour AND the white `basic` band") with one an org can
+  // actually satisfy: it must read on white. `basic`'s band IS white, so the
+  // plate is skipped there and that email is untouched.
+  //
+  // Hand-rolled rather than `mj-image`, because `container-background-color`
+  // would paint the full column width — a white strip, not a plate. The nested
+  // `<table align="center">` shrink-wraps and is what Outlook needs; the
+  // border-radius degrades to square corners there, which is fine.
+  const headerBandBg = isBasic ? "#ffffff" : style.headerBg;
+  const logoOnPlate = !isWhiteColor(headerBandBg);
+  // No width attribute: the bitmap is already capped to 200x120 by the asset
+  // URL, so its natural size IS the display size. That is what makes the cap
+  // survive Outlook, which ignores `max-height` and would happily upscale a
+  // width-forced `mj-image` back to 200px square.
+  const logoImg = `<img src="${logoUrl}" alt="${orgName}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;max-width:200px;" />`;
+  const plateTd = logoOnPlate
+    ? `bgcolor="#ffffff" style="background-color:#ffffff;border-radius:8px;padding:14px 20px;text-align:center;"`
+    : `style="text-align:center;"`;
+  const logoMjml = !logoUrl
+    ? ""
+    : `<mj-text align="center" padding="0">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;">
+              <tr>
+                <td ${plateTd}>${logoImg}</td>
+              </tr>
+            </table>
+          </mj-text>`;
+
   const mjmlTemplate = `
 <mjml>
   <mj-head>
@@ -723,11 +786,11 @@ export function buildEmailHtml(
     <!-- Main Container -->
     <mj-wrapper padding="${wrapperPadding}" background-color="${bodyBg}">
       <!-- Header -->
-      <mj-section background-color="${isBasic ? "#ffffff" : style.headerBg}" padding="${headerPadding}">
+      <mj-section background-color="${headerBandBg}" padding="${headerPadding}">
         <mj-column>
           ${
             logoUrl
-              ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="center" />`
+              ? logoMjml
               : isBasic
                 ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937" font-family="${fonts.heading}">${orgName}</mj-text>`
                 : `<mj-text align="center" font-size="24px" font-weight="600" color="${style.headerTextColor}" font-family="${fonts.heading}">${orgName}</mj-text>`

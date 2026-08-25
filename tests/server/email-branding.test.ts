@@ -373,3 +373,115 @@ describe("buildWebViewHtml follows the theme", () => {
     expect(without).toContain("font-family:'Playfair Display'");
   });
 });
+
+/**
+ * The logo lockup.
+ *
+ * The defect: the renderer drops whatever an org uploaded onto a coloured
+ * band. 1033's logo is an opaque white square (a white box on their ink band);
+ * 605's is a grey wordmark on their grey band (invisible). No small
+ * association reliably has a transparent, correctly-coloured wordmark, so the
+ * fix is a white plate behind the logo whenever the band is not already white
+ * — one treatment that works for every org, and one an org can actually
+ * satisfy ("your logo must read on white") unlike the impossible rule it
+ * replaces ("it must read on your brand colour AND on `basic`'s white band").
+ */
+describe("logo lockup", () => {
+  const common = {
+    subject: "Test",
+    content: "<p>Body</p>",
+    directusUrl: "https://directus.example",
+  };
+  // MJML emits `bgcolor="#ffffff"` all over the document, so the sentinel has
+  // to be the plate's own geometry.
+  const PLATE = "border-radius:8px;padding:14px 20px";
+
+  it("puts the logo on a white plate when the band is a dark brand colour", () => {
+    const html = buildEmailHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#454545", accent: "#c9a96e" }] }),
+    });
+    expect(html).toContain(PLATE);
+    expect(html).toContain("/assets/file-abc");
+  });
+
+  it("plates a LIGHT brand band too — 605's grey logo would vanish into its grey band", () => {
+    const html = buildEmailHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#8f8f8f", accent: "#00E1FF" }] }),
+    });
+    expect(html).toContain(PLATE);
+  });
+
+  it("skips the plate on `basic`, whose band is already white", () => {
+    const html = buildEmailHtml({
+      ...common,
+      emailType: "basic",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#454545", accent: "#c9a96e" }] }),
+    });
+    expect(html).not.toContain(PLATE);
+    expect(html).toContain("/assets/file-abc");
+  });
+
+  it("skips the plate for an org whose own primary is white, in either hex form", () => {
+    for (const primary of ["#ffffff", "#FFF"]) {
+      const html = buildEmailHtml({
+        ...common,
+        emailType: "notice",
+        organization: org({ logo: "file-abc", colors: [{ primary, accent: "#c9a96e" }] }),
+      });
+      expect(html).not.toContain(PLATE);
+    }
+  });
+
+  it("caps the logo bitmap at 200x120 and sets NO width attribute", () => {
+    const html = buildEmailHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#454545" }] }),
+    });
+    // The cap has to live in the bitmap, not in CSS: Outlook ignores
+    // `max-height`, and a width attribute would upscale a square logo back to
+    // 200px. Natural size IS display size.
+    expect(html).toContain("/assets/file-abc?width=200&height=120");
+    expect(html).toMatch(/<img src="[^"]*file-abc[^"]*" alt="[^"]*" style=/);
+    expect(html).not.toMatch(/<img[^>]*file-abc[^>]*width="200"/);
+  });
+
+  it("leaves the web view on the uncapped URL — a real page has room", () => {
+    const html = buildWebViewHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#454545" }] }),
+    });
+    expect(html).toContain("/assets/file-abc?width=200&format=png");
+    expect(html).not.toContain("height=120");
+  });
+
+  it("keeps logo precedence: the slot wins, the org name only stands in", () => {
+    const withLogo = buildEmailHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ logo: "file-abc", colors: [{ primary: "#454545" }] }),
+    });
+    expect(withLogo).toContain("/assets/file-abc");
+    expect(withLogo).not.toMatch(/font-size:24px[^>]*>Harborview Lofts/);
+
+    const without = buildEmailHtml({
+      ...common,
+      emailType: "announcement",
+      organization: org({ colors: [{ primary: "#454545" }] }),
+    });
+    expect(without).not.toContain("/assets/");
+    expect(without).not.toContain(PLATE);
+    expect(without).toContain("Harborview Lofts");
+  });
+
+  it("an org with no logo is untouched by any of this", () => {
+    const html = buildEmailHtml({ ...common, emailType: "notice", organization: org() });
+    expect(html).not.toContain(PLATE);
+    expect(html).not.toContain("<img");
+  });
+});

@@ -17,10 +17,15 @@ interface BrandingPreviewBody {
   colors?: Array<{ primary?: string; secondary?: string; accent?: string }> | null;
 }
 
+// The heading is load-bearing, not decoration. MJML emits a web-font link only
+// for a face it sees USED, so a sample with no <h*> never requests the org's
+// display face — and the admin previews their branding in the body font only,
+// which is precisely the thing the preview exists to show them.
 const SAMPLE_CONTENT = `
   <p>This is a preview of how your community's emails look with your branding applied.</p>
+  <h2>Your headings look like this</h2>
   <p>Notices, reminders, and alerts sent from the portal all use this template —
-  your logo, your header line, and your colors.</p>`;
+  your logo, your header line, your typeface, and your colors.</p>`;
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
