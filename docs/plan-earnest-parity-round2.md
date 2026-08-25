@@ -20,7 +20,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [x] | `main` | Slide bullets had to LEAD the briefing — asked for last, the live model never wrote them. Money mode needed a fourth util. |
 | 8 | Phase 6 UI — Boardroom page + components + nav | [x] | `main` | Multiplayer is a POLL, per Peter's call. The 403 probe wrote two rows into `demo-classic` — the diff caught it. |
 | 9 | Phase 7 core — stacks home | [x] | `main` | The rework target was `DashboardPage.vue`, not the `[slug]/admin/index.vue` redirect shim. Reading a briefing needed a new read-only door. |
-| 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `main` | |
+| 10 | Phase 7 polish — rails, ambient, wizard | [x] | `main` | The rails EXTRACTED the three chart widgets' fetches; mounting those widgets now costs zero extra requests. Light alphas needed raising, not halving. |
 | 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `main` | |
 
 ### Session log
@@ -1244,9 +1244,175 @@ reverted**: `ai_transactions` is +2 (7838 → 7836) because those two Voyage emb
 debits were really spent, and deleting the ledger would make it disagree with
 the balance — Session 8's precedent.
 
-### Operator TODOs (carried forward until done)
+**Session 10 — Phase 7 polish** (2026-08-24) — 3 commits straight onto `main`
+(`ac52453`, `f557196`, `4710776`), not pushed.
+
+Shipped:
+
+- `core/shared/home/glances.ts` — the pure arithmetic behind every number on
+  the home: `collectionMonths`, `ageingBuckets`, `pastDue`, `requestBuckets`,
+  `staleRequests`, `summariseOccupancy`, plus `owed()` and the string-decimal
+  `num()` guard.
+- `core/app/composables/useHomeGlances.ts` — five shared reads:
+  `useMoneyGlance`, `useRequestsGlance`, `useUnitsGlance`, `useMembersGlance`,
+  `useEmailActivityGlance`.
+- `core/shared/home/waves.ts` — the wave geometry and the whole-number-harmonic
+  invariant, in `shared/` so a test can hold it there.
+- `core/app/composables/useHomeAmbient.ts` — waves → orbs → off, localStorage,
+  read deferred to `onNuxtReady`.
+- `app/components/Home/{AmbientBackground,GlanceRail,ChartRail}.vue`.
+- `app/components/dashboard/{Collections,RequestsHealth,Occupancy}Widget.vue`
+  rewritten onto the shared composables; `DashboardPage.vue` mounts the ambient
+  in its own stacking context, puts the stacks + glance rail in the main column
+  with the chart rail sticky beside them at `xl`, and takes its members, units
+  and email-activity numbers from the same composables.
+- Mobile/dark tuning of Session 9's band (commit 3).
+- Tests: 27 on the glance arithmetic, 9 on the wave geometry, 9 on the ambient
+  preference — 45 new, 1467 total.
+
+Deviations from the plan, all deliberate:
+
+1. **The extraction target was the dashboard WIDGETS, not the `Admin/*Glance.vue`
+   bands.** The plan says to extract the fetch logic out of those bands, and
+   four of the five have none: `MoneyGlance`, `RequestsGlance` and
+   `MeetingsGlance` are props-driven, fed by the page that already loaded the
+   rows. The components that *did* fetch the same questions are
+   `dashboard/CollectionsWidget`, `RequestsHealthWidget` and `OccupancyWidget`,
+   each with its own `useAsyncData` key. Those are what moved. `PeopleGlance`
+   also fetches, but its query is a three-way `allSettled` including
+   `hoa_board_members`, and it never co-exists with the home — extracting it
+   would have created a SECOND `hoa_units` query on the dashboard, which is the
+   thing the instruction forbids. It is untouched.
+2. **One `payment_requests` query, not two.** The Collections widget asked only
+   for paid rows; the rails also need what is owed. Rather than add a second
+   query the filter became the union — paid OR still owing — and money-in,
+   outstanding-by-age and past-due all derive from the one result. Capped at
+   1000 rows, newest first, documented as a truthfulness limit: past it the
+   glance under-reports and the Money surface is authoritative.
+3. **One `hoa_units` query serving three different filters.** The dashboard's
+   Units stat counts active AND inactive; the occupancy split is active-only.
+   `useUnitsGlance` fetches both statuses and `summariseOccupancy` narrows to
+   active, so each number keeps exactly the meaning it had.
+4. **`GlanceRail` is not `ios-card` tiles.** Earnest's is. Five bordered boxes
+   directly under a glass band is five more surfaces competing with the thing
+   that wants attention, so this is a hairline-separated rail — the 1px grid gap
+   showing through tiles that paint the page ground. It also adds nothing to the
+   Phase 8 census.
+5. **`ChartRail` reuses the colour system, not the chart components.** The plan
+   says to use `App/Chart/*` where they fit, and at 240×36 they do not: the kit
+   is unovis-backed and card-sized, all axes, margins, tooltips and legends. The
+   five glances are hand-rolled SVG and CSS bars, and what they share with the
+   full charts is `shared/home/glances` — the same buckets and the same status
+   colours — so a rail bar and its full chart can never disagree.
+6. **The org id is a PARAMETER to every glance composable.** `useSelectedOrg()`
+   is async and these live in plain `.ts`. `<script setup>` wraps its top-level
+   awaits in `withAsyncContext`, restoring the Nuxt instance afterwards; a plain
+   function gets no such wrapper, so awaiting the org inside the composable
+   stripped the instance from `useDirectusItems`, `useAsyncData` and everything
+   after it, and the dashboard 500'd on SSR. Caught in the browser, not by the
+   typechecker. Each composable's `await useAsyncData(...)` is now deliberately
+   the last instance-dependent call it makes.
+7. **`light-dark()` carries the two alphas, not a CSS variable pair.** The plan
+   asks for light and dark tuned separately against `html.theme-app`. Because
+   `color-mix()` returns a colour, `light-dark(color-mix(...L), color-mix(...D))`
+   is a single valid `stop-color`, so both values ride one declaration off the
+   `color-scheme` the theme already sets — no second selector to keep in sync.
+   Earnest does this with `:root:not(.dark) { opacity: 0.55 }`, which is exactly
+   the one-value-with-a-multiplier the kickoff rules out.
+8. **The light alphas went UP, not down.** First pass had light at roughly half
+   of dark, and the field was invisible over `#f6f8fb` — visible only with the
+   blur removed. What eats a light-mode wash is CONTRAST against the ground, not
+   opacity: cyan at 0.20 over near-black shifts a pixel about 40 units, the same
+   alpha over near-white shifts it ten. Light now sits within a few points of
+   dark for both bands and orbs.
+
+Quality gate: typecheck **0 errors** · vitest **1467/1467 in 84 files** ·
+`pnpm build` green · hairline audit green at baseline 26. **No new endpoints**,
+so no new org-scope test — this phase added no server routes at all; every read
+goes through the existing org-filtered Directus queries.
+
+Browser-verified headlessly on the demo org through a real session
+(`/api/demo/login`) on this session's own dev server, against a 17-row fixture
+seeded into `demo` and deleted afterwards:
+
+- **Landing on the dashboard still makes ZERO billable AI calls.** Every
+  `/api/ai/*` request on a cold load is a GET read — `actions/pending-count`,
+  `autonomy`, `actions?status=pending`, `notices`, `director/briefing` — the
+  same five Session 9 recorded. No POST to any AI route. `GET /api/ai/notices`
+  is computed, never persisted: `ai_actions` stayed at 0 throughout.
+- **One request per collection, proved by mounting the widgets.** The dashboard
+  registers exactly twelve `useAsyncData` keys, with `home-money-glance-*`,
+  `home-units-glance-*`, `dash-requests-health-*`, `dashboard-members-*` and
+  `dashboard-email-activity-*` appearing ONCE each. Turning Collections,
+  Requests Health and Occupancy on from the gallery — three components that
+  each used to run their own query — issued **zero** new fetches, and their
+  figures matched the rails exactly ($2,101 collected, 4 open · 2 over 30 days,
+  50% owner-occupied).
+- **The arithmetic is right.** Past due $1,701 / 3 charges (300 + 500.75 + 900);
+  outstanding $2,151 including the $450 not yet due; money in $2,101; homes 6
+  with 50% owner-occupied from 4 recorded ACTIVE units, the inactive one counted
+  as a home and correctly excluded from the donut. Every debt landed in exactly
+  one ageing band; the donut arcs came out 50/25/25 with the right offsets.
+- **Each glance self-hides when its series is empty.** On the seeded org four of
+  five rendered and Mail did not, because there is no mail. Feeding the shared
+  email-activity key seven days of sends (client-side only, no writes) made the
+  fifth appear with correct bar heights and weekday initials. With the fixture
+  deleted the whole rail stops rendering and the glance rail reports honest
+  zeros.
+- **The ambient is transform-only.** Over 400 hand-driven ticker ticks the ONLY
+  property that changes on an orb is `transform`; the wave bands take a
+  translate-only `matrix()` and nothing else — no filter, no opacity, no layout
+  property. Ten wave tweens: five `ease:"none"` slides and five `sine.inOut`
+  bobs, all `repeat:-1`. Each band travels exactly its own period — 420, 330,
+  510, 290, 640, directions mixed — which with the unit test's
+  `y(x) === y(x + period)` is the seamless loop.
+- **It pauses when hidden.** All ten tweens report `paused: true` after a
+  `visibilitychange` with `document.hidden` overridden, and `false` again after.
+- **Reduced motion is static and never loads GSAP.** With
+  `prefers-reduced-motion` stubbed, remounting the layer rendered all five bands
+  and created **0 tweens**, wrote no inline style and no transform attribute,
+  and 300 ticks moved nothing.
+- **The hover lift cannot strand a phone.** Both the resting `opacity: 0.45` and
+  the `:hover/:focus-visible → 1` rule live inside one `@media (hover: hover)`
+  block — read out of the served CSS, not the source. On a 375px touch viewport
+  `(hover: hover)` is false and all four glances compute `opacity: 1`. On
+  desktop, with transitions neutralised, the hovered glance computes `1` and its
+  three neighbours `0.45`. The entrance tween's `clearProps: "all"` leaves an
+  EMPTY style attribute, so no inline opacity is left to outrank the rule.
+- **Both alpha sets read.** Wave peak stops resolve to 0.20 / 0.17 / 0.15 / 0.13
+  / 0.11 under `.dark` and 0.17 / 0.15 / 0.125 / 0.11 / 0.09 without it, with
+  the edge stops fully transparent. Orbs carry `filter: none` in both — the
+  softness is the gradient's own stop. "Off" really unmounts the layer.
+- **The sticky guard is live.** At 1440×900 the rail is `position: sticky`,
+  `top: 88px`, `width: 240px`, `max-height: 748px` with `overflow-y: auto`;
+  at 375px it is a static two-column tile grid with no cap.
+- **The band's mobile fix, measured.** At 375px the title column went from 180px
+  to 270px and the action group dropped below it; at 1440px the controls are
+  still alongside. The pile ghosts resolve to near-white at 0.07 / border 0.12
+  over `#151d25` in dark and near-black at 0.035 / 0.06 over white in light.
+
+Blast radius, measured before and after: the fixture created 7 `payment_requests`,
+4 `hoa_requests` and 6 `hoa_units`, all in `demo`, all deleted — the cleanup
+reads each row back and refuses to delete anything whose `organization` is not
+the demo org. `demo-classic` **was never written to**: 0 / 0 / 0 across those
+three collections at every census, and its 5 members untouched. `ai_actions`
+stayed 0 in both.
+
+**A note for Session 11 on verifying anything visual here.** Session 9's finding
+holds and got sharper: the headless pane is not composited, and it additionally
+**cannot rasterise `filter: blur()`** — the wave field photographs as a blank
+ground until the blur is removed, which is how the light alphas looked correct
+when they were not. Also, successive synchronous `gsap.ticker.tick()` calls
+advance almost nothing (the delta is real elapsed time, ~0 between calls); to
+finish a tween, call `tween.progress(1)`. And to read what a CSS rule targets,
+inject `transition: none !important` first — otherwise every computed value is
+a frozen mid-transition sample.
+
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
+
+### Operator TODOs (carried forward until done)
+
 - [ ] **`pnpm install` on every machine/clone** once this lands — the new `prepare`
       script is what installs the husky hooks; without a fresh install the pre-commit
       audit silently does not run.
@@ -1346,6 +1512,10 @@ the balance — Session 8's precedent.
       `pnpm create:boardroom` already created in Session 7; without that
       collection the endpoint returns `{ briefing: null }` and the Know pile
       simply shows fewer rows. It can never draft, so it can never bill.
+- [ ] **Phase 7 polish: nothing to run on prod.** No schema changes, no new
+      collections, no new fields, no new env vars, no `generate:types`, and no
+      new endpoints. Everything the rails read was already being read; the
+      change is that it is now read once.
 - [ ] **Watch the Know pile once briefings are common.** Headline de-duplication
       is text-based by necessity (deviation 7). If real briefings start
       restating notices in wording the normaliser misses, the fix is a
@@ -1568,6 +1738,76 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 11 (Phase 8 — glass sweep + gate flip, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program — this is the LAST session.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find. Note: main is well ahead of origin and deliberately
+unpushed — check with `git rev-list --count origin/main..main` and do not push
+without asking.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1–10 recorded there. Phase 7 is complete: the stacks
+band, the glance rail, the chart rail and the ambient backdrop all ship on
+`DashboardPage.vue`, and the three dashboard chart widgets now read through
+`useHomeGlances` rather than querying for themselves.
+
+This session = Phase 8, the whole of it:
+
+- Sweep the NAMED components, worst-first, guided by a fresh census rather
+  than the plan's counts: `ai/{ActionCard,AiAssistantPanel,AskTheHoa}.vue`,
+  `channels/{ChannelThread,ChannelEditor}.vue`, `dashboard/WidgetCard.vue`
+  (`.dash-widget` → `.ios-card`), `.glass-field` onto workspace inputs (2 call
+  sites today vs Earnest's 208), `.glass-refract` on hero surfaces. Do not
+  sweep wholesale — 361 borders across 102 files is the debt, the named list
+  is the scope, and the gate is what stops it growing.
+- Consolidate `core/app/assets/css/glass.css` into `earnest-ui.css`, keeping
+  `tests/shared/theme-app-tokens.test.ts` green through the move.
+- Verify the custom-property declaration-site trap: no `--glass-focus-*-h`
+  style token whose `:root` declaration bakes the accent fallback; consuming
+  rules must reference `var(--app-accent-h, 220)` directly. Earnest documents
+  this at `themes.css:176-185`.
+- Flip `scripts/audit-hairline-surfaces.ts` BASELINE from 26 to **0** and make
+  `findApplyGlass` block. The husky pre-commit hook from Phase 1 then prevents
+  regressions permanently — which also means a red gate blocks YOUR commits, so
+  flip it last.
+
+Two things already known that will save you time:
+
+1. `.glass-refract` and `.ios-card` are already the material on the two newest
+   surfaces (the Board Room header and the stacks band), by design — they are
+   not sweep targets, they are the reference.
+2. `Home/GlanceRail.vue` and `Home/ChartRail.vue` deliberately draw no borders
+   at all; their separators are a 1px grid gap. Leave them be.
+
+Quality gate: typecheck 0, vitest green, build green, hairline audit green at
+the NEW baseline of 0, and in-browser verification that the swept components
+still render correctly in BOTH light and dark — the light-mode alphas are where
+this codebase keeps getting caught, most recently in Session 10.
+
+Verify with a REAL session on your own dev server (`/api/demo/login`), and
+clean up every row you create afterwards — diff the demo org against
+`demo-classic` to prove the blast radius. `demo-classic` is a CONTROL: never
+write to it. Note the browser-pane limits Session 10 recorded: the pane is not
+composited, it cannot rasterise `filter: blur()`, successive synchronous
+`gsap.ticker.tick()` calls advance almost nothing (use `tween.progress(1)`),
+and to read what a CSS rule targets you must inject
+`transition: none !important` first.
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs),
+and since this closes the program, give me a short wrap-up of what the eleven
+sessions produced and what is still unpushed. Ask before pushing.
 ```
 
 ### Kickoff prompt — Session 10 (Phase 7 polish — rails, ambient, ready to paste)
