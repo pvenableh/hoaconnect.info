@@ -8,10 +8,13 @@
 #      instead of the shared `.ios-card`. The liquid-glass sweep replaced the 1px
 #      card border with a refracted rim, but it did that work INSIDE `.ios-card`,
 #      so every component painting its own box kept the pre-glass look and
-#      nothing flagged it. Currently a RATCHET at 26: it blocks NEW debt while
-#      the 361-border sweep happens component by component. Phase 8 of
-#      docs/plan-earnest-parity-round2.md flips it to a gate at 0.
+#      nothing flagged it. A GATE AT 0 since Phase 8: it landed as a ratchet at
+#      26 because a gate at 0 before the sweep would just have been switched
+#      off, the sweep is done, and this is now what keeps the remaining
+#      `t-border` pile from growing back.
 #      ⚠️ Never raise BASELINE to make a commit pass — that is the one rule.
+#      A box that genuinely needs its own hairline gets tagged
+#      `allow-hairline-surface`, with the reason, in a comment above it.
 #
 #   2. A `glass-*` class inside an `@apply`. These are plain CSS, not Tailwind
 #      utilities: the dev server tolerates them and `pnpm build` fails with

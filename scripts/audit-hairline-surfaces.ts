@@ -42,10 +42,13 @@
  * Anything genuinely needing its own hairline can be tagged
  * `allow-hairline-surface` in a comment within 6 lines above.
  *
- * RATCHET, NOT A GATE — for now. BASELINE starts at the census taken when this
- * landed, so it blocks NEW debt immediately while the 361-border sweep happens
- * component by component. Phase 8 of docs/plan-earnest-parity-round2.md flips it
- * to 0.
+ * A GATE AT ZERO, as of Phase 8. It landed as a ratchet at 26 — the census the
+ * day it was written — because a gate at 0 on day one, with the sweep not yet
+ * done, would simply have been switched off. The sweep is done: 26 findings
+ * converted, tagged or correctly excluded, and BASELINE is 0. From here the
+ * `.husky/pre-commit` hook refuses any commit that adds a hand-rolled card
+ * surface, which is the only thing that keeps the remaining `t-border` pile
+ * from growing back.
  *
  * Usage:
  *   pnpm audit:hairline-surfaces           # report
@@ -60,23 +63,26 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * Current count. Lower it as surfaces get converted; NEVER raise it to make a
- * commit pass — that is the one rule a ratchet has.
+ * NEVER raise this. It is 0, and a finding is now a failed commit rather than a
+ * number to nudge — the escape hatch below (`allow-hairline-surface`, with a
+ * reason) exists precisely so that raising it is never the answer.
  *
- * 2026-08-24 — **26**, the census the day this landed. Unlike Earnest's (which
- * arrived at 0 after its sweep), this starts as a ratchet rather than a gate:
- * the sweep here has not happened yet, and a gate at 0 on day one would just
- * get switched off. Phase 8 of docs/plan-earnest-parity-round2.md does the sweep
- * and flips this to 0.
+ * 2026-08-24 — landed at **26**, the census that day.
+ * 2026-08-25 — **0**, after Phase 8. Where the 26 went: 12 converted to
+ * `ios-card`, 3 status banners recoloured onto their own semantic border (which
+ * takes them out of scope, since the rule wants a THEME border colour), 5
+ * tagged `allow-hairline-surface` (3 photo wells, 2 tippy mention popups), and
+ * 6 that were never findings — 5 marketing app-window mocks and one shadcn
+ * dialog — released by fixing FLOATING, which had been ported knowing Earnest's
+ * shadow spelling and not this app's.
  *
- * The numbers are the argument for why this is a script and not a
- * find-and-replace: 361 raw `t-border` hits across 102 files, of which 26 are
- * genuine hand-rolled card surfaces and 41 were correctly excluded by the rules
- * below — 31 controls, 4 foreign chrome, 2 floating layers, 2 chips, 1
- * functional border, 1 form field. Everything else is a DIVIDER (`border-b
- * t-border`), which is not a box at all.
+ * The numbers are still the argument for why this is a script and not a
+ * find-and-replace: 361 raw `t-border` hits across 102 files, of which 26 were
+ * genuine hand-rolled card surfaces. Everything else is a DIVIDER (`border-b
+ * t-border`), a control, a floating layer or a chip — and the pile of dividers
+ * is exactly what a find-and-replace would have wrecked.
  */
-const BASELINE = 26;
+const BASELINE = 0;
 
 /** The shared surfaces. Their own definitions are what a sweep would fix. */
 const PRIMITIVES = ["core/app/assets/css/", "app/assets/css/"];
@@ -117,9 +123,30 @@ const FUNCTIONAL_BORDER = /(hover|focus|focus-within|active|group-hover|data-\[[
  * one of these leaves the surface with no border and no rim — strictly worse
  * than the hairline it replaced. Earnest's first sweep did exactly that to 13
  * surfaces before the conflict was caught.
+ *
+ * TWO GAPS CLOSED IN PHASE 8, both the same porting bug as the `border` /
+ * `t-border` one in FULL_BORDER — the ported regex knew Earnest's spelling and
+ * not this app's:
+ *
+ *   • `t-shadow-*`, this app's own shadow classes (theme.css:812-814). They are
+ *     UNLAYERED — verified by brace-matching, not assumed — so they beat `@layer
+ *     components` outright, which makes ANY weight of them a hard disqualifier
+ *     rather than only the heavy ones. Five marketing mocks (app-window frames
+ *     on the property-managers page) sat in the census wearing `t-shadow-lg` and
+ *     reading as hand-rolled cards.
+ *   • A stacked layer that is `relative`, not `absolute`. `DialogScrollContent`
+ *     is `relative z-50 … shadow-lg` inside a fixed overlay: floating by any
+ *     reading, invisible to a rule that only looks for `absolute|fixed|sticky`.
+ *     A z-index utility next to a `shadow-lg` is the signal — page surfaces do
+ *     not carry one.
  */
-const FLOATING =
-  /\bbg-popover\b|\bshadow-(xl|2xl)\b|\b(absolute|fixed|sticky)\b[^"]*\bshadow-lg\b|\bshadow-lg\b[^"]*\b(absolute|fixed|sticky)\b/;
+const SHADOW_HEAVY = /\bshadow-(xl|2xl)\b|\bt-shadow-(sm|md|lg|xl|2xl)\b/;
+const SHADOW_LG = /\bshadow-lg\b/;
+const STACKED = /\b(absolute|fixed|sticky)\b|\bz-\d+\b/;
+const FLOATING = (line: string) =>
+  /\bbg-popover\b/.test(line) ||
+  SHADOW_HEAVY.test(line) ||
+  (SHADOW_LG.test(line) && STACKED.test(line));
 
 /**
  * A form field's class list, not a card's.
@@ -274,7 +301,7 @@ for (const file of files) {
 
     if (ownerIsControl(raw, i)) return void (skipped.control += 1);
     if (FUNCTIONAL_BORDER.test(line)) return void (skipped.functional += 1);
-    if (FLOATING.test(line)) return void (skipped.floating += 1);
+    if (FLOATING(line)) return void (skipped.floating += 1);
     if (FORM_FIELD.test(line)) return void (skipped.field += 1);
     if (FOREIGN_CHROME.test(line)) return void (skipped.foreign += 1);
     if (CHIP_SIZED.test(line)) return void (skipped.chip += 1);
