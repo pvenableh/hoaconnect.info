@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { Switch } from "@/components/ui/switch";
 
 const props = defineProps<{
   channelId: string;
@@ -12,12 +13,28 @@ const isOpen = defineModel<boolean>("open", { default: false });
 
 const { list: listChannelMembers } = useDirectusItems("hoa_channel_members");
 const { list: listMembers } = useDirectusItems("hoa_members");
+const { user } = useDirectusAuth();
 
 const members = ref<any[]>([]);
 const orgMembers = ref<any[]>([]);
 const loading = ref(false);
 const query = ref("");
 const busyUser = ref<string | null>(null);
+
+/**
+ * The caller's own notification setting for this channel.
+ *
+ * `notifications_enabled` has been honoured by `channel-unread.ts` since Phase 3
+ * — a muted channel reports its own count but is left out of the total — and
+ * until now nothing in the app could set it.
+ *
+ * Defaults to unmuted when there is no membership row, which is the honest
+ * reading: an admin who sees this channel org-wide has no row until they
+ * interact with it, and no row has never meant "muted". The endpoint creates
+ * the row on the first toggle.
+ */
+const muted = ref(false);
+const muteBusy = ref(false);
 
 const loadMembers = async () => {
   loading.value = true;
@@ -27,6 +44,7 @@ const loadMembers = async () => {
         "id",
         "role",
         "hoa_member",
+        "notifications_enabled",
         "user.id",
         "user.first_name",
         "user.last_name",
@@ -37,6 +55,10 @@ const loadMembers = async () => {
       sort: ["role", "date_created"],
       limit: -1,
     })) as any[];
+    const mine = members.value.find((m) => m.user?.id && m.user.id === user.value?.id);
+    // `!== false` rather than a truthy test: the column is nullable, and a null
+    // there means "never set", which is not muted.
+    muted.value = mine ? mine.notifications_enabled === false : false;
   } catch (e) {
     console.error("Error loading channel members:", e);
   } finally {
@@ -111,6 +133,25 @@ const invite = async (orgMember: any) => {
   }
 };
 
+const toggleMute = async (next: boolean) => {
+  const previous = muted.value;
+  muted.value = next; // optimistic — the switch should not lag the tap
+  muteBusy.value = true;
+  try {
+    await $fetch(`/api/hoa/channels/${props.channelId}/mute`, {
+      method: "POST",
+      body: { muted: next },
+    });
+    toast.success(next ? "Notifications muted" : "Notifications on");
+    await loadMembers();
+  } catch (e: any) {
+    muted.value = previous;
+    toast.error(e?.data?.message || "Couldn't change notifications");
+  } finally {
+    muteBusy.value = false;
+  }
+};
+
 const removeMember = async (member: any) => {
   busyUser.value = member.user?.id || member.id;
   try {
@@ -157,6 +198,35 @@ watch(isOpen, (open) => {
           }}
         </DialogDescription>
       </DialogHeader>
+
+      <!-- Your own notification setting for this channel. Above the roster on
+           purpose: this row is about you, everything below it is about other
+           people, and a personal setting filed under a list of names is one
+           nobody finds. -->
+      <div class="ios-card flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <Icon
+            :name="muted ? 'lucide:bell-off' : 'lucide:bell'"
+            class="w-4 h-4 shrink-0 t-text-muted"
+          />
+          <div class="min-w-0">
+            <p class="text-sm t-text">Notifications</p>
+            <p class="text-xs t-text-muted">
+              {{
+                muted
+                  ? "Muted — new messages still show a count here, but never in your badge."
+                  : "New messages count towards your unread badge."
+              }}
+            </p>
+          </div>
+        </div>
+        <Switch
+          :model-value="!muted"
+          :disabled="muteBusy"
+          aria-label="Channel notifications"
+          @update:model-value="toggleMute(!$event)"
+        />
+      </div>
 
       <!-- Current members -->
       <div class="space-y-1 max-h-60 overflow-y-auto">
