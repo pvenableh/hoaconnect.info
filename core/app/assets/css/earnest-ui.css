@@ -73,8 +73,12 @@
 	--glass-rim-top: 0 0% 100% / 0.65;    /* brightest, top-lit hairline */
 	--glass-rim-mid: 0 0% 100% / 0.24;    /* full ring, mid intensity */
 	--glass-rim-bottom: 0 0% 100% / 0.04; /* rim faded to nothing at the bottom */
-	--glass-shade: var(--app-accent-h, 220) 18% 42% / 0.12; /* carries the edge in light */
-	--glass-shadow-h: var(--app-accent-h, 220);
+	/* The shade ring (carries the edge in light) and the lift shadow, split into
+	   their ACCENT-FREE parts. Neither hue lives here — see the declaration-site
+	   trap below for why a `:root` declaration cannot carry one. */
+	--glass-shade-s: 18%;
+	--glass-shade-l: 42%;
+	--glass-shade-a: 0.12;
 	--glass-shadow-s: 24%;
 	--glass-shadow-l: 30%;
 	--glass-shadow-near: 0.10;
@@ -90,14 +94,57 @@
 	--glass-rim-top: 0 0% 100% / 0.26;
 	--glass-rim-mid: 0 0% 100% / 0.10;
 	--glass-rim-bottom: 0 0% 100% / 0.02;
-	--glass-shade: 0 0% 0% / 0; /* shade ring off in dark */
-	--glass-shadow-h: 220;
+	--glass-shade-a: 0; /* shade ring off in dark */
 	--glass-shadow-s: 18%;
 	--glass-shadow-l: 4%;
 	--glass-shadow-near: 0.40;
 	--glass-shadow-far: 0.60;
 }
+
+/* ⚠️ THE DECLARATION-SITE TRAP — why this is a selector LIST and not `:root`.
+ *
+ * A custom property whose value contains `var()` is substituted at computed-value
+ * time ON THE ELEMENT THAT DECLARES IT, and descendants inherit the already-
+ * substituted string. So this, which is what used to be here:
+ *
+ *     :root { --glass-shadow-h: var(--app-accent-h, 220); }
+ *
+ * resolves `--app-accent-h` against `<html>` — once — and every descendant gets
+ * that answer forever. Setting `--app-accent-h` lower down does nothing to it.
+ * That is not hypothetical here: `.accent-emerald` / `.accent-violet` /
+ * `.accent-cyan` sit on PAGE containers (payments, projects, units, channels),
+ * and `applyDocumentAccent` writes the token per active app. Measured in the
+ * browser before this change: inside `.accent-violet`, `--app-accent-h` read 262
+ * while `--glass-shade` still read `195 18% 42% / 0.12` — the root's cyan.
+ *
+ * The fix is to move the declaration onto the SURFACES, where `var(--app-accent-h)`
+ * resolves against that element's own inherited accent. `:root` stays in the list
+ * as the fallback for anything not named here, so a surface left off the list
+ * degrades to today's behaviour (root accent) rather than to no shadow at all.
+ *
+ * ⚠️ ADDING A CONSUMER: any new rule that reads `var(--glass-rim-shadow)`,
+ * `var(--glass-edge-shadow)`, `var(--glass-lift-shadow)` or `var(--glass-shadow-h)`
+ * must add its selector here, or it silently gets the root accent again.
+ * `tests/shared/glass-accent-tokens.test.ts` is the tripwire — it scans the CSS
+ * for consumers and fails on any that this list does not cover.
+ *
+ * The hue is now the accent in BOTH modes; dark no longer pins it to 220. That
+ * is not a behaviour change anyone can see: dark's shade ring is alpha 0, and
+ * dark's lift shadow is 18% saturation at 4% lightness — near-black, where hue
+ * has nowhere to show.
+ */
+.glass-edge,
+.glass-edge--flush,
+.glass-field,
+.glass-surface,
+.glass-active-thumb,
+.glass-btn-soft,
+.ios-card,
+.header-pill,
+.field-underline,
 :root {
+	--glass-shade: var(--app-accent-h, 220) var(--glass-shade-s) var(--glass-shade-l) / var(--glass-shade-a);
+	--glass-shadow-h: var(--app-accent-h, 220);
 	--glass-rim-shadow:
 		inset 0 1px 0 0 hsl(var(--glass-rim-top)),
 		inset 0 0 0 1px hsl(var(--glass-rim-mid)),
@@ -146,7 +193,19 @@
 		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 	}
 
-	/* Recessed-glass form control — same material as the surface it sits in. */
+	/* Recessed-glass form control — same material as the surface it sits in.
+	 *
+	 * ⚠️ DOES NOT REACH A NATIVE `<select>`, and putting it on one is worse than
+	 * leaving it off. theme.css:983 sweeps every native select into the app's
+	 * underline control language with a bare `select { … }` rule, and that rule
+	 * is UNLAYERED — so it beats this one on layer order no matter how much more
+	 * specific `.glass-field` is. The select keeps `border-radius: 0`, its bottom
+	 * hairline and `box-shadow: none`, and all `.glass-field` manages to change
+	 * is to paint an opaque fill behind the underline. Measured in the running
+	 * app during the Phase 8 sweep, on a `<select>`, an `<input>`, a `<textarea>`
+	 * and a `<div>` side by side; the select was the only one that did not take
+	 * the rim. Inputs, textareas and plain containers are all fine.
+	 */
 	.glass-field {
 		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 55%, transparent);
 		backdrop-filter: blur(10px) saturate(130%);
@@ -496,10 +555,18 @@ a[role='button']:not([data-no-press]):active,
 /* =============================================================================
    FOCUS RINGS — accent-tinted, rounded (form controls manage their own)
 ============================================================================= */
+/* ⚠️ No `border-radius: inherit` here, which is what this rule used to carry.
+ * The intent was "make the focus ring follow the control's shape", but that is
+ * not what the declaration does: `outline` already follows `border-radius` on
+ * its own, and this rule was instead overwriting the ELEMENT'S radius with its
+ * parent's — unlayered, so it beat every `rounded-*` utility. The effect was
+ * that any rounded control inside `.ui-kit` squared off the moment you clicked
+ * into it, then rounded again on blur. Found while measuring the Phase 8 field
+ * sweep: six identical `rounded-lg` inputs in the meetings form reported
+ * `border-radius: 11.25px` and the focused one reported `0px`. */
 .ui-kit *:focus-visible {
 	outline: 2px solid hsl(var(--app-accent-h) 80% 55% / 0.85);
 	outline-offset: 2px;
-	border-radius: inherit;
 }
 .ui-kit input:focus-visible,
 .ui-kit textarea:focus-visible,
