@@ -3,8 +3,8 @@
  *
  * Every realtime subscriber in the app (channels, comments, reactions, and from
  * Phase 2c the notification bell) multiplexes over a SINGLE WebSocket. Before
- * this, each `useDirectusRealtime()` call built its own Directus SDK client and
- * opened its own socket — a channel thread alone opened three, plus one per
+ * this, each realtime composable built its own Directus SDK client and opened
+ * its own socket — a channel thread alone opened three, plus one per
  * expanded message. Directus counts those against its connection limit, and the
  * SDK's shared message reader means concurrent subscriptions on one client race
  * each other for frames.
@@ -26,8 +26,9 @@
  * that competes for frames off the same connection, which is the very thing this
  * manager exists to avoid.
  *
- * Direct use is rare — prefer the adapters (`useRealtimeSubscription`,
- * `useDirectusRealtime`, `useDirectusWebSocket`), which handle scope cleanup.
+ * Direct use is fine, but `useRealtimeSubscription` and
+ * `useDirectusSubscription` wrap it with REST baseline + scope cleanup and are
+ * usually what a component wants.
  */
 
 export interface WsSubscriptionQuery {

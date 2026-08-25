@@ -4,6 +4,11 @@
  * Provides a reactive way to subscribe to Directus collections with
  * automatic state management for items, loading, and errors.
  *
+ * Rides `useWebSocketManager()` — the one shared connection — directly. It used
+ * to reach it through `useDirectusRealtime`, an adapter that existed only to
+ * keep old call sites compiling through the Phase 2a cutover; that adapter is
+ * gone and this was its last caller.
+ *
  * Usage:
  * const { items, loading, error, refresh, start, stop } = useDirectusSubscription<Task>('tasks', {
  *   fields: ['id', 'title', 'status'],
@@ -26,7 +31,9 @@ export function useDirectusSubscription<T = any>(
   collection: string,
   options?: SubscriptionOptions
 ) {
-  const { subscribe, unsubscribe, isConnected, connectionError: wsError } = useDirectusRealtime()
+  const manager = useWebSocketManager()
+  const { loggedIn } = useUserSession()
+  const { isConnected, connectionError: wsError } = manager
   const items = useDirectusItems<T>(collection)
 
   // State
@@ -70,17 +77,26 @@ export function useDirectusSubscription<T = any>(
       // Fetch initial data first
       await fetchInitialData()
 
-      // Then subscribe for updates
-      unsubscribeFn = await subscribe(
+      if (!loggedIn.value) {
+        throw new Error('Authentication required for realtime subscriptions')
+      }
+
+      // Then subscribe for updates, on the one shared socket. `init` is the
+      // subscription's opening payload and is skipped: `fetchInitialData`
+      // above has already established the baseline over REST.
+      const { unsubscribe } = manager.subscribe(
         collection,
-        (event, eventData) => {
-          handleEvent(event, eventData)
-        },
         {
-          fields: options?.fields,
-          filter: options?.filter
+          fields: options?.fields || ['*'],
+          filter: options?.filter || null,
+          sort: null
+        },
+        (event, eventData) => {
+          if (event === 'init') return
+          handleEvent(event as 'create' | 'update' | 'delete', eventData as T | T[])
         }
       )
+      unsubscribeFn = unsubscribe
 
       isSubscribed.value = true
     } catch (e: any) {

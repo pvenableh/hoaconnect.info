@@ -3,9 +3,8 @@
  *
  * Fetches the baseline over REST, then keeps it live off the shared WebSocket.
  *
- * ADAPTER (Parity Round 2, Phase 2a). Public surface unchanged; it now talks to
- * `useWebSocketManager()` directly instead of building its own connection via
- * `useDirectusRealtime()`. Two consequences worth knowing:
+ * Talks to `useWebSocketManager()` directly (Parity Round 2, Phase 2a) rather
+ * than building its own connection. Two consequences worth knowing:
  *
  * - Identical collection+fields+filter+sort across components share ONE
  *   server-side subscription (the manager deduplicates), so mounting the same
