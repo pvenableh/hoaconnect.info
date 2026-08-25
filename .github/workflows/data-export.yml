@@ -1,4 +1,4 @@
-# HOA Connect — Data Trust export worker (every 15 minutes)
+# HOA Connect — Data Trust export worker (on dispatch, plus hourly)
 #
 # "Take your data" in Settings → Your data only QUEUES a row; this builds the
 # archive. The Settings page promises "you can close this page — we'll keep
@@ -60,9 +60,6 @@ jobs:
       DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
       APP_URL: https://app.hoaconnect.info
       EXPORT_FOLDER_NAME: Data exports
-      # Staging lives on the runner's work volume (~14 GB), not the smaller
-      # root filesystem the system temp dir sits on.
-      EXPORT_WORK_DIR: ${{ runner.temp }}/hoa-export
       # Recorded on the manifest as the build that produced the archive.
       NUXT_PUBLIC_BUILD_ID: ${{ github.sha }}
     steps:
@@ -88,6 +85,13 @@ jobs:
         # straight into a run block is a script-injection shape, write access or
         # not.
         env:
+          # ⚠️ Set HERE, not in the job-level `env:`. The `runner` context is not
+          # available to job-level env (only github/needs/strategy/matrix/vars/
+          # secrets/inputs are) — using it there is a workflow VALIDATION error,
+          # so the file parses locally as fine YAML and GitHub refuses to run it.
+          # Staging goes on the runner's work volume (~14 GB), not the smaller
+          # root filesystem the system temp dir sits on.
+          EXPORT_WORK_DIR: ${{ runner.temp }}/hoa-export
           DRY_RUN: ${{ inputs.dry_run }}
           ONLY_JOB: ${{ inputs.job }}
         run: |
