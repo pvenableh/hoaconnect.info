@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
               "state",
               "zip",
               {
-                settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
+                settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"],
               },
             ],
           },

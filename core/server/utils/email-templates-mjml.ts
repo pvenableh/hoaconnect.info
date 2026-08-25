@@ -1008,8 +1008,38 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
   const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
   const homepageLabel = homepageUrl ? homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
 
+  // --- Theme ---------------------------------------------------------------
+  // Unlike the email, this is a real browser page: the web font ALWAYS loads,
+  // so an org's display face finally renders for everyone rather than only for
+  // the half on Apple Mail.
+  //
+  // `WEB_VIEW_STACK` is the Avenir stack this page has always used, and it stays
+  // exactly that for an org with no theme — the page is a deliberate imitation
+  // of the 1033/SendGrid layout and an unthemed org must not drift off it.
+  const settings = organization.settings as BlockSetting | null | undefined;
+  const fonts = resolveEmailFonts(settings);
+  const themed = fonts.webFonts.length > 0;
+  const WEB_VIEW_STACK = "Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  const bodyFamily = themed ? fonts.body : WEB_VIEW_STACK;
+  const headingFamily = themed ? fonts.heading : WEB_VIEW_STACK;
+  const fontLinks = fonts.webFonts
+    .map((f) => `\n  <link rel="stylesheet" href="${f.href}">`)
+    .join("");
+
+  // The org's primary tints the subject and the rule under it. Everything else
+  // stays the page's editorial grey, so the brand reads as an accent rather
+  // than a repaint. `urgent` still wins outright — see the alert rule.
+  //
+  // Both are emitted as EMPTY strings when the org has no theme/palette, so an
+  // unthemed org's page comes out byte-identical to before this was themed.
+  const palette = Array.isArray(settings?.colors) ? settings?.colors[0] : null;
+  const brand = normalizeHexColor(palette?.primary);
+  const headingCss = themed ? `font-family:${headingFamily}; ` : "";
+  const subjectColorCss = urgent ? "color: red; " : brand ? `color: ${brand}; ` : "";
+  const ruleColor = brand ? `${brand}33` : "lightgrey";
+
   // Process content with styling for headings and paragraphs
-  const processedContent = processHtmlForEmail(content);
+  const processedContent = processHtmlForEmail(content, headingFamily);
 
   // Build board members HTML
   let boardMembersHtml = "";
@@ -1022,7 +1052,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
             <tbody>
               <tr>
                 <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
-                  <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:left;color:#666666;">
+                  <div style="font-family:${bodyFamily};font-size:10px;line-height:1;text-align:left;color:#666666;">
                     <p style="letter-spacing: 0.25em; font-weight: 700; text-transform: uppercase; margin: 0; padding: 8px 0;">
                       ${member.name}
                       <span style="display:block;font-size: 7px; line-height: 12px;">${formatTitle(member.title)}</span>
@@ -1043,12 +1073,12 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
 <head>
   <title>${subject}</title>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">${fontLinks}
   <style type="text/css">
-    body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;font-family:${bodyFamily}; }
     table, td { border-collapse:collapse; }
     p { display:block;margin:13px 0; }
-    .avenir { font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .avenir { font-family:${bodyFamily}; }
     @media only screen and (min-width:480px) {
       .mj-column-per-100 { width:100% !important; max-width: 100%; }
       .mj-column-per-50 { width:50% !important; max-width: 50%; }
@@ -1083,10 +1113,10 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                                       <td>
                                         ${logoUrl
                                           ? `<img height="auto" src="${logoUrl}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;max-width:150px;margin-bottom:10px;" width="150">`
-                                          : `<span style="display: inline-block; font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-decoration: none; color: #666666; letter-spacing: 0.15em; font-weight: 700; font-size: 16px; line-height:20px; text-transform: uppercase;">${orgName}</span>`
+                                          : `<span style="display: inline-block; font-family:${themed ? headingFamily : bodyFamily}; text-decoration: none; color: #666666; letter-spacing: 0.15em; font-weight: 700; font-size: 16px; line-height:20px; text-transform: uppercase;">${orgName}</span>`
                                         }
                                         ${processedHeaderText
-                                          ? `<div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align:center; color:#888888; letter-spacing:0.25em; font-weight:700; font-size:9px; line-height:14px; text-transform:uppercase; margin-top:6px;">${processedHeaderText}</div>`
+                                          ? `<div style="font-family:${bodyFamily}; text-align:center; color:#888888; letter-spacing:0.25em; font-weight:700; font-size:9px; line-height:14px; text-transform:uppercase; margin-top:6px;">${processedHeaderText}</div>`
                                           : ""
                                         }
                                       </td>
@@ -1123,12 +1153,9 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
-                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1;text-align:center;color:#666666;">
-                                  ${urgent
-                                    ? `<h3 style="font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase; color: red; margin: 0; padding: 0 0 10px 0;" class="avenir">🚨 ${subject}</h3>`
-                                    : `<h3 style="font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase; margin: 0; padding: 0 0 10px 0;" class="avenir">${subject}</h3>`
-                                  }
-                                  ${subtitle ? `<h5 style="font-weight: 700; line-height: 16px; font-size: 14px; text-transform: uppercase; margin: 0; padding: 0;" class="avenir">${subtitle}</h5>` : ""}
+                                <div style="font-family:${bodyFamily};font-size:13px;line-height:1;text-align:center;color:#666666;">
+                                  <h3 style="${headingCss}font-weight: 700; line-height: 22px; font-size: 20px; text-transform: uppercase; ${subjectColorCss}margin: 0; padding: 0 0 10px 0;" class="avenir">${urgent ? `🚨 ${subject}` : subject}</h3>
+                                  ${subtitle ? `<h5 style="${headingCss}font-weight: 700; line-height: 16px; font-size: 14px; text-transform: uppercase; margin: 0; padding: 0;" class="avenir">${subtitle}</h5>` : ""}
                                 </div>
                               </td>
                             </tr>
@@ -1160,7 +1187,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" style="font-size:0px;padding:0px 10px;word-break:break-word;">
-                                <p style="border-top:solid 1px lightgrey;font-size:1px;margin:0px auto;width:100%;"></p>
+                                <p style="border-top:solid 1px ${ruleColor};font-size:1px;margin:0px auto;width:100%;"></p>
                               </td>
                             </tr>
                           </tbody>
@@ -1187,7 +1214,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                   <tbody>
                     <tr>
                       <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
-                        <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1.6;text-align:left;color:#666666;">
+                        <div style="font-family:${bodyFamily};font-size:13px;line-height:1.6;text-align:left;color:#666666;">
                           ${processedContent}
                         </div>
                       </td>
@@ -1216,7 +1243,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="left" class="avenir" style="font-size:0px;padding:0 10px;word-break:break-word;">
-                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:13px;line-height:1;text-align:left;color:#666666;">
+                                <div style="font-family:${bodyFamily};font-size:13px;line-height:1;text-align:left;color:#666666;">
                                   <p style="font-weight: 400; line-height: 1.6em; margin: 0; padding: 0 0 10px 0;" class="avenir">${finalSalutation},</p>
                                   <p style="font-weight: 500; line-height: 1.6em; margin: 0; padding: 0;" class="avenir">${orgName} Team ☀️</p>
                                 </div>
@@ -1236,7 +1263,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" style="font-size:0px;padding:40px 10px 0px;word-break:break-word;">
-                                <p style="border-top:solid 1px lightgrey;font-size:1px;margin:0px auto;width:100%;"></p>
+                                <p style="border-top:solid 1px ${ruleColor};font-size:1px;margin:0px auto;width:100%;"></p>
                               </td>
                             </tr>
                           </tbody>
@@ -1267,7 +1294,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" style="font-size:0px;padding:10px 25px;padding-top:0px;padding-bottom:10px;word-break:break-word;">
-                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
+                                <div style="font-family:${bodyFamily};font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
                                   <span style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">${orgName}</span>
                                 </div>
                               </td>
@@ -1281,7 +1308,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                           <tbody>
                             <tr>
                               <td align="center" style="font-size:0px;padding:10px 25px;padding-top:0px;padding-bottom:10px;word-break:break-word;">
-                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
+                                <div style="font-family:${bodyFamily};font-size:10px;line-height:1;text-align:center;text-transform:uppercase;color:#666666;">
                                   <a href="tel:${organization.phone}" style="text-decoration: none; color: #666666; letter-spacing: 0.5em; font-weight: 700">${organization.phone}</a>
                                 </div>
                               </td>
@@ -1315,10 +1342,10 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                             <tr>
                               <td align="center" style="font-size:0px;padding:10px 25px;padding-top:15px;padding-bottom:0px;word-break:break-word;">
                                 ${homepageUrl
-                                  ? `<div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:9px;font-weight:700;letter-spacing:0.25em;line-height:1;text-align:center;text-transform:uppercase;color:#666666;padding-bottom:12px;"><a href="${homepageUrl}" style="color:#666666;text-decoration:none;">${homepageLabel}</a></div>`
+                                  ? `<div style="font-family:${bodyFamily};font-size:9px;font-weight:700;letter-spacing:0.25em;line-height:1;text-align:center;text-transform:uppercase;color:#666666;padding-bottom:12px;"><a href="${homepageUrl}" style="color:#666666;text-decoration:none;">${homepageLabel}</a></div>`
                                   : ""
                                 }
-                                <div style="font-family:Avenir, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;font-size:8px;font-weight:700;letter-spacing:0.3em;line-height:1;text-align:center;text-decoration:none;text-transform:uppercase;color:#666666;">
+                                <div style="font-family:${bodyFamily};font-size:8px;font-weight:700;letter-spacing:0.3em;line-height:1;text-align:center;text-decoration:none;text-transform:uppercase;color:#666666;">
                                   © ${year} ${organization.legal_name || orgName}
                                 </div>
                               </td>

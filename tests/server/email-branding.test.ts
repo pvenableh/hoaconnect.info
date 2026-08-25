@@ -18,6 +18,7 @@ import {
   resolveEmailTypeStyle,
   resolveEmailFonts,
   buildEmailHtml,
+  buildWebViewHtml,
   type EmailType,
 } from "#core/server/utils/email-templates-mjml";
 
@@ -312,5 +313,63 @@ describe("buildEmailHtml uses the org palette", () => {
     });
     expect(html).toContain("#14532d");
     expect(html).toContain("#22c55e");
+  });
+});
+
+describe("buildWebViewHtml follows the theme", () => {
+  const common = {
+    subject: "A subject",
+    content: "<h2>Heading</h2><p>Body</p>",
+    directusUrl: "https://directus.example",
+    emailType: "notice" as EmailType,
+  };
+
+  it("an unthemed org keeps the page's own Avenir stack and grey rules", () => {
+    const html = buildWebViewHtml({ ...common, organization: org() });
+    expect(html).toContain("Avenir, -apple-system");
+    expect(html).toContain("border-top:solid 1px lightgrey;");
+    expect(html).not.toContain("fonts.googleapis.com");
+  });
+
+  it("a themed org links the web font and uses it — this page is a browser, so it always loads", () => {
+    const html = buildWebViewHtml({ ...common, organization: org({ theme: "classic" }) });
+    expect(html).toContain('<link rel="stylesheet" href="https://fonts.googleapis.com');
+    expect(html).toContain("Playfair+Display");
+    expect(html).toContain("Mulish");
+    expect(html).toMatch(/<h3 style="font-family:'Playfair Display'/);
+    expect(html).not.toContain("Avenir");
+  });
+
+  it("the org's primary tints the subject and the rule, not the whole page", () => {
+    const html = buildWebViewHtml({
+      ...common,
+      organization: org({ theme: "classic", colors: [{ primary: "#454545", secondary: "#8b7355", accent: "#c9a96e" }] }),
+    });
+    expect(html).toContain("color: #454545;");
+    expect(html).toContain("border-top:solid 1px #45454533;");
+    // the editorial grey survives everywhere else
+    expect(html).toContain("#666666");
+  });
+
+  it("urgent still overrides the brand colour outright", () => {
+    const html = buildWebViewHtml({
+      ...common,
+      urgent: true,
+      organization: org({ theme: "classic", colors: [{ primary: "#454545", secondary: "#8b7355", accent: "#c9a96e" }] }),
+    });
+    expect(html).toContain("color: red;");
+    expect(html).toContain("🚨");
+  });
+
+  it("renders the logo slot when set, and the org name only when it is not", () => {
+    const withLogo = buildWebViewHtml({ ...common, organization: org({ theme: "classic", logo: "file-abc" }) });
+    expect(withLogo).toContain("/assets/file-abc");
+    expect(withLogo).not.toMatch(/letter-spacing: 0\.15em/);
+
+    const without = buildWebViewHtml({ ...common, organization: org({ theme: "classic" }) });
+    expect(without).not.toContain("/assets/");
+    expect(without).toMatch(/letter-spacing: 0\.15em/);
+    // the name stands in for the logo, so it takes the heading face
+    expect(without).toContain("font-family:'Playfair Display'");
   });
 });

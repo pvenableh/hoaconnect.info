@@ -2950,9 +2950,40 @@ properly quoted stack on its own.
 
 `heading_font` / `body_font` on `block_settings` remain unused — they hold only
 `serif | sans-serif`, which is not a pairing. The theme is the better key.
-`buildWebViewHtml` still uses its own Avenir stack; the "view in browser" page
-is a deliberate imitation of the 1033/SendGrid layout and changing it is a
-separate design decision.
+
+### The "view in browser" page joined the theme system — DONE 2026-08-25
+
+`buildWebViewHtml` was the one branded surface still on hardcoded Avenir and
+flat greys. It now takes the same theme:
+
+- **Typography per theme**, and unlike email this is a real browser page — the
+  web font ALWAYS loads, so an org's display face finally renders for everyone
+  rather than only the half on Apple Mail.
+- **The org's primary tints the subject line and the rule beneath it**, at `33`
+  alpha for the rule. Everything else keeps the page's editorial grey, so the
+  brand reads as an accent rather than a repaint. `urgent` still overrides the
+  brand outright and stays red.
+- **The logo slot is unchanged in precedence**: the logo renders when set, and
+  the org name stands in only when it is not — in which case the name takes the
+  heading face, since it is standing in for the wordmark.
+
+An unthemed org's page is **byte-identical** to before: the Avenir stack, the
+`lightgrey` rules and the `avenir` class all survive, because the themed CSS is
+emitted as empty strings rather than as overrides. Re-verified against the same
+72-hash baseline taken before this whole round.
+
+⚠️ **The field-list trap bit a THIRD time, on the very endpoint this was about.**
+`core/server/api/email/view/[id].get.ts` — the only caller of
+`buildWebViewHtml`, and what the public `/{slug}/announcements/email/{id}` page
+iframes — was missing BOTH `colors` and `theme`, so the whole feature would have
+been invisible on the real page while every unit test passed. Verified by
+rendering a real 1033 email (`965356e2`, "Swiftlane Installation Complete")
+through the live endpoint: Playfair + Mulish linked, ink subject, gold-tinted
+rule, logo from the slot, no Avenir.
+
+**If you take one thing from this round:** a settings-driven email feature is
+not done when the renderer is right. It is done when every settings field list
+that feeds a renderer asks for the new column. There are now seven of them.
 
 ⚠️ `BlockSetting["theme"]` is generated as `"classic" | "modern"` but the column
 really holds `"luxury"` (605 Lincoln is on it, and the branding form offers it).
