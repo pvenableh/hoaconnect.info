@@ -328,11 +328,6 @@ export default defineNuxtConfig({
       // Per-deploy build identity baked into the client bundle. Compared against the
       // live value from GET /api/version to detect that a new version has shipped.
       buildId,
-      // Phase 2c bell cutover. ON unless explicitly disabled: the v2 store over
-      // `directus_notifications` is the shipping bell, and `false` restores the
-      // pre-2c client-side aggregator (10 collection scans, localStorage read
-      // state) without needing new code deployed. Retired one release after 2c.
-      bellV2: process.env.NUXT_PUBLIC_BELL_V2 !== "false",
       // Web push applicationServerKey. Public by definition — it ships to every
       // browser that subscribes. Empty ⇒ push is disabled (see vapidPrivateKey).
       vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || "",
