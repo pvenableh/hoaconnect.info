@@ -1,0 +1,46 @@
+# HOA Connect — weekly stale-proposal sweep
+#
+# Flips `pending` ai_actions older than AI_ACTION_EXPIRY_DAYS (default 14) to
+# `rejected`, tagged `auto-expired`. A queue where a six-week-old proposal sits
+# next to this morning's, both looking equally live, is a queue nobody works.
+# See docs/ai-action-expiry-cron.md.
+#
+# Weekly, not nightly: the window is a fortnight, so a nightly run can only ever
+# find the handful of rows that crossed the line in the last 24 hours.
+name: ai action expiry
+
+on:
+  schedule:
+    - cron: "40 7 * * 0" # Sundays, 07:40 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Count what would expire, change nothing"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ai-action-expiry
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: POST /api/ai/actions/expire-stale
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Expire stale proposals
+        # The body is built in shell, not in a ${{ }} expression: a JSON
+        # literal inside one contains ": " and silently makes the whole file
+        # unparseable — and an unparseable workflow never runs at all.
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          body='{}'
+          if [ "$DRY_RUN" = "true" ]; then body='{"dryRun": true}'; fi
+          curl -sS --fail-with-body --max-time 300 -w '\n' \
+            -X POST https://app.hoaconnect.info/api/ai/actions/expire-stale \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H 'content-type: application/json' \
+            -d "$body"

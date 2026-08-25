@@ -1,0 +1,48 @@
+# HOA Connect — nightly AI notices sweep
+#
+# Deterministic and free: the notices engine reads the community's own rows and
+# does arithmetic, with NO LLM call anywhere, so a nightly sweep of every org
+# spends no AI credits. See docs/ai-notices-cron.md.
+#
+# This one never needed a checkout — it is a curl at the deployed app. It lives
+# here rather than on the droplet only so that all four scheduled jobs are in
+# one place, with one run history to read when something did not fire.
+name: ai notices sweep
+
+on:
+  schedule:
+    # Nightly at 07:10 UTC. Nightly and not hourly: the thresholds are measured
+    # in days, so a second run the same day can only find what the first handled.
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Compute and report, notify nobody, write no history"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ai-notices
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: POST /api/ai/notices/check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sweep every community
+        # The body is built in shell, not in a ${{ }} expression: a JSON
+        # literal inside one contains ": " and silently makes the whole file
+        # unparseable — and an unparseable workflow never runs at all.
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          body='{}'
+          if [ "$DRY_RUN" = "true" ]; then body='{"dryRun": true}'; fi
+          curl -sS --fail-with-body --max-time 600 -w '\n' \
+            -X POST https://app.hoaconnect.info/api/ai/notices/check \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H 'content-type: application/json' \
+            -d "$body"

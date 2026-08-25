@@ -1,0 +1,80 @@
+# HOA Connect — Data Trust export worker (every 15 minutes)
+#
+# "Take your data" in Settings → Your data only QUEUES a row; this builds the
+# archive. The Settings page promises "you can close this page — we'll keep
+# going", and this workflow is what makes that true.
+#
+# Previously documented as a droplet crontab, but the droplet has no node
+# service and no checkout. The worker needs neither: it reaches Directus over
+# REST, so it only needs a machine with the repo, node and scratch disk.
+# See docs/data-export-cron.md.
+name: data export worker
+
+on:
+  schedule:
+    # Every 15 minutes. The run exits in about a second when the queue is empty,
+    # so the cost of a quiet tick is the checkout and install, not the worker.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List the queue and what would be purged, write nothing"
+        type: boolean
+        default: true
+      job:
+        description: "Build one specific hoa_data_exports row (optional)"
+        type: string
+        required: false
+
+concurrency:
+  # The worker's pid lock guards one machine. On ephemeral runners every run is
+  # a fresh machine, so the lock can never see a sibling — THIS is what stops
+  # two ticks building the same job.
+  group: data-export-worker
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Build queued archives
+    runs-on: ubuntu-latest
+    # Well under the worker's own 6-hour stale-job release, so a run killed by
+    # this timeout is always reclaimed by a later tick rather than wedging the
+    # org's queue.
+    timeout-minutes: 60
+    env:
+      DIRECTUS_URL: https://admin.hoaconnect.info
+      DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
+      APP_URL: https://app.hoaconnect.info
+      EXPORT_FOLDER_NAME: Data exports
+      # Staging lives on the runner's work volume (~14 GB), not the smaller
+      # root filesystem the system temp dir sits on.
+      EXPORT_WORK_DIR: ${{ runner.temp }}/hoa-export
+      # Recorded on the manifest as the build that produced the archive.
+      NUXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # NOT --prod: the worker runs through tsx and uses archiver, both
+        # devDependencies.
+        run: pnpm install --frozen-lockfile
+
+      - name: Run the export worker
+        # Inputs go through env and stay quoted: interpolating ${{ inputs.job }}
+        # straight into a run block is a script-injection shape, write access or
+        # not.
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          ONLY_JOB: ${{ inputs.job }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ -n "$ONLY_JOB" ]; then args+=(--job "$ONLY_JOB"); fi
+          pnpm run export:worker -- "${args[@]}"

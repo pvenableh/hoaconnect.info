@@ -1,0 +1,66 @@
+# HOA Connect — notification digest (hourly)
+#
+# This used to be documented as a droplet crontab. The droplet runs three
+# containers — postgis, redis, directus — with no node service and no checkout,
+# so that worker never had anywhere to run. It does not need one: the worker is
+# a pure HTTP client (Directus SDK over REST + SendGrid REST), so any runner
+# with the repo and node can do the job. See docs/notification-digest-cron.md.
+#
+# Idempotent-by-hour: a run emails only the members whose cadence and local
+# send-hour match the CURRENT hour in DIGEST_TZ, so firing 24×/day still sends
+# each member at most one digest per day.
+name: notification digest
+
+on:
+  schedule:
+    # :07 rather than :00 — the top of the hour is the most contended slot on
+    # GitHub's scheduler, and a delayed run is a MISSED hour here (see the
+    # runbook's "What drift costs" section).
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report who would receive, send nothing"
+        type: boolean
+        default: true
+
+concurrency:
+  # Never let a slow run and the next tick send the same hour twice.
+  group: notification-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    name: Send digests for this hour
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIRECTUS_URL: https://admin.hoaconnect.info
+      DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
+      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      FROM_EMAIL: notifications@hoaconnect.info
+      FROM_NAME: HOA Connect
+      APP_URL: https://app.hoaconnect.info
+      DIGEST_TZ: America/New_York
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # version comes from the packageManager field in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # NOT --prod: the worker runs through tsx, a devDependency.
+        run: pnpm install --frozen-lockfile
+
+      - name: Run the digest worker
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          pnpm run digest:worker -- "${args[@]}"
