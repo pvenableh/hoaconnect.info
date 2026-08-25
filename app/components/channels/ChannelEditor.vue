@@ -175,7 +175,15 @@ const mentionSuggestion = {
       currentItems = items;
       if (!popup) return;
 
+      // allow-hairline-surface — both mention popups below are tippy FLOATING
+      // layers, and the audit's floating rule needs `absolute|fixed|sticky` in
+      // the same class list to see that. Tippy positions them from JS, so the
+      // class list has no clue in it and they read as hand-rolled cards. They
+      // are not: a floating layer keeps a deliberate `shadow-lg`, and a
+      // `shadow-*` utility beats `.glass-edge` in `@layer components` — swapping
+      // the hairline for the rim would leave them with no edge at all.
       if (items.length === 0) {
+        // allow-hairline-surface
         popup.innerHTML = `
           <div class="p-3 text-sm t-text-muted t-bg-elevated rounded-lg shadow-lg border t-border">
             No users found
@@ -184,6 +192,7 @@ const mentionSuggestion = {
         return;
       }
 
+      // allow-hairline-surface
       popup.innerHTML = `
         <div class="max-h-48 overflow-y-auto py-1 t-bg-elevated rounded-lg shadow-lg border t-border">
           ${items
@@ -514,13 +523,8 @@ defineExpose({
   <div class="channel-editor relative">
     <div
       v-if="editor"
-      class="border rounded-lg overflow-hidden t-bg-elevated transition-all"
-      :class="[
-        editor.isFocused
-          ? 'border-primary ring-1 ring-primary/20'
-          : 't-border',
-        disabled ? 'opacity-50 cursor-not-allowed' : '',
-      ]"
+      class="glass-field rounded-lg overflow-hidden"
+      :class="[disabled ? 'opacity-50 cursor-not-allowed' : '']"
     >
       <!-- Toolbar (optional) -->
       <div

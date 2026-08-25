@@ -28,7 +28,7 @@ const pills = computed(() =>
 </script>
 
 <template>
-  <div class="rounded-2xl border t-border t-bg-subtle p-4 space-y-3">
+  <div class="ios-card rounded-2xl t-bg-subtle p-4 space-y-3">
     <div class="flex items-center gap-2.5">
       <span class="t-icon-chip"><Icon name="lucide:sparkles" class="w-4 h-4" /></span>
       <div class="min-w-0 flex-1">

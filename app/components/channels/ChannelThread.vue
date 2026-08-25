@@ -625,7 +625,7 @@ onBeforeUnmount(() => {
           </button>
           <div
             v-if="showSearch"
-            class="absolute right-0 top-11 z-20 w-80 rounded-xl border t-border t-bg-elevated shadow-lg p-3"
+            class="glass-surface glass-surface--strong absolute right-0 top-11 z-20 w-80 p-3"
           >
             <Input v-model="searchQuery" placeholder="Search messages…" autofocus />
             <div class="mt-2 max-h-72 overflow-y-auto">

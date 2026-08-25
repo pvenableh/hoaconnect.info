@@ -379,7 +379,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     <button
                       v-for="s in suggestions"
                       :key="s"
-                      class="rounded-full border t-border px-3 py-1.5 text-sm t-text-secondary hover:t-bg-subtle"
+                      class="glass-btn-soft rounded-full px-3 py-1.5 text-sm t-text-secondary"
                       @click="ask(s)"
                     >
                       {{ s }}
@@ -435,7 +435,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     :key="t.value"
                     type="button"
                     class="px-3 py-1 text-xs rounded-full transition-colors"
-                    :class="chat.tier.value === t.value ? 'bg-white shadow-sm t-text dark:bg-white/10' : 't-text-secondary hover:t-text'"
+                    :class="chat.tier.value === t.value ? 'glass-active-thumb t-text' : 't-text-secondary hover:t-text'"
                     :title="t.hint"
                     @click="chat.tier.value = t.value"
                   >
@@ -485,7 +485,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   <div
                     v-for="pack in summary?.packs || []"
                     :key="pack.id"
-                    class="flex items-center justify-between rounded-lg border t-border px-4 py-3"
+                    class="glass-edge flex items-center justify-between rounded-lg px-4 py-3"
                   >
                     <div>
                       <div class="font-medium t-text">{{ pack.label }}</div>

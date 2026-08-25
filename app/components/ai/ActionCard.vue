@@ -83,7 +83,7 @@ const showBody = ref(false);
 </script>
 
 <template>
-  <div class="rounded-xl border t-border t-bg overflow-hidden">
+  <div class="ios-card rounded-xl t-bg overflow-hidden">
     <div class="flex items-start gap-2.5 p-3">
       <span class="t-icon-chip shrink-0 mt-0.5"><Icon :name="icon" class="w-4 h-4" /></span>
       <div class="min-w-0 flex-1">
@@ -119,7 +119,7 @@ const showBody = ref(false);
         <div v-else class="mt-2 space-y-2">
           <div v-for="k in editableFields" :key="k" class="space-y-1">
             <Label class="text-[11px] t-text-muted capitalize">{{ k.replace(/_/g, " ") }}</Label>
-            <textarea v-if="isLong(k)" v-model="draft[k]" rows="4" class="w-full rounded-lg border t-border t-bg-subtle p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
+            <textarea v-if="isLong(k)" v-model="draft[k]" rows="4" class="w-full rounded-lg glass-field p-2 text-xs" />
             <Input v-else v-model="draft[k]" class="h-8 text-sm" />
           </div>
         </div>

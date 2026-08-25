@@ -81,7 +81,7 @@ const reset = () => {
 </script>
 
 <template>
-  <div class="rounded-xl border t-border overflow-hidden">
+  <div class="ios-card glass-refract rounded-xl overflow-hidden">
     <div class="p-4 sm:p-5">
       <div class="flex items-start gap-3">
         <span class="mt-0.5 shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-accent/15 t-text-accent">

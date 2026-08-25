@@ -33,7 +33,7 @@ onMounted(async () => {
     :href="url"
     target="_blank"
     rel="noopener noreferrer"
-    class="mt-2 flex gap-3 max-w-[480px] rounded-xl border t-border t-bg-subtle p-2.5 no-underline hover:t-bg transition-colors overflow-hidden"
+    class="ios-card mt-2 flex gap-3 max-w-[480px] rounded-xl t-bg-subtle p-2.5 no-underline hover:t-bg transition-colors overflow-hidden"
   >
     <img
       v-if="preview.image"

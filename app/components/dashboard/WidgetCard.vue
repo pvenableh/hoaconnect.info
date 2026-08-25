@@ -71,7 +71,7 @@ const onDrop = (e: DragEvent) => {
       <span class="flex items-center gap-1 shrink-0">
         <button
           type="button"
-          class="dash-widget__btn"
+          class="dash-widget__btn glass-btn-soft"
           :disabled="isFirst"
           title="Move earlier"
           @click="emit('move', widget.key, -1)"
@@ -80,7 +80,7 @@ const onDrop = (e: DragEvent) => {
         </button>
         <button
           type="button"
-          class="dash-widget__btn"
+          class="dash-widget__btn glass-btn-soft"
           :disabled="isLast"
           title="Move later"
           @click="emit('move', widget.key, 1)"
@@ -89,7 +89,7 @@ const onDrop = (e: DragEvent) => {
         </button>
         <button
           type="button"
-          class="dash-widget__btn dash-widget__btn--danger"
+          class="dash-widget__btn glass-btn-soft dash-widget__btn--danger"
           title="Remove widget"
           @click="emit('hide', widget.key)"
         >
@@ -124,6 +124,10 @@ const onDrop = (e: DragEvent) => {
   margin-bottom: 0.5rem;
   padding: 0.25rem 0.25rem 0.5rem;
 }
+/* The pill's MATERIAL comes from `.glass-btn-soft` on the element, not from
+   here — this rule only sizes it. Deliberately no `background`: a scoped rule is
+   unlayered and would beat `.glass-btn-soft` in `@layer components`, putting the
+   flat pre-glass fill back on top of the rim. */
 .dash-widget__btn {
   display: inline-flex;
   align-items: center;
@@ -131,7 +135,6 @@ const onDrop = (e: DragEvent) => {
   width: 26px;
   height: 26px;
   border-radius: 9999px;
-  background: var(--theme-bg-subtle, rgba(0, 0, 0, 0.05));
   color: var(--theme-text-secondary, #6b7280);
   transition: opacity 120ms ease;
 }
@@ -142,8 +145,17 @@ const onDrop = (e: DragEvent) => {
   opacity: 0.35;
   cursor: not-allowed;
 }
+/* Was a hardcoded `hsl(0 80% 55% / 0.12)` fill with `hsl(0 70% 45%)` ink — a
+   fixed red that never followed the theme and sat at roughly 3:1 on the dark
+   pill. `--destructive` flips with the mode and is contrast-tested in
+   tests/shared/theme-app-tokens.test.ts. The tint is layered OVER the glass
+   material rather than replacing it, so the rim survives. */
 .dash-widget__btn--danger {
-  background: hsl(0 80% 55% / 0.12);
-  color: hsl(0 70% 45%);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--destructive) 14%, transparent),
+    color-mix(in srgb, var(--destructive) 14%, transparent)
+  );
+  color: var(--destructive);
 }
 </style>
