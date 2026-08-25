@@ -3003,3 +3003,172 @@ worth regenerating.
       expose (name, logo, address, palette) is already on the org's public
       landing page, so this is consistent rather than a new hole — but if that
       pair is ever tightened, tighten both together.
+
+---
+
+## Next round — branding defect, the logo, and the 1033 cutover
+
+Queued 2026-08-25, at the end of the email-branding session. Everything from
+that session is **done, pushed, and live in production** (`2.0.5c8e8dc`, CI
+green, working tree clean, nothing unpushed).
+
+### State to start from
+
+- Per-org email **colour** and **typography** ship, and the **view-in-browser**
+  page is on the same theme system. Verified against production, not inferred:
+  a real 1033 email served from `app.hoaconnect.info` renders Playfair + Mulish,
+  the ink subject, the gold-tinted rule and the logo from the slot.
+- 1033 Lenox carries its real brand (`#454545` / `#8b7355` / `#c9a96e`), taken
+  from `html.landing-palette-gold`. Rollback is one PATCH of `block_settings`
+  row `9b87c106` back to `[{primary:#2563eb, secondary:#64748b, accent:#f59e0b}]`.
+- Vitest baseline is **1503**. All four local feature branches are fully merged
+  into `main` and safe to delete.
+- Type specimens (live Google Fonts, three themes):
+  https://claude.ai/code/artifact/0ab64a4e-57ba-4af6-a8f7-7b0f9e15c822
+
+### The work, in priority order
+
+**1 — Backfill `block_settings.organization`. Do this first; it is a live
+defect, not a feature.** Neither real org can save the Branding form at all.
+HOA Admin's update rule is filtered
+`{"organization": {"_in": "$CURRENT_USER.hoa_members.organization"}}`, and it
+matches on `block_settings.organization`, which is **null** on both real orgs.
+A null can never satisfy `_in`, so the PATCH matches zero rows and the save
+fails. The app *reads* settings through `hoa_organizations.settings`, the other
+direction, so only writes break — and **both demo orgs have the field set**,
+which is exactly why this has never surfaced.
+
+```
+9b87c106-c510-40d2-b83f-bfe2ee878f1c  →  5f00fc6d-467d-4794-b1c0-b08b3088217c  (1033 Lenox)
+b8c8956c-856b-41e0-ab0e-8376a98f709d  →  36ea2d56-5988-4176-86d7-48487d6284a2  (605 Lincoln)
+```
+
+Leave `26cd0c25` — an orphan no org references. Ask Peter before writing: it
+touches two live orgs. Note `block_settings` **create** has an empty filter
+(`{}`), so it is not org-scoped like its siblings, and **Property Manager is
+read-only** on the collection.
+
+**2 — Fix the logo in the RENDERER, not by swapping one file.** 1033's
+`settings.logo` holds `icon-large.jpg`, a square white-background app icon, so
+it renders as a white box on the dark brand band. The general problem is that
+the renderer puts whatever the org uploaded onto a coloured band, and no small
+association will reliably supply a transparent, correctly-coloured wordmark —
+so a light/dark treatment (or a neutral plate behind the logo) fixes it once for
+every org you will ever onboard. Note the same logo also has to work on the
+WHITE band that `basic` uses, which is what makes a plain white wordmark wrong
+too. Logo precedence itself is correct and should stay: the slot wins, and the
+org name stands in only when there is no logo.
+
+**3 — The strategic one: finish the 1033 cutover.** `1033lenox.com` is still
+served by the OLD standalone project on its own Directus, so residents are not
+on HOA Connect yet and none of this branding reaches anybody. See
+`docs/` + the migration notes. One product decision is blocking part of it and
+has been unanswered for a while: **1033 has 0 announcements and 0 documents but
+106 migrated `hoa_emails`**, so a resident lands on two empty cards. Should
+member surfaces show sent emails as community news — and if so, how do
+`recipient_filter` / `recipient_ids` keep board-only or targeted notes from
+leaking? That is Peter's call, and worth making before residents see the portal.
+
+**4 — Hygiene, ten minutes.** Two of the four scheduled jobs proved themselves
+green on 2026-08-25 (notification digest, data export worker). The two AI crons
+on Vercel Cron have not been observed running. A silently failing cron is the
+classic rot.
+
+### Traps this round proved, do not relearn them
+
+⚠️ **The seven field lists.** A settings-driven email feature is not done when
+the renderer is right. It is done when **every settings field list feeding a
+renderer asks for the new column**: `sendEmailJob.ts`,
+`email/{preview,send,test,debug-html,branding-preview}.post.ts`, and
+`email/view/[id].get.ts`. `colors` was missing from five, `theme` from six, and
+the third catch was `email/view/[id]` — the only caller of `buildWebViewHtml`.
+**Unit tests pass while the real page stays unbranded**, because tests build
+settings by hand. Only rendering against real data catches it.
+
+⚠️ **Keep the byte-identity discipline.** Every change was gated by hashing
+4 org variants × 6 types × html/text/webview and diffing against a baseline
+taken BEFORE the round. It caught nothing dramatic — which is the point: it is
+what made "orgs with no palette/theme are untouched" a fact rather than a hope.
+Rebuild the harness as a temp test, run it, delete it before committing.
+
+⚠️ **MJML surprises.** It injects its own `fonts.googleapis.com` Roboto link
+into every email and always has. It emits a font link only for a face it sees
+*used*, so a display font silently never loads unless something is an `<h*>` —
+which is why `transactional-email.ts` puts the heading face on its lead line.
+
+⚠️ **TS2321 "Excessive stack depth"** — the file the error names is never the
+cause. Read the post-deploy cleanup section before touching it.
+
+### Kickoff prompt — next session (ready to paste)
+
+```
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the
+section "Next round — branding defect, the logo, and the 1033 cutover" at the
+end. That file is the source of truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and any `cd`
+elsewhere resets your shell there. No branch, no worktree. `git pull --ff-only`
+first. Tool shells have no node/pnpm: run `eval "$(/usr/local/bin/fnm env)"` in
+every one. Vercel AUTO-DEPLOYS on push, so a push IS a production deploy — ask
+before pushing, never run `vercel --prod`.
+
+DONE and deployed — do not redo: per-org email colour, per-org typography keyed
+on settings.theme, and the view-in-browser page on the same theme system.
+Production is 2.0.5c8e8dc, CI green, tree clean, nothing unpushed. Vitest
+baseline is 1503.
+
+Work in this order:
+
+1. FIRST, because it is a live defect and not a feature: neither real org can
+   save the Branding form. block_settings.organization is null on 1033 Lenox
+   and 605 Lincoln, and the HOA Admin update rule filters on exactly that
+   field, so the PATCH matches zero rows. Both demo orgs have it set, which is
+   why it never showed. The plan has the two row ids. ASK PETER before writing
+   — it touches two live orgs.
+2. Fix the logo in the RENDERER, not by swapping one file. 1033's logo slot
+   holds a square white-background app icon that renders as a white box on the
+   dark brand band, and the same problem hits any org whose logo is light.
+   Whatever you do must also work on the WHITE band that `basic` uses. Logo
+   precedence is correct — the slot wins, the org name only stands in when
+   there is no logo — keep it.
+3. Then the strategic one: finish the 1033 cutover. 1033lenox.com is still
+   served by the old standalone project, so residents are not on HOA Connect
+   and none of this branding reaches anyone. One product decision blocks part
+   of it — 1033 has 0 announcements and 0 documents but 106 migrated emails, so
+   residents land on empty cards. Whether member surfaces should show sent
+   emails as community news is Peter's call; surface it, do not decide it.
+4. Ten-minute hygiene: confirm the two AI crons on Vercel Cron have actually
+   run green. The digest and export workers were observed green 2026-08-25.
+
+⚠️ THE TRAP THIS ROUND PROVED THREE TIMES: a settings-driven email feature is
+not done when the renderer is right — it is done when all SEVEN settings field
+lists that feed a renderer ask for the new column. Unit tests pass while the
+real page stays unbranded, because tests build settings by hand. Render against
+real data before believing it works.
+
+Quality gate per commit: typecheck 0, vitest green (1503 baseline), build green,
+hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run
+`pnpm build` and `pnpm typecheck` concurrently — they corrupt each other's
+`.nuxt` cache. When capturing an exit code, capture the COMMAND's, not a
+pipeline's. Keep the byte-identity harness habit: hash 4 org variants x 6 types
+x html/text/webview before a renderer change and diff after; delete the temp
+test before committing.
+
+⚠️ Nuxt auto-imports do not exist under vitest. A new auto-imported util used in
+server code needs `vi.stubGlobal` — and prefer `importOriginal` over a stand-in
+so the test asserts against the real implementation.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail, a bulk write is
+a bulk mailing, and no script flag suppresses it. Render to HTML and read it;
+don't send. 1033 and 605 Lincoln are REAL orgs with real people.
+
+Verify in the browser in both light and dark on your own dev server with a real
+session (POST /api/demo/login), and delete every row you create. Browsing writes
+hoa_activity rows; API calls do not. demo baseline is 449 rows, demo-classic 13.
+demo-classic is a CONTROL — never write to it, and diff both orgs before and
+after to prove it.
+
+When done: update the plan's Operator TODOs and ask before pushing.
+```
