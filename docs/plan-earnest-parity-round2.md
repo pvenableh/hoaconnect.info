@@ -21,7 +21,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 8 | Phase 6 UI — Boardroom page + components + nav | [x] | `main` | Multiplayer is a POLL, per Peter's call. The 403 probe wrote two rows into `demo-classic` — the diff caught it. |
 | 9 | Phase 7 core — stacks home | [x] | `main` | The rework target was `DashboardPage.vue`, not the `[slug]/admin/index.vue` redirect shim. Reading a briefing needed a new read-only door. |
 | 10 | Phase 7 polish — rails, ambient, wizard | [x] | `main` | The rails EXTRACTED the three chart widgets' fetches; mounting those widgets now costs zero extra requests. Light alphas needed raising, not halving. |
-| 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `main` | |
+| 11 | Phase 8 — Glass sweep + gate flip to 0 | [x] | `main` | Gate is at **0** and blocking. The census and the plan's named list were different lists; both got swept. Two live bugs fell out of measuring: a focused control squared itself off, and `.glass-field` cannot reach a native `<select>`. |
 
 ### Session log
 
@@ -2131,6 +2131,200 @@ screen.
 When done: update the Status checklist (shipped, deviations, operator TODOs)
 and give me the kickoff prompt for Session 7. Ask before pushing.
 ```
+
+**Session 11 — Phase 8** (2026-08-25) — 5 commits straight onto `main`
+(`654c961`, `87013b0`, `7ca56d2`, `143d556`, `82d8beb`), not pushed.
+**This closes the program.**
+
+Shipped:
+
+- `core/app/assets/css/glass.css` folded into `earnest-ui.css` as a final
+  "LANDING GLASS SYSTEM" block; `main.css` import removed; the two stale
+  pointers at it (`LandingWidgetShell.vue`, `docs/prompts/landing-theme-nav.md`)
+  updated.
+- The declaration-site trap fixed, with `tests/shared/glass-accent-tokens.test.ts`
+  as its tripwire (4 tests, both halves negative-tested).
+- The named sweep: `ai/{ActionCard,AskTheHoa,AiAssistantPanel,EntityCard}`,
+  `channels/{ChannelEditor,ChannelThread,ChannelLinkPreview}`,
+  `dashboard/WidgetCard`.
+- The census sweep: 12 surfaces to `ios-card`, 3 status banners onto semantic
+  tokens, 5 `allow-hairline-surface` tags, 15 workspace inputs onto
+  `.glass-field`.
+- `scripts/audit-hairline-surfaces.ts` BASELINE **26 → 0**, `FLOATING` taught
+  this app's shadow spelling, `.husky/pre-commit` comment rewritten.
+
+Deviations from the plan, all deliberate:
+
+1. **The census and the named list were two different lists, and the session
+   needed both.** The plan says "sweep the named components" and "flip BASELINE
+   to 0" as if they were the same job. They are not. A fresh census found 26
+   findings, and `ai/ActionCard`, `ai/AskTheHoa`, `ChannelThread` and
+   `WidgetCard` were in NONE of them — while `DocumentsPage`, `profile`,
+   `approvals`, `UnitRecordList` and five marketing mocks, which the plan never
+   names, were most of the 26. The named list is a glass-material list; the
+   census is a `border t-border` list; getting to 0 required the census, and
+   honouring the phase required the named list. Both were done.
+2. **`.dash-widget → .ios-card` was already done, elsewhere.** `WidgetCard` does
+   not draw a surface at all — it is a layout wrapper whose only paint is the
+   edit-mode drag outline, and every widget slot inside it already renders
+   `ios-card`, directly or through `AppChartCard` from the content-first round.
+   What was actually left in that file was its edit-mode chrome, so that is what
+   moved: three pills onto `glass-btn-soft`, and a hardcoded
+   `hsl(0 80% 55% / 0.12)` / `hsl(0 70% 45%)` remove button — a fixed red at
+   roughly 3:1 on the dark pill — onto `--destructive`.
+3. **`.glass-field` does not reach a native `<select>`, and putting it on one is
+   worse than leaving it off.** theme.css:983 sweeps every native select into the
+   app's underline control language with a bare `select { … }` rule, and that
+   rule is UNLAYERED, so it beats `.glass-field` in `@layer components` on layer
+   order regardless of specificity. The select keeps `border-radius: 0`, its
+   bottom hairline and `box-shadow: none`, and all `.glass-field` achieves is an
+   opaque fill behind the underline. Measured on a `<select>`, an `<input>`, a
+   `<textarea>` and a `<div>` side by side in the running app; the select was the
+   only one that did not take the rim. 11 selects were swept and then reverted.
+   Their old `border t-border rounded-lg bg-white` was already inert for exactly
+   the same reason — dead classes nobody knew were dead — so those are gone and
+   the selects keep the language they were always rendering with. Documented at
+   `.glass-field`'s definition site.
+4. **A focused control was squaring itself off, and had been for a while.**
+   `.ui-kit *:focus-visible { border-radius: inherit }` was overwriting the
+   ELEMENT'S radius with its parent's — unlayered, beating every `rounded-*`
+   utility — so any rounded control inside `.ui-kit` went square the moment you
+   clicked into it and rounded again on blur. Found because six identical
+   `rounded-lg` inputs in the meetings form reported `border-radius: 11.25px`
+   and the focused one reported `0px`. An `outline` already follows
+   `border-radius` on its own; the declaration never did the job it was written
+   for. Pre-existing, not introduced here, but the field sweep is what made it
+   visible and it is one line.
+5. **The status banners nearly shipped under AA — the light-mode alpha trap
+   again.** Recolouring `border t-border bg-amber-500/10` to
+   `border-warning/30 bg-warning/10 text-warning` is the obvious move and it is
+   wrong: the status ink on its own 10% tint measures **4.04:1** for warning and
+   **4.48:1** for destructive over the page, both under AA. The colour belongs to
+   the RIM and the ICON; the body text stays `t-text`. After: 15.05 / 14.62 in
+   light, 13.94 / 14.69 in dark, with the icons keeping the cue at 4.04–9.67
+   (a graphical element needs 3:1). One of the three was
+   `bg-amber-50 text-amber-800`, a fixed pair that rendered a near-white callout
+   in dark mode.
+6. **Six of the 26 were never findings; the fix was the script, not the
+   markup.** `FLOATING` had been ported knowing Earnest's shadow spelling and
+   not this app's — the same porting bug `FULL_BORDER` already had with
+   `border` / `t-border` in Session 1. `t-shadow-*` is theme.css's own shadow
+   family and it is unlayered, so ANY weight of it beats `@layer components`
+   outright and is a hard disqualifier; five marketing app-window mocks sat in
+   the census because of it. And a stacked layer that is `relative z-50` rather
+   than `absolute` is still floating — `DialogScrollContent` is the case.
+7. **The trap fix is a selector LIST that includes `:root`, not a replacement
+   for it.** A surface left off the list degrades to today's behaviour — the
+   root accent — rather than to no shadow at all, which a bare
+   `var(--glass-edge-shadow)` with nothing to resolve would have produced. The
+   test is what stops the list going stale.
+8. **Three image wells tagged rather than converted.** A 64px photo well is not
+   a card: the hairline is what shows it is empty, its dashed twin sits beside
+   it in the same markup, and the refracted rim would draw an inner highlight
+   across the top of the uploaded photo that reads as glare.
+9. **`ChannelThread`'s dividers were left alone.** The plan names the file; the
+   sweep's own rule is that `border-b t-border` under a header is a rule, not a
+   box. Its header and composer keep their dividers; what changed is the one
+   actual surface in the file, the in-channel search panel.
+
+Quality gate: typecheck **0 errors** · vitest **1471/1471 in 85 files** ·
+`pnpm build` green · hairline audit green **at the new baseline of 0**. No new
+endpoints, so no new org-scope test.
+
+Browser-verified headlessly on the demo org through a real session on this
+session's own dev server, in **both light and dark**, with the
+`prefers-reduced-transparency` fallback forced back off — this machine has
+macOS "Reduce transparency" ON, so without that the translucent path most users
+get would never have been measured at all:
+
+- **The trap, before and after.** Before: inside `.accent-violet`,
+  `--app-accent-h` read 262 while `--glass-shade` still read
+  `195 18% 42% / 0.12`. After: an `.ios-card` in the same container paints its
+  rim shade `rgba(102, 88, 126, 0.12)` against a plain card's
+  `rgba(88, 117, 126, 0.12)`, and the plain card is byte-identical to before.
+- **The rim is visible on a near-white light surface.** The painted ring reads
+  `rgb(235, 239, 238)` on white at **1.154:1**, against **1.218:1** for the flat
+  `t-border` hairline it replaced — softer, present, and the same rim `.ios-card`
+  has worn since the UX refresh.
+- **The dark tier thumb is not the regression it looks like.**
+  `.glass-active-thumb` separates from its track at **1.359:1** — exactly what
+  the `bg-white/10` it replaced gave — and adds a top highlight at **2.352:1**
+  that the old flat fill had no equivalent for. Active label 13.56:1 vs
+  inactive 7.60:1.
+- **Fields, both modes.** Inputs and textareas: rim present, `border-width: 0`,
+  radius held on focus, text 17.83:1 light / 15.74:1 dark, surface separating
+  from its container at 1.035 / 1.048. The AI composer, the meetings form, the
+  rules search and the channels composer all measured.
+- **`:focus-within` really drives the channels composer.** Its root is now a
+  `div.glass-field` around a ProseMirror contenteditable; focusing the
+  contenteditable matches `:focus-within` on the host and adds the accent halo,
+  which is what retired the JS `editor.isFocused` class swap.
+- **`glass-refract` renders on AskTheHoa.** `::before` resolves with content
+  `""`, inset 0, 1px padding and `mask-composite: exclude`, and the card's
+  `overflow-hidden` does not clip it.
+- **The consolidation's one order-sensitive overlap is inert.** A `.glass-widget`
+  under `theme-modern-light` still measures `border-radius: 16px` and
+  `blur(16px) saturate(1.5)` from landing.css's override, not the base rule's
+  `12.75px` / `blur(14px)` — specificity still beating the new source order.
+- **Both halves of the gate block, tested live.** A hand-rolled card surface
+  dropped into `UnitRecordList` fails with the file and line; a
+  `@apply rounded-xl\n glass-edge;` split across a newline is caught at the
+  right line. `findApplyGlass` needed no change — it has had no baseline since
+  Phase 1.
+
+Blast radius: **no rows were created deliberately** — this phase writes nothing.
+Browsing itself wrote 22 `hoa_activity` page-view rows into `demo` (the
+first-party activity tracker), every one identifiable by `ip = ::1` plus the
+Electron user agent plus a timestamp inside the session window; all 22 deleted,
+and `demo` is back to its pre-session 449. Session 10's 19 rows from the same
+localhost client, earlier the same day, were deliberately left alone.
+`demo-classic` **was never written to**: 13 `hoa_activity` rows at every census,
+before, during and after, and no other collection moved in either org.
+
+Browser-pane limits worth carrying forward, on top of Session 10's:
+
+- The pane can start at a **0×0 viewport**, which silently degrades layout and
+  makes every `getBoundingClientRect()` zero. `resize_window` with an explicit
+  width and height fixes it; the `desktop` preset did not.
+- **Toggling the `.dark` class does not re-resolve `light-dark()`.** Half the
+  page flips and half stays, so a class toggle cannot be used to compare modes.
+  Set `localStorage.appearance` and reload.
+- `getComputedStyle` returns **`oklab()` / `oklch()` unresolved** for Tailwind's
+  colour utilities, so alpha compositing has to be done on a canvas —
+  `ctx.fillStyle = ground; ctx.fillStyle = tint;` then read the pixel — which is
+  the browser doing the same blend it does on screen.
+
+---
+
+## Programme retrospective — what eleven sessions produced
+
+**Shipped, all on `main`:** release tooling and a "What's new" surface;
+one shared WebSocket behind every realtime feature; a unified notification
+model with the bell cut over to it; channels round two; a notices engine with
+attention scoring; the director layer, trust surfaces and the action lifecycle;
+the Board Room, server and UI; the stacks home with its glance rail, chart rail
+and ambient backdrop; and the glass sweep with a gate that keeps it swept.
+
+**The recurring lesson, stated once:** almost every deviation in this log is the
+same shape — *the code says one thing and the running app does another, and only
+the running app is evidence*. Earnest's regexes measured nothing here until they
+were re-censused against this app's spelling. `permissions` on create is ignored
+by this Directus. A `text` column holding JSON is a string. `preview` rendered
+character-by-character. Light-mode alphas needed raising, not halving. The glass
+accent was baked at `<html>`. `.glass-field` cannot reach a `<select>`. Every one
+of those was found by measuring in the browser or against the live API, and none
+of them by reading the source.
+
+**Still open, for whoever picks this up:**
+
+- **35 commits ahead of `origin/main`, deliberately unpushed** — 29 carried in
+  from Sessions 2–10 plus this session's 6. Nothing is blocked on them; they are
+  waiting on Peter's call.
+- The three legacy realtime composables are still adapters over the WS manager
+  (Session 2 deferred deleting them by one release). That release has not
+  happened.
+- Operator TODOs recorded by earlier sessions still stand — see each session's
+  entry.
 
 ### Kickoff prompt — template for Sessions 3+
 
