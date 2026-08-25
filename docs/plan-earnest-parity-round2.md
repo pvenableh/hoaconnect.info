@@ -19,7 +19,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 6 | Phase 5 — Director layer + trust surfaces + action lifecycle | [x] | `main` | Earnest's singular/plural boundary **does not exist here**; HOA's is `violation`/`ticket` → `request`. `preview` is a text column — every proposal card was rendering character-by-character. |
 | 7 | Phase 6 server — Boardroom collections, plan endpoint, utils | [x] | `main` | Slide bullets had to LEAD the briefing — asked for last, the live model never wrote them. Money mode needed a fourth util. |
 | 8 | Phase 6 UI — Boardroom page + components + nav | [x] | `main` | Multiplayer is a POLL, per Peter's call. The 403 probe wrote two rows into `demo-classic` — the diff caught it. |
-| 9 | Phase 7 core — stacks home | [ ] | `main` | |
+| 9 | Phase 7 core — stacks home | [x] | `main` | The rework target was `DashboardPage.vue`, not the `[slug]/admin/index.vue` redirect shim. Reading a briefing needed a new read-only door. |
 | 10 | Phase 7 polish — rails, ambient, wizard | [ ] | `main` | |
 | 11 | Phase 8 — Glass sweep + gate flip to 0 | [ ] | `main` | |
 
@@ -1081,6 +1081,169 @@ wallet is 25 credits lower and three `ai_transactions` debits remain, because
 those tokens were really bought and deleting the ledger would make it disagree
 with the balance.
 
+**Session 9 — Phase 7 core** (2026-08-24) — 1 commit straight onto `main`
+(`7dd35f8`), not pushed.
+
+Shipped:
+
+- `core/app/composables/useStackItems.ts` — the item model, seven pure adapters,
+  and `buildStacks()`, which owns the once-only rule. Decide = pending
+  `ai_actions` + notices carrying a `proposedAction`; Do = actionable notices +
+  unread channels; Know = insight notices + saved briefing headlines.
+- `core/server/api/ai/director/briefing.get.ts` — a read-only door onto a saved
+  briefing (see deviation 2).
+- `app/components/Home/{Stack,StackItemRow,StackClearWizard,Stacks}.vue`.
+- `app/components/pages/DashboardPage.vue` — the stacks band above the fold, the
+  `useDashboardWidgets` grid demoted below it. The registry, `WidgetCard` and
+  `WidgetGallery` are untouched.
+- Tests: 20 on `useStackItems` (11 of them on de-duplication alone) + 8 on the
+  new endpoint.
+
+**The de-duplication, stated precisely.** Every item carries a `factKey` naming
+the underlying FACT rather than the row that reported it, and the piles are
+built in order — Decide, then Do, then Know — so a fact claimed by an earlier
+pile is gone from every later one. The load-bearing collision is a notice's
+`proposedAction` against the `ai_actions` row created from it: neither knows
+about the other, so they meet on `act:<entityType>:<entityId>:<actionType>`,
+deliberately the same identity `/api/ai/notices/propose` already dedupes pending
+proposals on. Verified live, and it turned out to be **symmetric**: approving the
+proposal that was claiming a fact un-claims it, and the notice behind it comes
+straight back — which is correct, because the request really is still open 45
+days.
+
+Deviations from the plan, all deliberate:
+
+1. **The rework target is `app/components/pages/DashboardPage.vue`, not
+   `app/pages/[slug]/admin/index.vue`.** The plan calls the latter "a 22-line
+   wrapper", and it is 22 lines — but it is a *redirect* shim, not a dashboard.
+   The admin dashboard IS the org root (`/{slug}`), which renders
+   `<PagesDashboardPage>`; `/{slug}/admin` is reachable three ways and bounces to
+   the root. Reworking the shim would have broken all three redirects and changed
+   nothing anybody sees.
+2. **A new endpoint, `GET /api/ai/director/briefing`.** The kickoff allows the
+   home page to read a saved briefing but never to draft one, and says to show
+   nothing rather than guess. `POST /api/ai/director/plan` cannot be used: it
+   serves a cache free for six hours, but on a cold cache it drafts and bills.
+   So the read is split from the write. The new handler calls
+   `loadLatestDirectorBriefing()` and nothing else — no wallet lookup, no
+   Anthropic client in its module graph, no branch that reaches one. The test
+   asserts the only collection it touches is `hoa_director_briefings` and the
+   only operation is a read.
+3. **`Home/Stacks.vue` — a band component, not 200 lines inlined.**
+   `DashboardPage.vue` was already 585 lines; the band owns its own composable
+   and mounts as one tag.
+4. **The proposal row renders `<AiActionCard>` WHOLE, with no wrapper.** The card
+   already draws its own border; wrapping it in the row's `ios-card` would have
+   put a box around a box. `send_email`'s expandable preview is therefore the
+   card's own "Show content" — the To, Subject and outbound chip always visible,
+   the body one tap away, collapsed by default. One implementation, not a second.
+5. **Decisions and proposals are emitted upward, never posted in a row.** The
+   page owns `useAiActions` and its shared `aiPendingCount`; a row that fetched
+   for itself would leave the launcher badge disagreeing with the screen. Written
+   the other way first — with `useDirectorLayer()` instantiated per row — and
+   changed, because proposing from a notice has to refresh the queue the new row
+   lands in, and only the page can do that.
+6. **Domain dots, not priority dots.** The plan demotes domain to the coloured
+   dot, so that is what the dot means; priority survives as the sort key inside
+   each pile. `Director/Layer.vue` keeps its own priority dots — a different
+   surface answering a different question.
+7. **Headlines get a SECOND, text-based de-dup guard; structured rows do not.**
+   Briefing bullets are prose restatements of the same agenda the notices come
+   from, and prose has no structural identity. A headline whose normalised text
+   matches a title already on screen is dropped. That guard is deliberately not
+   applied to notices or proposals — two genuinely distinct records can share a
+   title, and there is a test that says so.
+8. **No `useGsap()`.** That composable builds inside a `gsap.context` on mount
+   and reverts on unmount, which is right for a component whose animation is
+   its arrival. The fan is imperative and re-runs on every tap, so it uses the
+   motion policy's memoised dynamic `import("gsap")` instead — and the
+   reduced-motion guard runs BEFORE it, so a person who asked for less motion
+   never loads the library at all.
+
+Quality gate: typecheck **0 errors** · vitest **1422/1422 in 81 files** ·
+`pnpm build` green · hairline audit green at baseline 26 · org-scope test on the
+one new endpoint (403 before a row is read).
+
+Browser-verified headlessly on the demo org (Harborview Lofts), through a real
+session (`/api/demo/login`) on this session's own dev server:
+
+- **Landing on the dashboard makes ZERO billable AI calls.** Every `/api/ai/*`
+  request on a cold load is a GET read: `actions/pending-count`, `autonomy`,
+  `actions?status=pending`, `notices`, `director/briefing`. No POST to any AI
+  route, no `/plan`, no `/chat`, no `/draft`, no `/ask`. The wallet reads 7837
+  before the load and 7837 after it, with three piles' worth of data on screen.
+- **De-duplication, live.** With a pending `create_task` on request A and the
+  notices engine also proposing `create_task` on request A, Decide showed the
+  ROW and not the notice, and the notice did not fall through to Do either. The
+  aged notice for request B — which had no competing proposal — did appear.
+- **Approve-from-stack round-trips.** Approving the `create_task` from the pile
+  flipped it to `executed` with a real `result.taskId`, dropped it out of Decide,
+  and left it `_undo`-able; `POST /undo` reversed it and deleted the task. It
+  costs **1 credit**, which is a Voyage EMBED of the Community Ledger line the
+  approval writes (Phase 5 behaviour, no LLM call) — the same cost approving from
+  anywhere else.
+- **Outbound is never approved blind.** The `send_email` row showed the OUTBOUND
+  chip, To and Subject always, and the body only behind "Show content", which
+  expanded to the real text and collapsed again.
+- **The fan is transform-only.** Driving GSAP's ticker by hand and sampling every
+  inline property written: the pile receives **only `height`** (the deliberate
+  height tween — 474 → 755 → 788 → 790px, the `expo.out` signature, so the piles
+  below slide instead of jumping) and the rows receive only
+  `translate/rotate/scale/transform/visibility/opacity`. No filter, no shadow, no
+  layout property. `clearProps` lands it: afterwards the pile and all three rows
+  have an EMPTY style attribute.
+- **The fold keeps its rows.** Collapsing held `is-closing` for the whole
+  timeline with all three rows still mounted, tweened the height back down
+  762 → 400 → 293, then unmounted to one visible row with no residue.
+- **Reduced motion is guarded first.** With `prefers-reduced-motion` stubbed,
+  expanding created **0 tweens**, showed all rows instantly, wrote no inline
+  style at all, and collapsed instantly too. GSAP is never even asked for.
+- **Empty piles reach the win state.** Dismissing the three Do notices landed
+  "Nothing overdue, nothing unread." and dropped the count chip; the dismissals
+  persisted to `hoa.ai-notices.dismissed.<orgId>`, so `useAINotices`'s
+  localStorage path is intact. With every source empty the band shows "Nothing is
+  waiting on you."
+- **The walkthrough.** 1 of 3 → 2 of 3 → 3 of 3 → "Nothing left to walk through",
+  progress bar to 100%, and closing it folded the source pile back to its
+  collapsed card — the `defineExpose({ collapse })` path.
+- **The widget grid still works below the fold.** Customize enters edit mode, the
+  gallery appears, hiding drops 8 → 7 and persists to
+  `dashboard-widgets-admin-v1`, Reset restores 8, Done exits.
+- **Glass, dark and mobile.** `.glass-refract` paints on the band
+  (`mask-composite: exclude`), rim alphas swap .65/.24/.04 → .26/.10/.02 in dark,
+  the ghost pile layers derive from the theme-aware foreground token, and at
+  375px **zero** elements overflow the band. Every request 200.
+
+**Two things the tests could not have caught.**
+
+1. **Overriding `document.visibilityState` fools page JS, not the compositor.**
+   Session 8's note gets a sharper edge: in the headless pane `requestAnimationFrame`
+   never fires and CSS transitions stay frozen mid-flight *even after* the
+   override, because the page genuinely is not being composited. A first probe
+   read "the ghost layers never hide" and "the pile is stuck at 293px" — both
+   were the frozen compositor, not bugs. Measuring the fan honestly needed
+   `gsap.ticker.tick()` driven by hand in a busy-wait loop (inline styles are
+   written by JS, so they are real) and a temporary `transition: none` to read
+   what the CSS RULE targets rather than the frame the pane is parked on.
+2. **Directus ignores `date_created` on create.** It is a special date-created
+   field, so a request seeded "45 days ago" arrived stamped now and the notices
+   engine correctly reported nothing. A follow-up `PATCH` sets it fine. (And the
+   stamp confirmed the known clock skew: Directus wrote `2026-08-25T00:22` while
+   the app was on 2026-08-24.)
+
+**Cleanup, stated precisely.** Created in the demo org: two `hoa_requests`, two
+`ai_actions`, one `hoa_director_briefings`, and — as side effects of the approve
+and the undo — one `hoa_tasks`, two `org_audit_log` and two `ai_ledger_chunks`.
+All deleted, each filtered the way its create was made: the task by the
+`result.taskId` the row recorded (not by title), the audit rows by
+`event_type` within the demo org, and the rest by the ids this session wrote
+down. The demo org now matches `demo-classic` exactly on all fourteen
+collections censused. **`demo-classic` was read and never written — zero change
+on every collection**, which is what a control org is for. **Deliberately NOT
+reverted**: `ai_transactions` is +2 (7838 → 7836) because those two Voyage embed
+debits were really spent, and deleting the ledger would make it disagree with
+the balance — Session 8's precedent.
+
 ### Operator TODOs (carried forward until done)
 
 - [x] ~~Push Session 1~~ — done; `main` carries Phases 0 and 1.
@@ -1177,6 +1340,16 @@ with the balance.
       collections, no new fields, no new env vars, no `generate:types`.
       `pnpm create:boardroom` was already run in Session 7; without it the room
       and the minutes are inert (and say so) rather than broken.
+- [ ] **Phase 7 core: nothing to run on prod.** No schema changes, no new
+      collections, no new fields, no new env vars, no `generate:types`. The new
+      `GET /api/ai/director/briefing` reads `hoa_director_briefings`, which
+      `pnpm create:boardroom` already created in Session 7; without that
+      collection the endpoint returns `{ briefing: null }` and the Know pile
+      simply shows fewer rows. It can never draft, so it can never bill.
+- [ ] **Watch the Know pile once briefings are common.** Headline de-duplication
+      is text-based by necessity (deviation 7). If real briefings start
+      restating notices in wording the normaliser misses, the fix is a
+      structural key on the briefing's points — not a fuzzier text match.
 - [ ] **Beware `permissions` on a `create` rule anywhere in this Directus.**
       It is silently ignored (11.13.4, verified). A create rule must express its
       constraint as `validation` over payload SCALARS, resolving dynamic lists
@@ -1395,6 +1568,91 @@ Quality gate: typecheck 0, vitest green, build green, plus the new
 release-notes test. When done: update the Status checklist in the repo
 plan, and give me the kickoff prompt for Session 2 (Phase 2a). Ask
 before pushing anything.
+```
+
+### Kickoff prompt — Session 10 (Phase 7 polish — rails, ambient, ready to paste)
+
+```
+Continue the Earnest Parity Round 2 program.
+
+Work on `main`, in /Users/peterhoffman/Sites/hoaconnect itself — no phase
+branch, no worktree. Start with `git pull --ff-only`. Tool shells have no
+node/pnpm on PATH: run `eval "$(/usr/local/bin/fnm env)"` first. Commits land
+straight on main, so run the quality gate before each commit — never leave
+main red. Check `git status` is clean first and report rather than commit over
+anything you find. Note: main is well ahead of origin and deliberately
+unpushed — check with `git rev-list --count origin/main..main` and do not push
+without asking.
+
+Read docs/plan-earnest-parity-round2.md — it is the source of truth, including
+the deviations Sessions 1–9 recorded there. Session 9 shipped the stacks core:
+`useStackItems` (with its de-duplication rule and 20 tests), `Home/Stack.vue`,
+`StackItemRow.vue`, `StackClearWizard.vue`, and the band component
+`Home/Stacks.vue`, which `app/components/pages/DashboardPage.vue` mounts above
+the widget grid. Note deviation 1: the dashboard is `DashboardPage.vue`, NOT
+`app/pages/[slug]/admin/index.vue` — that file is a redirect shim and must stay
+one.
+
+This session = Phase 7 POLISH: `GlanceRail.vue`, `ChartRail.vue`,
+`Home/AmbientBackground.vue` + `core/app/composables/useHomeAmbient.ts`, and
+mobile/dark tuning of the band Session 9 built. Phase 8's glass sweep and the
+gate flip are Session 11 — do NOT start those. Earnest reference repo:
+~/Sites/earnest/earnest.
+
+The plan's specifics, which matter more than the file names:
+
+- GlanceRail = numbers without cards. EXTRACT the fetch logic out of the
+  existing `Admin/*Glance.vue` bands into shared composables; do not write a
+  second set of queries against the same collections. If a query cannot be
+  shared cleanly, say so and leave that number out rather than duplicating it.
+- ChartRail = five hand-rolled SVG glances. Reuse `App/Chart/*` primitives
+  where they fit. Resting opacity 0.45 lifting to full ONLY inside
+  `@media (hover:hover)` — a phone has no hover state to leave behind. Each
+  glance self-hides when its series is empty, and the rail carries a sticky
+  max-height guard.
+- AmbientBackground: waves are five bands of WHOLE-NUMBER harmonics summed —
+  that is the seamless-loop invariant, and a non-integer harmonic is a visible
+  seam. `ease:'none'`, three-stop gradients, viewport overhang so the blur
+  falls off outside the frame. Orbs get BAKED gradient softness, never a
+  runtime blur. Transform-only, `visibilitychange` pause, static under reduced
+  motion, deterministic drift, and a localStorage kill switch.
+- Tune the light and dark alphas SEPARATELY against `html.theme-app`. They are
+  not one value with an opacity multiplier.
+
+Two things Session 9 measured that will shape how you verify:
+
+1. The headless browser pane is genuinely not composited. Overriding
+   `document.visibilityState` fools page JS but NOT `requestAnimationFrame` or
+   CSS transitions, which stay frozen mid-flight. To measure motion, drive
+   `gsap.ticker.tick()` by hand in a busy-wait loop and read INLINE styles
+   (JS writes those, so they are real); to read what a CSS rule targets,
+   inject `transition: none !important` first. `$gsap` is reachable at
+   `document.querySelector('#__nuxt').__vue_app__.config.globalProperties.$gsap`.
+   The ambient's `visibilitychange` pause needs the override to be testable at
+   all.
+2. Directus IGNORES `date_created` on create (it is a special date-created
+   field). Seed a backdated row with a follow-up PATCH, or the row arrives
+   stamped now and every generator correctly reports nothing.
+
+Quality gate: typecheck 0, vitest green, build green, org-scope test for every
+new endpoint, and in-browser verification: the ambient runs transform-only and
+pauses when hidden, reduced motion renders it static, each chart glance
+self-hides when empty, the hover lift does not leak onto a touch viewport,
+light and dark alphas both read, and — assert this explicitly again — landing
+on the dashboard still makes ZERO billable AI calls.
+
+Verify with a REAL session on your own dev server (`/api/demo/login`), and
+clean up every row you create afterwards — diff the demo org against
+`demo-classic` to prove the blast radius, and filter your deletes the same way
+you filtered your creates. `demo-classic` is a CONTROL: never write to it (the
+demo login is an admin of BOTH demo orgs, which is how a 403 probe once wrote
+two rows into it).
+
+Drive it headlessly — I supervise from an iPad, don't ask me to look at a
+screen.
+
+When done: update the Status checklist (shipped, deviations, operator TODOs)
+and give me the kickoff prompt for Session 11. Ask before pushing.
 ```
 
 ### Kickoff prompt — Session 9 (Phase 7 core — stacks home, ready to paste)
