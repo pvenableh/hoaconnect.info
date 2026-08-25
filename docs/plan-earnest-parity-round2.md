@@ -2798,3 +2798,80 @@ never write to it, and diff both orgs before and after to prove it.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ```
+
+## Per-org email branding — DONE 2026-08-25
+
+Shipped in one session on `main`, gated at typecheck 0 · vitest 1488 (baseline
+1473 + 15 new) · build green · hairline audit 0. Byte-identity for orgs without
+a palette was proven, not assumed: 72 sha256 hashes (4 org variants × 6 types ×
+html/text/webview) captured before the change and diffed clean after it.
+
+**The renderer.** `emailTypeStyles` stays as the platform-default table;
+`resolveEmailTypeStyle(emailType, settings)` sits on top of it and is what
+`buildEmailHtml` now calls. When `block_settings.colors[0]` holds valid hex
+colours, the org's **primary** paints the header and bottom bands and its
+**accent** paints the type badge. The semantic decision, settled deliberately:
+**brand paints the chrome; the badge's icon + label carry the type; alert keeps
+its red pill whatever the palette**, so urgency survives a soft brand.
+Two guards that matter:
+
+- Only literal hex (`#rgb`/`#rrggbb`) is accepted — palette values land
+  unescaped in inline styles, so anything else is ignored, which also makes
+  junk data fall back gracefully.
+- A YIQ brightness test flips the overlay text dark on light palettes. This is
+  real, not theoretical: 605 Lincoln's stored primary is `#8f8f8f` and its
+  accent `#00E1FF` — white-on-gray and white-on-cyan would both be unreadable.
+  The overlay colours are carried on the resolved style and the fallback path
+  uses the exact historical literals, which is how byte-identity holds.
+
+Five settings field lists had omitted `colors` and needed it added:
+`sendEmailJob.ts`, `email/preview.post.ts`, `email/send.post.ts`,
+`email/test.post.ts`, `email/debug-html.post.ts`. `transactional-email.ts`
+already fetched the whole settings object. The invitation emails don't use
+`buildEmailHtml`, and the web view never used the type palette — both untouched.
+
+**The settings form.** `BrandingSettingsForm.vue` got its colour pickers back —
+they were deliberately removed in `7a785f7` (January) when the theme dropdown
+arrived and nothing but the landing consumed colours; email consuming them is
+the reason to return. New "Brand Palette" card (primary/secondary/accent, with
+per-field hints of what each drives) plus a **live email preview** at the bottom
+of the Email Branding card: a type selector and an iframe fed by the new
+`POST /api/email/branding-preview`, which renders a sample send with the org's
+real defaults and an optional palette override — so unsaved colour edits
+preview instantly. Render-only endpoint; nothing sent, nothing written.
+
+**A latent form bug fixed while there:** the form had always written the
+default palette (`#2563eb/#64748b/#f59e0b`) into `colors` on ANY save when the
+org had none — harmless while nothing read colours, consequential now. `colors`
+is only written when the org already had a palette or the user touched a
+picker; a "Reset to defaults" button writes `null` explicitly.
+
+**Verified live** (dev server against prod Directus, real session via POST
+`/api/demo/login`): palette edits re-render the preview with the new colours
+and the Reset button appears; the alert type keeps `#ef4444` under a brand
+palette; the light-gray/cyan palette flips overlay text dark; the endpoint
+401s without a session. Light and dark UI both checked. `demo` activity
+449 → 455 → 449 (all six page-view rows deleted), `demo-classic` 13 → 13 and
+`colors` still `null` on both — nothing persisted anywhere.
+
+**Deferred, explicitly: `heading_font` / `body_font` in the MJML.** Email
+typography is its own project — web font stacks don't survive email clients,
+Outlook needs conditional fallbacks, and the current Avenir/system stack is
+fine for every org today. The fields stay on settings, untouched; take it up
+as its own session if an org actually asks for serif email.
+
+**⚠️ Production behaviour change to be aware of on deploy:** 1033 Lenox's
+stored palette IS the old form-default blue (`#2563eb`), written by the latent
+bug above — so their transactional emails switch from the six semantic header
+colours to blue-branded chrome. Arguably what their palette says should happen
+(their manifest/landing already use that blue), but it is a visible change for
+a live org. demo/demo-classic have no palette and render identically.
+
+### Operator TODOs — per-org email branding
+
+- [ ] Nothing operational: no new env vars, no migrations, no crons. The
+      feature is data-driven off `block_settings.colors`, which already exists.
+- [ ] Optional, Peter's call: if 1033 Lenox should keep the classic six-colour
+      email chrome, clear its palette (`block_settings.colors → null` on row
+      `9b87c106`) before or after deploy — the branding settings page's
+      "Reset to defaults" does it too.
