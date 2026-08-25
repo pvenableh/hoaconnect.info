@@ -1,0 +1,78 @@
+diff --git a/dist/types/index.d.mts b/dist/types/index.d.mts
+index 1e0422ea8f72bc8013ad4812533d27c96a4c44c3..152797399df88bff113624fd67d3c7b461049662 100644
+--- a/dist/types/index.d.mts
++++ b/dist/types/index.d.mts
+@@ -160,17 +160,23 @@ type CalcMatchScore<Key extends string, Route extends string, Score extends any[
+     ...TupleIfDiff<Route, Key, ["", ""]>
+ ], TupleIfDiff<Key, Route, ["", ""]>> : `${Route}/` extends `${infer RouteSeg}/${infer RouteRest}` ? `${RouteSeg}?` extends `${infer RouteSegWithoutQuery}?${string}` ? RouteSegWithoutQuery extends KeySeg ? CalcMatchScore<KeyRest, RouteRest, [...Score, "", ""]> : KeySeg extends `:${string}` ? RouteSegWithoutQuery extends "" ? never : CalcMatchScore<KeyRest, RouteRest, [...Score, ""]> : KeySeg extends RouteSegWithoutQuery ? CalcMatchScore<KeyRest, RouteRest, [...Score, ""]> : never : never : never : never;
+ type _MatchedRoutes<Route extends string, MatchedResultUnion extends MatchResult<string> = MatchResult<keyof InternalApi>> = MatchedResultUnion["key"] extends infer MatchedKeys ? MatchedKeys extends string ? Route extends MatchedKeys ? MatchResult<MatchedKeys, true> : MatchedKeys extends `${infer Root}/**${string}` ? MatchedKeys extends `${string}/**` ? Route extends `${Root}/${string}` ? MatchResult<MatchedKeys, false, [], true> : never : MatchResult<MatchedKeys, false, CalcMatchScore<Root, Route, [], true>> : MatchResult<MatchedKeys, false, CalcMatchScore<MatchedKeys, Route, [], true>> : never : never;
+-type MatchedRoutes<Route extends string, MatchedKeysResult extends MatchResult<string> = MatchResult<keyof InternalApi>, Matches extends MatchResult<string> = _MatchedRoutes<Route, MatchedKeysResult>> = Route extends "/" ? keyof InternalApi : Extract<Matches, {
+-    exact: true;
+-}> extends never ? Extract<Exclude<Matches, {
+-    score: never;
+-}>, {
+-    score: MaxTuple<Matches["score"]>;
+-}>["key"] | Extract<Matches, {
+-    catchAll: true;
+-}>["key"] : Extract<Matches, {
+-    exact: true;
+-}>["key"];
++// PATCHED (HOA Connect). Upstream resolves a request literal against the union
++// of every generated API route, scoring each candidate with per-segment
++// template-literal recursion. At ~229 routes that runs at TypeScript's
++// instantiation-depth limit: whichever `$fetch` call the checker reaches first
++// fails with TS2321 "Excessive stack depth", and the failure MOVES to the next
++// call site if you rewrite the one that reported it. It is marginal rather than
++// broken — an unrelated file changing size is enough to tip it either way.
++//
++// Exact match only. Static routes keep their handler's response type, which is
++// all but a handful of the app's ~233 call sites; routes carrying `:params` or
++// a `**` catch-all fall back to the default response type and need an explicit
++// annotation at the call site. Nothing relied on that inference when this
++// landed (typecheck: 0). Types only — no runtime behaviour changes.
++//
++// Re-check this on every nitropack upgrade; pnpm refuses to apply the patch if
++// the version moves, so it cannot go stale silently.
++type MatchedRoutes<Route extends string> = Route extends keyof InternalApi ? Route : never;
+ 
+ /**
+  * @link https://github.com/remix-run/remix/blob/2248669ed59fd716e267ea41df5d665d4781f4a9/packages/remix-server-runtime/serialize.ts
+diff --git a/dist/types/index.d.ts b/dist/types/index.d.ts
+index 76409546d5846949b40dba8144b0109ca092eb27..3315d9f37fc506efce587adc991a5fe2dc7fe94e 100644
+--- a/dist/types/index.d.ts
++++ b/dist/types/index.d.ts
+@@ -160,17 +160,23 @@ type CalcMatchScore<Key extends string, Route extends string, Score extends any[
+     ...TupleIfDiff<Route, Key, ["", ""]>
+ ], TupleIfDiff<Key, Route, ["", ""]>> : `${Route}/` extends `${infer RouteSeg}/${infer RouteRest}` ? `${RouteSeg}?` extends `${infer RouteSegWithoutQuery}?${string}` ? RouteSegWithoutQuery extends KeySeg ? CalcMatchScore<KeyRest, RouteRest, [...Score, "", ""]> : KeySeg extends `:${string}` ? RouteSegWithoutQuery extends "" ? never : CalcMatchScore<KeyRest, RouteRest, [...Score, ""]> : KeySeg extends RouteSegWithoutQuery ? CalcMatchScore<KeyRest, RouteRest, [...Score, ""]> : never : never : never : never;
+ type _MatchedRoutes<Route extends string, MatchedResultUnion extends MatchResult<string> = MatchResult<keyof InternalApi>> = MatchedResultUnion["key"] extends infer MatchedKeys ? MatchedKeys extends string ? Route extends MatchedKeys ? MatchResult<MatchedKeys, true> : MatchedKeys extends `${infer Root}/**${string}` ? MatchedKeys extends `${string}/**` ? Route extends `${Root}/${string}` ? MatchResult<MatchedKeys, false, [], true> : never : MatchResult<MatchedKeys, false, CalcMatchScore<Root, Route, [], true>> : MatchResult<MatchedKeys, false, CalcMatchScore<MatchedKeys, Route, [], true>> : never : never;
+-type MatchedRoutes<Route extends string, MatchedKeysResult extends MatchResult<string> = MatchResult<keyof InternalApi>, Matches extends MatchResult<string> = _MatchedRoutes<Route, MatchedKeysResult>> = Route extends "/" ? keyof InternalApi : Extract<Matches, {
+-    exact: true;
+-}> extends never ? Extract<Exclude<Matches, {
+-    score: never;
+-}>, {
+-    score: MaxTuple<Matches["score"]>;
+-}>["key"] | Extract<Matches, {
+-    catchAll: true;
+-}>["key"] : Extract<Matches, {
+-    exact: true;
+-}>["key"];
++// PATCHED (HOA Connect). Upstream resolves a request literal against the union
++// of every generated API route, scoring each candidate with per-segment
++// template-literal recursion. At ~229 routes that runs at TypeScript's
++// instantiation-depth limit: whichever `$fetch` call the checker reaches first
++// fails with TS2321 "Excessive stack depth", and the failure MOVES to the next
++// call site if you rewrite the one that reported it. It is marginal rather than
++// broken — an unrelated file changing size is enough to tip it either way.
++//
++// Exact match only. Static routes keep their handler's response type, which is
++// all but a handful of the app's ~233 call sites; routes carrying `:params` or
++// a `**` catch-all fall back to the default response type and need an explicit
++// annotation at the call site. Nothing relied on that inference when this
++// landed (typecheck: 0). Types only — no runtime behaviour changes.
++//
++// Re-check this on every nitropack upgrade; pnpm refuses to apply the patch if
++// the version moves, so it cannot go stale silently.
++type MatchedRoutes<Route extends string> = Route extends keyof InternalApi ? Route : never;
+ 
+ /**
+  * @link https://github.com/remix-run/remix/blob/2248669ed59fd716e267ea41df5d665d4781f4a9/packages/remix-server-runtime/serialize.ts
