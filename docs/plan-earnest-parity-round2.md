@@ -3444,3 +3444,112 @@ reports `skipped: 0` against an empty table, *then* the cron is not firing.
 - [ ] Cosmetic: all 106 of 1033's emails have a null `web_slug`, so their public
       URLs are raw ids. `slugifyEmailSubject` already exists; a backfill would
       make them readable. Not blocking — the route accepts `web_slug-or-id`.
+
+### Kickoff prompt — next session (ready to paste)
+
+```
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the
+section "Round outcome — branding defect, the logo, the cutover (2026-08-25)"
+at the end, especially "The cutover runbook". That file is the source of
+truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
+elsewhere silently resets your shell there for the next command, so re-`cd`
+in every tool call that needs the repo. No branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+
+DONE last session, do not redo: `block_settings.organization` backfilled on
+both real orgs (saves proven working, cross-org isolation proven intact); the
+email logo plate + 200x120 asset-URL size cap; the branding preview's missing
+heading; test/debug renders now resolve branding like the real send.
+Vitest baseline is 1511. demo activity baseline 449, demo-classic 13.
+
+FIRST, spend two minutes establishing what actually happened in between —
+several items were left with Peter, and the right work depends on the answers:
+
+  git log origin/main..HEAD          # 3 commits were unpushed; are they still?
+  dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
+  dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
+
+Then work in this order:
+
+1. Ten seconds, and it EXPIRES: the two AI crons were registered on
+   2026-08-25 and had not yet reached their first fire. After 07:10 UTC on
+   2026-08-26, `ai_notice_history` should hold 5 rows and a dry probe should
+   report skipped:3 for 1033 and skipped:2 for 605. If it still reports
+   skipped:0 against an empty table, the cron is NOT firing and that is a real
+   defect. The exact probe commands are in the round-outcome section — note a
+   GET to /api/ai/notices/check would SEND, so use POST with dryRun:true.
+
+2. If the TXT record is present but `domain_verified` is still false: run
+   `POST /api/domains/verify` for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
+   Verifying moves NO traffic — DNS still points at the old project — so this
+   is safe to do without asking. Token is b86c58546e9e46a6a2af6f089d54ff78.
+   The Vercel project move itself (step 4 of the runbook) is Peter's to do.
+
+3. If the domain has moved: the 85 resident invitations. ⚠️ THIS IS A BULK
+   MAILING TO 80 REAL PEOPLE at a real address list. Build it, render the
+   exact template, produce the exact recipient list as a file Peter can read,
+   and STOP. Get a second explicit yes before a single send. If the domain has
+   NOT moved, do not start this — the invitation links would point at the
+   wrong host.
+
+4. Whether or not the above unblocks: scope the `public` read policy on
+   `block_settings`. It is currently `filter: null` — every org's row, no
+   session — exposing from_email, email_domain_dns, seo and landing
+   cross-tenant. Public landings need SOME of it; work out which fields and
+   narrow it to those. Verify by fetching a landing page unauthenticated
+   before and after.
+
+5. Cheap if there is time: all 106 of 1033's emails have a null `web_slug`, so
+   their public URLs are raw ids. `slugifyEmailSubject` in
+   core/server/utils/email-branding.ts already exists. The route takes
+   `web_slug-or-id`, so this is cosmetic, not blocking — and slugs must be
+   unique PER ORG.
+
+⚠️ THE SEVEN FIELD LISTS. A settings-driven email feature is not done when the
+renderer is right — it is done when every settings field list feeding a
+renderer asks for the new column. Worse, last session proved a SECOND half to
+this trap: two routes had the field list AND still never passed the values to
+the renderer, so widening the list alone fixed nothing. Check both halves.
+Unit tests pass throughout, because tests build settings by hand.
+
+⚠️ Keep the byte-identity harness habit: before a renderer change, hash 4 org
+variants x 6 types x html/text/webview; diff after; delete the temp test before
+committing. Last session it turned "orgs without a logo are untouched" into a
+fact (60/72 identical, and the 12 that moved were exactly the right 12).
+
+⚠️ zsh eats Directus filter URLs. `?filter[collection][_eq]=x` UNQUOTED is a
+glob pattern — zsh fails with "no matches found" and the whole command dies
+producing NO output, which reads like an empty API response. Quote the URL or
+percent-encode the brackets. This cost several turns.
+
+⚠️ Nuxt auto-imports do not exist under vitest. A new auto-imported util used
+in server code needs `vi.stubGlobal` — prefer `importOriginal` over a stand-in
+so the test asserts against the real implementation.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail, a bulk write
+is a bulk mailing, and no script flag suppresses it. Render to HTML and read
+it; don't send. 1033 and 605 Lincoln are REAL orgs with real people.
+
+Quality gate per commit: typecheck 0, vitest green (1511 baseline), build
+green, hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do
+NOT run `pnpm build` and `pnpm typecheck` concurrently — they corrupt each
+other's `.nuxt` cache. When capturing an exit code, capture the COMMAND's, not
+a pipeline's.
+
+Verify against real data, not fixtures — every real bug last session was found
+that way and none by unit tests. Use your own dev server with a real session
+(POST /api/demo/login). Browser-pane SCREENSHOTS failed silently on the dev
+server tab last session (blank images while the DOM was correct) — verify
+headlessly with read_page / javascript_tool rather than fighting it. Browsing
+writes hoa_activity rows; API calls do not. Delete every row you create, and
+diff BOTH demo orgs before and after: demo-classic is a CONTROL, never write
+to it.
+
+When done: update the plan's Operator TODOs and ask before pushing.
+```
