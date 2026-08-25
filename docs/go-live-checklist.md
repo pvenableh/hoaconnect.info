@@ -87,84 +87,87 @@ first.**
 
 ---
 
-## 3. DigitalOcean droplet — the notification-digest worker — **full steps: [notification-digest-cron.md](notification-digest-cron.md)**
+## 3. Scheduled jobs — all four live in GitHub Actions
 
-The daily/weekly digest runs as a **standalone worker on the droplet** (alongside
-Directus + your other workers), talking directly to Directus + SendGrid. It is
-idempotent-by-hour (sends each member at most once/day).
+**Full steps: [notification-digest-cron.md](notification-digest-cron.md) and
+[data-export-cron.md](data-export-cron.md).**
 
-- [ ] Check out the repo on the droplet (or reuse the existing worker checkout),
-      `pnpm install`.
-- [ ] Provide the worker's env (a `.env` at the repo root, or exported in the cron):
-  - [ ] `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN` (admin)
-  - [ ] `SENDGRID_API_KEY`
-  - [ ] `FROM_EMAIL` (platform sender), optional `FROM_NAME`
-  - [ ] `APP_URL` (e.g. `https://app.hoaconnect.info` — for the dashboard link)
-  - [ ] `DIGEST_TZ` (default `America/New_York`)
-  - [ ] optional `DEMO_ALLOW_EMAIL=true` to let demo orgs actually send
-- [ ] Dry run: from the repo root, `pnpm run digest:worker -- --dry-run` (sends nothing).
-- [ ] Add the hourly crontab (absolute paths — cron has a minimal PATH):
-      ```bash
-      0 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
-      ```
+Four jobs run on a schedule. None of them runs on the droplet, and none of them
+needs to:
 
-> Note: `CRON_SECRET` is **not** needed by the digest worker (it runs directly, not
-> via an HTTP endpoint). `CRON_SECRET` is only for the scheduled-email Directus flow.
+| workflow | schedule | what it does |
+|---|---|---|
+| [`notification-digest.yml`](../.github/workflows/notification-digest.yml) | hourly, `:07` | daily/weekly member digests via SendGrid |
+| [`data-export.yml`](../.github/workflows/data-export.yml) | every 15 min | builds queued Data Trust archives, purges expired ones |
+| [`ai-notices.yml`](../.github/workflows/ai-notices.yml) | nightly, 07:10 UTC | `POST /api/ai/notices/check` — deterministic, no LLM call, no AI credits |
+| [`ai-action-expiry.yml`](../.github/workflows/ai-action-expiry.yml) | Sundays, 07:40 UTC | `POST /api/ai/actions/expire-stale` |
+
+The first two check out the repo and run a worker script; the last two are a
+`curl` at the deployed app and need no checkout at all.
+
+- [ ] Set three repository secrets at **Settings → Secrets and variables →
+      Actions**: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`, `CRON_SECRET`.
+      Every other value is a non-secret literal in the workflow files.
+- [ ] Confirm each workflow appears under **Actions** and can be dispatched.
+      All four have a `workflow_dispatch` whose `dry_run` input defaults to
+      **true**, so the obvious button is the safe one.
+- [ ] Watch the first real hourly digest run and the first export tick go green.
+
+> `CRON_SECRET` is **not** used by the digest or export workers — they talk to
+> Directus directly rather than through an HTTP endpoint. It guards the two AI
+> endpoints and the scheduled-email Directus flow.
 
 ---
 
-## 3b. The droplet's checkout is stale — refresh it before either worker runs
+## 3b. Why this is not on the droplet — and what that mistaken assumption cost
 
-**This is the single item blocking two shipped features.** The droplet's checkout
-predates the 2026-08 flatten, so it still has the `apps/app` layout: neither
-`scripts/data-export-worker.ts` nor the current digest worker exists there, and
-any crontab line ending in `/apps/app` points at a directory that is gone.
+**Resolved 2026-08-25.** This section used to be titled "the droplet's checkout
+is stale — refresh it before either worker runs", and it was the single item
+blocking two shipped features. Both premises were wrong.
 
-Until this is done, a board that clicks **Settings → Your data → Request export**
-gets a row that sits at `queued` forever — while the UI (and now the public
-[continuity guarantee](data-continuity-policy.md) at `/your-data`) promises the
-archive will be built whether or not they keep the tab open. That promise is
-live on the marketing site; this is what makes it true.
+**There was never a checkout.** The droplet runs three containers — `database`
+(postgis), `cache` (redis), `directus` (container name `admin`) — and nothing
+else. No node service, no repo, and `crontab -l` returns "no crontab for root".
+The `directus/directus` image carries Directus's own runtime, not this repo. So
+the digest and export workers had never had anywhere to run; the `/apps/app`
+path this section told you to fix had never existed on that machine either.
 
-Run once, on the droplet (`admin.hoaconnect.info`):
+**And the export worker could not have started even on a perfect checkout.**
+`9fedc37` (2026-08-20 14:36) added an `import … from "#core/shared/ledger/visibility"`
+to `core/shared/export/collections.ts`. `#core` is a **Nuxt and vitest alias**
+(`core/nuxt.config.ts:151`, `vitest.config.ts:16`) with no matching `imports`
+map in `package.json` — so vitest, `nuxt typecheck` and `nuxt build` all resolved
+it happily while the standalone `tsx` worker died on
+`ERR_PACKAGE_IMPORT_NOT_DEFINED`. Every gate was green and the script was dead.
 
-```bash
-cd /path/to/hoaconnect
-git pull                                  # brings the flatten + both workers
-pnpm install                              # ONE package.json now — no workspace
-pnpm run digest:worker -- --dry-run       # must print a candidates= line
-pnpm run export:worker -- --dry-run       # lists the queue, writes nothing
-```
+Neither worker needs the droplet. Both are pure HTTP clients of Directus, which
+is public at `admin.hoaconnect.info`, so they run on a GitHub Actions runner
+where the code is the commit on `main` and there is nothing to keep in step by
+hand.
 
-> **Never regenerate `pnpm-lock.yaml` to get past an install hiccup.** Deleting it
-> floats every caret range and has produced duplicate `vue` / `unhead` copies —
-> the exact shape that took a production deploy down before. Restore it from git
-> and let `pnpm install` adapt.
+**The proof.** The `hoa_data_exports` row on `/transition-test`, requested
+2026-08-20 16:07 and `queued` ever since — about ninety minutes after the import
+that broke the worker — was built on 2026-08-25 at 15:39:
 
-Then fix both crontab lines (`crontab -e`) — drop any `/apps/app` suffix:
+- `queued → running → ready` in ten seconds
+- `transition-test-shareable-export-2026-08-25.zip`, 18,975 bytes,
+  `expires_at` 2026-09-01
+- filed in the top-level `Data exports` folder with `parent: null`, outside
+  every org folder, as the quota rule requires
+- "your export is ready" notification written to the requester
 
-```bash
-# HOA Connect — notification digest (hourly)
-0 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
+- [x] Both workers proved runnable with CI-shaped env (no `.env`, everything
+      from the environment)
+- [x] The stuck export row built end to end
+- [ ] First scheduled run on Actions observed green (needs the workflows pushed
+      and the secrets set — see §3)
 
-# HOA Connect — Data Trust export worker (every 5 min; exits in <1s when idle)
-*/5 * * * * cd /path/to/hoaconnect && /usr/local/bin/pnpm run export:worker >> /var/log/hoa-export.log 2>&1
-```
-
-- [ ] `git pull` + `pnpm install` on the droplet
-- [ ] Both dry runs succeed from the repo root
-- [ ] Export worker env present: `DIRECTUS_URL`, `DIRECTUS_STATIC_TOKEN`, `APP_URL`,
-      optional `EXPORT_WORK_DIR` (needs disk for the staged records **plus** the
-      finished zip) and `EXPORT_FOLDER_NAME` (default `Data exports`)
-- [ ] Both crontab lines in place, `crontab -l` confirms, no `/apps/app` anywhere
-- [ ] End-to-end: request an export in the app, confirm it flips
-      `queued → running → ready` within ~5 minutes and the download works
-
-**Still stale as of 2026-08-20**, and provable from here without SSH: the
-`hoa_data_exports` row on `/transition-test` requested at 16:07 UTC is still
-`queued`, with `date_started` null. Nothing has picked it up, which is exactly
-what a stale checkout looks like from the outside. The same droplet runs the
-digest worker, so both features are waiting on this one `git pull`.
+> **The lesson worth keeping.** Three quality gates passed over a script that
+> could not start, because all three resolve module aliases that the runtime
+> does not. `core/shared` is imported by the Nuxt app, by vitest **and** by
+> standalone scripts; only the first two know what `#core` means. Shared code
+> that scripts import must use relative imports. There is no gate that catches
+> this — the only evidence is running the thing.
 
 Full detail: [data-export-cron.md](data-export-cron.md) and
 [notification-digest-cron.md](notification-digest-cron.md).
@@ -275,7 +278,7 @@ one from scratch each time.
 | Ledger | **twelve** `org_audit_log` entries as of 2026-08-20 — one per writer, each driven through its real route. August's transition; two `manager_grants_changed` (one switch, one preset) against Dana Reyes; `document_published`; `poll_closed`; `expense_recorded`; `payment_recorded` (the only **board**-visible row, and the one that proves the export's row filter drops something); `ai_action_executed` + `ai_action_undone`. The last three are the `poll_reopened` read-back: the lobby poll was reopened and closed again through the app, so the feed reads `closed → reopened → closed` in that order. That sequence is the point — before `poll_reopened` existed, the middle row was missing and the ledger kept asserting an outcome the community had set aside. |
 | Fixture rows behind those entries | a draft-then-published document with no file; a three-vote poll (votes inserted with the admin token, before the permission fix below), now closed again after the reopen read-back; a second, OPEN poll ("Should the bike room get a second rack?") created through the app on 2026-08-20 to verify `POST /api/org/polls/create` — it is deliberately left open so the fixture has one poll in each state; a `payment_expenses` row for $2,400.75; a `payment_requests` row for $450.25 marked paid; two `ai_actions` rows, one executed and undone. All of them exist to give the ledger something true to point at — none is real community data. |
 | Public page | `maintenance_mode: true`, so a stranger who guesses the slug gets the maintenance screen, not a fake community |
-| Queued export | one `hoa_data_exports` row stuck at `queued` — it builds when §3b is done, and is the cheapest available proof that the worker works |
+| Queued export | **built 2026-08-25** — the row requested 2026-08-20 16:07 sat `queued` for five days and went `queued → running → ready` in ten seconds once §3b's two faults were fixed. `transition-test-shareable-export-2026-08-25.zip`, 18,975 bytes, `expires_at` 2026-09-01, filed in the top-level `Data exports` folder. It was the cheapest available proof that the worker works, and it earned its keep. Queue another the same way if you need to re-prove the path. |
 | AI (Phase 6) | all twelve ledger entries are embedded into `ai_ledger_chunks` (`pnpm run backfill:ledger-embeddings -- --apply --org=transition-test`), and the wallet was given a **3,000-credit test allowance** on 2026-08-20 because it had never been funded — that is a fixture balance, not a real one. The eleven owner-visible / one board-only split is what makes the retrieval boundary provable: see §3e. |
 
 ## 3e. The Anthropic account has no credit balance — every AI feature is dark

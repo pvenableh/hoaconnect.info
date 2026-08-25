@@ -1,4 +1,4 @@
-# Notices cron — droplet runbook
+# Notices cron — scheduled on GitHub Actions
 
 The notices engine is deterministic and free to run: it reads the community's
 own rows and does arithmetic, with **no LLM call anywhere**. A nightly sweep of
@@ -6,9 +6,10 @@ every org therefore costs nothing but a few queries, and spends no AI credits.
 
 Endpoint: `POST /api/ai/notices/check`, guarded by `x-cron-secret`.
 
-Unlike the digest — which runs as a standalone worker because it needs SendGrid
-and the branded template — this one is an HTTP trigger, because everything it
-needs (the generators, `notifyUsers`, the org scoping) already lives in the app.
+Unlike the digest — which runs a worker script because it needs SendGrid and the
+branded template — this one is an HTTP trigger, because everything it needs (the
+generators, `notifyUsers`, the org scoping) already lives in the app: no
+checkout, no `node_modules`, nothing to keep in step with the repo layout.
 
 ## What one run does
 
@@ -37,49 +38,36 @@ needs (the generators, `notifyUsers`, the org scoping) already lives in the app.
    so an urgent notice is never silenced by a missing collection. It will,
    however, repeat every run, which is exactly the nag the ledger prevents.
 
-2. `CRON_SECRET` must already be set in the app's env (it is — the
-   scheduled-email flow and the demo reset both use it). No new variable.
+2. `CRON_SECRET` must be set in **two** places: the app's env, where the
+   endpoint reads it (it already is — the scheduled-email flow and the demo
+   reset both use it), and as a **GitHub repository secret**, where the caller
+   reads it. No new variable, one new place to paste it.
 
-3. Add a **daily** crontab entry on the droplet. Nightly, not hourly: the
+3. Nothing else to set up. The schedule is
+   [`.github/workflows/ai-notices.yml`](../.github/workflows/ai-notices.yml),
+   **nightly at 07:10 UTC**, already in the repo. Nightly and not hourly: the
    thresholds are measured in days, so a second run the same day can only ever
    find what the first one already handled.
 
-   ```bash
-   # HOA Connect — nightly AI notices sweep (07:10 UTC)
-   10 7 * * * /usr/bin/curl -sS -X POST https://app.hoaconnect.info/api/ai/notices/check -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' -d '{}' >> /var/log/hoa-notices.log 2>&1
-   ```
+   To run it by hand: Actions → *ai notices sweep* → **Run workflow**. The
+   `dry_run` input defaults to **true**, which computes and reports without
+   notifying anyone or writing history.
 
-   > **The checkout-path hazard, which does not apply here.** The digest worker
-   > line still carries the trap documented in `notification-digest-cron.md`:
-   > it `cd`s into a repo checkout, and the flatten in `aa064a7` removed
-   > `apps/app`, so a stale crontab line fails every hour with a `cd` error and
-   > no digest goes out. **This cron deliberately avoids that class of failure
-   > entirely** — it is a `curl` at a deployed URL, so it has no checkout, no
-   > `node_modules`, and nothing to keep in step with the repo layout. If you
-   > are on the droplet fixing the digest line, fix it there; do not model this
-   > one on it.
-
-4. Verify with a dry run, which computes and reports but notifies nobody and
-   writes no history:
+   To run it from a laptop:
 
    ```bash
-   curl -sS -X POST https://app.hoaconnect.info/api/ai/notices/check -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' -d '{"dryRun":true}' | jq
+   curl -sS -X POST https://app.hoaconnect.info/api/ai/notices/check \
+     -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' \
+     -d '{"dryRun": true}'
    ```
 
-   A healthy response looks like:
-
-   ```json
-   {
-     "ok": true,
-     "dryRun": true,
-     "period": "2026-08",
-     "dedup": "on",
-     "organizations": 7,
-     "results": [{ "organization": "…", "considered": 12, "escalated": 3, "skipped": 0, "notified": 0 }]
-   }
-   ```
-
-   `"dedup": "unavailable"` means step 1 has not been run against this Directus.
+   > **This never lived on the droplet, and could not have.** That machine runs
+   > three containers — postgis, redis, directus — with no node service, no
+   > checkout and no crontab, which is why the digest and export workers moved
+   > to Actions too; see
+   > [notification-digest-cron.md](notification-digest-cron.md). Those two need
+   > a checkout and this one does not, but they now share a run history, which
+   > is the thing you actually want when something did not fire.
 
 ## Members opting out
 
