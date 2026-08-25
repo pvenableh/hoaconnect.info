@@ -2,8 +2,6 @@
 import type { HoaEmail, HoaAnnouncement, HoaChannel } from "#core/types/directus"
 
 const { list: listDocuments } = useDirectusItems("hoa_documents");
-const { list: listMembers } = useDirectusItems("hoa_members");
-const { list: listUnits } = useDirectusItems("hoa_units");
 const { list: listEmails } = useDirectusItems("hoa_emails");
 const { list: listChannels } = useDirectusItems("hoa_channels");
 const { list: listChannelMessages } = useDirectusItems("hoa_channel_messages");
@@ -65,43 +63,19 @@ const { data: documents } = await useAsyncData(
   }
 );
 
-// Fetch members with type breakdown
-const { data: members } = await useAsyncData(
-  `dashboard-members-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return [];
-    const result = await listMembers({
-      fields: ["id", "member_type", "date_created"],
-      filter: {
-        organization: { _eq: orgId.value },
-        status: { _in: ["active", "inactive"] },
-      },
-    });
-    return result || [];
-  },
-  {
-    watch: [orgId],
-  }
-);
+// Members and units — the shared home glances, not a fetch of their own.
+// Phase 7 moved both reads into `useHomeGlances` so the stacks home's rails,
+// the Occupancy widget and these stats all ride ONE query per collection
+// instead of three. The numbers keep exactly the meaning they had: `total`
+// counts active AND inactive, which is what this page has always shown.
+const {
+  rows: members,
+  total: memberTotal,
+  owners: memberOwners,
+  tenants: memberTenants,
+} = await useMembersGlance();
 
-// Fetch units count
-const { data: units } = await useAsyncData(
-  `dashboard-units-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return [];
-    const result = await listUnits({
-      fields: ["id"],
-      filter: {
-        organization: { _eq: orgId.value },
-        status: { _in: ["active", "inactive"] },
-      },
-    });
-    return result || [];
-  },
-  {
-    watch: [orgId],
-  }
-);
+const { total: unitTotal } = await useUnitsGlance();
 
 // Fetch recent emails
 const { data: emails } = await useAsyncData(
@@ -186,8 +160,8 @@ const { data: announcements } = await useAsyncData(
 // Computed stats
 const stats = computed(() => ({
   documents: documents.value?.length || 0,
-  members: members.value?.length || 0,
-  units: units.value?.length || 0,
+  members: memberTotal.value,
+  units: unitTotal.value,
   organization:
     (typeof currentOrg.value?.organization === "object"
       ? currentOrg.value?.organization?.name
@@ -196,12 +170,10 @@ const stats = computed(() => ({
 }));
 
 // Member type breakdown
-const memberBreakdown = computed(() => {
-  const membersList = members.value || [];
-  const owners = membersList.filter((m: any) => m.member_type === "owner").length;
-  const tenants = membersList.filter((m: any) => m.member_type === "tenant").length;
-  return { owners, tenants };
-});
+const memberBreakdown = computed(() => ({
+  owners: memberOwners.value,
+  tenants: memberTenants.value,
+}));
 
 // Email stats
 const emailStats = computed(() => {
@@ -212,77 +184,28 @@ const emailStats = computed(() => {
   return { sent, totalDelivered, totalFailed };
 });
 
-// Fetch real email activity data from Directus
-const { data: emailActivityResponse } = await useAsyncData(
-  `dashboard-email-activity-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return null;
-    try {
-      const headers = useRequestHeaders(["cookie"]);
-      const result = await $fetch(`/api/email/dashboard-activity`, {
-        headers,
-        query: { organizationId: orgId.value },
-      });
-      return result as {
-        chartData: Array<{ date: string; sent: number; delivered: number; opened: number }>;
-        stats: {
-          totalSent: number;
-          totalDelivered: number;
-          totalOpens: number;
-          uniqueOpens: number;
-          totalClicks: number;
-          uniqueClicks: number;
-          totalBounces: number;
-          openRate: number;
-          clickRate: number;
-        };
-      };
-    } catch (e) {
-      console.error("Failed to fetch email activity:", e);
-      return null;
-    }
-  },
-  {
-    watch: [orgId],
-    server: false,
-  }
+// Email activity — the shared read, under the key this page already used, so
+// the mail glance on the chart rail rides this one request rather than adding
+// another.
+const {
+  days: emailActivityData,
+  stats: emailActivityStats,
+} = await useEmailActivityGlance();
+
+const emailEngagementStats = computed(
+  () =>
+    emailActivityStats.value || {
+      totalSent: 0,
+      totalDelivered: 0,
+      totalOpens: 0,
+      uniqueOpens: 0,
+      totalClicks: 0,
+      uniqueClicks: 0,
+      totalBounces: 0,
+      openRate: 0,
+      clickRate: 0,
+    },
 );
-
-// Email activity chart data (real data from API)
-const emailActivityData = computed(() => {
-  if (emailActivityResponse.value?.chartData) {
-    return emailActivityResponse.value.chartData;
-  }
-  // Fallback to empty data if not available
-  const days = [];
-  const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    days.push({
-      date: date.toISOString().split("T")[0],
-      sent: 0,
-      delivered: 0,
-      opened: 0,
-    });
-  }
-  return days;
-});
-
-// Email engagement stats (real data from API)
-const emailEngagementStats = computed(() => {
-  return emailActivityResponse.value?.stats || {
-    totalSent: 0,
-    totalDelivered: 0,
-    totalOpens: 0,
-    uniqueOpens: 0,
-    totalClicks: 0,
-    uniqueClicks: 0,
-    totalBounces: 0,
-    openRate: 0,
-    clickRate: 0,
-  };
-});
 
 // Activity timeline data (combining real email data with document/member counts)
 const activityData = computed(() => {
@@ -341,10 +264,30 @@ const {
   reorder: reorderWidget,
   reset: resetWidgets,
 } = useDashboardWidgets({ roles: ["admin", "board"] });
+
+// ---- The ambient backdrop (Phase 7 polish) ----
+// Per-device, localStorage-backed, and its own kill switch: Waves → Orbs → Off.
+// Rendered inside this page's stacking context rather than in the layout, so it
+// belongs to the home and never bleeds onto another screen.
+const ambient = useHomeAmbient();
+// "off" is handled by not rendering the layer at all, so the variant handed to
+// the component is only ever one of the two looks.
+const ambientVariant = computed<"waves" | "orbs">(() =>
+  ambient.style.value === "orbs" ? "orbs" : "waves",
+);
 </script>
 
 <template>
-  <div class="min-h-screen t-bg">
+  <!-- `relative isolate` is what makes the ambient layer possible: a negative
+       z-index inside this stacking context paints ABOVE this element's own
+       background but UNDER every in-flow child, which is exactly where a
+       backdrop belongs. Without `isolate` the layer would escape to the root
+       context and disappear behind the app shell. -->
+  <div class="min-h-screen t-bg relative isolate">
+    <ClientOnly>
+      <HomeAmbientBackground v-if="ambient.on.value" :variant="ambientVariant" />
+    </ClientOnly>
+
     <PageContainer class="space-y-6">
         <AppPageHeader
           :eyebrow="stats.organization"
@@ -367,8 +310,20 @@ const {
               screen, still driven by `useDashboardWidgets` and its registry;
               it simply no longer has to be the first thing you read.
             -->
+            <!--
+              Above the fold, on xl: the stacks and the glance rail in the main
+              column, the chart rail sticky beside them. Below xl the rail falls
+              under the stacks as a tile grid — a 240px column of five cards
+              would be an absurd amount of scrolling on a phone.
+            -->
             <ClientOnly>
-              <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
+              <div class="xl:grid xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-6 xl:items-start">
+                <div class="space-y-4 min-w-0">
+                  <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
+                  <HomeGlanceRail />
+                </div>
+                <HomeChartRail class="mt-4 xl:mt-0" />
+              </div>
             </ClientOnly>
 
             <!-- Edit toolbar — toggle the iOS-home-screen-style customization -->
@@ -376,10 +331,24 @@ const {
               <p class="text-sm t-text-muted">
                 {{ isEditing ? "Drag cards to rearrange, or use the arrows. Tap × to remove." : "Your dashboard, your way." }}
               </p>
-              <Button variant="outline" size="sm" class="rounded-full" @click="toggleEdit">
-                <Icon :name="isEditing ? 'lucide:check' : 'lucide:layout-grid'" class="w-4 h-4 mr-1.5" />
-                {{ isEditing ? "Done" : "Customize" }}
-              </Button>
+              <div class="flex items-center gap-2">
+                <ClientOnly>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="rounded-full"
+                    :title="`Background: ${ambient.label.value}. Tap for ${ambient.nextLabel.value}.`"
+                    @click="ambient.cycle()"
+                  >
+                    <Icon :name="ambient.icon.value" class="w-4 h-4 mr-1.5" />
+                    {{ ambient.label.value }}
+                  </Button>
+                </ClientOnly>
+                <Button variant="outline" size="sm" class="rounded-full" @click="toggleEdit">
+                  <Icon :name="isEditing ? 'lucide:check' : 'lucide:layout-grid'" class="w-4 h-4 mr-1.5" />
+                  {{ isEditing ? "Done" : "Customize" }}
+                </Button>
+              </div>
             </div>
 
             <ClientOnly>

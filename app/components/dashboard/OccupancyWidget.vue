@@ -10,43 +10,19 @@
  *
  * Occupancy is null until somebody records it, and an "unknown: 28" donut is
  * worse than no donut, so the card says what to do instead.
+ *
+ * The read moved to `useHomeGlances` in Phase 7 — one `hoa_units` query now
+ * serves this donut, the dashboard's Units stat and both home rails. The
+ * active-only narrowing that this chart depends on happens in
+ * `summariseOccupancy`, so the split it shows is unchanged.
  */
-const { selectedOrgId } = await useSelectedOrg();
-const { list } = useDirectusItems("hoa_units");
-const orgId = computed(() => selectedOrgId.value);
-
-const { data, pending } = await useAsyncData(
-  `dash-occupancy-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return {} as Record<string, number>;
-    const rows = (await list({
-      fields: ["id", "occupancy"],
-      filter: { organization: { _eq: orgId.value }, status: { _eq: "active" } },
-      limit: -1,
-    })) as any[];
-    return (rows || []).reduce<Record<string, number>>((acc, u) => {
-      const k = u.occupancy || "unknown";
-      acc[k] = (acc[k] || 0) + 1;
-      return acc;
-    }, {});
-  },
-  { watch: [orgId], server: false, default: () => ({}) as Record<string, number> },
-);
+const { occupancy, recorded, ownerPct, pending } = await useUnitsGlance();
 
 const SERIES = [
   { key: "owner", label: "Owner-occupied", color: "var(--chart-1)" },
   { key: "tenant", label: "Tenanted", color: "var(--chart-3)" },
   { key: "vacant", label: "Vacant", color: CHART_STATUS_VARS.muted },
 ];
-
-const recorded = computed(() => {
-  const o = data.value || {};
-  return (o.owner || 0) + (o.tenant || 0) + (o.vacant || 0);
-});
-
-const ownerPct = computed(() =>
-  recorded.value ? Math.round(((data.value?.owner || 0) / recorded.value) * 100) : null,
-);
 </script>
 
 <template>
@@ -62,7 +38,7 @@ const ownerPct = computed(() =>
   >
     <AppChartDonut
       :series="SERIES"
-      :values="data ?? {}"
+      :values="occupancy"
       :height="200"
       center-label="homes"
     />
