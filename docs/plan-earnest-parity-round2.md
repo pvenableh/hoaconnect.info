@@ -2860,18 +2860,59 @@ Outlook needs conditional fallbacks, and the current Avenir/system stack is
 fine for every org today. The fields stay on settings, untouched; take it up
 as its own session if an org actually asks for serif email.
 
-**⚠️ Production behaviour change to be aware of on deploy:** 1033 Lenox's
-stored palette IS the old form-default blue (`#2563eb`), written by the latent
-bug above — so their transactional emails switch from the six semantic header
-colours to blue-branded chrome. Arguably what their palette says should happen
-(their manifest/landing already use that blue), but it is a visible change for
-a live org. demo/demo-classic have no palette and render identically.
+### 1033 Lenox given a real palette — DONE 2026-08-25
+
+The org's stored palette WAS the old form-default blue (`#2563eb`), written by
+the latent bug above and never chosen by anyone. Peter's call was to make the
+org work with the system rather than opt out of it, so it now carries its
+actual brand:
+
+```
+primary   #454545   ink      → email header + bottom bands, meta theme-color
+secondary #8b7355   warm brown (their link/accent-tertiary)
+accent    #c9a96e   gold     → email type badge
+```
+
+**Where those values come from, so nobody re-derives them by eye:** 1033 is on
+`landing.palette: "gold"` — the original warm 1033lenox.com ramp, which
+`core/app/assets/css/landing.css` (`html.landing-palette-gold`) carries
+verbatim from the reference stylesheet. `theme.css`'s cyan/teal is the *shared*
+`classic` theme after it was re-tinted cool; it is NOT what 1033 renders. Taking
+gold's `--theme-text-primary`, `--theme-link-color` and `--theme-accent-primary`
+is a faithful three-slot translation of the site.
+
+The ink band rather than a gold one is deliberate: the site is cream paper with
+ink text and gold *accents*, so a full gold masthead would be louder than the
+brand ever is. Verified by rendering their real email (their logo, their
+address) before the write: ink band takes white text via the YIQ flip, the gold
+badge takes dark text, and `alert` still shows its red pill. `basic` stays
+brand-neutral.
+
+**Blast radius, checked rather than assumed.** `colors[0].primary` has three
+consumers: the email chrome (new, waits for deploy), `useOrgBranding.themeColor`
+→ `<meta name="theme-color">` on the org's pages, and the per-host PWA manifest.
+**The manifest one does not apply to 1033**: it resolves by verified custom
+domain, and 1033 has none — `605-lincoln` is the only org that does. So the sole
+immediate, deploy-independent effect is the mobile browser chrome tint on their
+portal pages, blue → ink. (`1033lenox.com` itself is still the legacy standalone
+site on its own Directus, not this tenant — see [[1033-landing-migration]].)
+
+Old value backed up in the session scratchpad; rollback is one PATCH of
+`block_settings` row `9b87c106` back to
+`[{primary:#2563eb, secondary:#64748b, accent:#f59e0b}]`, or "Reset to
+defaults" in the branding form. demo / demo-classic / 605-lincoln were diffed
+after the write and are untouched.
 
 ### Operator TODOs — per-org email branding
 
-- [ ] Nothing operational: no new env vars, no migrations, no crons. The
+- [x] Nothing operational: no new env vars, no migrations, no crons. The
       feature is data-driven off `block_settings.colors`, which already exists.
-- [ ] Optional, Peter's call: if 1033 Lenox should keep the classic six-colour
-      email chrome, clear its palette (`block_settings.colors → null` on row
-      `9b87c106`) before or after deploy — the branding settings page's
-      "Reset to defaults" does it too.
+- [x] **1033 Lenox's palette set to its real brand 2026-08-25** (above), so no
+      org deploys with accidental chrome. demo/demo-classic have no palette and
+      render byte-identically to today.
+- [ ] Worth knowing, not blocking: `POST /api/email/branding-preview` scopes to
+      `requireUserSession` and takes an arbitrary `organizationId`, exactly like
+      the existing `email/preview.post.ts` it sits beside. Everything it can
+      expose (name, logo, address, palette) is already on the org's public
+      landing page, so this is consistent rather than a new hole — but if that
+      pair is ever tightened, tighten both together.
