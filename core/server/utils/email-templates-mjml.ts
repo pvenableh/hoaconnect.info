@@ -43,7 +43,10 @@ interface EmailTemplateOptions {
   webViewUrl?: string | null;
 }
 
-// Email type configurations with colors and styling
+// Email type configurations with colors and styling.
+// These are the platform-default palettes, used when an org has not set brand
+// colours (`block_settings.colors`). Orgs with a palette get their own chrome
+// via resolveEmailTypeStyle() below.
 const emailTypeStyles: Record<
   EmailType,
   { headerBg: string; accentColor: string; icon: string; label: string }
@@ -85,6 +88,95 @@ const emailTypeStyles: Record<
     label: "Notice",
   },
 };
+
+/**
+ * The style buildEmailHtml renders with — the type palette plus the text
+ * colours that sit on top of it. The text colours exist so an org-supplied
+ * light palette can flip its overlay text dark; the platform defaults keep the
+ * exact literals the template has always used.
+ */
+export interface ResolvedEmailTypeStyle {
+  headerBg: string;
+  accentColor: string;
+  icon: string;
+  label: string;
+  /** Org name in the header band when there is no logo. */
+  headerTextColor: string;
+  /** The custom header line under the logo. */
+  headerSubTextColor: string;
+  /** Address / email / homepage link in the bottom band. */
+  footerTextColor: string;
+  /** Text inside the type badge pill. */
+  badgeTextColor: string;
+}
+
+const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Accept only literal hex colours — these land unescaped in inline styles. */
+function normalizeHexColor(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return HEX_COLOR_RE.test(v) ? v : null;
+}
+
+/** YIQ brightness test: is white text readable on this colour? */
+function isDarkColor(hex: string): boolean {
+  let h = hex.slice(1);
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+}
+
+/**
+ * Resolve the visual style for an email type, honouring the org's brand
+ * palette (`block_settings.colors[0]`) when one is set.
+ *
+ * The deliberate division of labour once colour becomes org-driven:
+ * - The header/footer bands are BRAND — they take the org's primary colour,
+ *   the same way the logo and header line are the org's, not the platform's.
+ * - The badge pill's icon + label are SEMANTIC and never change: 🚨 ALERT
+ *   still says alert whatever the palette.
+ * - The pill colour is brand (org accent) for every type EXCEPT alert, which
+ *   keeps its red — urgency must survive a soft brand palette.
+ * - `basic` stays brand-neutral white by design; it never had type chrome.
+ *
+ * An org with no palette gets the platform defaults byte-for-byte.
+ */
+export function resolveEmailTypeStyle(
+  emailType: EmailType,
+  settings?: BlockSetting | null
+): ResolvedEmailTypeStyle {
+  const base = emailTypeStyles[emailType];
+  const fallback: ResolvedEmailTypeStyle = {
+    ...base,
+    headerTextColor: "#ffffff",
+    headerSubTextColor: "#e5e7eb",
+    footerTextColor: "#9ca3af",
+    badgeTextColor: "#ffffff",
+  };
+  if (emailType === "basic") return fallback;
+
+  const palette = Array.isArray(settings?.colors) ? settings?.colors[0] : null;
+  const primary = normalizeHexColor(palette?.primary);
+  const accent = normalizeHexColor(palette?.accent);
+  if (!primary && !accent) return fallback;
+
+  const headerBg = primary ?? base.headerBg;
+  const accentColor =
+    emailType === "alert" ? base.accentColor : accent ?? primary ?? base.accentColor;
+  const headerIsDark = isDarkColor(headerBg);
+  return {
+    ...base,
+    headerBg,
+    accentColor,
+    headerTextColor: headerIsDark ? "#ffffff" : "#1f2937",
+    headerSubTextColor: headerIsDark ? "#e5e7eb" : "#4b5563",
+    footerTextColor: headerIsDark ? "#9ca3af" : "#4b5563",
+    badgeTextColor: isDarkColor(accentColor) ? "#ffffff" : "#1f2937",
+  };
+}
 
 // Default salutations based on email type
 const defaultSalutations: Record<EmailType, string> = {
@@ -436,7 +528,7 @@ export function buildEmailHtml(
 
   const orgName = organization.name || "Organization";
   const legalName = organization.legal_name || orgName;
-  const style = emailTypeStyles[emailType];
+  const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
   const logoUrl = getLogoUrl(organization, directusUrl);
   const finalSalutation = salutation || defaultSalutations[emailType];
   const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
@@ -550,17 +642,17 @@ export function buildEmailHtml(
               ? `<mj-image src="${logoUrl}" alt="${orgName}" width="200px" align="center" />`
               : isBasic
                 ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937">${orgName}</mj-text>`
-                : `<mj-text align="center" font-size="24px" font-weight="600" color="#ffffff">${orgName}</mj-text>`
+                : `<mj-text align="center" font-size="24px" font-weight="600" color="${style.headerTextColor}">${orgName}</mj-text>`
           }
           ${
             processedHeaderText
-              ? `<mj-text align="center" padding-top="10px" font-size="11px" color="${isBasic ? "#6b7280" : "#e5e7eb"}" text-transform="uppercase" letter-spacing="2px">${processedHeaderText}</mj-text>`
+              ? `<mj-text align="center" padding-top="10px" font-size="11px" color="${isBasic ? "#6b7280" : style.headerSubTextColor}" text-transform="uppercase" letter-spacing="2px">${processedHeaderText}</mj-text>`
               : ""
           }
           ${
             style.label
               ? `<mj-text align="center" padding-top="12px">
-              <span style="display: inline-block; background-color: ${style.accentColor}; color: #ffffff; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
+              <span style="display: inline-block; background-color: ${style.accentColor}; color: ${style.badgeTextColor}; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
                 ${style.icon} ${style.label}
               </span>
             </mj-text>`
@@ -595,11 +687,11 @@ export function buildEmailHtml(
       <!-- Bottom Footer -->
       <mj-section background-color="${isBasic ? "#f9fafb" : style.headerBg}" padding="${bottomPadding}">
         <mj-column>
-          ${addressLine ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px">${addressLine}</mj-text>` : ""}
-          ${organization.email ? `<mj-text align="center" color="${isBasic ? "#6b7280" : "#9ca3af"}" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
+          ${addressLine ? `<mj-text align="center" color="${isBasic ? "#6b7280" : style.footerTextColor}" font-size="12px">${addressLine}</mj-text>` : ""}
+          ${organization.email ? `<mj-text align="center" color="${isBasic ? "#6b7280" : style.footerTextColor}" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
           ${
             homepageUrl
-              ? `<mj-text align="center" padding-top="6px" font-size="12px"><a href="${homepageUrl}" style="color: ${isBasic ? "#6b7280" : "#9ca3af"}; text-decoration: underline;">${homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></mj-text>`
+              ? `<mj-text align="center" padding-top="6px" font-size="12px"><a href="${homepageUrl}" style="color: ${isBasic ? "#6b7280" : style.footerTextColor}; text-decoration: underline;">${homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></mj-text>`
               : ""
           }
           <mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">

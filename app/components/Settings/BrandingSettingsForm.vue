@@ -134,6 +134,98 @@
       </CardContent>
     </Card>
 
+    <!-- Brand Palette -->
+    <Card>
+      <CardHeader>
+        <CardTitle>Brand Palette</CardTitle>
+        <CardDescription>
+          Your community's colors — used on your site and to brand outgoing emails
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-2">
+              <Label for="primaryColor">Primary</Label>
+              <div class="flex items-center gap-2">
+                <input
+                  id="primaryColor"
+                  type="color"
+                  v-model="form.primaryColor"
+                  class="h-9 w-12 rounded border cursor-pointer bg-background"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+                <Input
+                  v-model="form.primaryColor"
+                  class="font-mono"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+              </div>
+              <p class="text-xs text-muted-foreground">Email header &amp; footer bands</p>
+            </div>
+            <div class="space-y-2">
+              <Label for="secondaryColor">Secondary</Label>
+              <div class="flex items-center gap-2">
+                <input
+                  id="secondaryColor"
+                  type="color"
+                  v-model="form.secondaryColor"
+                  class="h-9 w-12 rounded border cursor-pointer bg-background"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+                <Input
+                  v-model="form.secondaryColor"
+                  class="font-mono"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+              </div>
+              <p class="text-xs text-muted-foreground">Site accents</p>
+            </div>
+            <div class="space-y-2">
+              <Label for="accentColor">Accent</Label>
+              <div class="flex items-center gap-2">
+                <input
+                  id="accentColor"
+                  type="color"
+                  v-model="form.accentColor"
+                  class="h-9 w-12 rounded border cursor-pointer bg-background"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+                <Input
+                  v-model="form.accentColor"
+                  class="font-mono"
+                  :disabled="isSaving"
+                  @input="markPaletteDirty"
+                />
+              </div>
+              <p class="text-xs text-muted-foreground">Email type badge</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <p class="text-xs text-muted-foreground">
+              {{ usingPlatformPalette
+                ? "Using the platform's default email colors. Pick colors above to brand your emails."
+                : "Alert emails keep their red badge regardless of your palette, so urgent messages stay urgent." }}
+            </p>
+            <Button
+              v-if="!usingPlatformPalette"
+              variant="outline"
+              size="sm"
+              @click="resetPalette"
+              :disabled="isSaving"
+            >
+              Reset to defaults
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
     <!-- Site Title & Description -->
     <Card>
       <CardHeader>
@@ -270,6 +362,44 @@
               Remove Photo
             </Button>
           </div>
+
+          <!-- Live email preview -->
+          <div class="space-y-2 pt-2 border-t">
+            <div class="flex items-center justify-between gap-4 pt-2">
+              <Label for="emailPreviewType">Email preview</Label>
+              <select
+                id="emailPreviewType"
+                v-model="previewType"
+                class="px-3 py-1.5 border rounded-md bg-background text-sm"
+              >
+                <option value="notice">Notice</option>
+                <option value="announcement">Announcement</option>
+                <option value="newsletter">Newsletter</option>
+                <option value="reminder">Reminder</option>
+                <option value="alert">Alert</option>
+                <option value="basic">Basic</option>
+              </select>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              How this email type will look for your community — including unsaved palette changes.
+            </p>
+            <div class="relative rounded-lg border overflow-hidden bg-white">
+              <div
+                v-if="previewLoading && !previewHtml"
+                class="flex items-center justify-center h-[560px] text-muted-foreground"
+              >
+                <Icon name="lucide:loader-2" class="h-6 w-6 animate-spin" />
+              </div>
+              <iframe
+                v-else
+                :srcdoc="previewHtml"
+                sandbox=""
+                title="Email preview"
+                class="w-full h-[560px] bg-white"
+                :class="{ 'opacity-60': previewLoading }"
+              />
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -375,6 +505,75 @@ const form = ref({
   ccBccThreshold: props.settings?.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
 });
 
+// Palette state. The form has always carried colour values (defaulted when the
+// org has none), but emails now consume the palette — so `colors` is only
+// written when the org already had one or the user actually touched a picker,
+// and never silently defaulted into existence by an unrelated save.
+const paletteDirty = ref(false);
+const paletteCleared = ref(false);
+const hadPalette = computed(() => !!props.settings?.colors?.length);
+const usingPlatformPalette = computed(
+  () => paletteCleared.value || (!paletteDirty.value && !hadPalette.value)
+);
+
+const markPaletteDirty = () => {
+  paletteDirty.value = true;
+  paletteCleared.value = false;
+};
+
+const resetPalette = () => {
+  const defaults = { primary: "#2563eb", secondary: "#64748b", accent: "#f59e0b" };
+  form.value.primaryColor = defaults.primary;
+  form.value.secondaryColor = defaults.secondary;
+  form.value.accentColor = defaults.accent;
+  paletteDirty.value = false;
+  paletteCleared.value = true;
+};
+
+// The palette to save/preview: null = platform defaults, undefined = keep stored.
+const effectivePalette = computed(() => {
+  if (paletteCleared.value) return null;
+  if (paletteDirty.value || hadPalette.value) {
+    return [
+      {
+        primary: form.value.primaryColor,
+        secondary: form.value.secondaryColor,
+        accent: form.value.accentColor,
+      },
+    ];
+  }
+  return undefined;
+});
+
+// Live email preview
+const previewType = ref("notice");
+const previewHtml = ref("");
+const previewLoading = ref(false);
+
+const refreshPreview = async () => {
+  previewLoading.value = true;
+  try {
+    const res = await $fetch<{ html: string }>("/api/email/branding-preview", {
+      method: "POST",
+      body: {
+        organizationId: props.organization.id,
+        emailType: previewType.value,
+        colors: effectivePalette.value,
+      },
+    });
+    previewHtml.value = res.html;
+  } catch (error) {
+    console.error("Failed to render email preview:", error);
+  } finally {
+    previewLoading.value = false;
+  }
+};
+
+const refreshPreviewDebounced = useDebounceFn(refreshPreview, 400);
+
+watch([previewType, effectivePalette], () => refreshPreviewDebounced(), { deep: true });
+onMounted(refreshPreview);
+
 // Theme descriptions for the settings form
 const themeDescriptions: Record<'classic' | 'modern' | 'luxury', string> = {
   classic: 'Classic theme uses warm, elegant colors with serif fonts.',
@@ -401,6 +600,8 @@ watch(
         homepageUrl: newSettings.homepage_url || "",
         ccBccThreshold: newSettings.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
       };
+      paletteDirty.value = false;
+      paletteCleared.value = false;
     }
   },
   { deep: true }
@@ -543,13 +744,6 @@ const saveChanges = async () => {
       description: form.value.description,
       heading_font: form.value.headingFont as "serif" | "sans-serif",
       body_font: form.value.bodyFont as "serif" | "sans-serif",
-      colors: [
-        {
-          primary: form.value.primaryColor,
-          secondary: form.value.secondaryColor,
-          accent: form.value.accentColor,
-        },
-      ],
       theme: form.value.theme as BlockSetting["theme"],
       logo: logoId,
       icon: iconId,
@@ -559,6 +753,11 @@ const saveChanges = async () => {
       cc_bcc_threshold: Number(form.value.ccBccThreshold) || DEFAULT_CC_BCC_THRESHOLD,
       status: "published",
     };
+
+    // Only write the palette when it means something (see the note above).
+    if (effectivePalette.value !== undefined) {
+      settingsData.colors = effectivePalette.value;
+    }
 
     let updatedSettings: BlockSetting;
 
@@ -590,8 +789,11 @@ const saveChanges = async () => {
     removedLogo.value = false;
     removedIcon.value = false;
     removedFooter.value = false;
+    paletteDirty.value = false;
+    paletteCleared.value = false;
 
     emit("updated", updatedSettings);
+    refreshPreviewDebounced();
   } catch (error: any) {
     console.error("Failed to save branding:", error);
     toast.error(error.message || "Failed to save branding settings");

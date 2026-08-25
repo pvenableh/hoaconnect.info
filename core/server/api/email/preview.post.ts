@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["id", "name", "legal_name", "email", "phone", "slug", "external_url", "street_address", "city", "state", "zip", {
-          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image"],
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
