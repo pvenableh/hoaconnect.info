@@ -1424,11 +1424,25 @@ a frozen mid-transition sample.
       after 2a ships** (Risk 2: adapter coexistence). `useDirectusRealtime` still has
       one real importer, `useDirectusSubscription.ts`; retire that first or point it
       at the manager directly.
-- [ ] **Run `pnpm backfill:notifications` on prod** once 2b/2c deploys — ideally
-      just before, so members' bells have history the moment the new one appears.
-      Writes the last 30 days ARCHIVED, is idempotent on
-      (recipient, collection, item), and is safe to run again afterwards.
-      `--dry-run` first: it planned 18 rows across the 7 orgs from here.
+- [x] **`pnpm backfill:notifications` — RUN on prod 2026-08-25**, the day 2b/2c
+      deployed. Wrote 18 archived rows (17 meetings for 1033 Lenox, 1 document
+      for the transition fixture). Idempotent on (recipient, collection, item),
+      so a re-run is a no-op.
+
+      ⚠️ **Directus EMAILS the recipient for every `directus_notifications` row
+      it creates.** This backfill therefore sent Peter 17 emails in eight
+      seconds. The rows themselves are `archived` and correct — history visible,
+      nothing unread — but nobody had priced the mail. Any future bulk write to
+      that collection needs the same thought, and there is no in-script switch
+      for it: the send happens inside Directus, not in the script.
+
+      ⚠️ Attribution never fully resolved. The scripted run was `--dry-run` and
+      reported `Would write 18 … nothing was written`; `main()` runs once and
+      the single `createNotification` sits behind a correct `if (DRY_RUN)
+      continue`. The rows nonetheless carry that script's exact composer and
+      came from a node process using the admin token on Peter's machine. Most
+      likely a second, un-flagged run by hand. Recorded rather than tidied
+      away.
 - [ ] **Phase 2b/2c: no schema changes and no new env vars.**
       `NUXT_PUBLIC_BELL_V2` exists but should stay UNSET (defaults on); set it to
       `false` only to fall back to the old aggregator.
@@ -2368,6 +2382,35 @@ rather than proved as such.
   happened.
 - Operator TODOs recorded by earlier sessions still stand — see each session's
   entry.
+
+### Droplet reality — the runbooks in `docs/` describe a machine that does not exist
+
+Checked 2026-08-25 against `~/Sites/605/admin/var/www/admin/docker-compose.yml`.
+The droplet runs **three containers and nothing else**: `database` (postgis),
+`cache` (redis), `directus` (container name `admin`). There is **no node service
+and no hoaconnect checkout**. The `directus/directus` image carries Directus's
+own runtime, not this repo.
+
+So the digest and export workers have **never had anywhere to run** — `crontab
+-l` on the droplet returns "no crontab for root". This is not the stale
+`/apps/app` path `notification-digest-cron.md` describes; it was never set up at
+all, which matches the `hoa_data_exports` row that has sat `queued` since
+2026-08-20.
+
+`notification-digest-cron.md`, `data-export-cron.md` and go-live §3/§3b all
+assume a host checkout with pnpm and need rewriting once a direction is chosen:
+(a) host checkout + host cron, (b) a worker service added to that compose stack
+— node version pinned to the image, survives `down/up`, disk via a volume for
+`EXPORT_WORK_DIR` — or (c) move the digest off the droplet entirely and leave
+only the export worker there.
+
+⚠️ The two AI crons (`notices/check`, `actions/expire-stale`) need NONE of this.
+They are `curl` at the deployed Vercel app — no checkout, no node, no container.
+Both were dry-run green on prod 2026-08-25. A GitHub Actions `schedule:` is
+probably a better home for them than the droplet.
+
+⚠️ That compose file is stale as a source of truth: the live Directus sends from
+a `huestudios.company` address while the file says `contact@hoaconnect.info`.
 
 ### Kickoff prompt — post-deploy cleanup (ready to paste)
 
