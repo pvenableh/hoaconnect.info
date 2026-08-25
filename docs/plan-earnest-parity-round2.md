@@ -1435,8 +1435,16 @@ a frozen mid-transition sample.
 - [ ] **Delete `useLegacyAggregator` (the 1061-line body of
       `core/app/composables/useNotifications.ts`) and the `bellV2` flag one
       release after 2c ships**, together with the 2a adapter deletions above.
-- [ ] **Mount `useMarkItemRead()` on the request / document / meeting detail
-      pages** when Phases 4–7 next touch them (deviation 5 above).
+- [x] ~~**Mount `useMarkItemRead()` on the request / document / meeting detail
+      pages**~~ — done 2026-08-25. Both request detail pages and the document
+      detail page take it in one line each. Meetings have **no detail page** —
+      `notificationTargetPath` sends a meeting notification to the list — so the
+      detail DIALOG is the mount point, and landing on the list deliberately
+      does not clear the badge. Verified end to end per collection with a seeded
+      notification, reading `status` back from Directus. ⚠️ `markItemRead`
+      prefers rows it already holds, so the common case issues an UPDATE and
+      never sends the item-filtered query: watching the network for that query
+      shows nothing and looks exactly like dead wiring.
 - [x] ~~`useDirectusSubscription.handleEvent`'s `delete` branch key-vs-object bug~~
       — fixed in Session 4.
 - [x] **Phase 3 schema: `pnpm add:channel-category` — already run against prod**
@@ -1454,9 +1462,14 @@ a frozen mid-transition sample.
       prod**, idempotent. Adds a SECOND read rule per policy
       (id / first_name / last_name / avatar); the self rule is untouched, which
       is what keeps it safe.
-- [ ] **Mute UI for channels.** `notifications_enabled` is honoured by
-      `/api/hoa/channels/unread` (count reported, excluded from the total) but
-      has no toggle; the members panel is its natural home.
+- [x] ~~**Mute UI for channels.**~~ — done 2026-08-25.
+      `POST /api/hoa/channels/:channel/mute` plus a toggle at the TOP of the
+      members panel (above the roster: that row is about you, the rest is about
+      other people). The endpoint mirrors `read.post.ts`'s authorization shape
+      and auto-join, so an admin with org-wide access but no membership row can
+      still mute. Verified: the count stays, the TOTAL drops to 0, and the state
+      survives a reload. **No prod script and no new env var** — the column has
+      existed since channels shipped.
 - [x] **Phase 4 schema: `pnpm create:ai-notice-history` — already run against
       prod** (idempotent) and `pnpm generate:types` committed. Without it the
       notices cron still sends but repeats every run; it warns loudly when the
@@ -1475,12 +1488,15 @@ a frozen mid-transition sample.
       already set. `AI_ACTION_EXPIRY_DAYS` is optional and defaults to 14.
 - [ ] **Phase 5: nothing to run on prod.** No schema changes, no new
       collections, no new fields, no `generate:types`.
-- [ ] **Consider making `ai_actions.preview` a `json` column.** It is `text`
-      today, which is why Directus returns it as a string and why every proposal
-      card rendered character-by-character until Session 6 parsed it at the API
-      boundary. The parse is correct and defensive either way, so this is
-      tidiness rather than a fix — but a `json` column would make the shape
-      match `payload` and `result`, which are already json.
+- [~] **Make `ai_actions.preview` a `json` column.** Script written and
+      registered — `pnpm convert:preview-json` — and **deliberately NOT RUN**.
+      It is the only schema script here that ALTERS AN EXISTING COLUMN, and a
+      text→json cast aborts on a single bad row, so it refuses to proceed until
+      it has read every row and proved the cast survives (an EMPTY STRING is the
+      trap; NULL is fine). `--dry-run` on prod 2026-08-25: 7 rows, 5 valid JSON,
+      2 NULL, 0 failures. Still tidiness rather than a fix — the boundary parse
+      is correct either way and stays — so it is queued behind a green deploy
+      alongside the two release-gated deletions.
 - [x] ~~**Wire "Draft a plan" to `/api/ai/director/plan` in Phase 6.**~~ — done
       in Session 7. `planThis()` posts to the endpoint, holds the button while
       it runs, and refreshes the approvals queue the steps land in.
@@ -2317,9 +2333,36 @@ of them by reading the source.
 
 **Still open, for whoever picks this up:**
 
-- **35 commits ahead of `origin/main`, deliberately unpushed** — 29 carried in
-  from Sessions 2–10 plus this session's 6. Nothing is blocked on them; they are
-  waiting on Peter's call.
+- **40 commits ahead of `origin/main`, deliberately unpushed** — 29 carried in
+  from Sessions 2–10, 6 from Session 11, and 5 from the follow-up round below.
+  Nothing is blocked on them; they are waiting on Peter's call.
+
+### Follow-up round (2026-08-25, after the programme closed)
+
+Peter asked for the carried-forward list to be cleaned up before deploying. Two
+of the five items are RELEASE-GATED by Risk 2 — the WS adapters and the
+`BELL_V2` flag exist to give one release of coexistence, and none of these
+commits has ever been deployed, so "one release" has not elapsed at all.
+Deleting them before the first prod exposure would remove the fallback exactly
+when it is most likely to be wanted. Asked; Peter chose to hold both until the
+deploy is green. So:
+
+- **Done:** `useMarkItemRead` mounted · channels mute toggle · the
+  `preview → json` script written and guarded (unrun, see its entry above).
+- **Held until the deploy is green:** delete `useDirectusWebSocket.ts` +
+  `useDirectusRealtime.ts` (retire or re-point `useDirectusSubscription` first —
+  it is one of four importers); delete `useLegacyAggregator`, the 1061-line body
+  of the 1181-line `useNotifications.ts`, together with the `BELL_V2` flag; and
+  run `pnpm convert:preview-json`.
+- Also fixed in this round, both found by measuring rather than reading: a
+  native `<select>` was the one control still on pre-glass styling (`.glass-field`
+  cannot reach it — theme.css's unlayered `select` rule wins on layer order), and
+  35 unreferenced CSS classes plus 3 orphaned tokens were deleted.
+
+⚠️ One vitest run during this round reported 2 failures while the dev server was
+under load; the failing tests were not captured, and four subsequent runs — three
+with nothing else competing — were 1471/1471. Recorded as contention flakiness
+rather than proved as such.
 - The three legacy realtime composables are still adapters over the WS manager
   (Session 2 deferred deleting them by one release). That release has not
   happened.
