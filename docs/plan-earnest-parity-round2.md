@@ -1487,10 +1487,12 @@ a frozen mid-transition sample.
       still read the header directly — `demo/reset`,
       `internal/recompute-member-counts`, `email/process-scheduled` — and would
       need the same treatment before any of them could move to Vercel Cron.
-- [ ] **`app/lib/directus.ts` exports a `useDirectusRealtime()` that nothing
-      imports**, with a different shape from the auto-imported composable of the
-      same name. Noticed while surveying the post-deploy cleanup; harmless
-      today, a trap the next time someone greps for that name.
+- [x] ~~**`app/lib/directus.ts` exports a `useDirectusRealtime()` that nothing
+      imports**~~ — deleted 2026-08-25 with its `createDirectusRealtimeClient`
+      helper. Worth recording what the grep turned up: **nothing imports
+      `app/lib/directus.ts` at all**, so the two functions left in it
+      (`createDirectusClient`, `useDirectus`) are dead too. Left in place
+      because deleting the file was outside that session's scope.
 
 - [ ] **`pnpm install` on every machine/clone** once this lands — the new `prepare`
       script is what installs the husky hooks; without a fresh install the pre-commit
@@ -1499,10 +1501,10 @@ a frozen mid-transition sample.
       (`NUXT_PUBLIC_APP_VERSION` exists as an override but should stay unset.)
 - [ ] **Phase 2a: nothing to run on prod.** No schema changes, no new env vars —
       `DIRECTUS_WEBSOCKET_URL` was already set and is unchanged.
-- [ ] **Delete `useDirectusWebSocket.ts` and `useDirectusRealtime.ts` one release
-      after 2a ships** (Risk 2: adapter coexistence). `useDirectusRealtime` still has
-      one real importer, `useDirectusSubscription.ts`; retire that first or point it
-      at the manager directly.
+- [x] ~~**Delete `useDirectusWebSocket.ts` and `useDirectusRealtime.ts` one
+      release after 2a ships**~~ — done 2026-08-25. `useDirectusSubscription`
+      now calls `useWebSocketManager()` directly and keeps the two behaviours
+      the shim added: the logged-out guard and skipping the `init` frame.
 - [x] **`pnpm backfill:notifications` — RUN on prod 2026-08-25**, the day 2b/2c
       deployed. Wrote 18 archived rows (17 meetings for 1033 Lenox, 1 document
       for the transition fixture). Idempotent on (recipient, collection, item),
@@ -2442,11 +2444,9 @@ deploy is green. So:
 
 - **Done:** `useMarkItemRead` mounted · channels mute toggle · the
   `preview → json` script written and guarded (unrun, see its entry above).
-- **Held until the deploy is green:** delete `useDirectusWebSocket.ts` +
-  `useDirectusRealtime.ts` (retire or re-point `useDirectusSubscription` first —
-  it is one of four importers); delete `useLegacyAggregator`, the 1061-line body
-  of the 1181-line `useNotifications.ts`, together with the `BELL_V2` flag; and
-  run `pnpm convert:preview-json`.
+- ~~**Held until the deploy is green**~~ — **ALL THREE DONE 2026-08-25**, in the
+  post-deploy cleanup session, after Peter confirmed the bell and realtime had
+  behaved in front of real members. See "Post-deploy cleanup — DONE" below.
 - Also fixed in this round, both found by measuring rather than reading: a
   native `<select>` was the one control still on pre-glass styling (`.glass-field`
   cannot reach it — theme.css's unlayered `select` rule wins on layer order), and
@@ -2456,9 +2456,10 @@ deploy is green. So:
 under load; the failing tests were not captured, and four subsequent runs — three
 with nothing else competing — were 1471/1471. Recorded as contention flakiness
 rather than proved as such.
-- The three legacy realtime composables are still adapters over the WS manager
-  (Session 2 deferred deleting them by one release). That release has not
-  happened.
+- ~~The three legacy realtime composables are still adapters over the WS
+  manager.~~ **Resolved 2026-08-25**: two of the three are deleted, and
+  `useRealtimeSubscription` — the one with real callers — stays, talking to the
+  manager directly.
 - Operator TODOs recorded by earlier sessions still stand — see each session's
   entry.
 
@@ -2586,10 +2587,75 @@ me the kickoff prompt for the next session. Ask before pushing.
 
 ---
 
-## Next round (queued 2026-08-25) — cleanup, then per-org email branding
+## Post-deploy cleanup — DONE 2026-08-25
 
-Two pieces of work, in this order. The first is the carried-forward cleanup;
-the second is a new ask from Peter after the droplet round closed.
+All three held items shipped in one session, on `main`, each gated at
+typecheck 0 · vitest 1473 · build green · hairline audit 0.
+
+- **`useLegacyAggregator` deleted**, with the `bellV2` flag, its
+  `NUXT_PUBLIC_BELL_V2` runtime-config entry and the dispatcher.
+  `useNotifications.ts` goes 1181 → 297 lines and the adapter over
+  `directus_notifications` IS `useNotifications` now. The three surfaces
+  (`Bell`, `Sheet`, `Toast`) are untouched — the point of having built the v2
+  side as an adapter rather than a rewrite.
+- **`useDirectusWebSocket.ts` and `useDirectusRealtime.ts` deleted.** The
+  corrected count held: zero real callers and one, respectively.
+  `useDirectusSubscription` now calls `useWebSocketManager()` directly.
+- **`pnpm convert:preview-json` run on production** — 7 rows, 5 valid, 2 NULL,
+  0 failures, exactly matching the dry run. Verified after: `preview` comes back
+  as a real object, the two NULLs intact. `core/types/directus.ts` regenerated
+  (`preview?: string | null` → `Record<string, any> | null`).
+
+### ⚠️ The landmine this session stepped on: `$fetch` route typing
+
+Deleting the aggregator — 884 lines out of one composable — was enough to tip
+`TS2321: Excessive stack depth` on a repo that had been sitting at TypeScript's
+instantiation-depth limit for a while. There was already a comment inside the
+aggregator about keeping a helper inline "to avoid tipping the `$fetch`
+route-union type recursion", so this was known and unrecorded.
+
+**The failure mode is what makes it expensive.** Nitro types `$fetch` by
+resolving the request literal against a union of ~229 generated API routes,
+scoring each candidate with per-segment template-literal recursion. When that
+tips, the error lands on whichever of the app's ~233 `$fetch` calls the checker
+reaches FIRST — and rewriting that call site just moves the error to the next
+one. Confirmed three times (`useHomeGlances.ts:249` → `useDirectusItems.ts:68`
+→ `useDirectusNotifications.ts:83`) before giving up on local fixes. **The file
+the error names is never the cause.** Reducing nesting at the site doesn't help
+either; only removing the route comparison entirely does.
+
+Fixed globally, with Peter's agreement, by patching nitropack —
+`patches/nitropack@2.13.1.patch`, wired through `pnpm.patchedDependencies`.
+`MatchedRoutes` becomes an exact-match lookup, so static routes keep their
+handler's response type and routes carrying `:params` or `**` fall back to the
+default and want an annotation. Nothing relied on that inference (typecheck 0).
+Types only — no runtime change; build and all 1473 tests unaffected.
+
+Two rejected alternatives, measured rather than guessed: dropping the
+`InternalApi` augmentation from the app program costs 26 explicit annotations
+across 8 files AND needs a fragile `prepare:types` hook; rewriting the ~233 call
+sites is a 102-file diff. **Re-check the patch on every nitropack upgrade** —
+pnpm refuses to apply a patch whose version moved, so it cannot rot silently.
+
+### Verified in the browser
+
+Real session via `/api/demo/login` on a local dev server, light and dark. The
+bell opens from the v2 store, badges `1 unread`, and both tabs work — Unread
+shows the live row, Earlier pages the archived one, which is the v2-only path
+and could not have come from the aggregator. `demo` activity 449 → 457 → 449
+(all 8 page-view rows deleted), `demo-classic` 13 → 13, untouched throughout.
+
+⚠️ **`useDirectusSubscription` has no live call sites.** Its only consumer is
+`useOrgItems.useSubscription`, which nothing in the app calls. Its re-point to
+the manager is covered by typecheck and build, NOT by a runtime exercise — say
+so rather than implying it was clicked through.
+
+---
+
+## Next round — per-org email branding
+
+Queued 2026-08-25. The cleanup half of this round is done (above); what remains
+is the new ask from Peter after the droplet round closed.
 
 ### Where the email templates actually live
 
@@ -2661,57 +2727,74 @@ one row is one mail, and no flag suppresses it.
 ### Kickoff prompt — next session (ready to paste)
 
 ```
-Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first —
-especially "Operator TODOs" and "Next round (queued 2026-08-25)". That file is
-the source of truth, not chat.
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the
+"Post-deploy cleanup — DONE 2026-08-25" section and then "Next round — per-org
+email branding". That file is the source of truth, not chat.
 
-Work on `main` in /Users/peterhoffman/Sites/hoaconnect — no branch, no worktree.
-NOTE the repo root is the NESTED /Users/peterhoffman/Sites/hoaconnect/hoaconnect;
-the parent is a workspace folder, and a `cd` elsewhere resets your shell there.
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — note the
+repo root is the NESTED directory; the parent is a workspace folder, and any
+`cd` elsewhere resets your shell there. No branch, no worktree.
 `git pull --ff-only` first. Tool shells have no node/pnpm: run
-`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push, so
-a push IS a production deploy — ask before pushing, never run `vercel --prod`.
-There are unpushed commits waiting.
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
 
-Two threads, in priority order:
+The post-deploy cleanup round is DONE — do not redo it. Both Risk 2 fallbacks
+are deleted, `ai_actions.preview` is a json column, and a nitropack patch fixed
+the `$fetch` route-typing landmine. If typecheck ever reports TS2321 "Excessive
+stack depth", read that section before touching the file it names: the file it
+names is never the cause, and rewriting that call site just moves the error.
 
-1. POST-DEPLOY CLEANUP. Peter confirmed on 2026-08-25 that the bell and
-   realtime have behaved, so both Risk 2 fallbacks come out:
-   a. Delete `useLegacyAggregator` — the 1061-line body of the 1181-line
-      `core/app/composables/useNotifications.ts` — with the `bellV2` flag and
-      its `NUXT_PUBLIC_BELL_V2` plumbing (`core/nuxt.config.ts:335`). Promote
-      `useBellStoreAdapter` to be `useNotifications` and drop the dispatcher at
-      the bottom of the file. The file header comment describes the aggregator's
-      sources and will be stale — rewrite it.
-   b. Delete `useDirectusWebSocket.ts` (ZERO real callers) and
-      `useDirectusRealtime.ts` (exactly ONE: `useDirectusSubscription.ts:29`,
-      itself called only from `useOrgItems.ts:193`). The plan's older prompt
-      claimed four importers; it was re-measured and corrected.
-   c. Run `pnpm convert:preview-json`, then `pnpm generate:types`, and commit
-      the regenerated `core/types/directus.ts`. The script refuses unless every
-      row survives the cast; the 2026-08-25 dry run was 7 rows / 5 valid /
-      2 NULL / 0 failures.
+This session = PER-ORG EMAIL BRANDING. The investigation is already written up
+under "Where the email templates actually live" and "The shape of the work" —
+start from it rather than re-deriving. Two systems exist and only one is the
+gap: campaign email (`hoa_email_templates`) is already per-org and editable,
+and is NOT the job.
 
-2. PER-ORG EMAIL BRANDING. Read "Where the email templates actually live" and
-   "The shape of the work" in the plan — the investigation is done, so start
-   from it rather than re-deriving. The core of it: `emailTypeStyles` at
-   `core/server/utils/email-templates-mjml.ts:46` is a hardcoded constant, and
-   `block_settings.colors` already holds each org's palette and is already set
-   through the admin UI. Make the renderer read it, with the current six
-   palettes as the fallback so an org with no colours renders byte-identically
-   to today.
+The gap is the transactional renderer. `emailTypeStyles` at
+`core/server/utils/email-templates-mjml.ts:46` is a module-level constant
+mapping each of six `EmailType`s to a fixed `headerBg`, `accentColor` and emoji
+`icon` — identical for every community on the platform. Meanwhile
+`block_settings.colors` already holds each org's `{ primary, secondary, accent }`
+palette, is already set through `app/components/Settings/BrandingSettingsForm.vue`,
+and is already read by `useOrgBranding.ts:69`. The renderer ignores it.
 
-Quality gate per commit: typecheck 0, vitest green, build green, hairline audit
-green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run `pnpm build` and
-`pnpm typecheck` concurrently — they corrupt each other's `.nuxt` cache.
+In order:
+
+1. Make `emailTypeStyles` a function of the org rather than a constant, deriving
+   `headerBg` / `accentColor` from `settings.colors[0]`. ⚠️ An org that has set
+   no palette must render BYTE-IDENTICALLY to today — keep the current six
+   palettes as the fallback, or this is a regression dressed as a feature.
+2. Settle what a *semantic* type means once colour is org-driven. An alert has
+   to still read as urgent when the brand palette is soft; the emoji icon may be
+   carrying more of that weight than the colour is. Decide it deliberately.
+3. `heading_font` / `body_font` in the MJML — genuinely separate and fiddlier,
+   because email typography is not web typography. Fine to defer, but say so.
+4. Extend `BrandingSettingsForm.vue` with an email preview. `buildWebViewHtml()`
+   already renders standalone, so the preview has a renderer.
+5. Tests: `resolveEmailBranding` in `core/server/utils/email-branding.ts` has a
+   precedence chain (per-send override → per-org default → fallback) that is
+   easy to break. Cover org-with-palette, org-without, and per-send override.
+
+Quality gate per commit: typecheck 0, vitest green (1473 baseline), build green,
+hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run
+`pnpm build` and `pnpm typecheck` concurrently — they corrupt each other's
+`.nuxt` cache. When capturing an exit code, capture the COMMAND's, not a
+pipeline's.
+
+⚠️ Nuxt auto-imports do not exist under vitest. A new auto-imported util used in
+server code needs `vi.stubGlobal` in the affected tests — and if it is an auth
+helper, stub the REAL implementation, not a stand-in, or the test asserts
+nothing.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail, a bulk write is
+a bulk mailing, and no script flag suppresses it. Render to HTML and read it;
+don't send.
+
 Verify in the browser in both light and dark on your own dev server with a real
-session (/api/demo/login), and delete every row you create — browsing demo
-writes `hoa_activity` page-view rows. demo-classic is a CONTROL: never write
-to it.
-
-⚠️ Writing to `directus_notifications` EMAILS the recipient, one mail per row,
-from inside Directus. A bulk write is a bulk mailing and no flag suppresses it.
-Do not send test mail to real members.
+session (/api/demo/login), and delete every row you create. Note API calls do
+NOT write hoa_activity rows — only browsing does. demo-classic is a CONTROL:
+never write to it, and diff both orgs before and after to prove it.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ```
