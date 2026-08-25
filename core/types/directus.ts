@@ -30,7 +30,7 @@ export interface AiAction {
 	/** @description The action's parameters. */
 	payload?: Record<string, any> | null;
 	/** @description Human-readable preview of what will happen. */
-	preview?: string | null;
+	preview?: Record<string, any> | null;
 	/** @description Execution result (on success). */
 	result?: Record<string, any> | null;
 	/** @description Failure detail (on failed execution). */
