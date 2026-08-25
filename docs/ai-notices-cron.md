@@ -48,8 +48,8 @@ checkout, no `node_modules`, nothing to keep in step with the repo layout.
    in days, so a second run the same day can only ever find what the first one
    already handled.
 
-   ⚠️ **Vercel Hobby allows 2 cron jobs, at daily granularity only.** This one
-   fits either plan; the weekly expiry sweep does not, and degrades to daily.
+   ✅ **Registered and confirmed on 2026-08-25**, showing in Vercel's Cron Jobs
+   tab as *"At 07:10 AM"*. All Vercel cron times are UTC.
 
    > **Why Vercel Cron and not GitHub Actions.** This job is a single HTTP
    > request at an endpoint that already exists. Booting an Ubuntu runner,

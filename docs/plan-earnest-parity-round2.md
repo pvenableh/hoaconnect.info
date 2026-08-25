@@ -1434,10 +1434,19 @@ a frozen mid-transition sample.
       `POST /repos/{owner}/{repo}/dispatches` requires. Without it exports still
       build, just on the hourly schedule rather than in seconds; the log says
       so explicitly rather than looking like a fault.
-- [ ] **Confirm both Vercel crons appear** under the project's *Cron Jobs* tab
-      after the next deploy. ⚠️ **Vercel Hobby allows 2 crons at daily
-      granularity only** — the weekly expiry sweep needs Pro, and on Hobby
-      degrades to daily (harmless: it is idempotent and reports `expired: 0`).
+- [x] ~~**Confirm both Vercel crons appear**~~ — done 2026-08-25. Both show in
+      the Cron Jobs tab: `10 7 * * *` and `40 7 * * 0`, times in UTC. The weekly
+      one surviving proves the project is on **Vercel Pro**; Hobby caps crons at
+      daily granularity, so that question is settled and needs no further hedging.
+- [x] **Pushed and verified in production 2026-08-25** (`c6eb27d`). CI green on
+      both commits. A real `repository_dispatch` ran the export worker in 36s —
+      it reached Directus and reported `built=0` on an empty queue, which also
+      proves the `DIRECTUS_STATIC_TOKEN` secret. Both AI endpoints answer `401`
+      to a GET carrying a wrong Bearer token, which is Vercel Cron's exact
+      request shape: route accepts GET, auth enforced, no side effects.
+      ⚠️ Still unproven from a terminal: `GITHUB_DISPATCH_TOKEN`. The only test
+      is requesting an export in the app and watching it finish in seconds
+      rather than on the hour.
 - [ ] **Watch the first run of each of the four jobs go green.**
       A failed Actions run emails you; a *green* digest run that sends nothing is
       expected — see the `candidates=1` note below.
@@ -1460,6 +1469,13 @@ a frozen mid-transition sample.
       `ERR_PACKAGE_IMPORT_NOT_DEFINED`. `core/shared/` is imported by the app,
       by vitest AND by scripts; keep its intra-package imports relative. This
       is what actually kept the export worker dead, not the missing droplet.
+- [ ] **A workflow can be valid YAML and still be REJECTED by GitHub.**
+      `${{ runner.temp }}` in a JOB-level `env:` is a context-availability
+      error — job env allows only github / needs / strategy / matrix / vars /
+      secrets / inputs — and no local YAML parser catches it. The symptom is
+      distinctive: the workflow lists under its FILENAME instead of its `name:`,
+      and the push produces a run with ZERO jobs. `runner` is fine at step
+      level. Cost one bad commit on 2026-08-25, fixed in `c6eb27d`.
 - [ ] **Vercel Cron issues GET, and only GET, and cannot send a custom header.**
       A `.post.ts` route on a Vercel cron answers **405 and the job silently
       never runs**. That is why `check.post.ts` / `expire-stale.post.ts` became

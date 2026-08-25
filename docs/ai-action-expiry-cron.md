@@ -72,10 +72,10 @@ their own community's stale queue and nobody else's.
    a run every night can only ever find the handful of rows that crossed the
    line in the last 24 hours.
 
-   ⚠️ **A weekly cron needs Vercel Pro.** Hobby allows 2 crons at daily
-   granularity only, so on Hobby this runs daily instead — harmless, because the
-   sweep is idempotent by construction and simply reports `expired: 0` on the
-   days it finds nothing.
+   ✅ **Registered and confirmed on 2026-08-25**, showing in Vercel's Cron Jobs
+   tab as *"At 07:40 AM, only on Sunday"*. The weekly schedule surviving is also
+   the proof this project is on **Vercel Pro** — Hobby caps crons at daily
+   granularity, so a weekly one would have been rejected or flattened.
 
    ⚠️ Vercel Cron issues **GET only** and cannot send a custom header, which is
    why this route is `expire-stale.ts` rather than `.post.ts` and why it accepts

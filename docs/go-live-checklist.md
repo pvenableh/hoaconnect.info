@@ -123,11 +123,11 @@ meant ~2,880 runs a month booting a runner to find an empty queue.
       `GITHUB_DISPATCH_REPO` if the repo is ever renamed. Without it, exports
       still build — just on the hourly schedule instead of immediately, which
       is what the log line says when it is missing.
-- [ ] Confirm both Vercel crons appear under the project's **Cron Jobs** tab
-      after the next deploy. ⚠️ **Vercel Hobby allows 2 cron jobs at
-      daily granularity only** — a weekly schedule needs Pro. On Hobby the
-      expiry sweep will effectively run daily, which is harmless: it is
-      idempotent and simply finds nothing most days.
+- [x] **Both Vercel crons confirmed 2026-08-25** in the project's **Cron Jobs**
+      tab: `10 7 * * *` ("At 07:10 AM") and `40 7 * * 0` ("At 07:40 AM, only on
+      Sunday"). All Vercel cron times are UTC. The weekly one surviving is
+      incidental proof the project is on **Pro** — Hobby caps crons at daily
+      granularity.
 - [ ] Watch the first run of each of the four go green.
 
 ⚠️ **Vercel Cron issues GET, and only GET**, and cannot send a custom header.
