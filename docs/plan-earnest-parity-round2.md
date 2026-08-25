@@ -1413,6 +1413,42 @@ a frozen mid-transition sample.
 
 ### Operator TODOs (carried forward until done)
 
+> **2026-08-25 — the droplet thread is closed.** All four scheduled jobs are
+> GitHub Actions workflows. See the rewritten `docs/notification-digest-cron.md`,
+> `docs/data-export-cron.md` and go-live §3/§3b.
+
+- [ ] **Set three GitHub repository secrets** at *Settings → Secrets and
+      variables → Actions*: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`,
+      `CRON_SECRET`. **Nothing scheduled runs until this is done** — every
+      other value is a non-secret literal in the workflow files. This is the
+      only remaining setup step for all four jobs.
+- [ ] **Watch the first scheduled run of each of the four workflows go green.**
+      A failed run emails you; a *green* digest run that sends nothing is
+      expected — see the `candidates=1` note below.
+- [ ] **`candidates=1` platform-wide** (2026-08-25): exactly one user across
+      every org has a non-null `notification_preferences`. The digest will
+      correctly send almost nothing, so green ticks with no mail are the
+      expected result rather than a broken schedule. Whether that number should
+      be higher is a product question — preferences have barely been set.
+- [ ] **The digest can miss an hour.** GitHub delays scheduled runs under load
+      and sometimes drops them, and the worker's only idempotence is matching
+      the CURRENT hour — so a run delayed past the boundary is a MISSED digest,
+      not a late one. The schedule is `7 * * * *` to buy margin. If misses show
+      up, the fix is a per-member `last_digest_at` guard so the schedule can run
+      every 15 minutes safely — **not** a higher frequency, which would send
+      duplicates.
+- [ ] **A `#core/…` import inside `core/shared/` breaks every standalone
+      script that reaches it, and no gate catches it.** `#core` is a Nuxt and
+      vitest alias with no `imports` map in `package.json`, so vitest,
+      `nuxt typecheck` and `nuxt build` all pass while `tsx` dies on
+      `ERR_PACKAGE_IMPORT_NOT_DEFINED`. `core/shared/` is imported by the app,
+      by vitest AND by scripts; keep its intra-package imports relative. This
+      is what actually kept the export worker dead, not the missing droplet.
+- [ ] **`app/lib/directus.ts` exports a `useDirectusRealtime()` that nothing
+      imports**, with a different shape from the auto-imported composable of the
+      same name. Noticed while surveying the post-deploy cleanup; harmless
+      today, a trap the next time someone greps for that name.
+
 - [ ] **`pnpm install` on every machine/clone** once this lands — the new `prepare`
       script is what installs the husky hooks; without a fresh install the pre-commit
       audit silently does not run.
@@ -1488,18 +1524,18 @@ a frozen mid-transition sample.
       prod** (idempotent) and `pnpm generate:types` committed. Without it the
       notices cron still sends but repeats every run; it warns loudly when the
       collection is missing.
-- [ ] **Add the notices cron to the droplet crontab** — a nightly `curl` at
-      `POST /api/ai/notices/check` with the `x-cron-secret` header. Exact line,
-      the dry-run check, and why this one is immune to the digest worker's
-      checkout-path hazard: `docs/ai-notices-cron.md`. **No new env var** —
-      `CRON_SECRET` is already set.
+- [x] ~~**Add the notices cron to the droplet crontab**~~ — superseded
+      2026-08-25. There is no droplet crontab and never was. It is now
+      `.github/workflows/ai-notices.yml`, nightly at 07:10 UTC.
+      ⚠️ `CRON_SECRET` now needs to exist in **two** places: the app's env
+      (unchanged) and as a **GitHub repository secret**, which is where the
+      caller reads it. See `docs/ai-notices-cron.md`.
 - [ ] **Phase 4: no new env vars.** `ANTHROPIC_API_KEY` is irrelevant here —
       the notices engine makes no LLM call at any point.
-- [ ] **Add the stale-proposal sweep to the droplet crontab** — a WEEKLY `curl`
-      at `POST /api/ai/actions/expire-stale` with the `x-cron-secret` header.
-      Exact line, the dry-run check, and why weekly rather than nightly:
-      `docs/ai-action-expiry-cron.md`. **No new env var** — `CRON_SECRET` is
-      already set. `AI_ACTION_EXPIRY_DAYS` is optional and defaults to 14.
+- [x] ~~**Add the stale-proposal sweep to the droplet crontab**~~ — superseded
+      2026-08-25, same as the notices cron. It is now
+      `.github/workflows/ai-action-expiry.yml`, Sundays at 07:40 UTC.
+      `AI_ACTION_EXPIRY_DAYS` is optional and still defaults to 14.
 - [ ] **Phase 5: nothing to run on prod.** No schema changes, no new
       collections, no new fields, no `generate:types`.
 - [~] **Make `ai_actions.preview` a `json` column.** Script written and
@@ -2383,7 +2419,15 @@ rather than proved as such.
 - Operator TODOs recorded by earlier sessions still stand — see each session's
   entry.
 
-### Droplet reality — the runbooks in `docs/` describe a machine that does not exist
+### Droplet reality — RESOLVED 2026-08-25
+
+> **Outcome:** Peter chose GitHub Actions for all four scheduled jobs. The
+> runbooks below are kept as the diagnosis; the machine they describe was never
+> going to be built, and it turned out not to be the whole problem anyway —
+> the export worker could not have started on a perfect droplet either. See
+> go-live §3b for the full account. What follows is what was found on the day.
+
+#### The original finding
 
 Checked 2026-08-25 against `~/Sites/605/admin/var/www/admin/docker-compose.yml`.
 The droplet runs **three containers and nothing else**: `database` (postgis),
@@ -2437,10 +2481,16 @@ order of value:
    `core/app/composables/useNotifications.ts` — together with the `BELL_V2`
    flag and its `NUXT_PUBLIC_BELL_V2` plumbing.
 2. Delete `core/app/composables/useDirectusWebSocket.ts` and
-   `useDirectusRealtime.ts`. ⚠️ `useDirectusRealtime` still has FOUR importers
-   (`app/lib/directus.ts`, `useDirectusSubscription.ts`,
-   `useRealtimeSubscription.ts`, `useWebSocketManager.ts`) — retire or re-point
-   `useDirectusSubscription` FIRST, or this will not come out cleanly.
+   `useDirectusRealtime.ts`. ⚠️ **Corrected 2026-08-25 — this said FOUR
+   importers and there is ONE.** Re-measured:
+   `useDirectusWebSocket` has **zero** real callers (only its own file and a
+   doc comment in `useWebSocketManager.ts`) — a straight delete.
+   `useDirectusRealtime` has exactly **one**: `useDirectusSubscription.ts:29`,
+   whose sole caller in turn is `useOrgItems.ts:193`. The other three
+   "importers" were two doc comments and `app/lib/directus.ts:49`, which
+   *defines its own* `useDirectusRealtime()` of a different shape that nothing
+   imports at all. Retire or re-point `useDirectusSubscription` first, but the
+   job is far smaller than this prompt used to claim.
 3. Run `pnpm convert:preview-json` (ai_actions.preview text → json), then
    `pnpm generate:types` and commit the regenerated `core/types/directus.ts`.
    The script refuses to run unless every row survives the cast; dry run on
@@ -2489,4 +2539,136 @@ the browser verification headlessly — do not ask me to look at a
 screen, I supervise from a different device. When done: update the
 Status checklist (shipped items, deviations, operator TODOs), and give
 me the kickoff prompt for the next session. Ask before pushing.
+```
+
+---
+
+## Next round (queued 2026-08-25) — cleanup, then per-org email branding
+
+Two pieces of work, in this order. The first is the carried-forward cleanup;
+the second is a new ask from Peter after the droplet round closed.
+
+### Where the email templates actually live
+
+Answering the question directly, because the system is larger than it looks and
+splits in two:
+
+**Transactional / notification email — built in code.**
+`core/server/utils/email-templates-mjml.ts` (~47 KB, 1,200 lines) is the single
+renderer. `buildEmailHtml()` / `buildEmailText()` produce every system email;
+`buildWebViewHtml()` produces the "view in browser" page. Six variants exist as
+an `EmailType` union — `basic · alert · newsletter · announcement · reminder ·
+notice`. `core/server/utils/transactional-email.ts` wraps it as
+`sendBrandedTransactionalEmail()`, and `core/server/utils/email-branding.ts`
+resolves which branding applies, with precedence **per-send override → per-org
+default (`block_settings`) → fallback**.
+
+**Campaign email — user-edited in the app.** The `hoa_email_templates` /
+`hoa_template_blocks` collections behind `app/components/EmailBuilder/*` and
+`app/pages/[slug]/admin/communications/templates/`. Already per-org and already
+editable. **This is not the gap.**
+
+### What is already white-labeled, and what is not
+
+Per-org today: the **sending domain / from address**, the **logo**
+(`block_settings.logo`, rendered at 200px), a **custom header line**
+(`header_text`, with `{name}` / `{legal_name}` tokens), a **footer building
+photo** (`footer_image`), and the **homepage link**. Per-send overrides exist
+for the header line and footer photo.
+
+Not per-org: **every colour, every icon, and the typography.**
+`emailTypeStyles` at `core/server/utils/email-templates-mjml.ts:46` is a
+module-level constant mapping each `EmailType` to a fixed `headerBg`,
+`accentColor` and emoji `icon`. Six palettes, hardcoded, identical for every
+community on the platform. `defaultSalutations` just below it is the same shape.
+So an org's alert email is `#7f1d1d` dark red and a 🚨 whatever its brand is.
+
+**The org's brand palette already exists and is already live** —
+`block_settings.colors` is `Array<{ primary, secondary, accent }>`, set through
+`app/components/Settings/BrandingSettingsForm.vue`, and read today by
+`useOrgBranding.ts:69` and `manifest.webmanifest.get.ts:76`. There are also
+`heading_font` / `body_font` (`serif` | `sans-serif`) and a `theme`
+(`classic` | `modern`) on the same settings bag. **The email renderer ignores
+all of it.** That is the whole gap: not new plumbing, one existing field the
+renderer never reads.
+
+### The shape of the work
+
+- Make `emailTypeStyles` a **function of the org**, not a constant — derive
+  `headerBg` / `accentColor` from `settings.colors[0]`, keeping the current six
+  palettes as the fallback when an org has set no colours. Every existing send
+  must look identical for an org with no palette, or this is a regression
+  dressed as a feature.
+- Decide what a *semantic* type means once colour is org-driven. An alert must
+  still read as urgent when the brand palette is soft; the emoji icon may be
+  carrying more of that weight than the colour is. Worth settling deliberately
+  rather than falling out of the implementation.
+- Consider `heading_font` / `body_font` in the MJML, which is a genuinely
+  separate (and fiddlier) job — email typography is not web typography.
+- Extend `BrandingSettingsForm.vue` with an email preview so an admin can see
+  the result. `buildWebViewHtml()` already renders standalone, so the preview
+  has a renderer.
+- Tests: `resolveEmailBranding` has a precedence chain that is easy to break.
+  Cover org-with-palette, org-without, and per-send override.
+
+⚠️ Do not send test mail to real members. Note also that a
+`directus_notifications` write **emails the recipient from inside Directus** —
+one row is one mail, and no flag suppresses it.
+
+### Kickoff prompt — next session (ready to paste)
+
+```
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first —
+especially "Operator TODOs" and "Next round (queued 2026-08-25)". That file is
+the source of truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect — no branch, no worktree.
+NOTE the repo root is the NESTED /Users/peterhoffman/Sites/hoaconnect/hoaconnect;
+the parent is a workspace folder, and a `cd` elsewhere resets your shell there.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push, so
+a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+There are unpushed commits waiting.
+
+Two threads, in priority order:
+
+1. POST-DEPLOY CLEANUP. Peter confirmed on 2026-08-25 that the bell and
+   realtime have behaved, so both Risk 2 fallbacks come out:
+   a. Delete `useLegacyAggregator` — the 1061-line body of the 1181-line
+      `core/app/composables/useNotifications.ts` — with the `bellV2` flag and
+      its `NUXT_PUBLIC_BELL_V2` plumbing (`core/nuxt.config.ts:335`). Promote
+      `useBellStoreAdapter` to be `useNotifications` and drop the dispatcher at
+      the bottom of the file. The file header comment describes the aggregator's
+      sources and will be stale — rewrite it.
+   b. Delete `useDirectusWebSocket.ts` (ZERO real callers) and
+      `useDirectusRealtime.ts` (exactly ONE: `useDirectusSubscription.ts:29`,
+      itself called only from `useOrgItems.ts:193`). The plan's older prompt
+      claimed four importers; it was re-measured and corrected.
+   c. Run `pnpm convert:preview-json`, then `pnpm generate:types`, and commit
+      the regenerated `core/types/directus.ts`. The script refuses unless every
+      row survives the cast; the 2026-08-25 dry run was 7 rows / 5 valid /
+      2 NULL / 0 failures.
+
+2. PER-ORG EMAIL BRANDING. Read "Where the email templates actually live" and
+   "The shape of the work" in the plan — the investigation is done, so start
+   from it rather than re-deriving. The core of it: `emailTypeStyles` at
+   `core/server/utils/email-templates-mjml.ts:46` is a hardcoded constant, and
+   `block_settings.colors` already holds each org's palette and is already set
+   through the admin UI. Make the renderer read it, with the current six
+   palettes as the fallback so an org with no colours renders byte-identically
+   to today.
+
+Quality gate per commit: typecheck 0, vitest green, build green, hairline audit
+green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run `pnpm build` and
+`pnpm typecheck` concurrently — they corrupt each other's `.nuxt` cache.
+Verify in the browser in both light and dark on your own dev server with a real
+session (/api/demo/login), and delete every row you create — browsing demo
+writes `hoa_activity` page-view rows. demo-classic is a CONTROL: never write
+to it.
+
+⚠️ Writing to `directus_notifications` EMAILS the recipient, one mail per row,
+from inside Directus. A bulk write is a bulk mailing and no flag suppresses it.
+Do not send test mail to real members.
+
+When done: update the plan's Operator TODOs and ask before pushing.
 ```
