@@ -2369,6 +2369,61 @@ rather than proved as such.
 - Operator TODOs recorded by earlier sessions still stand — see each session's
   entry.
 
+### Kickoff prompt — post-deploy cleanup (ready to paste)
+
+The programme is complete and DEPLOYED (2026-08-25, `7a2dd4b`). This is the
+follow-up session for the three items that were held behind a green deploy.
+
+```
+The Earnest Parity Round 2 programme is finished and deployed — read
+docs/plan-earnest-parity-round2.md first, especially "Operator TODOs" and the
+"Follow-up round" note in the retrospective. That file is the source of truth,
+not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect — no branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. main is now level with origin
+and Vercel AUTO-DEPLOYS on push, so a push IS a production deploy — never push
+without asking, and never run `vercel --prod` (it just makes a redundant second
+deployment of the same commit).
+
+Three items were deliberately held until the deploy went green. It has. In
+order of value:
+
+1. Delete `useLegacyAggregator` — the 1061-line body of the 1181-line
+   `core/app/composables/useNotifications.ts` — together with the `BELL_V2`
+   flag and its `NUXT_PUBLIC_BELL_V2` plumbing.
+2. Delete `core/app/composables/useDirectusWebSocket.ts` and
+   `useDirectusRealtime.ts`. ⚠️ `useDirectusRealtime` still has FOUR importers
+   (`app/lib/directus.ts`, `useDirectusSubscription.ts`,
+   `useRealtimeSubscription.ts`, `useWebSocketManager.ts`) — retire or re-point
+   `useDirectusSubscription` FIRST, or this will not come out cleanly.
+3. Run `pnpm convert:preview-json` (ai_actions.preview text → json), then
+   `pnpm generate:types` and commit the regenerated `core/types/directus.ts`.
+   The script refuses to run unless every row survives the cast; dry run on
+   2026-08-25 was 7 rows / 5 valid / 2 NULL / 0 failures.
+
+⚠️ Items 1 and 2 are Risk 2 FALLBACKS, not dead code. They buy one release of
+coexistence for the WS manager and the bell cutover, both of which reached
+production for the first time on 2026-08-25. Before deleting either, confirm
+with Peter that the new bell and realtime have behaved in front of real members
+for long enough. If he wants more time, do item 3 and stop.
+
+Quality gate, per commit: typecheck 0, vitest green, build green, hairline audit
+green at BASELINE 0 (`pnpm audit:hairline-surfaces` — it BLOCKS commits now via
+the husky pre-commit hook). Verify in the browser in BOTH light and dark, on
+your own dev server with a real session (`/api/demo/login`), and delete every
+row you create. Merely BROWSING demo writes `hoa_activity` page-view rows —
+identify them by `ip = ::1` plus the Electron user agent plus a timestamp inside
+your session window, and clean them up. `demo-classic` is a CONTROL: never write
+to it, and diff both orgs before and after to prove it.
+
+⚠️ Do not run `pnpm build` and `pnpm typecheck` at the same time — they both
+write `.nuxt` and corrupt each other's cache. Run them serially.
+
+When done: update this plan's Operator TODOs, and ask before pushing.
+```
+
 ### Kickoff prompt — template for Sessions 3+
 
 ```
