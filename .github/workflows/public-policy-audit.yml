@@ -1,0 +1,68 @@
+# HOA Connect — Directus public-policy drift detector
+#
+# `scripts/audit-public-policy.ts` asserts what an UNAUTHENTICATED request can
+# reach: the exact set of grants on the Directus public policy, and — for
+# `directus_files` — the exact filter on that grant. It exits 1 on any drift.
+# See the script's header for why each of the three survivors must exist.
+#
+# ⚠️ This cannot live in `ci.yml`. That workflow deliberately runs against
+# dummy Directus values ("build/tests never reach a live Directus"), and it
+# runs on `pull_request`, where a fork gets no secrets. This check is the
+# opposite shape: it needs the real prod URL and a real token, because the
+# thing it audits is SERVER STATE, not the contents of the diff.
+#
+# ⚠️ It is a DETECTOR, not a gate. Vercel deploys on push independently of
+# GitHub Actions, so a red run here does not hold back the deploy — it tells
+# you the public policy no longer matches the allow-list. Read a failure as
+# "an anonymous cross-tenant read may be open right now", not as "the build
+# broke".
+name: public policy audit
+
+on:
+  # Deploy-time. A push to main IS a production deploy (Vercel auto-deploys),
+  # so this is the moment to re-assert the contract.
+  push:
+    branches: [main]
+  # The one that actually earns its keep. The public policy is edited in the
+  # Directus admin UI, not in this repo — it can drift to wide open with ZERO
+  # commits, and a push-only check would never see it. That is exactly how the
+  # original 12 unfiltered grants (136 real members, cleartext invitation
+  # tokens) sat there unnoticed.
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: public-policy-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit the Directus public policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Same literal + secret pair as data-export.yml and notification-digest.yml;
+      # DIRECTUS_STATIC_TOKEN is already configured on this repo.
+      DIRECTUS_URL: https://admin.hoaconnect.info
+      DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # NOT --prod: the audit runs through tsx and dotenv-cli, both devDependencies.
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit
+        # The package script wraps this in `dotenv --`, which is a no-op here:
+        # there is no .env on a runner and dotenv-cli passes the ambient
+        # environment through untouched. Running the same command CI runs and a
+        # human runs is worth more than shaving one process.
+        run: pnpm run audit:public-policy
