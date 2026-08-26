@@ -10,10 +10,17 @@
  *
  * The two splits are deliberately NOT the same question, and the 1033 migration
  * proved it the hard way: an owner can own a unit they don't live in, so
- * `member_type` counts PEOPLE and `hoa_units.occupancy` counts HOMES, and the
- * two numbers legitimately disagree. Showing one and labelling it the other is
- * how the building's ownership figure was wrong the first time.
+ * residency counts PEOPLE and `hoa_units.occupancy` counts HOMES, and the two
+ * numbers legitimately disagree. Showing one and labelling it the other is how
+ * the building's ownership figure was wrong the first time.
+ *
+ * Residency comes from `residencyFor()` — the unit link first, the member's own
+ * `member_type` as fallback — because this strip sits directly above the members
+ * table on the same page. Reading the raw field here would let the glance call
+ * someone an owner while the row beneath it calls them a tenant.
  */
+import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
+
 const { selectedOrgId } = await useSelectedOrg();
 const { list: listUnits } = useDirectusItems("hoa_units");
 const { list: listMembers } = useDirectusItems("hoa_members");
@@ -37,7 +44,7 @@ const { data, pending } = await useAsyncData(
         limit: -1,
       }) as Promise<any[]>,
       listMembers({
-        fields: ["id", "member_type"],
+        fields: ["id", "member_type", ...RESIDENCY_UNIT_FIELDS],
         filter: { organization: { _eq: orgId.value }, status: { _eq: "active" } },
         limit: -1,
       }) as Promise<any[]>,
@@ -82,7 +89,7 @@ const { data, pending } = await useAsyncData(
       // one and not the other.
       boardReadable: board.status === "fulfilled",
       occupancy: count(unitRows, (u) => u.occupancy),
-      memberTypes: count(memberRows, (m) => m.member_type),
+      memberTypes: count(memberRows, (m) => residencyFor(m)),
     };
   },
   { watch: [orgId], server: false },
