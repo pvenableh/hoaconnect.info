@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { residencyFor } from "#core/shared/members/residency";
 
 const {
   list: listMembers,
@@ -26,10 +27,15 @@ const {
 } = useDirectusItems("hoa_board_members");
 
 // Secured API function for member-unit assignment (admin-only)
-const assignMemberUnit = async (memberId: string, unitId: string, isPrimaryUnit = true) => {
+const assignMemberUnit = async (
+  memberId: string,
+  unitId: string,
+  isPrimaryUnit = true,
+  memberType?: string | null
+) => {
   return await $fetch("/api/hoa/member-units/assign", {
     method: "POST",
-    body: { memberId, unitId, isPrimaryUnit },
+    body: { memberId, unitId, isPrimaryUnit, memberType },
   });
 };
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
@@ -77,7 +83,7 @@ const getRoleBadgeClass = (roleId: string | null | undefined): string => {
   return "t-bg-subtle t-text-secondary";
 };
 
-const { data: members, refresh: refreshMembers } = await useAsyncData(
+const { data: allMembers, refresh: refreshMembers } = await useAsyncData(
   `hoa-members-list-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
@@ -100,12 +106,18 @@ const { data: members, refresh: refreshMembers } = await useAsyncData(
           "date_created",
           "units.id",
           "units.is_primary_unit",
+          "units.member_type",
+          "units.end_date",
           "units.unit_id.id",
           "units.unit_id.unit_number",
         ],
         filter: {
+          // No status filter. This used to hard-filter to
+          // ["active","inactive","pending"], which made `archived` a one-way
+          // trapdoor: 27 former residents at 1033 Lenox were invisible AND
+          // unreachable, with no way to see or restore them. The status control
+          // below decides what is shown; the query no longer decides FOR it.
           organization: { _eq: orgId.value },
-          status: { _in: ["active", "inactive", "pending"] },
         },
         sort: ["sort", "last_name"],
       })) as any[];
@@ -241,6 +253,111 @@ const pastBoardTerms = computed(() =>
   (boardTerms.value || []).filter((term: any) => !isActiveTerm(term))
 );
 
+// ── Membership status: what is shown, and how it is changed ────────────────
+//
+// ⚠️ `status` answers "is this person a current member of the community?" — a
+// current owner or tenant. It does NOT mean "uses the app". Whether someone has
+// ever signed in is a SEPARATE axis (`hoa_members.user`), surfaced as the
+// Account column. An active member who has never logged in is normal and
+// correct: 58 of 1033 Lenox's 59 active members are exactly that. Never demote
+// someone's status because they have no account.
+const MEMBER_STATUSES = ["active", "inactive", "pending", "archived"] as const;
+
+// "Current" is the default because it is what this page showed before there was
+// a control at all — the filter adds reach, it does not change what an admin
+// sees on arrival.
+const CURRENT_STATUSES = ["active", "inactive", "pending"];
+
+const statusFilter = ref<"current" | "all" | (typeof MEMBER_STATUSES)[number]>("current");
+
+const statusFilterOptions = [
+  { value: "current", label: "Current" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "pending", label: "Pending" },
+  { value: "archived", label: "Archived" },
+  { value: "all", label: "All" },
+];
+
+const members = computed(() => {
+  const rows = allMembers.value || [];
+  if (statusFilter.value === "all") return rows;
+  if (statusFilter.value === "current") {
+    return rows.filter((m: any) => CURRENT_STATUSES.includes(m.status));
+  }
+  return rows.filter((m: any) => m.status === statusFilter.value);
+});
+
+// How many people sit behind each option, so an admin can see that there ARE
+// archived records without first switching to them.
+const statusCounts = computed(() => {
+  const rows = allMembers.value || [];
+  const counts: Record<string, number> = {
+    all: rows.length,
+    current: rows.filter((m: any) => CURRENT_STATUSES.includes(m.status)).length,
+  };
+  for (const st of MEMBER_STATUSES) {
+    counts[st] = rows.filter((m: any) => m.status === st).length;
+  }
+  return counts;
+});
+
+// The board dropdown picks from ACTIVE members only. It used to read the same
+// list as the table, which was safe only because the query hid archived people;
+// now that they are fetched, a former resident could otherwise be appointed to
+// the board.
+const activeMembers = computed(() =>
+  (allMembers.value || []).filter((m: any) => m.status === "active")
+);
+
+// ── Unlinked members ───────────────────────────────────────────────────────
+//
+// An ACTIVE member with no hoa_member_units row has no unit, which means
+// residencyFor() has nothing to resolve from and falls back to the member's own
+// member_type. That fallback is a transition mechanism with a visible end state,
+// and this alert is what makes the end state visible: 605 Lincoln Road has 33
+// active members and ZERO links, 1033 Lenox has 4.
+const unlinkedActiveMembers = computed(() =>
+  (allMembers.value || []).filter(
+    (m: any) => m.status === "active" && !(m.units || []).length
+  )
+);
+
+const isUnlinked = (member: any) =>
+  member.status === "active" && !(member.units || []).length;
+
+// Show the residency the REST of the app resolves — link first, member second —
+// so this table cannot disagree with the mail audiences about who is a tenant.
+const residencyLabel = (member: any) => residencyFor(member) || "—";
+
+const showUnlinkedOnly = () => {
+  statusFilter.value = "active";
+};
+
+const setMemberStatus = async (member: any, status: string, message: string) => {
+  try {
+    await updateMember(member.id, { status });
+    toast.success(message);
+    await refreshMembers();
+    // Archiving changes who counts as a member, so the org's denormalized
+    // member_count has to follow.
+    await recomputeCount();
+  } catch (error: any) {
+    console.error("Status change error:", error);
+    toast.error(error.message || "Failed to update member status");
+  }
+};
+
+const handleArchive = (member: any) => {
+  const name = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "this member";
+  if (!confirm(`Archive ${name}? They stay on record as a former resident and can be restored.`)) return;
+  return setMemberStatus(member, "archived", "Member archived");
+};
+
+const handleRestore = (member: any) => {
+  return setMemberStatus(member, "active", "Member restored");
+};
+
 // Name, email and role identify a member; everything else is context, so it
 // drops away on a phone rather than forcing the table sideways.
 const memberColumns = [
@@ -251,9 +368,16 @@ const memberColumns = [
   { key: "member_type", label: "Type", sortable: true, hideOnMobile: true },
   { key: "role", label: "Role" },
   { key: "units", label: "Unit(s)", hideOnMobile: true },
+  // Two DIFFERENT questions, deliberately side by side: Status is standing in
+  // the community, Account is whether they have ever signed in. Collapsing them
+  // is the mistake this workstream exists to avoid.
+  { key: "status", label: "Status", sortable: true, hideOnMobile: true },
   { key: "account", label: "Account", hideOnMobile: true },
   { key: "actions", label: "Actions", align: "right" as const },
 ];
+
+const statusBadgeVariant = (status: string) =>
+  status === "active" ? "default" : status === "archived" ? "outline" : "secondary";
 
 // Counts ride on the tabs so the page says how much is behind each one without
 // making anyone open it. A zero count renders as no badge rather than "(0)".
@@ -303,7 +427,10 @@ const handleEdit = (member: any) => {
   form.email = member.email;
   form.phone = member.phone;
   form.company = member.company || "";
-  form.member_type = member.member_type;
+  // Residency comes from the unit link when it has one, so opening the form
+  // shows the value the rest of the app actually resolves — not the member's
+  // older fallback value, which would then be re-saved over the link's.
+  form.member_type = residencyFor(member) || member.member_type || "owner";
   form.role = member.role || config.public.directusRoleMember;
   form.status = member.status;
 
@@ -362,6 +489,15 @@ const handleSubmit = async () => {
         status: form.status,
       });
 
+      // The unit select used to be write-only on CREATE — editing a member and
+      // picking a unit silently did nothing. It now writes on update too, and
+      // carries the residency onto the link, which is what residencyFor() reads
+      // first. The endpoint is idempotent per (member, unit), so re-saving an
+      // unchanged form updates that link instead of duplicating it.
+      if (form.unit) {
+        await assignMemberUnit(editingId.value, form.unit, true, form.member_type);
+      }
+
       toast.success("Member updated");
     } else {
       const newMember = (await createMember({
@@ -377,7 +513,7 @@ const handleSubmit = async () => {
       })) as any;
 
       if (form.unit && newMember?.id) {
-        await assignMemberUnit(newMember.id, form.unit, true);
+        await assignMemberUnit(newMember.id, form.unit, true, form.member_type);
       }
 
       toast.success("Member added");
@@ -674,7 +810,62 @@ useSeoMeta({
 
             <!-- Members Table -->
             <Card>
-              <CardContent class="pt-6">
+              <CardContent class="pt-6 space-y-4">
+                <!--
+                  Archived used to be unreachable from this page entirely. The
+                  counts sit on the options so an admin can see that former
+                  residents EXIST without having to go looking for them.
+                -->
+                <!--
+                  The roster gap, stated rather than left to be discovered. It
+                  disappears on its own as links get filled in — that is the
+                  point of it being a count and not a permanent banner.
+                -->
+                <Alert v-if="unlinkedActiveMembers.length" class="t-bg-accent/10 t-border-accent">
+                  <Icon name="lucide:alert-triangle" class="w-4 h-4" />
+                  <AlertTitle>
+                    {{ unlinkedActiveMembers.length }}
+                    active
+                    {{ unlinkedActiveMembers.length === 1 ? "member has" : "members have" }}
+                    no unit
+                  </AlertTitle>
+                  <AlertDescription>
+                    Until a member is linked to a unit, their owner/tenant status
+                    falls back to the value on their own record. Edit a member to
+                    link them, or
+                    <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
+                      >add units first</NuxtLink
+                    >.
+                    <button
+                      type="button"
+                      class="underline underline-offset-2 ml-1"
+                      @click="showUnlinkedOnly"
+                    >
+                      Show active members
+                    </button>
+                  </AlertDescription>
+                </Alert>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <Label for="member-status-filter" class="text-sm t-text-secondary">Show</Label>
+                  <select
+                    id="member-status-filter"
+                    v-model="statusFilter"
+                    class="p-2 border rounded text-sm"
+                  >
+                    <option
+                      v-for="option in statusFilterOptions"
+                      :key="option.value"
+                      :value="option.value"
+                    >
+                      {{ option.label }} ({{ statusCounts[option.value] ?? 0 }})
+                    </option>
+                  </select>
+                  <p v-if="statusFilter === 'archived'" class="text-xs t-text-muted">
+                    Former residents. Restore anyone who has moved back.
+                  </p>
+                </div>
+
                 <AppDataTable
                   :columns="memberColumns"
                   :rows="members || []"
@@ -687,8 +878,8 @@ useSeoMeta({
                       {{ row.first_name }} {{ row.last_name }}
                     </span>
                   </template>
-                  <template #cell-member_type="{ value }">
-                    <span class="capitalize">{{ value }}</span>
+                  <template #cell-member_type="{ row }">
+                    <span class="capitalize">{{ residencyLabel(row) }}</span>
                   </template>
                   <template #cell-role="{ row }">
                     <span
@@ -698,7 +889,25 @@ useSeoMeta({
                       {{ getRoleDisplay(row.role) }}
                     </span>
                   </template>
-                  <template #cell-units="{ row }">{{ formatUnits(row) }}</template>
+                  <template #cell-units="{ row }">
+                    <span v-if="isUnlinked(row)" class="inline-flex items-center gap-1.5 t-text-accent">
+                      <Icon name="lucide:alert-triangle" class="w-3.5 h-3.5" />
+                      <button
+                        type="button"
+                        class="underline underline-offset-2"
+                        title="This active member has no unit. Edit them to link one."
+                        @click="handleEdit(row)"
+                      >
+                        No unit
+                      </button>
+                    </span>
+                    <span v-else>{{ formatUnits(row) }}</span>
+                  </template>
+                  <template #cell-status="{ row }">
+                    <Badge :variant="statusBadgeVariant(row.status)" class="capitalize">
+                      {{ row.status }}
+                    </Badge>
+                  </template>
                   <template #cell-account="{ row }">
                     <Badge :variant="row.user ? 'default' : 'secondary'">
                       {{ row.user ? "Yes" : "No" }}
@@ -713,6 +922,32 @@ useSeoMeta({
                         @click="handleEdit(row)"
                       >
                         <Icon name="lucide:pencil" />
+                      </Button>
+                      <!--
+                        Archive is the reversible answer and Delete is not, so an
+                        archived row offers Restore where the others offer
+                        Archive. Delete stays available but stops being the only
+                        way to take someone off the active roster.
+                      -->
+                      <Button
+                        v-if="row.status === 'archived'"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Restore member"
+                        title="Restore member"
+                        @click="handleRestore(row)"
+                      >
+                        <Icon name="lucide:undo-2" />
+                      </Button>
+                      <Button
+                        v-else
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Archive member"
+                        title="Archive member"
+                        @click="handleArchive(row)"
+                      >
+                        <Icon name="lucide:archive" />
                       </Button>
                       <Button
                         variant="destructive"
@@ -1098,7 +1333,12 @@ useSeoMeta({
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="pending">Pending</option>
+                  <option value="archived">Archived</option>
                 </select>
+                <p class="text-xs t-text-muted">
+                  Standing in the community, not app usage. A member who has
+                  never signed in is still active.
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -1136,15 +1376,15 @@ useSeoMeta({
                 >
                   <option :value="null">Select a member...</option>
                   <option
-                    v-for="member in members"
+                    v-for="member in activeMembers"
                     :key="member.id"
                     :value="member.id"
                   >
                     {{ member.first_name }} {{ member.last_name }}
                   </option>
                 </select>
-                <p v-if="!members?.length" class="text-xs t-text-muted">
-                  No members available. Add members first.
+                <p v-if="!activeMembers?.length" class="text-xs t-text-muted">
+                  No active members available. Add members first.
                 </p>
               </div>
 
