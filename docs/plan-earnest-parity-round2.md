@@ -2724,6 +2724,43 @@ renderer never reads.
 `directus_notifications` write **emails the recipient from inside Directus** —
 one row is one mail, and no flag suppresses it.
 
+### 8 — The AI notices cron fires. Falsified at last.
+
+Four sessions recorded a clean "before" (0 rows, `skipped: 0`) because each one
+ran before 07:10 UTC. This one ran at **12:38 UTC**, which is the first time the
+check could actually fail — and it passed.
+
+`ai_notice_history` holds exactly the predicted **5 rows**, stamped by the cron
+itself:
+
+```
+1033-lenox   meeting-minutes   2026-08   2026-08-26T07:10:06.237Z
+1033-lenox   meeting-minutes   2026-08   2026-08-26T07:10:06.544Z
+1033-lenox   meeting-minutes   2026-08   2026-08-26T07:10:06.861Z
+605-lincoln  channel-waiting   2026-08   2026-08-26T07:10:09.482Z
+605-lincoln  org-credits       2026-08   2026-08-26T07:10:09.794Z
+```
+
+And the dry probe (POST, `dryRun: true` — a GET would SEND) shows dedup doing
+its job on the second pass of the same calendar month:
+
+| org | considered | escalated | skipped | notified |
+|---|---|---|---|---|
+| 1033-lenox | 15 | 0 | **3** | 0 |
+| 605-lincoln | 2 | 0 | **2** | 0 |
+
+`dedup: on`, `period: 2026-08`. Both numbers match the prediction exactly. The
+cron, the escalation filter and the once-per-notice-per-entity-per-month guard
+are all working end to end. **This item is closed; stop re-checking it.**
+
+**A trap worth keeping.** The first read of `ai_notice_history` returned **403**
+with the admin static token, which reads exactly like a permissions failure —
+and on the heels of a permissions change, that is a very inviting wrong
+conclusion. It was a **bad field name**: the query asked for `notice_key` and
+`created_at`; the real columns are `notice_hash` and `date_created`. Directus
+answers an unknown field with 403, not 400. Before believing a 403 is
+authorization, check the field list: `?fields=*` first, then narrow.
+
 ### Kickoff prompt — next session (ready to paste)
 
 ```
@@ -3967,10 +4004,10 @@ identical on a clean tree)** · build **green** · hairline **0** (baseline 0).
 - [ ] **Peter — the DNS record + the Vercel project move.** Unchanged; still
       nothing at `_hoaconnect.1033lenox.com`, apex still `76.76.21.21`.
 - [ ] **The 85 resident invitations.** Still gated on the domain move.
-- [ ] After 07:10 UTC 2026-08-26, confirm `ai_notice_history` has 5 rows and the
-      dry probe reports `skipped: 3` / `skipped: 2`. **Not due this session** —
-      it ran at 04:38 UTC. Three sessions have now recorded the clean "before";
-      do not record a fourth.
+- [x] **The AI notices cron is CONFIRMED FIRING (§8 below).** Checked at 12:38
+      UTC: 5 history rows stamped 07:10:06–07:10:09Z, and the dry probe reports
+      `skipped: 3` / `skipped: 2`. Four sessions of "before" finally have their
+      "after". Nothing further to watch here.
 - [ ] Consider whether the 4 flaky org-scope tests (§7) are worth fixing.
 - [ ] Consider wiring `audit:public-policy` into CI. It needs network + a static
       token, so it is a deploy-time check rather than a husky one — and after the
@@ -3992,15 +4029,18 @@ in every tool call that needs the repo. No branch, no worktree.
 `eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
 so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
 
-DONE last session, do not redo: the directus_files hole is CLOSED on production.
-The public grant is filtered to `type _starts_with image/`; PDFs, zips and
-recordings now go through /api/directus/assets/:id, which checks the session and
-the file's owning org (core/server/utils/file-owner.ts, fails closed). Verified
-on production: 605's balance sheets / approved minutes / the PII export archive
-are 403 anonymously, landing + already-sent-email images still 200, a member
-still downloads their own org's documents (5/5), enumeration shows 0 non-image
-files. `pnpm run audit:public-policy` is green and now asserts the FILTER, not
-just the grant. Everything is pushed — 0 unpushed commits.
+DONE, do not redo:
+- The directus_files hole is CLOSED on production. The public grant is filtered
+  to `type _starts_with image/`; PDFs, zips and recordings go through
+  /api/directus/assets/:id, which checks the session and the file's owning org
+  (core/server/utils/file-owner.ts, fails closed). Verified on production: 605's
+  balance sheets / approved minutes / the PII export archive are 403
+  anonymously, landing + already-sent-email images still 200, a member still
+  downloads their own org's documents (5/5), enumeration shows 0 non-image
+  files. `pnpm run audit:public-policy` is green and asserts the FILTER.
+- The AI notices cron is CONFIRMED FIRING — 5 history rows at 07:10Z on
+  2026-08-26, dry probe skipped:3 / skipped:2. Closed. Do NOT re-check it.
+- Everything is pushed; 0 unpushed commits.
 
 ⚠️ VITEST BASELINE IS 1507/1511, NOT 1511. The 4 failures in
 tests/server/notify-org-scope.test.ts and transactional-email-org-scope.test.ts
@@ -4009,42 +4049,39 @@ a clean tree. They pass 16/16 in isolation and only fail under full-suite
 parallelism. Do NOT spend a session rediscovering this. demo activity 462,
 demo-classic 13.
 
-FIRST, two minutes of orientation — the answers decide the work:
+FIRST, orientation — these answers decide the work:
 
   dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
   dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
-  pnpm run audit:public-policy               # must be green, directus_files "filtered"
-  date -u
+  pnpm run audit:public-policy               # green, directus_files "filtered"
 
-As of 2026-08-26 ~05:30 UTC: still no TXT record, apex still 76.76.21.21, so
-the domain had NOT moved and items 2 and 3 below were still blocked.
+As of 2026-08-26 12:40 UTC: still no TXT record, apex still 76.76.21.21, so the
+domain had NOT moved and items 1 and 2 below were both still blocked. If that is
+STILL true, say so plainly and go to item 3 rather than inventing work.
 
 Then, in order:
 
-1. The AI cron — it is now PAST 07:10 UTC, so this check IS due and is cheap.
-   `ai_notice_history` should hold 5 rows and a dry probe should report
-   skipped:3 for 1033 and skipped:2 for 605. If it reports skipped:0 against an
-   empty table, the cron is NOT firing and that is a real defect worth chasing —
-   four sessions have now recorded a clean "before" and none has seen an
-   "after", so this is the first session that can actually falsify it.
-   ⚠️ A GET to /api/ai/notices/check would SEND. Use POST with dryRun:true.
-
-2. If the TXT record is present but `domain_verified` is still false: run
+1. If the TXT record is present but `domain_verified` is still false: run
    POST /api/domains/verify for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
    Verifying moves NO traffic — DNS still points at the old project — so this is
    safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. The Vercel
    project move (step 4 of the runbook) is Peter's to do, not yours.
 
-3. If and only if the domain has actually moved: the 85 resident invitations.
+2. If and only if the domain has actually moved: the 85 resident invitations.
    ⚠️ THIS IS A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact
    template, produce the exact recipient list as a file Peter can read, and
    STOP. Get a second explicit yes before a single send. Both halves of the old
-   blocker are now closed — the invitation-token leak (last session) and the
-   asset leak (this one) — so the domain is the only thing left gating it.
+   blocker are now closed — the invitation-token leak and the asset leak — so
+   the domain is the only thing gating it.
 
-4. Optional, if the above are all blocked: the 4 flaky org-scope tests, or
-   wiring audit:public-policy into CI (needs network + a static token, so it is
-   a deploy-time check, not a husky one).
+3. If both are blocked, pick from here (ask Peter which, do not do all):
+   - The 4 flaky org-scope tests (§7). Contained, and it would restore a
+     trustworthy green baseline.
+   - Wire audit:public-policy into CI. Needs network + a static token, so it is
+     a deploy-time check, not a husky one.
+   - `subscription_plans` is the last UNFILTERED public read. It is genuinely
+     public marketing data, so this is a review, not a known bug — confirm it
+     holds no per-org or pricing-negotiation data before calling it fine.
 
 ⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. That is the accepted
 residual of the type-filter design, not a bug to re-fix. Nothing financial or
@@ -4052,17 +4089,22 @@ identifying is in that set (logos, hero shots, landing photography, one avatar).
 Tightening it means a per-file public marker + a backfill, and a missed flag
 breaks a landing image or an email logo SILENTLY. Do not start that without
 Peter. And do NOT "simplify" by deleting the public grant: the logo in every
-email already in someone's inbox is a bare /assets/<id> fetched with no session.
+email already in someone's inbox is a bare /assets/<id> fetched with no session,
+and those URLs cannot be reissued.
+
+⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
+file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
+closed on purpose. Do not "fix" that by allowing unowned files.
+
+⚠️ A DIRECTUS 403 IS OFTEN A BAD FIELD NAME, NOT PERMISSIONS. Asking for a
+column that does not exist returns 403, not 400 — which is maximally misleading
+right after a permissions change. Query `?fields=*` first, then narrow.
 
 ⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
 $CURRENT_USER, so narrowing fields still leaves every org readable by everyone.
 For anything tenant-owned the only correct public grant is no public grant.
 `/api/directus/items` falls back to the anonymous client when there is no
 session, so any grant is reachable by one POST with no token.
-
-⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
-file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
-closed on purpose. Do not "fix" that by allowing unowned files.
 
 ⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. Always take a noise control — two
 captures with nothing changed — before believing a before/after. Normalise the
@@ -4078,14 +4120,15 @@ anything a probe creates.
 
 ⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
 EMAILS the recipient from inside Directus — one row is one mail. Render to HTML
-and read it. 1033 Lenox and 605 Lincoln are REAL orgs with real people.
+and read it. A GET to /api/ai/notices/check also SENDS; use POST with
+dryRun:true. 1033 Lenox and 605 Lincoln are REAL orgs with real people.
 
 Quality gate per commit: typecheck 0, vitest 1507/1511 (see the baseline note
 above — 4 known flakes), build green, hairline audit green at BASELINE 0 (it
 BLOCKS commits via husky). Do NOT run `pnpm build` and `pnpm typecheck`
 concurrently — they corrupt each other's `.nuxt` cache. `pnpm typecheck` takes
->10min, so run it in the BACKGROUND, not in a foreground tool call. When
-capturing an exit code, capture the COMMAND's, not a pipeline's.
+>10min, so run it in the BACKGROUND, not a foreground tool call — it will time
+out. When capturing an exit code, capture the COMMAND's, not a pipeline's.
 
 Verify against real data, not fixtures — every real bug in the last three
 sessions was found that way and none by unit tests. Use your own dev server
