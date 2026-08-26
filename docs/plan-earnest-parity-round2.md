@@ -4008,7 +4008,8 @@ identical on a clean tree)** · build **green** · hairline **0** (baseline 0).
       UTC: 5 history rows stamped 07:10:06–07:10:09Z, and the dry probe reports
       `skipped: 3` / `skipped: 2`. Four sessions of "before" finally have their
       "after". Nothing further to watch here.
-- [ ] Consider whether the 4 flaky org-scope tests (§7) are worth fixing.
+- [x] **The 4 flaky org-scope tests are FIXED** — see the next section. The
+      baseline is a real **1511/1511** again, with no known flakes.
 - [ ] Consider wiring `audit:public-policy` into CI. It needs network + a static
       token, so it is a deploy-time check rather than a husky one — and after the
       cutover it also guards the new filter.
@@ -4141,3 +4142,251 @@ a CONTROL, never write to it.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ```
+
+## Round outcome — the flake was the clock, not the tenancy gate (2026-08-26, later still)
+
+The domain has still not moved (`_hoaconnect.1033lenox.com` absent, apex still
+`76.76.21.21`), so items 1 and 2 of the kickoff were both blocked on arrival and
+were not touched. Peter picked the flaky org-scope tests off the §7 list.
+
+**They are fixed. The baseline is a genuine 1511/1511 with no known flakes**,
+and §7's "1507 + 4 known flakes" should now be read as history, not as the
+number to gate against.
+
+### 1 — The first surprise: the clean tree was green
+
+§7 recorded the 4 failures as reproducible on a stashed clean tree. They are
+not reproducible at will. **Seven consecutive full-suite runs on an untouched
+`main` came back 1511/1511.** So the failure is genuinely intermittent and
+load-dependent, which is the single most important fact about it — the previous
+round happened to be running on a loaded machine.
+
+Re-running until it fails is a bad way to debug something that shows up maybe
+one run in five. What made it tractable was reading the *durations* in the
+verbose reporter:
+
+```
+✓ transactional-email-org-scope > emails a member of this community   1918ms
+✓ transactional-email-org-scope > does not email someone ...              4ms
+✓ notify-org-scope > notifies a member of this community              2119ms
+✓ notify-org-scope > drops a user who has no membership here            36ms
+```
+
+The **first** test in each file costs ~2s and every later test costs single- to
+double-digit milliseconds. Those two tests are the only tests in all 86 files
+that exceed 1000ms. And 2s against vitest's 5000ms default is a 2.4× margin —
+not a comfortable one when 8 forks are competing for 8 cores.
+
+### 2 — The mechanism, and why the symptom pointed at the wrong thing
+
+`load()` does `await import("#core/server/utils/notify")` **inside the test
+body**, so the module graph's cold transform-and-execute is charged to the first
+test's timeout. Under load it loses that race. Then:
+
+> **Vitest gives up on a timed-out test but cannot cancel it.** The abandoned
+> `notifyUsers` call keeps running, and its `createNotification` lands in the
+> `ops` array that the *next* test's `beforeEach` has just cleared.
+
+So test #1 fails with `Test timed out`, and test #2 — which did nothing wrong —
+fails asserting `['insider', 'insider']` against `['insider']`. Two failures per
+file, two files, **exactly the 4**.
+
+That is a scheduling artifact wearing the costume of a tenancy leak, in the one
+suite where a duplicated recipient reads as alarming. Worth naming, because the
+next person to see `['insider','insider']` in a file whose header is about one
+community's message reaching another community's members will reasonably assume
+the worst.
+
+**Proved rather than argued.** Shrinking the budget makes it deterministic —
+`--testTimeout=600` on just those two files reproduces all 4, byte for byte:
+
+```
+× emails a member of this community          → Test timed out in 600ms.
+× does not email someone with no membership  → expected [ 'insider@example.test', …(1) ]
+× notifies a member of this community        → Test timed out in 600ms.
+× drops a user who has no membership here    → expected [ 'insider', 'insider' ]
+```
+
+The same 4, with the same messages, also came back from a real oversubscribed
+run (`--maxWorkers=16` on 8 cores), which is what the loaded-machine case is.
+
+### 3 — The fix, in three parts
+
+1. **`beforeAll` warms the module graph in both files.** Only the first import
+   is expensive — after it, `vi.resetModules()` + re-import costs ~35ms because
+   vite's transform cache survives. Moving that one import into a hook takes it
+   out of every per-test budget. This is the actual fix.
+2. **`notify-org-scope` now mocks `#core/server/utils/transactional-email`.**
+   `notify.ts` imports `sendBrandedTransactionalEmail` statically, which drags
+   the whole MJML template graph in behind it — and *nothing in that file ever
+   passes `email`*, so it was pure cold-start cost. Note this is not a new
+   convention: **`tests/server/notify.test.ts` already mocked it exactly this
+   way**, so the org-scope file was the outlier. It hides no coverage (the email
+   twin is tested in the sibling file) and it makes it structurally impossible
+   for a bell test to put mail in an inbox by accident.
+3. **`testTimeout`/`hookTimeout` → 20000 in `vitest.config.ts`.** Headroom, not
+   the fix. It matters because of *how* the old default failed: not with an
+   honest "this was slow" but by corrupting the next test, so the failure named
+   the wrong culprit. Timeout headroom is only ever spent when something is
+   genuinely stuck.
+
+The `transactional-email` file keeps the real MJML module — `resolveEmailFonts`
+comes through unmocked on purpose, so the font stack asserted is the true one.
+Its import can only be *moved*, not made cheap. Hence part 1 existing at all.
+
+### 4 — Verified against the condition that broke it
+
+Not "it passes now" — it passes *under the load that reliably broke it*.
+
+| check | before | after |
+|---|---|---|
+| the two files at `--testTimeout=600` | **4 failed** / 12 passed | **16 passed** |
+| the two files at `--testTimeout=100` | — | 15 passed, 1 slow-import timeout, **no doubling** |
+| full suite, `--maxWorkers=16` on 8 cores | **1507 / 4 failed** | **1511 passed** ×3 |
+| `notify-org-scope` file total | ~3000ms | **487ms** |
+
+The 100ms row is the useful one: even when the first test is *still* forced to
+time out, the second no longer doubles. Margin on the first test went from 2.4×
+to roughly 170×.
+
+Gate this round: vitest **1511/1511** (three oversubscribed runs plus normal
+runs) · hairline **0** (baseline 0) · typecheck **0** · build **green**. No
+production code changed — the diff is two test files and `vitest.config.ts`.
+
+### 5 — Not done, and why
+
+- **The domain and the 85 invitations.** Blocked, unchanged, untouched. Nothing
+  at `_hoaconnect.1033lenox.com`; apex still `76.76.21.21`.
+- **`audit:public-policy` into CI** and the **`subscription_plans` review** were
+  the other two options on the §3 list and were not picked this round. Both
+  still stand.
+
+### Operator TODOs — after the flake fix
+
+- [ ] **Peter — the DNS record + the Vercel project move.** Still the only thing
+      gating the 1033 cutover, and still step 2 of the runbook: one TXT record
+      at name.com, `_hoaconnect.1033lenox.com` →
+      `hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78`. Moves no traffic.
+- [ ] **The 85 resident invitations.** Gated on the above. Bulk mail to 80 real
+      people; wants its own session and its own explicit go-ahead.
+- [ ] Wire `audit:public-policy` into CI (deploy-time, needs network + token).
+- [ ] Review `subscription_plans`, the last unfiltered public read — confirm it
+      holds no per-org or negotiated-pricing data.
+- [x] **The 4 flaky org-scope tests are fixed.** Baseline is a real 1511/1511.
+      **Gate against 1511 from now on**, not 1507 — a failure in those two files
+      means something, again.
+
+### Kickoff prompt — next session (ready to paste)
+
+````
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the LAST
+section, "Round outcome — the flake was the clock, not the tenancy gate", plus
+"The cutover runbook" in the 2026-08-25 section. That file is the source of
+truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
+elsewhere silently resets your shell there for the next command, so re-`cd`
+in every tool call that needs the repo. No branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+
+DONE, do not redo:
+- The directus_files hole is CLOSED on production. The public grant is filtered
+  to `type _starts_with image/`; PDFs, zips and recordings go through
+  /api/directus/assets/:id, which checks the session and the file's owning org
+  (core/server/utils/file-owner.ts, fails closed). `pnpm run audit:public-policy`
+  is green and asserts the FILTER.
+- The AI notices cron is CONFIRMED FIRING. Closed. Do NOT re-check it.
+- ⚠️ THE 4 FLAKY ORG-SCOPE TESTS ARE FIXED. **The vitest baseline is a real
+  1511/1511 — gate against 1511, NOT 1507.** A failure in
+  notify-org-scope.test.ts / transactional-email-org-scope.test.ts now MEANS
+  something. Root cause was a ~2s cold module import inside the first `it()`
+  blowing the 5s timeout under parallel load; vitest cannot cancel a timed-out
+  test, so its writes landed in the NEXT test's cleared array and THAT test
+  failed with `['insider','insider']`. Fixed with a `beforeAll` warm-up in both
+  files, mocking transactional-email in the notify file, and
+  testTimeout/hookTimeout 20000. Do not re-derive this.
+
+FIRST, orientation — these answers decide the work:
+
+  dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
+  dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
+  pnpm run audit:public-policy               # green, directus_files "filtered"
+
+As of the last session the TXT record was still absent and the apex was still
+76.76.21.21, so items 1 and 2 below were both blocked. If that is STILL true,
+say so plainly and go to item 3 rather than inventing work.
+
+Then, in order:
+
+1. If the TXT record is present but `domain_verified` is still false: run
+   POST /api/domains/verify for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
+   Verifying moves NO traffic — DNS still points at the old project — so this is
+   safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. The Vercel
+   project move (step 4 of the runbook) is Peter's to do, not yours.
+
+2. If and only if the domain has actually moved: the 85 resident invitations.
+   ⚠️ THIS IS A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact
+   template, produce the exact recipient list as a file Peter can read, and
+   STOP. Get a second explicit yes before a single send.
+
+3. If both are blocked, pick from here (ask Peter which, do not do all):
+   - Wire audit:public-policy into CI. Needs network + a static token, so it is
+     a deploy-time check, not a husky one.
+   - `subscription_plans` is the last UNFILTERED public read. It is genuinely
+     public marketing data, so this is a review, not a known bug — confirm it
+     holds no per-org or pricing-negotiation data before calling it fine.
+
+⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. That is the accepted
+residual of the type-filter design, not a bug to re-fix. Tightening it means a
+per-file public marker + a backfill, and a missed flag breaks a landing image or
+an email logo SILENTLY. Do not start that without Peter. And do NOT "simplify"
+by deleting the public grant: the logo in every email already in someone's inbox
+is a bare /assets/<id> fetched with no session, and those URLs cannot be reissued.
+
+⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
+file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
+closed on purpose. Do not "fix" that by allowing unowned files.
+
+⚠️ A DIRECTUS 403 IS OFTEN A BAD FIELD NAME, NOT PERMISSIONS. Asking for a
+column that does not exist returns 403, not 400. Query `?fields=*` first.
+
+⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
+$CURRENT_USER. For anything tenant-owned the only correct public grant is no
+public grant. `/api/directus/items` falls back to the anonymous client when
+there is no session, so any grant is reachable by one POST with no token.
+
+⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. Always take a noise control — two
+captures with nothing changed — before believing a before/after.
+
+⚠️ A FLAKY TEST'S SYMPTOM MAY NAME THE WRONG CULPRIT. Read the verbose
+reporter's DURATIONS before re-running until it fails; and remember vitest
+cannot cancel a timed-out test, so its writes can corrupt the next test.
+
+⚠️ zsh DOES NOT WORD-SPLIT `$VAR`. `for id in $IDS` runs ONCE with the whole
+string. zsh also globs Directus filter URLs: quote `?filter[collection][_eq]=x`.
+
+⚠️ A DIRECTUS 204 ON CREATE IS A WRITE, NOT A REJECTION. Check for, and delete,
+anything a probe creates.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail. A GET to
+/api/ai/notices/check also SENDS; use POST with dryRun:true. 1033 Lenox and
+605 Lincoln are REAL orgs with real people.
+
+Quality gate per commit: typecheck 0, vitest **1511/1511**, build green,
+hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run
+`pnpm build` and `pnpm typecheck` concurrently — they corrupt each other's
+`.nuxt` cache. `pnpm typecheck` takes >10min, so run it in the BACKGROUND.
+
+Verify against real data, not fixtures. Use your own dev server (preview_start,
+never Bash) with a real session (POST /api/demo/login). Browser-pane SCREENSHOTS
+fail silently on the dev server tab; verify headlessly with curl / read_page /
+javascript_tool. Browsing writes hoa_activity rows; delete every row you create,
+and diff BOTH demo orgs before and after: demo-classic is a CONTROL, never write
+to it. demo activity 462, demo-classic 13.
+
+When done: update the plan's Operator TODOs and ask before pushing.
+````
