@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody(event);
 
-  const { email, firstName, lastName, organizationId, roleId, memberType, personType } = body;
+  const { email, firstName, lastName, organizationId, roleId, memberType, personType, unitId } = body;
 
   // Manager grants, chosen at invite time. Parked on the invitation row and
   // copied onto the member when they accept — see `hoa_invitations.manager_permissions`
@@ -210,6 +210,30 @@ export default defineEventHandler(async (event) => {
       console.warn("Could not fetch role name, using default:", roleError);
     }
 
+    // The unit the invitee is being invited to.
+    //
+    // Same bug shape as `personType` in Phase 1: `InviteMemberForm.vue` has
+    // always sent a `unitId` and this endpoint has always thrown it away, so
+    // an invitation could not say WHICH unit someone was an owner or tenant of.
+    // It is optional — "No unit assigned" is a real choice in the form — but a
+    // unit that IS named has to belong to this organization, or accepting the
+    // invitation would link a member to another org's unit.
+    let invitationUnitId: string | null = null;
+    if (unitId) {
+      const unit = await directus.request(
+        readItem("hoa_units", String(unitId), { fields: ["id", "organization"] })
+      ).catch(() => null);
+      const unitOrgId =
+        typeof unit?.organization === "string" ? unit.organization : (unit?.organization as any)?.id;
+      if (!unit || unitOrgId !== organizationId) {
+        throw createError({
+          statusCode: 400,
+          message: "Unit does not belong to this organization",
+        });
+      }
+      invitationUnitId = String(unitId);
+    }
+
     // Create invitation record (use normalized email)
     const invitation = await directus.request(
       createItem("hoa_invitations", {
@@ -222,6 +246,7 @@ export default defineEventHandler(async (event) => {
         expires_at: expiresAt.toISOString(),
         manager_permissions: managerPermissions,
         member_type: normalizedMemberType,
+        unit: invitationUnitId,
       })
     );
 

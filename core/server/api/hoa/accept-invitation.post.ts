@@ -147,7 +147,7 @@ export default defineEventHandler(async (event) => {
     );
 
     // 5. Create hoa_member record with personal info
-    await directus.request(
+    const newMember = await directus.request(
       createItem("hoa_members", {
         user: newUser.id,
         organization: organizationId,
@@ -170,6 +170,40 @@ export default defineEventHandler(async (event) => {
           : {}),
       })
     );
+
+    // 5b. Link the new member to the unit they were invited to.
+    //
+    // The invitation only gained a `unit` in Phase 2 — before that,
+    // `invite-member.post.ts` discarded the `unitId` the form had always sent,
+    // so an accepted invitation produced a member with no unit at all. That is
+    // why 605 Lincoln Road has 33 active members and zero links.
+    //
+    // Residency goes on the LINK as well as the member: `residencyFor()` reads
+    // the link first, and a link with no residency would make it fall back for
+    // a member whose residency we actually know.
+    //
+    // Best-effort on purpose. A failure here must not strand someone who has
+    // already had a Directus user and an hoa_member created for them — they
+    // would be unable to retry, since the invitation is single-use and their
+    // email now exists. An admin can link the unit from the members UI.
+    const invitationUnitId =
+      typeof invitation.unit === "string" ? invitation.unit : (invitation.unit as any)?.id ?? null;
+    if (invitationUnitId) {
+      try {
+        await directus.request(
+          createItem("hoa_member_units", {
+            member_id: newMember.id,
+            unit_id: invitationUnitId,
+            is_primary_unit: true,
+            member_type: residencyOnAccept(invitation.member_type),
+            start_date: new Date().toISOString().slice(0, 10),
+            status: "published",
+          })
+        );
+      } catch (linkError) {
+        console.error("Could not link accepted member to their unit:", linkError);
+      }
+    }
 
     // 6. Mark invitation as accepted
     await directus.request(
