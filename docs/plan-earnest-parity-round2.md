@@ -3377,8 +3377,9 @@ precedent for every step below.
 | `_hoaconnect` TXT | present | **to be added** |
 
 **Step 1 — claim the domain in HOA Connect. DONE this session.** Written with
-the static token in the exact shape `connect.post.ts` produces (there is no
-1033 admin session to call the endpoint with):
+the static token in the exact shape `connect.post.ts` produces (writing the
+fields directly sidesteps needing a session at all — though see step 3: an App
+Administrator would have satisfied the endpoint):
 
 ```
 custom_domain    1033lenox.com
@@ -3393,8 +3394,9 @@ domain_config    { verification_token: b86c58546e9e46a6a2af6f089d54ff78,
 **Proved inert before moving on** — this routes nothing, because `origin.ts` and
 `host-resolver.ts` both require `domain_verified: true`:
 
-- `GET /api/domains/ask?domain=1033lenox.com` → **404** (Caddy refuses to mint a
-  cert), while `605lincolnroad.com` → **200**.
+- `GET /api/domains/ask?domain=1033lenox.com` → **404**, while
+  `605lincolnroad.com` → **200**. Read this as "the app does not admit this host
+  yet", NOT as a certificate decision — see the Caddy correction below.
 - `https://1033lenox.com` → **200**, still served by the old project.
 - No other org's domain fields changed.
 
@@ -3409,10 +3411,33 @@ serving throughout:
 _hoaconnect.1033lenox.com    TXT    hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78
 ```
 
-**Step 3 — verify.** `POST /api/domains/verify { organizationId }` as a 1033
-admin does a real `resolveTxt` lookup and flips `domain_verified: true`. Still
-no traffic moves — DNS still points at the old project. After this the cert
-gate answers 200 for the host.
+**Step 3 — verify.** `POST /api/domains/verify { organizationId }` does a real
+`resolveTxt` lookup and flips `domain_verified: true`. Still no traffic moves —
+DNS still points at the old project.
+
+**It does not need a 1033 admin.** `checkAdminAccess` short-circuits for an **App
+Administrator** on any org (`core/server/utils/admin-auth.ts:39`), so Peter's own
+account satisfies it without holding an `hoa_members` row in 1033.
+
+**What verification actually buys** — worth stating, because it is easy to read
+the TXT record as a routing record, and it is not one. It moves nothing and
+points nothing. It is the app's proof that whoever typed the domain into the
+custom-domain field controls the DNS, and exactly two things consume it:
+
+- `host-resolver.ts:76` filters the Host → org lookup on
+  `domain_verified: {_eq: true}`. This is what makes a request arriving on
+  `1033lenox.com` resolve to 1033 Lenox at all. Unverified, Vercel can route the
+  host perfectly and the app still matches it to nobody.
+- `origin.ts:67` is the security consumer. `Host` is attacker-controllable, and
+  that module builds the base URL baked into transactional emails and push deep
+  links; it trusts only an exact match against a **verified** `custom_domain`.
+  Its own comment calls verification "precisely our proof that the org controls
+  the domain".
+
+So the two registrations are independent: **Vercel decides where a request
+lands; the TXT decides whether the app admits whose it is.** 1033 currently has
+neither. Doing TXT + verify first is what makes the switch in step 4 seamless —
+reversed, the domain lands on HOA Connect and resolves to no org.
 
 **Step 4 — the actual switch** (Peter's moment, all four together, ~5 min of
 downtime on the apex at most):
@@ -3424,9 +3449,24 @@ downtime on the apex at most):
    in advance.
 3. name.com → apex `A` from `76.76.21.21` → **`216.150.1.1`**; `www` CNAME →
    the target from step 2.
-4. Watch `https://1033lenox.com` and `/api/domains/ask?domain=1033lenox.com`.
+4. Watch `https://1033lenox.com` — it should come up as 1033's community, not
+   the old marketing project. (`/api/domains/ask` also answers 200 once verified,
+   but it is only an app-level readout here, not a cert gate.)
 
 Rollback is the same four steps in reverse; the old project keeps its build.
+
+**⚠️ Correction — `/api/domains/ask` is NOT a certificate gate here.** Earlier
+versions of this runbook (and the session that wrote it) described a 404 from
+`ask` as "Caddy refuses to mint a cert". That is stale. The app is deployed on
+**Vercel**, which terminates TLS and issues certificates itself once a domain is
+added to the project. `docs/custom-domains-setup.md` says so at the top and
+marks the endpoint **"legacy Caddy on-demand-TLS gate. UNUSED on Vercel"**;
+there is no Caddyfile anywhere in the repo.
+
+The endpoint still works and is still a useful one-line readout of "does the app
+consider this host verified" — it calls the same `resolveOrgByDomain` the
+resolver does. Just do not reason about certificates from it, and do not expect
+a TLS failure if it 404s. Nothing in step 4 depends on it.
 
 **Step 5 — the invitations. NOT DONE, and deliberately not started.** 85 member
 rows need Directus users. ⚠️ This is a **bulk mailing to 80 real people** and
@@ -4324,8 +4364,16 @@ Then, in order:
 1. If the TXT record is present but `domain_verified` is still false: run
    POST /api/domains/verify for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
    Verifying moves NO traffic — DNS still points at the old project — so this is
-   safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. The Vercel
-   project move (step 4 of the runbook) is Peter's to do, not yours.
+   safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. It needs an App
+   Administrator session, NOT a 1033 membership (checkAdminAccess short-circuits
+   for app admins). The Vercel project move (step 4 of the runbook) is Peter's
+   to do, not yours.
+   ⚠️ The TXT record is an OWNERSHIP PROOF, not a routing record — it points
+   nothing. Vercel decides where a request lands; `domain_verified` decides
+   whether host-resolver.ts admits whose it is, and whether origin.ts will trust
+   the host enough to put it in an email link. 1033 has neither yet.
+   ⚠️ `/api/domains/ask` is NOT a cert gate on Vercel — that claim in older
+   sections is stale and is corrected in the runbook.
 
 2. If and only if the domain has actually moved: the 85 resident invitations.
    ⚠️ THIS IS A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact
