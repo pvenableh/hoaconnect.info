@@ -1014,6 +1014,8 @@ export interface HoaInvitation {
 	accepted_at?: string | null;
 	/** @description Property-manager grants chosen at invite time, copied onto the member row on acceptance. Null for non-manager invitations. */
 	manager_permissions?: Record<string, any> | null;
+	/** @description Residency the invitee is being invited as. Copied to hoa_members.member_type on accept; null falls back to owner there. */
+	member_type?: 'owner' | 'tenant' | null;
 }
 
 export interface HoaJoinRequest {

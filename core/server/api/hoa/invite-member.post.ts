@@ -6,12 +6,13 @@ import {
   presetFor,
   type ManagerGrants,
 } from "#core/shared/transition/grants";
+import { normalizeResidency, isKnownNonResidency } from "#core/shared/members/residency";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody(event);
 
-  const { email, firstName, lastName, organizationId, roleId } = body;
+  const { email, firstName, lastName, organizationId, roleId, memberType, personType } = body;
 
   // Manager grants, chosen at invite time. Parked on the invitation row and
   // copied onto the member when they accept — see `hoa_invitations.manager_permissions`
@@ -37,6 +38,23 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 400,
       message: "Missing required fields",
+    });
+  }
+
+  // Residency of the person being invited.
+  //
+  // `InviteMemberForm.vue` has ALWAYS collected this (its "Type" control) and
+  // always POSTed it as `personType` — this endpoint simply never read it, and
+  // `accept-invitation.post.ts` then hardcoded every new member to "owner".
+  // So the admin's answer was not missing, it was discarded. `memberType` is
+  // the canonical name; `personType` is accepted because that is what the
+  // existing form sends. See #core/shared/members/residency.
+  const rawMemberType = memberType ?? personType ?? null;
+  const normalizedMemberType = normalizeResidency(rawMemberType);
+  if (normalizedMemberType === null && !isKnownNonResidency(rawMemberType)) {
+    throw createError({
+      statusCode: 400,
+      message: "memberType must be 'owner' or 'tenant'",
     });
   }
 
@@ -203,6 +221,7 @@ export default defineEventHandler(async (event) => {
         invitation_status: "pending",
         expires_at: expiresAt.toISOString(),
         manager_permissions: managerPermissions,
+        member_type: normalizedMemberType,
       })
     );
 

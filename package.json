@@ -36,6 +36,7 @@
     "restrict:channels": "dotenv -- tsx scripts/restrict-channel-access.ts",
     "channels:pin-softdelete": "dotenv -- tsx scripts/add-channel-pin-softdelete.ts",
     "add:channel-category": "dotenv -- tsx scripts/add-channel-category-field.ts",
+    "add:invitation-member-type": "dotenv -- tsx scripts/add-invitation-member-type.ts",
     "fix:channel-writes": "dotenv -- tsx scripts/fix-channel-message-write.ts",
     "widen:users-read": "dotenv -- tsx scripts/widen-users-read-to-org.ts",
     "create:ai-notice-history": "dotenv -- tsx scripts/create-ai-notice-history.ts",

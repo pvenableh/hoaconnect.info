@@ -53,17 +53,32 @@ form, not member status — do not mistake it for this.)*
 409s on *any* existing member, with a message that does not distinguish
 "already active here" from "archived former resident".
 
-## ⚠️ This changes the 85-invitation batch
+## ⚠️ Two orthogonal axes — do not collapse them
 
-1033 Lenox has **86 members: 59 active, 27 archived** — and of the 59 "active",
-**58 have never created an account.** The single account is Peter's.
+The single most important distinction in this workstream, and one this plan got
+wrong once before Peter corrected it:
 
-So the batch is not 85. It is **58 people who have genuinely never been
-onboarded**, once the 27 archived former residents are excluded and the one
-existing account is skipped. Sending to the archived 27 would be 27 wrong
-emails to real people.
+| axis | field | meaning | 1033 Lenox |
+|---|---|---|---|
+| **Membership** | `hoa_members.status` | Is this person a current member of the community? | 59 active, 27 archived |
+| **Portal onboarding** | `hoa_members.user` is set | Have they ever signed up for HOA Connect? | 1 of 59 |
 
-**Settle this before that mailing, not after.**
+**An active member who has never signed in is completely normal.** `active`
+describes the person's standing in the HOA — a current owner or tenant —
+**not** their use of this app. Management needs those records precisely
+*because* the person is a real resident who is not on the portal yet.
+
+So: **never demote a member's `status` because they have no account.** The
+"invited" state is not a membership status at all — it already lives in
+`hoa_invitations.invitation_status`, which is where it belongs.
+
+### What that means for the 85-invitation batch
+
+1033 Lenox: **86 members = 59 active + 27 archived.** Of the 59 active, **58
+have no portal account.**
+
+The batch is **58** — active members not yet onboarded. The 27 archived are
+former residents and must be excluded; the 1 remaining is already signed up.
 
 ## Decisions taken
 
@@ -77,10 +92,11 @@ emails to real people.
 3. **Unlinked members are surfaced in the admin UI, not backfilled up front.**
    See the finding below. The admin gets an alert icon and a way to link a
    member to a unit, or create a unit for them.
-4. **Members who have never created an account become `invited`, not `active`.**
-   A new status value, set before the invite is resent, with the admin choosing
-   role and residency first. See Phase 5 — including why it must run *after*
-   Phase 3.
+4. **Portal onboarding is shown as its own axis, never as a membership status.**
+   The members UI surfaces "has an account / invited / not yet invited"
+   alongside `status`, so an admin can see which *active* owners and tenants are
+   not on the portal yet. No member is ever demoted out of `active` for not
+   having signed in. See Phase 5.
 
 ### The finding that shaped decision 3
 
@@ -111,12 +127,45 @@ migrate one at a time instead of in one sweep.
 
 ## Phases
 
-### Phase 1 — Invitations carry residency *(fixes A + B)*
-- Add `member_type` (`owner|tenant`) to `hoa_invitations`.
-- `invite-member.post.ts`: accept and persist `memberType`.
-- `accept-invitation.post.ts`: read it instead of the hardcoded `"owner"`;
-  fall back to `owner` only when absent, and say so in a comment.
-- `InviteMemberForm.vue`: owner/tenant control beside the existing role control.
+### Phase 1 — Invitations carry residency *(fixes A + B)* — ✅ SHIPPED 2026-08-26
+
+**The bug was not what the plan first said.** `InviteMemberForm.vue` has
+*always* had a "Type" control offering Owner / Tenant / Property Manager, and
+has always POSTed it as `personType` — along with a `unitId`. The endpoint
+destructured neither. So the admin's answer was **discarded, not missing**, and
+`accept-invitation` then hardcoded `member_type: "owner"` for everyone. No UI
+change was needed.
+
+Shipped:
+
+- `scripts/add-invitation-member-type.ts` (+ `pnpm add:invitation-member-type`)
+  — adds `hoa_invitations.member_type`, mirroring `hoa_members.member_type`
+  exactly (nullable string, 255, same two choices). Idempotent; verified by
+  running it twice.
+- `core/shared/members/residency.ts` — `normalizeResidency`,
+  `isKnownNonResidency`, `residencyOnAccept`. Extracted as pure functions
+  precisely because this value decides mail audiences.
+- `invite-member.post.ts` now reads `memberType ?? personType`, normalizes, and
+  persists it; a junk value is a 400 rather than a silent write.
+- `accept-invitation.post.ts` now calls `residencyOnAccept(invitation.member_type)`
+  instead of the hardcoded `"owner"`.
+- `tests/shared/residency.test.ts` — 10 tests. Suite baseline is now **1521**.
+
+**`property_manager` maps to null**, not to owner: a manager is neither owner
+nor tenant of the unit, and that is already carried by the Property Manager
+role. Recording them as an owner would put them in owner-only audiences.
+
+⚠️ **Directus does NOT enforce the `owner|tenant` choices.** Proved against
+production: a write of `member_type: "COMPLETE-GARBAGE"` was accepted (and then
+deleted). `choices` is a UI affordance, not a DB constraint — so
+`normalizeResidency` in the endpoint is the **only** thing standing between a
+bad client and the roster. Do not remove it on the assumption the schema
+covers it.
+
+⚠️ **`unitId` is still dropped by `invite-member`.** The form sends it and the
+endpoint ignores it, so an invitation still cannot say *which unit*. That is
+Phase 2/3 work, and it is the other half of "an active owner/tenant of which
+unit".
 
 ### Phase 2 — Residency on the unit link
 - Add a residency field to `hoa_member_units`.
@@ -135,50 +184,34 @@ migrate one at a time instead of in one sweep.
 - Exclude non-active members from any batch.
 - Archived match → 409 that names the reason, plus the Restore action.
 
-### Phase 5 — Reset the never-onboarded to `invited` *(runs LAST — see the ordering warning)*
+### Phase 5 — Close the roster gaps, and surface onboarding separately
 
-**The finding that replaced the original "backfill roles" plan.** `role: null`
-turned out to correlate *perfectly* with having no Directus account:
+**Superseded plan, recorded so it is not retried.** This phase originally
+proposed resetting the 89 never-signed-in members to a new `invited` status,
+on the reasoning that `role: null` correlates perfectly with `user: null`
+(it does — all 126). **That reasoning was wrong**: it treated the app's
+onboarding state as if it were the person's membership standing. An active
+member who never logs in is a normal, correct record. No `invited` status
+value is being added, and no member's `status` is being changed.
 
-```
-role null: 126  →  ALL 126 have user = null
-role set :  10  →  only 8 have an account
-```
+What is actually left, and it is small:
 
-So the null roles were never a data-quality gap to fill. **128 of 136 members
-have never created an account, and have therefore never logged in.**
+**Roster data gaps (1033 Lenox):**
+- **3 active members with `member_type: null`** — no owner/tenant designation.
+- **4 active members with no `hoa_member_units` row** — no unit.
 
-| org | active | **never logged in** | archived | has account |
-|---|---|---|---|---|
-| 1033 Lenox | 59 | **58** | 27 | 1 |
-| 605 Lincoln Road | 33 | **31** | 0 | 2 |
-| the rest (demo/test) | 16 | 11 | 0 | 5 |
+**Roster data gaps (605 Lincoln Road):** 31 active members with no unit link
+(see the coverage table above). Closed through the Phase 3 UI rather than a
+script, since it needs someone who knows which resident is in which unit.
 
-`active` is currently describing 89 people across two real communities who have
-never once signed in. They are not active; they are **invited and not yet
-onboarded**. So:
+**Portal-onboarding visibility:** add an indicator to the members list —
+*has an account* / *invited, not accepted* / *not yet invited* — derived from
+`hoa_members.user` and `hoa_invitations.invitation_status`. This is what lets
+management answer "which of my active owners still is not on the portal?"
+without it ever touching membership status.
 
-- Add an **`invited`** value to `hoa_members.status` and move them to it.
-- The admin sets **role and residency before resending** the invite, using the
-  Phase 3 controls. The invite then carries both (Phase 1), so an accepted
-  account knows who the person is instead of defaulting to owner.
-
-**Use a NEW `invited` value — do not reuse `pending`.** `pending` already means
-"counts as a member": `admin-auth.ts:57` and `check-membership.post.ts:25` both
-filter `status: { _in: ["active", "pending"] }`. Overloading it would put 89
-invited people inside those membership checks. It is inert only because they
-have no `user` FK to match on, and stops being inert the moment one is linked.
-
-⚠️ **ORDERING — this phase runs after Phase 3, never before.** Flipping 89
-members out of `active` changes every member count, dashboard figure and
-mailing audience in both real orgs. `MembersPage.vue:108` filters to
-`_in ["active", "inactive", "pending"]`, so running this first would make all
-89 **silently vanish from the admin's list**. Teach the UI about `invited`
-first, then move the data.
-
-Also still in scope here: the 3 active 1033 members with `member_type: null`,
-and 605 Lincoln's missing unit links — the latter through the Phase 3 UI rather
-than a script.
+*(Note: `hoa_invitations` currently holds exactly one row, canceled. The 58
+will effectively all be new.)*
 
 ## Traps
 

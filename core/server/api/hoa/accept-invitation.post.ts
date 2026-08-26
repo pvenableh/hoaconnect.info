@@ -11,6 +11,7 @@ import {
 import { createDirectus } from "@directus/sdk";
 import type { User } from "#auth-utils";
 import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
+import { residencyOnAccept } from "#core/shared/members/residency";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -155,7 +156,10 @@ export default defineEventHandler(async (event) => {
         last_name: lastName,
         email: invitation.email,
         phone: phone || null,
-        member_type: "owner", // Default to owner, can be changed later
+        // Residency the admin chose when sending the invitation. This was a
+        // hardcoded "owner" for EVERY invitee until Phase 1, because the
+        // invitation had nowhere to carry the real answer.
+        member_type: residencyOnAccept(invitation.member_type),
         status: "active",
         // The grants the admin chose when they sent the invitation. A manager
         // who accepts is immediately able to do the job they were invited to do,
