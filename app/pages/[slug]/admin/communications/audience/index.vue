@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HoaMember } from "#core/types/directus";
+import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
 
 // Audience overview — who receives your communications, grouped the same way the
 // composer targets them (All / Owners / Tenants). Each group deep-links into the
@@ -20,7 +21,10 @@ const { data: members, pending } = await useAsyncData(
   async () => {
     if (!orgId.value) return [] as HoaMember[];
     const rows = await list({
-      fields: ["id", "member_type", "user", "email"],
+      // The unit-link fields residencyFor() reads. These counts are the promise
+      // the composer then has to keep — if they are resolved differently, the
+      // "Owners · 34" an admin clicks lands on a list of some other size.
+      fields: ["id", "member_type", "user", "email", ...RESIDENCY_UNIT_FIELDS],
       filter: {
         organization: { _eq: orgId.value },
         status: { _in: ["active", "inactive", "pending"] },
@@ -49,14 +53,14 @@ const groups = computed(() => [
     label: "Owners",
     description: "Property owners only.",
     icon: "lucide:home",
-    count: all.value.filter((m) => m.member_type === "owner").length,
+    count: all.value.filter((m) => residencyFor(m as any) === "owner").length,
   },
   {
     key: "tenants" as const,
     label: "Tenants",
     description: "Renters / non-owner residents.",
     icon: "lucide:key",
-    count: all.value.filter((m) => m.member_type === "tenant").length,
+    count: all.value.filter((m) => residencyFor(m as any) === "tenant").length,
   },
 ]);
 
