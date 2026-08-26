@@ -4711,3 +4711,106 @@ to it. demo activity 462, demo-classic 13.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ````
+
+---
+
+## 1033 Lenox is VERIFIED — step 3 of the runbook is done (2026-08-26, night)
+
+Peter added the TXT record at name.com and it went live mid-session, ending a
+three-round block. Step 3 ran immediately.
+
+**The record, confirmed from three resolvers before trusting it** — a single
+`dig` against one cached resolver is not propagation:
+
+```
+default   "hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78"
+@8.8.8.8  "hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78"
+@1.1.1.1  "hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78"
+```
+
+Byte-exact against `domain_config.verification_token`.
+
+### It ran through the real endpoint, not a side-channel
+
+Worth recording, because the shortcut was available and was deliberately not
+taken. `POST /api/domains/verify` needs `checkAdminAccess`, and the demo account
+cannot satisfy it — the demo user is a member of the two demo orgs only. The
+fallback would have been to replicate the endpoint's write with the static
+token, as step 1 did.
+
+**Peter logged into a dev preview instead**, so the endpoint ran with a genuine
+App Administrator session and the authz gate was actually exercised. The session
+was checked *before* the call rather than inferred from the result:
+
+```
+role c4903b32-db6f-4479-a627-55be7f328321   ← exact match for directusRoleAppAdmin
+```
+
+That check mattered: **`NUXT_PUBLIC_DIRECTUS_ROLE_APP_ADMIN` is not set in
+`.env`**, so `core/nuxt.config.ts:278` is falling back to its hardcoded default.
+The fallback happens to be correct, so nothing is broken — but the app-admin
+short-circuit currently depends on a literal in the config file rather than on
+configuration, and a 403 here would have been very confusing without knowing
+that.
+
+```
+POST /api/domains/verify {organizationId: 5f00fc6d-…}
+→ 200 {"verified": true, "domain": "1033lenox.com"}
+```
+
+Read back from Directus independently of the app: `domain_verified: true`,
+`domain_config.status: "verified"`, `verified_at: 2026-08-26T20:35:57.758Z`.
+
+### Proved inert, again
+
+Verification is an ownership proof, not a routing change, and the evidence says
+so:
+
+| check | result |
+|---|---|
+| apex `A` | **`76.76.21.21`** — unchanged, still the old project |
+| `https://1033lenox.com` | **308 from `76.76.21.21`** — still served by the old project |
+| prod `/api/domains/ask?domain=1033lenox.com` | **404 → 200** |
+| prod `…?domain=605lincolnroad.com` | 200 (unchanged) |
+| prod `…?domain=notmine.example.com` | **404** — still discriminating, not blanket-200 |
+
+Prod picked the flip up on its own inside `host-resolver.ts`'s 60s `TTL_MS`.
+Note that `invalidateHostCache()` in the endpoint was worthless here by
+construction: it clears *the instance that served the request*, which was a
+laptop, never a prod instance. **The TTL is what actually propagated this** —
+exactly as `host-resolver.ts:13` says ("The TTL is the real guarantee").
+
+**Blast radius checked, not assumed.** Only two orgs hold a `custom_domain` at
+all — 1033 Lenox (now verified) and 605 Lincoln Road (already verified,
+untouched).
+
+### Cleanup
+
+Logging in wrote 2 `hoa_activity` rows into the **real** 1033 Lenox org — a
+`session_start` and a `page_view` of `/1033-lenox`, both `ip: ::1` from the
+laptop. Both deleted. Counts after: 1033 Lenox **285**, demo **462**,
+demo-classic **13** — the two controls untouched.
+
+*(Observation while checking, NOT acted on: 797 of 872 `hoa_activity` rows
+carry `ip: ::1`. They are accumulated dev-server sessions, not a production
+IP-capture bug — real production rows do record a real client IP, e.g.
+`72.108.243.191`. Cleaning that up is a separate decision.)*
+
+### Operator TODOs — after verification
+
+- [ ] **Peter — step 4 of the runbook, the Vercel project move.** This is now
+      the ONLY thing left in the cutover, and it is the one with downtime
+      (~5 min on the apex): remove both hosts from project `1033`, add them to
+      `hoaconnect`, set apex → `www`, then repoint name.com (`A` →
+      **`216.150.1.1`**, and the `www` CNAME to the per-domain hash **Vercel
+      prints at that moment** — it cannot be written down in advance).
+- [ ] **The 85 resident invitations.** Unblocked the moment step 4 lands. Bulk
+      mail to 80 real people; wants its own session and its own explicit yes.
+- [ ] Decide on the two `subscription_plans` narrowings (row filter is safe and
+      recommended; field scope needs a dev-server test first).
+- [ ] Trivial, noted in passing: `verify.post.ts`'s header comment still says
+      verification "lets Caddy issue a cert via /api/domains/ask". That is the
+      stale claim the runbook already corrected — there is no Caddy and
+      `/api/domains/ask` is not a cert gate on Vercel. Comment only.
+- [x] **`domain_verified` is TRUE for 1033 Lenox**, via the real endpoint with a
+      real App Administrator session. No traffic moved.
