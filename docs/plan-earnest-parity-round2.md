@@ -3885,25 +3885,44 @@ app-side cases against it, and deleted both. demo-classic was never touched.
 After: demo activity **462** (unchanged), demo-classic **13**, files back to
 **41**, documents **10**, `waitlist_signups` **0**.
 
-### 5 — The two-step cutover, and why the order is not optional
+### 5 — The two-step cutover. DONE, in that order.
 
-The Directus filter takes effect on production **the instant it is applied**.
-The proxy only exists once Vercel redeploys. Applying first would 403 real 605
-members' document downloads for the whole gap.
+The Directus filter takes effect on production **the instant it is applied**,
+while the proxy only exists once Vercel redeploys — so applying first would have
+403'd real 605 members' document downloads for the whole gap. Peter approved
+both steps and they ran in order:
 
-1. **Push** — Vercel auto-deploys the proxy. *(Waiting on Peter.)*
-2. **Then** `pnpm run scope:public-files --apply`.
+1. **Pushed** `0ee2278` → Vercel auto-deployed. The route itself is the deploy
+   probe: anonymous `/api/directus/assets/<id>` returns **404 before, 401
+   after**. Polled until it flipped — **~220s**.
+2. **Then** `pnpm run scope:public-files --apply`, `null` →
+   `{"_and":[{"type":{"_starts_with":"image/"}}]}`.
 
-Until step 2, **`pnpm run audit:public-policy` fails on purpose**, naming the
-drift and the command that fixes it. That is the ratchet doing its job — the
-contract in code says images-only and production does not yet agree — not a
-broken script:
+**Confirmed closed, anonymously, on production:**
+
+| | |
+|---|---|
+| 605 Balance Sheet Oct 2025 | **403** |
+| 605 Approved Minutes Aug 2024 | **403** |
+| data export archive (PII zip) | **403** |
+| email logo (in delivered inboxes) | 200 |
+| 605 hero shot (landing) | 200 |
+| 1033 wordmark (landing nav) | 200 |
+| non-image files visible to `/files` enumeration | **0 of 30** (was 11 of 41) |
+
+**Confirmed working, on production, with a real session** (5/5 — one throwaway
+PDF + `hoa_documents` row in the demo org, both deleted):
 
 ```
-❌ directus_files: public read is WIDER than the contract
-   expected filter: {"_and":[{"type":{"_starts_with":"image/"}}]}
-   actual filter:   null
+PASS  member downloads own org document      200   PASS  demo member refused 605's doc  403
+PASS    ...and gets real bytes               true  PASS  member gets an image via proxy 200
+PASS  logged-out visitor refused             401
 ```
+
+Landing pages still render and their images still load: `/605-lincoln` and
+`/1033-lenox` both 200, and all three asset URLs referenced by 605's landing
+return 200. `audit:public-policy` is **green** and now reads `filtered` on
+`directus_files`. demo activity **462**, demo-classic **13** — both unchanged.
 
 ### 6 — The residual, stated plainly
 
@@ -3942,10 +3961,9 @@ identical on a clean tree)** · build **green** · hairline **0** (baseline 0).
 
 ### Operator TODOs — after 2026-08-26 (later)
 
-- [ ] **Peter — push, then run `pnpm run scope:public-files --apply`.** In that
-      order (§5). The push is the deploy. Until the apply, 605's balance sheets
-      and the export archive stay anonymously downloadable, and the public-policy
-      audit fails by design.
+- [x] **Pushed, deployed, filter applied — in that order (§5).** 605's balance
+      sheets, its approved minutes and the export archive are **403 anonymously
+      on production**; members still download their own through the proxy.
 - [ ] **Peter — the DNS record + the Vercel project move.** Unchanged; still
       nothing at `_hoaconnect.1033lenox.com`, apex still `76.76.21.21`.
 - [ ] **The 85 resident invitations.** Still gated on the domain move.
@@ -3957,3 +3975,126 @@ identical on a clean tree)** · build **green** · hairline **0** (baseline 0).
 - [ ] Consider wiring `audit:public-policy` into CI. It needs network + a static
       token, so it is a deploy-time check rather than a husky one — and after the
       cutover it also guards the new filter.
+
+### Kickoff prompt — next session (ready to paste)
+
+```
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the LAST
+section, "Round outcome — the asset hole, and the proxy that closes it
+(2026-08-26, later)", plus "The cutover runbook" in the 2026-08-25 section.
+That file is the source of truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
+elsewhere silently resets your shell there for the next command, so re-`cd`
+in every tool call that needs the repo. No branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+
+DONE last session, do not redo: the directus_files hole is CLOSED on production.
+The public grant is filtered to `type _starts_with image/`; PDFs, zips and
+recordings now go through /api/directus/assets/:id, which checks the session and
+the file's owning org (core/server/utils/file-owner.ts, fails closed). Verified
+on production: 605's balance sheets / approved minutes / the PII export archive
+are 403 anonymously, landing + already-sent-email images still 200, a member
+still downloads their own org's documents (5/5), enumeration shows 0 non-image
+files. `pnpm run audit:public-policy` is green and now asserts the FILTER, not
+just the grant. Everything is pushed — 0 unpushed commits.
+
+⚠️ VITEST BASELINE IS 1507/1511, NOT 1511. The 4 failures in
+tests/server/notify-org-scope.test.ts and transactional-email-org-scope.test.ts
+are PRE-EXISTING — proved by stashing everything and getting the identical 4 on
+a clean tree. They pass 16/16 in isolation and only fail under full-suite
+parallelism. Do NOT spend a session rediscovering this. demo activity 462,
+demo-classic 13.
+
+FIRST, two minutes of orientation — the answers decide the work:
+
+  dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
+  dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
+  pnpm run audit:public-policy               # must be green, directus_files "filtered"
+  date -u
+
+As of 2026-08-26 ~05:30 UTC: still no TXT record, apex still 76.76.21.21, so
+the domain had NOT moved and items 2 and 3 below were still blocked.
+
+Then, in order:
+
+1. The AI cron — it is now PAST 07:10 UTC, so this check IS due and is cheap.
+   `ai_notice_history` should hold 5 rows and a dry probe should report
+   skipped:3 for 1033 and skipped:2 for 605. If it reports skipped:0 against an
+   empty table, the cron is NOT firing and that is a real defect worth chasing —
+   four sessions have now recorded a clean "before" and none has seen an
+   "after", so this is the first session that can actually falsify it.
+   ⚠️ A GET to /api/ai/notices/check would SEND. Use POST with dryRun:true.
+
+2. If the TXT record is present but `domain_verified` is still false: run
+   POST /api/domains/verify for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
+   Verifying moves NO traffic — DNS still points at the old project — so this is
+   safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. The Vercel
+   project move (step 4 of the runbook) is Peter's to do, not yours.
+
+3. If and only if the domain has actually moved: the 85 resident invitations.
+   ⚠️ THIS IS A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact
+   template, produce the exact recipient list as a file Peter can read, and
+   STOP. Get a second explicit yes before a single send. Both halves of the old
+   blocker are now closed — the invitation-token leak (last session) and the
+   asset leak (this one) — so the domain is the only thing left gating it.
+
+4. Optional, if the above are all blocked: the 4 flaky org-scope tests, or
+   wiring audit:public-policy into CI (needs network + a static token, so it is
+   a deploy-time check, not a husky one).
+
+⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. That is the accepted
+residual of the type-filter design, not a bug to re-fix. Nothing financial or
+identifying is in that set (logos, hero shots, landing photography, one avatar).
+Tightening it means a per-file public marker + a backfill, and a missed flag
+breaks a landing image or an email logo SILENTLY. Do not start that without
+Peter. And do NOT "simplify" by deleting the public grant: the logo in every
+email already in someone's inbox is a bare /assets/<id> fetched with no session.
+
+⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
+$CURRENT_USER, so narrowing fields still leaves every org readable by everyone.
+For anything tenant-owned the only correct public grant is no public grant.
+`/api/directus/items` falls back to the anonymous client when there is no
+session, so any grant is reachable by one POST with no token.
+
+⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
+file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
+closed on purpose. Do not "fix" that by allowing unowned files.
+
+⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. Always take a noise control — two
+captures with nothing changed — before believing a before/after. Normalise the
+per-request UUID and the 13-digit epoch.
+
+⚠️ zsh DOES NOT WORD-SPLIT `$VAR`. `for id in $IDS` runs ONCE with the whole
+string. Use `$(echo $IDS | tr ' ' '\n')` or an array. zsh also globs Directus
+filter URLs: quote `?filter[collection][_eq]=x` or it dies with "no matches
+found", producing NO output that reads like an empty API response.
+
+⚠️ A DIRECTUS 204 ON CREATE IS A WRITE, NOT A REJECTION. Check for, and delete,
+anything a probe creates.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail. Render to HTML
+and read it. 1033 Lenox and 605 Lincoln are REAL orgs with real people.
+
+Quality gate per commit: typecheck 0, vitest 1507/1511 (see the baseline note
+above — 4 known flakes), build green, hairline audit green at BASELINE 0 (it
+BLOCKS commits via husky). Do NOT run `pnpm build` and `pnpm typecheck`
+concurrently — they corrupt each other's `.nuxt` cache. `pnpm typecheck` takes
+>10min, so run it in the BACKGROUND, not in a foreground tool call. When
+capturing an exit code, capture the COMMAND's, not a pipeline's.
+
+Verify against real data, not fixtures — every real bug in the last three
+sessions was found that way and none by unit tests. Use your own dev server
+(preview_start, never Bash) with a real session (POST /api/demo/login).
+Browser-pane SCREENSHOTS fail silently on the dev server tab (blank images while
+the DOM is correct) — verify headlessly with curl / read_page / javascript_tool.
+Browsing writes hoa_activity rows; cookie-less curl and API calls do not. Delete
+every row you create, and diff BOTH demo orgs before and after: demo-classic is
+a CONTROL, never write to it.
+
+When done: update the plan's Operator TODOs and ask before pushing.
+```
