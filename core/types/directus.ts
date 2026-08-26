@@ -1016,6 +1016,8 @@ export interface HoaInvitation {
 	manager_permissions?: Record<string, any> | null;
 	/** @description Residency the invitee is being invited as. Copied to hoa_members.member_type on accept; null falls back to owner there. */
 	member_type?: 'owner' | 'tenant' | null;
+	/** @description The unit this person is being invited to. Used to create their hoa_member_units link on accept. Optional — an invitation with no unit still works. */
+	unit?: HoaUnit | string | null;
 }
 
 export interface HoaJoinRequest {
@@ -1243,6 +1245,8 @@ export interface HoaMemberUnit {
 	ownership_percentage?: number | null;
 	member_id?: HoaMember | string | null;
 	unit_id?: HoaUnit | string | null;
+	/** @description Residency on THIS unit. Preferred over hoa_members.member_type by residencyFor(); null falls back to the member's own value while unit links are still being filled in. */
+	member_type?: 'owner' | 'tenant' | null;
 }
 
 export interface HoaNewsletterBlock {
