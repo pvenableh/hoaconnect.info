@@ -225,3 +225,161 @@ will effectively all be new.)*
 - ⚠️ `hoa_invitations` holds acceptance tokens in cleartext — a leaked pending
   token lets an anonymous caller create an account. It must never gain a public
   read grant; `pnpm run audit:public-policy` guards this and now runs daily.
+
+## Kickoff prompt — next session (ready to paste)
+
+````
+Continue HOA Connect. Read docs/plan-member-management.md FIRST — it is the
+source of truth for this workstream. Read "⚠️ Two orthogonal axes", then the
+Phases. Also skim the LAST section of docs/plan-earnest-parity-round2.md for
+the 1033 domain state. Chat memory is not authoritative; those files are.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
+elsewhere silently resets your shell there for the next command, so re-`cd`
+in every tool call that needs the repo. No branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+
+DONE, do not redo:
+- The directus_files hole is CLOSED on production (public grant filtered to
+  `type _starts_with image/`; everything else via /api/directus/assets/:id).
+- The AI notices cron is CONFIRMED FIRING. Closed.
+- The 4 flaky org-scope tests are FIXED.
+- `audit:public-policy` IS IN CI — .github/workflows/public-policy-audit.yml,
+  daily 06:17 UTC + push-to-main + dispatch, reusing the existing
+  DIRECTUS_STATIC_TOKEN secret. ⚠️ It is a DETECTOR, not a gate — Vercel
+  deploys independently of Actions. Do not re-wire it.
+- `subscription_plans` is REVIEWED and CLEAN (no tenant FK, 8 catalog rows,
+  Enterprise stores no negotiated number). Only the NARROWINGS remain.
+- 1033 Lenox is DOMAIN-VERIFIED. `domain_verified: true`, verified through the
+  real endpoint with an App Administrator session. NO TRAFFIC MOVED — the apex
+  is still 76.76.21.21 and 1033 still serves off the old Vercel project.
+  Step 4 (the Vercel project move) is PETER'S, and he is doing design work
+  first. Do not chase it.
+- MEMBER MANAGEMENT PHASE 1 IS SHIPPED. Invitations now carry residency.
+  Do not re-derive it: InviteMemberForm.vue ALWAYS had the Owner/Tenant control
+  and always POSTed it as `personType`; invite-member.post.ts just never read
+  it, and accept-invitation hardcoded "owner". Fixed via
+  core/shared/members/residency.ts. 10 tests.
+- Everything is pushed and deployed; 0 unpushed commits.
+
+⚠️⚠️ THE SINGLE MOST IMPORTANT THING IN THIS WORKSTREAM — two ORTHOGONAL axes.
+  `hoa_members.status = active` means AN ACTIVE MEMBER OF THE COMMUNITY (a
+  current owner or tenant). It does NOT mean "uses the app". Whether someone has
+  ever signed in is a SEPARATE axis: `hoa_members.user` being set.
+  An active member who has never logged in is NORMAL and CORRECT — management
+  needs that record precisely because they are a real resident not yet on the
+  portal. 1033: 59 active, only 1 with an account. 605: 33 active, 2 accounts.
+  NEVER demote a member's `status` because they have no account. A previous
+  session proposed exactly that and it was wrong. "Invited" is not a membership
+  status — it lives in `hoa_invitations.invitation_status`.
+
+FIRST, orientation:
+
+  dig +short 1033lenox.com A     # 76.76.21.21 = still old, 216.150.1.1 = moved
+  pnpm run audit:public-policy   # green, 3 grants, directus_files "filtered"
+  pnpm test                      # 1521/1521 across 87 files
+
+Then, the work — Phase 2 is next:
+
+PHASE 2 — residency on the unit link, and stop dropping `unitId`.
+  ⚠️ `invite-member.post.ts` STILL IGNORES `unitId`, which the form already
+  sends. That is the other half of "an active owner/tenant of WHICH UNIT".
+  - Add residency to `hoa_member_units` (it already has is_primary_unit,
+    start_date, end_date, ownership_percentage).
+  - Add `residencyFor(member)` — junction FIRST, `hoa_members.member_type` as
+    FALLBACK. The fallback is required, not optional: 605 Lincoln Road is LIVE
+    IN PRODUCTION with 33 active members and ZERO unit links, and both demo
+    orgs have none either. A clean cutover would blank all of them.
+  - ⚠️ 34 FILES READ `member_type`, including EmailComposePage.vue,
+    email-merge.ts, sendEmailJob.ts and audience/index.vue — several DECIDE WHO
+    RECEIVES MAIL. Migrate them to the resolver ONE AT A TIME, mail-deciding
+    ones first and most carefully. Do not sweep all 34 in one commit.
+
+Then Phases 3, 4, 5 as written in the plan. Phase 5 runs LAST.
+
+Also still open (ask Peter which, do not do all):
+  - `subscription_plans` ROW FILTER — safe, recommended. Apply
+    `{status:{_eq:"published"},is_active:{_eq:true}}` to the public grant AND
+    add the same filter to ALLOWED in scripts/audit-public-policy.ts in the
+    SAME commit, or the daily job goes red the next morning.
+  - `subscription_plans` FIELD SCOPE — test on a dev server first. Landing.vue
+    and experimental.vue FILTER on `status` and `is_active`, and Directus may
+    require read permission on a filtered field, so this could SILENTLY EMPTY
+    the marketing pricing section. Low value; consider skipping.
+  - Stale comment in core/server/api/domains/verify.post.ts still claims
+    verification "lets Caddy issue a cert via /api/domains/ask". There is no
+    Caddy and that is not a cert gate on Vercel. Comment only, 2 minutes.
+  - THE 58 RESIDENT INVITATIONS — gated on Peter's Vercel move, NOT ready.
+    ⚠️ It is 58, not 85: 1033 has 86 members = 59 active + 27 archived, and 1
+    active member already has an account. The 27 archived are FORMER RESIDENTS.
+    ⚠️ BULK MAIL TO REAL PEOPLE. Build it, render the template, produce the
+    recipient list as a file, and STOP. Second explicit yes before any send.
+    ⚠️ Whichever host the admin is browsing is baked into those links, and they
+    sit in inboxes permanently. Decide before/after the domain move deliberately.
+
+⚠️ DIRECTUS DOES NOT ENFORCE `choices`. Proved on production: a write of
+member_type "COMPLETE-GARBAGE" was ACCEPTED. The dropdown is a UI affordance,
+not a DB constraint — server-side normalization is the ONLY guard. Never drop
+it assuming the schema covers it.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. invite-member.post.ts SENDS via
+SendGrid — never call it to "test". A write to `directus_notifications` EMAILS
+the recipient from inside Directus; one row is one mail. A GET to
+/api/ai/notices/check also SENDS; use POST with dryRun:true. 1033 Lenox and
+605 Lincoln are REAL orgs with real people. There are no Directus flows on
+hoa_invitations, so a DIRECT Directus write to that collection is mail-safe —
+that is how Phase 1 was verified.
+
+⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. Accepted residual of
+the type-filter design, not a bug to re-fix. Tightening it needs a per-file
+public marker + backfill, and a missed flag breaks a landing image or an email
+logo SILENTLY. Do not start without Peter. And do NOT "simplify" by deleting
+the public grant: the logo in every already-sent email is a bare /assets/<id>
+fetched with no session, and those URLs cannot be reissued.
+
+⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
+file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
+closed on purpose. Do not "fix" that by allowing unowned files.
+
+⚠️ A DIRECTUS 403 IS OFTEN A BAD FIELD NAME, NOT PERMISSIONS. Asking for a
+column that does not exist returns 403, not 400. Query `?fields=*` first.
+
+⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
+$CURRENT_USER. `/api/directus/items` falls back to the anonymous client when
+there is no session, so any grant is reachable by one POST with no token.
+VERIFY PUBLIC GRANTS FROM THE ANONYMOUS SIDE — a curl with NO token is the view
+that matters.
+
+⚠️ A DIRECTUS 204 ON CREATE IS A WRITE, NOT A REJECTION. Check for, and delete,
+anything a probe creates.
+
+⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. Take a noise control — two captures
+with nothing changed — before believing a before/after.
+
+⚠️ zsh DOES NOT WORD-SPLIT `$VAR`: `for id in $IDS` runs ONCE with the whole
+string. zsh also globs BOTH Directus filter URLs AND bare `--include=*.ts`
+flags — quote them.
+
+⚠️ WHEN CAPTURING AN EXIT CODE, CAPTURE THE COMMAND'S, NOT A PIPELINE'S.
+`pnpm typecheck | tail -25; echo $?` reports tail's 0 and hides real failures.
+
+Quality gate per commit: typecheck 0, vitest 1521/1521 (87 files), build green,
+hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run
+`pnpm build` and `pnpm typecheck` concurrently — they corrupt each other's
+`.nuxt` cache. `pnpm typecheck` takes >10min, so run it in the BACKGROUND.
+
+Verify against real data, not fixtures — every real bug in the last five
+sessions was found that way and none by unit tests. Use your own dev server
+(preview_start, never Bash) with a real session. Browser-pane SCREENSHOTS fail
+silently on the dev server tab (blank images while the DOM is correct) — verify
+headlessly with curl / read_page / javascript_tool. Browsing writes hoa_activity
+rows; cookie-less curl and API calls do not. Delete every row you create and
+re-check the counts: demo 462, demo-classic 13 (demo-classic is a CONTROL,
+never write to it), 1033 Lenox 285, hoa_invitations 1.
+
+When done: update the plan's phase status and Operator TODOs, and ask before
+pushing.
+````
