@@ -4439,3 +4439,275 @@ to it. demo activity 462, demo-classic 13.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ````
+
+---
+
+## Round outcome — the audit now runs without being remembered (2026-08-26, evening)
+
+The domain is blocked for the **third round running**: `_hoaconnect.1033lenox.com`
+still returns nothing and the apex is still `76.76.21.21`. Items 1 and 2 of the
+kickoff were untouched again. Peter took both remaining §3 items, CI first.
+
+### 1 — `audit:public-policy` is wired into CI
+
+New workflow: `.github/workflows/public-policy-audit.yml`.
+
+**It could not go in `ci.yml`, and the reason is the useful part.** `ci.yml`
+runs against deliberately dummy Directus values — `DIRECTUS_URL:
+http://localhost:8055`, `ci-dummy-token`, with the comment "build/tests never
+reach a live Directus" — and it runs on `pull_request`, where a fork gets no
+secrets. This audit is the opposite shape. It does not check the diff; **it
+checks server state.** It needs the real prod URL and a real token, so it needs
+its own job that never runs on a fork PR.
+
+**No new secret was needed.** `DIRECTUS_STATIC_TOKEN` is already configured on
+the repo (`gh secret list`) and `data-export.yml` has been using it hourly and
+green all day, so the workflow reuses it with the same `DIRECTUS_URL:
+https://admin.hoaconnect.info` literal that `data-export.yml` and
+`notification-digest.yml` already use. Nothing for Peter to set up.
+
+**The schedule is the trigger that earns its keep, not the push.** The public
+policy is edited in the *Directus admin UI*, not in this repo — it can drift to
+wide open with **zero commits**, and a push-only check would never see it. That
+is precisely how the original 12 unfiltered grants (136 real members, cleartext
+invitation tokens) sat there unnoticed. Hence `cron: "17 6 * * *"` daily,
+alongside push-on-main and `workflow_dispatch`.
+
+**⚠️ It is a DETECTOR, not a gate.** Worth stating plainly so nobody
+mis-reads a green tick later: Vercel deploys on push *independently of GitHub
+Actions*, so a red run here does **not** hold back the deploy. Read a failure as
+"an anonymous cross-tenant read may be open right now", not as "the build broke".
+Making it an actual gate would mean moving the deploy behind Actions, which is a
+much larger change and was not in scope.
+
+`dotenv --` in the package script is a no-op on a runner (no `.env`, and
+dotenv-cli passes the ambient environment through untouched — verified), so CI
+runs the *same* `pnpm run audit:public-policy` a human runs. One command, one
+path.
+
+**Proved, not assumed.** Three properties matter for a check like this and all
+three were tested:
+
+| property | how | result |
+|---|---|---|
+| YAML actually parses (an unparseable workflow never runs at all) | parsed all 7 workflow files | ✅ all 7, triggers `push`/`schedule`/`workflow_dispatch` |
+| a rotated/broken token goes RED, not silently green | ran with a bogus token | `❌ 401 Unauthorized on /policies` → **exit 1** |
+| the drift detection is real, not a no-op | scratch copy with `subscription_plans` removed from `ALLOWED`, run against live prod | `❌ 1 unexpected public grant` → **exit 1** |
+
+The third test also exercised the *reverse* direction in the same run — the
+removed entry was reported as `! … expected but ABSENT`, which is its own
+`exit 1` branch. And the filter assertion is real code, not just a comment: an
+exact `JSON.stringify` comparison against `allowed.filter`, collected into
+`widened` with a distinct message and exit.
+
+*(Noted, not fixed: that comparison is key-order sensitive, so a semantically
+identical filter with reordered keys would false-positive. That fails loud
+rather than silent, so it is an annoyance, not a hole.)*
+
+### 2 — `subscription_plans`: reviewed, and it is clean
+
+The question asked was whether the last unfiltered public read holds any
+per-org or negotiated-pricing data. **It does not.**
+
+- **No tenant FK exists on the collection at all.** All 28 fields listed; there
+  is no `organization`, no customer reference, nothing per-org to leak.
+- **8 rows, every one a named catalog tier** — Starter, Basic, Pro (the retired
+  2025 list) and Boutique / Mid / Larger / Grand / Enterprise (the current
+  by-unit-band list). No one-off row cut for a specific building.
+- **The negotiation case is explicitly empty.** `Enterprise` is
+  `is_contact_only: true` with `price_monthly` and `price_yearly` both `null` —
+  the negotiated number is not stored here, it is absent by design.
+- `stripe_price_id_*` is exposed, and that is fine: Stripe Price ids are meant
+  to be client-visible, they are used in Checkout from the browser.
+
+Verified from the **anonymous** side (`curl` with no token), which is the view
+that actually matters, not the admin one.
+
+So: **not a bug, and the grant is genuinely load-bearing** — `Landing.vue` and
+`experimental.vue` fetch `/items/subscription_plans` straight from the browser
+with no session, and `OrganizationSetupForm.vue` passes `requireAuth: false`.
+It cannot simply be removed.
+
+#### Two narrowings found while looking — neither applied
+
+The grant is `fields: ["*"], permissions: null`, while **every anonymous
+consumer already asks for less than that**. The gap is not currently leaking
+anything sensitive, but it is wider than it needs to be:
+
+1. **Row scope — safe, and worth doing.** All three anonymous consumers already
+   filter `status: published` **and** `is_active: true` client-side. The grant
+   does not, so the 3 retired 2025 plans ($14.99 / $29 / $79) are anonymously
+   readable. That is old *public* pricing, so today it is harmless. **The
+   forward risk is the real point: any future draft or unreleased price row is
+   public the instant it is saved.** Proposed grant filter:
+   `{ status: { _eq: "published" }, is_active: { _eq: true } }`.
+2. **Field scope — do NOT apply without testing first.** The union of what the
+   anonymous consumers actually use is 16 fields (Landing's explicit 15, plus
+   `trial_days` for `OrganizationSetupForm`). But both landing pages *filter on*
+   `status` and `is_active`, and **Directus may require read permission on a
+   field used in a filter** — field-scoping could therefore silently empty the
+   pricing section. That needs a dev-server test before it goes near prod, and
+   it did not get one this round.
+
+Neither was applied: this was scoped as a review, and both are mutations of the
+**production** policy. They are Peter's call, and #1 would also need its
+`filter` added to `ALLOWED` in `scripts/audit-public-policy.ts` in the same
+change — otherwise the new daily job goes red the next morning.
+
+Gate this round: vitest **1511/1511** (86 files) · hairline **0** · typecheck
+**0** · build **green**. No production code changed — the diff is one new
+workflow file and this document.
+
+### Operator TODOs — after the CI wiring
+
+- [ ] **Peter — the DNS record + the Vercel project move.** Unchanged, and now
+      blocked for a third round. Still step 2 of the runbook: one TXT record at
+      name.com, `_hoaconnect.1033lenox.com` →
+      `hoaconnect-verify=b86c58546e9e46a6a2af6f089d54ff78`. Moves no traffic.
+- [ ] **The 85 resident invitations.** Gated on the above. Bulk mail to 80 real
+      people; wants its own session and its own explicit go-ahead.
+- [ ] **Decide on the two `subscription_plans` narrowings above.** #1 (row
+      filter) is safe and recommended; #2 (field scope) needs a dev-server test
+      first. Doing #1 means updating `ALLOWED` in the audit script in the same
+      commit.
+- [x] **`audit:public-policy` is wired into CI.** Daily at 06:17 UTC, on every
+      push to main, and on manual dispatch. Detector, not a gate.
+- [x] **`subscription_plans` reviewed — clean.** No per-org data, no negotiated
+      pricing, no tenant FK. The remaining work is narrowing, not a fix.
+
+### Kickoff prompt — next session (ready to paste)
+
+````
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the LAST
+section, "Round outcome — the audit now runs without being remembered", plus
+"The cutover runbook" in the 2026-08-25 section. That file is the source of
+truth, not chat.
+
+Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
+root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
+elsewhere silently resets your shell there for the next command, so re-`cd`
+in every tool call that needs the repo. No branch, no worktree.
+`git pull --ff-only` first. Tool shells have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
+so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
+
+DONE, do not redo:
+- The directus_files hole is CLOSED on production (public grant filtered to
+  `type _starts_with image/`; everything else via /api/directus/assets/:id).
+- The AI notices cron is CONFIRMED FIRING. Closed.
+- The 4 flaky org-scope tests are FIXED. Baseline is a real 1511/1511 across 86
+  files — gate against 1511, NOT 1507. A failure in notify-org-scope.test.ts /
+  transactional-email-org-scope.test.ts now MEANS something.
+- `audit:public-policy` IS NOW IN CI — .github/workflows/public-policy-audit.yml,
+  daily 06:17 UTC + push-to-main + dispatch. Reuses the existing
+  DIRECTUS_STATIC_TOKEN secret; no setup needed. ⚠️ It is a DETECTOR, not a
+  gate — Vercel deploys independently of Actions, so a red run does NOT stop a
+  deploy. Do not re-wire it.
+- `subscription_plans` is REVIEWED and CLEAN: no tenant FK, 8 catalog rows, and
+  Enterprise stores no negotiated number (is_contact_only, prices null). Do not
+  re-review it. What REMAINS is the narrowing decision below.
+- Everything is pushed and deployed; 0 unpushed commits.
+
+FIRST, orientation — these answers decide the work:
+
+  dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
+  dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
+  pnpm run audit:public-policy               # green, directus_files "filtered"
+
+The TXT record has now been absent for THREE rounds and the apex is still
+76.76.21.21. If that is STILL true, say so plainly and go to item 3 rather than
+inventing work.
+
+Then, in order:
+
+1. If the TXT record is present but `domain_verified` is still false: run
+   POST /api/domains/verify for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
+   Verifying moves NO traffic — DNS still points at the old project — so this is
+   safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. It needs an App
+   Administrator session, NOT a 1033 membership (checkAdminAccess short-circuits
+   for app admins). The Vercel project move (step 4 of the runbook) is Peter's
+   to do, not yours.
+   ⚠️ The TXT record is an OWNERSHIP PROOF, not a routing record — it points
+   nothing. Vercel decides where a request lands; `domain_verified` decides
+   whether host-resolver.ts admits whose it is, and whether origin.ts will trust
+   the host enough to put it in an email link. 1033 has neither yet.
+   ⚠️ `/api/domains/ask` is NOT a cert gate on Vercel — that claim in older
+   sections is stale and is corrected in the runbook.
+
+2. If and only if the domain has actually moved: the 85 resident invitations.
+   ⚠️ THIS IS A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact
+   template, produce the exact recipient list as a file Peter can read, and
+   STOP. Get a second explicit yes before a single send.
+
+3. If both are blocked, the open item is the `subscription_plans` NARROWING —
+   ask Peter before touching prod, and note #1 and #2 are independent:
+   - #1 ROW FILTER (safe, recommended). The grant is `permissions: null` while
+     all three anonymous consumers already filter `status: published` AND
+     `is_active: true`, so the 3 retired 2025 plans are anonymously readable.
+     Harmless today; the point is that any FUTURE draft price row is public the
+     instant it is saved. Apply `{status:{_eq:"published"},is_active:{_eq:true}}`
+     — and add that same filter to ALLOWED in scripts/audit-public-policy.ts in
+     the SAME commit, or the daily job goes red the next morning.
+   - #2 FIELD SCOPE (test first, do NOT just apply). The union of fields the
+     anonymous consumers use is 16. But Landing.vue and experimental.vue FILTER
+     on `status` and `is_active`, and Directus may require read permission on a
+     field used in a filter — field-scoping could silently empty the pricing
+     section. Prove it on a dev server before prod.
+
+⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. That is the accepted
+residual of the type-filter design, not a bug to re-fix. Tightening it means a
+per-file public marker + a backfill, and a missed flag breaks a landing image or
+an email logo SILENTLY. Do not start that without Peter. And do NOT "simplify"
+by deleting the public grant: the logo in every email already in someone's inbox
+is a bare /assets/<id> fetched with no session, and those URLs cannot be reissued.
+
+⚠️ A NEW COLLECTION THAT STORES A FILE needs adding to core/server/utils/
+file-owner.ts. Forgetting costs a 403 on download, never a leak — it fails
+closed on purpose. Do not "fix" that by allowing unowned files.
+
+⚠️ A DIRECTUS 403 IS OFTEN A BAD FIELD NAME, NOT PERMISSIONS. Asking for a
+column that does not exist returns 403, not 400. Query `?fields=*` first.
+
+⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
+$CURRENT_USER. For anything tenant-owned the only correct public grant is no
+public grant. `/api/directus/items` falls back to the anonymous client when
+there is no session, so any grant is reachable by one POST with no token.
+
+⚠️ VERIFY A PUBLIC GRANT FROM THE ANONYMOUS SIDE. A `curl` with NO token is the
+view that matters; the admin-token view will happily show you rows the public
+cannot see, and vice versa.
+
+⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. Always take a noise control — two
+captures with nothing changed — before believing a before/after.
+
+⚠️ A FLAKY TEST'S SYMPTOM MAY NAME THE WRONG CULPRIT. Read the verbose
+reporter's DURATIONS before re-running until it fails; and remember vitest
+cannot cancel a timed-out test, so its writes can corrupt the next test.
+
+⚠️ zsh DOES NOT WORD-SPLIT `$VAR`. `for id in $IDS` runs ONCE with the whole
+string. zsh also globs BOTH Directus filter URLs AND bare `--include=*.ts`
+flags: quote them.
+
+⚠️ A DIRECTUS 204 ON CREATE IS A WRITE, NOT A REJECTION. Check for, and delete,
+anything a probe creates.
+
+⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
+EMAILS the recipient from inside Directus — one row is one mail. A GET to
+/api/ai/notices/check also SENDS; use POST with dryRun:true. 1033 Lenox and
+605 Lincoln are REAL orgs with real people.
+
+Quality gate per commit: typecheck 0, vitest 1511/1511, build green, hairline
+audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run `pnpm build`
+and `pnpm typecheck` concurrently — they corrupt each other's `.nuxt` cache.
+`pnpm typecheck` takes >10min, so run it in the BACKGROUND. When capturing an
+exit code, capture the COMMAND's, not a pipeline's.
+
+Verify against real data, not fixtures. Use your own dev server (preview_start,
+never Bash) with a real session (POST /api/demo/login). Browser-pane SCREENSHOTS
+fail silently on the dev server tab; verify headlessly with curl / read_page /
+javascript_tool. Browsing writes hoa_activity rows; delete every row you create,
+and diff BOTH demo orgs before and after: demo-classic is a CONTROL, never write
+to it. demo activity 462, demo-classic 13.
+
+When done: update the plan's Operator TODOs and ask before pushing.
+````
