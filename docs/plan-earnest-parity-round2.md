@@ -3437,21 +3437,209 @@ reports `skipped: 0` against an empty table, *then* the cron is not firing.
 - [ ] **Peter — the Vercel project move + DNS switch** (step 4). This is the
       cutover; `1033lenox.com` starts serving HOA Connect.
 - [ ] **Its own session — the 85 resident invitations** (step 5). Bulk mail to
-      80 real people; needs the template and list reviewed first.
+      80 real people; needs the template and list reviewed first. **Blocked on
+      the domain, and was also blocked on the public policy** — until 2026-08-26
+      those 85 tokens would have been publicly listable. That half is now fixed.
 - [ ] After 07:10 UTC 2026-08-26, confirm `ai_notice_history` has 5 rows.
-- [ ] Consider scoping the `public` read policy on `block_settings` — it is
-      currently unfiltered across every org.
-- [ ] Cosmetic: all 106 of 1033's emails have a null `web_slug`, so their public
-      URLs are raw ids. `slugifyEmailSubject` already exists; a backfill would
-      make them readable. Not blocking — the route accepts `web_slug-or-id`.
+      **Still open** — the 2026-08-26 session ran at 23:57 UTC on the 25th, seven
+      hours before the first fire. Re-probed: still 0 rows, still `skipped: 0`.
+- [x] Scope the `public` read policy on `block_settings` — **done 2026-08-26,
+      and it was 12 collections, not one.** See the next section.
+- [x] Cosmetic: 1033's 106 emails have readable `web_slug`s — **done 2026-08-26**
+      via `pnpm run backfill:email-slugs`. No existing link broke.
+
+## Round outcome — the public policy was wide open (2026-08-26)
+
+The assigned task was "scope the `public` read policy on `block_settings`."
+The answer turned out to be **that permission should not exist at all**, and
+that `block_settings` was 1 of **12** collections the public policy exposed the
+same way. Two of the other eleven mattered a great deal more than branding.
+
+### 1 — What an anonymous request could read. FIXED.
+
+`/api/directus/items` falls back to `getPublicDirectus()` whenever there is no
+session, so anything the public policy grants is readable by **anyone who can
+reach the app** — no Directus knowledge, no token, one POST. Proved on
+production before changing anything:
+
+```
+curl -sX POST https://app.hoaconnect.info/api/directus/items \
+  -H 'Content-Type: application/json' \
+  -d '{"collection":"hoa_members","operation":"list"}'
+```
+
+| collection | what it handed out |
+|---|---|
+| **`hoa_members`** | **136 rows — real first/last names, emails, phones, across all 7 orgs** |
+| **`hoa_invitations`** | **acceptance `token` in cleartext** |
+| `hoa_organizations` | `stripe_customer_id`, and `domain_config.verification_token` |
+| `block_settings` | `from_email`, `email_domain_dns`, `seo`, `landing` — every org |
+| `hoa_units`, `hoa_member_units`, `hoa_documents`, `hoa_document_categories`, `hoa_board_members`, `hoa_amenities`, `block_hero`, `directus_roles` | all rows, all orgs, `filter: null` |
+
+**The invitation token is the one with teeth**, and it is a live prerequisite
+for the cutover's step 5. `accept-invitation.post.ts` takes `{token, password,
+firstName, lastName}`, matches any invitation whose `invitation_status` is
+`pending`, and creates a Directus user **with the caller's chosen password**.
+Only one invitation row exists today and it is `canceled`, so nothing was
+exploitable — but **the 85 resident invitations would have created 85 live
+tokens in a publicly listable table.** Sending those before this fix would have
+handed anyone who asked 85 working accounts on 1033 Lenox.
+
+**A public grant can never be tenant-scoped.** An anonymous request has no
+`$CURRENT_USER`, so there is no filter that expresses "this org's rows" — the
+HOA Admin/Member policies use `organization: {_in: $CURRENT_USER.hoa_members.
+organization}` and that expression is meaningless without a session. Narrowing
+the *fields* would have left every org's rows readable by everyone. For anything
+tenant-owned, the only correct public grant is **no public grant**.
+
+**Removed all 12.** The remaining public policy is three entries, and each has a
+named consumer:
+
+| kept | why |
+|---|---|
+| `directus_files` read | member document downloads + landing/email images (see §3) |
+| `subscription_plans` read | marketing pricing page + `OrganizationSetupForm` (`requireAuth: false`) |
+| `waitlist_signups` create | marketing waitlist form — already field-scoped |
+
+### 2 — Why removing them was safe, and how that was established
+
+Nothing anonymous consumed them, and that is a fact about the code, not a hope:
+
+- **Every server route** that touches these collections uses
+  `getTypedDirectus()` — the **static token** — including `hoa/find`,
+  `hoa/by-domain`, all four `landing/*`, `email/resolve`, `verify-invitation`
+  and `accept-invitation`. Landing pages, the public email web view and the
+  invite flow therefore never used the public policy.
+- **`useDirectus()` has zero call sites** in app code. The only browser→Directus
+  traffic is `/assets/<id>`.
+- **`useDirectusItems` defaults to `requireAuth: true`** and proxies through a
+  server route. The single `requireAuth: false` in the repo is
+  `subscription_plans`.
+- **The marketing repo** (`../hoaconnect-marketing`) touches exactly
+  `subscription_plans` and `waitlist_signups`.
+
+**Verified by byte-identity, warm against warm.** 12 public URLs — six org
+landings, `/board`, `/signup`, `/request-join`, `/signup`, `/auth/login`,
+`/auth/register` — fetched cookie-less before and after. A first attempt showed
+all 12 "changed"; that was **cold-vs-warm dev server**, which reorders async
+data keys and accumulates Vite CSS links. Re-run with a proper **noise control**
+(two captures with the policy *unchanged*), the control produced the *same* diff
+signature at *identical byte lengths* as the real change. Once the per-request
+UUID and epoch were normalised: **12/12 byte-identical**, control and change
+alike. Separately confirmed after the change: the 1033 email web view renders
+anonymously, assets deliver, and a logged-in demo user still reads its own org
+(14 members, 3 orgs — org scoping intact).
+
+**A guess that was checked instead of asserted:** it looked like the public
+policy might apply additively to *authenticated* users too, which would have
+made this a cross-tenant leak inside the app as well. Restoring the
+`hoa_members` grant briefly and re-counting as the demo user gave **14 both
+ways**. It does not. The leak was anonymous-only — worth stating precisely
+rather than overselling.
+
+**`pnpm run audit:public-policy`** is the ratchet (`scripts/audit-public-policy.ts`).
+It exits 1 on any grant outside the allow-list, and on any expected grant that
+has gone missing. Proved to fail: a `block_hero` grant was injected, the audit
+exited 1 naming it, and the grant was removed again. `setup-directus-permissions.ts`
+never managed the public policy, so re-running it will not resurrect these.
+
+### 3 — `directus_files` is still open, and it is the biggest one left. NOT FIXED.
+
+Anonymously, today, on production:
+
+```
+curl -s https://admin.hoaconnect.info/files?fields=title,filesize   # enumerates all 41
+curl -s https://admin.hoaconnect.info/assets/<id>                   # downloads any of them
+```
+
+That includes **605 Lincoln Road's balance sheets and approved meeting
+minutes** — a paying customer's financial documents, downloadable by anyone.
+
+**It was deliberately left alone, because the obvious fixes break real things:**
+
+- Narrowing `fields` to `id` stops title enumeration but **`?fields=id` still
+  lists all 41 ids**, so every file stays downloadable. Cosmetic. Tried,
+  measured, reverted.
+- Folder-scoping is not implementable on today's data: the `<Org>/Branding` and
+  `<Org>/Images` folders exist, but **16 of the 17 publicly-referenced assets sit
+  at the root with no folder at all**, and 605's logo sits in the org root
+  beside its `Documents` child.
+- **Removing the grant breaks member document downloads.** `getUrl()` in
+  `useDirectusFiles` builds a bare `/assets/<id>` URL and `downloadDocument`
+  does `fetch(fileUrl)` with **no Authorization header** — the whole document
+  model rests on public file read. It would also break the logo in **every
+  email already sitting in a recipient's inbox**.
+
+The real fix is architectural — proxy asset delivery through an authenticated
+server route (the pattern everything else in this app already uses), or issue
+signed URLs — and it wants its own session and Peter's call on the approach.
+
+### 4 — The AI crons: still unfalsified, the window had not arrived.
+
+The kickoff expected this session to land after 07:10 UTC 2026-08-26. It ran at
+**23:57 UTC on 2026-08-25** — about seven hours early. The probe was re-run to
+leave a clean "before": `ai_notice_history` **still 0 rows**, dry probe still
+`skipped: 0` with 3 escalations on 1033 and 2 on 605 — bit-for-bit the state
+recorded yesterday. **The check has not expired; it has not come due.** Whoever
+is next after 07:10 UTC 2026-08-26 should run it exactly as written above.
+
+### 5 — `web_slug` backfilled. DONE.
+
+All **106** of 1033's emails now have a readable slug
+(`fpl-update`, `november-roof-update`, …), via
+`pnpm run backfill:email-slugs` (`--apply` to write, dry-run by default).
+Uniqueness is seeded from the slugs an org already holds and built with the
+existing `buildUniqueWebSlug`, so it is **per-org** and a re-run is idempotent
+(second run: `0 to fill`). 106 subjects produced 106 unique slugs with no
+collision suffix needed. Verified anonymously that `/announcements/email/<id>`
+and `/announcements/email/fpl-update` resolve to the same email and a bogus
+slug still 404s — the route's `_or` on `web_slug`/`id` means **no existing link
+broke**.
+
+### 6 — Not done, and why
+
+**The DNS record was never added** — `_hoaconnect.1033lenox.com` returns
+nothing, and `1033lenox.com` still resolves to `76.76.21.21` (the old project).
+So runbook steps 2–4 are untouched, `POST /api/domains/verify` was **not** run
+(there is nothing to verify against), and **the 85 resident invitations were not
+started** — their links would point at a host that is not serving HOA Connect.
+That ordering was the kickoff's own instruction and it still holds.
+
+Gate: typecheck **0** · vitest **1511** (unchanged) · build green · hairline
+**0** (baseline 0). demo activity 465 → **462** (the 3 rows this session's
+browser tab wrote, deleted); demo-classic **13 → 13**, untouched as a control.
+A stray empty `waitlist_signups` row created while probing that grant was
+deleted — the table is back to 0. That probe is the Directus
+ignores-`permissions`-on-create trap again: the `204` reads like a rejection
+and is actually a write.
+
+### Operator TODOs — after 2026-08-26
+
+- [x] Public policy cut from 15 grants to 3; all 12 tenant-owned reads removed,
+      12/12 public pages byte-identical, ratchet added.
+- [x] 1033's 106 email `web_slug`s backfilled.
+- [ ] **The `directus_files` public read (§3 above) — the largest one left.**
+      605's balance sheets are anonymously downloadable today. Needs a design
+      call from Peter: proxy `/assets` through an authenticated route, or signed
+      URLs. Do **not** just delete the grant — it breaks every member document
+      download and every logo in already-sent mail.
+- [ ] **Peter — the DNS record + the Vercel project move.** Unchanged from the
+      2026-08-25 runbook; nothing about it moved this session.
+- [ ] **The 85 resident invitations.** Still gated on the domain. The token-leak
+      half of the blocker is now closed.
+- [ ] After 07:10 UTC 2026-08-26, confirm `ai_notice_history` has 5 rows and the
+      dry probe reports `skipped: 3` / `skipped: 2`.
+- [ ] Consider wiring `pnpm run audit:public-policy` into CI or the pre-commit
+      gate. It needs network + a static token, so it is a deploy-time check
+      rather than a husky one.
 
 ### Kickoff prompt — next session (ready to paste)
 
 ```
-Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the
-section "Round outcome — branding defect, the logo, the cutover (2026-08-25)"
-at the end, especially "The cutover runbook". That file is the source of
-truth, not chat.
+Continue HOA Connect. Read docs/plan-earnest-parity-round2.md first — the LAST
+section, "Round outcome — the public policy was wide open (2026-08-26)", plus
+"The cutover runbook" in the 2026-08-25 section above it. That file is the
+source of truth, not chat.
 
 Work on `main` in /Users/peterhoffman/Sites/hoaconnect/hoaconnect — the repo
 root is the NESTED directory; the parent is a workspace folder, and ANY `cd`
@@ -3461,80 +3649,85 @@ in every tool call that needs the repo. No branch, no worktree.
 `eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on push,
 so a push IS a production deploy — ask before pushing, never run `vercel --prod`.
 
-DONE last session, do not redo: `block_settings.organization` backfilled on
-both real orgs (saves proven working, cross-org isolation proven intact); the
-email logo plate + 200x120 asset-URL size cap; the branding preview's missing
-heading; test/debug renders now resolve branding like the real send.
-Vitest baseline is 1511. demo activity baseline 449, demo-classic 13.
+DONE last session, do not redo: the public policy cut from 15 grants to 3 (all
+12 tenant-owned reads removed — hoa_members, hoa_invitations, block_settings and
+9 more — verified 12/12 public pages byte-identical, warm-vs-warm with a noise
+control); `scripts/audit-public-policy.ts` + `pnpm run audit:public-policy` as
+the ratchet, proved to fail on injected drift; 1033's 106 email web_slugs
+backfilled via `pnpm run backfill:email-slugs`. Vitest baseline 1511. demo
+activity 462, demo-classic 13.
 
-FIRST, spend two minutes establishing what actually happened in between —
-several items were left with Peter, and the right work depends on the answers:
+FIRST, two minutes of orientation — the answers decide the work:
 
-  git log origin/main..HEAD          # 3 commits were unpushed; are they still?
+  git log origin/main..HEAD                  # 6 commits were unpushed
   dig +short _hoaconnect.1033lenox.com TXT   # did Peter add the record?
   dig +short 1033lenox.com A                 # 76.76.21.21 = old, 216.150.1.1 = moved
+  pnpm run audit:public-policy               # must stay at 3 grants
 
-Then work in this order:
+Then, in order:
 
-1. Ten seconds, and it EXPIRES: the two AI crons were registered on
-   2026-08-25 and had not yet reached their first fire. After 07:10 UTC on
-   2026-08-26, `ai_notice_history` should hold 5 rows and a dry probe should
-   report skipped:3 for 1033 and skipped:2 for 605. If it still reports
-   skipped:0 against an empty table, the cron is NOT firing and that is a real
-   defect. The exact probe commands are in the round-outcome section — note a
-   GET to /api/ai/notices/check would SEND, so use POST with dryRun:true.
+1. NOW OVERDUE, and cheap: `ai_notice_history` should hold 5 rows, and a dry
+   probe should report skipped:3 for 1033 and skipped:2 for 605. It was still
+   0 rows / skipped:0 at 2026-08-26 00:00 UTC, seven hours before the cron's
+   first fire, so this has still never been falsified. If it STILL reports
+   skipped:0 against an empty table, the cron is not firing and that is a real
+   defect. ⚠️ A GET to /api/ai/notices/check would SEND — use POST + dryRun:true.
 
-2. If the TXT record is present but `domain_verified` is still false: run
+2. The big one: `directus_files` is still an unfiltered public read. Anyone can
+   run `curl https://admin.hoaconnect.info/files?fields=title` to enumerate all
+   41 files and download any of them — including 605 Lincoln Road's balance
+   sheets and meeting minutes. §3 of the last section explains why the three
+   obvious fixes were tried and rejected: `fields:["id"]` still lists every id;
+   folder-scoping doesn't work because 16 of the 17 public assets have no
+   folder; and deleting the grant breaks `getUrl()` in useDirectusFiles, which
+   builds a bare /assets/<id> URL with no auth header — i.e. every member
+   document download, plus the logo in every already-delivered email. The real
+   fix is an authenticated asset proxy or signed URLs. ASK PETER which, then
+   build it. Verify with a real member session, not fixtures.
+
+3. If the TXT record is present but `domain_verified` is still false: run
    `POST /api/domains/verify` for org 5f00fc6d-467d-4794-b1c0-b08b3088217c.
    Verifying moves NO traffic — DNS still points at the old project — so this
-   is safe to do without asking. Token is b86c58546e9e46a6a2af6f089d54ff78.
-   The Vercel project move itself (step 4 of the runbook) is Peter's to do.
+   is safe without asking. Token b86c58546e9e46a6a2af6f089d54ff78. The Vercel
+   project move (step 4 of the runbook) is Peter's to do.
 
-3. If the domain has moved: the 85 resident invitations. ⚠️ THIS IS A BULK
-   MAILING TO 80 REAL PEOPLE at a real address list. Build it, render the
-   exact template, produce the exact recipient list as a file Peter can read,
-   and STOP. Get a second explicit yes before a single send. If the domain has
-   NOT moved, do not start this — the invitation links would point at the
-   wrong host.
+4. If and only if the domain has moved: the 85 resident invitations. ⚠️ THIS IS
+   A BULK MAILING TO 80 REAL PEOPLE. Build it, render the exact template,
+   produce the exact recipient list as a file Peter can read, and STOP. Get a
+   second explicit yes before a single send. If the domain has NOT moved, do not
+   start — the invitation links would point at the wrong host.
 
-4. Whether or not the above unblocks: scope the `public` read policy on
-   `block_settings`. It is currently `filter: null` — every org's row, no
-   session — exposing from_email, email_domain_dns, seo and landing
-   cross-tenant. Public landings need SOME of it; work out which fields and
-   narrow it to those. Verify by fetching a landing page unauthenticated
-   before and after.
+⚠️ A PUBLIC GRANT CANNOT BE TENANT-SCOPED. An anonymous request has no
+`$CURRENT_USER`, so there is no filter meaning "this org's rows". For anything
+tenant-owned the only correct public grant is no public grant — narrowing the
+field list still leaves every org's rows readable by everyone. Before adding
+one, find the consumer; `/api/directus/items` falls back to the anonymous
+client whenever there is no session, so a grant is reachable by one POST.
 
-5. Cheap if there is time: all 106 of 1033's emails have a null `web_slug`, so
-   their public URLs are raw ids. `slugifyEmailSubject` in
-   core/server/utils/email-branding.ts already exists. The route takes
-   `web_slug-or-id`, so this is cosmetic, not blocking — and slugs must be
-   unique PER ORG.
+⚠️ COLD vs WARM DEV SERVER FAKES A DIFF. A first before/after showed all 12
+pages "changed" — it was the dev server reordering async-data keys and
+accumulating Vite CSS links. ALWAYS take a noise control (two captures with
+nothing changed) before believing a diff. Normalise the per-request UUID and
+the 13-digit epoch, or everything looks different.
 
 ⚠️ THE SEVEN FIELD LISTS. A settings-driven email feature is not done when the
-renderer is right — it is done when every settings field list feeding a
-renderer asks for the new column. Worse, last session proved a SECOND half to
-this trap: two routes had the field list AND still never passed the values to
-the renderer, so widening the list alone fixed nothing. Check both halves.
-Unit tests pass throughout, because tests build settings by hand.
+renderer is right — every settings field list feeding a renderer must ask for
+the new column, AND must actually pass the value through. Unit tests pass
+throughout, because tests build settings by hand.
 
-⚠️ Keep the byte-identity harness habit: before a renderer change, hash 4 org
-variants x 6 types x html/text/webview; diff after; delete the temp test before
-committing. Last session it turned "orgs without a logo are untouched" into a
-fact (60/72 identical, and the 12 that moved were exactly the right 12).
+⚠️ zsh DOES NOT WORD-SPLIT `$VAR`. `for id in $IDS` runs ONCE with the whole
+string — a batch of DELETEs silently became one 000. Use `$(echo $IDS | tr ' '
+'\n')` or an array. Separately, zsh eats Directus filter URLs: an unquoted
+`?filter[collection][_eq]=x` is a glob and dies with "no matches found",
+producing NO output, which reads like an empty API response.
 
-⚠️ zsh eats Directus filter URLs. `?filter[collection][_eq]=x` UNQUOTED is a
-glob pattern — zsh fails with "no matches found" and the whole command dies
-producing NO output, which reads like an empty API response. Quote the URL or
-percent-encode the brackets. This cost several turns.
-
-⚠️ Nuxt auto-imports do not exist under vitest. A new auto-imported util used
-in server code needs `vi.stubGlobal` — prefer `importOriginal` over a stand-in
-so the test asserts against the real implementation.
+⚠️ A DIRECTUS 204 ON CREATE IS A WRITE, NOT A REJECTION. Probing whether the
+public policy still allowed `waitlist_signups` create with `-d '{}'` returned
+204 and created an empty row. Check for and delete anything a probe creates.
 
 ⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. A write to `directus_notifications`
-EMAILS the recipient from inside Directus — one row is one mail, a bulk write
-is a bulk mailing, and no script flag suppresses it. Render to HTML and read
-it; don't send. 1033 and 605 Lincoln are REAL orgs with real people.
+EMAILS the recipient from inside Directus — one row is one mail, and no script
+flag suppresses it. Render to HTML and read it. 1033 and 605 are REAL orgs.
 
 Quality gate per commit: typecheck 0, vitest green (1511 baseline), build
 green, hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do
@@ -3542,12 +3735,12 @@ NOT run `pnpm build` and `pnpm typecheck` concurrently — they corrupt each
 other's `.nuxt` cache. When capturing an exit code, capture the COMMAND's, not
 a pipeline's.
 
-Verify against real data, not fixtures — every real bug last session was found
-that way and none by unit tests. Use your own dev server with a real session
-(POST /api/demo/login). Browser-pane SCREENSHOTS failed silently on the dev
-server tab last session (blank images while the DOM was correct) — verify
-headlessly with read_page / javascript_tool rather than fighting it. Browsing
-writes hoa_activity rows; API calls do not. Delete every row you create, and
+Verify against real data, not fixtures — every real bug in the last two
+sessions was found that way and none by unit tests. Use your own dev server
+with a real session (POST /api/demo/login). Browser-pane SCREENSHOTS fail
+silently on the dev server tab (blank images while the DOM is correct) — verify
+headlessly with curl / read_page / javascript_tool. Browsing writes hoa_activity
+rows; cookie-less curl and API calls do not. Delete every row you create, and
 diff BOTH demo orgs before and after: demo-classic is a CONTROL, never write
 to it.
 
