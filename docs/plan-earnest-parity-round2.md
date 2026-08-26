@@ -4348,6 +4348,7 @@ DONE, do not redo:
   failed with `['insider','insider']`. Fixed with a `beforeAll` warm-up in both
   files, mocking transactional-email in the notify file, and
   testTimeout/hookTimeout 20000. Do not re-derive this.
+- Everything is pushed and deployed; 0 unpushed commits.
 
 FIRST, orientation — these answers decide the work:
 
