@@ -55,12 +55,15 @@ form, not member status — do not mistake it for this.)*
 
 ## ⚠️ This changes the 85-invitation batch
 
-1033 Lenox has **86 members: 59 active, 27 archived.**
+1033 Lenox has **86 members: 59 active, 27 archived** — and of the 59 "active",
+**58 have never created an account.** The single account is Peter's.
 
-"Invitations only go to active members" is therefore not cosmetic — it takes the
-batch from ~85 to **59**, and the 27 archived are former residents. Sending to
-them would be 27 wrong emails to real people. **Settle this before that
-mailing, not after.**
+So the batch is not 85. It is **58 people who have genuinely never been
+onboarded**, once the 27 archived former residents are excluded and the one
+existing account is skipped. Sending to the archived 27 would be 27 wrong
+emails to real people.
+
+**Settle this before that mailing, not after.**
 
 ## Decisions taken
 
@@ -74,6 +77,10 @@ mailing, not after.**
 3. **Unlinked members are surfaced in the admin UI, not backfilled up front.**
    See the finding below. The admin gets an alert icon and a way to link a
    member to a unit, or create a unit for them.
+4. **Members who have never created an account become `invited`, not `active`.**
+   A new status value, set before the invite is resent, with the admin choosing
+   role and residency first. See Phase 5 — including why it must run *after*
+   Phase 3.
 
 ### The finding that shaped decision 3
 
@@ -128,12 +135,50 @@ migrate one at a time instead of in one sweep.
 - Exclude non-active members from any batch.
 - Archived match → 409 that names the reason, plus the Restore action.
 
-### Phase 5 — Backfill
-- 3 active 1033 members with `member_type: null`.
-- **126 of 136 members have `role: null`** (58 of 59 active in 1033). Needs a
-  decision first: is a null role equivalent to HOA Member, or genuinely unset?
-  Do not backfill until that is answered — it grants access.
-- 605 Lincoln's unit links, through the Phase 3 UI rather than a script.
+### Phase 5 — Reset the never-onboarded to `invited` *(runs LAST — see the ordering warning)*
+
+**The finding that replaced the original "backfill roles" plan.** `role: null`
+turned out to correlate *perfectly* with having no Directus account:
+
+```
+role null: 126  →  ALL 126 have user = null
+role set :  10  →  only 8 have an account
+```
+
+So the null roles were never a data-quality gap to fill. **128 of 136 members
+have never created an account, and have therefore never logged in.**
+
+| org | active | **never logged in** | archived | has account |
+|---|---|---|---|---|
+| 1033 Lenox | 59 | **58** | 27 | 1 |
+| 605 Lincoln Road | 33 | **31** | 0 | 2 |
+| the rest (demo/test) | 16 | 11 | 0 | 5 |
+
+`active` is currently describing 89 people across two real communities who have
+never once signed in. They are not active; they are **invited and not yet
+onboarded**. So:
+
+- Add an **`invited`** value to `hoa_members.status` and move them to it.
+- The admin sets **role and residency before resending** the invite, using the
+  Phase 3 controls. The invite then carries both (Phase 1), so an accepted
+  account knows who the person is instead of defaulting to owner.
+
+**Use a NEW `invited` value — do not reuse `pending`.** `pending` already means
+"counts as a member": `admin-auth.ts:57` and `check-membership.post.ts:25` both
+filter `status: { _in: ["active", "pending"] }`. Overloading it would put 89
+invited people inside those membership checks. It is inert only because they
+have no `user` FK to match on, and stops being inert the moment one is linked.
+
+⚠️ **ORDERING — this phase runs after Phase 3, never before.** Flipping 89
+members out of `active` changes every member count, dashboard figure and
+mailing audience in both real orgs. `MembersPage.vue:108` filters to
+`_in ["active", "inactive", "pending"]`, so running this first would make all
+89 **silently vanish from the admin's list**. Teach the UI about `invited`
+first, then move the data.
+
+Also still in scope here: the 3 active 1033 members with `member_type: null`,
+and 605 Lincoln's missing unit links — the latter through the Phase 3 UI rather
+than a script.
 
 ## Traps
 
