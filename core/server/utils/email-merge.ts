@@ -10,6 +10,7 @@
  * - SAMPLE_MERGE_VALUES(org): realistic sample values for preview.
  */
 import type { HoaMember, HoaOrganization } from "#core/types/directus";
+import { residencyFor } from "#core/shared/members/residency";
 
 export interface MergeField {
   token: string;
@@ -96,7 +97,11 @@ export function resolveMergeFields(
     full_name: `${firstName} ${lastName}`.trim(),
     email: member?.email || "",
     phone: member?.phone || "",
-    member_type: member?.member_type || "",
+    // Resolved, not read raw: residency lives on the unit link first and falls
+    // back to hoa_members.member_type. A caller that fetched the `units` alias
+    // (send.post.ts and sendEmailJob both do) gets the link's answer here; one
+    // that did not still gets the member's, unchanged.
+    member_type: residencyFor(member) || "",
     company: member?.company || "",
     outstanding_balance: money(member?.outstanding_balance),
     payment_status: member?.payment_status || "",

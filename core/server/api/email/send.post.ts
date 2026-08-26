@@ -192,7 +192,11 @@ export default defineEventHandler(async (event) => {
         },
         fields: ["id", "first_name", "last_name", "email", "phone", "member_type", "company",
           "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date", {
-          units: ["id", "is_primary_unit", {
+          // `member_type` and `end_date` are what residencyFor() reads off the
+          // link, via the {{member_type}} merge field; the rest feeds the unit
+          // merge fields. Recipients here are explicit ids, so residency does
+          // not decide who is mailed — only what the token renders as.
+          units: ["id", "is_primary_unit", "member_type", "end_date", {
             unit_id: ["id", "unit_number"],
           }],
           vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"],
