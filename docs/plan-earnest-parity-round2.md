@@ -4814,3 +4814,25 @@ IP-capture bug — real production rows do record a real client IP, e.g.
       `/api/domains/ask` is not a cert gate on Vercel. Comment only.
 - [x] **`domain_verified` is TRUE for 1033 Lenox**, via the real endpoint with a
       real App Administrator session. No traffic moved.
+
+---
+
+## New workstream — member management (2026-08-26)
+
+Peter opened a feature workstream: member status (active/archived), role
+changes, owner vs tenant residency, and invitation gating. **Its plan lives in
+`docs/plan-member-management.md`**, not here — it is feature work rather than
+parity work, and this file is long enough.
+
+Two findings from it that bear directly on items already tracked here:
+
+- **The 85-invitation batch is really 59.** 1033 Lenox has 86 members: 59
+  active, 27 archived. Gating invitations on `status: active` — which is part
+  of that workstream — cuts the batch by 27 former residents. Settle it before
+  the mailing.
+- **`accept-invitation.post.ts:158` hardcodes `member_type: "owner"`** for
+  every invitee. If the 85 (59) invitations go out before Phase 1 of that plan
+  lands, all 59 accepted members are recorded as owners regardless of whether
+  they rent — including 22 known tenants.
+
+Neither blocks the domain cutover, but both block *sending the invitations*.
