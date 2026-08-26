@@ -8,7 +8,7 @@
  * is noise inside an app; this one lands in an inbox and cannot be recalled.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 
 vi.mock("@directus/sdk", () => ({
   readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
@@ -41,6 +41,20 @@ let ops: Op[];
 let members: string[];
 let failMembershipRead: boolean;
 let logs: unknown[][];
+
+// Pay the cold import ONCE, here, rather than charging it to whichever test
+// happens to run first. Unlike its notify twin this file genuinely needs the
+// MJML module — `resolveEmailFonts` comes through real on purpose — so the
+// import cannot be made cheap, only moved somewhere it is not racing a
+// per-test deadline.
+//
+// It used to race one, and lose, under full-suite parallelism. vitest gives up
+// on a timed-out test but cannot cancel it, so the abandoned send landed in the
+// NEXT test's freshly-cleared `sent` array — which is why the second test
+// failed reporting two copies of the same recipient.
+beforeAll(async () => {
+  await import("#core/server/utils/transactional-email");
+});
 
 beforeEach(() => {
   vi.resetModules();

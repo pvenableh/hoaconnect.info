@@ -16,7 +16,7 @@
  * convenience into a bypass.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 
 vi.mock("@directus/sdk", () => ({
   readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
@@ -33,6 +33,16 @@ vi.mock("#core/server/utils/push", () => ({
   },
 }));
 
+// The email twin is `sendBrandedTransactionalEmail`, and it has its own file.
+// Nothing here ever passes `email`, so the real one is never called — but its
+// import pulls the whole MJML template graph in behind it, which is most of
+// this file's cold-start cost. Stubbing it keeps that graph out of the module
+// registry entirely, and makes it impossible for a bell test to ever put mail
+// in an inbox by accident.
+vi.mock("#core/server/utils/transactional-email", () => ({
+  sendBrandedTransactionalEmail: async () => {},
+}));
+
 const ORG = "org-1";
 
 type Op = { op: string; collection: string; data?: any; query?: any; id?: string };
@@ -46,6 +56,22 @@ let failPreferenceRead: boolean;
  *  retry exists for), so the reduced retry read succeeds. */
 let failPreferenceFieldOnly: boolean;
 let logs: { warn: unknown[][]; error: unknown[][] };
+
+// Pay the cold import ONCE, here, rather than charging it to whichever test
+// happens to run first.
+//
+// `load()` re-imports on every test, because each wants a fresh module
+// registry — but only the FIRST import in a file is expensive; after that
+// vite's transform cache makes re-execution ~35ms. That first one used to land
+// inside test #1's 5s budget, and under full-suite parallelism it lost. The
+// damage was not the timeout itself: vitest gives up on a timed-out test but
+// cannot cancel it, so the abandoned `notifyUsers` call went on to write its
+// bell row into the NEXT test's freshly-cleared `ops`. That is where the
+// `['insider', 'insider']` came from — a scheduling artifact wearing the
+// costume of a tenancy leak, in the one test suite where that reads as alarming.
+beforeAll(async () => {
+  await import("#core/server/utils/notify");
+});
 
 beforeEach(() => {
   vi.resetModules();
