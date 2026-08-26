@@ -3618,11 +3618,10 @@ and is actually a write.
 - [x] Public policy cut from 15 grants to 3; all 12 tenant-owned reads removed,
       12/12 public pages byte-identical, ratchet added.
 - [x] 1033's 106 email `web_slug`s backfilled.
-- [ ] **The `directus_files` public read (§3 above) — the largest one left.**
-      605's balance sheets are anonymously downloadable today. Needs a design
-      call from Peter: proxy `/assets` through an authenticated route, or signed
-      URLs. Do **not** just delete the grant — it breaks every member document
-      download and every logo in already-sent mail.
+- [x] **The `directus_files` public read (§3 above) — built, verified, NOT yet
+      applied to production.** Peter chose the type-filter + proxy design. See
+      the 2026-08-26 (later) section below for the two-step cutover; the code is
+      committed but the Directus filter is still `null` until it is deployed.
 - [ ] **Peter — the DNS record + the Vercel project move.** Unchanged from the
       2026-08-25 runbook; nothing about it moved this session.
 - [ ] **The 85 resident invitations.** Still gated on the domain. The token-leak
@@ -3774,3 +3773,187 @@ never write to it.
 
 When done: update the plan's Operator TODOs and ask before pushing.
 ```
+
+---
+
+## Round outcome — the asset hole, and the proxy that closes it (2026-08-26, later)
+
+Picked up the one item §3 above left open, plus a second instance of it that
+the last round did not find. **The code is written, gated and verified against
+real production data. The production Directus filter is deliberately still
+`null`** — see "The two-step cutover" below, which is the whole point.
+
+### 1 — What the inventory actually showed
+
+The previous round's framing ("16 of 17 publicly-referenced assets have no
+folder") described the *images*, and led to the conclusion that scoping was not
+implementable. Enumerating all 41 files by owner told a different story:
+
+| group | count | anonymous today |
+|---|---|---|
+| PDFs — 9 in `605 Lincoln/Documents` (balance sheets, P&L, approved minutes), 1 at root | **10** | downloadable |
+| **a `hoa_data_exports` archive** in `Data exports` | **1** | downloadable |
+| images — org logos, icons, hero + landing photography (1033, 605, Beaumont, Harborview) | ~24 | downloadable |
+| one avatar, a few unreferenced | 6 | downloadable |
+
+**The export archive is new information and is the worse of the two.**
+`org/export/:id/download` exists specifically so an archive is never handed out
+on a guessable URL — its own header says so — and it additionally enforces
+expiry between the moment an archive expires and the moment the purge worker
+next wakes. The raw `/assets/<id>` walked around both:
+
+```
+curl -o /dev/null -w '%{http_code} %{size_download}\n' \
+  https://admin.hoaconnect.info/assets/a46259e5-9ced-4058-b87e-9786ba9ea582
+200 18975
+```
+
+The sensitive set and the must-stay-public set separate almost perfectly **by
+MIME type** — every sensitive file is a PDF or a zip, every file with a genuine
+anonymous consumer is an image.
+
+### 2 — The design call, and the constraint that forced it
+
+Peter chose **type-filtered public grant + authenticated proxy** over an
+explicit `public_asset` marker and over signed URLs.
+
+The binding constraint on all three options is the same: **the logo in every
+email already sitting in a recipient's inbox is a bare `/assets/<id>` URL that a
+mail client fetches with no session, and those URLs cannot be reissued.** That
+kills "just delete the grant" and kills signed URLs. Some narrow public grant
+has to survive; the only question was how to draw its edge. Type is the edge
+that costs no data migration and cannot be silently forgotten on a future
+upload the way a per-file flag can.
+
+**Verified rather than assumed, because the whole design rests on it:** a
+permission *filter* really does gate `/assets/<id>`, not just `/files`. Probed
+on production by patching the grant for ~2s and restoring in a `finally`:
+
+```
+BEFORE:  pdf asset=200 meta=200   img asset=200 meta=200
+AFTER:   pdf asset=403 meta=403   img asset=200 meta=200
+RESTORED: null
+```
+
+**Also verified rather than assumed: outgoing mail does not depend on the grant
+at all.** `send.post.ts` downloads attachments with the static token and
+base64-embeds them, and `extractImagesAsCid` pulls inline images server-side and
+attaches them as CID. Only *already-delivered* mail and anonymous landing pages
+read `/assets` without a session, and both are images.
+
+### 3 — What was built
+
+- **`core/server/api/directus/assets/[id].get.ts`** — the proxy. Images need
+  only a session; everything else must resolve to an owning organization and the
+  caller must be a member or admin of it. Export archives are refused outright
+  so they cannot skip the expiry check. Not a general passthrough: it takes a
+  file id and an allow-list of transform params, nothing else.
+- **`core/server/utils/file-owner.ts`** — "which community owns this file?",
+  across 9 direct owners and 4 junctions (the junction's org lives one hop up on
+  the parent). **Fails closed**: a private file nothing claims is a 403, not an
+  allow. Adding a collection that stores a file means adding it here; forgetting
+  costs a 403, never a leak.
+- **`getAuthUrl()` in `useDirectusFiles`** — deliberately **separate from
+  `getUrl()`**, which had to keep its meaning. `getUrl()` feeds the Tiptap
+  editor, and those URLs get baked into outgoing email HTML where there is no
+  session; rewriting it wholesale would have broken future mail. Wired into all
+  7 download call sites.
+- **A side effect worth naming:** `ProjectCard.vue` and `TaskItem.vue` already
+  pointed at `/api/directus/assets/<id>`, **a route that did not exist** — those
+  avatars have been 404ing. The proxy is the route they were written against, so
+  they start working.
+- **`pnpm run scope:public-files`** (`--apply` to write, dry-run by default,
+  idempotent) applies the filter, and **`audit:public-policy` now asserts the
+  filter itself**, so drifting back to unfiltered fails exactly like an unknown
+  grant would.
+
+### 4 — Verified end to end, against real files and a real session
+
+8/8, on production data, with the filter temporarily applied and then restored:
+
+```
+PASS  member GETs own org document            200    PASS  anon /assets 605 balance sheet   403
+PASS  logged-out visitor is refused           401    PASS  anon /assets throwaway pdf       403
+PASS  demo member refused 605 document        403    PASS  anon /assets email logo image    200
+PASS  member GETs an image via proxy          200    PASS  anon /files lists 0 non-images     0
+```
+
+The positive case needed a member who owns a document, and the only orgs with
+documents are 605 and transition-test — both real. So the test created **one**
+throwaway PDF + one `hoa_documents` row in the **demo** org, proved the four
+app-side cases against it, and deleted both. demo-classic was never touched.
+After: demo activity **462** (unchanged), demo-classic **13**, files back to
+**41**, documents **10**, `waitlist_signups` **0**.
+
+### 5 — The two-step cutover, and why the order is not optional
+
+The Directus filter takes effect on production **the instant it is applied**.
+The proxy only exists once Vercel redeploys. Applying first would 403 real 605
+members' document downloads for the whole gap.
+
+1. **Push** — Vercel auto-deploys the proxy. *(Waiting on Peter.)*
+2. **Then** `pnpm run scope:public-files --apply`.
+
+Until step 2, **`pnpm run audit:public-policy` fails on purpose**, naming the
+drift and the command that fixes it. That is the ratchet doing its job — the
+contract in code says images-only and production does not yet agree — not a
+broken script:
+
+```
+❌ directus_files: public read is WIDER than the contract
+   expected filter: {"_and":[{"type":{"_starts_with":"image/"}}]}
+   actual filter:   null
+```
+
+### 6 — The residual, stated plainly
+
+**Images remain anonymously readable across every org.** Nothing financial or
+personally identifying is in that set today — logos, hero shots, landing
+photography, one avatar — but it is a real limit of this design, not an
+oversight. Narrowing it further means the explicit per-file marker Peter
+declined, and that trade was declined for a good reason: a missed flag breaks a
+landing page or an email logo silently, with no error anywhere.
+
+Second residual: `checkMembership` requires `status: active`, so archived and
+inactive members lose document access. Checked against real data before
+accepting it — statuses in use are active/archived/inactive with **no `pending`
+at all**, and 605's 33 members are **all active**, so this costs no one access
+today.
+
+### 7 — The vitest baseline is NOT 1511 green. Correcting the record.
+
+The full suite reports **1507/1511, with 4 failures** in
+`tests/server/notify-org-scope.test.ts` and
+`tests/server/transactional-email-org-scope.test.ts` (recipient lists doubling —
+`['insider','insider']`).
+
+**This is pre-existing and has nothing to do with this round's change.** Proved
+by stashing everything and re-running: the clean tree produces the *identical*
+4 failures. Those same two files pass **16/16 in isolation**, in ~2.8s versus
+~9.5s under full-suite load. So it is a flake that only appears under
+parallelism — the tests are fully mocked (`vi.stubGlobal("getTypedDirectus")`)
+and touch no network.
+
+Do not spend a session re-deriving this. Either it is worth fixing as its own
+task, or the baseline should be recorded as 1507 + 4 known flakes.
+
+Gate this round: typecheck **0** · vitest **1507/1511 (4 pre-existing flakes,
+identical on a clean tree)** · build **green** · hairline **0** (baseline 0).
+
+### Operator TODOs — after 2026-08-26 (later)
+
+- [ ] **Peter — push, then run `pnpm run scope:public-files --apply`.** In that
+      order (§5). The push is the deploy. Until the apply, 605's balance sheets
+      and the export archive stay anonymously downloadable, and the public-policy
+      audit fails by design.
+- [ ] **Peter — the DNS record + the Vercel project move.** Unchanged; still
+      nothing at `_hoaconnect.1033lenox.com`, apex still `76.76.21.21`.
+- [ ] **The 85 resident invitations.** Still gated on the domain move.
+- [ ] After 07:10 UTC 2026-08-26, confirm `ai_notice_history` has 5 rows and the
+      dry probe reports `skipped: 3` / `skipped: 2`. **Not due this session** —
+      it ran at 04:38 UTC. Three sessions have now recorded the clean "before";
+      do not record a fourth.
+- [ ] Consider whether the 4 flaky org-scope tests (§7) are worth fixing.
+- [ ] Consider wiring `audit:public-policy` into CI. It needs network + a static
+      token, so it is a deploy-time check rather than a husky one — and after the
+      cutover it also guards the new filter.

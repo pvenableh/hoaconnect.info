@@ -25,7 +25,7 @@ const props = withDefaults(
 
 const config = useRuntimeConfig();
 const { user } = useDirectusAuth();
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 const {
   editComment,
   deleteComment,
@@ -193,7 +193,7 @@ const onDelete = async () => {
           <a
             v-for="id in comment.attachments"
             :key="id"
-            :href="getUrl(id)"
+            :href="getAuthUrl(id)"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md t-bg-elevated ring-1 ring-[var(--theme-border-primary)] text-xs t-text-secondary hover:t-bg-subtle"

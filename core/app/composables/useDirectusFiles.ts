@@ -47,6 +47,26 @@ export const useDirectusFiles = () => {
   }
 
   /**
+   * Get a URL that carries the caller's session — for files the public policy
+   * does NOT serve.
+   *
+   * `getUrl()` above builds a bare `admin.hoaconnect.info/assets/<id>`, which
+   * only resolves for files the Directus public policy grants. That grant is now
+   * filtered to images, so a document, recording or archive fetched that way
+   * comes back 403. Those go through the app instead, which checks the session
+   * and the file's owning organization before streaming a byte.
+   *
+   * Use this for anything a member downloads. Do NOT use it for an image that
+   * ends up inside an email or on an anonymous landing page: a mail client
+   * opening an inbox has no session, so such an image must keep the direct
+   * `getUrl()` form and stay publicly readable.
+   */
+  const getAuthUrl = (fileId: string, options?: { download?: boolean }) => {
+    if (!fileId) return null
+    return `/api/directus/assets/${fileId}${options?.download ? '?download' : ''}`
+  }
+
+  /**
    * Get optimized image URL that preserves transparency
    * Uses webp format with 'inside' fit to avoid black backgrounds
    *
@@ -329,6 +349,7 @@ export const useDirectusFiles = () => {
     delete: remove, // Alias
     importFromUrl,
     getUrl,
+    getAuthUrl,
     getOptimizedUrl,
 
     // Folder operations

@@ -13,7 +13,7 @@ import type { HoaDocument, HoaDocumentCategory } from "#core/types/directus";
 const { list: listDocuments, update: updateDocument, remove: removeDocument } =
   useDirectusItems("hoa_documents");
 const { list: listCategories } = useDirectusItems("hoa_document_categories");
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 
 // Get org context
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
@@ -277,7 +277,7 @@ const downloadDocument = async (doc: HoaDocument) => {
       return;
     }
 
-    const fileUrl = getUrl(file.id);
+    const fileUrl = getAuthUrl(file.id);
     const response = await fetch(fileUrl);
 
     if (!response.ok) {

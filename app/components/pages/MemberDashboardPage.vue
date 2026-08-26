@@ -6,7 +6,7 @@ const { user } = useDirectusAuth();
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listMembers } = useDirectusItems("hoa_members");
 const { list: listAnnouncements } = useDirectusItems("hoa_announcements");
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const { fetchHousehold } = useChangeRequests();
 
@@ -414,7 +414,7 @@ const downloadDocument = async (doc: HoaDocument) => {
     if (!file) return;
 
     const fileId = typeof file === "string" ? file : file.id;
-    const fileUrl = getUrl(fileId);
+    const fileUrl = getAuthUrl(fileId);
     const response = await fetch(fileUrl);
 
     if (!response.ok) throw new Error("Failed to fetch file");

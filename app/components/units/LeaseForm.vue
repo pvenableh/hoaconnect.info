@@ -7,7 +7,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: "submit", payload: Record<string, any>): void; (e: "cancel"): void }>();
 
-const { upload, getUrl } = useDirectusFiles();
+const { upload, getAuthUrl } = useDirectusFiles();
 
 const tenant = ref<string>(props.record?.tenant?.id || "");
 const owner = ref<string>(props.record?.owner?.id || "");
@@ -27,7 +27,7 @@ function toDateInput(v?: string | null) {
   return new Date(v).toISOString().slice(0, 10);
 }
 
-const documentUrl = computed(() => (documentId.value ? getUrl(documentId.value) : null));
+const documentUrl = computed(() => (documentId.value ? getAuthUrl(documentId.value) : null));
 
 const onFile = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];

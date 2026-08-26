@@ -28,16 +28,27 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   process.exit(1);
 }
 
-/** Every grant the public policy is allowed to hold, with why it must exist. */
-const ALLOWED: Record<string, { action: string; why: string }> = {
+/**
+ * Every grant the public policy is allowed to hold, with why it must exist.
+ *
+ * A `filter` here is part of the contract, not a nicety: an unfiltered grant
+ * that is *supposed* to be filtered fails this audit exactly like an unexpected
+ * collection would. That is the whole point for `directus_files` — the grant
+ * must keep existing, and must keep being narrow.
+ */
+const ALLOWED: Record<string, { action: string; why: string; filter?: unknown }> = {
   directus_files: {
     action: "read",
-    // NOTE: this one is a known outstanding risk, not an endorsement. `getUrl()`
-    // in useDirectusFiles builds a plain `/assets/<id>` URL and downloadDocument
-    // fetches it with no Authorization header, so member document downloads
-    // depend on it. Removing it breaks document access for every member; fixing
-    // it properly means proxying assets through an authenticated route.
-    why: "member document downloads + landing/email images use unauthenticated /assets/<id>",
+    // Images only, and the restriction is load-bearing. Unfiltered, this grant
+    // served 605 Lincoln Road's balance sheets, its approved meeting minutes and
+    // a data-export archive to anonymous callers. It cannot simply be deleted:
+    // the logo in every email already sitting in a recipient's inbox is a bare
+    // /assets/<id> URL fetched by a mail client with no session, and so is every
+    // image on an anonymous landing page. Images stay public; everything else
+    // goes through /api/directus/assets/:id, which checks the session and the
+    // file's owning organization.
+    filter: { _and: [{ type: { _starts_with: "image/" } }] },
+    why: "landing + already-sent-email images are fetched with no session (images only)",
   },
   subscription_plans: {
     action: "read",
@@ -84,17 +95,26 @@ async function main() {
   }[];
 
   const unexpected: typeof perms = [];
+  const widened: { collection: string; expected: unknown; actual: unknown }[] = [];
   console.log(`\nPublic policy (${pub.id}) — ${perms.length} grant(s):\n`);
   for (const p of perms.sort((a, b) => a.collection.localeCompare(b.collection))) {
     const allowed = ALLOWED[p.collection];
     const ok = allowed && allowed.action === p.action;
     const scope = p.permissions == null ? "UNFILTERED" : "filtered";
+    // A grant whose filter has drifted is still "expected", so it is reported on
+    // its own line rather than as an unknown collection — the fix differs.
+    const scoped =
+      ok && allowed.filter !== undefined
+        ? JSON.stringify(p.permissions) === JSON.stringify(allowed.filter)
+        : true;
     console.log(
-      `  ${ok ? "✓" : "✗"} ${p.collection.padEnd(22)} ${p.action.padEnd(7)} ${scope.padEnd(11)} ${
-        ok ? allowed.why : "NOT IN ALLOW-LIST"
-      }`
+      `  ${ok && scoped ? "✓" : "✗"} ${p.collection.padEnd(22)} ${p.action.padEnd(7)} ${scope.padEnd(
+        11
+      )} ${ok ? allowed.why : "NOT IN ALLOW-LIST"}`
     );
     if (!ok) unexpected.push(p);
+    else if (!scoped)
+      widened.push({ collection: p.collection, expected: allowed.filter, actual: p.permissions });
   }
 
   const missing = Object.keys(ALLOWED).filter(
@@ -117,6 +137,17 @@ async function main() {
   }
   if (missing.length) {
     console.error(`❌ ${missing.length} expected grant(s) missing — public surfaces may be broken`);
+    process.exit(1);
+  }
+  if (widened.length) {
+    for (const w of widened) {
+      console.error(
+        `❌ ${w.collection}: public read is WIDER than the contract\n` +
+          `   expected filter: ${JSON.stringify(w.expected)}\n` +
+          `   actual filter:   ${JSON.stringify(w.actual)}`
+      );
+    }
+    console.error("   Re-run: pnpm run scope:public-files --apply");
     process.exit(1);
   }
   console.log("✅ Public policy matches the allow-list");

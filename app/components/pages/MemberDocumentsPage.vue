@@ -10,7 +10,7 @@ import type { HoaDocument, HoaDocumentCategory } from "#core/types/directus";
 
 const { list: listDocuments } = useDirectusItems("hoa_documents");
 const { list: listCategories } = useDirectusItems("hoa_document_categories");
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId } = await useSelectedOrg();
@@ -190,7 +190,7 @@ const downloadDocument = async (doc: HoaDocument) => {
     }
 
     const fileId = typeof file === "string" ? file : file.id;
-    const fileUrl = getUrl(fileId);
+    const fileUrl = getAuthUrl(fileId);
     const response = await fetch(fileUrl);
 
     if (!response.ok) {

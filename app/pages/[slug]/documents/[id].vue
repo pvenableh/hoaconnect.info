@@ -10,7 +10,7 @@ definePageMeta({
 const route = useRoute();
 const { buildOrgPath } = useOrgNavigation();
 const { list: listDocuments } = useDirectusItems("hoa_documents");
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 
 // No initTheme() here. This page is `layout: "auth"` — a workspace surface — and
 // the layout owns the <html> theme. The call used to add `theme-modern-light` on
@@ -73,7 +73,7 @@ const isPdf = computed(() => fileMeta.value?.type?.includes("pdf"));
 
 const previewUrl = computed(() => {
   const fileId = fileMeta.value?.id;
-  return fileId ? getUrl(fileId) : null;
+  return fileId ? getAuthUrl(fileId) : null;
 });
 
 function formatDate(dateString: string | null | undefined): string {
@@ -118,7 +118,7 @@ const downloadDocument = async () => {
       return;
     }
     const fileId = typeof file === "string" ? file : file.id;
-    const fileUrl = getUrl(fileId);
+    const fileUrl = getAuthUrl(fileId);
     const response = await fetch(fileUrl);
     if (!response.ok) throw new Error("Failed to fetch file");
 

@@ -21,7 +21,7 @@ interface TreeNode {
 
 const { list: listDocuments, remove: removeDocument } =
   useDirectusItems("hoa_documents");
-const { getUrl, moveToFolder } = useDirectusFiles();
+const { getAuthUrl, moveToFolder } = useDirectusFiles();
 const folderComposable = useDirectusFolders();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
@@ -361,7 +361,7 @@ const handleDelete = async (id: string) => {
 // Download document
 const downloadDocument = async (doc: any) => {
   try {
-    const fileUrl = getUrl(doc.file.id);
+    const fileUrl = getAuthUrl(doc.file.id);
     const response = await fetch(fileUrl);
 
     if (!response.ok) {
