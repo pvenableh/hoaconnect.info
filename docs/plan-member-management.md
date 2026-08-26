@@ -226,12 +226,61 @@ counts could diverge from what the send actually resolves. See Operator TODOs.
 `MemberDashboardPage`, `units/[id].vue` and others. None of them decide who
 receives mail, so they are follow-up work, still one at a time.
 
-### Phase 3 — Members UI *(fixes C)*
-- Status filter including archived; archive and restore actions.
-- Edit role and residency on existing members.
-- **Unlinked-member alert**: flag any active member with no `hoa_member_units`
-  row, with an inline action to link them to an existing unit **or create a
-  unit for them**.
+### Phase 3 — Members UI *(fixes C)* — ✅ SHIPPED 2026-08-26
+
+Shipped in `MembersPage.vue`, `PeopleGlance.vue` and `member-units/assign.post.ts`:
+
+- **The status filter, including archived.** The list query no longer filters on
+  status at all — it used to hard-filter `_in ["active","inactive","pending"]`,
+  which is what made `archived` a one-way trapdoor. A `Show` control decides
+  what is rendered, with the count on each option so an admin can see that
+  former residents exist without going looking: *Current (59) · Active (59) ·
+  Inactive (0) · Pending (0) · **Archived (27)** · All (86)* for 1033 Lenox.
+  **"Current" is the default and equals exactly what the page showed before**,
+  so the filter adds reach without changing the arrival view.
+- **Archive and restore.** An archived row offers Restore where every other row
+  offers Archive. Delete stays, but is no longer the only way to take someone
+  off the active roster.
+- **A Status column beside the existing Account column** — deliberately side by
+  side, because they answer different questions. See "Two orthogonal axes".
+- **`archived` added to the member form's status select**, with a note that
+  status is standing in the community, not app usage.
+- **The unlinked-member alert.** Active members with no `hoa_member_units` row
+  are counted in a banner and flagged inline as a clickable "No unit" in the
+  Unit(s) column.
+- **Residency is editable and now reaches the link.** The unit select used to be
+  write-only on CREATE — editing a member and picking a unit silently did
+  nothing. It now writes on update and carries residency onto the link.
+  `handleEdit` also seeds the form from `residencyFor()`, so opening it shows
+  the value the rest of the app resolves rather than re-saving the older
+  fallback over the link.
+- **`assign.post.ts` is now an upsert** keyed on (member, unit), demotes any
+  previous primary, and normalizes residency — a junk value is a 400. Without
+  the upsert, editing a member twice would leave two rows for the same unit.
+- **`PeopleGlance` migrated to `residencyFor()`.** It sits directly above the
+  table; reading the raw field there would have let the glance call someone an
+  owner while the row beneath it called them a tenant.
+
+**Verified in the running app against real 1033 Lenox data:**
+
+| check | result |
+|---|---|
+| default view | 59 rows, Members tab count 59 — unchanged from before |
+| filter options | Current 59 · Active 59 · Inactive 0 · Pending 0 · Archived 27 · All 86 |
+| archived view | **27 rows, 27 Restore buttons, 0 Archive buttons** |
+| active view | 59 rows, 59 Archive buttons, 0 Restore buttons |
+| unlinked alert | "4 active members have no unit", and exactly 4 rows flagged |
+| PeopleGlance | Owners 34 · Tenants 22 · Unrecorded 3 — matches the resolver |
+| archive → restore | round-tripped through the real proxy on the TEST FIXTURE org |
+| assign upsert | returned the SAME link id twice; global link count stayed 81 |
+| assign junk value | **400**, rejected |
+
+All probe writes were reverted: links back to 81 with 0 carrying residency, and
+the 2 `hoa_activity` rows browsing created were deleted (1033 back to 285).
+
+⚠️ Every `/api/directus/items` call returned 200 with the new nested
+`units.member_type` / `units.end_date` fields — no 403, as the nested-omission
+finding predicted.
 
 ### Phase 4 — Invitation gating *(fixes D)*
 - Exclude non-active members from any batch.
@@ -278,7 +327,8 @@ will effectively all be new.)*
       consistent rather than a widening of scope.
 - [ ] **Fill in the residency on 1033 Lenox's 55 unit links.** They exist but
       all carry `member_type: null`, so every one of those members still
-      resolves through the fallback. Phase 3's UI is the place to do it.
+      resolves through the fallback. Phase 3's UI can now do this — editing a
+      member and saving writes residency onto their link.
 - [ ] **The 29 remaining `member_type` readers** — display and analytics only,
       none decide mail. One at a time.
 
@@ -334,6 +384,20 @@ DONE, do not redo:
 - 1033 Lenox is DOMAIN-VERIFIED, but NO TRAFFIC MOVED — the apex is still
   76.76.21.21. Step 4 (the Vercel project move) is PETER'S. Do not chase it.
 - MEMBER MANAGEMENT PHASE 1 IS SHIPPED. Invitations carry residency.
+- MEMBER MANAGEMENT PHASE 3 IS SHIPPED. Do not re-derive any of it:
+  * MembersPage.vue no longer filters status in the QUERY. A "Show" control
+    does, defaulting to "Current" = active/inactive/pending — the exact set the
+    page showed before. Archived is reachable; 1033's 27 former residents are
+    visible and restorable.
+  * Archive/Restore actions, a Status column beside Account, `archived` in the
+    member form, and the unlinked-member alert all exist.
+  * assign.post.ts is an UPSERT keyed on (member, unit) that demotes the old
+    primary and normalizes residency (junk = 400). The member form now writes
+    the unit on UPDATE, not only on create — it was silently a no-op before.
+  * PeopleGlance.vue is migrated to residencyFor() too.
+  * VERIFIED IN THE RUNNING APP on real 1033 data: 59 default rows, 27 archived
+    rows with 27 Restore buttons, "4 active members have no unit", glance
+    34/22/3. All probe writes reverted.
 - MEMBER MANAGEMENT PHASE 2 IS SHIPPED. Do not re-derive any of it:
   * hoa_member_units.member_type and hoa_invitations.unit both EXIST on
     production (scripts/add-unit-link-residency.ts, idempotent).
@@ -364,23 +428,20 @@ FIRST, orientation:
   pnpm run audit:public-policy   # green, 3 grants, directus_files "filtered"
   pnpm test                      # 1533/1533 across 87 files
 
-Then, the work — Phase 3 is next:
+Then, the work — Phase 4 is next:
 
-PHASE 3 — the members UI (fixes gap C, and it is what closes the data gaps).
-  - Status filter INCLUDING archived; archive and restore actions. Today
-    MembersPage.vue:108 hard-filters status _in [active, inactive, pending], so
-    27 archived people at 1033 are invisible and unreachable.
-    ⚠️ The `archived` option at MembersPage.vue:1207 belongs to the BOARD TERMS
-    form, not member status. Do not mistake it for this.
-  - Edit role and residency on existing members — residency on the UNIT LINK
-    now, not just hoa_members.member_type.
-  - Unlinked-member alert: flag any active member with no hoa_member_units row,
-    with an inline action to link them to an existing unit OR create one.
-    605 Lincoln Road has 33 active members and ZERO links; 1033 has 4.
-  - ⚠️ 1033's 55 EXISTING links all carry member_type: null. This UI is how
-    they get filled in; until then every member resolves via the fallback.
+PHASE 4 — invitation gating (fixes gap D).
+  - Exclude non-active members from any invitation batch.
+  - An invite whose email matches an ARCHIVED member must 409 with a message
+    that NAMES the reason, plus an explicit Restore action.
+    ⚠️ It must NEVER auto-restore. A typo'd email must not silently reactivate
+    a former resident. That is a settled decision, not an open question.
+  - Today invite-member.post.ts 409s on ANY existing member with a message that
+    does not distinguish "already active here" from "archived former resident",
+    and its `user`-based branch calls an accountless member "a pending
+    invitation" — which is the axis confusion this workstream exists to fix.
 
-Then Phases 4 and 5 as written in the plan. Phase 5 runs LAST.
+Then Phase 5, which runs LAST.
 
 Also still open (ask Peter which, do not do all):
   - PROPERTY MANAGER CANNOT READ hoa_member_units. Client queries run on the
