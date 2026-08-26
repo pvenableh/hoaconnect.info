@@ -17,6 +17,7 @@ import {
   ccEntryLabel,
   isValidEmail,
 } from "#core/shared/email/cc";
+import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
 
 const props = defineProps<{
   emailId?: string;
@@ -121,6 +122,11 @@ const { data: allMembers } = await useAsyncData(
           "email",
           "status",
           "member_type",
+          // What residencyFor() reads off the unit link. Without these the
+          // composer would still filter on the member's own member_type while
+          // the actual send resolves through the link — two different lists
+          // for one email.
+          ...RESIDENCY_UNIT_FIELDS,
         ],
         filter: {
           organization: { _eq: orgId.value },
@@ -148,10 +154,13 @@ const members = computed(() => {
   if (recipientFilter.value === "all") {
     return allMembersList;
   }
-  return allMembersList.filter(
-    (m) => m.member_type === recipientFilter.value.slice(0, -1)
-  ); // "owners" -> "owner"
+  const target = recipientFilter.value.slice(0, -1); // "owners" -> "owner"
+  return allMembersList.filter((m) => residencyFor(m as any) === target);
 });
+
+// The badge on each row must show the SAME residency the filter above used to
+// pick them, or an admin sees "owner" on someone the owners filter excluded.
+const residencyOf = (m: any) => residencyFor(m);
 
 // Computed label for recipient type (fixes template parsing issue)
 const recipientTypeLabel = computed(() => {
@@ -163,8 +172,8 @@ const memberCounts = computed(() => {
   const all = allMembers.value || [];
   return {
     all: all.length,
-    owners: all.filter((m) => m.member_type === "owner").length,
-    tenants: all.filter((m) => m.member_type === "tenant").length,
+    owners: all.filter((m) => residencyFor(m as any) === "owner").length,
+    tenants: all.filter((m) => residencyFor(m as any) === "tenant").length,
   };
 });
 
@@ -1356,15 +1365,15 @@ useSeoMeta({
                       <div class="font-medium truncate flex items-center gap-2">
                         {{ member.first_name }} {{ member.last_name }}
                         <span
-                          v-if="member.member_type"
+                          v-if="residencyOf(member)"
                           :class="[
                             'text-[10px] px-1.5 py-0.5 rounded-full uppercase font-semibold',
-                            member.member_type === 'owner'
+                            residencyOf(member) === 'owner'
                               ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200'
                               : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
                           ]"
                         >
-                          {{ member.member_type }}
+                          {{ residencyOf(member) }}
                         </span>
                       </div>
                       <div class="text-xs t-text-muted truncate">
