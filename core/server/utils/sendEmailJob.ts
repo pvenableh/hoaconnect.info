@@ -18,6 +18,7 @@ import {
   type EmailType,
 } from "./email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "./email-merge";
+import { residencyFor } from "#core/shared/members/residency";
 import type {
   HoaBoardMember,
   HoaEmailRecipient,
@@ -48,26 +49,43 @@ async function resolveRecipients(
     email: { _nnull: true },
   };
 
-  if (recipientFilter === "owners") baseFilter.member_type = { _eq: "owner" };
-  else if (recipientFilter === "tenants") baseFilter.member_type = { _eq: "tenant" };
-  else if (recipientFilter === "custom") {
+  // Owner/tenant targeting is resolved in JS rather than as a Directus filter.
+  //
+  // Residency now lives on the unit link first and falls back to
+  // `hoa_members.member_type` (see `residencyFor`), and that "prefer the link,
+  // else the member, and ignore a link whose occupancy has ended" rule is not
+  // expressible as a flat `member_type` filter. Trying to write it as one is
+  // how you mail owners a tenant notice.
+  //
+  // The cost is fetching the org's active members and filtering locally. That is
+  // tens of rows for a real org — 59 for the largest today — against a decision
+  // that determines who receives real mail, so it is the right trade.
+  const wantsResidency = recipientFilter === "owners" || recipientFilter === "tenants";
+  if (recipientFilter === "custom") {
     if (!recipientIds || recipientIds.length === 0) return [];
     baseFilter.id = { _in: recipientIds };
   }
 
-  return (await directus.request(
+  const members = (await directus.request(
     readItems("hoa_members", {
       filter: baseFilter,
       fields: [
         "id", "first_name", "last_name", "email", "phone", "member_type", "company",
         "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date",
-        { units: ["id", "is_primary_unit", { unit_id: ["id", "unit_number"] }] },
+        // `member_type` and `end_date` are what residencyFor() reads off the
+        // link; the rest of this alias feeds the unit merge fields below.
+        { units: ["id", "is_primary_unit", "member_type", "end_date", { unit_id: ["id", "unit_number"] }] },
         { vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"] },
         { pets: ["id", "name", "type", "breed"] },
       ],
       limit: -1,
     })
   )) as any[];
+
+  if (!wantsResidency) return members;
+
+  const target = recipientFilter === "owners" ? "owner" : "tenant";
+  return members.filter((m) => residencyFor(m) === target);
 }
 
 /**
