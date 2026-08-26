@@ -4804,8 +4804,12 @@ IP-capture bug — real production rows do record a real client IP, e.g.
       `hoaconnect`, set apex → `www`, then repoint name.com (`A` →
       **`216.150.1.1`**, and the `www` CNAME to the per-domain hash **Vercel
       prints at that moment** — it cannot be written down in advance).
-- [ ] **The 85 resident invitations.** Unblocked the moment step 4 lands. Bulk
-      mail to 80 real people; wants its own session and its own explicit yes.
+- [ ] **The 58 resident invitations.** Unblocked the moment step 4 lands. Bulk
+      mail to real people; wants its own session and its own explicit yes.
+      (58, not 85: 59 active of 1033's 86 members, less the 1 who already has an
+      account. The 27 archived are former residents.) The residency and
+      hardcoded-owner blockers below are now CLEARED — see
+      `docs/plan-member-management.md`.
 - [ ] Decide on the two `subscription_plans` narrowings (row filter is safe and
       recommended; field scope needs a dev-server test first).
 - [ ] Trivial, noted in passing: `verify.post.ts`'s header comment still says
@@ -4825,6 +4829,12 @@ changes, owner vs tenant residency, and invitation gating. **Its plan lives in
 parity work, and this file is long enough.
 
 Two findings from it that bear directly on items already tracked here:
+
+**Phase 1 and Phase 2 of that workstream have both shipped** (2026-08-26):
+invitations now carry residency AND the unit, `accept-invitation` creates the
+unit link instead of hardcoding `member_type: "owner"`, and every mail-deciding
+reader resolves through `residencyFor()`. Verified as a no-op against all 136
+real members and all 7 orgs.
 
 - **The 85-invitation batch is really 59.** 1033 Lenox has 86 members: 59
   active, 27 archived. Gating invitations on `status: active` — which is part
