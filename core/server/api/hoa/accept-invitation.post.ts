@@ -11,7 +11,8 @@ import {
 import { createDirectus } from "@directus/sdk";
 import type { User } from "#auth-utils";
 import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
-import { residencyOnAccept } from "#core/shared/members/residency";
+import { normalizeResidency, residencyOnAccept } from "#core/shared/members/residency";
+import { invitableMembers } from "#core/shared/members/invitability";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -146,30 +147,87 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 5. Create hoa_member record with personal info
-    const newMember = await directus.request(
-      createItem("hoa_members", {
-        user: newUser.id,
-        organization: organizationId,
-        role: invitation.role,
-        first_name: firstName,
-        last_name: lastName,
-        email: invitation.email,
-        phone: phone || null,
-        // Residency the admin chose when sending the invitation. This was a
-        // hardcoded "owner" for EVERY invitee until Phase 1, because the
-        // invitation had nowhere to carry the real answer.
-        member_type: residencyOnAccept(invitation.member_type),
-        status: "active",
-        // The grants the admin chose when they sent the invitation. A manager
-        // who accepts is immediately able to do the job they were invited to do,
-        // rather than logging into an account with no permissions and waiting
-        // for someone to remember which switches to flip.
-        ...(invitation.manager_permissions
-          ? { manager_permissions: invitation.manager_permissions }
-          : {}),
+    // 5. Attach the account to the member — ADOPTING an existing row if there
+    //    is one, rather than creating a second member for the same person.
+    //
+    // ⚠️ This handler used to create unconditionally. That was safe only while
+    // `invite-member` 409'd every existing member; the moment an ACTIVE member
+    // with no account may be invited — which is the entire onboarding batch,
+    // 58 of 1033 Lenox's 59 active members — an unconditional create would
+    // split each of them into two rows: the original keeping the unit link,
+    // the residency and the payment history, the new one keeping the account.
+    //
+    // The org also already contains duplicate (email, organization) rows —
+    // 605 Lincoln Road has four such groups — so this is a shape the data can
+    // and does take. `invitableMembers` applies the same active-and-not-yet-
+    // onboarded rule the gate used to let the invitation out.
+    const existingMembers = await directus.request(
+      readItems("hoa_members", {
+        filter: {
+          email: { _eq: invitation.email },
+          organization: { _eq: organizationId },
+        },
+        fields: ["id", "status", "user", "member_type", "first_name", "last_name"],
+        sort: ["date_created"],
+        limit: -1,
       })
     );
+
+    // The invitation's residency, ONLY when it actually states one.
+    // ⚠️ Deliberately not `residencyOnAccept`, which falls back to "owner":
+    // adopting a known tenant with an old invitation that carries no residency
+    // must not rewrite them into an owner-only mail audience. 1033 Lenox has
+    // 22 tenants and every invitation predating Phase 1 says nothing.
+    const invitationResidency = normalizeResidency(invitation.member_type);
+
+    const adoptee = invitableMembers(existingMembers as any[])[0] ?? null;
+
+    if (adoptee) {
+      await directus.request(
+        updateItem("hoa_members", adoptee.id as string, {
+          user: newUser.id,
+          role: invitation.role,
+          // The person signing up is the authority on their own name; the
+          // roster row was typed by whoever imported it.
+          first_name: firstName,
+          last_name: lastName,
+          ...(phone ? { phone } : {}),
+          ...(invitationResidency ? { member_type: invitationResidency } : {}),
+          ...(invitation.manager_permissions
+            ? { manager_permissions: invitation.manager_permissions }
+            : {}),
+          // ⚠️ `status` is NOT written. They are already active — that is what
+          // let the invitation out — and membership standing is not something
+          // signing into the portal should decide.
+        })
+      );
+    }
+
+    const newMember = adoptee
+      ? { id: adoptee.id as string }
+      : await directus.request(
+          createItem("hoa_members", {
+            user: newUser.id,
+            organization: organizationId,
+            role: invitation.role,
+            first_name: firstName,
+            last_name: lastName,
+            email: invitation.email,
+            phone: phone || null,
+            // Residency the admin chose when sending the invitation. This was a
+            // hardcoded "owner" for EVERY invitee until Phase 1, because the
+            // invitation had nowhere to carry the real answer.
+            member_type: residencyOnAccept(invitation.member_type),
+            status: "active",
+            // The grants the admin chose when they sent the invitation. A manager
+            // who accepts is immediately able to do the job they were invited to do,
+            // rather than logging into an account with no permissions and waiting
+            // for someone to remember which switches to flip.
+            ...(invitation.manager_permissions
+              ? { manager_permissions: invitation.manager_permissions }
+              : {}),
+          })
+        );
 
     // 5b. Link the new member to the unit they were invited to.
     //
@@ -190,16 +248,61 @@ export default defineEventHandler(async (event) => {
       typeof invitation.unit === "string" ? invitation.unit : (invitation.unit as any)?.id ?? null;
     if (invitationUnitId) {
       try {
-        await directus.request(
-          createItem("hoa_member_units", {
-            member_id: newMember.id,
-            unit_id: invitationUnitId,
-            is_primary_unit: true,
-            member_type: residencyOnAccept(invitation.member_type),
-            start_date: new Date().toISOString().slice(0, 10),
-            status: "published",
-          })
+        // An ADOPTED member may already hold this link — 55 of 1033 Lenox's
+        // active members do — so this is an upsert keyed on (member, unit), the
+        // same rule `member-units/assign.post.ts` follows. A blind create would
+        // leave two rows for one unit and let `residencyFor()` pick between
+        // duplicates.
+        const existingLinks = adoptee
+          ? await directus.request(
+              readItems("hoa_member_units", {
+                filter: { member_id: { _eq: newMember.id } },
+                fields: ["id", "unit_id", "is_primary_unit"],
+                limit: -1,
+              })
+            )
+          : [];
+
+        const linkUnitId = (l: any) =>
+          typeof l.unit_id === "string" ? l.unit_id : l.unit_id?.id;
+        const existingLink = (existingLinks as any[]).find(
+          (l) => linkUnitId(l) === invitationUnitId
         );
+
+        // Residency for the LINK. For an adopted member the invitation wins
+        // only when it says something; otherwise their own known residency
+        // fills the link in — which is exactly the gap the roster has today,
+        // where all 81 real links carry `member_type: null`.
+        const linkResidency = adoptee
+          ? invitationResidency ?? normalizeResidency((adoptee as any).member_type)
+          : residencyOnAccept(invitation.member_type);
+
+        // Don't create a SECOND primary. If they already have one on another
+        // unit, an admin decided that; accepting an invitation is not the
+        // moment to overturn it.
+        const hasOtherPrimary = (existingLinks as any[]).some(
+          (l) => l.id !== existingLink?.id && l.is_primary_unit
+        );
+
+        if (existingLink) {
+          await directus.request(
+            updateItem("hoa_member_units", existingLink.id, {
+              ...(hasOtherPrimary ? {} : { is_primary_unit: true }),
+              ...(linkResidency ? { member_type: linkResidency } : {}),
+            })
+          );
+        } else {
+          await directus.request(
+            createItem("hoa_member_units", {
+              member_id: newMember.id,
+              unit_id: invitationUnitId,
+              is_primary_unit: !hasOtherPrimary,
+              member_type: linkResidency,
+              start_date: new Date().toISOString().slice(0, 10),
+              status: "published",
+            })
+          );
+        }
       } catch (linkError) {
         console.error("Could not link accepted member to their unit:", linkError);
       }
