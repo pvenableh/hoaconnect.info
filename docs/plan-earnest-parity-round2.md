@@ -4806,6 +4806,8 @@ IP-capture bug — real production rows do record a real client IP, e.g.
       prints at that moment** — it cannot be written down in advance).
 - [ ] **The 58 resident invitations.** Unblocked the moment step 4 lands. Bulk
       mail to real people; wants its own session and its own explicit yes.
+      ⚠️ Phase 4 of the member-management workstream is what makes this
+      sendable at all — before it, every one of the 58 was refused.
       (58, not 85: 59 active of 1033's 86 members, less the 1 who already has an
       account. The 27 archived are former residents.) The residency and
       hardcoded-owner blockers below are now CLEARED — see
@@ -4829,6 +4831,13 @@ changes, owner vs tenant residency, and invitation gating. **Its plan lives in
 parity work, and this file is long enough.
 
 Two findings from it that bear directly on items already tracked here:
+
+**Phases 1-4 of that workstream have all shipped** (2026-08-26 / 08-27). Phase 4
+matters to the mailing tracked here: `invite-member` used to 409 **every**
+existing member, so all 58 invitations would have been refused as *"this email
+already has a pending invitation"*. They are sendable now, and
+`accept-invitation` adopts each invitee's existing member row instead of
+creating a duplicate. Details in `docs/plan-member-management.md`.
 
 **Phase 1 and Phase 2 of that workstream have both shipped** (2026-08-26):
 invitations now carry residency AND the unit, `accept-invitation` creates the
