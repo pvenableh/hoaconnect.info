@@ -73,6 +73,7 @@ export const sendHoaInvitationEmail = async ({
   orgEmail,
   orgAddress,
   orgLegalName,
+  organizationId,
 }: {
   to: string;
   firstName: string;
@@ -89,8 +90,21 @@ export const sendHoaInvitationEmail = async ({
   orgEmail?: string;
   orgAddress?: string;
   orgLegalName?: string;
+  /** Which tenant this invitation belongs to — required for the demo guardrail. */
+  organizationId?: string | null;
 }) => {
   const config = useRuntimeConfig();
+
+  // ⚠️ The guardrail lives INSIDE the sender, not only at the call site.
+  // `invite-member.post.ts` remembered to check; `resend-invitation.post.ts`
+  // did not, so a demo invitation could be re-sent for real by rotating its
+  // token. A guard that each caller has to remember is a guard that one caller
+  // eventually forgets.
+  if (await shouldBlockDemoEmail(organizationId)) {
+    console.log(`[demo] invitation email suppressed for demo org ${organizationId} → ${to}`);
+    return;
+  }
+
   const sg = initSendGrid();
 
   // Format expiration date
@@ -223,6 +237,7 @@ export const sendInvitationAcceptedEmail = async ({
   orgEmail,
   orgAddress,
   orgLegalName,
+  organizationId,
 }: {
   to: string;
   adminName: string;
@@ -236,8 +251,21 @@ export const sendInvitationAcceptedEmail = async ({
   orgEmail?: string;
   orgAddress?: string;
   orgLegalName?: string;
+  /** Which tenant this notification belongs to — required for the demo guardrail. */
+  organizationId?: string | null;
 }) => {
   const config = useRuntimeConfig();
+
+  // ⚠️ This was the one hole in the demo guardrail: SENDING an invitation to a
+  // demo org was correctly suppressed, but ACCEPTING it mailed the inviter for
+  // real, because this function took no organization at all and went straight
+  // to initSendGrid(). Anyone accepting a demo invitation put real mail in the
+  // demo owner's inbox.
+  if (await shouldBlockDemoEmail(organizationId)) {
+    console.log(`[demo] invitation-accepted email suppressed for demo org ${organizationId} → ${to}`);
+    return;
+  }
+
   const sg = initSendGrid();
 
   const templateData: InviteEmailTemplateData = {

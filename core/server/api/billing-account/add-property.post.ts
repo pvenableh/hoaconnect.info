@@ -159,6 +159,7 @@ export default defineEventHandler(async (event) => {
       roleName: "HOA Admin",
       expiresAt: expiresAt.toISOString(),
       orgUrl: `${appUrl}/${slug}`,
+      organizationId: org.id,
     });
     boardAdminInvite = { email: boardAdminEmail, sent: true };
   } catch (e: any) {

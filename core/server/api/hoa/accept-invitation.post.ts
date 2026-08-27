@@ -423,6 +423,9 @@ export default defineEventHandler(async (event) => {
         orgEmail: (org as any).email || undefined,
         orgAddress,
         orgLegalName: (org as any).legal_name || undefined,
+        // Without this the demo guardrail cannot fire: sending a demo
+        // invitation was suppressed, but accepting one mailed the inviter.
+        organizationId,
       });
 
       console.log("✅ Admin notification email sent to:", inviterEmail);

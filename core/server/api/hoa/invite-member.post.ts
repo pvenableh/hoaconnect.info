@@ -299,6 +299,7 @@ export default defineEventHandler(async (event) => {
           orgEmail: organization.email || undefined,
           orgAddress,
           orgLegalName: organization.legal_name || undefined,
+          organizationId,
         });
 
         console.log("✅ Invitation email sent successfully to:", email);
