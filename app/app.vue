@@ -20,6 +20,6 @@ const pageTransition = computed(() => ({
 }));
 
 // Apply dynamic branding based on active organization
-// Falls back to Property Flow defaults on main domain or when no custom branding
+// Falls back to HOA Connect defaults on main domain or when no custom branding
 useOrgBranding();
 </script>

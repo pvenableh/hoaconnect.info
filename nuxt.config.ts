@@ -24,9 +24,9 @@ export default defineNuxtConfig({
   // Site identity / SEO defaults for the platform app. Bespoke apps override these.
   site: {
     url: process.env.APP_URL || "http://localhost:3000",
-    name: "Property Flow - Premier Property Management App",
+    name: "HOA Connect - Premier Property Management App",
     description:
-      "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
+      "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with HOA Connect.",
     defaultLocale: "en",
     ogImage: "",
   },
@@ -34,8 +34,8 @@ export default defineNuxtConfig({
   schemaOrg: {
     identity: {
       type: "Business",
-      name: "Property Flow",
-      alternateName: "Property Flow",
+      name: "HOA Connect",
+      alternateName: "HOA Connect",
       url: process.env.NUXT_PUBLIC_MAIN_DOMAIN
         ? `https://${process.env.NUXT_PUBLIC_MAIN_DOMAIN}`
         : "https://www.hoaconnect.info",

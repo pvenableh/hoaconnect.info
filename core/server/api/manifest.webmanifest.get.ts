@@ -31,10 +31,10 @@ export default defineEventHandler(async (event) => {
   // the bare Host here would see the proxy, not the community's domain.
   const host = normalizeHost(getRequestHost(event, { xForwardedHost: true }));
 
-  // Default Property Flow branding
+  // Default HOA Connect branding
   const defaults = {
-    name: config.public.siteTitle || "Property Flow",
-    shortName: config.public.companyName || "Property Flow",
+    name: config.public.siteTitle || "HOA Connect",
+    shortName: config.public.companyName || "HOA Connect",
     description:
       config.public.siteDescription ||
       "Premier Property Management App for Property Owners and Property Managers.",

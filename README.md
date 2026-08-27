@@ -1,4 +1,4 @@
-# HOA Connect (Property Flow)
+# HOA Connect
 
 A multi-tenant HOA / property-management SaaS built with **Nuxt 4**, **Directus**, and **shadcn-vue**. One app serves many associations — each with its own members, board, documents, payments, communications, public landing page, and (optionally) a custom domain.
 

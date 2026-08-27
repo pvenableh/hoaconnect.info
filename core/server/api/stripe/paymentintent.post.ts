@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
 			amount: validatedData.amount,
 			currency: validatedData.currency,
 			receipt_email: validatedData.email,
-			statement_descriptor: config.public.companyName?.substring(0, 22) || 'Property Flow',
+			statement_descriptor: config.public.companyName?.substring(0, 22) || 'HOA Connect',
 			metadata: {
 				environment: process.env.NODE_ENV || 'development',
 				created_at: new Date().toISOString(),

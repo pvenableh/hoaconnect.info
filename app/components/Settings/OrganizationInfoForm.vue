@@ -240,7 +240,7 @@ const form = reactive({
 
 // Site URL
 const siteUrl = computed(() => {
-  const baseUrl = config.public.appUrl || "https://propertyflow.app";
+  const baseUrl = config.public.appUrl || `https://${config.public.mainDomain}`;
   return `${baseUrl}/${props.organization.slug}`;
 });
 

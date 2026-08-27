@@ -1,6 +1,6 @@
 // composables/useOrgBranding.ts
 // Manages dynamic branding based on active organization
-// Falls back to Property Flow defaults when no org or no custom branding
+// Falls back to HOA Connect defaults when no org or no custom branding
 
 import type { DirectusFile, BlockSetting, HoaOrganization } from "#core/types/directus";
 import type { ThemeStyle } from "#core/app/composables/useTheme";
@@ -53,7 +53,7 @@ export const useOrgBranding = () => {
     const org = activeHoa.value as HoaOrganization | null;
     const settings = org?.settings as BlockSetting | null;
 
-    // Get file IDs - fall back to default Property Flow assets from config
+    // Get file IDs - fall back to default HOA Connect assets from config
     const iconFileId =
       getFileId(settings?.icon) || config.public.defaultIconId || null;
     const logoFileId =
@@ -85,7 +85,7 @@ export const useOrgBranding = () => {
         settings?.title ||
         org?.name ||
         config.public.siteTitle ||
-        "Property Flow",
+        "HOA Connect",
       siteDescription:
         settings?.description ||
         settings?.seo?.meta_description ||

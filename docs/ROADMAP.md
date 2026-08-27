@@ -1,7 +1,7 @@
 # HOA Connect — Go-to-Market Roadmap
 
 > Living document. Last updated 2026-08-18.
-> Product working name in code: **Property Flow**. Public domain: hoaconnect.info.
+> Product name: **HOA Connect** (renamed from "Property Flow" on 2026-08-27). Public domain: hoaconnect.info.
 > **Product vision + strategic phase sequence: [VISION.md](VISION.md)** — "Your
 > community owns everything. Everyone can see it." The vision's 7-phase roadmap
 > supersedes the ordering below for NEW strategic work; the phase sections below

@@ -49,7 +49,7 @@ function resolveBuildId(): string {
 const buildId = resolveBuildId();
 
 // ---------------------------------------------------------------------------
-// Human-facing app version — the "Property Flow v2.1.1027" label.
+// Human-facing app version — the "HOA Connect v2.1.1027" label.
 //
 // MAJOR.MINOR come from the consuming app's package.json; the PATCH is the git
 // commit count (`git rev-list --count HEAD`), so the visible number moves on
@@ -297,10 +297,10 @@ export default defineNuxtConfig({
       mapboxToken: process.env.NUXT_PUBLIC_MAPBOX_TOKEN || "",
       appUrl: process.env.APP_URL || "http://localhost:3000",
       fromEmail: process.env.FROM_EMAIL,
-      siteTitle: "Property Flow - Premier Property Management App",
+      siteTitle: "HOA Connect - Premier Property Management App",
       siteSubtitle: "",
       siteDescription:
-        "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with Property Flow.",
+        "Premier Property Management App for Property Owners and Property Managers. Streamline your property management with HOA Connect.",
       // Stripe public key — chosen by STRIPE_MODE (see stripeLiveMode above).
       stripePublicKey: stripeLiveMode
         ? process.env.STRIPE_PUBLIC_KEY_LIVE
@@ -312,7 +312,7 @@ export default defineNuxtConfig({
       // monthly + yearly recurring Prices). See docs/stripe-setup.md.
       agencyPriceIdMonthly: process.env.STRIPE_AGENCY_PRICE_ID_MONTHLY || "",
       agencyPriceIdYearly: process.env.STRIPE_AGENCY_PRICE_ID_YEARLY || "",
-      companyName: "Property Flow",
+      companyName: "HOA Connect",
       // Stripe Connect platform fee % (display only; the server recomputes the
       // authoritative fee from the private stripeConnectFeePercent).
       stripeConnectFeePercent: process.env.STRIPE_CONNECT_FEE_PERCENT || "2",

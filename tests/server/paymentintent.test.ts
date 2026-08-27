@@ -75,7 +75,7 @@ beforeEach(() => {
     stripeSecretKeyTest: "sk_test_x",
     stripeSecretKeyLive: "",
     stripeConnectFeePercent: feePercent,
-    public: { companyName: "Property Flow" },
+    public: { companyName: "HOA Connect" },
   }));
   vi.stubGlobal("isStripeLiveMode", () => false);
   vi.stubGlobal("STRIPE_API_VERSION", "2024-11-20.acacia");

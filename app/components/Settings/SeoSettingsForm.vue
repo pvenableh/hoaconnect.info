@@ -268,7 +268,7 @@ const currentOgImageUrl = computed(() => {
 
 // Preview URL
 const previewUrl = computed(() => {
-  const baseUrl = config.public.appUrl || "https://propertyflow.app";
+  const baseUrl = config.public.appUrl || `https://${config.public.mainDomain}`;
   return baseUrl;
 });
 
@@ -277,7 +277,7 @@ const previewDomain = computed(() => {
     const url = new URL(previewUrl.value);
     return url.hostname;
   } catch {
-    return "propertyflow.app";
+    return config.public.mainDomain;
   }
 });
 
