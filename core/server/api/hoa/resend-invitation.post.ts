@@ -41,6 +41,32 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Which organization does this invitation belong to? Resolved BEFORE
+    // anything else, because it is what the authorization check needs.
+    const organizationId = typeof invitation.organization === "string"
+      ? invitation.organization
+      : (invitation.organization as HoaOrganization | null)?.id;
+
+    if (!organizationId) {
+      throw createError({
+        statusCode: 400,
+        message: "Invitation has no associated organization",
+      });
+    }
+
+    // ⚠️ Only org admins (or app admins) may resend an invitation for this
+    // organization. This endpoint previously required nothing but a session:
+    // any logged-in user who knew — or guessed — an invitation id could rotate
+    // its token and make the app mail any organization's invitee. The token
+    // only ever goes to the invitee's own address, so it was never a path to
+    // the caller, but it was unauthenticated-to-that-org outbound mail and a
+    // way to invalidate a pending invitation someone else was relying on.
+    //
+    // Checked here rather than at the top because the organization is not
+    // known until the invitation has been read, and checked BEFORE the token
+    // rotation below so a refused caller changes nothing.
+    await requireAdminAccess(event, organizationId);
+
     // Check if the invitation can be resent (pending or expired)
     if (invitation.invitation_status !== "pending" && invitation.invitation_status !== "expired") {
       throw createError({
@@ -53,18 +79,6 @@ export default defineEventHandler(async (event) => {
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
-
-    // Get organization details for email
-    const organizationId = typeof invitation.organization === "string"
-      ? invitation.organization
-      : (invitation.organization as HoaOrganization | null)?.id;
-
-    if (!organizationId) {
-      throw createError({
-        statusCode: 400,
-        message: "Invitation has no associated organization",
-      });
-    }
 
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
@@ -165,6 +179,7 @@ export default defineEventHandler(async (event) => {
         orgEmail: organization.email || undefined,
         orgAddress,
         orgLegalName: organization.legal_name || undefined,
+        organizationId,
       });
 
       console.log("✅ Invitation email resent successfully to:", invitation.email);
