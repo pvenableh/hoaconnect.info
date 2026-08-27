@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { toast } from "vue-sonner";
 import { useDirectusItems } from "#imports";
+import type { InviteBlockCode, InviteRestoreTarget } from "#core/shared/members/invitability";
 
 interface Props {
   organizationId: string;
@@ -12,12 +13,30 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   success: [invitation: any];
   error: [error: Error];
+  /**
+   * An invitation was refused because the email already belongs to a member who
+   * is not a current, un-onboarded resident — and the host can offer to make
+   * them one. Carries a TARGET, never a completed restore: reactivating a
+   * former resident because someone mistyped an email is the exact outcome
+   * this refuses to produce on its own.
+   */
+  restore: [target: InviteRestoreTarget];
 }>();
 
 const { list: listUnits } = useDirectusItems("hoa_units");
 
 const loading = ref(false);
 const loadingData = ref(true);
+
+// Why the last attempt was refused, kept on screen rather than only in a toast.
+// The server names the reason (`member_archived` vs `member_already_onboarded`
+// vs `member_not_active`) precisely so the admin is not left guessing whether
+// they typed the wrong address or found a former resident.
+const blocked = ref<{
+  code: InviteBlockCode | null;
+  message: string;
+  restore: InviteRestoreTarget | null;
+} | null>(null);
 const roles = ref<any[]>([]);
 const units = ref<any[]>([]);
 
@@ -81,6 +100,7 @@ const handleSubmit = async () => {
   }
 
   loading.value = true;
+  blocked.value = null;
 
   try {
     const response = await $fetch("/api/hoa/invite-member", {
@@ -102,6 +122,7 @@ const handleSubmit = async () => {
     });
 
     // Reset form
+    blocked.value = null;
     form.value = {
       firstName: "",
       lastName: "",
@@ -117,6 +138,18 @@ const handleSubmit = async () => {
     const errorMessage =
       err.data?.message || "Failed to send invitation. Please try again.";
 
+    // The gate's 409 carries structured detail under `data.data`. Keying off the
+    // code rather than off the status keeps this working regardless of how the
+    // fetch layer surfaces the status — nothing else sends this shape.
+    const detail = err.data?.data;
+    if (detail?.code) {
+      blocked.value = {
+        code: detail.code,
+        message: errorMessage,
+        restore: detail.restore ?? null,
+      };
+    }
+
     toast.error("Invitation failed", {
       description: errorMessage,
     });
@@ -129,6 +162,7 @@ const handleSubmit = async () => {
 
 // Reset form
 const resetForm = () => {
+  blocked.value = null;
   form.value = {
     firstName: "",
     lastName: "",
@@ -160,6 +194,46 @@ const resetForm = () => {
       </div>
 
       <form v-else @submit.prevent="handleSubmit" class="space-y-4">
+        <!--
+          The refusal, stated rather than left in a toast that has scrolled away.
+          An ARCHIVED match is the one an admin can act on, so it gets the
+          button — but the button says Restore and is theirs to press. The
+          endpoint never restores anyone.
+        -->
+        <Alert v-if="blocked" class="t-bg-accent/10 t-border-accent">
+          <Icon name="lucide:user-x" class="w-4 h-4" />
+          <AlertTitle>
+            {{
+              blocked.code === "member_archived"
+                ? "That email belongs to a former resident"
+                : blocked.code === "member_already_onboarded"
+                  ? "That email is already on the portal"
+                  : "That email is not an active member"
+            }}
+          </AlertTitle>
+          <AlertDescription class="space-y-2">
+            <p>{{ blocked.message }}</p>
+            <p v-if="blocked.code === 'member_archived'" class="text-xs t-text-muted">
+              If you meant someone else, check the address for a typo — restoring
+              is not something an invitation should do by accident.
+            </p>
+            <Button
+              v-if="blocked.restore"
+              size="sm"
+              variant="outline"
+              type="button"
+              @click="emit('restore', blocked.restore)"
+            >
+              <Icon name="lucide:rotate-ccw" class="w-4 h-4 mr-2" />
+              {{
+                blocked.restore.currentStatus === "archived"
+                  ? `Restore ${blocked.restore.name}`
+                  : `Set ${blocked.restore.name} active`
+              }}
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         <div class="grid grid-cols-2 gap-4">
           <FormField name="firstName">
             <FormItem>

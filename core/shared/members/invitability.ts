@@ -106,6 +106,13 @@ export function isInvitableStatus(status: unknown): boolean {
  * Active AND not already on the portal. This is the batch filter — the 58 of
  * 1033 Lenox's 86 members, arrived at by excluding the 27 archived former
  * residents and the 1 who already has an account.
+ *
+ * It filters ROWS, and does NOT dedupe by email: 605 Lincoln Road would yield
+ * 31 rows for 29 distinct addresses. That is safe rather than an oversight —
+ * the second invitation to an address hits `invite-member`'s existing
+ * "a pending invitation already exists" 409, so nobody is mailed twice — but a
+ * batch builder that wants an accurate "will send N" count has to dedupe
+ * itself. 1033 Lenox holds no duplicates, so its 58 is already distinct.
  */
 export function invitableMembers<T extends InvitableMember>(members: readonly T[]): T[] {
   return members.filter((m) => isInvitableStatus(m.status) && !hasAccount(m));

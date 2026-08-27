@@ -553,6 +553,34 @@ const handleInviteSuccess = () => {
   activeTab.value = "pending";
 };
 
+// An invitation was refused because the email belongs to a member who is not a
+// current, un-onboarded resident — most often one of 1033 Lenox's 27 archived
+// former residents.
+//
+// ⚠️ The restore happens HERE, behind a confirm, because a human chose it. The
+// endpoint deliberately refuses to do it: a typo'd email must never silently
+// reactivate someone who moved out. This is the same status write the Restore
+// button on an archived row performs, so the two paths cannot drift.
+const handleInviteRestore = async (target: {
+  memberId: string;
+  name: string;
+  currentStatus: string;
+}) => {
+  const verb = target.currentStatus === "archived" ? "Restore" : "Set active";
+  if (
+    !confirm(
+      `${verb} ${target.name}? They are currently "${target.currentStatus}". ` +
+        `This only changes their membership — you still have to send the invitation afterwards.`
+    )
+  )
+    return;
+  await setMemberStatus(
+    { id: target.memberId },
+    "active",
+    `${target.name} is active again — you can send the invitation now`
+  );
+};
+
 // Cancel invitation
 const cancellingInvitation = ref<string | null>(null);
 const handleCancelInvitation = async (invitationId: string) => {
@@ -984,6 +1012,7 @@ useSeoMeta({
               v-if="organization?.id"
               :organization-id="organization.id"
               @success="handleInviteSuccess"
+              @restore="handleInviteRestore"
             />
           </div>
 
