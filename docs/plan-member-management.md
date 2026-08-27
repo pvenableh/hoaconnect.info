@@ -410,7 +410,16 @@ DONE, do not redo:
     communications/audience/index.vue.
   * PROVEN A NO-OP: 0 residency changes across all 136 real members, and
     recipient sets identical for all 7 orgs on both residency filters.
-- Everything is pushed and deployed; 0 unpushed commits.
+⚠️⚠️ THE CODE IS COMMITTED LOCALLY BUT **NOT PUSHED AND NOT DEPLOYED**.
+  12 commits sit on local `main` ahead of origin (Phases 2 and 3). Peter chose
+  to hold the push. **PRODUCTION IS RUNNING THE PRE-PHASE-2 CODE.**
+  ⚠️ But the DIRECTUS SCHEMA CHANGES *ARE* LIVE — `hoa_member_units.member_type`
+  and `hoa_invitations.unit` were created on production Directus, because a
+  schema script runs against the real instance regardless of git. Both are
+  nullable and nothing writes them yet, so prod is consistent; do NOT "fix" this
+  by re-running the script or by rolling the fields back.
+  Ask Peter before pushing. `git log --oneline origin/main..HEAD` to confirm the
+  count before you do anything else.
 
 ⚠️⚠️ THE SINGLE MOST IMPORTANT THING IN THIS WORKSTREAM — two ORTHOGONAL axes.
   `hoa_members.status = active` means AN ACTIVE MEMBER OF THE COMMUNITY (a
