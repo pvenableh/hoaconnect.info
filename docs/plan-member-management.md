@@ -382,6 +382,16 @@ What is actually left, and it is small:
 (see the coverage table above). Closed through the Phase 3 UI rather than a
 script, since it needs someone who knows which resident is in which unit.
 
+⚠️ **605 is a commercial HOA and its roster is unit-shaped, not person-shaped.**
+Its 33 members are mostly LLCs, entered by Jay (the property manager) as
+recipients for the email builder — one row per unit, with the unit number in
+the `company` string, and only 7 rows carrying a personal name. Four entities
+own several units and therefore hold several rows. That is why 605 shows 5
+apparent "duplicates", and why deleting them is wrong: they are live notice
+recipients. The org has only **2 `hoa_units` rows** for ~26 named units, so
+closing this gap means creating the units first. Doing it in the wrong order
+would drop entities out of Jay's mail audiences.
+
 **Portal-onboarding visibility:** add an indicator to the members list —
 *has an account* / *invited, not accepted* / *not yet invited* — derived from
 `hoa_members.user` and `hoa_invitations.invitation_status`. This is what lets
@@ -407,25 +417,53 @@ will effectively all be new.)*
       member and saving writes residency onto their link.
 - [ ] **The 29 remaining `member_type` readers** — display and analytics only,
       none decide mail. One at a time.
-- [ ] **`sendInvitationAcceptedEmail` is outside the demo guardrail.**
-      `core/server/utils/sendgrid.ts:213` takes no `organizationId` and calls
-      `initSendGrid()` directly, so accepting an invitation to a demo org emails
-      the inviter for real while the invitation itself was correctly suppressed.
-      Every other send routes through `shouldBlockDemoEmail`. Small fix —
-      thread the org id through and guard — but it is a live-mail behaviour
-      change, so it is a decision rather than a drive-by.
-- [ ] **`resend-invitation.post.ts` has no authorization check.** It requires
-      only a session, then rotates the token and re-sends. Any logged-in user
-      who knows an invitation id can make the app mail any organization's
-      invitee. The token goes only to the invitee's address, so it is not a
-      path to the caller — but it is unauthenticated-to-that-org mail. Every
-      neighbouring endpoint calls `requireAdminAccess`. Noticed while reading
-      for Phase 4; not fixed, because it is a production authz change.
-- [ ] **605 Lincoln Road has 5 duplicate member rows** — four
-      `(email, organization)` groups, one three rows deep, all active and none
-      with an account. Harmless to the gate (which handles duplicates
-      deliberately) but they are 5 phantom residents in every count the org
-      shows, and a batch would draw 31 rows for 29 addresses.
+- [x] **The demo guardrail now lives INSIDE the invitation senders.** ✅ 2026-08-27.
+      `sendInvitationAcceptedEmail` took no `organizationId` at all and went
+      straight to `initSendGrid()`, so SENDING a demo invitation was suppressed
+      while ACCEPTING it mailed the inviter for real. Fixing it surfaced a
+      second hole: **`resend-invitation` was unguarded too**, so a demo
+      invitation could be re-sent for real by rotating its token. Both senders
+      now take `organizationId` and call `shouldBlockDemoEmail` themselves, and
+      all four call sites pass it. A guard each caller has to remember is a
+      guard one caller eventually forgets.
+- [x] **`resend-invitation.post.ts` now requires admin access.** ✅ 2026-08-27.
+      It previously required only a session, so any logged-in user who knew an
+      invitation id could rotate its token and make the app mail another
+      organization's invitee — never a path to the caller (the token only goes
+      to the invitee's own address) but unauthenticated-to-that-org outbound
+      mail, and a way to invalidate a pending invitation someone was relying
+      on. `requireAdminAccess` sits after the invitation read, because the org
+      is not known before it, and BEFORE the token rotation, so a refused
+      caller changes nothing.
+- [ ] **605 Lincoln Road's "duplicate" member rows are NOT duplicates — do not
+      delete them.** Four `(email, organization)` groups, five extra rows. Each
+      row is a DIFFERENT UNIT owned by the same entity, with the unit number
+      carried in the `company` string:
+
+      | email | rows | units encoded in `company` |
+      |---|---|---|
+      | sguysark@aol.com | 2 | `…LLC 210 -Rubber B 210`, `Rubber B LLC 230` |
+      | ap@brghomes.com | 2 | `BRG Lincoln 302`, `BRG Lincoln 303, LLC` |
+      | dean@fourseasonsmia.com | 2 | `…Four Seasons Travel 400`, `…410` |
+      | vilon@mrjonesmgmt.com | 3 | `Tanja Inc`, `…Unit 270`, `…Unit 800` |
+
+      **605 is a COMMERCIAL HOA.** 26 of its 33 members are LLCs and only 7
+      carry a personal name. Peter confirmed the rows were entered by **Jay,
+      the property manager, so he could send notices through the email
+      builder** — they are one row per unit, created as MAIL RECIPIENTS, not as
+      a clean person roster. Deleting them would erase the only record that
+      units 230, 303, 410, 270 and 800 belong to those entities *and* silently
+      shrink Jay's notice audiences. Nothing else references them (0 rows across
+      all 19 collections that point at `hoa_members`), so a delete would be
+      total and silent.
+
+      The correct fix is the model this workstream built — create the units,
+      then ONE member per entity with an `hoa_member_units` link per unit — but
+      **605 has only 2 `hoa_units` rows** (200 and 501) against ~26 units named
+      in company strings, so there is nowhere to move the ownership to yet.
+      Parsing is genuinely ambiguous (`601 Lincoln RD 501 Holdings LLC` — unit
+      501, or part of the name?), so this needs Jay or Peter, not a script.
+      See Phase 5.
 
 ## Traps
 
@@ -486,43 +524,42 @@ Tool shells have no node/pnpm: run `eval "$(/usr/local/bin/fnm env)"` in every
 one. Vercel AUTO-DEPLOYS on push, so a push IS a production deploy — ask before
 pushing, never run `vercel --prod`.
 
-⚠️⚠️ THE CODE IS COMMITTED LOCALLY BUT NOT PUSHED AND NOT DEPLOYED.
-  19 commits sit on local `main` ahead of origin (Phases 2, 3 and 4). Peter
-  chose to hold the push. PRODUCTION IS RUNNING THE PRE-PHASE-2 CODE.
-  ⚠️ But the DIRECTUS SCHEMA CHANGES *ARE* LIVE — `hoa_member_units.member_type`
-  and `hoa_invitations.unit` were created on production Directus, because a
-  schema script runs against the real instance regardless of git. Both are
-  nullable and nothing writes them yet, so prod is consistent; do NOT "fix" this
-  by re-running the script or by rolling the fields back.
-  Phase 4 added NO schema changes — code only.
-  `git log --oneline origin/main..HEAD` to confirm the count before anything
-  else. Do NOT `git pull --ff-only` blindly — you have local commits.
+⚠️ PHASES 2, 3 AND 4 WERE PUSHED ON 2026-08-27 AND ARE NOW LIVE IN PRODUCTION.
+  That is a change from every previous session's assumption. Confirm before
+  doing anything:
+    git log --oneline origin/main..HEAD    # expect 0 — everything is pushed
+    git status --porcelain                 # expect clean
+  If that is NOT 0, something went wrong; read the log before continuing.
+  The Directus schema fields (hoa_member_units.member_type,
+  hoa_invitations.unit) were already live before the push, so prod is
+  consistent. Do NOT re-run the schema scripts.
 
 DONE, do not redo:
 - The directus_files hole is CLOSED on production (public grant filtered to
   `type _starts_with image/`; everything else via /api/directus/assets/:id).
 - The AI notices cron is CONFIRMED FIRING. Closed.
-- The 4 flaky org-scope tests are FIXED.
 - `audit:public-policy` IS IN CI — daily 06:17 UTC + push-to-main + dispatch.
   ⚠️ It is a DETECTOR, not a gate — Vercel deploys independently of Actions.
 - `subscription_plans` is REVIEWED and CLEAN. Only the NARROWINGS remain.
 - 1033 Lenox is DOMAIN-VERIFIED, but NO TRAFFIC MOVED — the apex is still
   76.76.21.21. Step 4 (the Vercel project move) is PETER'S. Do not chase it.
-- MEMBER MANAGEMENT PHASES 1, 2, 3 and 4 ARE ALL SHIPPED (local). Read the
-  plan's Phase sections rather than re-deriving any of them. In brief:
+- MEMBER MANAGEMENT PHASES 1-4 ARE ALL SHIPPED AND DEPLOYED. Read the plan's
+  Phase sections rather than re-deriving any of them. In brief:
   * Phase 1 — invitations carry residency.
   * Phase 2 — residencyFor()/resolveResidency()/RESIDENCY_UNIT_FIELDS in
     core/shared/members/residency.ts; ALL mail-deciding readers migrated;
     PROVEN A NO-OP across all 136 real members and all 7 orgs.
   * Phase 3 — MembersPage "Show" filter, Archive/Restore, Status column,
     unlinked-member alert, assign.post.ts upsert, PeopleGlance migrated.
-  * Phase 4 — core/shared/members/invitability.ts (inviteGateFor,
-    invitableMembers); invite-member gates on MEMBERSHIP not on having an
-    account; accept-invitation ADOPTS an existing member row instead of
-    creating a second; the invite form names the refusal and offers Restore.
-    VERIFIED: 100 decisions changed across 136 real members, 0 regressions,
-    1033 Lenox = 58 ALLOW / 27 archived / 1 onboarded.
-- Test baseline is 1553 across 88 files (was 1533/87 before Phase 4).
+  * Phase 4 — core/shared/members/invitability.ts; invite-member gates on
+    MEMBERSHIP not on having an account; accept-invitation ADOPTS an existing
+    member row instead of creating a second; the invite form names the refusal
+    and offers Restore. 100 decisions changed across 136 real members,
+    0 regressions, 1033 Lenox = 58 ALLOW / 27 archived / 1 onboarded.
+  * The demo guardrail now lives INSIDE sendHoaInvitationEmail and
+    sendInvitationAcceptedEmail, and resend-invitation.post.ts requires
+    requireAdminAccess before it rotates a token.
+- Test baseline is 1553 across 88 files.
 
 ⚠️⚠️ THE SINGLE MOST IMPORTANT THING IN THIS WORKSTREAM — two ORTHOGONAL axes.
   `hoa_members.status = active` means AN ACTIVE MEMBER OF THE COMMUNITY (a
@@ -536,33 +573,53 @@ DONE, do not redo:
 
 FIRST, orientation:
 
-  git log --oneline origin/main..HEAD   # expect 19 — local, undeployed
+  git log --oneline origin/main..HEAD   # expect 0 — Phases 2-4 are deployed
   dig +short 1033lenox.com A            # 76.76.21.21 = still old
   pnpm run audit:public-policy          # green, 3 grants, files "filtered"
   pnpm test                             # 1553/1553 across 88 files
 
-Then, the work — PHASE 5 is what is left of this workstream:
-  - Roster gaps: 1033 Lenox has 3 active members with `member_type: null` and 4
-    with no unit link; 605 Lincoln Road has 31 active members with no link.
-    Closed through Phase 3's UI, not a script — it needs someone who knows which
-    resident is in which unit.
-  - Portal-onboarding visibility in the members list: has an account / invited,
-    not accepted / not yet invited. Derived from `hoa_members.user` and
-    `hoa_invitations.invitation_status`. ⚠️ It must NEVER touch membership
-    status — that is the whole point of the two axes.
+Then, the work — PHASE 5, the last phase of this workstream. It has TWO halves
+and they are independent; do the second one first if you want a clean win.
+
+  5a. PORTAL-ONBOARDING VISIBILITY (build this; it is self-contained)
+    Add an onboarding indicator to the members list: "has an account" /
+    "invited, not accepted" / "not yet invited". Derived from
+    `hoa_members.user` and `hoa_invitations.invitation_status`, joined on
+    (email, organization).
+    ⚠️ It must NEVER touch `hoa_members.status`. That is the whole point of the
+    two axes, and it is what lets management answer "which of my active owners
+    is still not on the portal?" without demoting anyone.
+    The Account column already exists in MembersPage.vue and answers only the
+    binary "has a user". This replaces it with the three-state answer.
+    Note `hoa_invitations` currently holds exactly ONE row (canceled, 605), so
+    the "invited" state will be empty until the 58-batch goes out — build it
+    against a seeded fixture or the demo org, not by waiting for real data.
+
+  5b. THE ROSTER GAPS (mostly NOT code — ask Peter before touching data)
+    - 1033 Lenox: 3 active members with `member_type: null`, 4 with no unit
+      link, and all 55 existing links carry `member_type: null` so everyone
+      still resolves through the fallback. Phase 3's UI fills these in.
+    - 605 Lincoln Road: 31 active members with no unit link. ⚠️ READ THE
+      OPERATOR TODO ON 605 BEFORE PROPOSING ANYTHING HERE. 605 is a COMMERCIAL
+      HOA. Its 33 "members" are mostly LLCs entered by Jay, the property
+      manager, as RECIPIENTS FOR THE EMAIL BUILDER — one row per unit, with the
+      unit number inside the `company` string, only 7 rows carrying a personal
+      name. Four entities own several units and so hold several rows; those are
+      NOT duplicates and MUST NOT be deleted — doing so would erase the only
+      record of who owns units 230/303/410/270/800 AND silently shrink Jay's
+      notice audiences. The org has only 2 `hoa_units` rows for ~26 units named
+      in company strings, so the units must be created before any consolidation
+      is even possible, and the strings are ambiguous enough
+      (`601 Lincoln RD 501 Holdings LLC`) that this needs Jay or Peter rather
+      than a parser.
 
 Also still open (ask Peter which, do not do all):
   - PROPERTY MANAGER CANNOT READ hoa_member_units. Client queries run on the
     USER'S OWN token, so a PM's composer/audience counts fall back to
-    member_type while the actual send resolves through the link. Identical
-    today; they diverge the moment links carry residency. Production permission
+    member_type while the actual send resolves through the link. THIS IS NOW
+    MORE THAN THEORETICAL: Jay is a real property manager on 605, and 605 is
+    exactly the org whose links are about to be created. Production permission
     change — Peter's call.
-  - `sendInvitationAcceptedEmail` BYPASSES THE DEMO GUARDRAIL — no
-    organizationId, calls initSendGrid() directly, so accepting a demo-org
-    invitation mails the inviter for real. Live-mail behaviour change.
-  - `resend-invitation.post.ts` HAS NO AUTHZ CHECK — session only, then it
-    rotates the token and re-sends. Production authz change.
-  - 605 Lincoln Road has 5 DUPLICATE member rows (4 email groups, one 3 deep).
   - `subscription_plans` ROW FILTER — safe, recommended. Apply
     {status:{_eq:"published"},is_active:{_eq:true}} to the public grant AND add
     the same filter to ALLOWED in scripts/audit-public-policy.ts in the SAME
@@ -573,10 +630,10 @@ Also still open (ask Peter which, do not do all):
   - Stale comment in core/server/api/domains/verify.post.ts still claims
     verification "lets Caddy issue a cert via /api/domains/ask". No Caddy, and
     that is not a cert gate on Vercel. Comment only, 2 minutes.
-  - 1033's 55 unit links all carry member_type: null, so everyone still resolves
-    via the fallback. Phase 3's UI can now fill them in.
+  - The 29 remaining `member_type` readers — display/analytics only, none
+    decide mail. One at a time.
   - THE 58 RESIDENT INVITATIONS — gated on Peter's Vercel move, NOT ready.
-    ⚠️ Phase 4 is what makes this SENDABLE AT ALL: before it, every one of the
+    ⚠️ Phase 4 is what makes this sendable at all; before it, every one of the
     58 was refused as "already has a pending invitation".
     ⚠️ It is 58, not 85: 1033 has 86 members = 59 active + 27 archived, and 1
     active member already has an account. The 27 archived are FORMER RESIDENTS.
@@ -584,24 +641,34 @@ Also still open (ask Peter which, do not do all):
     recipient list as a file, and STOP. Second explicit yes before any send.
     ⚠️ Whichever host the admin is browsing is baked into those links, and they
     sit in inboxes permanently. Decide before/after the domain move deliberately.
-    ⚠️ Dedupe by email — invitableMembers() filters rows, not addresses.
+    ⚠️ Dedupe by email — invitableMembers() filters ROWS, not addresses.
 
-⚠️ AN INVITATION MAY NOW BE SENT TO AN EXISTING ACTIVE MEMBER, and
-accept-invitation ADOPTS that row rather than creating a second. Do not
-"simplify" the adoption branch back into an unconditional createItem: that
-would split all 58 of 1033's invitees in two, the original keeping the unit
-link and residency and the new row keeping the account. Adoption also uses
-normalizeResidency, NOT residencyOnAccept — the latter falls back to "owner"
-and would rewrite 1033's 22 tenants into owner-only mail audiences.
+⚠️ A ROW THAT LOOKS LIKE A DUPLICATE MAY BE A DIFFERENT UNIT. Before deleting
+any member row, read its `company` string and count what references it across
+the 19 collections that point at `hoa_members`. 605's five "duplicates" survived
+only because that check was run first.
+
+⚠️ AN INVITATION MAY BE SENT TO AN EXISTING ACTIVE MEMBER, and accept-invitation
+ADOPTS that row. Do not "simplify" the adoption branch back into an
+unconditional createItem: that splits all 58 of 1033's invitees in two, the
+original keeping the unit link and residency, the new row keeping the account.
+Adoption uses normalizeResidency, NOT residencyOnAccept — the latter falls back
+to "owner" and would rewrite 1033's 22 tenants into owner-only mail audiences.
+
+⚠️ THIS PROJECT COMPILES WITHOUT strictNullChecks, so TypeScript does NOT narrow
+a union discriminated on a boolean. Vitest never typechecks, so a bad
+`{allowed: true} | {allowed: false}` union passes every unit test and fails only
+in `nuxt typecheck` ten minutes later. Prefer one flat shape with nullable
+fields.
 
 ⚠️ DIRECTUS DOES NOT ENFORCE `choices`. Proved on production: a write of
 member_type "COMPLETE-GARBAGE" was ACCEPTED. Server-side normalization is the
 ONLY guard. Never drop it assuming the schema covers it.
 
 ⚠️ THE UNIT LINK'S `status` IS MEANINGLESS AS A FILTER. 79 of 81 real links are
-`draft` (migrate-1033.ts wrote them); only the 2 from member-units/assign.post.ts
-are `published`. residencyFor() deliberately ignores it. Anything that filters
-on it silently drops nearly every real residency.
+`draft` (migrate-1033.ts wrote them); only the ones from
+member-units/assign.post.ts are `published`. residencyFor() deliberately ignores
+it. Anything that filters on it silently drops nearly every real residency.
 
 ⚠️ DO NOT SEND TEST MAIL TO REAL MEMBERS. invite-member.post.ts SENDS via
 SendGrid. A write to `directus_notifications` EMAILS the recipient from inside
@@ -610,10 +677,11 @@ POST with dryRun:true. 1033 Lenox and 605 Lincoln are REAL orgs with real
 people. There are NO Directus flows on any collection (only 4 schedule/webhook
 flows), so a DIRECT Directus write to hoa_invitations is mail-safe — that is how
 Phases 1 and 2 were verified.
-⚠️ THE MAIL-SAFE WAY TO EXERCISE invite-member IS THE DEMO ORG (is_demo=true →
-shouldBlockDemoEmail suppresses the send; confirm it in the server log, do not
-assume it). A 409 branch is safe anywhere, because it throws before SendGrid.
-But accept-invitation is NOT demo-safe — see the guardrail TODO.
+⚠️ THE MAIL-SAFE WAY TO EXERCISE ANY INVITATION PATH IS THE DEMO ORG
+(is_demo=true). As of 2026-08-27 the guard is INSIDE the senders, so invite,
+resend AND accept are all suppressed there — but confirm it in the server log
+rather than assuming. A 409 branch is safe against any org, because it throws
+before SendGrid.
 
 ⚠️ IMAGES ARE STILL ANONYMOUSLY READABLE ACROSS ALL ORGS. Accepted residual of
 the type-filter design, not a bug to re-fix. Do not start without Peter. And do
@@ -651,27 +719,28 @@ Quality gate per commit: typecheck 0, vitest 1553/1553 (88 files), build green,
 hairline audit green at BASELINE 0 (it BLOCKS commits via husky). Do NOT run
 `pnpm build` and `pnpm typecheck` concurrently, and stop the dev server before
 either — they corrupt each other's `.nuxt` cache. Both take >10min; background
-them.
+them and wait on ONE marker.
 
 Verify against real data, not fixtures — every real bug in the last seven
-sessions was found that way and none by unit tests. Phase 4's find (the
-duplicate-member split) came from READING accept-invitation while planning, and
-was confirmed by a production query showing 605 Lincoln already holds duplicate
-rows. The highest-value check in this workstream is a BEFORE/AFTER DIFF OF THE
-ACTUAL DECISION OR RECIPIENT SET across all 7 orgs; that is what proved Phases 2
-and 4 safe. Use your own dev server (preview_start, never Bash) — a session
-already exists in the in-app browser, no login needed, and
+sessions was found that way and none by unit tests. Phase 4's biggest find (a
+duplicate-member split that would have torn all 58 invitees in half) came from
+READING accept-invitation while planning; the 605 find came from looking at the
+actual rows before deleting them. The highest-value check in this workstream is
+a BEFORE/AFTER DIFF OF THE ACTUAL DECISION OR RECIPIENT SET across all 7 orgs.
+Use your own dev server (preview_start, never Bash) — a session already exists
+in the in-app browser, no login needed, and
 ⚠️ THAT SESSION IS peter@huestudios.com WITH THE APP ADMINISTRATOR ROLE, so
 requireAdminAccess passes for EVERY org including the real ones. The SELECTED
 ORG IS 1033 LENOX regardless of the slug in the URL.
-⚠️ Port 3000 held a hung node process; preview_start's autoPort moved to another
-port. Cookies ignore the port, so the session still applies.
-Browser-pane SCREENSHOTS AND read_page BOTH FAIL on the dev server tab (viewport
-reports 0x0) — verify headlessly with javascript_tool, which works fine, or with
-curl. Browsing writes hoa_activity rows; cookie-less curl and API calls do not.
-Delete every row you create and re-check the counts: demo 462, demo-classic 13
-(demo-classic is a CONTROL, never write to it), 1033 Lenox 285, hoa_invitations
-1, hoa_member_units 81 with 0 carrying a residency, hoa_members 136.
+⚠️ Port 3000 may hold a hung node process; preview_start's autoPort moves to
+another port. Cookies ignore the port, so the session still applies.
+⚠️ Browser-pane SCREENSHOTS AND read_page BOTH FAIL on the dev server tab
+(viewport reports 0x0). javascript_tool works fine — drive the DOM and fetch
+with it, or use curl. Browsing writes hoa_activity rows; cookie-less curl and
+API calls do not. Delete every row you create and re-check the counts:
+demo 462, demo-classic 13 (demo-classic is a CONTROL, never write to it),
+1033 Lenox 285, hoa_invitations 1, hoa_member_units 81 with 0 carrying a
+residency, hoa_members 136.
 
 When done: update the plan's phase status and Operator TODOs, and ask before
 pushing.
