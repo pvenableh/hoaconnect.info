@@ -101,7 +101,9 @@ export default defineEventHandler(async (event) => {
       // outcome this refuses to produce.
       throw createError({
         statusCode: 409,
-        message: gate.message,
+        // A blocked decision always carries a message; the fallback exists
+        // because `message` is nullable on the flat InviteDecision shape.
+        message: gate.message || "This email cannot be invited to this organization.",
         data: {
           code: gate.code,
           memberStatus: gate.status,

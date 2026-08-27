@@ -56,25 +56,45 @@ export interface InviteRestoreTarget {
   currentStatus: string;
 }
 
-export type InviteDecision =
-  | {
-      allowed: true;
-      /**
-       * The existing ACTIVE member this invitation onboards, when there is one.
-       * Null means a genuinely new person. `accept-invitation` adopts this row
-       * rather than creating a second member for the same email.
-       */
-      member: InvitableMember | null;
-    }
-  | {
-      allowed: false;
-      code: InviteBlockCode;
-      /** The membership status that blocked it, named so the message can say why. */
-      status: string | null;
-      message: string;
-      /** Non-null when a human could unblock this by making the member active. */
-      restore: InviteRestoreTarget | null;
-    };
+/**
+ * Deliberately ONE flat shape rather than a discriminated union on `allowed`.
+ * This project compiles without `strictNullChecks`, and TypeScript does not
+ * narrow a boolean-discriminated union in that mode — `if (!decision.allowed)`
+ * leaves every block-only field an error at the call site. Vitest never
+ * typechecks, so only `nuxt typecheck` sees it. Every field is always present;
+ * the block-only ones are null when `allowed` is true.
+ */
+export interface InviteDecision {
+  allowed: boolean;
+  /**
+   * The existing ACTIVE member this invitation onboards, when there is one.
+   * Null means a genuinely new person — or a refusal. `accept-invitation`
+   * adopts this row rather than creating a second member for the same email.
+   */
+  member: InvitableMember | null;
+  code: InviteBlockCode | null;
+  /** The membership status that blocked it, named so the message can say why. */
+  status: string | null;
+  message: string | null;
+  /** Non-null when a human could unblock this by making the member active. */
+  restore: InviteRestoreTarget | null;
+}
+
+const allow = (member: InvitableMember | null): InviteDecision => ({
+  allowed: true,
+  member,
+  code: null,
+  status: null,
+  message: null,
+  restore: null,
+});
+
+const block = (
+  code: InviteBlockCode,
+  status: string | null,
+  message: string,
+  restore: InviteRestoreTarget | null
+): InviteDecision => ({ allowed: false, member: null, code, status, message, restore });
 
 const nameOf = (m: InvitableMember): string =>
   `${m.first_name || ""} ${m.last_name || ""}`.trim() || "This email";
@@ -136,21 +156,20 @@ export function invitableMembers<T extends InvitableMember>(members: readonly T[
  */
 export function inviteGateFor(matches: readonly InvitableMember[]): InviteDecision {
   const rows = (matches || []).filter(Boolean);
-  if (rows.length === 0) return { allowed: true, member: null };
+  if (rows.length === 0) return allow(null);
 
   const onboarded = rows.find(hasAccount);
   if (onboarded) {
-    return {
-      allowed: false,
-      code: "member_already_onboarded",
-      status: statusOf(onboarded),
-      message: `${nameOf(onboarded)} is already a member of this organization and already has a portal account.`,
-      restore: null,
-    };
+    return block(
+      "member_already_onboarded",
+      statusOf(onboarded),
+      `${nameOf(onboarded)} is already a member of this organization and already has a portal account.`,
+      null
+    );
   }
 
   const active = rows.find((m) => isInvitableStatus(m.status));
-  if (active) return { allowed: true, member: active };
+  if (active) return allow(active);
 
   const archived = rows.find((m) => m.status === "archived");
   const blocker = archived ?? rows[0]!;
@@ -159,24 +178,20 @@ export function inviteGateFor(matches: readonly InvitableMember[]): InviteDecisi
     : null;
 
   if (archived) {
-    return {
-      allowed: false,
-      code: "member_archived",
-      status: "archived",
-      message:
-        `${nameOf(archived)} is an archived former resident of this organization, not a current member. ` +
+    return block(
+      "member_archived",
+      "archived",
+      `${nameOf(archived)} is an archived former resident of this organization, not a current member. ` +
         `Restore them first if they have moved back — sending an invitation will not, and should not, do it for you.`,
-      restore,
-    };
+      restore
+    );
   }
 
-  return {
-    allowed: false,
-    code: "member_not_active",
-    status: statusOf(blocker),
-    message:
-      `${nameOf(blocker)}'s membership status is "${statusOf(blocker)}", not active. ` +
+  return block(
+    "member_not_active",
+    statusOf(blocker),
+    `${nameOf(blocker)}'s membership status is "${statusOf(blocker)}", not active. ` +
       `Only active members can be invited. Set their status to Active first if they are a current resident.`,
-    restore,
-  };
+    restore
+  );
 }

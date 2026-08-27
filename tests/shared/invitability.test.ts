@@ -76,7 +76,12 @@ describe("invitableMembers", () => {
 
 describe("inviteGateFor", () => {
   it("allows an email nobody in the org holds", () => {
-    expect(inviteGateFor([])).toEqual({ allowed: true, member: null });
+    expect(inviteGateFor([])).toMatchObject({
+      allowed: true,
+      member: null,
+      code: null,
+      restore: null,
+    });
   });
 
   it("allows an ACTIVE member with no account, and names the row to adopt", () => {
@@ -85,25 +90,23 @@ describe("inviteGateFor", () => {
     expect(decision.allowed).toBe(true);
     // The row matters: accept-invitation adopts it instead of creating a second
     // member for the same email.
-    expect(decision.allowed && decision.member?.id).toBe("existing");
+    expect(decision.member?.id).toBe("existing");
   });
 
   it("blocks a member who already has an account", () => {
     const decision = inviteGateFor([member({ user: "user-uuid" })]);
     expect(decision.allowed).toBe(false);
-    if (decision.allowed) throw new Error("unreachable");
     expect(decision.code).toBe("member_already_onboarded");
-    expect(decision.message).toContain("already has a portal account");
+    expect(decision.message!).toContain("already has a portal account");
     expect(decision.restore).toBeNull();
   });
 
   it("blocks an ARCHIVED member, names the reason, and offers restore", () => {
     const decision = inviteGateFor([member({ id: "old", status: "archived" })]);
     expect(decision.allowed).toBe(false);
-    if (decision.allowed) throw new Error("unreachable");
     expect(decision.code).toBe("member_archived");
     expect(decision.status).toBe("archived");
-    expect(decision.message).toContain("archived former resident");
+    expect(decision.message!).toContain("archived former resident");
     expect(decision.restore).toEqual({
       memberId: "old",
       name: "Dana Reyes",
@@ -124,17 +127,15 @@ describe("inviteGateFor", () => {
     for (const status of ["inactive", "pending"]) {
       const decision = inviteGateFor([member({ status })]);
       expect(decision.allowed).toBe(false);
-      if (decision.allowed) throw new Error("unreachable");
-      expect(decision.code).toBe("member_not_active");
+        expect(decision.code).toBe("member_not_active");
       expect(decision.status).toBe(status);
-      expect(decision.message).toContain(`"${status}"`);
+      expect(decision.message!).toContain(`"${status}"`);
     }
   });
 
   it("blocks an unrecognised status rather than assuming it is safe", () => {
     const decision = inviteGateFor([member({ status: null })]);
     expect(decision.allowed).toBe(false);
-    if (decision.allowed) throw new Error("unreachable");
     expect(decision.code).toBe("member_not_active");
     expect(decision.status).toBe("unknown");
   });
@@ -144,8 +145,7 @@ describe("inviteGateFor", () => {
       member({ status: "archived", first_name: null, last_name: null }),
     ]);
     expect(decision.allowed).toBe(false);
-    if (decision.allowed) throw new Error("unreachable");
-    expect(decision.message.startsWith("This email")).toBe(true);
+    expect(decision.message!.startsWith("This email")).toBe(true);
   });
 
   // ── Duplicate (email, organization) rows are REAL — 605 Lincoln Road holds
@@ -158,8 +158,7 @@ describe("inviteGateFor", () => {
         member({ id: "b", status: "active", user: "user-uuid" }),
       ]);
       expect(decision.allowed).toBe(false);
-      if (decision.allowed) throw new Error("unreachable");
-      expect(decision.code).toBe("member_already_onboarded");
+        expect(decision.code).toBe("member_already_onboarded");
     });
 
     it("an active row wins over an archived one, in either order", () => {
@@ -170,7 +169,7 @@ describe("inviteGateFor", () => {
       for (const order of [rows, [...rows].reverse()]) {
         const decision = inviteGateFor(order);
         expect(decision.allowed).toBe(true);
-        expect(decision.allowed && decision.member?.id).toBe("now");
+        expect(decision.member?.id).toBe("now");
       }
     });
 
@@ -180,8 +179,7 @@ describe("inviteGateFor", () => {
         member({ id: "x", status: "archived" }),
       ]);
       expect(decision.allowed).toBe(false);
-      if (decision.allowed) throw new Error("unreachable");
-      expect(decision.code).toBe("member_archived");
+        expect(decision.code).toBe("member_archived");
       expect(decision.restore?.memberId).toBe("x");
     });
   });
@@ -189,7 +187,6 @@ describe("inviteGateFor", () => {
   it("has no restore target when the blocking row has no id", () => {
     const decision = inviteGateFor([member({ id: null, status: "archived" })]);
     expect(decision.allowed).toBe(false);
-    if (decision.allowed) throw new Error("unreachable");
     expect(decision.restore).toBeNull();
   });
 });
