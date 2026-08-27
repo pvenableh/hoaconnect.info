@@ -7,6 +7,7 @@ import {
   type ManagerGrants,
 } from "#core/shared/transition/grants";
 import { normalizeResidency, isKnownNonResidency } from "#core/shared/members/residency";
+import { inviteGateFor } from "#core/shared/members/invitability";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -68,25 +69,44 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
 
-    // Check if email already exists as a member in this organization
+    // Is this email allowed an invitation to this organization?
+    //
+    // ⚠️ Gated on MEMBERSHIP (`status`), not on having an account. This block
+    // used to 409 every existing member, and when the member had no `user` it
+    // said "This email already has a pending invitation" — reading an absent
+    // ACCOUNT and reporting an absent INVITATION. That single sentence is the
+    // axis confusion this workstream exists to fix, and it also made the
+    // onboarding batch unsendable: 58 of 1033 Lenox's 59 active members ARE
+    // existing rows with no account, and they are exactly who to invite.
+    //
+    // EVERY match is fetched, not the first: duplicate (email, organization)
+    // rows are real — 605 Lincoln Road holds four such groups, one of them
+    // three rows deep — so `limit: 1` would let the answer depend on sort order.
     const existingMembers = await directus.request(
       readItems("hoa_members", {
         filter: {
           email: { _eq: normalizedEmail },
           organization: { _eq: organizationId },
         },
-        fields: ["id", "status", "user"],
-        limit: 1,
+        fields: ["id", "status", "user", "first_name", "last_name"],
+        limit: -1,
       })
     );
 
-    const existingMember = existingMembers?.[0];
-    if (existingMember) {
+    const gate = inviteGateFor(existingMembers || []);
+    if (!gate.allowed) {
+      // The reason is NAMED, and an archived match carries a restore target so
+      // the client can offer the action. It is never taken here: restoring a
+      // former resident because someone mistyped an email is precisely the
+      // outcome this refuses to produce.
       throw createError({
         statusCode: 409,
-        message: existingMember.user
-          ? "This email is already a member of this organization"
-          : "This email already has a pending invitation for this organization",
+        message: gate.message,
+        data: {
+          code: gate.code,
+          memberStatus: gate.status,
+          restore: gate.restore,
+        },
       });
     }
 
