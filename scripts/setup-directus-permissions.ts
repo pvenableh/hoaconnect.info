@@ -112,6 +112,15 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     collection: "hoa_member_units",
     adminLevel: "full",
     memberLevel: "member_specific", // Members can update their own unit assignments
+    // A PM READS the junction — it is where residency lives since Phase 2, and
+    // a client query runs on the USER'S OWN token. Without this, a manager's
+    // composer and audience counts fell back to hoa_members.member_type while
+    // the actual send (static admin token) resolved through the link, so the
+    // two disagree the moment a link carries a residency. Read-only, and
+    // scoped exactly like the HOA Member's existing grant on this collection —
+    // an ordinary resident already reads their org's links, so this is
+    // consistency, not a widening.
+    pmLevel: "read_only",
     filterType: "none", // Filtered through member -> organization
     description: "Member-unit relationships",
   },

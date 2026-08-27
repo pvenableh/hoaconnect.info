@@ -476,14 +476,46 @@ in the wrong order would drop entities out of Jay's mail audiences.
 
 ## Operator TODOs
 
-- [ ] **Decide whether Property Manager should read `hoa_member_units`.**
-      It cannot today, so a PM's composer and audience counts fall back to
+- [x] **Property Manager now reads `hoa_member_units`.** ✅ 2026-08-27.
+      Applied to production as a single read grant on the Property Manager
+      policy, scoped
+      `{member_id: {organization: {_in: "$CURRENT_USER.hoa_members.organization"}}}`
+      — byte-identical to the HOA Admin and HOA Member read grants that already
+      exist on this collection, and read-only: the policy still has no create,
+      update or delete there. Confirmed by re-running
+      `pnpm run setup:permissions:audit`, which now reports the collection at
+      `Level: read_only` for that role with nothing to create or update.
+      `scripts/setup-directus-permissions.ts` declares it in the same commit
+      (`pmLevel: "read_only"`), so the live grant and the declaration cannot
+      drift — running the apply script would otherwise have silently removed it.
+
+      **Why it mattered:** a client query runs on the USER'S OWN token, so a
+      manager's composer and audience counts fell back to
       `hoa_members.member_type` while the actual send (static admin token)
-      resolves through the link. Identical today — the resolver is a proven
-      no-op — but they diverge the moment links start carrying residency. It is
-      a production permission change, so it is Peter's call, not a silent fix.
-      A PM already reads `hoa_members` and `hoa_units`, so granting it is
-      consistent rather than a widening of scope.
+      resolved through the link. Identical while no link carries a residency —
+      which is still true of all 81 — but they diverge the moment 605's links
+      are created. And an unreadable NESTED relation is silently omitted with a
+      200, so the divergence would have shown up as a WRONG AUDIENCE COUNT, not
+      an error.
+
+      ⚠️ **The urgency framing was wrong, and the correction is worth keeping.**
+      *Jay does not hold the Property Manager role.* He is on the **app
+      Administrator role** (`c4903b32-…`), so he already reads every
+      collection in every organization — including all 86 of 1033 Lenox's
+      members, an org he has nothing to do with. **No user holds the Property
+      Manager role at all**, so this grant was preventative, not remedial: it
+      makes the role correct *before* anyone is moved onto it. See the new TODO
+      below.
+- [ ] **Peter — decide whether Jay should be an app Administrator.**
+      Three users hold that role: Peter, Jay, and one account with no email
+      address (last access never — presumably the static-token service user).
+      Jay is external management staff for 605 Lincoln Road, and the Property
+      Manager role exists precisely for that shape of access. Moving him is a
+      production access change that could break workflows he uses daily (the
+      email builder is his), so it is not a silent fix — but the PM policy is
+      now complete enough to receive him. ⚠️ `scripts/audit-admin-roles.ts`
+      does NOT cover this: it audits the **HOA Admin** role only (3 holders,
+      all legitimate) and never looks at the app Administrator role.
 - [ ] **Fill in the residency on 1033 Lenox's 56 unit links.** They exist but
       all carry `member_type: null`, so every one of those members still
       resolves through the fallback. Re-measured 2026-08-27: **0 of the 81
@@ -590,6 +622,16 @@ in the wrong order would drop entities out of Jay's mail audiences.
   them, so a long-dead invitation still reads `pending`. Both are handled in
   `core/shared/members/onboarding.ts`; anything else reading this field needs
   the same care.
+- ⚠️ **`scripts/setup-directus-permissions.ts` is the DECLARATION, and it
+  removes what it does not declare.** A permission applied by hand to
+  production and not written into `COLLECTION_CONFIGS` is deleted the next time
+  anyone runs `pnpm run setup:permissions` — the audit prints it as
+  *"Would remove"*. Land the hand write and the config entry in the same
+  commit, then re-run `setup:permissions:audit` to confirm they agree.
+  And never run the APPLY to land one grant: it rewrites every role's every
+  collection, and the audit currently reports 3 pre-existing drifts on
+  `hoa_channel_messages` / `hoa_channel_mentions` that an apply would silently
+  rewrite in the same breath.
 - ⚠️ **The dev-server browser session can only open 1033 Lenox and 605 Lincoln
   Road.** `peter@huestudios.com` holds `hoa_members` rows in exactly those two
   orgs, and the members page renders *"No Organization Found"* for any other —
@@ -672,6 +714,20 @@ DONE, do not redo:
   * The demo guardrail lives INSIDE sendHoaInvitationEmail and
     sendInvitationAcceptedEmail, and resend-invitation.post.ts requires
     requireAdminAccess before it rotates a token.
+- THE PROPERTY MANAGER POLICY NOW READS hoa_member_units (2026-08-27), scoped
+  member_id.organization exactly like the HOA Admin and HOA Member grants that
+  were already there, read-only. Declared in
+  scripts/setup-directus-permissions.ts as pmLevel: "read_only" IN THE SAME
+  COMMIT.
+  ⚠️ THAT SCRIPT IS THE DECLARATION AND IT REMOVES WHAT IT DOES NOT DECLARE.
+  A permission applied by hand and not written into COLLECTION_CONFIGS is
+  deleted the next time anyone runs `pnpm run setup:permissions` — the audit
+  prints it as "Would remove". Always land the hand write and the config entry
+  together, and re-run `setup:permissions:audit` to confirm they agree.
+  ⚠️ NEVER run the APPLY (`pnpm run setup:permissions`) to land one grant.
+  It rewrites every role's every collection; the audit currently reports 3
+  pre-existing drifts on hoa_channel_messages/hoa_channel_mentions that an
+  apply would silently "fix" in the same breath.
 - Test baseline is 1575 across 89 files.
 
 ⚠️⚠️ THE SINGLE MOST IMPORTANT THING IN THIS WORKSTREAM — two ORTHOGONAL axes.
@@ -706,11 +762,14 @@ Then, the work — ASK PETER WHICH, do not do all of these:
       (`601 Lincoln RD 501 Holdings LLC`) that this needs Jay or Peter rather
       than a parser.
 
-  - PROPERTY MANAGER CANNOT READ hoa_member_units. Client queries run on the
-    USER'S OWN token, so a PM's composer/audience counts fall back to
-    member_type while the actual send resolves through the link. Jay is a real
-    property manager on 605, and 605 is exactly the org whose links are about
-    to be created. Production permission change — Peter's call.
+  - PETER — IS JAY SUPPOSED TO BE AN APP ADMINISTRATOR? He is on the app
+    Administrator role, not the Property Manager role, so he reads every
+    collection in EVERY org — including all 86 of 1033 Lenox's members, an org
+    he has nothing to do with. NO user holds the Property Manager role at all.
+    Moving him is a production access change that could break the email builder
+    he uses daily, so it needs Peter, not a silent fix.
+    ⚠️ scripts/audit-admin-roles.ts does NOT cover this — it audits the HOA
+    Admin role only and never looks at the app Administrator role.
   - `subscription_plans` ROW FILTER — safe, recommended. Apply
     {status:{_eq:"published"},is_active:{_eq:true}} to the public grant AND add
     the same filter to ALLOWED in scripts/audit-public-policy.ts in the SAME
