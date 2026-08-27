@@ -50,6 +50,11 @@ const POLICIES = {
 type PermissionLevel =
   | "full"
   | "read_create_update"
+  // Read everything in scope + create, but never edit or delete afterwards.
+  // Channel mentions are the case: a member creates one by @-mentioning
+  // someone in a message they are posting, and must not be able to rewrite or
+  // remove a mention once it exists.
+  | "read_create"
   | "read_only"
   // Read-only scoped to member_visible projects, budget/cost fields stripped.
   // Project-management collections only (hoa_projects/events/tasks). Members
@@ -192,7 +197,12 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
   {
     collection: "hoa_channel_mentions",
     adminLevel: "full",
-    memberLevel: "read_only",
+    // A member CREATES a mention every time they @-mention someone in a
+    // message they post, so read_only here does not describe the product.
+    // Production has carried the create grant by hand; declaring it is what
+    // stops the next `setup:permissions` run from removing it and silently
+    // breaking @-mentions for every non-admin.
+    memberLevel: "read_create",
     filterType: "channel",
     description: "Message mentions",
   },
@@ -853,6 +863,22 @@ function buildPermissionsForLevel(
     junctionFilter ||
     effectiveFilter;
 
+  // ⚠️ POSTING into a channel is gated on MEMBERSHIP OF THAT CHANNEL, not on
+  // sharing an organization with it. The org filter is right for read, update
+  // and delete — an admin moderates their org — but using it on CREATE would
+  // let anyone write into any channel in their organization, private ones
+  // included. Production has always had the membership form here; the generic
+  // `validation: filter` this replaces was the escalation, and the audit
+  // reported it as ordinary drift on both the HOA Admin and HOA Member
+  // policies for two collections.
+  const CHANNEL_MEMBERSHIP_CREATE = new Set([
+    "hoa_channel_messages",
+    "hoa_channel_mentions",
+  ]);
+  const createValidation = CHANNEL_MEMBERSHIP_CREATE.has(collection)
+    ? { channel: { _in: "$CURRENT_USER.channel_memberships.channel" } }
+    : filter;
+
   switch (level) {
     case "read_only":
       permissions.push({
@@ -904,6 +930,28 @@ function buildPermissionsForLevel(
       break;
     }
 
+    case "read_create":
+      // Read everything in scope, and create — but never update or delete.
+      permissions.push(
+        {
+          policy: policyId,
+          collection,
+          action: "read",
+          permissions: filter || {},
+          validation: null,
+          fields: ["*"],
+        },
+        {
+          policy: policyId,
+          collection,
+          action: "create",
+          permissions: {},
+          validation: createValidation,
+          fields: ["*"],
+        }
+      );
+      break;
+
     case "read_create_update":
       // Like "full" but without delete — the safe ceiling for operational
       // collections a manager works in.
@@ -921,7 +969,7 @@ function buildPermissionsForLevel(
           collection,
           action: "create",
           permissions: {},
-          validation: filter,
+          validation: createValidation,
           fields: ["*"],
         },
         {
@@ -982,7 +1030,7 @@ function buildPermissionsForLevel(
           collection,
           action: "create",
           permissions: {},
-          validation: filter,
+          validation: createValidation,
           fields: ["*"],
         },
         {

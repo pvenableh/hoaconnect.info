@@ -443,7 +443,11 @@ asked" rather than silently as "never invited".
   `hoa_member_units` 81 with 0 carrying residency, `hoa_activity` 1033 Lenox
   **285** · demo **462** · demo-classic **13** · 605 **65**.
 
-#### Phase 5b — the roster gaps *(open — data, not code)*
+#### Phase 5b — the roster gaps *(Peter and Jay are handling these)*
+
+⚠️ **Peter, 2026-08-27: he and Jay will close these themselves** through
+Phase 3's UI. The measurements below are context for reading the app, not a
+task list — do not propose scripts, backfills or consolidations for them.
 
 Re-measured 2026-08-27, and the numbers differ slightly from the first pass:
 
@@ -506,16 +510,72 @@ in the wrong order would drop entities out of Jay's mail audiences.
       Manager role at all**, so this grant was preventative, not remedial: it
       makes the role correct *before* anyone is moved onto it. See the new TODO
       below.
-- [ ] **Peter — decide whether Jay should be an app Administrator.**
-      Three users hold that role: Peter, Jay, and one account with no email
-      address (last access never — presumably the static-token service user).
-      Jay is external management staff for 605 Lincoln Road, and the Property
-      Manager role exists precisely for that shape of access. Moving him is a
-      production access change that could break workflows he uses daily (the
-      email builder is his), so it is not a silent fix — but the PM policy is
-      now complete enough to receive him. ⚠️ `scripts/audit-admin-roles.ts`
-      does NOT cover this: it audits the **HOA Admin** role only (3 holders,
-      all legitimate) and never looks at the app Administrator role.
+- [x] **Jay is an HOA Admin of 605 Lincoln Road, not an app Administrator.**
+      ✅ 2026-08-27, on Peter's instruction.
+
+      His MEMBERSHIP already said exactly this and needed no change:
+      `hoa_members` row `54cdd8c3-…` in 605 Lincoln Road, `status: active`,
+      `role: 38494e81-…` (HOA Admin), `member_type: "owner"`. Only his Directus
+      ACCOUNT was wrong.
+
+      ⚠️ **Two grants, not one — the role alone would have changed nothing.**
+      Directus unions the policies attached to a user's ROLE with those
+      attached to the USER directly, and Jay held the Administrator policy
+      (`3a0168f9-…`, `admin_access: true`) through a personal `directus_access`
+      row. Flipping `directus_users.role` and stopping there would have left
+      him a full superuser through the back door.
+
+      1. `directus_users.role` → `38494e81-…` (HOA Admin)
+      2. `directus_access` row `a389c6bf-…` (user → Administrator policy)
+         DELETED
+
+      Verified after: his `/access` rows are empty, so no `admin_access` path
+      remains; the app Administrator role now holds only Peter and the
+      emailless service account.
+
+      **What he keeps.** `checkAdminAccess` falls through from the app-admin
+      check to the member check and reads `hoa_members.role` for the org, which
+      is already HOA Admin — so he is still a full admin *of 605* in the app.
+      The HOA Admin policy has `app_access: true`, and every email endpoint
+      (`send`, `assemble`, `test`) requires only a session, so the email
+      builder — his daily tool — is unaffected. No component passes
+      `requireAppAdmin`, so nothing in the UI was app-admin-only.
+
+      **What he loses**, which was the point: read access to every other
+      organization. His Directus scope is now
+      `$CURRENT_USER.hoa_members.organization` = 605 alone, where before he
+      could read all 86 of 1033 Lenox's members.
+
+      *(Revert, if ever needed: PATCH the user's role back to
+      `c4903b32-…` and POST `/access {user, policy: 3a0168f9-…}`.)*
+- [x] **The two channel-permission drifts are closed — the DECLARATION was
+      the wrong side, not production.** ✅ 2026-08-27. **No permission was
+      written to production.**
+
+      `hoa_channel_messages` and `hoa_channel_mentions` both validate CREATE
+      against `{channel: {_in: "$CURRENT_USER.channel_memberships.channel"}}`
+      — you may post only into a channel you are a MEMBER of. The config would
+      have generated the generic `validation: filter`, i.e. the org filter:
+      **any member could post into any channel in their organization, private
+      ones included.** Applying the declaration would have been a privilege
+      escalation, and the audit reported it as ordinary drift.
+
+      The fourth item was `hoa_channel_mentions` at `memberLevel: "read_only"`,
+      which would have REMOVED the members' create grant — a member creates a
+      mention every time they @-mention someone, so an apply would have
+      silently broken @-mentions for every non-admin.
+
+      Fixed by correcting the declaration to describe production:
+      a `CHANNEL_MEMBERSHIP_CREATE` override that puts the membership form on
+      the CREATE action for both collections (read, update and delete keep the
+      org filter — an admin moderates their org), and a new `read_create`
+      level for the mentions member grant.
+
+      `pnpm run setup:permissions:audit` now reports **create 0 · update 0 ·
+      remove 0** across every role and every collection, so the declaration
+      reproduces live production exactly. `$CURRENT_USER.channel_memberships`
+      was confirmed to be a real o2m alias on `directus_users` →
+      `hoa_channel_members.user` before being written into the script.
 - [ ] **Fill in the residency on 1033 Lenox's 56 unit links.** They exist but
       all carry `member_type: null`, so every one of those members still
       resolves through the fallback. Re-measured 2026-08-27: **0 of the 81
@@ -622,6 +682,18 @@ in the wrong order would drop entities out of Jay's mail audiences.
   them, so a long-dead invitation still reads `pending`. Both are handled in
   `core/shared/members/onboarding.ts`; anything else reading this field needs
   the same care.
+- ⚠️ **When the permissions audit reports drift, work out WHICH SIDE IS
+  WRONG before "fixing" it.** Both channel drifts closed on 2026-08-27 turned
+  out to be the DECLARATION being wrong, not production: applying it would
+  have let any member post into any channel in their org (private ones
+  included) and would have removed the members' create grant on
+  `hoa_channel_mentions`, silently breaking @-mentions. Drift is a
+  disagreement, not a diagnosis.
+- ⚠️ **Directus unions ROLE policies with USER policies.** Changing
+  `directus_users.role` does NOT remove access granted by a personal
+  `directus_access` row. Jay held `admin_access` through exactly such a row;
+  the role change alone would have left him a superuser through the back door.
+  Always check `/access?filter[user][_eq]=<id>` after changing anyone's role.
 - ⚠️ **`scripts/setup-directus-permissions.ts` is the DECLARATION, and it
   removes what it does not declare.** A permission applied by hand to
   production and not written into `COLLECTION_CONFIGS` is deleted the next time
@@ -728,6 +800,16 @@ DONE, do not redo:
   It rewrites every role's every collection; the audit currently reports 3
   pre-existing drifts on hoa_channel_messages/hoa_channel_mentions that an
   apply would silently "fix" in the same breath.
+- JAY IS AN HOA ADMIN OF 605 LINCOLN ROAD, NOT AN APP ADMINISTRATOR
+  (2026-08-27). His membership already said HOA Admin + owner + active and was
+  not touched; his Directus ACCOUNT was the thing that was wrong, and it took
+  TWO writes — the role AND a personal directus_access row granting the
+  Administrator policy. He keeps full admin of 605 and the email builder.
+  The app Administrator role now holds only Peter and the emailless service
+  account.
+- THE TWO CHANNEL-PERMISSION DRIFTS ARE CLOSED (2026-08-27) — by fixing the
+  DECLARATION, with NO write to production. `setup:permissions:audit` now
+  reports create 0 · update 0 · remove 0 across every role and collection.
 - Test baseline is 1575 across 89 files.
 
 ⚠️⚠️ THE SINGLE MOST IMPORTANT THING IN THIS WORKSTREAM — two ORTHOGONAL axes.
@@ -743,7 +825,10 @@ DONE, do not redo:
 
 Then, the work — ASK PETER WHICH, do not do all of these:
 
-  5b. THE ROSTER GAPS (mostly NOT code — ask Peter before touching data)
+  5b. THE ROSTER GAPS — ⚠️ PETER AND JAY ARE HANDLING THESE THEMSELVES
+      (Peter, 2026-08-27). Do NOT propose scripts, backfills or consolidations
+      for them; the numbers below are context for reading the app, not a task.
+      Phase 3's UI is what they will use.
     Re-measured 2026-08-27:
     - 1033 Lenox: 59 active — 3 with `member_type: null`, 4 with no unit link,
       56 links of which ZERO carry a residency.
@@ -762,14 +847,6 @@ Then, the work — ASK PETER WHICH, do not do all of these:
       (`601 Lincoln RD 501 Holdings LLC`) that this needs Jay or Peter rather
       than a parser.
 
-  - PETER — IS JAY SUPPOSED TO BE AN APP ADMINISTRATOR? He is on the app
-    Administrator role, not the Property Manager role, so he reads every
-    collection in EVERY org — including all 86 of 1033 Lenox's members, an org
-    he has nothing to do with. NO user holds the Property Manager role at all.
-    Moving him is a production access change that could break the email builder
-    he uses daily, so it needs Peter, not a silent fix.
-    ⚠️ scripts/audit-admin-roles.ts does NOT cover this — it audits the HOA
-    Admin role only and never looks at the app Administrator role.
   - `subscription_plans` ROW FILTER — safe, recommended. Apply
     {status:{_eq:"published"},is_active:{_eq:true}} to the public grant AND add
     the same filter to ALLOWED in scripts/audit-public-policy.ts in the SAME
