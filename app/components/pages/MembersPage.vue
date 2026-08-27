@@ -10,6 +10,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { residencyFor } from "#core/shared/members/residency";
+import {
+  ONBOARDING_INVITATION_FIELDS,
+  isOutstandingInvitation,
+  onboardingCounts,
+  onboardingIndexFor,
+  type MemberOnboarding,
+  type OnboardingState,
+} from "#core/shared/members/onboarding";
 
 const {
   list: listMembers,
@@ -120,6 +128,10 @@ const { data: allMembers, refresh: refreshMembers } = await useAsyncData(
           organization: { _eq: orgId.value },
         },
         sort: ["sort", "last_name"],
+        // Directus defaults to 100. 1033 Lenox already holds 86 members, and
+        // the status and onboarding counts below are derived from THIS list —
+        // a silent truncation would under-report them, not just hide rows.
+        limit: -1,
       })) as any[];
 
       return result || [];
@@ -134,27 +146,31 @@ const { data: allMembers, refresh: refreshMembers } = await useAsyncData(
   }
 );
 
-// Fetch pending invitations
-const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
+// Fetch this org's invitations — ALL of them, in every status.
+//
+// This used to hard-filter to ["pending","expired"], which was enough for the
+// Pending tab but not for the onboarding column: a member whose only invitation
+// was ACCEPTED or CANCELED would have looked identical to one who was never
+// asked. The Pending tab now derives its own rows from the same list, so the
+// two cannot disagree about what "outstanding" means.
+const { data: allInvitations, refresh: refreshInvitations } = await useAsyncData(
   `hoa-invitations-list-${orgId.value}`,
   async () => {
     if (!orgId.value) return [];
     const result = (await listInvitations({
       fields: [
-        "id",
-        "email",
-        "invitation_status",
-        "expires_at",
-        "date_created",
+        ...ONBOARDING_INVITATION_FIELDS,
         "invited_by.first_name",
         "invited_by.last_name",
         "role",
       ],
       filter: {
         organization: { _eq: orgId.value },
-        invitation_status: { _in: ["pending", "expired"] },
       },
       sort: ["-date_created"],
+      // The onboarding join needs every row, and the 1033 Lenox batch alone is
+      // 58 — comfortably under Directus's default 100 today, over it after two.
+      limit: -1,
     })) as any[];
     return result || [];
   },
@@ -162,6 +178,13 @@ const { data: invitations, refresh: refreshInvitations } = await useAsyncData(
     watch: [orgId],
     server: false,
   }
+);
+
+// What the Pending tab shows: invitations nobody has accepted or canceled —
+// which is exactly what that tab already said it was for. Expired ones stay,
+// because the fix for an expired invitation is the Resend button next to it.
+const invitations = computed(() =>
+  (allInvitations.value || []).filter((i: any) => isOutstandingInvitation(i))
 );
 
 // Fetch available units for dropdown
@@ -279,7 +302,7 @@ const statusFilterOptions = [
   { value: "all", label: "All" },
 ];
 
-const members = computed(() => {
+const statusFilteredMembers = computed(() => {
   const rows = allMembers.value || [];
   if (statusFilter.value === "all") return rows;
   if (statusFilter.value === "current") {
@@ -300,6 +323,73 @@ const statusCounts = computed(() => {
     counts[st] = rows.filter((m: any) => m.status === st).length;
   }
   return counts;
+});
+
+// ── Portal onboarding: the OTHER axis ──────────────────────────────────────
+//
+// ⚠️ Read the comment on MEMBER_STATUSES above first. This block answers a
+// completely different question from `status`, and the whole point of keeping
+// them side by side is that neither is ever expressed as the other. Nothing
+// here reads or writes `hoa_members.status`; the filter below narrows what is
+// SHOWN and never what anyone IS.
+//
+// It replaces a column that answered only "does a user row exist" with Yes/No.
+// The missing middle was the expensive one: with the 58-invitation batch about
+// to go out at 1033 Lenox, "we asked and they have not joined" and "we never
+// asked" are the two states an admin has to be able to tell apart.
+const onboarding = computed<Map<string, MemberOnboarding>>(() =>
+  onboardingIndexFor(allMembers.value || [], allInvitations.value || [])
+);
+
+const onboardingFilter = ref<"all" | OnboardingState>("all");
+
+const onboardingFilterOptions: Array<{ value: "all" | OnboardingState; label: string }> = [
+  { value: "all", label: "Any" },
+  { value: "account", label: "Has account" },
+  { value: "invited", label: "Invited" },
+  { value: "not_invited", label: "Not invited" },
+];
+
+// Counted over the status-filtered rows, so with Show set to Current the
+// answer reads as "of my current members, N are not on the portal" — which is
+// the question management actually asks.
+const onboardingStateCounts = computed(() =>
+  onboardingCounts(statusFilteredMembers.value, allInvitations.value || [])
+);
+
+const memberOnboarding = (member: any): MemberOnboarding | null =>
+  onboarding.value.get(String(member?.id)) ?? null;
+
+const onboardingBadgeVariant = (state: OnboardingState | undefined) =>
+  state === "account" ? "default" : state === "invited" ? "secondary" : "outline";
+
+// The badge says the state; the tooltip says how it was reached. Worth having
+// for one case in particular: someone whose invitation was CANCELED reads as
+// "Not invited", which is the correct next action but a confusing thing to be
+// told about a person you remember inviting.
+const onboardingHint = (member: any): string => {
+  const state = memberOnboarding(member);
+  if (!state) return "";
+  if (state.state === "account") return "Has signed up and can log in.";
+  if (state.state === "invited") {
+    const when = state.invitedAt ? ` Sent ${formatDate(state.invitedAt)}.` : "";
+    return state.expired
+      ? `Invited, and the invitation has expired — resend it from the Pending tab.${when}`
+      : `Invited, not accepted yet.${when}`;
+  }
+  if (state.lastInvitationStatus === "canceled") {
+    return "Never joined. Their last invitation was canceled, so nothing is outstanding.";
+  }
+  if (state.lastInvitationStatus === "accepted") {
+    return "An invitation was accepted, but no account is linked to this member record.";
+  }
+  return "No account and no invitation outstanding.";
+};
+
+const members = computed(() => {
+  const rows = statusFilteredMembers.value;
+  if (onboardingFilter.value === "all") return rows;
+  return rows.filter((m: any) => memberOnboarding(m)?.state === onboardingFilter.value);
 });
 
 // The board dropdown picks from ACTIVE members only. It used to read the same
@@ -332,6 +422,9 @@ const residencyLabel = (member: any) => residencyFor(member) || "—";
 
 const showUnlinkedOnly = () => {
   statusFilter.value = "active";
+  // Otherwise the portal filter could hide the very rows the alert just
+  // offered to show.
+  onboardingFilter.value = "all";
 };
 
 const setMemberStatus = async (member: any, status: string, message: string) => {
@@ -369,10 +462,10 @@ const memberColumns = [
   { key: "role", label: "Role" },
   { key: "units", label: "Unit(s)", hideOnMobile: true },
   // Two DIFFERENT questions, deliberately side by side: Status is standing in
-  // the community, Account is whether they have ever signed in. Collapsing them
+  // the community, Portal is how far along they are on the app. Collapsing them
   // is the mistake this workstream exists to avoid.
   { key: "status", label: "Status", sortable: true, hideOnMobile: true },
-  { key: "account", label: "Account", hideOnMobile: true },
+  { key: "onboarding", label: "Portal", hideOnMobile: true },
   { key: "actions", label: "Actions", align: "right" as const },
 ];
 
@@ -889,8 +982,36 @@ useSeoMeta({
                       {{ option.label }} ({{ statusCounts[option.value] ?? 0 }})
                     </option>
                   </select>
+                  <!--
+                    A SECOND, independent filter. It narrows the same rows by
+                    where they stand on the portal, and it never touches
+                    membership status — "Not invited" is a to-do list, not a
+                    demotion.
+                  -->
+                  <Label for="member-portal-filter" class="text-sm t-text-secondary ml-2">
+                    Portal
+                  </Label>
+                  <select
+                    id="member-portal-filter"
+                    v-model="onboardingFilter"
+                    class="p-2 border rounded text-sm"
+                  >
+                    <option
+                      v-for="option in onboardingFilterOptions"
+                      :key="option.value"
+                      :value="option.value"
+                    >
+                      {{ option.label }} ({{ onboardingStateCounts[option.value] ?? 0 }})
+                    </option>
+                  </select>
                   <p v-if="statusFilter === 'archived'" class="text-xs t-text-muted">
                     Former residents. Restore anyone who has moved back.
+                  </p>
+                  <p
+                    v-else-if="onboardingFilter === 'not_invited'"
+                    class="text-xs t-text-muted"
+                  >
+                    On the roster, not on the portal yet — these are who an invitation is for.
                   </p>
                 </div>
 
@@ -936,9 +1057,19 @@ useSeoMeta({
                       {{ row.status }}
                     </Badge>
                   </template>
-                  <template #cell-account="{ row }">
-                    <Badge :variant="row.user ? 'default' : 'secondary'">
-                      {{ row.user ? "Yes" : "No" }}
+                  <!--
+                    Three states, never two: "has an account", "invited, not
+                    accepted" and "not yet invited" are different situations
+                    with different next actions, and the Yes/No badge this
+                    replaces collapsed the last two into "No".
+                  -->
+                  <template #cell-onboarding="{ row }">
+                    <Badge
+                      :variant="onboardingBadgeVariant(memberOnboarding(row)?.state)"
+                      :title="onboardingHint(row)"
+                    >
+                      {{ memberOnboarding(row)?.label || "—" }}
+                      <span v-if="memberOnboarding(row)?.expired" class="ml-1 opacity-70">· expired</span>
                     </Badge>
                   </template>
                   <template #cell-actions="{ row }">
