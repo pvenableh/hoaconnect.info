@@ -1348,6 +1348,11 @@ export interface HoaOrganization {
 	opening_balance_date?: string | null;
 	/** @description Management-transition grace window. While this is in the future the community keeps working even though its subscription status says otherwise. */
 	grace_ends_at?: string | null;
+	/** @description Interpretation of the existing late_fee_amount. */
+	late_fee_kind?: 'flat' | 'percent' | null;
+	late_fee_repeat?: 'once' | 'monthly' | null;
+	/** @description Max total late fees on one charge. Empty = uncapped. */
+	late_fee_cap?: number | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1795,6 +1800,31 @@ export interface PaymentExpense {
 	project?: HoaProject | string | null;
 }
 
+export interface PaymentMethod {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	member: HoaMember | string;
+	/** @description Customer id on the org's CONNECTED account, not the platform account. */
+	stripe_customer_id?: string | null;
+	stripe_payment_method_id?: string | null;
+	type?: 'card' | 'us_bank_account' | null;
+	last4?: string | null;
+	/** @description Card brand, or bank name for ACH. */
+	brand?: string | null;
+	is_autopay?: boolean | null;
+	/** @description Day of month, 1–28, autopay charges this method. */
+	autopay_day?: number | null;
+	status?: 'active' | 'disabled' | null;
+	sort?: number | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_updated?: string | null;
+	user_updated?: DirectusUser | string | null;
+}
+
 export interface PaymentRequest {
 	/** @primaryKey */
 	id: string;
@@ -1824,6 +1854,13 @@ export interface PaymentRequest {
 	reminder_sent_at?: string | null;
 	notes?: string | null;
 	metadata?: 'json' | null;
+	unit?: HoaUnit | string | null;
+	period_start?: string | null;
+	period_end?: string | null;
+	/** @description Manual = created by a board member directly, not by this engine. */
+	source?: 'schedule' | 'manual' | 'late_fee' | 'plan' | null;
+	/** @description id of the schedule/charge/plan named by `source`. No FK: the target collection varies. */
+	source_id?: string | null;
 	transactions?: PaymentTransaction[] | string[];
 }
 
@@ -1852,6 +1889,15 @@ export interface PaymentSchedule {
 	next_payment_date: string;
 	total_payments_generated?: number | null;
 	last_payment_gnerated_at?: string | null;
+	/** @description Generation cadence. Existing `frequency` stays for display; the worker reads this. */
+	cadence?: 'monthly' | 'quarterly' | 'semiannual' | 'annual' | null;
+	amount_source?: 'fixed' | 'per_unit_rate' | 'ownership_pct' | null;
+	/** @description { "all": true } or { "units": [unit ids] } */
+	audience?: Record<string, any> | null;
+	/** @description How many days before due_date a charge is generated. */
+	generate_days_ahead?: number | null;
+	/** @description YYYY-MM of the last period this schedule generated. Written by the worker; idempotency key. */
+	last_generated_period?: string | null;
 }
 
 export interface PaymentTransaction {
@@ -2493,6 +2539,7 @@ export interface Schema {
 	hoa_vendors: HoaVendor[];
 	org_audit_log: OrgAuditLog[];
 	payment_expenses: PaymentExpense[];
+	payment_methods: PaymentMethod[];
 	payment_requests: PaymentRequest[];
 	payment_schedules: PaymentSchedule[];
 	payment_transactions: PaymentTransaction[];
@@ -2603,6 +2650,7 @@ export enum CollectionNames {
 	hoa_vendors = 'hoa_vendors',
 	org_audit_log = 'org_audit_log',
 	payment_expenses = 'payment_expenses',
+	payment_methods = 'payment_methods',
 	payment_requests = 'payment_requests',
 	payment_schedules = 'payment_schedules',
 	payment_transactions = 'payment_transactions',
