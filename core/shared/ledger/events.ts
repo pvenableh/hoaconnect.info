@@ -131,6 +131,17 @@ const CATALOGUE = [
     note: "Community money went out. Where the dues went is exactly what owners are entitled to see.",
   },
   {
+    key: "billing_run",
+    label: "Billing run",
+    icon: "calendar-clock",
+    category: "money",
+    // Board-only: the payload counts charges, late fees and autopay attempts,
+    // and a small community's counts are a household's identity. The charges
+    // themselves reach each owner through their own ledger page.
+    defaultVisibility: "board",
+    note: "The billing worker generated dues, applied late fees, ran autopay and sent reminders.",
+  },
+  {
     key: "document_published",
     label: "Document published",
     icon: "file-text",

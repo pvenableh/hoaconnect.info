@@ -184,7 +184,11 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 
 	const organizationId = metadata.organization_id;
 	const memberId = metadata.member_id;
-	const paymentRequestId = metadata.payment_request_id;
+	// One payment can cover several charges: the owner's "Pay" button and the
+	// autopay worker both send metadata.charge_ids (comma-separated). The single
+	// payment_request_id path stays for the older one-charge checkout.
+	const chargeIds = parseChargeIds(metadata.charge_ids);
+	const paymentRequestId = metadata.payment_request_id || chargeIds[0] || undefined;
 
 	// Create payment transaction record
 	try {
@@ -226,8 +230,11 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 			createItem('payment_transactions', transactionData)
 		)) as { id?: string };
 
-		// Update payment request if linked
-		if (paymentRequestId) {
+		// Credit the charges: split across charge_ids oldest due first, or the
+		// one linked request.
+		if (chargeIds.length) {
+			await splitPaymentAcrossCharges(directus, chargeIds, paymentIntent.amount / 100);
+		} else if (paymentRequestId) {
 			await updatePaymentRequest(directus, paymentRequestId, paymentIntent.amount / 100);
 		}
 
@@ -657,6 +664,66 @@ async function routeBillingAccountInvoice(
 	} catch (err) {
 		console.error('Error routing billing-account invoice:', err);
 		return true;
+	}
+}
+
+function parseChargeIds(raw: unknown): string[] {
+	if (typeof raw !== 'string' || !raw.trim()) return [];
+	return [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
+}
+
+/**
+ * Allocate one payment across several charges, oldest due first, so a partial
+ * payment settles the oldest bill before touching a newer one — the order a
+ * board expects and the order late fees assume. Each charge takes at most its
+ * remaining balance; the leftover (an overpayment) goes onto the last charge
+ * so the money is never silently dropped from the record.
+ *
+ * Charges are looked up by id, not trusted from the metadata's order: the
+ * client that built the intent may not have sorted them.
+ */
+async function splitPaymentAcrossCharges(
+	directus: ReturnType<typeof getTypedDirectus>,
+	chargeIds: string[],
+	amount: number
+) {
+	try {
+		const rows = (await directus.request(
+			readItems('payment_requests', {
+				filter: { id: { _in: chargeIds } },
+				fields: ['id', 'amount', 'amount_paid', 'due_date', 'date_created'],
+				limit: -1,
+			})
+		)) as Array<{ id: string; amount?: number | null; amount_paid?: number | null; due_date?: string | null; date_created?: string | null }>;
+
+		const charges = rows
+			.filter((r) => chargeIds.includes(r.id))
+			.sort((a, b) => {
+				const da = (a.due_date ?? '9999-12-31').slice(0, 10);
+				const db = (b.due_date ?? '9999-12-31').slice(0, 10);
+				if (da !== db) return da < db ? -1 : 1;
+				const ca = a.date_created ?? '';
+				const cb = b.date_created ?? '';
+				return ca < cb ? -1 : ca > cb ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+			});
+		if (!charges.length) {
+			console.warn('charge_ids matched no payment_requests:', chargeIds);
+			return;
+		}
+
+		// Cents, so the shares always add back up to the payment.
+		let leftCents = Math.round(amount * 100);
+		for (let i = 0; i < charges.length && leftCents > 0; i++) {
+			const c = charges[i]!;
+			const remainingCents = Math.max(0, Math.round((Number(c.amount ?? 0) - Number(c.amount_paid ?? 0)) * 100));
+			const last = i === charges.length - 1;
+			const shareCents = last ? leftCents : Math.min(remainingCents, leftCents);
+			if (shareCents <= 0) continue;
+			await updatePaymentRequest(directus, c.id, shareCents / 100);
+			leftCents -= shareCents;
+		}
+	} catch (err) {
+		console.error('Error splitting payment across charges:', err);
 	}
 }
 

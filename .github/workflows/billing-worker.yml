@@ -1,0 +1,89 @@
+# HOA Connect — billing worker (daily)
+#
+# Generates dues charges from schedules, applies late fees, runs autopay and
+# sends reminders. Same shape as notification-digest.yml: a pure HTTP client
+# (Directus SDK, Stripe, SendGrid) that any runner with the repo can execute.
+# See docs/billing-cron.md.
+#
+# Idempotent by construction (engine keys, fee history, per-day autopay guard,
+# per-stage reminder stamps), so a delayed or repeated run is safe; a DROPPED
+# run only delays a charge until the next morning.
+name: billing worker
+
+on:
+  schedule:
+    # 06:15 America/New_York ≈ 10:15 UTC (11:15 in winter). Off the top of the
+    # hour for the same scheduler-contention reason as the digest.
+    - cron: "15 10 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what would happen, write nothing"
+        type: boolean
+        default: true
+      autopay:
+        description: "Charge saved autopay methods (ignored when dry_run)"
+        type: boolean
+        default: false
+      org:
+        description: "Limit to one org slug (blank = every active org)"
+        type: string
+        default: ""
+
+concurrency:
+  group: billing-worker
+  cancel-in-progress: false
+
+jobs:
+  billing:
+    name: Generate, late fees, autopay, reminders
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DIRECTUS_URL: https://admin.hoaconnect.info
+      DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
+      STRIPE_SECRET_KEY_TEST: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+      STRIPE_SECRET_KEY_LIVE: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+      # Flip to `live` only after the Connect activation runbook is complete.
+      BILLING_STRIPE_MODE: test
+      STRIPE_CONNECT_FEE_PERCENT: "2"
+      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      NUXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NUXT_PUBLIC_VAPID_PUBLIC_KEY }}
+      NUXT_VAPID_PRIVATE_KEY: ${{ secrets.NUXT_VAPID_PRIVATE_KEY }}
+      NUXT_VAPID_SUBJECT: mailto:support@hoaconnect.info
+      FROM_EMAIL: notifications@hoaconnect.info
+      FROM_NAME: HOA Connect
+      APP_URL: https://app.hoaconnect.info
+      BILLING_TZ: America/New_York
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # version comes from the packageManager field in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # NOT --prod: the worker runs through tsx, a devDependency.
+        run: pnpm install --frozen-lockfile
+
+      - name: Run the billing worker
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          AUTOPAY: ${{ inputs.autopay }}
+          ORG: ${{ inputs.org }}
+        run: |
+          args=()
+          # A scheduled run is live and charges autopay; a manual run defaults
+          # to a dry run and never charges unless the box is ticked.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            args+=(--autopay)
+          else
+            if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+            if [ "$AUTOPAY" = "true" ]; then args+=(--autopay); fi
+            if [ -n "$ORG" ]; then args+=(--org "$ORG"); fi
+          fi
+          pnpm run billing:worker -- "${args[@]}"

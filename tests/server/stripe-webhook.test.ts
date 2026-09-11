@@ -212,6 +212,85 @@ describe("payment_intent.succeeded", () => {
   });
 });
 
+describe("payment_intent.succeeded with metadata.charge_ids (one payment, several charges)", () => {
+  const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; // due Jan
+  const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"; // due Feb
+  const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; // due Mar
+
+  const multi = (ids: string[], amountCents: number) =>
+    paymentIntent({
+      amount: amountCents,
+      metadata: { organization_id: ORG, member_id: MEMBER, charge_ids: ids.join(",") },
+    });
+
+  beforeEach(() => {
+    reads.payment_requests = [
+      { id: B, amount: 200, amount_paid: 0, due_date: "2026-02-01" },
+      { id: A, amount: 100, amount_paid: 0, due_date: "2026-01-01" },
+      { id: C, amount: 300, amount_paid: 50, due_date: "2026-03-01" },
+    ];
+    // The split reads each charge back by id; the default stub returns row 0
+    // for every readItem, which would credit the wrong charge.
+    directusRequest.mockImplementation(async (cmd: Cmd) => {
+      if (cmd.cmd === "readItems") return reads[cmd.collection] ?? [];
+      if (cmd.cmd === "readItem") return (reads[cmd.collection] ?? []).find((r) => r.id === cmd.id) ?? null;
+      return { id: "new-row" };
+    });
+  });
+
+  const updates = () => Object.fromEntries(writes("updateItem", "payment_requests").map((u) => [u.id, u.data]));
+
+  it("settles the oldest due charge first, then the next, regardless of the ids' order", async () => {
+    await fire("payment_intent.succeeded", multi([C, B, A], 25000)); // $250 toward $100 + $200 + $250
+
+    const u = updates();
+    expect(Object.keys(u)).toEqual([A, B]); // C untouched
+    expect(u[A]).toMatchObject({ amount_paid: 100, amount_remaining: 0, status: "paid" });
+    expect(u[B]).toMatchObject({ amount_paid: 150, amount_remaining: 50, status: "partially_paid" });
+  });
+
+  it("pays every charge in full when the payment covers them all", async () => {
+    await fire("payment_intent.succeeded", multi([A, B, C], 55000)); // $100 + $200 + $250 remaining
+
+    const u = updates();
+    expect(u[A]).toMatchObject({ amount_paid: 100, status: "paid" });
+    expect(u[B]).toMatchObject({ amount_paid: 200, status: "paid" });
+    expect(u[C]).toMatchObject({ amount_paid: 300, amount_remaining: 0, status: "paid" });
+  });
+
+  it("puts an overpayment on the last charge rather than dropping it", async () => {
+    await fire("payment_intent.succeeded", multi([A, B], 35000)); // $50 more than A + B
+
+    const u = updates();
+    expect(u[A]).toMatchObject({ amount_paid: 100, status: "paid" });
+    expect(u[B]).toMatchObject({ amount_paid: 250, amount_remaining: 0, status: "paid" });
+  });
+
+  it("links the transaction to the first charge and records the whole amount once", async () => {
+    await fire("payment_intent.succeeded", multi([A, B], 30000));
+
+    const rows = writes("createItem", "payment_transactions");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.data).toMatchObject({ amount: 300, payment_request: A });
+  });
+
+  it("ignores ids that are not this org's charges instead of throwing", async () => {
+    const ghost = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    await fire("payment_intent.succeeded", multi([ghost, A], 10000));
+
+    const u = updates();
+    expect(Object.keys(u)).toEqual([A]);
+    expect(u[A]).toMatchObject({ amount_paid: 100, status: "paid" });
+  });
+
+  it("is still idempotent: a redelivered split event credits nothing twice", async () => {
+    reads.payment_transactions = [{ id: "tx_1" }];
+    await fire("payment_intent.succeeded", multi([A, B], 30000));
+    expect(writes("updateItem", "payment_requests")).toHaveLength(0);
+    expect(writes("createItem", "payment_transactions")).toHaveLength(0);
+  });
+});
+
 describe("ai_credits top-ups", () => {
   const topUp = () =>
     paymentIntent({

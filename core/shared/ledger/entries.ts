@@ -809,3 +809,81 @@ export function buildAiActionUndoneEntry(input: {
     },
   };
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * billing_run
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface BillingRunCounts {
+  /** Dues charges inserted from schedules. */
+  readonly charges: number;
+  readonly chargesAmount: unknown;
+  readonly lateFees: number;
+  readonly lateFeesAmount: unknown;
+  /** Autopay attempts made (succeeded + failed). */
+  readonly autopayAttempted: number;
+  readonly autopaySucceeded: number;
+  readonly autopayAmount: unknown;
+  readonly reminders: number;
+}
+
+/**
+ * One entry per worker run per org, written only when the run did something.
+ * A run that generated nothing is not an event; a nightly "nothing happened"
+ * row would bury the ones that matter.
+ *
+ * The actor is the system: nobody with a session ran it.
+ */
+export function buildBillingRunEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly asOf: string;
+  readonly counts: BillingRunCounts;
+  readonly dryRun?: boolean;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  const c = input.counts;
+  const total = c.charges + c.lateFees + c.autopayAttempted + c.reminders;
+  if (total <= 0 || input.dryRun) return null;
+
+  const parts: string[] = [];
+  if (c.charges > 0) {
+    parts.push(`generated ${c.charges} ${c.charges === 1 ? "charge" : "charges"} (${formatMoney(c.chargesAmount)})`);
+  }
+  if (c.lateFees > 0) {
+    parts.push(`applied ${c.lateFees} late ${c.lateFees === 1 ? "fee" : "fees"} (${formatMoney(c.lateFeesAmount)})`);
+  }
+  if (c.autopayAttempted > 0) {
+    parts.push(
+      `ran autopay for ${c.autopayAttempted} ${c.autopayAttempted === 1 ? "member" : "members"} (${c.autopaySucceeded} succeeded, ${formatMoney(c.autopayAmount)})`,
+    );
+  }
+  if (c.reminders > 0) {
+    parts.push(`sent ${c.reminders} ${c.reminders === 1 ? "reminder" : "reminders"}`);
+  }
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "billing_run",
+    occurred_at: input.occurredAt,
+    actor_user: null,
+    actor_name: "Billing worker",
+    actor_email: null,
+    visibility: defaultVisibilityFor("billing_run"),
+    summary: `Billing run for ${input.asOf}: ${parts.join(", ")}.`,
+    payload: {
+      organization_name: input.organizationName,
+      as_of: input.asOf,
+      charges: c.charges,
+      charges_amount: toLedgerAmount(c.chargesAmount),
+      late_fees: c.lateFees,
+      late_fees_amount: toLedgerAmount(c.lateFeesAmount),
+      autopay_attempted: c.autopayAttempted,
+      autopay_succeeded: c.autopaySucceeded,
+      autopay_amount: toLedgerAmount(c.autopayAmount),
+      reminders: c.reminders,
+    },
+  };
+}
