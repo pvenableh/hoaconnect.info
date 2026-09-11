@@ -253,6 +253,14 @@ describe("tiers", () => {
     }
   });
 
+  it("keeps saved payment methods out of the shareable tier — live Stripe ids", () => {
+    // Unlike the rest of the money family (payment_requests/transactions/
+    // expenses/schedules, all BOTH), this row is a live Stripe payment-method
+    // id on the org's connected account, not a historical amount.
+    const entry = entryFor("payment_methods")!;
+    expect(entry.tiers).toEqual(["full"]);
+  });
+
   it("never exports push subscriptions in any tier", () => {
     // Live push credentials. Worth its own test so a future edit has to be
     // deliberate.

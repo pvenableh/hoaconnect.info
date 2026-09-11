@@ -278,6 +278,12 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("payment_transactions", "Payments received", BOTH),
   direct("payment_expenses", "Expenses", BOTH),
   direct("payment_schedules", "Payment schedules", BOTH),
+  // Full tier only, unlike the rest of the money family: this row carries a
+  // live Stripe payment-method id on the org's connected account, not a
+  // historical amount. Same reasoning as the redacted stripe_* fields on
+  // hoa_organizations — a successor manager gets their own Stripe
+  // integration, not this org's saved cards.
+  direct("payment_methods", "Saved payment methods", FULL_ONLY),
 
   // ── Communications ────────────────────────────────────────────────────────
   direct("hoa_emails", "Sent email", BOTH),

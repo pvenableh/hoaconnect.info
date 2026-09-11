@@ -295,6 +295,17 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     filterType: "organization",
     description: "Payment transactions",
   },
+  {
+    collection: "payment_methods",
+    adminLevel: "full",
+    // Org-wide filterType would let any member read every other member's saved
+    // Stripe payment method (see the special-case override below) — unlike
+    // pets/vehicles this collection holds live Stripe ids, so read is narrowed
+    // to the member's own row, not the org.
+    memberLevel: "read_only",
+    filterType: "organization",
+    description: "Saved payment methods (Stripe, connected account)",
+  },
 
   // ========== Project Management (Phase 2–3) ==========
   // Members & Property Managers reach projects/events/tasks ONLY through the
@@ -813,6 +824,15 @@ function buildPermissionsForLevel(
         }
       : null;
 
+  // Special handling for payment_methods — live Stripe ids, so the member
+  // level (read_only) is narrowed to "my own member record" rather than the
+  // ordinary org-wide filter. Admin (full) is untouched — it falls through to
+  // effectiveFilter below and stays org-scoped.
+  const paymentMethodsFilter =
+    collection === "payment_methods" && level === "read_only"
+      ? { member: { user: { _eq: "$CURRENT_USER" } } }
+      : null;
+
   // Special handling for email activity
   const emailActivityFilter =
     collection === "hoa_email_activity"
@@ -857,6 +877,7 @@ function buildPermissionsForLevel(
   const filter =
     boardMemberFilter ||
     blockSettingsFilter ||
+    paymentMethodsFilter ||
     mailingListMemberFilter ||
     emailActivityFilter ||
     memberUnitsFilter ||

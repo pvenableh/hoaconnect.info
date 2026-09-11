@@ -70,6 +70,7 @@
     "create:polls": "dotenv -- tsx scripts/create-polls-collections.ts",
     "extend:pets-vehicles": "dotenv -- tsx scripts/extend-pets-vehicles-units.ts",
     "create:leases": "dotenv -- tsx scripts/create-leases-collection.ts",
+    "create:billing-engine": "dotenv -- tsx scripts/create-billing-engine.ts",
     "create:governance": "dotenv -- tsx scripts/create-governance-collection.ts",
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
     "create:expenses": "dotenv -- tsx scripts/create-expenses-collection.ts",
