@@ -1,23 +1,13 @@
 // server/api/internal/recompute-member-counts.post.ts
 // Nightly safety net: recompute member_count for every org, catching drift from
 // members edited directly in the Directus admin (the app paths already recompute
-// on change). Authorized via x-cron-secret (matching the scheduled-email flow)
-// or an authenticated session.
+// on change). Authorized via the cron secret or a signed-in App Administrator
+// (`requireCronOrAppAdmin`) — it touches every org.
 import { readItems } from "@directus/sdk";
+import { requireCronOrAppAdmin } from "../../utils/cron-auth";
 
 export default defineEventHandler(async (event) => {
-  const secret = process.env.CRON_SECRET;
-  const provided = getHeader(event, "x-cron-secret");
-  let authorized = !!secret && !!provided && provided === secret;
-  if (!authorized) {
-    try {
-      await requireUserSession(event);
-      authorized = true;
-    } catch {
-      /* no session */
-    }
-  }
-  if (!authorized) throw createError({ statusCode: 401, message: "Unauthorized" });
+  await requireCronOrAppAdmin(event);
 
   const directus = getTypedDirectus();
   const orgs = await directus.request(

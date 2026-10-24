@@ -6,12 +6,14 @@
  * via sendEmailJob, then either marks it 'sent' or — when recurrence_rule is set
  * — rolls scheduled_at forward and leaves it 'scheduled'.
  *
- * Auth: either the `x-cron-secret` header matches process.env.CRON_SECRET, OR
- * the caller has a valid (admin) user session — so it can be triggered manually
- * from the app while logged in, and headlessly by the Flow in production.
+ * Auth: the cron secret (`x-cron-secret`, or `Authorization: Bearer` from
+ * Vercel Cron), or a signed-in App Administrator triggering a run by hand —
+ * see `requireCronOrAppAdmin`. This sweeps EVERY org's queue, so an HOA admin
+ * session is not enough (until 2026-10 any session was accepted).
  */
 import { readItems, updateItem } from "@directus/sdk";
 import { sendEmailJob } from "../../utils/sendEmailJob";
+import { requireCronOrAppAdmin } from "../../utils/cron-auth";
 
 function computeNextRun(base: Date, rule: string): Date | null {
   const d = new Date(base);
@@ -22,20 +24,7 @@ function computeNextRun(base: Date, rule: string): Date | null {
 
 export default defineEventHandler(async (event) => {
   // --- Authorization ---
-  const secret = process.env.CRON_SECRET;
-  const provided = getHeader(event, "x-cron-secret");
-  let authorized = !!secret && !!provided && provided === secret;
-  if (!authorized) {
-    try {
-      await requireUserSession(event);
-      authorized = true;
-    } catch {
-      // no session
-    }
-  }
-  if (!authorized) {
-    throw createError({ statusCode: 401, message: "Unauthorized" });
-  }
+  await requireCronOrAppAdmin(event);
 
   const directus = getTypedDirectus();
   const nowIso = new Date().toISOString();

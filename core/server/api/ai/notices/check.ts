@@ -27,8 +27,9 @@
  * absence must not silence a genuinely urgent notice.
  *
  * Auth: the cron secret (`x-cron-secret`, or `Authorization: Bearer` from
- * Vercel Cron — see `cronSecretMatches`), or an authenticated session (so a
- * developer can trigger a run without the secret). Invoked by Vercel Cron —
+ * Vercel Cron — see `cronSecretMatches`), or a signed-in App Administrator
+ * triggering a run by hand (`requireCronOrAppAdmin`). It sweeps every org, so
+ * an ordinary session is refused. Invoked by Vercel Cron —
  * see docs/ai-notices-cron.md.
  *
  * Body (all optional):
@@ -37,6 +38,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { requireCronOrAppAdmin } from "../../../utils/cron-auth";
 import { createItem, readItems } from "@directus/sdk";
 import { collectOrgNotices, type AINotice } from "#core/server/utils/ai-notices";
 
@@ -72,16 +74,7 @@ export function noticeHash(notice: AINotice, period: string): string {
 }
 
 export default defineEventHandler(async (event) => {
-  let authorized = cronSecretMatches(event);
-  if (!authorized) {
-    try {
-      await requireUserSession(event);
-      authorized = true;
-    } catch {
-      /* no session */
-    }
-  }
-  if (!authorized) throw createError({ statusCode: 401, message: "Unauthorized" });
+  await requireCronOrAppAdmin(event);
 
   const body = (await readBody(event).catch(() => ({}))) as {
     orgId?: string;

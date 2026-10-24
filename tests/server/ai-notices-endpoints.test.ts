@@ -27,6 +27,7 @@ vi.mock("@directus/sdk", () => ({
 const HOME = "org-home";
 const OTHER = "org-other";
 const ME = "user-me";
+const APP_ADMIN_ROLE = "role-app-admin";
 
 type Op = { op: string; collection: string; query?: any; payload?: any };
 
@@ -89,6 +90,11 @@ beforeEach(() => {
   vi.stubGlobal("createError", (o: any) => Object.assign(new Error(o.message), o));
   vi.stubGlobal("requireAuthenticatedUser", async () => ({ userId: ME }));
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: ME } }));
+  // The cron's manual fallback (`requireCronOrAppAdmin`) reads the session
+  // non-throwingly and compares the role to the app-admin role id. Default:
+  // nobody is signed in; the tests that need a session set one.
+  vi.stubGlobal("getUserSession", async () => null);
+  vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleAppAdmin: APP_ADMIN_ROLE } }));
   vi.stubGlobal("checkAdminAccess", async (_e: any, orgId: string) => ({
     isAdmin: isAdminOf.includes(orgId),
     memberId: "hm-1",
@@ -276,6 +282,23 @@ describe("POST /api/ai/notices/check — the cron", () => {
     await expect(
       handler({ __headers: { authorization: "Bearer not-it" }, __body: {} })
     ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  // The sweep is platform-wide, so "signed in" is not standing: an HOA admin
+  // of one community gets 403 (until 2026-10 any session was accepted). An App
+  // Administrator may fire it by hand.
+  it("refuses a signed-in HOA admin — a session is not standing for a platform sweep", async () => {
+    vi.stubGlobal("getUserSession", async () => ({ user: { id: ME, role: "role-hoa-admin" } }));
+    const handler = await loadCheck();
+    await expect(handler({ __headers: {}, __body: {} })).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+
+  it("accepts an App Administrator triggering a run by hand", async () => {
+    vi.stubGlobal("getUserSession", async () => ({ user: { id: ME, role: { id: APP_ADMIN_ROLE } } }));
+    const handler = await loadCheck();
+    await expect(handler({ __headers: {}, __body: { dryRun: true } })).resolves.toBeTruthy();
   });
 
   it("notifies once, then never again that month", async () => {

@@ -3,24 +3,15 @@
 // Purges visitor-added content, then re-runs the idempotent seed (same shared
 // code as `pnpm seed:demo`) so landing/hero/amenities/members/AI-wallet return
 // to their starting state. Intended for a nightly cron. Authorized via the
-// `x-cron-secret` header (matching the other internal cron routes) or an
-// authenticated session. No-op (404) when demo creds aren't configured.
+// cron secret or a signed-in App Administrator (`requireCronOrAppAdmin`) —
+// it wipes and reseeds the demo orgs, so an ordinary session must not reach
+// it. No-op (404) when demo creds aren't configured.
 
 import { seedDemos, purgeDemoContent, type DemoUser } from "#core/shared/demo/seed";
+import { requireCronOrAppAdmin } from "../../utils/cron-auth";
 
 export default defineEventHandler(async (event) => {
-  const secret = process.env.CRON_SECRET;
-  const provided = getHeader(event, "x-cron-secret");
-  let authorized = !!secret && !!provided && provided === secret;
-  if (!authorized) {
-    try {
-      await requireUserSession(event);
-      authorized = true;
-    } catch {
-      /* no session */
-    }
-  }
-  if (!authorized) throw createError({ statusCode: 401, message: "Unauthorized" });
+  await requireCronOrAppAdmin(event);
 
   const config = useRuntimeConfig();
   const email = config.demoUserEmail as string | undefined;
