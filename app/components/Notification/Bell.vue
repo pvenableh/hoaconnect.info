@@ -479,7 +479,7 @@ const getTypeLabel = (type: string) => {
 .notif-badge {
   transform-origin: center;
   animation: badge-pop var(--motion-base, 240ms)
-    var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+    var(--spring) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

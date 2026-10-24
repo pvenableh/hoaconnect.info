@@ -15,7 +15,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | Session | Phase | State | Notes |
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
-| 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [ ] | The visible win; every later phase lands on these primitives. |
+| 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [~] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [ ]**: the five sweeps, recipes in the Session log. |
 | 4 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
@@ -81,6 +81,287 @@ Operator TODOs (Peter — none are code):
 - [ ] If anyone triggered `process-scheduled`, `notices/check`, `demo/reset` or
       `recompute-member-counts` by hand from an HOA-admin session, that now 403s; use an
       App Administrator session or the secret.
+
+**Session 2 — Phase 1a: glass shell primitives** (2026-10-24) — on branch
+`feat/parity3-p1a-shell-primitives`, off `main` at `ba03bc9`.
+
+Shipped (one primitive per item; every one is on `/ui-kit`):
+
+- **Item 1, glass overlays.** `ui/{dialog,alert-dialog,sheet}` content → `glass-surface
+  glass-surface--strong`, their scrims → `dialog-overlay-glass`; `ui/{popover,dropdown-menu}`
+  → strong glass + `chrome-float`; `ui/select` content and `ui/tooltip` → strong glass (tooltip
+  arrow dropped, as Earnest does); `SelectTrigger` → `glass-field` pill; `Card` → `glass-edge
+  glass-refract`. Sheet corners flatten on the edge they are attached to. `CommandDialog`'s
+  Command is now transparent on the glass and has no corner X. `Notification/Sheet.vue` lost the
+  `t-bg` that painted over the glass; `App/ChannelsPanel.vue` and `ai/AiAssistantPanel.vue`
+  scrims → `dialog-overlay-glass`, Channels' panel → strong glass; vue-sonner toasts wear the
+  strong glass + rim (workspace-scoped rule in `earnest-ui.css`). The Nav mobile `Sheet` is
+  glass through `SheetContent`.
+  New in `earnest-ui.css`: `.chrome-float` (re-declares `--card/--popover/--accent/--muted/
+  --secondary/--muted-foreground/--border` on the element, as `color-mix()` of the theme
+  tokens because HOA stores full colours, not triplets) and `.glass-surface--strong.chrome-float`
+  (opaque step); `dialog-overlay-glass` reduced-transparency fallback (it had none); the
+  `.animate-in/.animate-out` reduced-motion collapse for every Reka portal; workspace press
+  feedback (`scale: 0.97` on `:active`, `@layer components`, `data-no-press` opt-out, off under
+  reduced motion).
+- **Item 2, one motion module.** `core/shared/motion/index.ts` (`EASING`, `DURATION`,
+  `transition()` which returns `none` under reduced motion, `afterFirstFrame()` for the overlay
+  policy — mount closed, flip after one frame, rAF raced by a timeout). CSS twin in
+  `variables.css` gains `--spring-bounce`, `--ease-out-expo`, `--ease-exit`, and a
+  `prefers-reduced-motion` block that flattens every curve to `linear` and every `--motion-*`
+  to 1ms. `tests/shared/motion-tokens.test.ts` fails on any drift between the two. All the
+  plan's hand-written literals (Dock, SlideOverShell/Stack, BottomSheet, SubNav,
+  SegmentedControl, UpdatePrompt, Home/Stack, StackClearWizard, Bell, AiAssistantPanel,
+  TrustBar, earnest-ui.css, theme-app.css) now read the tokens. Left alone on purpose:
+  `Payment/Methods.vue` and `--theme-transition-slower` (`cubic-bezier(0.4,0,0.2,1)`, the
+  Material standard curve — not one of ours), and Landing*/the public theme (out of scope).
+- **Item 3, `useConfirm()` + glass ConfirmDialog.** `core/app/composables/useConfirm.ts`
+  (`confirm()` → `Promise<boolean>`, `alert()` → `Promise<void>`, string shorthand, queued so a
+  second call never orphans the first, server-safe) and its single host
+  `App/ConfirmDialog.vue`, mounted in `app.vue` beside the Toaster. Built on the glass
+  AlertDialog; the action is a real `Button` so `destructive: true` renders the destructive
+  tier; focus lands on Cancel. `tests/composables/useConfirm.test.ts` (4).
+- **Item 4, pickers + three primitives.** `ui/calendar` (Earnest's, minus the NativeSelect
+  month/year layouts — HOA has no native-select part); `ui/date-input/{DateInput,DateTimeInput}`
+  — reka `DateField` segments in a `glass-field` pill plus a glass Popover calendar, v-model
+  is exactly the raw input's string (`"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"`, `""` when cleared;
+  `value.ts`, `tests/shared/date-input-value.test.ts` (5)); picking a day keeps the typed time.
+  `ui/combobox` (anchor wears the field rim, list is floating chrome), `ui/toggle-group` (ON
+  item wears the active-thumb material), `ui/pagination` (current page = active thumb, not a
+  filled button). `@internationalized/date@^3.12.0` added as a direct dependency (it was
+  already in the tree through reka-ui; same version).
+- **Item 6, Spotlight.** `GET /api/search` (`core/server/api/search.get.ts`) over a pure
+  registry `core/shared/search` (members, units, vendors, documents, meetings, requests,
+  projects, channels; staff-only, then per-group capability from the matrix; every filter
+  carries `organization = orgId` — the route uses the admin token, so that filter is the
+  scope; `tests/shared/search.test.ts` (7) pins both). `App/Spotlight.vue` on the kit's
+  `CommandDialog`: destinations from `useAppNav().appsFor` + `useSectionNav().sectionLinksFor`
+  (instant, module-filtered), records debounced from the route (stale responses dropped),
+  ↑/↓/Enter/Esc, grouped. Opened by ⌘K / Ctrl-K, a new Nav search pill, and a mobile-menu
+  entry (`useSpotlight()`); mounted in `layouts/auth.vue` and `layouts/channels.vue`. Member
+  hits deep-link to `/admin/members?member=<id>`, which `MembersPage` now honours (opens the
+  member, then strips the param).
+- **Item 7 (primitive only).** `App/BottomSheet.vue` already was the ResponsiveModal switch
+  (dialog ≥ md, sheet below, `alwaysSheet`). Added what it lacked against Earnest's
+  ResponsiveModal: `size` (`sm|md|lg` → 28/32/42rem in dialog form) and a focus trap
+  (reka `FocusScope`, focus returned on close — `aria-modal` promised both); its spring-back
+  now comes from `motion.transition()`.
+- **Item 8 (props only).** `App/EmptyState.vue` gains `steps[]`, `#actions`, `footnote`,
+  `size` (`compact` kept as an alias; the default slot still renders as the action row, so
+  the 34 existing call sites are untouched).
+- **Item 9.** `ui/button` already carried Earnest's T1/T2 materials verbatim, so the tiers
+  needed only the missing rungs: `ui/ActionButton.vue` (T3 pill, T4 `size="xs"` micro glyph,
+  `pressed` toggle with the tri-state `aria-pressed` fix). `.form-section` / `.helper-text`
+  in `earnest-ui.css`. `docs/button-type-case-system.md` written for HOA (the plan cited it,
+  but it only existed in Earnest) — tiers, case by role, and the two-edges rule.
+
+Found and fixed on the way — **production has had no glass blur outside Safari.** Tailwind v4
+minifies every stylesheet with lightningcss, which treats `-webkit-backdrop-filter` written
+AFTER `backdrop-filter` as overriding it and drops the standard property (reproduced in
+isolation; the built entry CSS had 24 prefixed declarations and 4 unprefixed, all 4 from
+Tailwind utilities). Chromium and Firefox ignore the prefixed form, so every hand-written glass
+surface — dock, bars, sheets, cards, the new overlays — rendered with no blur in prod; dev does
+not minify, and the one machine that eyeballed it runs Safari with Reduce Transparency on.
+Fix: prefixed first, then standard (lightningcss then emits both) in `earnest-ui.css`,
+`SlideOverShell.vue`, `SlideOverStack.vue` — 22 pairs. `tests/shared/backdrop-filter-order.test.ts`
+fails on the bad order anywhere in the workspace.
+
+Deviations, all deliberate:
+
+1. **`Input` / `Textarea` were NOT given `glass-field`.** They already render as glass in the
+   workspace through `html.theme-app .field-underline` (theme-app.css), and adding the class
+   would lose to the unlayered `.field-underline` anyway. Public pages keep the editorial
+   underline, which is the reason that override is scoped.
+2. **`.glass-surface`'s `position` and `border-radius` moved into `@layer components`.** They
+   were unlayered, so they beat every Tailwind utility: a `fixed` Dialog would have rendered
+   `position: relative`. This also fixes two live bugs it was already causing — the Storage
+   drop pill (`StorageManagerPage.vue:777`, `fixed … rounded-full`) and the channel-thread
+   popover (`ChannelThread.vue:628`, `absolute right-0 top-11`) were both laid out in the flow.
+3. **Spotlight record search is staff-only** (admin, board, property manager). Every hit links
+   into `/admin`, which a member cannot open, and a member-facing list of neighbours' names is
+   a privacy question for Phase 2, not a default. Members get destination search. Channels are
+   admin-only (private-channel membership is checked in the channel routes, not here). A board
+   president does not get the Requests group: the matrix gives `violations:manage` to the PM and
+   board members, not officers — fix the matrix, not the search, if that is wrong.
+4. **No create verbs in Spotlight yet** — they are Phase 2 item 2.4; the component has a slot
+   for a third group.
+5. **`useConfirm`'s host is in `app.vue`**, not the auth layout, so public and auth pages that
+   still call `confirm()` today can be swept too.
+6. **Browser verification ran against `/ui-kit`**, not the demo org: this container has no
+   Directus credentials (only the CI dummy env). `/ui-kit` renders every primitive without a
+   session; Spotlight there takes local `destinations` / `searchFn` props, so "finds a member,
+   navigates" is the real component over sample data. **The `/api/search` route itself has not
+   run against a live Directus** — first thing to check on the preview deploy.
+7. **`pnpm generate:types` not run** — no prod credentials here; nothing in 1a changes schema.
+
+Gates (this branch): typecheck 0 · vitest 95 files / 1616 tests · build green · `audit:hairline-surfaces` 0
+(baseline 0) · browser script 69/69 — `scripts/browser/verify-p1a-shell.cjs` (light + dark, reduced transparency, reduced motion).
+
+Operator TODOs (Peter):
+
+- [ ] **Public site has the same backdrop-filter bug** (out of this phase's scope, left as is):
+      `Org/Landing/LandingNav.vue`, `Org/Landing/LandingDrawer.vue`, `assets/css/landing.css` (3),
+      `assets/css/theme.css:951` (`.t-scrim`). Same one-line reorder; the tripwire test skips
+      those paths — remove the skip when they are fixed.
+
+- [ ] On the preview deploy, sign in as an HOA admin, press ⌘K, type a member's surname:
+      confirm the Members group appears and Enter opens that member's form. Then as a board
+      member (no Channels group) and as a resident (destinations only, no records).
+- [ ] Eyeball the glass Card (`ui/card` → `glass-edge glass-refract`) on a classic/luxury org's
+      workspace — the rim replaces a 1px border everywhere `<Card>` is used.
+
+#### Phase 1b — sweep recipes (hand each to ONE Sonnet 5.5 subagent with its file list)
+
+Re-run `scripts/browser/verify-p1a-shell.cjs` after the sweeps.
+
+Rules for every sweep: edit only the listed files; no other refactors; keep comments; run
+`pnpm vitest run` + typecheck after; return `git diff --stat` and a one-line note per file of
+anything that did not fit the recipe. The main session reviews the diff, not the files.
+
+**Sweep A — native `confirm()` / `alert()` → `useConfirm()` (32 calls, 18 files).**
+Files: `Documents/CategoryManager.vue:151`, `teams/TeamManager.vue:117`,
+`ui/tiptap/TiptapEditor.vue:159,183`, `projects/ProjectGantt.vue:247`,
+`projects/ProjectTimeline.vue:66`, `channels/ChannelMessage.vue:124,149`,
+`comments/CommentItem.vue:105`, `pages/SettingsPropertyManagementPage.vue:251`,
+`pages/MembersPage.vue:449,646,683,699,806`, `pages/LandingBuilderPage.vue:287,302`,
+`pages/UsersPage.vue:293`, `pages/MeetingsAdminPage.vue:398`, `pages/DocumentsPage.vue:211,350`,
+`pages/UnitsPage.vue:149`, `pages/[slug]/admin/projects/[id].vue:114`,
+`pages/[slug]/admin/units/[id].vue:106`, `pages/[slug]/profile/index.vue:124`,
+`pages/[slug]/rules/index.vue:153`, `pages/billing/[accountId].vue:92,107,138,157,174,193`
+(all under `app/components/` or `app/`). NOT a call site: `storage/FilePickerDialog.vue`
+(`confirm` is a local function there).
+Recipe:
+1. In `<script setup>`, before any top-level `await`, add `const { confirm } = useConfirm();`
+   (auto-imported; no import line). If the file already has a local named `confirm`, alias:
+   `const { confirm: askConfirm } = useConfirm();`.
+2. `if (!confirm(X)) return;` → `if (!(await confirm({ title: …, body: …, destructive: … }))) return;`
+   and make the enclosing function `async`. Split the native message: the question becomes
+   `title` (sentence case, drop "Are you sure you want to"), the consequence sentence becomes
+   `body`. `destructive: true` for delete/remove/archive/reject/detach/cancel-invitation.
+   Give `confirmLabel` the verb in Title Case ("Delete", "Archive", "Reject", "Remove").
+3. `if (confirm(X)) { … }` → `if (await confirm({ … })) { … }`, same rules.
+4. An `alert()` that reports an ERROR (`alert(e?.data?.message || "Failed …")`) → `toast.error(…)`
+   from `vue-sonner` (import it if the file does not), NOT `useConfirm().alert`. An `alert()`
+   that tells the user something they must acknowledge → `await alert({ title })` from
+   `useConfirm()`.
+5. `LandingBuilderPage.vue:302` is a route-leave guard returning `false`: keep it synchronous
+   only if the guard API cannot await; `onBeforeRouteLeave` accepts an async function, so
+   `return await confirm({ title: "Leave without saving?", body: "Your changes will be lost.", confirmLabel: "Leave", destructive: true })`.
+6. Then add a Phase-8 note, not an audit: `grep -rnE "(^|[^.\w])(window\.)?(confirm|alert)\(" app core/app`
+   must list only `useConfirm` / `FilePickerDialog` lines.
+
+**Sweep B — raw date inputs → `DateInput` / `DateTimeInput` (26 inputs, 18 files — more than
+the plan's 18).** Files: `Documents/DocumentBatchEdit.vue:264`, `projects/ProjectGantt.vue:462,535`,
+`projects/ProjectTimeline.vue:143`, `projects/ProjectForm.vue:125,129`, `units/PetForm.vue:114`,
+`units/LeaseForm.vue:85,89`, `units/VehicleForm.vue:114`, `Settings/PaymentSettingsForm.vue:99`,
+`panels/TaskPanel.vue:98`, `requests/RequestForm.vue:139`, `polls/PollForm.vue:97`,
+`pages/SettingsPropertyManagementPage.vue:675,679`, `pages/MembersPage.vue:1593,1601`,
+`pages/EmailComposePage.vue:1517` (datetime-local), `pages/MeetingsAdminPage.vue:576`,
+`pages/[slug]/admin/expenses/index.vue:230,234`, `pages/[slug]/admin/payments/index.vue:422,423`,
+`pages/[slug]/rules/index.vue:301`.
+Recipe:
+1. `<Input v-model="X" type="date" … />` or `<input v-model="X" type="date" class="…" />` →
+   `<DateInput v-model="X" … />`. `type="datetime-local"` → `<DateTimeInput v-model="X" … />`.
+   No import (auto-registered from `ui/date-input/index.ts`).
+2. Keep `id`, `name`, `required`, `disabled`, `min`, `max` (strings, "YYYY-MM-DD"), `v-if`/`v-else`.
+   DROP field-look classes (`t-input`, `glass-field`, `rounded-*`, `px-*`, `py-*`, `text-sm`,
+   `border*`, `bg-*`) — DateInput is the glass pill; KEEP layout classes (`w-full`, `mt-*`,
+   `flex-1`, `col-span-*`, `max-w-*`).
+3. `:value="X" @input="X = $event.target.value"` or `@change` → `v-model="X"`; a handler that
+   does more → `:model-value="X" @update:model-value="(v) => handler(v)"` (v is the same string
+   `$event.target.value` was).
+4. `MeetingsAdminPage.vue:576` pairs a date input with a separate `type="time"` input
+   (`meeting_date_date` + a time field): convert the date one only; do NOT merge them into a
+   DateTimeInput in this sweep — note it for Phase 9.
+5. Do not touch Org/Landing*, LandingBuilder/* (public site).
+
+**Sweep C — stone/gray → tokens (15 files).** `EmailBuilder/BlockItem.vue`, `Marketing/Landing.vue`,
+`Payment/{Methods,SubscriptionForm,StripeCard}.vue`, `PermissionsDiagnostic.vue`, `OrgSelector.vue`,
+`App/Footer.vue`, `pages/{[slug]/index,your-data,property-managers,experimental,account,setup/complete}.vue`,
+`pages/billing/[accountId].vue`. Map: `text-gray|stone-900/800/700` → `t-text`;
+`-600/500` → `t-text-secondary`; `-400/300` → `t-text-muted`; `bg-gray|stone-50/100` →
+`t-bg-subtle`; `bg-…-200` → `t-bg-elevated`; `border-…-100/200/300` → `t-border`;
+`dark:*-gray|stone-*` → delete (the tokens are already mode-aware). Before the sweep, record the
+count: `grep -rcE "\b(text|bg|border|ring|divide|placeholder|from|to|via)-(gray|stone)-[0-9]+" <files>`
+— that is the Phase 8 `color-literals` baseline; after, it must be 0 for these files.
+`Marketing/Landing.vue` and `[slug]/index.vue` are public-facing: convert, but screenshot them
+before and after (they are the only two where a token can read differently from the literal).
+
+**Sweep D — create flows → `AppBottomSheet` (6).** `channels/CreateChannelModal.vue:97`,
+`pages/MembersPage.vue:1419` (add/edit member — "invite" is a tab, not a dialog, so this is the
+member form), `pages/UnitsPage.vue:263`, `pages/MeetingsAdminPage.vue:538`,
+`pages/DocumentsPage.vue:848` (batch upload), and new request — `pages/[slug]/admin/requests/index.vue:92`
+and `pages/[slug]/requests/index.vue:55` render `RequestsRequestForm` INLINE in an `ios-card`
+under `v-if="showNew"`; move that into a sheet.
+Recipe:
+1. `<Dialog v-model:open="S"><DialogContent class="…max-w-…"><DialogHeader><DialogTitle>T</DialogTitle><DialogDescription>D</DialogDescription></DialogHeader> BODY <DialogFooter> BTNS </DialogFooter></DialogContent></Dialog>`
+   → `<AppBottomSheet v-model:open="S" title="T" description="D" size="…"> BODY <template #footer> BTNS </template></AppBottomSheet>`.
+   size: `max-w-md`/`sm:max-w-md` → `sm`; none/`max-w-lg` → `md`; `max-w-2xl`+ → `lg`.
+2. A `<form @submit.prevent>` that wraps body AND footer: keep the form around the body, give it
+   an `id`, and make the footer's submit button `type="submit" :form="id"`.
+3. Drop now-unused Dialog imports. Footer order: secondary (`variant="ghost"` or `outline`)
+   first, the one primary last.
+4. `persistent` only if the dialog previously blocked outside-click/Esc
+   (`@interact-outside.prevent` / `@escape-key-down.prevent`).
+5. Requests: `<AppBottomSheet v-model:open="showNew" title="New request">` around the existing
+   `RequestsRequestForm`; `@cancel="showNew = false"` unchanged; delete the `ios-card` wrapper.
+
+**Sweep E — teaching empty states (8).** Members `pages/MembersPage.vue:1142`, Units
+`pages/UnitsPage.vue:250`, Documents `pages/DocumentsPage.vue:800`, Meetings
+`pages/MeetingsAdminPage.vue:524`, Requests `requests/RequestList.vue:58` (bare `<p>`), Projects
+`pages/[slug]/admin/projects/index.vue:124` (bare `<p>`), Channels `channels/ChannelsList.vue:418`
+(bare `<p>`), Email `pages/EmailPage.vue:370` (only the `activeTab === 'all'` first-run case).
+Recipe: the FIRST-RUN state only (nothing exists yet — never the filtered/search-empty state) →
+`<AppEmptyState icon title description :steps footnote><template #actions>CTA</template></AppEmptyState>`.
+Title = what would be here, sentence case ("Add your community's units"); 2–4 steps, imperative,
+one action each; the CTA calls the page's EXISTING create handler (do not invent flows) with a
+Title Case label; at most one filled `Button` — a second CTA is `variant="outline"`.
+Inside a card or table body use `size="sm"`. Bare `<p>` states: replace the `<p>` (and its
+sibling button, if any) with the component.
+
+#### Phase 1b — kickoff prompt (Sonnet 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log (Session 2 especially: its five sweep recipes are this
+session's whole job), §Token budget, and the Phase 1 section. Do not read the
+rest, do not re-survey Earnest, and never open docs/plan-earnest-parity-round2.md.
+
+This session = Phase 1b (the sweeps) ONLY, on Sonnet 5.5 at effort high. The
+primitives already exist (useConfirm, DateInput/DateTimeInput, AppBottomSheet
+size, AppEmptyState steps/#actions, the token map); do not change them. Run
+sweeps A–E exactly as written, each handed to ONE Sonnet 5.5 subagent with its
+file list and recipe; the main session reviews `git diff --stat` and spot-checks
+three files per sweep — it does not read every file. One commit per sweep.
+
+Cloud session: branch feat/parity3-p1b-sweeps off main (after the 1a PR has
+merged; if it has not, branch off feat/parity3-p1a-shell-primitives and say so
+in the PR), push it, open a DRAFT PR, never push to main — it auto-deploys.
+`pnpm install --frozen-lockfile` first.
+
+Gates, per commit, serially and in the background, reading only the tail:
+typecheck 0 (NODE_OPTIONS=--max-old-space-size=6144 and the CI dummy env:
+DIRECTUS_URL=http://localhost:8055 DIRECTUS_STATIC_TOKEN=ci-dummy-token
+NUXT_SESSION_PASSWORD=ci-dummy-session-password-at-least-32-chars), vitest green,
+build green, `pnpm audit:hairline-surfaces` at 0. After the last sweep, build,
+start `.output/server/index.mjs` on :3123 with the same env, and run
+`NODE_PATH=$(npm root -g) node scripts/browser/verify-p1a-shell.cjs http://localhost:3123`
+(must stay 69/69). If the container has Directus credentials, also click
+through one converted create flow and one confirm on the demo org in light and
+dark; if not, say so in the Session log.
+
+Deliverable checks: the native-dialog grep in sweep A lists only useConfirm /
+FilePickerDialog; `grep -rnE 'type="(date|datetime-local)"' app core/app`
+lists only ui/date-input docblocks and the public site; the sweep C files have
+0 gray-/stone- literals (record the before-count as the color-literals
+baseline); six create flows open in AppBottomSheet; eight first-run empty
+states teach.
+
+When done: mark Phase 1 [x] in the Status row, append Session 3 to the Session
+log (shipped, deviations, operator TODOs), write the Phase 2 kickoff prompt
+(Opus 5.5, effort xhigh), and stop.
+```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
 

@@ -103,6 +103,13 @@ onMounted(() => channelUnread.refresh());
 const aiAssistant = useAiAssistant();
 // Shared count of AI actions awaiting the user's review → launcher badge (Phase 4).
 const aiPendingCount = useAiPendingCount();
+const spotlight = useSpotlight();
+// "⌘K" on Apple platforms, "Ctrl K" elsewhere — the hint should name the key
+// the user actually has. Client-only (navigator), so SSR renders the neutral form.
+const spotlightShortcut = ref("Ctrl K");
+onMounted(() => {
+  if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) spotlightShortcut.value = "⌘K";
+});
 const { hasChannelMembership, refresh: refreshChannelAccess } = useChannelAccess();
 onMounted(refreshChannelAccess);
 watch(() => route.params.slug, refreshChannelAccess);
@@ -424,6 +431,19 @@ watch(
           <ClientOnly>
             <DirectorTrustBar v-if="showAssistant" class="hidden sm:block" />
           </ClientOnly>
+          <!-- Spotlight (⌘K) — search records and jump anywhere in the workspace. -->
+          <button
+            v-if="isOnOrgPage"
+            type="button"
+            class="hidden sm:inline-flex items-center justify-center header-pill"
+            :title="`Search (${spotlightShortcut})`"
+            aria-label="Search"
+            aria-keyshortcuts="Meta+K Control+K"
+            data-spotlight-trigger
+            @click="spotlight.open()"
+          >
+            <Icon name="i-lucide-search" class="w-4 h-4" />
+          </button>
           <!-- AI assistant quick-peek — staff only; pops a slide-over like Channels. -->
           <button
             v-if="showAssistant"
@@ -606,6 +626,15 @@ watch(
                 class="py-3 border-b t-border flex items-center gap-2"
               >
                 <NotificationBell />
+                <button
+                  v-if="isOnOrgPage"
+                  type="button"
+                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                  @click="mobileMenuOpen = false; spotlight.open()"
+                >
+                  <Icon name="i-lucide-search" class="w-5 h-5 t-text-secondary" />
+                  <span class="text-sm">Search</span>
+                </button>
                 <button
                   v-if="showAssistant"
                   type="button"

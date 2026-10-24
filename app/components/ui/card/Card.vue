@@ -12,7 +12,10 @@ const props = defineProps<{
     data-slot="card"
     :class="
       cn(
-        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
+        // The refracted rim replaces the flat 1px border + shadow-sm, the same
+        // material `.ios-card` wears. See `.glass-edge` / `.glass-refract` in
+        // earnest-ui.css.
+        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 glass-edge glass-refract',
         props.class,
       )
     "

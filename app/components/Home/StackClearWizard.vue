@@ -133,7 +133,7 @@ function skip() {
 .wizard-card-enter-active {
   transition:
     opacity 0.3s ease,
-    transform 0.35s cubic-bezier(0.36, 0.66, 0.04, 1);
+    transform 0.35s var(--spring);
 }
 .wizard-card-leave-active {
   transition: opacity 0.15s ease;

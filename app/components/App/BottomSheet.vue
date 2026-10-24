@@ -18,6 +18,9 @@
  * tab and leaves the sheet parked half-open; every transition here therefore
  * also carries a setTimeout settle as a belt-and-braces fallback.
  */
+import { FocusScope } from "reka-ui";
+import { transition as motionTransition } from "#core/shared/motion";
+
 const props = withDefaults(
   defineProps<{
     open: boolean;
@@ -32,13 +35,21 @@ const props = withDefaults(
      * about reach (a quick action bar), not for forms.
      */
     alwaysSheet?: boolean;
+    /**
+     * Width of the centred-dialog presentation (≥ md). The sheet is always full
+     * width. sm 28rem · md 32rem · lg 42rem — the same steps as Earnest's
+     * ResponsiveModal, so a converted create flow keeps its proportions.
+     */
+    size?: "sm" | "md" | "lg";
   }>(),
-  { maxHeight: "88vh", persistent: false, alwaysSheet: false },
+  { maxHeight: "88vh", persistent: false, alwaysSheet: false, size: "md" },
 );
 
 const emit = defineEmits<{ "update:open": [value: boolean]; close: [] }>();
 
 const haptic = useHaptic();
+
+const DIALOG_WIDTH = { sm: "28rem", md: "32rem", lg: "42rem" } as const;
 
 // A bottom sheet is a THUMB-REACH affordance: it rises to where your hand
 // already is on a phone. On a large pointer-driven screen that reasoning does
@@ -174,10 +185,11 @@ onUnmounted(() => document.removeEventListener("keydown", onKeydown));
 
 const sheetStyle = computed(() => ({
   transform: dragY.value ? `translate3d(0, ${dragY.value}px, 0)` : "",
-  transition: dragging.value
-    ? "none"
-    : "transform 400ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1))",
+  // From the motion module rather than a literal, so prefers-reduced-motion
+  // turns the spring-back off here too (it returns "none").
+  transition: dragging.value ? "none" : motionTransition("transform", 400, "spring"),
   maxHeight: asDialog.value ? "min(85vh, 44rem)" : props.maxHeight,
+  maxWidth: asDialog.value ? DIALOG_WIDTH[props.size] : undefined,
 }));
 
 /** Backdrop fades out as the sheet is dragged away. */
@@ -206,6 +218,9 @@ const backdropStyle = computed(() => ({
         @click="onBackdrop"
       />
 
+      <!-- Focus is trapped in the panel while it is up and handed back to
+           whatever opened it when it goes — aria-modal promised both. -->
+      <FocusScope as-child trapped loop>
       <div ref="sheetEl" class="sheet__panel glass-surface glass-surface--strong" :style="sheetStyle">
         <!-- Grabber: the only drag handle, and the visual promise that this
              thing can be pulled down. Meaningless with a pointer, so the dialog
@@ -246,6 +261,7 @@ const backdropStyle = computed(() => ({
           <slot name="footer" />
         </footer>
       </div>
+      </FocusScope>
     </div>
   </Teleport>
 </template>
@@ -273,7 +289,7 @@ const backdropStyle = computed(() => ({
   flex-direction: column;
   /* Rounded at the top only — the sheet is attached to the bottom edge. */
   border-radius: 1rem 1rem 0 0;
-  animation: sheet-rise 400ms var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: sheet-rise 400ms var(--spring-out) both;
   padding-bottom: env(safe-area-inset-bottom, 0);
   overflow: hidden;
 }
@@ -329,7 +345,7 @@ const backdropStyle = computed(() => ({
   /* Scale-and-fade from the center reads as "this belongs to the page you are
      on", where a rise from the bottom edge would imply a direction it did not
      come from. */
-  animation: dialog-pop 240ms var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: dialog-pop 240ms var(--spring-out) both;
 }
 .sheet--dialog .sheet__header {
   padding-top: 1.25rem;
@@ -372,7 +388,7 @@ const backdropStyle = computed(() => ({
   animation: sheet-fade-out 180ms ease both;
 }
 .sheet--leaving .sheet__panel {
-  animation: sheet-drop 220ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: sheet-drop 220ms var(--ease-exit) both;
 }
 .sheet--dialog.sheet--leaving .sheet__panel {
   animation: dialog-pop-out 180ms ease-in both;

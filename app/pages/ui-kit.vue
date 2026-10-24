@@ -215,6 +215,48 @@ const typeLadder = [
   { cls: "type-label", name: "type-label", note: "Form & field labels" },
 ];
 
+// ── Phase 1a primitives ─────────────────────────────────────────────────────
+// Overlays: every one of these renders the glass material with the accent
+// focus ring; the browser check (scripts in the Session log) asserts it here.
+const kitSelect = ref("owner");
+const { confirm } = useConfirm();
+const confirmResult = ref("");
+const askDelete = async () => {
+  const ok = await confirm({
+    title: "Delete unit 4B?",
+    body: "Its residents stay in the directory; only their unit link is removed.",
+    destructive: true,
+  });
+  confirmResult.value = ok ? "Deleted" : "Kept";
+};
+
+// Same strings the raw inputs emitted — the v-model contract the sweep relies on.
+const dueDate = ref("2026-11-03");
+const meetingAt = ref("2026-11-12T19:30");
+
+const comboValue = ref<string>();
+const comboOptions = ["Dana Whitfield", "Marcus Lee", "Priya Raman", "Tom Alvarez"];
+
+const visibleColumns = ref<string[]>(["unit", "balance"]);
+const overdueOnly = ref(false);
+const kitPage = ref(2);
+const sizedSheetOpen = ref(false);
+
+// Spotlight with local sources: the real component, no session needed.
+const spotlight = useSpotlight();
+const kitDestinations = [
+  { key: "members", label: "Members", description: "Owners, tenants, and their contact details.", icon: "lucide:users-round", to: "/ui-kit?go=members", section: "Go to" },
+  { key: "units", label: "Units", description: "Units, addresses, and occupancy.", icon: "lucide:door-closed", to: "/ui-kit?go=units", section: "Go to" },
+  { key: "documents", label: "Documents", description: "The curated, published document library.", icon: "lucide:file-text", to: "/ui-kit?go=documents", section: "Go to" },
+];
+const kitSearch = async (q: string) => {
+  const needle = q.toLowerCase();
+  const items = members
+    .filter((m) => m.name.toLowerCase().includes(needle) || m.unit.toLowerCase() === needle)
+    .map((m) => ({ id: String(m.id), name: m.name, description: `Unit ${m.unit} · ${m.type}`, to: `/ui-kit?member=${m.id}` }));
+  return items.length ? [{ key: "members" as const, label: "Members", icon: "lucide:users-round", items }] : [];
+};
+
 const materials = [
   { cls: "glass-surface", label: "glass-surface" },
   { cls: "glass-surface glass-surface--strong", label: "--strong" },
@@ -312,6 +354,123 @@ const materials = [
             <Button size="icon-sm" variant="outline" aria-label="Edit"><Icon name="lucide:pencil" /></Button>
             <Button disabled>Disabled</Button>
           </div>
+          <!-- T3 / T4 — docs/button-type-case-system.md. -->
+          <div class="flex flex-wrap items-center gap-2" data-kit="action-buttons">
+            <ActionButton icon="lucide:plus">Add Unit</ActionButton>
+            <ActionButton icon="lucide:reply" variant="primary">Reply</ActionButton>
+            <ActionButton icon="lucide:trash-2" variant="destructive">Remove</ActionButton>
+            <ActionButton icon="lucide:filter" size="md" :pressed="overdueOnly" @click="overdueOnly = !overdueOnly">
+              Overdue Only
+            </ActionButton>
+            <ActionButton icon="lucide:settings" circle title="Settings" />
+            <span class="type-meta">T4:</span>
+            <ActionButton icon="lucide:x" size="xs" title="Dismiss" />
+            <ActionButton icon="lucide:pencil" size="xs" variant="primary" title="Edit" />
+            <ActionButton icon="lucide:trash-2" size="xs" variant="destructive" title="Delete" />
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Overlays ─────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Overlays</h2>
+        <p class="type-body">
+          Every overlay is the strong glass. Popovers and menus are floating
+          chrome (an opaque elevation step); dialogs and sheets sit over the
+          accent-tinted frosted scrim. Confirmations go through
+          <code>useConfirm()</code>, never <code>window.confirm()</code>.
+        </p>
+        <div class="ios-card p-5 mt-3 flex flex-wrap items-center gap-2" data-kit="overlays">
+          <Dialog>
+            <DialogTrigger as-child>
+              <Button variant="outline" data-kit-open="dialog">Dialog</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Rename unit</DialogTitle>
+                <DialogDescription>Residents see the new name everywhere.</DialogDescription>
+              </DialogHeader>
+              <Input placeholder="Unit 4B" />
+              <DialogFooter>
+                <DialogClose as-child>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button>Save</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Sheet>
+            <SheetTrigger as-child>
+              <Button variant="outline" data-kit-open="sheet">Sheet</Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+                <SheetDescription>Narrow the member list.</SheetDescription>
+              </SheetHeader>
+            </SheetContent>
+          </Sheet>
+
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button variant="outline" data-kit-open="popover">Popover</Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-64">
+              <p class="type-card type-flush">Unit 4B</p>
+              <p class="helper-text">Two owners, one vehicle on file.</p>
+            </PopoverContent>
+          </Popover>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" data-kit-open="dropdown">Menu</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Unit 4B</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem>Archive</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <TooltipProvider :delay-duration="0">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="outline" data-kit-open="tooltip">Tooltip</Button>
+              </TooltipTrigger>
+              <TooltipContent>Shown on hover and on focus</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <Select v-model="kitSelect">
+            <SelectTrigger class="w-36" data-kit-open="select">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="owner">Owner</SelectItem>
+              <SelectItem value="tenant">Tenant</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="destructive" data-kit-open="confirm" @click="askDelete">Delete Unit…</Button>
+          <span v-if="confirmResult" class="type-meta" data-kit="confirm-result">{{ confirmResult }}</span>
+        </div>
+      </section>
+
+      <!-- ── Spotlight ────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Spotlight</h2>
+        <p class="type-body">
+          ⌘K / Ctrl-K anywhere in the workspace. Destinations are instant; records
+          come from <code>/api/search</code>, scoped to the organization and to
+          what your role may see. Here it searches the sample members below.
+        </p>
+        <div class="mt-3 content-column">
+          <Button variant="outline" data-kit-open="spotlight" @click="spotlight.open()">
+            <Icon name="lucide:search" />
+            Search
+          </Button>
         </div>
       </section>
 
@@ -493,6 +652,23 @@ const materials = [
           </div>
         </div>
 
+        <!-- The teaching form: a first-run screen gets the 1-2-3 and a CTA that
+             does the thing, instead of a dead end. -->
+        <div class="ios-card mt-4" data-kit="empty-teaching">
+          <AppEmptyState
+            icon="lucide:door-closed"
+            title="Add your community's units"
+            description="Units are what dues, requests and residents hang off."
+            :steps="['Add each unit, or import a spreadsheet', 'Link owners and tenants to their units', 'Invite residents to sign in']"
+            footnote="You can rename and renumber units later."
+          >
+            <template #actions>
+              <Button size="sm">Add Unit</Button>
+              <Button size="sm" variant="outline">Import CSV</Button>
+            </template>
+          </AppEmptyState>
+        </div>
+
         <!-- `compact` is for an empty state nested INSIDE a card or a table
              body, where the full-size version would tower over its container. -->
         <div class="ios-card mt-4">
@@ -539,6 +715,67 @@ const materials = [
             <Progress :model-value="62" />
           </div>
         </div>
+
+        <!-- Two edges, not three: the card is the container, the field is the
+             second edge, and each group between them is a flat .form-section. -->
+        <div class="ios-card p-5 mt-4" data-kit="form-sections">
+          <section class="form-section">
+            <h3 class="form-section__title type-card">Schedule</h3>
+            <p class="form-section__hint">DateInput keeps the raw input's v-model string.</p>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label class="type-label" for="kit-due">Due date</Label>
+                <DateInput id="kit-due" v-model="dueDate" class="mt-1" data-kit="date-input" />
+                <p class="helper-text mt-1">v-model: <code>{{ dueDate || '""' }}</code></p>
+              </div>
+              <div>
+                <Label class="type-label" for="kit-meeting">Meeting starts</Label>
+                <DateTimeInput id="kit-meeting" v-model="meetingAt" class="mt-1" data-kit="datetime-input" />
+                <p class="helper-text mt-1">v-model: <code>{{ meetingAt || '""' }}</code></p>
+              </div>
+            </div>
+          </section>
+          <section class="form-section">
+            <h3 class="form-section__title type-card">Pickers</h3>
+            <div class="flex flex-wrap items-center gap-4">
+              <Combobox v-model="comboValue">
+                <ComboboxAnchor class="w-64" data-kit="combobox">
+                  <ComboboxInput placeholder="Assign to…" />
+                  <ComboboxTrigger />
+                </ComboboxAnchor>
+                <ComboboxList>
+                  <ComboboxEmpty>No one by that name.</ComboboxEmpty>
+                  <ComboboxGroup>
+                    <ComboboxItem v-for="name in comboOptions" :key="name" :value="name">
+                      {{ name }}
+                      <ComboboxItemIndicator />
+                    </ComboboxItem>
+                  </ComboboxGroup>
+                </ComboboxList>
+              </Combobox>
+              <ToggleGroup v-model="visibleColumns" type="multiple" size="sm" data-kit="toggle-group">
+                <ToggleGroupItem value="unit" aria-label="Unit column">Unit</ToggleGroupItem>
+                <ToggleGroupItem value="type" aria-label="Type column">Type</ToggleGroupItem>
+                <ToggleGroupItem value="balance" aria-label="Balance column">Balance</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </section>
+          <section class="form-section">
+            <h3 class="form-section__title type-card">Pagination</h3>
+            <Pagination v-slot="{ page }" v-model:page="kitPage" :items-per-page="20" :total="180" :sibling-count="1" show-edges>
+              <PaginationContent v-slot="{ items }">
+                <PaginationPrevious />
+                <template v-for="(item, index) in items" :key="index">
+                  <PaginationItem v-if="item.type === 'page'" :value="item.value" :is-active="item.value === page">
+                    {{ item.value }}
+                  </PaginationItem>
+                  <PaginationEllipsis v-else :index="index" />
+                </template>
+                <PaginationNext />
+              </PaginationContent>
+            </Pagination>
+          </section>
+        </div>
       </section>
 
       <!-- ── Sheet ────────────────────────────────────────────────────── -->
@@ -550,7 +787,12 @@ const materials = [
         </p>
         <div class="mt-3 content-column">
           <Button @click="sheetOpen = true">Open sheet</Button>
+          <Button variant="outline" class="ml-2" @click="sizedSheetOpen = true">Open wide (size="lg")</Button>
         </div>
+        <p class="helper-text content-column mt-2">
+          Below md it is the sheet; at md and up the same component presents as a
+          centred dialog, focus-trapped either way.
+        </p>
       </section>
 
       <!-- ── Settings group ───────────────────────────────────────────── -->
@@ -597,6 +839,16 @@ const materials = [
         </div>
       </section>
     </div>
+
+    <AppSpotlight :destinations="kitDestinations" :search-fn="kitSearch" />
+
+    <AppBottomSheet v-model:open="sizedSheetOpen" size="lg" title="Invite members" description="Each person gets an email with a sign-in link.">
+      <Textarea placeholder="one@example.com, two@example.com" />
+      <template #footer>
+        <Button variant="ghost" @click="sizedSheetOpen = false">Cancel</Button>
+        <Button @click="sizedSheetOpen = false">Send Invites</Button>
+      </template>
+    </AppBottomSheet>
 
     <AppBottomSheet v-model:open="sheetOpen" title="New announcement" description="Everyone in the community will see this.">
       <div class="space-y-3 pt-1">

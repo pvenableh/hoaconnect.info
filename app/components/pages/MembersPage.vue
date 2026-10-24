@@ -56,6 +56,9 @@ const activeTab = useTabQuery({
   values: ["members", "invite", "pending", "board"],
   fallback: "members",
 });
+// Read by the `?member=` deep link below (after the await, so taken here).
+const memberRoute = useRoute();
+const memberRouter = useRouter();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
@@ -534,6 +537,22 @@ const handleEdit = (member: any) => {
   editingId.value = member.id;
   showAddModal.value = true;
 };
+
+// `?member=<id>` opens that member — the deep link Spotlight's member hits use
+// (core/shared/search). The param is consumed with router.replace so a refresh
+// or Back does not reopen the form the user already closed.
+watch(
+  [() => memberRoute.query.member, allMembers],
+  ([id, rows]) => {
+    if (!import.meta.client || !id || !rows) return;
+    const member = (rows as any[]).find((m) => String(m.id) === String(id));
+    if (!member) return;
+    handleEdit(member);
+    const { member: _consumed, ...rest } = memberRoute.query;
+    memberRouter.replace({ query: rest });
+  },
+  { immediate: true },
+);
 
 // Anchor the AI assistant to the member being viewed/edited while the modal is
 // open, so the assistant answers about THIS member (and keeps their own thread).

@@ -49,7 +49,7 @@ const isBack = computed(() => depth.value > 1);
 // ghost MUST be teleported to body — `position: fixed` inside a transformed
 // ancestor is positioned relative to that ancestor, not the viewport.
 
-const SPRING_EASE_FN = "var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1))";
+const SPRING_EASE_FN = "var(--spring)";
 const ENTER_MS = 400;
 const FLIP_LAND_MS = 100;
 
@@ -241,8 +241,8 @@ onBeforeUnmount(() => {
       hsl(calc(var(--app-accent-h, 220) + 30) 55% 55% / 0.08) 100%
     ),
     color-mix(in srgb, var(--background) 78%, transparent);
-  backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.1) inset;
   position: relative;
   flex-shrink: 0;
@@ -265,8 +265,8 @@ onBeforeUnmount(() => {
 }
 @media (prefers-reduced-transparency: reduce) {
   .app-slide-over-shell__header {
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     background: var(--background);
   }
 }

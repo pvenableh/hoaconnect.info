@@ -151,7 +151,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
 
 <template>
   <Sheet :open="isSheetOpen" @update:open="handleOpenChange">
-    <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto t-bg t-text">
+    <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto t-text">
       <template v-if="selectedNotification">
         <SheetHeader class="space-y-4">
           <!-- Type Badge -->
