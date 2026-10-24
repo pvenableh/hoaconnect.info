@@ -15,15 +15,15 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | Session | Phase | State | Notes |
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
-| 1–2 | Phase 1 — Glass shell completion (overlays, motion, dialogs, dates, ⌘K) | [ ] | The visible win; every later phase lands on these primitives. |
-| 3 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
-| 4–5 | Phase 3 — Email: compliance and delivery (unsubscribe, queue, sender) | [ ] | CAN-SPAM blocker + the synchronous send loop. Two sessions. |
-| 6 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
-| 7–8 | Phase 5 — Reminder engine + resident notification events | [ ] | Dues / meetings / requests / violations / polls. Two sessions. |
-| 9 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
-| 10 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
-| 11 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
-| 12 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
+| 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [ ] | The visible win; every later phase lands on these primitives. |
+| 4 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
+| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
+| 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
+| 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
+| 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
+| 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
+| 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
+| 14 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
 
 ### Session log
 
@@ -607,6 +607,78 @@ standards doc.
 
 ---
 
+## Token budget — which model runs each phase, and how a session stays cheap
+
+Prices (Anthropic API, cached 2026-10-06, per million tokens in / out): **Fable 5.1**
+$10 / $50 · **Opus 5.5** $4 / $20 · **Sonnet 5.5** $2 / $10 · **Haiku 5.5** $0.10 / $0.50.
+Opus is 2.5× cheaper than Fable, Sonnet 2× cheaper than Opus, Haiku 20× cheaper than
+Sonnet. A session's bill is dominated by **input** tokens re-read every turn, so the two
+levers that matter most are (1) which model, and (2) how much of the repo the session
+pulls into context. The second lever is bigger than the first.
+
+### Model per phase
+
+The rule: **design and cross-cutting primitives on Opus 5.5; mechanical sweeps and
+well-specified ports on Sonnet 5.5; Fable 5.1 only for the one design whose failure
+sends residents money notices twice.** Effort: `xhigh` for Opus design sessions, `high`
+for Sonnet sweep sessions (Claude Code's default is `xhigh`; lower it in the session).
+
+| Phase | Session | Model | Effort | Why this model |
+|---|---|---|---|---|
+| 0 | Pre-flight | Opus 5.5 | high | Done. Security reasoning across four routes; small diff. |
+| 1a | Shell primitives: glass overlays, motion module, `useConfirm`, date pickers, Spotlight, BottomSheet switch, EmptyState props, button tiers | **Opus 5.5** | xhigh | Nine primitives every later phase builds on; a wrong `useConfirm` or overlay class costs every subsequent session. |
+| 1b | The sweeps: 34 `confirm()` → `useConfirm`, 18 raw date inputs → `DateInput`, stone/gray → tokens, 6 create flows → BottomSheet, 8 empty states | **Sonnet 5.5** | high | Identical edits with an exact recipe from 1a. Hand each sweep to a Sonnet subagent; the main session reviews the diff, not the files. |
+| 2 | Dock, navigation, page-title outlet, App Library, create verbs | **Opus 5.5** | xhigh | Layout and registry architecture; touches `auth.vue`, `useAppNav`, `useSectionNav`. |
+| 3a | Email compliance: classes, opt-out, tokens, one-click route, headers, footer, suppression from the webhook | **Opus 5.5** | xhigh | Legal surface plus audience-exclusion logic; moderate diff, high consequence. |
+| 3b-design | The send queue's state machine: claim/settle, at-most-once under a Vercel kill, stale-claim expiry, progress arithmetic — **as a written spec + the test list, no code** | **Fable 5.1** | high | The one place correctness outweighs cost: a wrong at-most-once design re-sends dues notices. A short design session (one doc, ~50 tests named) spends few Fable tokens. |
+| 3b-build | Implement that spec: recipients-as-queue schema, `continue-sends` cron, progress route and UI, sender unification | **Opus 5.5** | xhigh | Builds to a spec with named tests; Opus is enough once the design is fixed. |
+| 4 | Email health (pause/resume), recurrence, MJML partial composition, preview route | **Opus 5.5** | high | The 1,475-line `email-templates-mjml.ts` refactor needs judgment; the rest is Sonnet-grade. Keep one session; drop to `high`. |
+| 5a | Reminder engine: `hoa_reminder_log`, rules module, cron tick, org timezone | **Opus 5.5** | xhigh | Idempotency and audience rules per entity type. |
+| 5b | Reminder templates, Settings → Reminders with dry run, the six resident notification events | **Sonnet 5.5** | high | UI and wiring onto 5a's engine. |
+| 6 | PWA and push: always-on SW, install card, manifest shortcuts, notification actions | **Sonnet 5.5** | high | A specified port of `sw.js`, two plugins and one card. Device verification is Peter's, not the model's. |
+| 7 | Channels gap-close: edit, notify-on-message, DMs, presence, embedded threads | **Sonnet 5.5** | high | Extends code that already exists on both sides; the notify-on-message fan-out is the only design point and the plan fixes it. |
+| 8 | Audit gates and CI | **Sonnet 5.5** | high | Porting 14 scripts and re-censusing regexes against this app's spelling. Baselines are measured, not reasoned. |
+| 9 | Launch polish, money-path tests, GTM checklist | **Opus 5.5** | high | The Stripe webhook replay fixtures need care; the rest is cleanup. |
+
+**Subagents inside any session:** Explore / census work (grep the 34 call sites, list the
+raw date inputs, count a class) on **Haiku 5.5**; sweep subagents that apply a recipe to
+N files on **Sonnet 5.5**; never spawn a subagent on the session's own model for a
+mechanical job. Give every subagent the exact file list and the recipe, and have it
+return a diff summary, not file contents.
+
+### Session hygiene (the bigger lever)
+
+1. **Do not re-survey Earnest.** The `## Context` section and the Earnest file names in
+   each phase are the map. Read only the Earnest files the phase names, and only the
+   lines you need (`sed -n`), never whole 1,000-line components.
+2. **Never open `docs/plan-earnest-parity-round2.md`** (4,857 lines, ~60K tokens). It is
+   history. Everything a Round 3 session needs from it is restated here.
+3. **The kickoff prompt names the files.** A session reads those plus what `grep` points
+   to — not the directory. Reading a file to "get a feel" is the most common waste.
+4. **Sweeps are recipes, not reading.** For N identical edits: write the recipe once,
+   hand it to a Sonnet subagent with the file list, review `git diff --stat` and spot-
+   check three files. Do not read all N before or after.
+5. **Gates run in the background and only the tail is read.** `pnpm test | tail -6`;
+   typecheck and build into a log file, grep `error TS` / `exit`. Typecheck needs
+   `NODE_OPTIONS=--max-old-space-size=6144` (it OOMs at the default 2 GB heap).
+   Never read a full build log.
+6. **Browser verification is a script.** One headless Playwright script per phase that
+   asserts the checks (class present, dialog opened, reduced-motion honoured) and
+   writes screenshots to the scratch dir. Read a screenshot only when an assertion
+   fails — every image read is a vision-token spend.
+7. **One phase per session, then stop.** End with the Status row, the Session log entry
+   and the next kickoff prompt. A fresh session per phase starts with a cold cache but a
+   short context; a long session re-reads its whole history every turn. Split 1 and 3
+   as the table says; never run two phases in one session.
+8. **Do not paste file contents into the plan or the PR body.** Name the file and the
+   line; the diff is the record.
+9. **Cloud sessions branch, local sessions don't.** A cloud session (claude.ai/code)
+   works on `feat/parity3-p<N>-<slug>` off `main` and opens a draft PR; `main`
+   auto-deploys, so it never pushes there. A local session on Peter's machine keeps the
+   round-2 convention (work on `main`, ask before pushing).
+
+---
+
 ## Sequencing
 
 ```
@@ -627,8 +699,9 @@ P8 (audits) after P1 (so the baselines are post-sweep) · P9 last
   releasable and should go out as soon as it is green — it removes a compliance risk
   that exists today.
 
-Roughly **12 sessions**. Earnest-style single-phase sessions on `main`, Vercel
-auto-deploys on push, so each session ends with a green gate and a deploy decision.
+Roughly **14 sessions** after the model/phase splits in §Token budget. Single-phase
+sessions; Vercel auto-deploys `main` on push, so each session ends with a green gate
+and a deploy decision (a cloud session's PR merge is that decision).
 
 ---
 
@@ -691,32 +764,42 @@ auto-deploys on push, so each session ends with a green gate and a deploy decisi
 
 ## Kickoff prompt — template for every session
 
+Pick the model and effort from §Token budget before starting the session. Fill in the
+phase, the session's half (1a / 1b / 3a / 3b-design / 3b-build / 5a / 5b), and the branch.
+
 ```
 Continue the Earnest Parity Round 3 programme. Read
-docs/plan-earnest-parity-round3-gtm.md (plan + Status checklist) first —
-it is the source of truth, including any deviations recorded by earlier
-sessions. Skim the "Context" section once; do not re-survey Earnest.
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log, §Token budget, and the section for THIS phase. Do not
+read the rest, do not re-survey Earnest, and never open
+docs/plan-earnest-parity-round2.md.
 
-Work on `main` in ~/Sites/hoaconnect — no phase branch, no worktree.
-`git pull --ff-only` first. Tool shells have no node/pnpm: run
-`eval "$(/usr/local/bin/fnm env)"` in every one. Vercel AUTO-DEPLOYS on
-push, so a push IS a production deploy — never push without asking.
-
-This session = Phase <N> (<name>) ONLY. Earnest reference repo:
-~/Sites/earnest/earnest — port patterns per the plan (the plan names the
-Earnest files); reuse the existing HOA functions the plan names instead of
-duplicating them. The public site (Org/Landing/*, LandingBuilder/*, the
+This session = Phase <N><half> (<name>) ONLY, on <model> at effort <level>.
+Earnest reference checkout: /home/user/earnest (cloud) or
+~/Sites/earnest/earnest (local). Read only the Earnest files this phase names,
+and only the lines you need. Reuse the HOA functions the plan names instead
+of duplicating them. The public site (Org/Landing/*, LandingBuilder/*, the
 public theme blocks) is out of scope.
 
-Quality gate, per commit: typecheck 0, vitest green, build green (serially,
-never both at once), every audit at or under baseline (husky blocks),
-org-scope tests for every new endpoint, plus the phase's browser
-verification in BOTH light and dark on the demo org with a real session
-(`/api/demo/login`). Delete every row you create; `demo-classic` is a
-CONTROL — diff both orgs before and after. Drive the browser headlessly;
-I supervise from another device.
+Cloud session: branch feat/parity3-p<N><half>-<slug> off main, push it, open
+a DRAFT PR, and never push to main — it auto-deploys. Local session: work on
+main, ask before pushing. Tool shells have no node/pnpm locally: run
+`eval "$(/usr/local/bin/fnm env)"` in every one.
 
-When done: update the Status table and append to the Session log (shipped,
-deviations, operator TODOs), give me the kickoff prompt for the next
-session, and ask before pushing.
+Token rules: subagents on Haiku 5.5 for census/grep, Sonnet 5.5 for N-file
+sweeps with an exact recipe; review diffs, not files. Gates run in the
+background; read only the tail. Typecheck with
+NODE_OPTIONS=--max-old-space-size=6144. Browser checks are one headless
+Playwright script; read a screenshot only when an assertion fails.
+
+Quality gate, per commit: typecheck 0, vitest green, build green (serially,
+never both at once), every audit at or under baseline, org-scope tests for
+every new endpoint, plus the phase's browser verification in BOTH light and
+dark on the demo org with a real session (`/api/demo/login`). Delete every
+row you create; `demo-classic` is a CONTROL — diff both orgs before and
+after.
+
+When done: update the Status row, append to the Session log (shipped,
+deviations, operator TODOs), write the next session's kickoff prompt, and
+stop. One phase per session.
 ```
