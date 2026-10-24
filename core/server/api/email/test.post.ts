@@ -133,6 +133,11 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Authorize: must be an org admin, or a property manager with the
+  // "communications" grant — the same gate as send.post.ts. Without it any
+  // signed-in user could mail five addresses under another org's branding.
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
+
   // Limit to 5 test emails to prevent abuse
   if (testEmails.length > 5) {
     throw createError({

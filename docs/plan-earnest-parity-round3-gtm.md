@@ -6,7 +6,7 @@
 > (this plan was written against Earnest `aa44b6b`, 2026-10-14, and HOA Connect
 > `1c96ab4`, 2026-09-11).
 
-**Status:** Proposed · **Author:** Peter + Claude · **Date:** 2026-10-24
+**Status:** In progress · **Author:** Peter + Claude · **Date:** 2026-10-24 · **Decisions:** all six open decisions locked on their defaults 2026-10-24 (see §Decisions)
 
 ## Status
 
@@ -14,7 +14,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 
 | Session | Phase | State | Notes |
 |---|---|---|---|
-| 1 | Phase 0 — Pre-flight and launch blockers | [ ] | Ops items, security fixes, dead code out. Half a session. |
+| 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 1–2 | Phase 1 — Glass shell completion (overlays, motion, dialogs, dates, ⌘K) | [ ] | The visible win; every later phase lands on these primitives. |
 | 3 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
 | 4–5 | Phase 3 — Email: compliance and delivery (unsubscribe, queue, sender) | [ ] | CAN-SPAM blocker + the synchronous send loop. Two sessions. |
@@ -29,6 +29,68 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 
 _Each session appends here: what shipped, deviations from the plan, and operator TODOs
 (prod scripts to run, env vars to set)._
+
+**Session 1 — Phase 0** (2026-10-24) — on branch `docs/plan-earnest-parity-round3-gtm`
+(PR #306), not `main`: this session ran in a cloud checkout, and `main` auto-deploys.
+
+Shipped:
+
+- `requireCronOrAppAdmin()` in `core/server/utils/cron-auth.ts`: the cron secret (either
+  spelling) or a signed-in **App Administrator**; 401 with no session, 403 with a session
+  that is not an app admin. Adopted by `email/process-scheduled.post.ts`,
+  `ai/notices/check.ts`, `demo/reset.post.ts` and `internal/recompute-member-counts.post.ts`.
+  `tests/server/cron-auth.test.ts` (8 tests) pins the matrix.
+- `email/test.post.ts` now runs `requireAdminOrManagerGrant(event, organizationId,
+  "communications")` — the same gate as `send.post.ts`. Previously any signed-in user
+  could mail five addresses under any org's branding.
+- Retired `email/test-simple-send.post.ts`, `email/test-simple.get.ts` (it had **no auth
+  at all**) and `email/debug-html.post.ts`. Nothing in the app called them.
+- `sendgrid.ts`: one `PLATFORM_FROM_EMAIL` / `platformFromEmail(config)`; the five
+  `noreply@605lincolnroad.com` fallbacks are gone (one call site already fell back to
+  `noreply@hoaconnect.info`; now all six agree).
+- Deleted `core/app/composables/useGSAP.js` (118 lines, zero callers; `useGsap.ts` is the
+  one way in, as its own docblock says).
+- `.github/workflows/ci.yml` runs `pnpm audit:hairline-surfaces` after the unit tests.
+
+Deviations from the plan, all deliberate:
+
+1. **`email/test.post.ts` is kept.** The plan called it a debug endpoint; it is the compose
+   page's "Send test email" (`EmailComposePage.vue:843` → `useEmailSystem.sendTestEmail`).
+   The survey's mistake was reading its name. Its real defect was the missing org gate,
+   which is fixed instead.
+2. **Four routes, not one.** The "any session unlocks a cross-org job" shape the plan
+   found in `process-scheduled` was also in the AI notices cron, the demo reset and the
+   member-count recompute. Same fix, same commit. `ai/actions/expire-stale.ts` was already
+   correct (a session may only sweep an org it is authorized for).
+3. **`resolve.get.ts` and `view/[id].get.ts` are public by design** (web view of a sent
+   email by its link) and `sender/*` already require admin; the audit left them alone.
+4. **`pnpm generate:types` was not run** — this environment has no prod Directus
+   credentials. Nothing in Phase 0 changes schema, so the generated types are unaffected;
+   run it at the start of Phase 1 as usual.
+
+Operator TODOs (Peter — none are code):
+
+- [ ] Generate VAPID keys and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`
+      on Vercel, then redeploy (go-live §5). Verify `/api/user/push/config` serves the key.
+- [ ] Top up the Anthropic account and confirm which key Vercel holds (go-live §3e);
+      confirm `VOYAGE_API_KEY` is set (§3e).
+- [ ] Delete the `/transition-test` fixture before any public community listing (§3d).
+- [ ] Confirm `CRON_SECRET` is set on Vercel and that the Directus Flow "Email Scheduler
+      (Phase 9)" sends it as `x-cron-secret` — the flow is unchanged, but the route no
+      longer accepts a plain session as a substitute.
+- [ ] If anyone triggered `process-scheduled`, `notices/check`, `demo/reset` or
+      `recompute-member-counts` by hand from an HOA-admin session, that now 403s; use an
+      App Administrator session or the secret.
+
+### Decisions (locked 2026-10-24, all on the plan's defaults)
+
+1. **DMs** — build as private channels (Phase 7.3).
+2. **Email classes** — `essential` vs `community`, per-member opt-out on `community` only.
+3. **Scheduler** — the Directus Flow email scheduler moves to a Vercel cron (Phase 3.9);
+   the GitHub Actions workers stay.
+4. **`@vite-pwa/nuxt`** — remove (Phase 6.2).
+5. **Phones** — App Library grid from the Nav (Phase 2.6); the dock from `md` up.
+6. **Message edit window** — 15 minutes for members, unlimited for managers (Phase 7.1).
 
 ---
 
@@ -611,7 +673,7 @@ auto-deploys on push, so each session ends with a green gate and a deploy decisi
 5. **Scope creep from Earnest.** The surveys found ~30K lines of shell, email and list
    code. The "not ported" list above is a boundary, not a backlog.
 
-## Open decisions (Peter's call; none block Phase 0 or 1)
+## Open decisions — RESOLVED 2026-10-24 (all defaults; see §Decisions in the Session log)
 
 1. **DMs** — build as private channels (Phase 7.3) or defer? Default: build; it is a
    day and the "message the treasurer" ask will come from the first paying board.

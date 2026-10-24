@@ -13,11 +13,11 @@
  * job silently never runs. Read the body defensively in those handlers — there
  * isn't one on a GET.
  *
- * `core/server/api/demo/reset.post.ts`,
- * `core/server/api/internal/recompute-member-counts.post.ts` and
- * `core/server/api/email/process-scheduled.post.ts` still read the header
- * directly. They are not on Vercel Cron, so they don't need this yet — but this
- * is what they should adopt if they ever move.
+ * Every cron-shaped route goes through `requireCronOrAppAdmin()` below. The
+ * manual fallback is an **App Administrator** session, not any session: these
+ * jobs sweep every organization, so an HOA admin of one community — let alone
+ * an ordinary member — has no standing to fire them. (Until 2026-10 four of
+ * them accepted any logged-in user.)
  */
 
 import type { H3Event } from "h3";
@@ -33,4 +33,28 @@ export function cronSecretMatches(event: H3Event): boolean {
   if (auth && auth === `Bearer ${secret}`) return true;
 
   return false;
+}
+
+/**
+ * Authorize a cron-shaped request: the cron secret, or a signed-in
+ * **App Administrator** (`directusRoleAppAdmin`) triggering it by hand.
+ *
+ * Throws 401 with no session and 403 with a session that is not an app admin,
+ * so a refusal names which of the two the caller is missing.
+ */
+export async function requireCronOrAppAdmin(event: H3Event): Promise<"cron" | "app-admin"> {
+  if (cronSecretMatches(event)) return "cron";
+
+  const session = await getUserSession(event).catch(() => null);
+  const user = session?.user as { id?: string; role?: string | { id?: string } } | undefined;
+  if (!user?.id) {
+    throw createError({ statusCode: 401, message: "Unauthorized" });
+  }
+
+  const config = useRuntimeConfig();
+  const roleId = typeof user.role === "string" ? user.role : user.role?.id;
+  if (!roleId || roleId !== config.public.directusRoleAppAdmin) {
+    throw createError({ statusCode: 403, message: "App administrator access required" });
+  }
+  return "app-admin";
 }

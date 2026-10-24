@@ -1,6 +1,17 @@
 import sgMail from "@sendgrid/mail";
 
 /**
+ * The platform's own sender, used when an org has no verified white-label
+ * domain and `FROM_EMAIL` is unset. One constant, one place — until 2026-10
+ * five call sites fell back to a single tenant's domain (605lincolnroad.com).
+ */
+export const PLATFORM_FROM_EMAIL = "noreply@hoaconnect.info";
+
+export function platformFromEmail(config: { public: { fromEmail?: string } }): string {
+  return config.public.fromEmail || PLATFORM_FROM_EMAIL;
+}
+
+/**
  * Initialize SendGrid with API key
  */
 const initSendGrid = () => {
@@ -136,7 +147,7 @@ export const sendHoaInvitationEmail = async ({
 
   const msg = {
     to,
-    from: config.public.fromEmail || "noreply@605lincolnroad.com",
+    from: platformFromEmail(config),
     templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
@@ -204,7 +215,7 @@ export const sendWelcomeEmail = async ({
 
   const msg = {
     to,
-    from: config.public.fromEmail || "noreply@605lincolnroad.com",
+    from: platformFromEmail(config),
     templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
@@ -286,7 +297,7 @@ export const sendInvitationAcceptedEmail = async ({
 
   const msg = {
     to,
-    from: config.public.fromEmail || "noreply@605lincolnroad.com",
+    from: platformFromEmail(config),
     templateId: config.sendgridInviteEmailTemplateId,
     dynamicTemplateData: templateData,
   };
@@ -322,7 +333,7 @@ export const sendEmail = async ({
 
   const msg = {
     to,
-    from: config.public.fromEmail || "noreply@605lincolnroad.com",
+    from: platformFromEmail(config),
     subject,
     text,
     html: html || text,
@@ -364,7 +375,7 @@ export const sendBulkEmail = async ({
   const config = useRuntimeConfig();
   const sg = initSendGrid();
 
-  const fromEmail = config.public.fromEmail || "noreply@605lincolnroad.com";
+  const fromEmail = platformFromEmail(config);
 
   // SendGrid supports up to 1000 recipients per request
   const batchSize = 1000;
@@ -515,7 +526,7 @@ export const sendOrganizationEmail = async ({
 
   const sg = initSendGrid();
 
-  const fromEmail = fromAddress || config.public.fromEmail || "noreply@hoaconnect.info";
+  const fromEmail = fromAddress || platformFromEmail(config);
 
   // Build categories array - include organization ID if provided
   const categories = ["HOA Connect"];
