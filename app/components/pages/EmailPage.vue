@@ -367,15 +367,32 @@ useSeoMeta({
                 </template>
               </AppDataTable>
 
+              <!-- First run is only the "all" tab; the other tabs being empty just
+                   means nothing has reached that state yet. -->
+              <AppEmptyState
+                v-else-if="activeTab === 'all'"
+                icon="lucide:mail"
+                title="Email your community"
+                description="Write your first email to reach everyone in the community."
+                :steps="[
+                  'Compose a message and choose who receives it',
+                  'Send it now or save a draft',
+                  'Follow delivery in the activity log',
+                ]"
+                size="sm"
+              >
+                <template #actions>
+                  <Button @click="goToCompose">
+                    <Icon name="lucide:plus" />
+                    Compose Email
+                  </Button>
+                </template>
+              </AppEmptyState>
               <AppEmptyState
                 v-else
                 icon="lucide:mail"
-                :title="activeTab === 'all' ? 'No emails yet' : `Nothing in ${activeTab}`"
-                :description="
-                  activeTab === 'all'
-                    ? 'Write your first email to reach everyone in the community.'
-                    : 'Emails appear here once they reach this state.'
-                "
+                :title="`Nothing in ${activeTab}`"
+                description="Emails appear here once they reach this state."
               >
                 <Button @click="goToCompose">
                   <Icon name="lucide:plus" />

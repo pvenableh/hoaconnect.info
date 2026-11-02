@@ -140,7 +140,16 @@ const createViolation = async () => {
       </div>
 
       <div class="ios-card p-2">
-        <RequestsRequestList :requests="filtered" :base-path="basePath" :loading="pending" />
+        <RequestsRequestList
+          :requests="filtered"
+          :base-path="basePath"
+          :loading="pending"
+          :filtered="!!requests?.length"
+        >
+          <template v-if="canCreateViolation" #empty-actions>
+            <Button class="rounded-full" @click="openNew">New Violation</Button>
+          </template>
+        </RequestsRequestList>
       </div>
     </PageContainer>
 

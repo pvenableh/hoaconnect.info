@@ -6,6 +6,8 @@ const props = defineProps<{
   requests: RequestRow[];
   basePath: string;
   loading?: boolean;
+  /** True when the parent's filters, not an empty queue, emptied `requests`. */
+  filtered?: boolean;
   /**
    * Open rows in the slide-over panel stack (?slide=request:id) instead of
    * navigating to the full page. The full page stays reachable by URL.
@@ -51,12 +53,32 @@ const formatDate = (s: string | null | undefined) =>
   <div>
     <WidgetRowSkeleton v-if="loading" :rows="5" avatar-shape="square" />
 
-    <div v-else-if="!requests.length" class="py-16 text-center">
-      <div class="w-14 h-14 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-3">
-        <Icon name="lucide:clipboard-list" class="w-7 h-7 t-text-muted" />
-      </div>
-      <p class="t-text-muted">No requests yet.</p>
-    </div>
+    <!-- `filtered` is set by a parent whose filters (not an empty queue) emptied
+         the list; first run is the default. CTAs come in through #empty-actions. -->
+    <AppEmptyState
+      v-else-if="!requests.length && filtered"
+      variant="search"
+      title="No requests match these filters"
+      description="Try a different type or status."
+      size="sm"
+    />
+
+    <AppEmptyState
+      v-else-if="!requests.length"
+      icon="lucide:clipboard-list"
+      title="Track community requests"
+      description="Maintenance, review and complaint requests all land here."
+      :steps="[
+        'Pick the type of request',
+        'Describe what is needed',
+        'Follow updates here as it moves along',
+      ]"
+      size="sm"
+    >
+      <template v-if="$slots['empty-actions']" #actions>
+        <slot name="empty-actions" />
+      </template>
+    </AppEmptyState>
 
     <StaggerList
       v-else

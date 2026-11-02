@@ -1147,17 +1147,39 @@ useSeoMeta({
                   </template>
 
                   <template #empty>
+                    <!-- First run = no members at all; a filter that excludes
+                         everyone is a different event and says so. -->
                     <AppEmptyState
+                      v-if="!allMembers?.length"
                       icon="lucide:users"
-                      title="No members yet"
+                      title="Add your community's members"
                       description="Add members directly, or invite them to create their own login."
-                      compact
+                      :steps="[
+                        'Add each member to the roster',
+                        'Link each member to their unit',
+                        'Invite them to create a portal login',
+                      ]"
+                      footnote="You can edit or archive a member at any time."
+                      size="sm"
                     >
-                      <Button @click="handleAddMember">
-                        <Icon name="lucide:user-plus" />
-                        Add the first member
-                      </Button>
+                      <template #actions>
+                        <Button @click="handleAddMember">
+                          <Icon name="lucide:user-plus" />
+                          Add Member
+                        </Button>
+                        <Button variant="outline" @click="activeTab = 'invite'">
+                          <Icon name="lucide:mail" />
+                          Invite Member
+                        </Button>
+                      </template>
                     </AppEmptyState>
+                    <AppEmptyState
+                      v-else
+                      variant="search"
+                      title="No members match these filters"
+                      description="Try a different Show or portal setting."
+                      size="sm"
+                    />
                   </template>
                 </AppDataTable>
               </CardContent>

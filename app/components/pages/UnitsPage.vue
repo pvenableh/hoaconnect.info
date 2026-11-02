@@ -251,13 +251,22 @@ const handleDelete = async (id: string) => {
           <div v-else class="ios-card">
             <AppEmptyState
               icon="lucide:door-closed"
-              title="No units yet"
+              title="Add your community's units"
               description="Add the units in your building so members can be assigned to them."
+              :steps="[
+                'Add each unit by its number',
+                'Set each unit\'s status',
+                'Link members to their units',
+              ]"
+              footnote="You can rename or remove units later."
+              size="sm"
             >
-              <Button @click="handleAdd">
-                <Icon name="lucide:plus" />
-                Add the first unit
-              </Button>
+              <template #actions>
+                <Button @click="handleAdd">
+                  <Icon name="lucide:plus" />
+                  Add Unit
+                </Button>
+              </template>
             </AppEmptyState>
           </div>
 

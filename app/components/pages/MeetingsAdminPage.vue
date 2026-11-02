@@ -517,13 +517,22 @@ const handleDelete = async (id: string) => {
         <div v-if="!upcoming.length && !past.length" class="ios-card">
           <AppEmptyState
             icon="lucide:calendar-off"
-            title="No meetings yet"
+            title="Keep your meeting records here"
             description="Post a notice with its agenda, then come back after to add minutes, a recording and who attended."
+            :steps="[
+              'Post a notice with its agenda',
+              'Add the minutes and a recording after the meeting',
+              'Record who attended',
+            ]"
+            footnote="Residents see what you publish."
+            size="sm"
           >
-            <Button @click="handleAdd">
-              <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
-              Create your first meeting
-            </Button>
+            <template #actions>
+              <Button @click="handleAdd">
+                <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
+                New Meeting
+              </Button>
+            </template>
           </AppEmptyState>
         </div>
       </PageContainer>

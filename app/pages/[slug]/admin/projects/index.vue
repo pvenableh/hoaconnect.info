@@ -117,12 +117,35 @@ useHead({ bodyAttrs: { class: "" } });
       <div v-else-if="pending" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
 
       <template v-else>
-        <div v-if="!filtered.length" class="ios-card p-12 text-center">
-          <div class="w-14 h-14 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-3">
-            <Icon name="lucide:kanban-square" class="w-7 h-7 t-text-muted" />
-          </div>
-          <p class="t-text-secondary font-medium">No projects yet</p>
-          <p class="t-text-muted text-sm mt-1">Create your first project to start tracking work.</p>
+        <!-- First run = no projects at all; an empty Active/Archived view is not. -->
+        <div v-if="!projects?.length" class="ios-card">
+          <AppEmptyState
+            icon="lucide:kanban-square"
+            title="Track your community's projects"
+            description="Create your first project to start tracking work."
+            :steps="[
+              'Create a project for each piece of work',
+              'Break it into tasks and set dates',
+              'Move it across the board as it progresses',
+            ]"
+            size="sm"
+          >
+            <template #actions>
+              <Button @click="showNew = true">
+                <Icon name="lucide:plus" />
+                New Project
+              </Button>
+            </template>
+          </AppEmptyState>
+        </div>
+
+        <div v-else-if="!filtered.length" class="ios-card">
+          <AppEmptyState
+            variant="search"
+            title="No projects in this view"
+            description="Try a different status filter."
+            size="sm"
+          />
         </div>
 
         <ProjectsProjectBoard

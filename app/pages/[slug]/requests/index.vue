@@ -61,7 +61,11 @@ const onCreated = async (id: string) => {
       </AppBottomSheet>
 
       <div class="ios-card p-2">
-        <RequestsRequestList :requests="requests || []" :base-path="basePath" :loading="pending" />
+        <RequestsRequestList :requests="requests || []" :base-path="basePath" :loading="pending">
+          <template #empty-actions>
+            <Button class="rounded-full" @click="showNew = true">New Request</Button>
+          </template>
+        </RequestsRequestList>
       </div>
     </PageContainer>
   </div>

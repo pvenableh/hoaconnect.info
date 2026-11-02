@@ -802,12 +802,32 @@ const handleBatchUploadComplete = async () => {
                 />
               </div>
 
+              <!-- First run = no documents under the default filters; a category
+                   or status filter that matches nothing is not first run. -->
               <AppEmptyState
-                v-if="documentTree.length === 0"
+                v-if="!documents?.length && category === 'all' && status === 'published'"
                 icon="lucide:folder"
-                title="No documents yet"
+                title="Add your community's documents"
                 description="Upload the bylaws, minutes and notices your residents need to find."
-              />
+                :steps="[
+                  'Create folders for bylaws, minutes and notices',
+                  'Upload your documents into them',
+                  'Publish them so residents can find them',
+                ]"
+                footnote="Drag and drop to reorganize at any time."
+                size="sm"
+              >
+                <template #actions>
+                  <Button @click="batchUploadTargetFolder = null; showBatchUploadDialog = true">
+                    <Icon name="heroicons:cloud-arrow-up" />
+                    Upload Documents
+                  </Button>
+                  <Button variant="outline" @click="openCreateFolderDialog(orgFolder!)">
+                    <Icon name="heroicons:plus" />
+                    New Folder
+                  </Button>
+                </template>
+              </AppEmptyState>
             </div>
           </div>
         </div>

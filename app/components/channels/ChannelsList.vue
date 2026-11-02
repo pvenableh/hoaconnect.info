@@ -410,21 +410,24 @@ const selectChannel = (channel: HoaChannel) => {
       </div>
 
       <!-- Empty State -->
-      <div v-if="!hasAnyChannel" class="px-3 py-8 text-center">
-        <Icon
-          name="lucide:message-square-plus"
-          class="w-10 h-10 mx-auto mb-3 t-text-muted"
-        />
-        <p class="text-sm t-text-muted mb-3">No channels yet</p>
-        <Button
-          v-if="props.isAdmin"
-          variant="outline"
+      <div v-if="!hasAnyChannel">
+        <AppEmptyState
+          icon="lucide:message-square-plus"
+          title="Start your community's channels"
+          :steps="[
+            'Create a channel for each topic',
+            'Invite members to join',
+            'Post updates and answer questions',
+          ]"
           size="sm"
-          @click="emit('create')"
         >
-          <Icon name="lucide:plus" class="w-4 h-4 mr-1" />
-          Create Channel
-        </Button>
+          <template v-if="props.isAdmin" #actions>
+            <Button @click="emit('create')">
+              <Icon name="lucide:plus" />
+              Create Channel
+            </Button>
+          </template>
+        </AppEmptyState>
       </div>
 
       <!-- Archived (collapsible) -->

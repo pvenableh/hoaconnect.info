@@ -124,9 +124,14 @@ watch(
           :requests="filtered"
           :base-path="basePath"
           :loading="pending"
+          :filtered="!!requests?.length"
           panel
           panel-mode="board"
-        />
+        >
+          <template #empty-actions>
+            <Button class="rounded-full" @click="showNew = true">New Request</Button>
+          </template>
+        </RequestsRequestList>
       </div>
     </PageContainer>
   </div>
