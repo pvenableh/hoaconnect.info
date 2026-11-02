@@ -48,6 +48,12 @@ onMounted(loadNotifications);
     </main>
 
     <!-- No dock, no footer, no breadcrumbs — this is a focused workspace. -->
+    <!-- Spotlight (⌘K): one host per workspace layout; the Nav search pill,
+         the shortcut and the mobile menu all drive it via useSpotlight(). -->
+    <ClientOnly>
+      <AppSpotlight />
+    </ClientOnly>
+
     <ClientOnly>
       <!-- Channels is the surface people leave open longest, so it is the most
            likely to be sitting on a build whose chunks are gone. Detection runs

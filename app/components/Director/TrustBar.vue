@@ -272,7 +272,7 @@ function reviewPending() {
   stroke-width: 2.5;
   stroke-linecap: round;
   transition:
-    stroke-dasharray 0.5s cubic-bezier(0.36, 0.66, 0.04, 1),
+    stroke-dasharray 0.5s var(--spring),
     stroke 0.4s ease;
 }
 .trustbar__num {

@@ -4,6 +4,8 @@
       <NuxtPage :transition="pageTransition" />
     </NuxtLayout>
     <Toaster />
+    <!-- The one host for useConfirm(): every confirm/alert in the app renders here. -->
+    <AppConfirmDialog />
   </div>
 </template>
 

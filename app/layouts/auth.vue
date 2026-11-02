@@ -155,6 +155,12 @@ onMounted(() => {
       <AiAssistantPanel />
     </ClientOnly>
 
+    <!-- Spotlight (⌘K): one host per workspace layout; the Nav search pill,
+         the shortcut and the mobile menu all drive it via useSpotlight(). -->
+    <ClientOnly>
+      <AppSpotlight />
+    </ClientOnly>
+
     <!-- Global slide-over detail-panel stack (?slide=type:id) — the single
          mount; pages open panels via useAppSlideOver(type).open(id). -->
     <ClientOnly>

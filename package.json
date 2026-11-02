@@ -119,6 +119,7 @@
     "@iconify-json/heroicons-solid": "^1.2.1",
     "@iconify-json/logos": "^1.2.4",
     "@iconify-json/lucide": "^1.2.39",
+    "@internationalized/date": "^3.12.0",
     "@lucide/vue": "^1.33.0",
     "@nuxt/devtools": "latest",
     "@nuxt/fonts": "0.11.0",

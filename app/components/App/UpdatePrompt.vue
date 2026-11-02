@@ -155,11 +155,11 @@ const show = computed(() => updateAvailable.value && !dismissed.value);
 
 /* Spring up from below; the slide-over stack uses the same --spring curve. */
 .update-prompt-enter-active {
-  transition: transform 420ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)),
+  transition: transform 420ms var(--spring),
     opacity 320ms ease;
 }
 .update-prompt-leave-active {
-  transition: transform 240ms var(--spring-out, cubic-bezier(0.32, 0.72, 0, 1)),
+  transition: transform 240ms var(--spring-out),
     opacity 200ms ease;
 }
 .update-prompt-enter-from,

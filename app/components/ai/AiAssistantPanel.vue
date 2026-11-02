@@ -213,7 +213,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     >
       <div v-if="isOpen" class="fixed inset-0 z-[60]" role="dialog" aria-label="AI assistant">
         <!-- Glass focus backdrop (the workspace frosts behind the takeover) -->
-        <div class="absolute inset-0 t-scrim backdrop-blur-xl" @click="close" />
+        <div class="absolute inset-0 dialog-overlay-glass" @click="close" />
 
         <!-- Full-screen Focus takeover — a calm, centered surface (Earnest-style),
              not a right-side sidebar. Rises + fades in. -->
@@ -512,7 +512,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
    next arrives. Honors reduced-motion. */
 .ai-view-enter-active,
 .ai-view-leave-active {
-  transition: opacity 160ms ease, transform 200ms cubic-bezier(0.36, 0.66, 0.04, 1);
+  transition: opacity 160ms ease, transform 200ms var(--spring);
 }
 .ai-view-enter-from {
   opacity: 0;
@@ -545,10 +545,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 /* Each chat turn rises + fades in; neighbors slide via `move`. */
 .ai-msg-enter-active {
-  transition: opacity 240ms ease, transform 260ms cubic-bezier(0.36, 0.66, 0.04, 1);
+  transition: opacity 240ms ease, transform 260ms var(--spring);
 }
 .ai-msg-move {
-  transition: transform 260ms cubic-bezier(0.36, 0.66, 0.04, 1);
+  transition: transform 260ms var(--spring);
 }
 .ai-msg-enter-from {
   opacity: 0;

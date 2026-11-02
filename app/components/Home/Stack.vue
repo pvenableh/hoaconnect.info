@@ -280,7 +280,7 @@ function onPileClick(e: MouseEvent) {
   border-radius: 6px;
 }
 .home-stack__chevron {
-  transition: transform 0.3s cubic-bezier(0.36, 0.66, 0.04, 1);
+  transition: transform 0.3s var(--spring);
 }
 .is-open .home-stack__chevron {
   transform: rotate(90deg);

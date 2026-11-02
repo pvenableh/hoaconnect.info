@@ -198,7 +198,7 @@ watch(apps, reset, { immediate: true });
   cursor: pointer;
   transform-origin: bottom center;
   transition: transform 90ms ease-out, margin 90ms ease-out,
-    scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+    scale var(--motion-fast, 160ms) var(--spring);
 }
 /* Press feedback — composes with the inline magnification transform via the
    independent `scale` property. */
@@ -224,7 +224,7 @@ watch(apps, reset, { immediate: true });
   box-shadow:
     inset 0 1px 0 hsl(0 0% 100% / 0.3),
     0 2px 6px -2px hsl(var(--c-h) var(--c-s) 30% / 0.25);
-  transition: box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+  transition: box-shadow 200ms var(--ease-out-expo), border-color 200ms ease;
 }
 .dock-item__icon {
   width: 22px;
@@ -268,7 +268,7 @@ watch(apps, reset, { immediate: true });
   transform: translateX(-50%);
   transform-origin: center;
   animation: dock-dot-in var(--motion-base, 240ms)
-    var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+    var(--spring) both;
 }
 .app-dock--bottom .dock-item__dot {
   top: calc(100% + 3px);
@@ -356,7 +356,7 @@ watch(apps, reset, { immediate: true });
   box-shadow: 0 0 0 2px var(--theme-card-bg, #fff);
   /* Spring-bounce in when an unread count appears. */
   transform-origin: center;
-  animation: badge-pop var(--motion-base, 240ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)) both;
+  animation: badge-pop var(--motion-base, 240ms) var(--spring) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

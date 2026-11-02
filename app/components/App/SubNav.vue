@@ -105,8 +105,8 @@ const { trackEl, setItemRef, thumbStyle } = useSlidingThumb(activeIndex, {
   left: 0;
   border-radius: 999px;
   transition:
-    transform 400ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)),
-    width 400ms var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1)),
+    transform 400ms var(--spring),
+    width 400ms var(--spring),
     opacity 200ms ease;
   pointer-events: none;
 }

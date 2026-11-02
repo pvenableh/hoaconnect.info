@@ -51,7 +51,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     >
       <div v-if="isOpen" class="fixed inset-0 z-[60]" role="dialog" aria-label="Channels">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/25 backdrop-blur-[1px]" @click="close" />
+        <div class="absolute inset-0 dialog-overlay-glass" @click="close" />
 
         <!-- Drawer -->
         <Transition
@@ -63,7 +63,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         >
           <aside
             v-if="isOpen"
-            class="absolute top-0 right-0 h-full w-full sm:w-[440px] md:w-[640px] t-bg-elevated shadow-2xl flex flex-col"
+            class="absolute top-0 right-0 h-full w-full sm:w-[440px] md:w-[640px] glass-surface glass-surface--strong rounded-none sm:rounded-l-2xl flex flex-col"
           >
             <!-- Panel header -->
             <div class="flex items-center justify-between px-4 h-14 border-b t-border shrink-0">

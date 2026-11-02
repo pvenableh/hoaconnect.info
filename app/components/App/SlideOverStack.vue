@@ -42,7 +42,7 @@ const { stack, depth, pop } = useAppSlideOverStack();
 const flips = useSlideOverFlips();
 const { count: trapSuspend } = useSlideOverFocusTrapSuspend();
 
-const SPRING_EASE_FN = "var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1))";
+const SPRING_EASE_FN = "var(--spring)";
 const ANIM_MS = 400;
 // One macrotask after mount, then flip `visible` so the closed pose paints
 // first and the CSS transition has something to interpolate from.
@@ -360,8 +360,8 @@ onBeforeUnmount(() => {
       transparent 80%
     ),
     rgb(0 0 0 / 0.35);
-  backdrop-filter: blur(6px) saturate(140%);
   -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
   pointer-events: auto;
   opacity: 0;
 }
@@ -376,8 +376,8 @@ onBeforeUnmount(() => {
 }
 @media (prefers-reduced-transparency: reduce) {
   .app-slide-over-stack__backdrop {
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     background: rgb(0 0 0 / 0.5);
   }
 }
