@@ -14,7 +14,7 @@
             Loading...
           </span>
         </div>
-        <p class="mt-4 text-gray-600">Loading organization...</p>
+        <p class="mt-4 t-text-secondary">Loading organization...</p>
       </div>
     </div>
 
@@ -24,10 +24,10 @@
       class="flex items-center justify-center min-h-[400px]"
     >
       <div class="text-center">
-        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+        <h1 class="text-4xl font-bold t-text mb-4">
           Organization Not Found
         </h1>
-        <p class="text-xl text-gray-600 mb-8">
+        <p class="text-xl t-text-secondary mb-8">
           The organization you're looking for doesn't exist.
         </p>
         <a

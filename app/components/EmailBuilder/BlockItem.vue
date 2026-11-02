@@ -28,7 +28,7 @@ const CATEGORY_TINT: Record<string, string> = {
   stats: "text-cyan-600 bg-cyan-100 dark:bg-cyan-500/15",
   quote: "text-rose-600 bg-rose-100 dark:bg-rose-500/15",
   list: "text-indigo-600 bg-indigo-100 dark:bg-indigo-500/15",
-  divider: "text-gray-500 bg-gray-100 dark:bg-gray-500/15",
+  divider: "t-text-secondary t-bg-subtle",
   social: "text-pink-600 bg-pink-100 dark:bg-pink-500/15",
   footer: "text-slate-500 bg-slate-100 dark:bg-slate-500/15",
 };

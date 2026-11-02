@@ -28,9 +28,9 @@
     >
       <div class="flex items-center space-x-2">
         <div
-          class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"
+          class="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--theme-text-primary)]"
         ></div>
-        <span class="text-sm text-gray-600 dark:text-gray-400"
+        <span class="text-sm t-text-secondary"
           >Loading payment form...</span
         >
       </div>
@@ -62,7 +62,7 @@
 
         <p
           v-if="isElementReady"
-          class="text-xs text-gray-500 dark:text-gray-400 text-center"
+          class="text-xs t-text-secondary text-center"
         >
           <Icon
             name="heroicons:shield-check"

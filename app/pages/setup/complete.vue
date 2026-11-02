@@ -23,7 +23,7 @@
           </template>
         </p>
 
-        <div v-if="organizationName" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 text-left">
+        <div v-if="organizationName" class="t-bg-elevated rounded-lg shadow p-6 mb-6 text-left">
           <h3 class="text-sm font-semibold t-text uppercase tracking-wide mb-4">
             Setup Details
           </h3>

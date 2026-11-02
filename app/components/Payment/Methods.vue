@@ -1,21 +1,21 @@
 <template>
   <div class="w-full flex flex-col payment-methods">
     <h1 class="text-2xl font-bold mb-2 uppercase tracking-wider">Payment</h1>
-    <p class="mt-2 mb-6 text-sm text-gray-600 dark:text-gray-400">
+    <p class="mt-2 mb-6 text-sm t-text-secondary">
       Please note, a credit card payment will add a 2.9% + $0.30 processing fee.
       Using a bank account for payment adds
       <strong>no fees.</strong>
     </p>
 
     <!-- Total Display -->
-    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
+    <div class="t-bg-subtle rounded-lg p-4 mb-6">
       <h5 class="text-lg font-semibold uppercase tracking-wide">
-        <span class="text-gray-600 dark:text-gray-400">Total:</span>
+        <span class="t-text-secondary">Total:</span>
         <span class="ml-2">${{ formatNumber(totalWithFees) }}</span>
       </h5>
       <p
         v-if="panel === 'card'"
-        class="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase"
+        class="text-xs t-text-secondary mt-1 uppercase"
       >
         Includes a ${{ stripeFee }} processing fee
       </p>
@@ -170,12 +170,14 @@ const handlePaymentError = (error: Error) => {
 }
 
 .payment-nav {
-  @apply flex flex-row justify-around items-center mb-6 border-b border-gray-200 dark:border-gray-700;
+  @apply flex flex-row justify-around items-center mb-6 border-b;
+  border-color: var(--theme-border-primary);
 }
 
 .payment-nav-item {
   @apply tracking-wider uppercase cursor-pointer mb-2 w-1/2 flex items-center justify-center relative py-3 px-4;
-  @apply text-gray-500 dark:text-gray-400 transition-all duration-300 ease-in-out;
+  @apply transition-all duration-300 ease-in-out;
+  color: var(--theme-text-secondary);
   opacity: 0.6;
 }
 
@@ -197,7 +199,7 @@ const handlePaymentError = (error: Error) => {
 }
 
 .payment-nav-item.active {
-  @apply text-gray-900 dark:text-gray-100;
+  color: var(--theme-text-primary);
   opacity: 1;
 }
 

@@ -9,7 +9,7 @@
       :class="[
         showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         scrolledPastHero
-          ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm'
+          ? 'bg-[var(--theme-bg-overlay)] backdrop-blur-md shadow-sm'
           : '',
       ]"
     >
@@ -166,7 +166,7 @@
                 />
                 <div class="w-full text-left p-6 relative z-10">
                   <div
-                    class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center group-hover:border-[var(--theme-accent-primary)] transition-colors duration-300"
+                    class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center group-hover:border-[var(--theme-accent-primary)] transition-colors duration-300"
                   >
                     <Icon
                       name="i-heroicons-photo"
@@ -676,7 +676,7 @@
               >
                 <div class="text-left p-6">
                   <div
-                    class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center"
+                    class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center"
                   >
                     <Icon
                       name="i-heroicons-building-office-2"
@@ -824,7 +824,7 @@
             >
               <div class="text-left p-6">
                 <div
-                  class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center"
+                  class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center"
                 >
                   <Icon
                     name="i-heroicons-map-pin"
@@ -856,7 +856,7 @@
     <!-- CTA Section -->
     <section
       ref="ctaRef"
-      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-gray-900 text-cream overflow-hidden z-10"
+      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-[#111827] text-cream overflow-hidden z-10"
     >
       <!-- Animated Background with Particles -->
       <div class="absolute inset-0 z-0">
@@ -865,7 +865,7 @@
 
       <!-- Gradient Overlay -->
       <div
-        class="absolute inset-0 bg-gradient-to-b from-gray-900/50 via-gray-900/80 to-gray-900 z-[1]"
+        class="absolute inset-0 bg-gradient-to-b from-[#111827]/50 via-[#111827]/80 to-[#111827] z-[1]"
       />
 
       <div class="max-w-3xl mx-auto text-center relative z-10">
@@ -877,7 +877,7 @@
           <span class="shimmer-text-light">Your Building Into a Brand?</span>
         </h2>
         <p
-          class="cta-body text-[1.0625rem] leading-relaxed text-gray-300 mb-12 opacity-0"
+          class="cta-body text-[1.0625rem] leading-relaxed t-text-muted mb-12 opacity-0"
         >
           Join boutique condominiums across South Florida who've discovered that
           HOA management can be beautiful, compliant, and actually enjoyable.
@@ -916,7 +916,7 @@
           </a>
         </div>
         <p
-          class="cta-address text-sm tracking-wide text-gray-400 opacity-0 mt-12 uppercase"
+          class="cta-address text-sm tracking-wide t-text-muted opacity-0 mt-12 uppercase"
         >
           hoaconnect.info · Built in Miami Beach
         </p>

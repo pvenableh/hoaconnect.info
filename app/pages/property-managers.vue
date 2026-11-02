@@ -6,7 +6,7 @@
       :class="[
         showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         scrolledPastHero
-          ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm'
+          ? 'bg-[var(--theme-bg-overlay)] backdrop-blur-md shadow-sm'
           : '',
       ]"
     >
@@ -67,7 +67,7 @@
       <!-- Hero Background -->
       <div class="fixed inset-0 z-0 hero-bg-container">
         <div
-          class="hero-image w-full h-full flex items-center justify-center opacity-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+          class="hero-image w-full h-full flex items-center justify-center opacity-0 bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#111827]"
         >
           <!-- Abstract pattern overlay -->
           <div class="absolute inset-0 opacity-20">
@@ -703,7 +703,7 @@
     <!-- CTA Section -->
     <section
       ref="ctaRef"
-      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-gray-900 text-cream overflow-hidden"
+      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-[#111827] text-cream overflow-hidden"
     >
       <div class="absolute inset-0 z-0 opacity-20">
         <div

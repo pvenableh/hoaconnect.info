@@ -12,7 +12,7 @@
       :class="[
         showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         scrolledPastHero
-          ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm'
+          ? 'bg-[var(--theme-bg-overlay)] backdrop-blur-md shadow-sm'
           : '',
       ]"
     >
@@ -83,7 +83,7 @@
           <!-- Placeholder for hero image -->
           <div v-if="!heroImageLoaded" class="text-center p-8 max-w-lg">
             <div
-              class="w-16 h-16 mx-auto mb-4 border-2 border-gray-400 rounded-full flex items-center justify-center"
+              class="w-16 h-16 mx-auto mb-4 border-2 t-border-secondary rounded-full flex items-center justify-center"
             >
               <Icon name="i-heroicons-photo" class="w-8 h-8 t-text-muted" />
             </div>
@@ -208,7 +208,7 @@
               >
                 <div class="w-full text-left p-6">
                   <div
-                    class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center"
+                    class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center"
                   >
                     <Icon
                       name="i-heroicons-photo"
@@ -1010,7 +1010,7 @@
               >
                 <div class="text-left p-6">
                   <div
-                    class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center"
+                    class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center"
                   >
                     <Icon
                       name="i-heroicons-building-office-2"
@@ -1144,7 +1144,7 @@
             >
               <div class="text-left p-6">
                 <div
-                  class="w-12 h-12 mx-auto mb-3 border-2 border-gray-400 rounded-full flex items-center justify-center"
+                  class="w-12 h-12 mx-auto mb-3 border-2 t-border-secondary rounded-full flex items-center justify-center"
                 >
                   <Icon
                     name="i-heroicons-map-pin"
@@ -1228,7 +1228,7 @@
     <!-- CTA Section -->
     <section
       ref="ctaRef"
-      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-gray-900 text-cream overflow-hidden"
+      class="section relative py-32 lg:py-40 px-6 lg:px-16 bg-[#111827] text-cream overflow-hidden"
     >
       <!-- CTA Background image -->
       <div
@@ -1241,7 +1241,7 @@
       ></div>
       <!-- Dark overlay keeps the cream headline + buttons legible over the photo -->
       <div
-        class="absolute inset-0 z-0 bg-gradient-to-b from-gray-900/85 via-gray-900/70 to-gray-900/85"
+        class="absolute inset-0 z-0 bg-gradient-to-b from-[#111827]/85 via-[#111827]/70 to-[#111827]/85"
       ></div>
 
       <div class="max-w-3xl mx-auto text-center relative z-10">

@@ -90,9 +90,9 @@ const statusColor = (status: string | null | undefined) => {
     case "expired":
       return "bg-red-500";
     case "canceled":
-      return "bg-gray-400";
+      return "bg-[var(--theme-text-muted)]";
     default:
-      return "bg-gray-400";
+      return "bg-[var(--theme-text-muted)]";
   }
 };
 

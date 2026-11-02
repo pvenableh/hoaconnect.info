@@ -73,8 +73,8 @@ const roleAdminAccess = computed(() => {
         <p class="font-semibold text-yellow-800 mb-2">⚠️ Permission Issues Detected</p>
         <p class="text-xs mb-2">Your role does not have the necessary permissions to manage units.</p>
         <p class="text-xs mb-3">To fix this issue, run the following command:</p>
-        <pre class="p-2 bg-gray-100 rounded text-xs overflow-x-auto">npx tsx scripts/fix-permissions.ts</pre>
-        <p class="text-xs mt-2 text-gray-600">
+        <pre class="p-2 t-bg-subtle rounded text-xs overflow-x-auto">npx tsx scripts/fix-permissions.ts</pre>
+        <p class="text-xs mt-2 t-text-secondary">
           This will configure the proper permissions in Directus for your role.
         </p>
       </div>

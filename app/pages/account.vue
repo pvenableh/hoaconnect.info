@@ -278,7 +278,7 @@
                 Master switch — turn off to stop all notification emails.
               </p>
             </div>
-            <input v-model="emailMaster" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+            <input v-model="emailMaster" type="checkbox" class="h-4 w-4 rounded t-border" />
           </label>
 
           <!-- Per-category matrix -->
@@ -296,13 +296,13 @@
               <span class="text-sm">{{ cat.label }}</span>
               <input
                 type="checkbox"
-                class="mx-auto h-4 w-4 rounded border-gray-300"
+                class="mx-auto h-4 w-4 rounded t-border"
                 :checked="catBell(cat.key)"
                 @change="setCatBell(cat.key, ($event.target as HTMLInputElement).checked)"
               />
               <input
                 type="checkbox"
-                class="mx-auto h-4 w-4 rounded border-gray-300 disabled:opacity-40"
+                class="mx-auto h-4 w-4 rounded t-border disabled:opacity-40"
                 :checked="catEmail(cat.key)"
                 :disabled="!emailMaster"
                 @change="setCatEmail(cat.key, ($event.target as HTMLInputElement).checked)"
@@ -407,7 +407,7 @@
               <p class="font-medium">Send me a digest</p>
               <p class="text-sm text-muted-foreground">A daily or weekly roundup email.</p>
             </div>
-            <input v-model="digestEnabled" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+            <input v-model="digestEnabled" type="checkbox" class="h-4 w-4 rounded t-border" />
           </label>
 
           <div v-if="digestEnabled" class="space-y-4">
@@ -434,7 +434,7 @@
                 <label v-for="s in digestSectionDefs" :key="s.key" class="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    class="h-4 w-4 rounded border-gray-300"
+                    class="h-4 w-4 rounded t-border"
                     :checked="hasSection(s.key)"
                     @change="toggleSection(s.key, ($event.target as HTMLInputElement).checked)"
                   />

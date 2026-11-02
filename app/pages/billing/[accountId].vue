@@ -69,7 +69,7 @@ const agencyPriceId = computed(() =>
 );
 
 const statusColor = (s: string | null | undefined) =>
-  ({ active: "bg-green-500", trial: "bg-blue-500", past_due: "bg-amber-500", expired: "bg-red-500", canceled: "bg-gray-400" }[s || ""] || "bg-gray-400");
+  ({ active: "bg-green-500", trial: "bg-blue-500", past_due: "bg-amber-500", expired: "bg-red-500", canceled: "bg-[var(--theme-text-muted)]" }[s || ""] || "bg-[var(--theme-text-muted)]");
 
 const fmtDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";

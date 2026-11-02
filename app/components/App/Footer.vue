@@ -90,13 +90,13 @@ const footerLinks = computed(() =>
 </script>
 
 <template>
-  <footer class="text-gray-300">
+  <footer class="t-text-muted">
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
         <!-- Brand Section -->
         <div class="md:col-span-1">
           <h3 class="text-white text-xl font-bold mb-4">HOA Connect</h3>
-          <p class="text-sm text-gray-400">
+          <p class="text-sm t-text-muted">
             Simplifying HOA management for communities of all sizes.
           </p>
         </div>
@@ -139,9 +139,9 @@ const footerLinks = computed(() =>
 
       <!-- Bottom Bar -->
       <div
-        class="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center"
+        class="mt-12 pt-8 border-t t-border flex flex-col md:flex-row justify-between items-center"
       >
-        <p class="text-sm text-gray-400">
+        <p class="text-sm t-text-muted">
           &copy; {{ currentYear }} HOA Connect. All rights reserved.
         </p>
 
@@ -149,21 +149,21 @@ const footerLinks = computed(() =>
         <div class="flex gap-4 mt-4 md:mt-0 hidden">
           <a
             href="#"
-            class="text-gray-400 hover:text-white transition"
+            class="t-text-muted hover:text-white transition"
             aria-label="Twitter"
           >
             <Icon name="i-lucide-twitter" class="w-5 h-5" />
           </a>
           <a
             href="#"
-            class="text-gray-400 hover:text-white transition"
+            class="t-text-muted hover:text-white transition"
             aria-label="LinkedIn"
           >
             <Icon name="i-lucide-linkedin" class="w-5 h-5" />
           </a>
           <a
             href="#"
-            class="text-gray-400 hover:text-white transition"
+            class="t-text-muted hover:text-white transition"
             aria-label="Facebook"
           >
             <Icon name="i-lucide-facebook" class="w-5 h-5" />
