@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import type { HoaMember, DirectusUser, HoaUnit } from "#core/types/directus";
 
+const { confirm } = useConfirm();
+
 const { list: listMembers, update: updateMember } = useDirectusItems("hoa_members");
 const { list: listJoinRequests } = useDirectusItems("hoa_join_requests");
 const { list: listUnits } = useDirectusItems("hoa_units");
@@ -290,7 +292,13 @@ const handleApproveRequest = async () => {
 // Reject join request
 const isRejecting = ref<string | null>(null);
 const handleRejectRequest = async (request: any) => {
-  if (!confirm(`Are you sure you want to reject the request from ${request.user?.first_name} ${request.user?.last_name}?`)) {
+  if (
+    !(await confirm({
+      title: `Reject the request from ${request.user?.first_name} ${request.user?.last_name}?`,
+      confirmLabel: "Reject",
+      destructive: true,
+    }))
+  ) {
     return;
   }
 

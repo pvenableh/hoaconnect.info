@@ -2,6 +2,8 @@
 import type { HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
+const { confirm } = useConfirm();
+
 const props = defineProps<{
   message: HoaChannelMessage & {
     user_created?: {
@@ -121,7 +123,7 @@ const sendReply = async () => {
 };
 
 const handleDelete = async () => {
-  if (!confirm("Are you sure you want to delete this message?")) return;
+  if (!(await confirm({ title: "Delete this message?", confirmLabel: "Delete", destructive: true }))) return;
 
   isDeleting.value = true;
   try {
@@ -144,9 +146,9 @@ const channelRef = computed(
 
 async function moderate(action: "hide" | "remove") {
   const q = action === "remove"
-    ? "Permanently remove this message? This can't be undone."
-    : "Hide this message from the channel?";
-  if (!confirm(q)) return;
+    ? { title: "Permanently remove this message?", body: "This can't be undone.", confirmLabel: "Remove", destructive: true }
+    : { title: "Hide this message from the channel?", confirmLabel: "Hide", destructive: false };
+  if (!(await confirm(q))) return;
   isModerating.value = true;
   try {
     await $fetch("/api/hoa/channels/moderate", {

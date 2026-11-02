@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const { confirm } = useConfirm();
+
 const {
   list: listMeetings,
   create: createMeeting,
@@ -395,7 +397,7 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (id: string) => {
-  if (!confirm("Delete this meeting? This cannot be undone.")) return;
+  if (!(await confirm({ title: "Delete this meeting?", body: "This cannot be undone.", confirmLabel: "Delete", destructive: true }))) return;
   try {
     await removeMeeting(id);
     toast.success("Meeting deleted");

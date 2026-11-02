@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { CommentNode } from "#core/app/composables/useComments";
 
+const { confirm } = useConfirm();
+
 const props = withDefaults(
   defineProps<{
     comment: CommentNode;
@@ -102,7 +104,7 @@ const saveEdit = async () => {
 };
 
 const onDelete = async () => {
-  if (confirm("Delete this comment?")) {
+  if (await confirm({ title: "Delete this comment?", confirmLabel: "Delete", destructive: true })) {
     await deleteComment(props.comment.id);
   }
 };

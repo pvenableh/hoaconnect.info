@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const { confirm } = useConfirm();
+
 // Use useDirectusItems for list (read) operations only
 const { list: listUnits } = useDirectusItems("hoa_units");
 
@@ -146,7 +148,14 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (id: string) => {
-  if (!confirm("Delete this unit? This will affect any people assigned to it."))
+  if (
+    !(await confirm({
+      title: "Delete this unit?",
+      body: "This will affect any people assigned to it.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))
+  )
     return;
 
   try {

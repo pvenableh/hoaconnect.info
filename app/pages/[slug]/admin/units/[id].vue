@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import type { UnitRecordsResponse, UnitRecordMember } from "#core/app/composables/useUnitRecords";
 
+const { confirm } = useConfirm();
+
 definePageMeta({
   middleware: ["admin-or-board", "subscription"],
   layout: "auth",
@@ -103,7 +105,7 @@ const onSubmit = async (payload: Record<string, any>) => {
 
 const onEnd = async (kind: FormKind, item: any) => {
   const label = kind === "lease" ? "Mark this lease ended?" : `Move out / end this ${kind}?`;
-  if (!confirm(`${label} It will be archived (kept in history), not deleted.`)) return;
+  if (!(await confirm({ title: label, body: "It will be archived (kept in history), not deleted.", confirmLabel: "End", destructive: true }))) return;
   try {
     await endRecord(kind, item.id);
     toast.success("Record ended and archived");

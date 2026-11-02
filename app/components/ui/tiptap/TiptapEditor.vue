@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toast } from "vue-sonner";
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
@@ -156,7 +157,7 @@ const handleFileUpload = async (event: Event) => {
 
   // Validate file type (images only for now)
   if (!file.type.startsWith("image/")) {
-    alert("Please select an image file");
+    toast.error("Please select an image file");
     return;
   }
 
@@ -180,7 +181,7 @@ const handleFileUpload = async (event: Event) => {
     }
   } catch (error) {
     console.error("Failed to upload file:", error);
-    alert("Failed to upload file. Please try again.");
+    toast.error("Failed to upload file. Please try again.");
   } finally {
     isUploading.value = false;
     // Reset file input

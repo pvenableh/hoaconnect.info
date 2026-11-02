@@ -17,6 +17,8 @@ import type { ScheduleShift } from "#core/shared/projects/schedule";
 import { parseDateOnly } from "#core/shared/projects/schedule";
 import { eventProgress } from "#core/shared/projects/timeline";
 
+const { confirm } = useConfirm();
+
 const props = defineProps<{ projectId: string; canWrite?: boolean }>();
 const emit = defineEmits<{ (e: "changed"): void }>();
 
@@ -244,7 +246,7 @@ async function toggleDone(e: ProjectEventRow) {
   emit("changed");
 }
 async function removeEvent(e: ProjectEventRow) {
-  if (!confirm(`Remove "${e.title}"?`)) return;
+  if (!(await confirm({ title: `Remove "${e.title}"?`, confirmLabel: "Remove", destructive: true }))) return;
   if (selectedId.value === e.id) selectedId.value = null;
   await remove(e.id);
   await load();

@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import type { HoaDocumentCategory } from "#core/types/directus";
 
+const { confirm } = useConfirm();
+
 const { list, create, update, remove } = useDirectusItems("hoa_document_categories");
 
 // Get org context
@@ -148,7 +150,14 @@ async function saveCategory() {
 
 // Delete category
 async function deleteCategory(category: HoaDocumentCategory) {
-  if (!confirm(`Delete "${category.name}"? Documents in this category will become uncategorized.`)) {
+  if (
+    !(await confirm({
+      title: `Delete "${category.name}"?`,
+      body: "Documents in this category will become uncategorized.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))
+  ) {
     return;
   }
 

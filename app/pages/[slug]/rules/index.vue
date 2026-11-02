@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import type { GovernanceItem } from "#core/app/composables/useGovernance";
 
+const { confirm } = useConfirm();
+
 definePageMeta({
   middleware: ["auth", "subscription"],
   layout: "auth",
@@ -150,7 +152,7 @@ const save = async () => {
 };
 
 const onDelete = async (item: GovernanceItem) => {
-  if (!confirm(`Delete “${item.title}”? This cannot be undone.`)) return;
+  if (!(await confirm({ title: `Delete “${item.title}”?`, body: "This cannot be undone.", confirmLabel: "Delete", destructive: true }))) return;
   try {
     await removeRule(item.id);
     delete detailCache.value[item.id];

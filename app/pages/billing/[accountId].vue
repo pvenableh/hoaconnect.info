@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toast } from "vue-sonner";
 // Agency dashboard (docs/plan-agency-multi-property-billing.md §8): properties +
 // seat usage, payment method / invoices (Stripe Customer Portal), add-property,
 // detach, manual seat-sync, and the initial subscribe flow. Access is gated by
@@ -9,6 +10,7 @@ const route = useRoute();
 const accountId = computed(() => String(route.params.accountId));
 const { user } = useDirectusAuth();
 const { accounts: billingAccounts } = useBillingMemberships();
+const { confirm, alert } = useConfirm();
 
 const myRole = computed(
   () => billingAccounts.value.find((a) => a.id === accountId.value)?.role ?? null
@@ -89,7 +91,7 @@ async function syncSeats() {
     await $fetch("/api/stripe/billing-account/sync-seats", { method: "POST", body: { accountId: accountId.value } });
     await refresh();
   } catch (e: any) {
-    alert(e?.data?.message || "Failed to sync seats");
+    toast.error(e?.data?.message || "Failed to sync seats");
   } finally {
     busy.value = false;
   }
@@ -104,7 +106,7 @@ async function openPortal() {
     });
     window.location.href = url;
   } catch (e: any) {
-    alert(e?.data?.message || "Could not open billing portal");
+    toast.error(e?.data?.message || "Could not open billing portal");
     busy.value = false;
   }
 }
@@ -135,11 +137,12 @@ async function addProperty() {
     // The property exists either way; a failed invitation is worth saying out
     // loud, because the guarantee it provides is the point of the field.
     if (res?.boardAdminInvite && res.boardAdminInvite.sent === false) {
-      alert(
-        `${name} was created, but the administrator invitation to ${res.boardAdminInvite.email} could not be sent. ` +
+      await alert({
+        title: `${name} was created, but the administrator invitation to ${res.boardAdminInvite.email} could not be sent.`,
+        body:
           `Invite them from the property's Members page — until someone from the community holds an admin seat, ` +
-          `the community cannot take its account back.`
-      );
+          `the community cannot take its account back.`,
+      });
     }
     Object.assign(newProp, {
       name: "",
@@ -154,7 +157,7 @@ async function addProperty() {
     });
     await refresh();
   } catch (e: any) {
-    alert(e?.data?.message || "Failed to add property");
+    toast.error(e?.data?.message || "Failed to add property");
   } finally {
     busy.value = false;
   }
@@ -171,14 +174,17 @@ async function addProperty() {
  */
 async function detach(orgId: string, name: string) {
   if (
-    !confirm(
-      `Remove "${name}" from this billing account?\n\n` +
-        `• It stops being billed through this account and your seat count goes down.\n` +
-        `• Nobody loses access — your managers keep working on it.\n` +
-        `• The community keeps running for 60 days while it sorts out its own subscription.\n\n` +
+    !(await confirm({
+      title: `Remove "${name}" from this billing account?`,
+      body:
+        `It stops being billed through this account and your seat count goes down. ` +
+        `Nobody loses access — your managers keep working on it. ` +
+        `The community keeps running for 60 days while it sorts out its own subscription. ` +
         `To actually hand a community over — revoke a manager's access and promote a board member — ` +
-        `use the transition wizard in that community's Settings → Vendors & management.`
-    )
+        `use the transition wizard in that community's Settings → Vendors & management.`,
+      confirmLabel: "Remove",
+      destructive: true,
+    }))
   )
     return;
   busy.value = true;
@@ -190,7 +196,7 @@ async function detach(orgId: string, name: string) {
     lastDetach.value = { name, graceEndsAt: res?.graceEndsAt ?? null };
     await refresh();
   } catch (e: any) {
-    alert(e?.data?.message || "Failed to detach property");
+    toast.error(e?.data?.message || "Failed to detach property");
   } finally {
     busy.value = false;
   }

@@ -6,6 +6,8 @@ import {
   type TeamDomain,
 } from "#core/app/composables/useTeams";
 
+const { confirm } = useConfirm();
+
 const {
   listAllTeams,
   listAllMembers,
@@ -114,7 +116,7 @@ const onRemoveMember = async (r: TeamMember) => {
 };
 
 const onDeleteTeam = async (t: Team) => {
-  if (!confirm(`Delete the "${t.name}" team?`)) return;
+  if (!(await confirm({ title: `Delete the "${t.name}" team?`, confirmLabel: "Delete", destructive: true }))) return;
   busy.value = true;
   try {
     await deleteTeam(t.id);

@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChangeKind, ChangeAction } from "#core/app/composables/useChangeRequests";
 
+const { confirm } = useConfirm();
+
 definePageMeta({
   middleware: ["auth", "subscription"],
   layout: "auth",
@@ -121,7 +123,7 @@ const save = async () => {
 };
 
 const requestRemoval = async (kind: ChangeKind, targetId: string, label: string) => {
-  if (!confirm(`Request removal of ${label}? An admin will review it.`)) return;
+  if (!(await confirm({ title: `Request removal of ${label}?`, body: "An admin will review it.", confirmLabel: "Request Removal", destructive: true }))) return;
   try {
     await submitChange({ kind, action: "delete", targetId });
     toast.success("Removal submitted for review");

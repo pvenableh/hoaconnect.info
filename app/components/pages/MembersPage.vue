@@ -19,6 +19,8 @@ import {
   type OnboardingState,
 } from "#core/shared/members/onboarding";
 
+const { confirm } = useConfirm();
+
 const {
   list: listMembers,
   create: createMember,
@@ -444,9 +446,9 @@ const setMemberStatus = async (member: any, status: string, message: string) => 
   }
 };
 
-const handleArchive = (member: any) => {
+const handleArchive = async (member: any) => {
   const name = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "this member";
-  if (!confirm(`Archive ${name}? They stay on record as a former resident and can be restored.`)) return;
+  if (!(await confirm({ title: `Archive ${name}?`, body: "They stay on record as a former resident and can be restored.", confirmLabel: "Archive", destructive: true }))) return;
   return setMemberStatus(member, "archived", "Member archived");
 };
 
@@ -643,9 +645,12 @@ const handleSubmit = async () => {
 
 const handleDelete = async (id: string) => {
   if (
-    !confirm(
-      "Delete this member? This will also remove their unit assignments."
-    )
+    !(await confirm({
+      title: "Delete this member?",
+      body: "This will also remove their unit assignments.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))
   )
     return;
 
@@ -680,10 +685,13 @@ const handleInviteRestore = async (target: {
 }) => {
   const verb = target.currentStatus === "archived" ? "Restore" : "Set active";
   if (
-    !confirm(
-      `${verb} ${target.name}? They are currently "${target.currentStatus}". ` +
-        `This only changes their membership — you still have to send the invitation afterwards.`
-    )
+    !(await confirm({
+      title: `${verb} ${target.name}?`,
+      body:
+        `They are currently "${target.currentStatus}". ` +
+        `This only changes their membership — you still have to send the invitation afterwards.`,
+      confirmLabel: verb,
+    }))
   )
     return;
   await setMemberStatus(
@@ -696,7 +704,7 @@ const handleInviteRestore = async (target: {
 // Cancel invitation
 const cancellingInvitation = ref<string | null>(null);
 const handleCancelInvitation = async (invitationId: string) => {
-  if (!confirm("Are you sure you want to cancel this invitation?")) return;
+  if (!(await confirm({ title: "Cancel this invitation?", confirmLabel: "Cancel Invitation", cancelLabel: "Keep", destructive: true }))) return;
 
   cancellingInvitation.value = invitationId;
   try {
@@ -803,7 +811,7 @@ const handleSubmitBoardTerm = async () => {
 };
 
 const handleDeleteBoardTerm = async (id: string) => {
-  if (!confirm("Remove this board position?")) return;
+  if (!(await confirm({ title: "Remove this board position?", confirmLabel: "Remove", destructive: true }))) return;
 
   try {
     await removeBoardTerm(id);

@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const { confirm } = useConfirm();
+
 interface TreeNode {
   id: string;
   name: string;
@@ -208,9 +210,12 @@ const createFolder = async () => {
 // Delete a folder
 const deleteFolder = async (folderId: string) => {
   if (
-    !confirm(
-      "Delete this folder? All files inside will be moved to the parent folder."
-    )
+    !(await confirm({
+      title: "Delete this folder?",
+      body: "All files inside will be moved to the parent folder.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))
   )
     return;
 
@@ -347,7 +352,7 @@ const { data: documents, refresh } = await useAsyncData(
 
 // Delete document
 const handleDelete = async (id: string) => {
-  if (!confirm("Delete this document?")) return;
+  if (!(await confirm({ title: "Delete this document?", confirmLabel: "Delete", destructive: true }))) return;
 
   try {
     await removeDocument(id);

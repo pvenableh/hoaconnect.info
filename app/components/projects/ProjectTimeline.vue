@@ -7,6 +7,8 @@
 import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
 import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
 
+const { confirm } = useConfirm();
+
 const props = defineProps<{ projectId: string }>();
 const emit = defineEmits<{ (e: "changed"): void }>();
 
@@ -63,7 +65,7 @@ async function toggleDone(ev: ProjectEventRow) {
 }
 
 async function removeEvent(ev: ProjectEventRow) {
-  if (!confirm(`Remove "${ev.title}"?`)) return;
+  if (!(await confirm({ title: `Remove "${ev.title}"?`, confirmLabel: "Remove", destructive: true }))) return;
   await remove(ev.id);
   await load();
   emit("changed");

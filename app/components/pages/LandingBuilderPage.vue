@@ -17,6 +17,8 @@ import {
 } from "#core/app/composables/useLandingBuilder";
 import type { AiLandingResult } from "#core/shared/landing/ai";
 
+const { confirm } = useConfirm();
+
 const route = useRoute();
 const { navigateToOrg } = useOrgNavigation();
 const config = useRuntimeConfig();
@@ -283,8 +285,8 @@ const save = async () => {
 function onAdded(id: string) {
   expandedId.value = id;
 }
-function onReset() {
-  if (!window.confirm("Reset to the default section layout? This replaces your current sections. Your saved page isn't changed until you press Save.")) return;
+async function onReset() {
+  if (!(await confirm({ title: "Reset to the default section layout?", body: "This replaces your current sections. Your saved page isn't changed until you press Save.", confirmLabel: "Reset", destructive: true }))) return;
   builder.resetToDefault();
   expandedId.value = null;
 }
@@ -298,8 +300,9 @@ function onApplyAi(result: AiLandingResult) {
 }
 
 // Warn before navigating away with unsaved changes.
-onBeforeRouteLeave(() => {
-  if (dirty.value && !window.confirm("You have unsaved changes. Leave without saving?")) return false;
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return;
+  return await confirm({ title: "Leave without saving?", body: "Your changes will be lost.", confirmLabel: "Leave", destructive: true });
 });
 
 useSeoMeta({ title: "Design your site" });

@@ -29,6 +29,8 @@ import { requestTypeList } from "#core/app/config/requestWorkflows";
 import { GRANT_PRESETS, matchPreset, presetFor } from "#core/shared/transition/grants";
 import type { HoaVendor } from "#core/types/directus";
 
+const { confirm } = useConfirm();
+
 const config = useRuntimeConfig();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
@@ -248,7 +250,7 @@ const archiveVendor = async (v: HoaVendor) => {
 
 const deleteVendor = async (v: HoaVendor) => {
   if (!v.id) return;
-  if (!confirm(`Permanently delete ${vendorTitle(v)}? Use Archive to keep history instead.`)) return;
+  if (!(await confirm({ title: `Permanently delete ${vendorTitle(v)}?`, body: "Use Archive to keep history instead.", confirmLabel: "Delete", destructive: true }))) return;
   try {
     await vendorsApi.remove(v.id);
     toast.success("Vendor deleted");

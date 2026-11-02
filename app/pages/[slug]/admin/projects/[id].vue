@@ -3,6 +3,8 @@ import type { ProjectRow } from "#core/app/composables/useProjects";
 import { useProjects, PROJECT_STATUS_META } from "#core/app/composables/useProjects";
 import { projectOpensOnTimeline } from "#core/shared/projects/timeline";
 
+const { confirm } = useConfirm();
+
 definePageMeta({
   middleware: ["admin", "subscription"],
   layout: "auth",
@@ -107,11 +109,11 @@ const deleteWarning = computed(() => {
   const subs = kids
     ? ` Its ${kids === 1 ? "sub-project is" : `${kids} sub-projects are`} kept, and ${kids === 1 ? "becomes a" : "become"} top-level project${kids === 1 ? "" : "s"}.`
     : "";
-  return `Delete ${name}? Its milestones and tasks are deleted with it.${subs}`;
+  return { title: `Delete ${name}?`, body: `Its milestones and tasks are deleted with it.${subs}`.trim() };
 });
 
 async function onDelete() {
-  if (!confirm(deleteWarning.value)) return;
+  if (!(await confirm({ title: deleteWarning.value.title, body: deleteWarning.value.body, confirmLabel: "Delete", destructive: true }))) return;
   await remove(projectId.value);
   navigateTo(buildOrgPath("/admin/projects"));
 }
