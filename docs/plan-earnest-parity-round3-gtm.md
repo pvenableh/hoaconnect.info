@@ -15,7 +15,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | Session | Phase | State | Notes |
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
-| 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [~] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [ ]**: the five sweeps, recipes in the Session log. |
+| 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
 | 4 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
@@ -361,6 +361,152 @@ states teach.
 When done: mark Phase 1 [x] in the Status row, append Session 3 to the Session
 log (shipped, deviations, operator TODOs), write the Phase 2 kickoff prompt
 (Opus 5.5, effort xhigh), and stop.
+```
+
+**Session 3 — Phase 1b: the sweeps** (2026-11-02) — local session, worked directly on `main`
+(Peter's instruction; the kickoff's cloud-branch / draft-PR steps did not apply). Five local
+commits on top of `7cd3e97`, **not pushed** — `main` auto-deploys, so push is Peter's call.
+Each sweep was one Sonnet 5.5 subagent with the recipe above; the main session reviewed
+`git diff --stat` and spot-checked three files per sweep.
+
+Shipped:
+
+- **A — `298dc89`**: 32 native `confirm()`/`alert()` calls in 19 files → `useConfirm()`. Error
+  alerts (TiptapEditor ×2, four in `billing/[accountId].vue`) became `toast.error`; the
+  acknowledge-only "invitation could not be sent" alert is `await alert({…})`. The native-dialog
+  grep now lists only `FilePickerDialog`'s local `confirm`, the `/ui-kit` docblock and
+  `useConfirm.ts` comments.
+- **B — `648995b`**: 27 date inputs in 19 files → `DateInput` (26 listed + the dynamic
+  `field.type === 'date'` branch in `requests/RequestDetail.vue`, found by the subagent's wider
+  grep). `grep 'type="(date|datetime-local)"'` lists only `ui/date-input` docblocks.
+- **C — `45c0924`**: 15 files, **80 gray/stone literals → 0**. **`color-literals` baseline for
+  Phase 8 = 80 before / 0 after** for these 15 files (per-file counts were recorded before the
+  sweep: Methods 14, experimental 10, Landing 9, Footer 7, SubscriptionForm 6, StripeCard 6,
+  your-data 5, property-managers 5, account 5, BlockItem 3, `[slug]/index` 3, PermissionsDiagnostic 2,
+  OrgSelector 2, `billing/[accountId]` 2, setup/complete 1).
+- **D — `89ba31a`**: six create flows in `AppBottomSheet` (seven call sites; Requests is two
+  pages): CreateChannelModal (`sm`), member add/edit (`md`), UnitsPage (`sm`), MeetingsAdminPage
+  (`lg`; one dialog serves create AND edit), DocumentsPage batch upload (`lg`), admin + member
+  new request (the inline `ios-card` is gone). Other dialogs on those pages (Board Position, new
+  folder, …) are untouched. None of the old dialogs blocked outside-click, so none is `persistent`.
+- **E — `ef7f13e`**: teaching first-run empty states on Members, Units, Documents, Meetings,
+  Requests, Projects, Channels, Email.
+
+Deviations and judgment calls:
+
+1. **Sweep C leaves hex in disguise.** The token map has no fixed-dark surface, so the
+   always-dark `bg/from/via/to-gray-900|800` (CTA + hero gradients in `Marketing/Landing`,
+   `your-data`, `property-managers`, `experimental`) became bracket hex `#111827` / `#1f2937` —
+   pixel-identical, but a future `color-literals` audit will not see them. **Phase 8: add a
+   dark-surface token (or `bg-ink`) and re-census.** Other token substitutions outside the map:
+   `border-gray-400` → `t-border-secondary`, `border-gray-800` → `t-border`, `bg-gray-400` status
+   dots and the spinner borders → `var(--theme-text-muted|primary)` (there are no `ring/divide/
+   placeholder/from/to/via` token utilities), and `Payment/Methods.vue`'s three `@apply` blocks
+   became plain CSS on the theme variables (`@apply` cannot take `.t-*`).
+2. **Public landing nav changes colour.** The scrolled nav pair `bg-white/90 dark:bg-gray-900/90`
+   became `bg-[var(--theme-bg-overlay)]` (alpha 0.95) in `Marketing/Landing`, `your-data`,
+   `property-managers`, `experimental`: cream instead of pure white in light, the theme's dark
+   brown instead of slate in dark. `[slug]/index.vue`'s loading/error text moved to the theme text
+   tokens. **I did not take the before/after screenshots the recipe asks for** — see TODOs.
+3. **Sweep A rewrites**: `billing/[accountId]` detach confirm lost its `•` bullet lines (the
+   dialog body is plain text); `projects/[id]` `deleteWarning` computed returns `{title, body}`;
+   `units/[id]` uses the existing `label` as title with `confirmLabel: "End"`; MembersPage cancel-
+   invitation uses `cancelLabel: "Keep"`; ChannelMessage "Hide" is non-destructive.
+4. **Sweep B**: `DocumentBatchEdit` and `TaskPanel` had handlers that only used the event as a
+   change signal; they are now `@update:model-value`. `MeetingsAdminPage`'s separate `type="time"`
+   input stays — merging into one `DateTimeInput` is **Phase 9**.
+5. **Sweep E changes beyond the recipe** (each needed to keep first-run and filtered-empty apart):
+   `RequestList` gained a `filtered` prop and an `#empty-actions` slot, and the main session wired
+   its three parents (`admin/requests`, `requests`, `manage/inquiries`; the inquiries CTA keeps
+   its `canCreateViolation` gate). Members and Projects now render a `variant="search"` state when
+   filters empty a non-empty list. **Documents**: the old `documentTree.length === 0` was
+   effectively never true (the tree always has a root), so first-run is now
+   `!documents?.length && category === 'all' && status === 'published'` — an org holding only
+   draft/archived documents sees first-run under the default filters. **Channels**: non-admins see
+   the steps without a CTA (the steps read as admin actions). Members offers two CTAs (filled
+   "Add Member", outline "Invite Member").
+6. **Browser verification** ran against the built server on :3123 (CI dummy env), not the demo
+   org. **The Directus click-through of a converted create flow and a confirm in light/dark was
+   NOT done**: it needs a signed-in session on the demo org, and I do not enter passwords. This
+   machine's `.env` does have Directus credentials.
+7. Gates ran as `scripts` in the scratchpad (typecheck → vitest → audit → build, serially) per
+   commit; the husky pre-commit hook also ran the hairline audit.
+
+Gates (every commit A–E, last run on E's tree): typecheck 0 · vitest 96 files / 1650 tests ·
+build green · `audit:hairline-surfaces` 0 (baseline 0).
+
+Browser script `verify-p1a-shell.cjs` on the final build: **69/69** — but not on the first
+run, and not unmodified: (a) this Mac has the system **Reduce Transparency** setting on, so
+`prefers-reduced-transparency` matches by default in headless Chromium and 18 "is strong glass"
+assertions fail (overlays correctly fall back to opaque); I ran a scratchpad copy that
+emulates `no-preference` in `runMode` and got 68/69, (b) the one failure, `[light] Spotlight
+closes on navigate`, passed on the immediate rerun (69/69) and on dark both times — a timing
+flake, not a regression. The Playwright package is not installed in this repo; I installed
+`playwright@1.63.0` in the scratchpad (matches the cached Chromium 1243) and used
+`NODE_PATH`.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: five local commits on `main` (`298dc89`..`ef7f13e`); review, then push
+      or open a PR — `main` auto-deploys.
+- [ ] On the preview deploy as an admin, in light and dark: open one converted create flow
+      (e.g. Units → Add Unit, and Requests → New Request), one confirm (e.g. delete a message in
+      Channels), a date field, and the empty states on a fresh org. Confirm focus lands on Cancel
+      and the sheet is a dialog ≥ md.
+- [ ] Eyeball the public pages whose colours moved: `Marketing/Landing` (scrolled nav bar, icon-
+      circle borders) and `[slug]/index` (loading/error text) in light and dark.
+- [ ] A Documents org with only draft/archived documents shows the first-run state (deviation 5);
+      decide whether that is acceptable.
+- [ ] Make `verify-p1a-shell.cjs` set `prefers-reduced-transparency: no-preference` in
+      `runMode` itself so it passes on a machine with Reduce Transparency on, and wait for the
+      route change in the Spotlight assertion (Phase 8 audit work or earlier).
+
+#### Phase 2 — kickoff prompt (Opus 5.5, effort xhigh)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log (Session 2 for the primitives and motion module,
+Session 3 for what Phase 1b changed), §Token budget, and the Phase 2 section.
+Do not read the rest, do not re-survey Earnest beyond the files Phase 2
+names (AppHeader/AppHeaderOutlet, useTitleCollapse, AppCreateMenu, the apps
+shell, the App Library grid), and never open docs/plan-earnest-parity-round2.md.
+
+This session = Phase 2 (Dock, navigation and page-title system) ONLY, on
+Opus 5.5 at effort xhigh. Earnest reference checkout: ~/Sites/earnest/earnest.
+Reuse what exists: `core/shared/motion` (never hand-write a cubic-bezier),
+`useConfirm`, `AppBottomSheet` (size), `DateInput`, `AppEmptyState`, the
+`/api/search` registry and `App/Spotlight.vue` (the create verbs from item 2.4
+feed Spotlight's reserved third group), `useAppNav` / `useSectionNav`. The
+public site (Org/Landing/*, LandingBuilder/*, the public theme) is out of scope.
+
+Local session: work on main, ask before pushing (five Phase 1b commits are
+already on local main, unpushed — mention that, do not push them silently).
+Tool shells may have no node/pnpm: run `eval "$(/usr/local/bin/fnm env)"`.
+
+Token rules: Haiku 5.5 subagents for census/grep, Sonnet 5.5 for N-file
+sweeps with an exact recipe (e.g. migrating PageHeader callers to
+usePageTitle); review diffs, not files. Gates run in the background; read
+only the tail. Typecheck with NODE_OPTIONS=--max-old-space-size=6144 and the
+CI dummy env (DIRECTUS_URL=http://localhost:8055 DIRECTUS_STATIC_TOKEN=ci-dummy-token
+NUXT_SESSION_PASSWORD=ci-dummy-session-password-at-least-32-chars).
+
+Quality gate, per commit: typecheck 0, vitest green, build green (serially),
+`pnpm audit:hairline-surfaces` at 0, org-scope tests for every new endpoint
+or prefs write. Browser verification is one headless Playwright script
+(extend scripts/browser/ with a verify-p2-nav script; Playwright is not in
+the repo — install playwright@1.63.0 in the scratchpad and use NODE_PATH,
+and emulate prefers-reduced-transparency: no-preference since Reduce
+Transparency may be on at the OS level). Verify in BOTH light and dark; with
+a real session on the demo org if credentials/session are available
+(`/api/demo/login`), and say so in the Session log if not. Delete every row
+you create; `demo-classic` is a CONTROL — diff both orgs before and after.
+`pnpm generate:types` after the `directus_users.app_prefs` change if prod
+credentials are available.
+
+When done: update the Status row, append Session 4 to the Session log
+(shipped, deviations, operator TODOs), write the Phase 3a kickoff prompt
+(Opus 5.5, effort xhigh), and stop. One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
