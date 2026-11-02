@@ -300,7 +300,7 @@ const fmtDate = (v?: string | null) =>
             </div>
             <div>
               <label class="block text-sm font-medium t-text-secondary mb-1.5">Effective date</label>
-              <Input v-model="effectiveDateInput" type="date" />
+              <DateInput v-model="effectiveDateInput" />
             </div>
           </div>
 

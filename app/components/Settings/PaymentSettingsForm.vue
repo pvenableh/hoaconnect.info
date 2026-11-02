@@ -93,10 +93,9 @@
 
           <div class="space-y-2">
             <Label for="openingBalanceDate">As of</Label>
-            <Input
+            <DateInput
               id="openingBalanceDate"
               v-model="form.openingBalanceDate"
-              type="date"
               :disabled="isSaving"
             />
             <p class="text-xs text-muted-foreground">

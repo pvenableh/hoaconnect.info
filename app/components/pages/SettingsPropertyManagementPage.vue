@@ -674,11 +674,11 @@ watch(orgId, () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Active since</Label>
-              <Input v-model="editing.active_since" type="date" />
+              <DateInput v-model="editing.active_since" />
             </div>
             <div class="space-y-1.5">
               <Label>Active until</Label>
-              <Input v-model="editing.active_until" type="date" />
+              <DateInput v-model="editing.active_until" />
             </div>
           </div>
 

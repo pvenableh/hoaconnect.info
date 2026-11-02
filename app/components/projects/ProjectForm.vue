@@ -122,11 +122,11 @@ async function submit() {
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1">Start date</label>
-        <input v-model="form.start_date" type="date" class="t-input w-full rounded-xl px-3 py-2" />
+        <DateInput v-model="form.start_date" class="w-full" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1">Due date</label>
-        <input v-model="form.due_date" type="date" class="t-input w-full rounded-xl px-3 py-2" />
+        <DateInput v-model="form.due_date" class="w-full" />
       </div>
     </div>
 

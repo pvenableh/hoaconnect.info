@@ -82,11 +82,11 @@ const submit = () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Start date</label>
-        <Input v-model="startDate" type="date" />
+        <DateInput v-model="startDate" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">End date</label>
-        <Input v-model="endDate" type="date" />
+        <DateInput v-model="endDate" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Rent (monthly)</label>

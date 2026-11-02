@@ -227,11 +227,11 @@ const expenseColumns = [
           </div>
           <div class="space-y-1.5">
             <Label>Expense date</Label>
-            <Input v-model="form.expense_date" type="date" />
+            <DateInput v-model="form.expense_date" />
           </div>
           <div class="space-y-1.5">
             <Label>Paid date</Label>
-            <Input v-model="form.paid_date" type="date" />
+            <DateInput v-model="form.paid_date" />
           </div>
           <div v-if="projectOptions?.length" class="space-y-1.5 md:col-span-2">
             <Label>Project <span class="t-text-muted font-normal">(optional — rolls into the project's budget)</span></Label>

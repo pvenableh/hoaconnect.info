@@ -1595,18 +1595,16 @@ useSeoMeta({
               <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                   <Label for="term-start">Term Start</Label>
-                  <Input
+                  <DateInput
                     id="term-start"
                     v-model="boardForm.term_start"
-                    type="date"
                   />
                 </div>
                 <div class="grid gap-2">
                   <Label for="term-end">Term End</Label>
-                  <Input
+                  <DateInput
                     id="term-end"
                     v-model="boardForm.term_end"
-                    type="date"
                   />
                   <p class="text-xs t-text-muted">Leave empty for ongoing</p>
                 </div>

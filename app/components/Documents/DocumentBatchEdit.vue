@@ -259,11 +259,10 @@ const onDateChange = () => {
         <!-- Date Published -->
         <div class="grid gap-2">
           <Label for="edit-date">Date Published</Label>
-          <Input
+          <DateInput
             id="edit-date"
-            type="date"
             v-model="datePublished"
-            @change="onDateChange"
+            @update:model-value="onDateChange"
             :disabled="saving"
           />
           <p v-if="!isSingleDocument" class="text-xs t-text-muted">

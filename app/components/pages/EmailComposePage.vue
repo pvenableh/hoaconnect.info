@@ -1511,11 +1511,10 @@ useSeoMeta({
                   <div v-if="scheduleEnabled" class="px-3 pb-3 pt-1 space-y-3 border-t t-border">
                     <div class="space-y-1.5">
                       <Label for="sched-at" class="text-xs">Send at</Label>
-                      <input
+                      <DateTimeInput
                         id="sched-at"
                         v-model="scheduledAt"
-                        type="datetime-local"
-                        class="glass-field w-full text-sm rounded-md px-3 py-2"
+                        class="w-full"
                       />
                     </div>
                     <div class="space-y-1.5">

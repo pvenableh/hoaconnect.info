@@ -419,8 +419,8 @@ const TYPE_FILTERS = [
 
           <div class="space-y-1.5">
             <Label>{{ recurring ? "Start date" : "Due date" }}</Label>
-            <Input v-if="recurring" v-model="form.start_date" type="date" />
-            <Input v-else v-model="form.due_date" type="date" />
+            <DateInput v-if="recurring" v-model="form.start_date" />
+            <DateInput v-else v-model="form.due_date" />
           </div>
 
           <div v-if="!recurring" class="space-y-1.5 md:col-span-2">

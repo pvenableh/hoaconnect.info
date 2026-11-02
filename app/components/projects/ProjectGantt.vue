@@ -461,7 +461,7 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
             <div class="mt-2 space-y-2 pl-1">
               <div class="grid grid-cols-2 gap-2">
                 <label class="text-xs t-text-muted">Start date
-                  <input v-model="reForm.event_date" type="date" class="t-input w-full rounded-lg px-2.5 py-1.5 text-sm mt-0.5" />
+                  <DateInput v-model="reForm.event_date" class="w-full mt-0.5" />
                 </label>
                 <label class="text-xs t-text-muted">Duration (business days)
                   <input v-model="reForm.duration_days" type="number" min="1" class="t-input w-full rounded-lg px-2.5 py-1.5 text-sm mt-0.5" />
@@ -534,7 +534,7 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
             <label class="flex items-center gap-2 text-sm t-text-secondary px-2">
               <input v-model="addForm.is_milestone" type="checkbox" class="rounded" /> Milestone marker
             </label>
-            <input v-model="addForm.event_date" type="date" class="t-input rounded-lg px-3 py-2 text-sm" />
+            <DateInput v-model="addForm.event_date" />
             <input v-model="addForm.duration_days" type="number" min="1" placeholder="Duration (business days)" class="t-input rounded-lg px-3 py-2 text-sm" />
           </div>
           <p v-if="addEnd" class="text-xs t-text-muted">Ends {{ fmt(addEnd) }} (business days)</p>

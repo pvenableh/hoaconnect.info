@@ -93,11 +93,10 @@ async function onToggle() {
 
       <div>
         <label class="block text-xs uppercase tracking-wide t-text-tertiary mb-1">Due date</label>
-        <input
-          :value="task.due_date || ''"
-          type="date"
-          class="t-input w-full rounded-lg px-2.5 py-1.5 text-sm"
-          @change="setField({ due_date: ($event.target as HTMLInputElement).value || null })"
+        <DateInput
+          :model-value="task.due_date || ''"
+          class="w-full"
+          @update:model-value="(v: string) => setField({ due_date: v || null })"
         />
       </div>
 

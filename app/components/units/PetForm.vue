@@ -111,7 +111,7 @@ const submit = () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Registered since</label>
-        <Input v-model="startDate" type="date" />
+        <DateInput v-model="startDate" />
       </div>
     </div>
 

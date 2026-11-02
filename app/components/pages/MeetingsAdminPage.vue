@@ -575,7 +575,7 @@ const handleDelete = async (id: string) => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium t-text">Date</label>
-              <input v-model="form.meeting_date_date" type="date" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+              <DateInput v-model="form.meeting_date_date" class="mt-1 w-full" />
             </div>
             <div>
               <label class="text-sm font-medium t-text">Time</label>

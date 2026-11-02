@@ -142,7 +142,7 @@ const TYPE_OPTS = Object.entries(EVENT_TYPE_META).map(([value, m]) => ({ value, 
           <label class="flex items-center gap-2 text-sm t-text-secondary px-2">
             <input v-model="form.is_milestone" type="checkbox" class="rounded" /> Milestone marker
           </label>
-          <input v-model="form.event_date" type="date" class="t-input rounded-lg px-3 py-2 text-sm" />
+          <DateInput v-model="form.event_date" />
           <input v-model="form.duration_days" type="number" min="1" placeholder="Duration (business days)" class="t-input rounded-lg px-3 py-2 text-sm" />
         </div>
         <p v-if="computedEnd" class="text-xs t-text-muted">Ends {{ fmt(computedEnd) }} (business days)</p>

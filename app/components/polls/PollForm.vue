@@ -94,7 +94,7 @@ const submit = async () => {
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Closes (optional)</label>
-        <Input v-model="closesAt" type="date" />
+        <DateInput v-model="closesAt" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Audience</label>

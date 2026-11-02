@@ -136,7 +136,7 @@ const submit = async () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Due date</label>
-        <Input v-model="form.due_date" type="date" />
+        <DateInput v-model="form.due_date" />
       </div>
     </div>
 

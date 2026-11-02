@@ -381,10 +381,14 @@ const doPromote = async () => {
               rows="2"
               class="w-full px-2.5 py-1.5 border rounded-md bg-background text-sm resize-none"
             />
+            <DateInput
+              v-else-if="field.type === 'date'"
+              v-model="metaEdit[field.key]"
+            />
             <Input
               v-else
               v-model="metaEdit[field.key]"
-              :type="field.type === 'date' ? 'date' : field.type === 'number' || field.type === 'currency' ? 'number' : 'text'"
+              :type="field.type === 'number' || field.type === 'currency' ? 'number' : 'text'"
             />
           </template>
           <p v-else class="text-sm t-text-secondary">
