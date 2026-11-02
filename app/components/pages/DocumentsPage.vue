@@ -850,21 +850,18 @@ const handleBatchUploadComplete = async () => {
     </Dialog>
 
     <!-- Batch Upload Dialog -->
-    <Dialog v-model:open="showBatchUploadDialog">
-      <DialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Batch Upload Documents</DialogTitle>
-          <DialogDescription>
-            Upload multiple documents at once. Files will be created as drafts for review.
-          </DialogDescription>
-        </DialogHeader>
-        <DocumentsBatchDocumentUpload
-          :initial-folder="batchUploadTargetFolder"
-          @complete="handleBatchUploadComplete"
-          @close="showBatchUploadDialog = false"
-        />
-      </DialogContent>
-    </Dialog>
+    <AppBottomSheet
+      v-model:open="showBatchUploadDialog"
+      title="Batch Upload Documents"
+      description="Upload multiple documents at once. Files will be created as drafts for review."
+      size="lg"
+    >
+      <DocumentsBatchDocumentUpload
+        :initial-folder="batchUploadTargetFolder"
+        @complete="handleBatchUploadComplete"
+        @close="showBatchUploadDialog = false"
+      />
+    </AppBottomSheet>
 
     <!-- Batch Edit Dialog -->
     <DocumentsDocumentBatchEdit

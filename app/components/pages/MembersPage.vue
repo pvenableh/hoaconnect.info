@@ -1424,124 +1424,120 @@ useSeoMeta({
         </AppTabPanels>
 
         <!-- Add/Edit Member Modal -->
-        <Dialog v-model:open="showAddModal">
-          <DialogContent class="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{{ editingId ? "Edit" : "Add" }} Member</DialogTitle>
-              <DialogDescription>
-                Adding a member without sending an invitation. They won't have
-                system access.
-              </DialogDescription>
-            </DialogHeader>
-            <div class="grid gap-4 py-4">
-              <div class="grid grid-cols-2 gap-4">
-                <div class="grid gap-2">
-                  <Label for="first-name">First Name</Label>
-                  <Input id="first-name" v-model="form.first_name" required />
-                </div>
-                <div class="grid gap-2">
-                  <Label for="last-name">Last Name</Label>
-                  <Input id="last-name" v-model="form.last_name" required />
-                </div>
-              </div>
-
+        <AppBottomSheet
+          v-model:open="showAddModal"
+          :title="`${editingId ? 'Edit' : 'Add'} Member`"
+          description="Adding a member without sending an invitation. They won't have system access."
+          size="md"
+        >
+          <div class="grid gap-4 py-4">
+            <div class="grid grid-cols-2 gap-4">
               <div class="grid gap-2">
-                <Label for="email">Email</Label>
-                <Input id="email" v-model="form.email" type="email" required />
+                <Label for="first-name">First Name</Label>
+                <Input id="first-name" v-model="form.first_name" required />
               </div>
-
               <div class="grid gap-2">
-                <Label for="phone">Phone</Label>
-                <Input id="phone" v-model="form.phone" type="tel" />
+                <Label for="last-name">Last Name</Label>
+                <Input id="last-name" v-model="form.last_name" required />
               </div>
+            </div>
 
+            <div class="grid gap-2">
+              <Label for="email">Email</Label>
+              <Input id="email" v-model="form.email" type="email" required />
+            </div>
+
+            <div class="grid gap-2">
+              <Label for="phone">Phone</Label>
+              <Input id="phone" v-model="form.phone" type="tel" />
+            </div>
+
+            <div class="grid gap-2">
+              <Label for="company">Company</Label>
+              <Input id="company" v-model="form.company" placeholder="Optional - for property managers" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
               <div class="grid gap-2">
-                <Label for="company">Company</Label>
-                <Input id="company" v-model="form.company" placeholder="Optional - for property managers" />
+                <Label for="member-type">Type</Label>
+                <select
+                  id="member-type"
+                  v-model="form.member_type"
+                  class="w-full p-2 border rounded"
+                >
+                  <option value="owner">Owner</option>
+                  <option value="tenant">Tenant</option>
+                  <option value="property_manager">Property Manager</option>
+                </select>
               </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="grid gap-2">
-                  <Label for="member-type">Type</Label>
-                  <select
-                    id="member-type"
-                    v-model="form.member_type"
-                    class="w-full p-2 border rounded"
-                  >
-                    <option value="owner">Owner</option>
-                    <option value="tenant">Tenant</option>
-                    <option value="property_manager">Property Manager</option>
-                  </select>
-                </div>
-                <div class="grid gap-2">
-                  <Label for="member-role">Role</Label>
-                  <select
-                    id="member-role"
-                    v-model="form.role"
-                    class="w-full p-2 border rounded"
-                  >
-                    <option
-                      v-for="role in roleOptions"
-                      :key="role.value"
-                      :value="role.value"
-                    >
-                      {{ role.label }}
-                    </option>
-                  </select>
-                  <p class="text-xs t-text-muted">
-                    HOA Admins can manage members, documents, and settings
-                  </p>
-                </div>
-              </div>
-
               <div class="grid gap-2">
-                <Label for="primary-unit">Primary Unit</Label>
-                <select id="primary-unit" v-model="form.unit" class="w-full p-2 border rounded">
-                  <option :value="null">No Unit</option>
+                <Label for="member-role">Role</Label>
+                <select
+                  id="member-role"
+                  v-model="form.role"
+                  class="w-full p-2 border rounded"
+                >
                   <option
-                    v-for="unit in units"
-                    :key="unit.id"
-                    :value="unit.id"
+                    v-for="role in roleOptions"
+                    :key="role.value"
+                    :value="role.value"
                   >
-                    {{ unit.unit_number }}
+                    {{ role.label }}
                   </option>
                 </select>
-                <p v-if="!units?.length" class="text-xs t-text-muted">
-                  No units available.
-                  <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
-                    >Add units first</NuxtLink
-                  >
-                </p>
-              </div>
-
-              <div class="grid gap-2">
-                <Label for="status">Status</Label>
-                <select id="status" v-model="form.status" class="w-full p-2 border rounded">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="archived">Archived</option>
-                </select>
                 <p class="text-xs t-text-muted">
-                  Standing in the community, not app usage. A member who has
-                  never signed in is still active.
+                  HOA Admins can manage members, documents, and settings
                 </p>
               </div>
             </div>
-            <DialogFooter>
-              <Button
-                @click="
-                  showAddModal = false;
-                  resetForm();
-                "
-                variant="outline"
-              >
-                Cancel
-              </Button>
-              <Button @click="handleSubmit">Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
+            <div class="grid gap-2">
+              <Label for="primary-unit">Primary Unit</Label>
+              <select id="primary-unit" v-model="form.unit" class="w-full p-2 border rounded">
+                <option :value="null">No Unit</option>
+                <option
+                  v-for="unit in units"
+                  :key="unit.id"
+                  :value="unit.id"
+                >
+                  {{ unit.unit_number }}
+                </option>
+              </select>
+              <p v-if="!units?.length" class="text-xs t-text-muted">
+                No units available.
+                <NuxtLink :to="buildOrgPath('/admin/units')" class="text-primary underline"
+                  >Add units first</NuxtLink
+                >
+              </p>
+            </div>
+
+            <div class="grid gap-2">
+              <Label for="status">Status</Label>
+              <select id="status" v-model="form.status" class="w-full p-2 border rounded">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="pending">Pending</option>
+                <option value="archived">Archived</option>
+              </select>
+              <p class="text-xs t-text-muted">
+                Standing in the community, not app usage. A member who has
+                never signed in is still active.
+              </p>
+            </div>
+          </div>
+          <template #footer>
+            <Button
+              @click="
+                showAddModal = false;
+                resetForm();
+              "
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button @click="handleSubmit">Save</Button>
+          </template>
+        </AppBottomSheet>
 
         <!-- Add/Edit Board Position Modal -->
         <Dialog v-model:open="showBoardModal">

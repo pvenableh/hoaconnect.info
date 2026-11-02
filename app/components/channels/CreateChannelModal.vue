@@ -94,103 +94,99 @@ watch(isOpen, (open) => {
 </script>
 
 <template>
-  <Dialog v-model:open="isOpen">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Create Channel</DialogTitle>
-        <DialogDescription>
-          Create a new channel for your organization to communicate.
-        </DialogDescription>
-      </DialogHeader>
-
-      <form @submit.prevent="onSubmit" class="space-y-4">
-        <!-- Channel Name -->
-        <VeeField v-slot="{ field, errorMessage }" name="name">
-          <FieldLabel>Channel Name</FieldLabel>
-          <FieldContent>
-            <div class="flex items-center">
-              <span class="t-text-muted mr-1">#</span>
-              <Input
-                v-bind="field"
-                placeholder="general"
-                class="flex-1"
-                :disabled="isSubmitting"
-              />
-            </div>
-          </FieldContent>
-          <FieldError v-if="errorMessage">{{ errorMessage }}</FieldError>
-          <FieldDescription>
-            Lowercase letters, numbers, and hyphens only
-          </FieldDescription>
-        </VeeField>
-
-        <!-- Description -->
-        <VeeField v-slot="{ field, errorMessage }" name="description">
-          <FieldLabel>Description (optional)</FieldLabel>
-          <FieldContent>
-            <Textarea
+  <AppBottomSheet
+    v-model:open="isOpen"
+    title="Create Channel"
+    description="Create a new channel for your organization to communicate."
+    size="sm"
+  >
+    <form id="create-channel-form" @submit.prevent="onSubmit" class="space-y-4">
+      <!-- Channel Name -->
+      <VeeField v-slot="{ field, errorMessage }" name="name">
+        <FieldLabel>Channel Name</FieldLabel>
+        <FieldContent>
+          <div class="flex items-center">
+            <span class="t-text-muted mr-1">#</span>
+            <Input
               v-bind="field"
-              placeholder="What's this channel about?"
-              :rows="2"
-              :disabled="isSubmitting"
-            />
-          </FieldContent>
-          <FieldError v-if="errorMessage">{{ errorMessage }}</FieldError>
-        </VeeField>
-
-        <!-- Private Channel Toggle -->
-        <VeeField v-slot="{ field }" name="is_private">
-          <div class="flex items-center justify-between">
-            <div>
-              <FieldLabel class="mb-0">Private Channel</FieldLabel>
-              <FieldDescription class="text-xs">
-                Only invited members can view and post
-              </FieldDescription>
-            </div>
-            <Switch
-              :checked="field.value"
-              @update:checked="setFieldValue('is_private', $event)"
+              placeholder="general"
+              class="flex-1"
               :disabled="isSubmitting"
             />
           </div>
-        </VeeField>
+        </FieldContent>
+        <FieldError v-if="errorMessage">{{ errorMessage }}</FieldError>
+        <FieldDescription>
+          Lowercase letters, numbers, and hyphens only
+        </FieldDescription>
+      </VeeField>
 
-        <!-- Default Channel Toggle -->
-        <VeeField v-slot="{ field }" name="is_default">
-          <div class="flex items-center justify-between">
-            <div>
-              <FieldLabel class="mb-0">Default Channel</FieldLabel>
-              <FieldDescription class="text-xs">
-                New members automatically join this channel
-              </FieldDescription>
-            </div>
-            <Switch
-              :checked="field.value"
-              @update:checked="setFieldValue('is_default', $event)"
-              :disabled="isSubmitting || values.is_private"
-            />
-          </div>
-        </VeeField>
-
-        <DialogFooter class="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            @click="isOpen = false"
+      <!-- Description -->
+      <VeeField v-slot="{ field, errorMessage }" name="description">
+        <FieldLabel>Description (optional)</FieldLabel>
+        <FieldContent>
+          <Textarea
+            v-bind="field"
+            placeholder="What's this channel about?"
+            :rows="2"
             :disabled="isSubmitting"
-          >
-            Cancel
-          </Button>
-          <Button type="submit" :disabled="isSubmitting">
-            <Icon
-              v-if="isSubmitting"
-              name="lucide:loader-2"
-              class="w-4 h-4 mr-1 animate-spin"
-            />
-            Create Channel
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  </Dialog>
+          />
+        </FieldContent>
+        <FieldError v-if="errorMessage">{{ errorMessage }}</FieldError>
+      </VeeField>
+
+      <!-- Private Channel Toggle -->
+      <VeeField v-slot="{ field }" name="is_private">
+        <div class="flex items-center justify-between">
+          <div>
+            <FieldLabel class="mb-0">Private Channel</FieldLabel>
+            <FieldDescription class="text-xs">
+              Only invited members can view and post
+            </FieldDescription>
+          </div>
+          <Switch
+            :checked="field.value"
+            @update:checked="setFieldValue('is_private', $event)"
+            :disabled="isSubmitting"
+          />
+        </div>
+      </VeeField>
+
+      <!-- Default Channel Toggle -->
+      <VeeField v-slot="{ field }" name="is_default">
+        <div class="flex items-center justify-between">
+          <div>
+            <FieldLabel class="mb-0">Default Channel</FieldLabel>
+            <FieldDescription class="text-xs">
+              New members automatically join this channel
+            </FieldDescription>
+          </div>
+          <Switch
+            :checked="field.value"
+            @update:checked="setFieldValue('is_default', $event)"
+            :disabled="isSubmitting || values.is_private"
+          />
+        </div>
+      </VeeField>
+  </form>
+
+    <template #footer>
+      <Button
+        type="button"
+        variant="outline"
+        @click="isOpen = false"
+        :disabled="isSubmitting"
+      >
+        Cancel
+      </Button>
+      <Button type="submit" form="create-channel-form" :disabled="isSubmitting">
+        <Icon
+          v-if="isSubmitting"
+          name="lucide:loader-2"
+          class="w-4 h-4 mr-1 animate-spin"
+        />
+        Create Channel
+      </Button>
+    </template>
+  </AppBottomSheet>
 </template>

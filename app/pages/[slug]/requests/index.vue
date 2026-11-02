@@ -51,14 +51,14 @@ const onCreated = async (id: string) => {
         </Button>
       </div>
 
-      <div v-if="showNew" class="ios-card p-6">
+      <AppBottomSheet v-model:open="showNew" title="New request">
         <RequestsRequestForm
           :organization-id="selectedOrgId"
           :allowed-types="['maintenance','arc','complaint']"
           @created="onCreated"
           @cancel="showNew = false"
         />
-      </div>
+      </AppBottomSheet>
 
       <div class="ios-card p-2">
         <RequestsRequestList :requests="requests || []" :base-path="basePath" :loading="pending" />

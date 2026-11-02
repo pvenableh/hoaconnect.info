@@ -1,13 +1,5 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const { confirm } = useConfirm();
 
@@ -537,136 +529,131 @@ const handleDelete = async (id: string) => {
       </PageContainer>
 
     <!-- Create / edit dialog -->
-    <Dialog v-model:open="showModal">
-      <DialogContent class="ui-kit max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{{ editingId ? "Edit meeting" : "New meeting" }}</DialogTitle>
-          <DialogDescription>
-            Notice, agenda, minutes, recording and attendees.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="space-y-4 py-2">
-          <div>
-            <label class="text-sm font-medium t-text">Title</label>
-            <input
-              v-model="form.title"
-              type="text"
-              placeholder="e.g. March Board Meeting"
-              class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-sm font-medium t-text">Type</label>
-              <select v-model="form.type" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
-                <option v-for="o in TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-sm font-medium t-text">Status</label>
-              <select v-model="form.status" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
-                <option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-sm font-medium t-text">Date</label>
-              <DateInput v-model="form.meeting_date_date" class="mt-1 w-full" />
-            </div>
-            <div>
-              <label class="text-sm font-medium t-text">Time</label>
-              <input v-model="form.meeting_date_time" type="time" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-sm font-medium t-text">Location</label>
-              <input v-model="form.location" type="text" placeholder="Clubhouse / Zoom" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-            </div>
-            <div>
-              <label class="text-sm font-medium t-text">Virtual URL</label>
-              <input v-model="form.virtual_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium t-text">Agenda</label>
-            <textarea v-model="form.agenda" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-          </div>
-
-          <div>
-            <label class="text-sm font-medium t-text">Minutes</label>
-            <textarea v-model="form.minutes" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-sm font-medium t-text">Recording URL</label>
-              <input v-model="form.recording_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
-            </div>
-            <div>
-              <label class="text-sm font-medium t-text">Audience</label>
-              <select v-model="form.target_audience" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
-                <option v-for="o in AUDIENCE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Attendees -->
-          <div class="rounded-lg border t-border p-3">
-            <p class="text-sm font-medium t-text mb-2">Attendees</p>
-            <p class="text-xs t-text-muted mb-2">
-              Board roles are captured as of the meeting date and frozen for the record.
-            </p>
-            <div class="flex gap-2">
-              <select v-model="attendeePick" class="flex-1 rounded-lg px-3 py-2 text-sm t-text">
-                <option value="">Add a person…</option>
-                <option v-for="mem in members || []" :key="mem.id" :value="mem.id">
-                  {{ mem.first_name }} {{ mem.last_name }}
-                </option>
-              </select>
-              <Button type="button" variant="outline" size="sm" @click="addAttendee">Add</Button>
-            </div>
-            <ul v-if="formAttendees.length" class="mt-3 space-y-2">
-              <li v-for="(a, idx) in formAttendees" :key="a.hoa_member" class="flex items-center justify-between gap-2 text-sm">
-                <span class="t-text">{{ memberName(a.hoa_member) }}</span>
-                <span class="flex items-center gap-2">
-                  <span v-if="a.is_board_member" class="rounded-full px-2 py-0.5 text-[10px] font-medium t-bg-accent/20 t-text-accent">
-                    {{ a.role_at_meeting }}
-                  </span>
-                  <select v-model="a.attendance" class="rounded px-1.5 py-1 text-xs t-text">
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
-                    <option value="excused">Excused</option>
-                    <option value="proxy">Proxy</option>
-                  </select>
-                  <button type="button" class="t-text-muted hover:text-destructive" @click="removeAttendeeRow(idx)">
-                    <Icon name="i-lucide-x" class="size-4" />
-                  </button>
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          <label class="flex items-center gap-2 text-sm t-text">
-            <input v-model="form.is_published" type="checkbox" class="rounded" />
-            Published (visible to members)
-          </label>
+    <AppBottomSheet
+      v-model:open="showModal"
+      :title="editingId ? 'Edit meeting' : 'New meeting'"
+      description="Notice, agenda, minutes, recording and attendees."
+      size="lg"
+    >
+      <div class="space-y-4 py-2">
+        <div>
+          <label class="text-sm font-medium t-text">Title</label>
+          <input
+            v-model="form.title"
+            type="text"
+            placeholder="e.g. March Board Meeting"
+            class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text"
+          />
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" @click="showModal = false">Cancel</Button>
-          <Button :disabled="saving" @click="handleSubmit">
-            <span v-if="saving" class="spinner-ios spinner-ios--sm mr-1.5" />
-            {{ editingId ? "Save changes" : "Create meeting" }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium t-text">Type</label>
+            <select v-model="form.type" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
+              <option v-for="o in TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-medium t-text">Status</label>
+            <select v-model="form.status" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
+              <option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium t-text">Date</label>
+            <DateInput v-model="form.meeting_date_date" class="mt-1 w-full" />
+          </div>
+          <div>
+            <label class="text-sm font-medium t-text">Time</label>
+            <input v-model="form.meeting_date_time" type="time" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium t-text">Location</label>
+            <input v-model="form.location" type="text" placeholder="Clubhouse / Zoom" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+          </div>
+          <div>
+            <label class="text-sm font-medium t-text">Virtual URL</label>
+            <input v-model="form.virtual_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium t-text">Agenda</label>
+          <textarea v-model="form.agenda" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium t-text">Minutes</label>
+          <textarea v-model="form.minutes" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium t-text">Recording URL</label>
+            <input v-model="form.recording_url" type="url" placeholder="https://" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+          </div>
+          <div>
+            <label class="text-sm font-medium t-text">Audience</label>
+            <select v-model="form.target_audience" class="mt-1 w-full rounded-lg px-3 py-2 text-sm t-text">
+              <option v-for="o in AUDIENCE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Attendees -->
+        <div class="rounded-lg border t-border p-3">
+          <p class="text-sm font-medium t-text mb-2">Attendees</p>
+          <p class="text-xs t-text-muted mb-2">
+            Board roles are captured as of the meeting date and frozen for the record.
+          </p>
+          <div class="flex gap-2">
+            <select v-model="attendeePick" class="flex-1 rounded-lg px-3 py-2 text-sm t-text">
+              <option value="">Add a person…</option>
+              <option v-for="mem in members || []" :key="mem.id" :value="mem.id">
+                {{ mem.first_name }} {{ mem.last_name }}
+              </option>
+            </select>
+            <Button type="button" variant="outline" size="sm" @click="addAttendee">Add</Button>
+          </div>
+          <ul v-if="formAttendees.length" class="mt-3 space-y-2">
+            <li v-for="(a, idx) in formAttendees" :key="a.hoa_member" class="flex items-center justify-between gap-2 text-sm">
+              <span class="t-text">{{ memberName(a.hoa_member) }}</span>
+              <span class="flex items-center gap-2">
+                <span v-if="a.is_board_member" class="rounded-full px-2 py-0.5 text-[10px] font-medium t-bg-accent/20 t-text-accent">
+                  {{ a.role_at_meeting }}
+                </span>
+                <select v-model="a.attendance" class="rounded px-1.5 py-1 text-xs t-text">
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                  <option value="excused">Excused</option>
+                  <option value="proxy">Proxy</option>
+                </select>
+                <button type="button" class="t-text-muted hover:text-destructive" @click="removeAttendeeRow(idx)">
+                  <Icon name="i-lucide-x" class="size-4" />
+                </button>
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm t-text">
+          <input v-model="form.is_published" type="checkbox" class="rounded" />
+          Published (visible to members)
+        </label>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="showModal = false">Cancel</Button>
+        <Button :disabled="saving" @click="handleSubmit">
+          <span v-if="saving" class="spinner-ios spinner-ios--sm mr-1.5" />
+          {{ editingId ? "Save changes" : "Create meeting" }}
+        </Button>
+      </template>
+    </AppBottomSheet>
   </div>
 </template>

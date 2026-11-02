@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const { confirm } = useConfirm();
 
@@ -269,43 +262,42 @@ const handleDelete = async (id: string) => {
           </div>
 
           <!-- Add/Edit Modal -->
-          <Dialog v-model:open="showModal">
-            <DialogContent class="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{{ editingId ? "Edit" : "Add" }} Unit</DialogTitle>
-              </DialogHeader>
-              <div class="grid gap-4 py-4">
-                <div class="grid gap-2">
-                  <Label for="unit-number">Unit Number *</Label>
-                  <Input id="unit-number" v-model="form.unit_number" placeholder="101" />
-                </div>
-
-                <div class="grid gap-2">
-                  <Label for="unit-status">Status</Label>
-                  <select
-                    id="unit-status"
-                    v-model="form.status"
-                    class="w-full p-2 border rounded"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+          <AppBottomSheet
+            v-model:open="showModal"
+            :title="`${editingId ? 'Edit' : 'Add'} Unit`"
+            size="sm"
+          >
+            <div class="grid gap-4 py-4">
+              <div class="grid gap-2">
+                <Label for="unit-number">Unit Number *</Label>
+                <Input id="unit-number" v-model="form.unit_number" placeholder="101" />
               </div>
-              <DialogFooter>
-                <Button
-                  @click="
-                    showModal = false;
-                    resetForm();
-                  "
-                  variant="outline"
+
+              <div class="grid gap-2">
+                <Label for="unit-status">Status</Label>
+                <select
+                  id="unit-status"
+                  v-model="form.status"
+                  class="w-full p-2 border rounded"
                 >
-                  Cancel
-                </Button>
-                <Button @click="handleSubmit">Save</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <template #footer>
+              <Button
+                @click="
+                  showModal = false;
+                  resetForm();
+                "
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button @click="handleSubmit">Save</Button>
+            </template>
+          </AppBottomSheet>
         </template>
       </PageContainer>
   </div>

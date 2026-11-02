@@ -88,14 +88,14 @@ watch(
       <AdminRequestsGlance :requests="requests || []" :loading="pending" />
 
       <!-- New request inline -->
-      <div v-if="showNew" class="ios-card p-6">
+      <AppBottomSheet v-model:open="showNew" title="New request">
         <RequestsRequestForm
           :organization-id="selectedOrgId"
           :allowed-types="['maintenance','arc','violation','complaint','task']"
           @created="onCreated"
           @cancel="showNew = false"
         />
-      </div>
+      </AppBottomSheet>
 
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-2">
