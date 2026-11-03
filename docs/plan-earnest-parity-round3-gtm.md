@@ -16,7 +16,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
-| 4 | Phase 2 — Dock, navigation and page-title system | [ ] | Orphaned surfaces reachable; dock prefs per user; mobile launcher. |
+| 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` on local `main` (not pushed); gates green, browser 72/72 ×3 on the demo org. Operator: run `pnpm add:user-app-prefs` (blocked here) — until then dock prefs stay per-device. Found a pre-existing SSR auth gap (Session 4, deviation 8). |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
@@ -507,6 +507,199 @@ credentials are available.
 When done: update the Status row, append Session 4 to the Session log
 (shipped, deviations, operator TODOs), write the Phase 3a kickoff prompt
 (Opus 5.5, effort xhigh), and stop. One phase per session.
+```
+
+**Session 4 — Phase 2: dock, navigation and page-title system** (2026-11-02) — local session on
+`main` (not pushed; `main` auto-deploys, so push is Peter's call). Phase 1b's five commits were
+already on `origin/main` when this session started.
+
+Shipped (one code commit, `6ea771c` — Nav.vue and useAppNav.ts carry hunks from four of the
+seven items, so per-item commits would each have needed a hand-split file and its own build):
+
+- **2.1 Channels inside the shell.** `layouts/channels.vue` is gone. `admin/channels/index` and
+  `[channel]` use `auth` with `definePageMeta({ immersive: true })` (typed in
+  `app/types/page-meta.d.ts`): the shell pins to `h-dvh`, the footer hides, the dock and SubNav
+  stay, and `<main>` pads its foot for the floating dock at md+ (5.5rem, 6.5rem with labels).
+  One component, `channels/ChannelsWorkspace.vue` (list + thread or org-wide search + the create
+  modal), serves both full-height pages and the Communications hub, which embeds it at
+  `min(70vh, 40rem)`; picking a channel in the hub opens the full-height page.
+- **2.2 Nothing orphaned.** Comms children are Email · Channels · **Polls** (`/polls` — the
+  member route already carries the create form and results for whoever the polls routes call a
+  manager, like Board and Rules); Requests children gain **Leads** (`/admin/leads`, ungated);
+  the member dock gains **Polls**. Vendors (`/admin/vendors`, People) and Rules (`/rules`,
+  Records) were already in `useSectionNav` — the plan was written against `1c96ab4`.
+- **2.3 Dock prefs per user.** `core/shared/nav/app-prefs.ts` (shape, `sanitizeAppPrefs`,
+  `mergeAppPrefs`); `GET`/`PATCH /api/user/app-prefs` — the session's user only, body reduced to
+  the four dock keys before the admin-token write, GET degrades to `available: false` and PATCH
+  503s while the field is missing; `scripts/add-user-app-prefs-field.ts`
+  (`pnpm add:user-app-prefs`). `useAppNav` paints from the localStorage cache, pulls the account
+  copy once per signed-in user per load (a choice made while the pull is in flight wins), and
+  pushes every change debounced. `tests/server/app-prefs.test.ts` (12). Stale "only relevant for
+  modern orgs" comment in Nav.vue replaced. No org level: HOA has no org dock default to resolve.
+- **2.4 Create verbs.** `core/shared/create-verbs.ts` — eleven verbs, one gate
+  (`visibleVerbs`: admin of the org being viewed, not previewing as member, module on) and
+  Spotlight's matcher (`matchVerbs`); `useCreateVerbs()`; `useCreateIntent(verb, open)` — a page
+  opens its OWN form for `?new=<verb>` and then drops the param. `App/CreateMenu.vue` is the
+  Nav's "+ New" pill; Spotlight's reserved third group is "Create". Wired into Units, Meetings,
+  Documents, Requests, Projects, Payments, Expenses, Polls, Channels; Members uses its existing
+  `?tab=invite`, New Email links to Compose. `tests/shared/create-verbs.test.ts` (11).
+- **2.5 Page-title system.** `usePageTitle()` / `useTitleCollapse()`; `App/HeaderOutlet.vue`
+  mounted once in `auth.vue` above `<main>`. `App/PageHeader.vue` keeps its props and now
+  registers instead of rendering, teleporting `#actions` / `#meta` — so **none of the 21 callers
+  changed** (no sweep was needed). The title swaps in place (exit curve out, spring in);
+  scrolled under the chrome it hands a compact copy to the Nav's centre (tap → top) and the Nav
+  earns its hairline (`app-nav--earned`; permanent rule kept outside the workspace).
+- **2.6 App Library.** Below md the dock is `display: none`; the Nav's grid button opens
+  `App/AppLibrary.vue` — the dock's apps, accents, badges and active app (new
+  `useDockApps()`, which Dock.vue now uses too) in a four-column panel hung from the bar, chips on
+  `apps-chip-in` with a 28ms stagger; mount-closed/after-first-frame per the overlay policy; Esc,
+  outside tap and navigation close it.
+- **2.7 Directional transitions.** `core/shared/nav/page-transition.ts` (`pickPageTransition`,
+  pure): across dock apps → `page-forward`/`page-back` in DOCK order; across a section's SubNav
+  pills → new `floor-forward`/`floor-back` (24px + fade on `--motion-base`); drill-downs keep the
+  history-stack push/pop; same path → fade. Page slides moved from `--spring-out` to `--spring`
+  (the module's positional curve). `tests/shared/page-transition.test.ts` (8). The page swap's
+  `onLeave`/`onEnter` are now `settleTransition()` (motion module, ported from Earnest's
+  `settle()`): end on the element's own `transitionend` or after its longest transition, at
+  once with none (reduced motion) or when the node is a comment — see deviation 7.
+- `/ui-kit` gains a Navigation section (App Library specimen, the eleven verbs, the inline
+  page header, the motion rules).
+
+Deviations and judgment calls:
+
+1. **`app_prefs` is not provisioned.** Running `pnpm add:user-app-prefs` against Directus was
+   blocked by this environment's permission classifier as a production change, so the field
+   does not exist yet and `pnpm generate:types` was not run; `app_prefs` was hand-added to
+   `DirectusUser` in `core/types/directus.ts` exactly as the generator writes a JSON field.
+   Until the script runs, the dock prefs behave as before (per device) — by design, not by
+   accident: GET says `available: false`, PATCH 503s, the client keeps its cache.
+2. **"Record payment" is "New Charge".** No record-payment flow exists; the payments page's
+   create is a charge (payment request). The verb matches "record payment", "dues",
+   "assessment".
+3. **Create verbs gate on admin + module, not the capability matrix.** Every host page sits
+   behind the `admin` middleware, so a matrix grant (a treasurer's `money:write`) would only
+   offer a door that redirects. New Poll is admin-only in the menu even though a PM on the
+   `feedback` grant can create on `/polls` itself.
+4. **Inline-until-mounted on a cold load.** The outlet cannot server-render the title (SSR
+   renders the layout before the page), so AppPageHeader renders inline on the server and
+   through hydration, then hands off at mount at the same position (the outlet reproduces
+   PageContainer's 1.5rem top). Pages whose header is not the first thing in its container
+   (EmailPage, after the Communications tabs) see the title move above the tabs — once, on a
+   cold load; client navigations never draw it inline.
+5. **The mobile Nav sheet still lists the admin apps** — redundant with the App Library now;
+   left for Phase 9's nav-orphan pass rather than widen this diff.
+6. **Browser verification ran with a real session on the demo org** — `scripts/browser/
+   verify-p2-nav.cjs`, against a local build using the project's `.env` (the Directus behind
+   it), signed in through `POST /api/demo/login` (no password typed): **72/72, three
+   consecutive runs**, light and dark, desktop and 390px, reduced motion, plus 14 `/ui-kit`
+   checks that need no session. It creates nothing (create flows are opened and dismissed);
+   `demo` and `demo-classic` row counts (members, units, meetings, documents, requests,
+   projects, channels, polls, expenses, payment requests) are identical before and after. Two
+   harness facts worth knowing: the script suppresses the once-per-release "What's new" sheet
+   (it covers the first page in a fresh browser), and it moves with the router after boot —
+   see the next point.
+7. **Found while verifying, fixed here:** a page whose root renders as a comment (`<!---->`)
+   made the new settle hook throw inside Vue's transition, so the out-in swap never finished
+   and `<main>` stayed empty through every later navigation. `settleTransition` now ends at
+   once for a non-element; `tests/shared/motion-tokens.test.ts` pins it (6 new tests in all).
+8. **Found while verifying, NOT fixed (pre-existing, out of scope):** during SSR,
+   `useSelectedOrg` reads memberships with plain `$fetch("/api/directus/items")`, which does not
+   carry the request's cookies, so the items route runs as the public role and Directus
+   answers FORBIDDEN. The server therefore renders a signed-in admin as a visitor: a hard load
+   of any `/{slug}/admin/*` URL 302s to the org root, and "Try the demo" (POST, then
+   `window.location.assign("/demo")`) lands on the public landing. Client-side navigation is
+   unaffected (the browser sends the cookie), which is why the app mostly works. Seen locally
+   against the `.env` Directus; **check prod** (hard-refresh an admin page while signed in).
+   The fix is `useRequestFetch()` (or forwarded headers) for SSR reads in `useDirectusItems`.
+   The verify script works around it: after the demo sign-in it refreshes the app's data
+   client-side once, then navigates with the router.
+
+Gates (final tree, `6ea771c`): typecheck 0 · vitest 99 files / 1687 tests · build green ·
+`audit:hairline-surfaces` 0 (baseline 0) · `verify-p2-nav.cjs` 72/72 ×3.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: one code commit + one docs commit on local `main`.
+- [ ] **Provision `app_prefs`**: `pnpm add:user-app-prefs`, then `pnpm generate:types` (expect a
+      no-op diff on `app_prefs` — the hand-added line matches the generator). Then, signed in on
+      two browsers, change the dock palette in one and reload the other.
+- [ ] On the preview deploy, eyeball a cold load of Members and Email: the title should not
+      jump at hydration (Email's moves above its tabs, once — deviation 4).
+- [ ] **SSR membership read (deviation 8)**: hard-refresh `/{slug}/admin/members` signed in on
+      prod; if it bounces to the org root, that is this bug — worth its own session before
+      launch (it also breaks the demo button's landing).
+- [ ] Phone check on a real device: the App Library grid from the Nav's grid button, and
+      Channels with the dock (md+) not covering the composer.
+
+#### Phase 3a — kickoff prompt (Opus 5.5, effort xhigh)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log (Session 1's cron-auth notes and Session 4 are the
+ones that bear on this phase), §Token budget, and the Phase 3 intro plus
+§3a. Do not read §3b onwards, do not re-survey Earnest beyond the files 3a
+names (`unsubscribe.ts`, `contact-unsubscribes.ts`, the SendGrid webhook's
+`eventAction()`, the `SENDER_ADDRESS_MISSING` refusal), and never open
+docs/plan-earnest-parity-round2.md.
+
+This session = Phase 3a (Email: unsubscribe, preferences and suppression)
+ONLY, on Opus 5.5 at effort xhigh. Earnest reference checkout:
+~/Sites/earnest/earnest. Reuse what exists: `residencyFor()` and the audience
+resolution in `sendEmailJob.resolveRecipients` / `send.post.ts` / the digest
+worker, `email-branding.ts`, `email/activity.post.ts`, the 10-category
+notification matrix (`core/shared/notifications/preferences.ts`,
+`/api/user/notification-preferences`), the Phase 1 primitives (`useConfirm`,
+`AppBottomSheet`, `AppEmptyState`, glass) and Phase 2's `usePageTitle` /
+`AppPageHeader` for any new page. The public site (Org/Landing/*,
+LandingBuilder/*, the public theme) is out of scope — the `/unsubscribe` page
+is a standalone glass page, not a landing block.
+
+Local session: work on main, ask before pushing (Phase 2's commits may still
+be unpushed — check `git log origin/main..main` and say so; never push them
+silently). Tool shells may have no node/pnpm: run
+`eval "$(/usr/local/bin/fnm env)"`.
+
+Schema: the new `hoa_members` fields (email_community_opt_out + _at +
+_source, email_bounced + _at + _reason, unsubscribe_token) and the
+`hoa_emails` class field go in ONE idempotent script under scripts/ with a
+pnpm alias. This environment's permission classifier blocks running such a
+script against the production Directus: write it, make every read path
+degrade while the fields are missing (Phase 2's app_prefs routes are the
+pattern), hand-add the generated types, and leave running it + `pnpm
+generate:types` as an operator TODO unless Peter runs it in the session.
+Phase 2 left one such TODO already (`pnpm add:user-app-prefs`).
+
+Token rules: Haiku 5.5 subagents for census/grep (e.g. every call site that
+sends mail and which class it is), Sonnet 5.5 for N-file sweeps with an exact
+recipe; review diffs, not files. Gates run in the background; read only the
+tail. Typecheck with NODE_OPTIONS=--max-old-space-size=6144 and the CI dummy
+env (DIRECTUS_URL=http://localhost:8055 DIRECTUS_STATIC_TOKEN=ci-dummy-token
+NUXT_SESSION_PASSWORD=ci-dummy-session-password-at-least-32-chars).
+
+Quality gate, per commit: typecheck 0, vitest green, build green (serially),
+`pnpm audit:hairline-surfaces` at 0, and tests that pin the legal surface:
+the one-click route (no auth, idempotent, 200 empty, 503 on a failed read),
+token minting and lookup (a token resolves to exactly one member of one org),
+the class rules (a newsletter can never be `essential`; opted-out members
+drop from `community` only; bounced drop from both), the webhook's
+`eventAction()` table, and the missing-address 400. Org-scope tests for every
+new endpoint. Browser verification is one headless Playwright script
+(scripts/browser/verify-p3a-email.cjs; Playwright is not in the repo —
+install playwright@1.63.0 in the scratchpad and use NODE_PATH, and emulate
+prefers-reduced-transparency: no-preference) covering the /unsubscribe page
+and the resident preferences in BOTH light and dark — with a real session
+on the demo org via `/api/demo/login` if the session run is permitted (the
+build must use the project's .env), and say so in the Session log if not.
+NO real mail: the demo orgs' guardrails block sends; verify headers and
+footers from the assembler's output in tests, never by sending. Delete every
+row you create; `demo-classic` is a CONTROL — diff both orgs before and
+after.
+
+When done: update the Status row, append Session 5 to the Session log
+(shipped, deviations, operator TODOs), write the Phase 3b-design kickoff
+prompt (Fable 5.1, effort high — a written spec and the named test list, no
+code), and stop. One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
