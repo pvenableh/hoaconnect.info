@@ -17,7 +17,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
 | 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: `pnpm add:user-app-prefs` ran 2026-11-03; dock prefs are now per user. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
-| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [~] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [ ]**, **3b-build [ ]**. |
+| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [~] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [x]** (session 6, docs only): `docs/spec-email-send-queue.md` — per-email lease by unique insert (Directus filter-updates are not atomic), at-most-once chooses dropped over doubled with the webhook as the evidence that closes the gap, counts derived from rows, 64 named tests; five open questions for Peter (Vercel plan first). **3b-build [ ]**. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
@@ -1025,6 +1025,171 @@ prompt (Opus 5.5, effort xhigh; it names the spec, the test list and the
 files), and stop. One phase per session.
 ```
 
+**Session 6 — Phase 3b-design: the send queue's state machine** (2026-11-03) — local, on
+`main`, Fable 5.1 at effort high. **No code.** `origin/main..main` was empty at the start
+(`fe7b701`); both schema scripts had run. One deliverable: `docs/spec-email-send-queue.md`
+(791 lines: seven decisions with their reasons, five open questions, 64 named tests in ten
+groups plus the 3a rules re-pinned at both points).
+
+What was read: Earnest's `newsletter-batch.ts` (the types, `runBatch`, the Directus store,
+the snapshot) and `newsletter-prepare.ts` (the plan-row insert and resume rules); HOA's
+`send.post.ts` (`deliverTo`, the loop, CC/BCC, attachments, CID), `sendEmailJob.ts`,
+`process-scheduled.post.ts`, the 3a modules, `cron-auth.ts`, `sendOrganizationEmail`'s
+custom-args stamping, and `activity.post.ts`'s recipient lookup. A Haiku census listed every
+caller of `sendOrganizationEmail` and the other senders, every writer of
+`hoa_email_recipients`, the generated types for both collections, and the Vercel cron config.
+
+Decisions (the spec has the reasons; the short form):
+
+1. **The lease.** Earnest's claim is `updateItems` with a `status = queued` filter, read
+   back by token. In Directus that is read-then-write (`updateByQuery` selects keys, then
+   updates by key), not an atomic conditional `UPDATE`, so two overlapping runs can both
+   deliver the same rows. Overlap is routine here (inline tick + cron). The only atomic
+   primitive Directus exposes is a unique index on insert, so the mutex is a row:
+   `hoa_email_send_leases` with `email` unique. One writer per send; Earnest's claim and
+   settle writes are then safe as written. Prepare and send share the mutex, so two
+   schedulers cannot double-enqueue (409 `send_in_progress`).
+2. **At most once = `deliver()` is called at most once per row, ever.** A row of a dead run
+   stays `claimed` and becomes `unknown` at the next run's start; the queue never resends
+   it. We choose dropped over doubled: a dues notice twice reads as a billing error and
+   cannot be recalled; a dropped one is visible ("2 unknown", the addresses listed) and
+   recoverable. What makes it safe: the webhook promotes any `claimed`/`unknown` row to
+   `sent` on any event for that message (`custom_args` gain `recipient_id` and `run_key`),
+   so in practice `unknown` lasts seconds; `unknown` is loud; nothing resends it
+   automatically.
+3. **Stale = 3 min** against an explicit `maxDuration: 60` on the tick route (a test pins
+   the 3× relation); `TICK_BUDGET 45 s`, `CHUNK_RESERVE 15 s`, SendGrid timeout 8 s. The
+   lease, not the rows, is what gets reclaimed. Network errors settle `unknown`, not
+   `failed` (the message may have gone); 5xx is retried on SendGrid's contract, as Earnest.
+4. **Counts derived.** One aggregate grouped by status per run; `total_*` on `hoa_emails`
+   rewritten after every settle; done ⇔ `total_recipients` set ∧ no `queued`/`claimed`;
+   `sent` with ≥ 1 acceptance, `failed` with none; the legacy `recipient_count` /
+   `delivered_count` / `failed_count` written at completion so `formatStats` keeps working.
+   Progress route `GET /api/email/[id]/progress`, polled every 5 s; the UI says "accepted",
+   never "delivered" (that is the webhook's column, `delivery_status`).
+5. **3a at the same two points.** Enqueue: `checkSendCompliance` (refuse before any write),
+   `partitionAudience` (suppressed members become `suppressed` rows with a reason, excluded
+   from `total_recipients`), `ensureUnsubscribeTokens` (one batch; the token is not copied
+   into the row). Render: `checkSendCompliance` once per run on a fresh org read (a missing
+   address parks the send with `send_last_error`, it does not fail it); after the claim and
+   before the first deliver, one live member read per chunk → `suppressionReason` again
+   (`*_mid_send`) and `recipientCompliance` with the stored token. A failed recheck read
+   releases the chunk.
+6. **One tick route, `GET /api/email/cron/continue-sends`** (`.ts`, Vercel Cron is GET only;
+   `requireCronOrAppAdmin`), doing enqueue-due then run-batches, so scheduler and sender
+   share one secret; `process-scheduled` stays as the Flow's entry and enqueues only. Queue
+   clients: `send.post` (enqueue + awaited inline tick for ≤ 50) and `sendEmailJob` (enqueue
+   only). Direct: `test.post`, `transactional-email`, the digest worker, `billing-worker`,
+   with `resolveSender()` everywhere and the bounced guard added to transactional and
+   billing (Session 5's open item). The rule: queued when one body fans out to an org
+   audience with a `hoa_emails` row; direct when one event causes one message.
+7. **CC/BCC decided once at enqueue** and written on the rows (`copies` on member rows of a
+   small send; `kind: copy` rows last on a large one); attachments and CID extraction once
+   per run, and a failed attachment load stops the run before any claim rather than
+   sending some chunks without the file.
+
+Deviations from the plan's §3b wording, all in the spec: `claimed` for Earnest's `sending`,
+`suppressed` for `skipped`; `delivery_status` takes the webhook's `delivered`/`bounced` off
+the queue's `status` column (nothing in the app read them); `run_key` separates the
+occurrences of a recurring email so dedupe, progress and history are per occurrence; no
+`paused` status in 3b (Phase 4); no daily cap; a half-written snapshot is closed, not
+resumed (audiences are one or two batches).
+
+Open questions (spec §9, Peter): (1) **Vercel plan** — per-minute crons and `maxDuration:
+60` need Pro; if Hobby, the chained-kick fallback; the build needs this before
+`vercel.json`. (2) When to switch off the Directus Flow scheduler. (3) `run_key` vs one
+`hoa_emails` row per occurrence — Phase 4's call. (4) "Resend to these N unknown" as a
+Phase 4 action — OK to leave out of 3b-build? (5) `member_fields` holds balances; the
+script narrows non-admin reads like 3a's did — confirm.
+
+Gates: not run (no source, test, script or schema changed). Nothing pushed; one docs commit
+on local `main`.
+
+Operator TODOs (Peter): answer the five open questions, (1) first. The ones from Session 5
+stand.
+
+#### Phase 3b-build — kickoff prompt (Opus 5.5, effort xhigh)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entries for Session 5 (Phase 3a) and Session 6
+(Phase 3b-design: decisions and open questions), §Token budget, and §3b. Do
+not read §4 onwards, and never open docs/plan-earnest-parity-round2.md.
+
+Then read docs/spec-email-send-queue.md IN FULL. It is the design; this
+session implements it as written and does not re-decide it. Where the spec
+and §3b differ, the spec wins. Peter's answers to the spec's five open
+questions are in this prompt's reply or the Session 6 entry; if question 1
+(Vercel plan) is unanswered, build for Pro (per-minute cron, maxDuration 60)
+and leave the chained-kick fallback as a TODO in the route's header.
+
+This session = Phase 3b-BUILD, on Opus 5.5 at effort xhigh. Deliverables:
+
+1. scripts/add-email-send-queue.ts (`pnpm add:email-send-queue`), idempotent
+   like add-email-compliance-fields.ts: the hoa_email_recipients fields
+   (spec §2.2), the hoa_emails fields, the hoa_email_send_leases collection
+   with `email` unique, `dedupe_key` unique, and the non-admin read narrowing
+   on hoa_email_recipients. Hand-add the types with the generator's notes.
+   `emailQueueSchema()` probes it; before it runs, send.post and sendEmailJob
+   keep today's synchronous path.
+2. core/server/utils/email-send-queue.ts — the port of newsletter-batch.ts
+   to the spec: RecipientStore interface + directusRecipientStore, the lease
+   (acquire / break-stale / release), runBatch with expire, read, render,
+   claim, recheck, deliver, settle, derive-counts; constants CHUNK 100,
+   CONCURRENCY 10, TICK_BUDGET_MS 45_000, CHUNK_RESERVE_MS 15_000,
+   STALE_MS 180_000, PREPARE_STALE_MS 600_000, INLINE_MAX 50,
+   INLINE_BUDGET_MS 20_000, SENDGRID_TIMEOUT_MS 8_000.
+3. core/server/utils/email-send-enqueue.ts — the snapshot: audience read,
+   checkSendCompliance, partitionAudience → suppressed rows, token minting,
+   CC/BCC resolution and the copies/copy-rows rule, 500-row batches in
+   position order, total_recipients last, all under a prepare lease.
+   send.post.ts and sendEmailJob.ts become clients of it (spec §7.4).
+4. core/server/utils/email-send-render.ts — deliverTo lifted out of
+   send.post.ts: the three body branches, attachments and CID once per run,
+   recipientCompliance per recipient with the live token. Shared by both
+   bulk paths. resolveSender(org, stream) in sendgrid.ts, adopted by every
+   sender in the spec's §7.4 table; the bounced guard in transactional-email
+   and scripts/billing-worker.ts; OUTBOUND_EMAIL_ONLY_TO in
+   sendOrganizationEmail.
+5. core/server/api/email/cron/continue-sends.ts (GET; requireCronOrAppAdmin;
+   enqueue-due then run-batches, then close stale preparing, then complete
+   done sends); process-scheduled.post.ts enqueues only. vercel.json: the
+   cron `* * * * *` and maxDuration 60 on the route.
+6. core/server/api/email/[id]/progress.get.ts (org-gated); the compose
+   dialog and the detail page poll it every 5 s with the three labels from
+   spec §5.4; the comms dock badge; the detail page's per-row chips
+   (suppressed reason, unknown, delivery_status). [id].delete.ts and
+   save.post.ts refuse a `sending` email with 409 and gain the org gate.
+7. activity.post.ts: recipient_id lookup first; promote claimed/unknown →
+   sent on any event; delivery_status instead of status.
+8. The tests in spec §10, every one by its name, in the files it names.
+   Group I (the kill matrix) is table-driven over the listed steps with an
+   in-memory store and a fake SendGrid that logs acceptances.
+9. docs/email-sending.md: what the tick does, what `unknown` means, how a
+   parked send (send_last_error) resumes, how to run the script.
+
+Use a Haiku 5.5 subagent for any census (readers of recipient status,
+callers to update). Read only the lines you need (sed -n), never whole
+files; do not re-survey Earnest — the spec carries what was needed.
+
+Gates in the background, tail only: `pnpm test | tail -6`; typecheck with
+NODE_OPTIONS=--max-old-space-size=6144 into a log, grep `error TS`; build
+into a log, grep exit. One headless Playwright script
+(scripts/browser/verify-p3b-queue.cjs) against a local build with the demo
+org: enqueue a 60-person send with page.route intercepting nothing on the
+server side (the demo guard means no mail leaves), watch the dialog go
+Getting ready → Sending → Sent, assert the counts match the aggregate, and
+snapshot demo/demo-classic before and after as Session 5 did.
+
+Local session: work on main, ask before pushing. Check `git log
+origin/main..main` first and say what is unpushed. When done: update the
+Status row (3b-build), append Session 7 to the Session log (what shipped,
+deviations from the spec with reasons, operator TODOs: run the script, set
+the cron, confirm maxDuration, retire the Flow), write the Phase 4 kickoff
+prompt (Opus 5.5, effort high), and stop. One phase per session.
+```
+
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
 
 1. **DMs** — build as private channels (Phase 7.3).
@@ -1287,6 +1452,11 @@ exempt, and SendGrid's shared IPs punish spam reports regardless. Design:
    `transactional-email.ts` already honour the matrix.
 
 ### 3b. The send pipeline (port `newsletter-batch.ts` / `newsletter-prepare.ts`)
+
+_Designed in Session 6: **`docs/spec-email-send-queue.md`** decides items 7–12 below and
+names the tests. Where the spec and this section differ (state names, the lease, `run_key`,
+`delivery_status`, one tick route doing both phases), the spec wins — it was written against
+the code and the Directus SDK's actual update semantics._
 
 7. **`hoa_email_recipients` becomes the queue.** Add `status: queued|sending|sent|
    failed|skipped|unknown`, `position`, `claim`, `claimed_at`, `sent_at`, `error`,
