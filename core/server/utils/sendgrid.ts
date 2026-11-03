@@ -470,6 +470,13 @@ export interface EmailTemplateData {
   // Links
   Weblink?: string; // View in browser URL
 
+  // Compliance (Phase 3a). The footer is also appended to `content`, so a
+  // template that doesn't render these still carries it; a template that does
+  // can place the links itself.
+  unsubscribe_url?: string;
+  preferences_url?: string;
+  compliance_footer?: string;
+
   // Meta
   year?: string;
 }
@@ -494,6 +501,7 @@ export const sendOrganizationEmail = async ({
   cc,
   bcc,
   fromAddress,
+  headers,
 }: {
   to: string;
   toName?: string;
@@ -513,6 +521,12 @@ export const sendOrganizationEmail = async ({
   cc?: Array<{ email: string; name?: string }>;
   /** Hidden blind-carbon-copy recipients. */
   bcc?: Array<{ email: string; name?: string }>;
+  /**
+   * Extra message headers — today the RFC 8058 pair (`List-Unsubscribe`,
+   * `List-Unsubscribe-Post`) that every community send carries; see
+   * core/shared/email/unsubscribe.ts.
+   */
+  headers?: Record<string, string>;
 }): Promise<{ success: true; messageId: string | null }> => {
   const config = useRuntimeConfig();
 
@@ -568,6 +582,7 @@ export const sendOrganizationEmail = async ({
   };
   const ccList = sanitizeCopies(cc);
   const bccList = sanitizeCopies(bcc);
+  const extraHeaders = headers && Object.keys(headers).length ? headers : undefined;
 
   // Use dynamic template if templateId is provided
   if (templateId && templateData) {
@@ -583,6 +598,7 @@ export const sendOrganizationEmail = async ({
       customArgs?: Record<string, string>;
       cc?: Array<{ email: string; name?: string }>;
       bcc?: Array<{ email: string; name?: string }>;
+      headers?: Record<string, string>;
     } = {
       to: { email: to, name: toName },
       from: { email: fromEmail, name: fromName },
@@ -594,6 +610,7 @@ export const sendOrganizationEmail = async ({
 
     if (ccList) dynamicMsg.cc = ccList;
     if (bccList) dynamicMsg.bcc = bccList;
+    if (extraHeaders) dynamicMsg.headers = extraHeaders;
 
     if (attachments && attachments.length > 0) {
       dynamicMsg.attachments = attachments;
@@ -645,6 +662,7 @@ export const sendOrganizationEmail = async ({
     customArgs?: Record<string, string>;
     cc?: Array<{ email: string; name?: string }>;
     bcc?: Array<{ email: string; name?: string }>;
+    headers?: Record<string, string>;
   } = {
     to: { email: to, name: toName },
     from: { email: fromEmail, name: fromName },
@@ -656,6 +674,7 @@ export const sendOrganizationEmail = async ({
 
   if (ccList) msg.cc = ccList;
   if (bccList) msg.bcc = bccList;
+  if (extraHeaders) msg.headers = extraHeaders;
 
   // Add attachments if provided
   if (attachments && attachments.length > 0) {

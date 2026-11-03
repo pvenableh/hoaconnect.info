@@ -1,5 +1,7 @@
 import { createItem, readItems, updateItem } from "@directus/sdk";
 import type { HoaEmailActivity, HoaEmailRecipient, HoaMember } from "#core/types/directus";
+import { eventAction } from "#core/shared/email/suppression-events";
+import { applySuppressionActions, emailComplianceSchema, type SuppressionWork } from "../../utils/email-compliance";
 
 /**
  * SendGrid Event Webhook Handler
@@ -16,6 +18,13 @@ import type { HoaEmailActivity, HoaEmailRecipient, HoaMember } from "#core/types
  *
  * Events: processed, dropped, delivered, deferred, bounce, open, click,
  *         spam_report, unsubscribe, group_unsubscribe, group_resubscribe.
+ *
+ * Suppression (Phase 3a) runs FIRST, before anything is forwarded or stored: a
+ * hard bounce marks the member's address dead, a spam report or unsubscribe
+ * opts them out of community mail (core/shared/email/suppression-events.ts).
+ * If that can't be stored the route answers 503 so SendGrid redelivers — and
+ * because nothing else has happened yet, the redelivery doesn't duplicate an
+ * activity row or a downstream forward.
  */
 
 interface SendGridEvent {
@@ -29,6 +38,9 @@ interface SendGridEvent {
   reason?: string;
   status?: string;
   response?: string;
+  /** `bounce` events: "bounce" (permanent) or "blocked". */
+  type?: string;
+  bounce_classification?: string;
   category?: string[];
   sg_event_id?: string;
   // custom_args stamped by sendOrganizationEmail
@@ -71,6 +83,45 @@ export default defineEventHandler(async (event) => {
 
   if (!Array.isArray(events) || events.length === 0) {
     return { success: true, message: "No events to process" };
+  }
+
+  // Only this app's events: either the "HOA Connect" category or an org custom_arg.
+  const appEvents = events.filter(
+    (e) => e.category?.includes("HOA Connect") || !!e.organization_id
+  );
+
+  // Suppression first — see the header. Events with no org can't be scoped to
+  // a membership, so they are left alone rather than applied to every org.
+  const suppressionWork: SuppressionWork[] = [];
+  for (const e of appEvents) {
+    const action = eventAction(e);
+    const organizationId = eventOrganizationId(e);
+    if (action && organizationId && e.email) suppressionWork.push({ organizationId, email: e.email, action });
+  }
+  if (suppressionWork.length) {
+    const directus = getTypedDirectus();
+    let ready = false;
+    try {
+      ready = (await emailComplianceSchema(directus)).members;
+    } catch (e) {
+      console.error("[email/activity] schema probe failed — 503 so SendGrid retries:", e);
+      throw createError({ statusCode: 503, message: "Suppression store unavailable" });
+    }
+    if (!ready) {
+      // Before `pnpm add:email-compliance`: nowhere to keep it. Say so and go
+      // on — a 503 here would hold every batch until the script runs.
+      console.warn(`[email/activity] ${suppressionWork.length} suppression event(s) not stored: fields not provisioned`);
+    } else {
+      try {
+        const applied = await applySuppressionActions(directus, suppressionWork);
+        if (applied.bounced || applied.optedOut) {
+          console.info(`[email/activity] suppression: ${applied.bounced} bounced, ${applied.optedOut} opted out`);
+        }
+      } catch (e) {
+        console.error("[email/activity] suppression write failed — 503 so SendGrid retries:", e);
+        throw createError({ statusCode: 503, message: "Suppression store unavailable" });
+      }
+    }
   }
 
   // Fan-out: forward the SendGrid batch to a downstream consumer (e.g. the
@@ -172,10 +223,6 @@ export default defineEventHandler(async (event) => {
   // Target 2: an optional second app (e.g. WeddingConnect), independent filter.
   forwardTo(cfg.emailActivityForwardUrl2 as string | undefined, cfg.emailActivityForwardCategory2 as string | undefined);
 
-  // Only this app's events: either the "HOA Connect" category or an org custom_arg.
-  const appEvents = events.filter(
-    (e) => e.category?.includes("HOA Connect") || !!e.organization_id
-  );
   if (appEvents.length === 0) {
     // Nothing for us to store, but we may still owe a downstream forward — wait
     // for it before the function is frozen (this batch is likely all-1033/all-
@@ -199,12 +246,7 @@ export default defineEventHandler(async (event) => {
         ? sg.sg_message_id.split(".")[0]!.replace(/[<>]/g, "")
         : null;
 
-      // Org: custom_arg first, then the "org:<id>" category.
-      let organizationId: string | null = sg.organization_id || null;
-      if (!organizationId && Array.isArray(sg.category)) {
-        const orgCat = sg.category.find((c) => c.startsWith("org:"));
-        if (orgCat) organizationId = orgCat.slice(4);
-      }
+      const organizationId = eventOrganizationId(sg);
 
       // Recipient row: prefer (email_record + recipient_email), else sg_message_id.
       let recipient: HoaEmailRecipient | null = null;
@@ -296,3 +338,10 @@ export default defineEventHandler(async (event) => {
 
   return { success: true, processed };
 });
+
+/** The event's org: the `organization_id` custom_arg first, then the `org:<id>` category. */
+function eventOrganizationId(sg: SendGridEvent): string | null {
+  if (sg.organization_id) return sg.organization_id;
+  const orgCat = Array.isArray(sg.category) ? sg.category.find((c) => typeof c === "string" && c.startsWith("org:")) : null;
+  return orgCat ? orgCat.slice(4) : null;
+}

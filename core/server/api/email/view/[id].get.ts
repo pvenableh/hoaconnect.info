@@ -1,5 +1,8 @@
 import { readItem, readItems } from "@directus/sdk";
 import { buildWebViewHtml, type EmailType } from "../../../utils/email-templates-mjml";
+import { resolveEmailClass, defaultEmailClass } from "#core/shared/email/email-class";
+import { orgMailingAddress, recipientCompliance } from "#core/shared/email/unsubscribe";
+import { emailComplianceSchema } from "../../../utils/email-compliance";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, HoaEmail } from "#core/types/directus";
 
 /**
@@ -21,11 +24,14 @@ export default defineEventHandler(async (event) => {
   try {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
+    // The class, once the field exists; before then, the type's default.
+    const schema = await emailComplianceSchema(directus).catch(() => ({ members: false, emailClass: false }));
 
     // Fetch the email record
     const email = await directus.request(
       readItem("hoa_emails", id, {
         fields: [
+          ...(schema.emailClass ? (["email_class"] as const) : []),
           "id",
           "subject",
           "subtitle",
@@ -59,7 +65,7 @@ export default defineEventHandler(async (event) => {
           },
         ],
       })
-    ) as HoaEmail & { organization: HoaOrganization & { settings: BlockSetting | null } };
+    ) as unknown as HoaEmail & { organization: HoaOrganization & { settings: BlockSetting | null } };
 
     if (!email) {
       throw createError({
@@ -133,6 +139,18 @@ export default defineEventHandler(async (event) => {
       headerText: branding.headerText,
       footerImage: branding.footerImage,
       homepageUrl: branding.homepageUrl,
+      // The class footer, as the mail carried it, minus the personal
+      // unsubscribe link: a web view is shared by URL and has no member.
+      complianceFooter: recipientCompliance({
+        emailClass: (() => {
+          const r = resolveEmailClass(email.email_type, (email as any).email_class);
+          return r.ok ? r.emailClass : defaultEmailClass(email.email_type);
+        })(),
+        org: email.organization,
+        mailingAddress: orgMailingAddress(email.organization),
+        appUrl: config.public.appUrl as string,
+        token: null,
+      }).footer,
     });
 
     // Return the full HTML page

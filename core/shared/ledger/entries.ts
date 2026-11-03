@@ -887,3 +887,52 @@ export function buildBillingRunEntry(input: {
     },
   };
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * member_email_status_cleared
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface EmailStatusClearedSubject {
+  readonly memberId: string;
+  readonly name: string;
+  readonly email: string | null;
+}
+
+/**
+ * An admin cleared a member's bounced address or community opt-out. The entry
+ * keeps what was cleared — the bounce's reason, the opt-out's source and date —
+ * because once the flag is gone that is the only copy of why it was set.
+ */
+export function buildEmailStatusClearedEntry(input: {
+  readonly organizationId: string;
+  readonly member: EmailStatusClearedSubject;
+  readonly cleared: "bounced" | "opt_out";
+  /** The state being cleared, as it stood: `{ reason, at }` or `{ source, at }`. */
+  readonly previous: { readonly reason?: string | null; readonly source?: string | null; readonly at?: string | null };
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const who = input.member.name || input.member.email || "A member";
+  const summary =
+    input.cleared === "bounced"
+      ? `${who}'s bounced email address was cleared; mail to it resumes.`
+      : `${who} was put back on community email after opting out.`;
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "member_email_status_cleared",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("member_email_status_cleared"),
+    summary,
+    payload: {
+      member: { member_id: input.member.memberId, name: input.member.name || null, email: input.member.email },
+      cleared: input.cleared,
+      previous_reason: input.previous.reason ?? null,
+      previous_source: input.previous.source ?? null,
+      previous_at: input.previous.at ?? null,
+    },
+  };
+}

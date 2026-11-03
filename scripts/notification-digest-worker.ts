@@ -19,6 +19,7 @@
  *      DIGEST_TZ (default America/New_York), optional FROM_NAME, DEMO_ALLOW_EMAIL.
  */
 
+import { randomBytes } from "node:crypto";
 import {
   createDirectus,
   rest,
@@ -26,6 +27,7 @@ import {
   readUsers,
   readItems,
   readItem,
+  updateItem,
 } from "@directus/sdk";
 // Reused app modules — imported by RELATIVE path (the `#core` alias is Nuxt-only).
 // Their only `#core` imports are `import type`, which tsx/esbuild erases, and the
@@ -38,6 +40,8 @@ import {
 } from "../core/shared/notifications/preferences";
 import { resolveEmailBranding } from "../core/server/utils/email-branding";
 import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
+import { suppressionReason } from "../core/shared/email/email-class";
+import { checkSendCompliance, isUnsubscribeToken, recipientCompliance } from "../core/shared/email/unsubscribe";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -229,6 +233,7 @@ async function sendViaSendgrid(msg: {
   text: string;
   categories: string[];
   customArgs?: Record<string, string>;
+  headers?: Record<string, string>;
 }): Promise<void> {
   const body: Record<string, any> = {
     personalizations: [{ to: [{ email: msg.to, ...(msg.toName ? { name: msg.toName } : {}) }] }],
@@ -241,6 +246,7 @@ async function sendViaSendgrid(msg: {
     categories: msg.categories,
     ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
     ...(msg.customArgs ? { custom_args: msg.customArgs } : {}),
+    ...(msg.headers && Object.keys(msg.headers).length ? { headers: msg.headers } : {}),
   };
   const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
@@ -293,22 +299,38 @@ async function main() {
     const sections = digestSections(prefs);
     const cadenceLabel = cadence === "weekly" ? "weekly" : "daily";
 
-    const members =
-      (await safe(() =>
-        items("hoa_members", {
-          filter: { user: { _eq: u.id }, status: { _in: ["active"] } },
-          fields: ["id", "organization"],
-          limit: -1,
-        })
-      )) || [];
-
-    const byOrg = new Map<string, string[]>();
-    for (const m of members) {
-      const orgId = m.organization == null ? null : typeof m.organization === "string" ? m.organization : m.organization.id;
-      if (orgId) byOrg.set(orgId, [...(byOrg.get(orgId) || []), m.id]);
+    // With the Phase 3a fields when they exist (bounced / opted out / token);
+    // before `pnpm add:email-compliance` runs, without them, as it always was.
+    const memberQuery = (extra: string[]) => ({
+      filter: { user: { _eq: u.id }, status: { _in: ["active"] } },
+      fields: ["id", "organization", ...extra],
+      limit: -1,
+    });
+    let suppressionReady = true;
+    let members = await safe(() =>
+      items("hoa_members", memberQuery(["email_community_opt_out", "email_bounced", "unsubscribe_token"]))
+    );
+    if (!members) {
+      suppressionReady = false;
+      members = (await safe(() => items("hoa_members", memberQuery([])))) || [];
     }
 
-    for (const [orgId, memberIds] of byOrg) {
+    const byOrg = new Map<string, any[]>();
+    for (const m of members) {
+      const orgId = m.organization == null ? null : typeof m.organization === "string" ? m.organization : m.organization.id;
+      if (orgId) byOrg.set(orgId, [...(byOrg.get(orgId) || []), m]);
+    }
+
+    for (const [orgId, orgMembers] of byOrg) {
+      const memberIds = orgMembers.map((m) => m.id as string);
+      // The digest is community mail: a bounced address or an opt-out from this
+      // org's community mail drops it, whatever the digest preference says.
+      const mailable = orgMembers.find((m) => !suppressionReason(m, "community"));
+      if (!mailable) {
+        console.log(`   suppressed digest → ${u.email} (org ${orgId}: bounced or opted out)`);
+        emptyOrDemo++;
+        continue;
+      }
       const org = await safe(() =>
         directus.request(
           readItem("hoa_organizations" as any, orgId, {
@@ -320,6 +342,10 @@ async function main() {
               "external_url",
               "is_demo",
               "email_reply_to",
+              "street_address",
+              "city",
+              "state",
+              "zip",
               { settings: ["*"] },
             ] as any,
           })
@@ -338,6 +364,32 @@ async function main() {
         emptyOrDemo++;
         continue;
       }
+
+      // Community mail must carry the org's postal address (CAN-SPAM); an org
+      // without one gets no digest until it adds one.
+      const compliance = checkSendCompliance({ emailType: "notice", requestedClass: "community", org: org as any });
+      if (!compliance.ok) {
+        console.warn(`   skipped digest → ${u.email} (${(org as any).slug}): ${compliance.message}`);
+        emptyOrDemo++;
+        continue;
+      }
+      let token: string | null = isUnsubscribeToken(mailable.unsubscribe_token) ? mailable.unsubscribe_token : null;
+      if (!token && suppressionReady) {
+        // Minted lazily, as the app's send path does (server/utils/email-compliance.ts).
+        const minted = randomBytes(24).toString("base64url");
+        const ok = await safe(async () => {
+          await directus.request(updateItem("hoa_members" as any, mailable.id, { unsubscribe_token: minted } as any));
+          return true;
+        });
+        if (ok) token = minted;
+      }
+      const rc = recipientCompliance({
+        emailClass: "community",
+        org: org as any,
+        mailingAddress: compliance.mailingAddress,
+        appUrl: APP_URL,
+        token,
+      });
 
       const settings = (org as any).settings && typeof (org as any).settings === "object" ? (org as any).settings : null;
       const orgForEmail = { ...(org as any), settings };
@@ -362,6 +414,7 @@ async function main() {
         headerText: branding.headerText,
         footerImage: branding.footerImage,
         homepageUrl: branding.homepageUrl,
+        complianceFooter: rc.footer,
       } as any);
       const text = buildEmailText({
         organization: orgForEmail as any,
@@ -370,6 +423,7 @@ async function main() {
         emailType: "notice",
         recipientFirstName: u.first_name || undefined,
         directusUrl: DIRECTUS_URL,
+        complianceFooter: rc.footer,
       } as any);
 
       const from = resolveFrom(settings);
@@ -384,7 +438,8 @@ async function main() {
           html,
           text,
           categories: ["HOA Connect", "digest", `org:${orgId}`],
-          customArgs: { org_id: String(orgId) },
+          customArgs: { org_id: String(orgId), organization_id: String(orgId) },
+          headers: rc.headers,
         });
         sent++;
         console.log(`   sent → ${u.email} (${(org as any).slug})`);

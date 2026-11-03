@@ -71,6 +71,18 @@ const organization = computed(() => currentOrg.value?.organization || null);
 // Use selectedOrgId directly (primitive value) for immediate reactivity
 const orgId = computed(() => selectedOrgId.value);
 
+// Phase 3a: a bounced / unsubscribed chip beside the name, with Clear.
+const emailStatus = useMemberEmailStatus(orgId);
+const clearEmailStatus = async (memberId: string, what: "bounced" | "opt_out") => {
+  try {
+    const res = await emailStatus.clear(memberId, what);
+    if (res.recordError) toast.warning(`Cleared, but not recorded in the ledger: ${res.recordError}`);
+    else toast.success(what === "bounced" ? "Email to this member resumes" : "Back on community email");
+  } catch (e: any) {
+    toast.error(e?.data?.message || e?.statusMessage || "Couldn't clear that");
+  }
+};
+
 // Fetch members list
 // Role configuration
 const config = useRuntimeConfig();
@@ -1050,8 +1062,16 @@ useSeoMeta({
                   empty-icon="lucide:users"
                 >
                   <template #cell-name="{ row }">
-                    <span class="font-medium t-text">
-                      {{ row.first_name }} {{ row.last_name }}
+                    <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="font-medium t-text">
+                        {{ row.first_name }} {{ row.last_name }}
+                      </span>
+                      <MembersEmailStatusChip
+                        v-if="emailStatus.available.value"
+                        :status="emailStatus.statusFor(row.id)"
+                        :member-name="`${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email || 'this member'"
+                        @clear="(what) => clearEmailStatus(row.id, what)"
+                      />
                     </span>
                   </template>
                   <template #cell-member_type="{ row }">

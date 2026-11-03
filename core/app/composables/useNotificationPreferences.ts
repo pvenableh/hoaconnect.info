@@ -10,9 +10,11 @@
  * endpoint. There is no second store and no local copy of the truth: a change
  * made here is visible on the account page on its next load, and vice versa.
  *
- * Only the BELL half is exposed (`<category>_bell`). Email preferences are a
- * heavier decision with a digest attached, and they stay where someone can read
- * the whole picture before changing it.
+ * The bell dropdown uses only the BELL half (`<category>_bell`). The EMAIL half
+ * (`<category>`, plus the master `email_notifications` switch) is here for the
+ * Email section of the household page (Phase 3a), which shows the whole picture
+ * — community mail, what is always sent, and this matrix — in one place. The
+ * digest settings stay on the account page.
  *
  * Saves are optimistic and per-toggle. A switch that waited for a round trip
  * before moving would feel broken; a failed save reverts and says so.
@@ -24,6 +26,7 @@ import {
 } from "#core/shared/notifications/preferences";
 
 const _prefs = ref<Record<string, unknown>>({});
+const _emailMaster = ref(true);
 const _loaded = ref(false);
 const _loading = ref(false);
 
@@ -35,10 +38,12 @@ export function useNotificationPreferences() {
     if (_loaded.value && !force) return;
     _loading.value = true;
     try {
-      const r = await $fetch<{ notification_preferences?: Record<string, unknown> }>(
-        "/api/user/notification-preferences"
-      );
+      const r = await $fetch<{
+        email_notifications?: boolean;
+        notification_preferences?: Record<string, unknown>;
+      }>("/api/user/notification-preferences");
       _prefs.value = r?.notification_preferences || {};
+      _emailMaster.value = r?.email_notifications !== false;
       _loaded.value = true;
     } catch {
       // Absent preferences mean every category is on, which is also the
@@ -78,6 +83,43 @@ export function useNotificationPreferences() {
     return setBellEnabled(category, !bellEnabled(category));
   }
 
+  /** Is email on for this category? Missing key = on, as `emailAllowed` reads it. */
+  function emailEnabled(category: NotificationCategory): boolean {
+    return _prefs.value[category] !== false;
+  }
+
+  /** Flip one category's email. Returns false when the save was rolled back. */
+  async function setEmailEnabled(category: NotificationCategory, enabled: boolean): Promise<boolean> {
+    const previous = { ..._prefs.value };
+    _prefs.value = { ..._prefs.value, [category]: enabled };
+    try {
+      await $fetch("/api/user/notification-preferences", {
+        method: "PATCH",
+        body: { notification_preferences: _prefs.value },
+      });
+      return true;
+    } catch {
+      _prefs.value = previous;
+      return false;
+    }
+  }
+
+  /** The master email switch (`email_notifications`). Returns false when rolled back. */
+  async function setEmailMaster(enabled: boolean): Promise<boolean> {
+    const previous = _emailMaster.value;
+    _emailMaster.value = enabled;
+    try {
+      await $fetch("/api/user/notification-preferences", {
+        method: "PATCH",
+        body: { email_notifications: enabled },
+      });
+      return true;
+    } catch {
+      _emailMaster.value = previous;
+      return false;
+    }
+  }
+
   return {
     categories: NOTIFICATION_CATEGORIES,
     prefs: readonly(_prefs),
@@ -86,5 +128,9 @@ export function useNotificationPreferences() {
     bellEnabled,
     setBellEnabled,
     toggleBell,
+    emailMaster: readonly(_emailMaster),
+    emailEnabled,
+    setEmailEnabled,
+    setEmailMaster,
   };
 }

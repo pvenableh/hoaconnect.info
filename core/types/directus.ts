@@ -925,6 +925,8 @@ export interface HoaEmail {
 	bcc?: string[] | null;
 	/** @description Public emails appear in the community feed for every member. Private ones are only visible to the people they were sent to. */
 	visibility?: 'public' | 'private' | null;
+	/** @description essential: dues, meetings, governance — cannot be unsubscribed. community: newsletters, announcements — members can opt out. A newsletter is always community. */
+	email_class?: 'essential' | 'community' | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -1224,6 +1226,20 @@ export interface HoaMember {
 	manager_permissions?: Record<string, any> | null;
 	/** @description Separate mailing address { line1, line2, city, state, zip } (off-site owners). */
 	mailing_address?: Record<string, any> | null;
+	/** @description Opted out of community email (newsletters, announcements). Essential mail — dues, meetings, governance — still arrives. */
+	email_community_opt_out?: boolean | null;
+	/** @description When the member opted out of community email. */
+	email_community_opt_out_at?: string | null;
+	/** @description Where the opt-out came from: the unsubscribe page, a one-click unsubscribe, a spam report, or an admin. */
+	email_community_opt_out_source?: 'link' | 'one_click' | 'spam' | 'admin' | null;
+	/** @description The address hard-bounced. No email is sent to it until an admin clears this on the Members page. */
+	email_bounced?: boolean | null;
+	/** @description When the address bounced. */
+	email_bounced_at?: string | null;
+	/** @description The bounce classification and SendGrid's reason. */
+	email_bounced_reason?: string | null;
+	/** @description Credential in this member's unsubscribe links: 24 random bytes, base64url. Minted at send time; never shown in the app. */
+	unsubscribe_token?: string | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];

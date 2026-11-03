@@ -1,4 +1,5 @@
 import { readItem, readItems } from "@directus/sdk";
+import { emailComplianceSchema } from "../../utils/email-compliance";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -13,11 +14,15 @@ export default defineEventHandler(async (event) => {
 
   try {
     const directus = getTypedDirectus();
+    // `email_class` once the Phase 3a field exists; the composer falls back to
+    // the type's default without it.
+    const schema = await emailComplianceSchema(directus).catch(() => ({ members: false, emailClass: false }));
 
     // Get email with organization info and attachment details
     const email = await directus.request(
       readItem("hoa_emails", id, {
         fields: [
+          ...(schema.emailClass ? ["email_class" as const] : []),
           "id",
           "status",
           "subject",

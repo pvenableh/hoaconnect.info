@@ -21,7 +21,7 @@ definePageMeta({
   layout: "auth",
 });
 
-const { selectedOrgId } = await useSelectedOrg();
+const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const { fetchHousehold, submitChange } = useChangeRequests();
 
 // Vehicles / pets are optional org modules — hide their sections when the admin
@@ -236,6 +236,10 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
           <p v-else class="t-text-muted text-sm">No pets on file.</p>
         </section>
       </template>
+
+      <!-- Email: community mail, bounces, what's always sent, notifications.
+           The footer's "Preferences" link lands here (#email). -->
+      <ProfileEmailPreferences :org-id="selectedOrgId" :org-name="currentOrg?.organization?.name" />
     </PageContainer>
 
     <!-- Edit / add dialog -->

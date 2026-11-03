@@ -1,6 +1,7 @@
 import { readItem, readItems, readFiles } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { appendComplianceFooterHtml, buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
 import { resolveEmailBranding } from "../../utils/email-branding";
 import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
@@ -110,6 +111,8 @@ interface TestEmailBody {
   includeBoardFooter?: boolean;
   urgent?: boolean;
   attachmentIds?: string[]; // File IDs from Directus to attach
+  /** essential | community — the class the real send will use. */
+  emailClass?: string;
 }
 
 interface TestEmailResult {
@@ -123,7 +126,7 @@ export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<TestEmailBody>(event);
 
-  const { organizationId, emailId, testEmails, subject, subtitle, content, emailType, contentMode = "visual", greeting, salutation, includeBoardFooter = true, urgent, attachmentIds } = body;
+  const { organizationId, emailId, testEmails, subject, subtitle, content, emailType, contentMode = "visual", greeting, salutation, includeBoardFooter = true, urgent, attachmentIds, emailClass: requestedClass } = body;
 
   // Validation
   if (!organizationId || !emailId || !testEmails || !testEmails.length || !subject || !content || !emailType) {
@@ -175,6 +178,23 @@ export default defineEventHandler(async (event) => {
         message: "Organization not found",
       });
     }
+
+    // The same class rules as the real send, so a test that would be refused
+    // (community mail, no postal address) is refused here first. A test
+    // address isn't a member, so the footer carries the generic unsubscribe
+    // page and no List-Unsubscribe header — the real send adds both.
+    const compliance = checkSendCompliance({ emailType, requestedClass, org: organization });
+    if (compliance.ok === false) {
+      throw createError({ statusCode: compliance.statusCode, message: compliance.message, data: { code: compliance.code } });
+    }
+    const rc = recipientCompliance({
+      emailClass: compliance.emailClass,
+      org: organization,
+      mailingAddress: compliance.mailingAddress,
+      appUrl: config.public.appUrl as string,
+      emailId,
+      token: null,
+    });
 
     // Get board members if needed
     let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
@@ -326,6 +346,7 @@ export default defineEventHandler(async (event) => {
       boardMembers: includeBoardFooter ? boardMembers : undefined,
       recipientFirstName: "Test Recipient",
       directusUrl: config.directus.url,
+      complianceFooter: rc.footer,
     });
 
     console.log(`[test.post] Sending test email to: ${testEmails.join(", ")}`);
@@ -342,7 +363,7 @@ export default defineEventHandler(async (event) => {
 
         if (contentMode === "mjml") {
           // Raw MJML/HTML mode: compile/pass-through the author's content.
-          const html = buildRawEmailHtml(mergedContent);
+          const html = appendComplianceFooterHtml(buildRawEmailHtml(mergedContent), rc.footer);
           sendResult = await sendOrganizationEmail({
             to: testEmail,
             toName: "Test Recipient",
@@ -363,7 +384,7 @@ export default defineEventHandler(async (event) => {
             // Email content
             subject: `[TEST] ${mergedSubject}`,
             subtitle: subtitle || '',
-            content: personalizedContent,
+            content: `${personalizedContent}${rc.footer.html}`,
             salutation: salutation || undefined,
             urgent: urgent || false,
             category: emailType, // For preview text
@@ -383,6 +404,9 @@ export default defineEventHandler(async (event) => {
 
             // Links - use the email ID for the "View in Browser" link
             Weblink: `${config.public.appUrl}/api/email/view/${emailId}`,
+            unsubscribe_url: rc.unsubscribeUrl || undefined,
+            preferences_url: rc.preferencesUrl,
+            compliance_footer: rc.footer.html,
 
             // Meta
             year: new Date().getFullYear().toString(),
@@ -394,7 +418,7 @@ export default defineEventHandler(async (event) => {
             to: testEmail,
             toName: "Test Recipient",
             subject: `[TEST] ${mergedSubject}`,
-            html: personalizedContent, // Fallback if template fails
+            html: `${personalizedContent}${rc.footer.html}`, // Fallback if template fails
             text,
             fromName: organization.name || undefined,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
@@ -424,6 +448,7 @@ export default defineEventHandler(async (event) => {
             headerText: branding.headerText,
             footerImage: branding.footerImage,
             homepageUrl: branding.homepageUrl,
+            complianceFooter: rc.footer,
           });
 
           console.log(`[test.post] HTML built successfully (${html.length} chars)`);

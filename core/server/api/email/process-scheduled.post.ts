@@ -12,7 +12,7 @@
  * session is not enough (until 2026-10 any session was accepted).
  */
 import { readItems, updateItem } from "@directus/sdk";
-import { sendEmailJob } from "../../utils/sendEmailJob";
+import { EmailComplianceRefusal, sendEmailJob } from "../../utils/sendEmailJob";
 import { requireCronOrAppAdmin } from "../../utils/cron-auth";
 
 function computeNextRun(base: Date, rule: string): Date | null {
@@ -76,8 +76,14 @@ export default defineEventHandler(async (event) => {
       }
     } catch (err: any) {
       console.error(`[process-scheduled] Failed to process ${item.id}:`, err);
-      // Reset to scheduled so it retries next tick rather than getting stuck "sending"
-      await directus.request(updateItem("hoa_emails", item.id, { status: "scheduled" })).catch(() => {});
+      // A compliance refusal (no postal address on a community send; a
+      // newsletter marked essential) fails the same way every tick, so it is
+      // marked failed for an admin to fix. Anything else resets to scheduled so
+      // it retries next tick rather than getting stuck "sending".
+      const refused = err instanceof EmailComplianceRefusal;
+      await directus
+        .request(updateItem("hoa_emails", item.id, { status: refused ? "failed" : "scheduled" }))
+        .catch(() => {});
     }
   }
 

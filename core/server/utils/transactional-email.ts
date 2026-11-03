@@ -14,6 +14,7 @@ import {
   allMuted,
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
+import { orgMailingAddress, recipientCompliance } from "#core/shared/email/unsubscribe";
 
 /**
  * sendBrandedTransactionalEmail — one branded, per-org email to a set of
@@ -91,7 +92,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     const rows = (await admin.request(
       readItems("hoa_organizations", {
         filter: { id: { _eq: opts.organizationId } },
-        fields: ["id", "name", "legal_name", "slug", "external_url", "settings"],
+        fields: ["id", "name", "legal_name", "slug", "external_url", "settings", "street_address", "city", "state", "zip"],
         limit: 1,
       })
     )) as OrgRow[];
@@ -145,6 +146,17 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     : "";
   const content = `${headingHtml}${opts.bodyHtml}${ctaHtml}`;
 
+  // Essential class, notification wording: these are about the recipient's own
+  // work (a task, an approval) and are switched off in their notification
+  // preferences, not by an unsubscribe — so the footer says that and links there.
+  const { footer: complianceFooter } = recipientCompliance({
+    emailClass: "essential",
+    org,
+    mailingAddress: orgMailingAddress(org),
+    appUrl,
+    reason: "notifications",
+  });
+
   for (const u of users) {
     if (!u.email) continue;
     // Respect the member's notification preferences (revives the previously
@@ -167,6 +179,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         headerText: branding.headerText,
         footerImage: branding.footerImage,
         homepageUrl: branding.homepageUrl,
+        complianceFooter,
       });
       const text = buildEmailText({
         organization: orgForEmail,
@@ -175,6 +188,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         emailType,
         recipientFirstName,
         directusUrl,
+        complianceFooter,
       });
       await sendOrganizationEmail({
         to: u.email,

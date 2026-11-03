@@ -18,6 +18,12 @@ import {
   isValidEmail,
 } from "#core/shared/email/cc";
 import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
+import {
+  canBeEssential,
+  defaultEmailClass,
+  isEmailClass,
+  type EmailClass,
+} from "#core/shared/email/email-class";
 
 const props = defineProps<{
   emailId?: string;
@@ -58,6 +64,9 @@ const form = reactive({
     | "announcement"
     | "reminder"
     | "notice",
+  // Phase 3a: essential (can't be unsubscribed) or community (opt-out-able).
+  // Follows the type until the sender picks one; a newsletter is never essential.
+  emailClass: "community" as EmailClass,
   contentMode: "visual" as "visual" | "mjml" | "builder",
   greeting: "",
   salutation: "",
@@ -68,6 +77,19 @@ const form = reactive({
   cc: [] as string[],
   bcc: [] as string[],
 });
+/** Choosing a type resets the class to that type's default — the sender can change it after. */
+const pickEmailType = (type: typeof form.emailType) => {
+  form.emailType = type;
+  form.emailClass = defaultEmailClass(type);
+};
+const emailClassItems = computed(() => [
+  { value: "community", label: "Community", icon: "lucide:users" },
+  { value: "essential", label: "Essential", icon: "lucide:shield-check", disabled: !canBeEssential(form.emailType) },
+]);
+const setEmailClass = (value: string) => {
+  if (isEmailClass(value) && (value !== "essential" || canBeEssential(form.emailType))) form.emailClass = value;
+};
+
 
 // The block-builder authors MJML into form.content, so the save/send/preview
 // pipeline treats "builder" exactly as "mjml" — only the editor UI differs.
@@ -204,6 +226,9 @@ watch(
       form.subject = email.subject || "";
       form.content = email.content || "";
       form.emailType = email.email_type || "basic";
+      form.emailClass = isEmailClass((email as any).email_class) && canBeEssential(form.emailType)
+        ? (email as any).email_class
+        : defaultEmailClass(form.emailType);
       form.contentMode = (email as any).content_mode === "mjml" ? "mjml" : "visual";
       form.greeting = email.greeting || "";
       form.salutation = email.salutation || "";
@@ -268,7 +293,7 @@ const openTemplatePicker = async () => {
 const applyTemplate = (tpl: HoaEmailTemplate) => {
   if (tpl.subject) form.subject = tpl.subject;
   if (tpl.content) form.content = tpl.content;
-  if (tpl.email_type) form.emailType = tpl.email_type;
+  if (tpl.email_type) pickEmailType(tpl.email_type);
   form.contentMode = tpl.content_mode === "mjml" ? "mjml" : "visual";
   if (tpl.greeting != null) form.greeting = tpl.greeting;
   if (tpl.salutation != null) form.salutation = tpl.salutation;
@@ -428,6 +453,7 @@ const handlePreview = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      emailClass: form.emailClass,
       contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
@@ -459,6 +485,7 @@ const handleSaveDraft = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      emailClass: form.emailClass,
       contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
@@ -506,6 +533,7 @@ const handleSend = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
+        emailClass: form.emailClass,
       contentMode: apiContentMode.value,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
@@ -524,6 +552,7 @@ const handleSend = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      emailClass: form.emailClass,
       contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
@@ -541,12 +570,18 @@ const handleSend = async () => {
         `Email sent with ${result.stats.failed} failures. ${result.stats.delivered}/${result.stats.total} delivered.`
       );
     } else {
-      toast.success(`Email sent to ${result.stats.delivered} recipients`);
+      const held = result.stats.suppressed;
+      const heldNote = held && (held.bounced || held.optedOut)
+        ? ` · skipped ${[held.bounced ? `${held.bounced} bounced` : "", held.optedOut ? `${held.optedOut} unsubscribed` : ""].filter(Boolean).join(", ")}`
+        : "";
+      toast.success(`Email sent to ${result.stats.delivered} recipients${heldNote}`);
     }
 
     navigateToOrg("/admin/communications");
   } catch (error: any) {
-    toast.error(error.message || "Failed to send email");
+    // The server's sentence (a missing mailing address, a newsletter marked
+    // essential, everyone selected unsubscribed) beats $fetch's "[POST] …: 400".
+    toast.error(error?.data?.message || error.message || "Failed to send email");
   }
 };
 
@@ -590,6 +625,7 @@ const handleSchedule = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      emailClass: form.emailClass,
       contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
@@ -827,6 +863,7 @@ const handleTestEmail = async () => {
         subject: form.subject,
         content: form.content,
         emailType: form.emailType,
+        emailClass: form.emailClass,
       contentMode: apiContentMode.value,
         greeting: form.greeting || undefined,
         salutation: form.salutation || undefined,
@@ -847,6 +884,7 @@ const handleTestEmail = async () => {
       subject: form.subject,
       content: form.content,
       emailType: form.emailType,
+      emailClass: form.emailClass,
       contentMode: apiContentMode.value,
       greeting: form.greeting || undefined,
       salutation: form.salutation || undefined,
@@ -932,7 +970,7 @@ useSeoMeta({
                   <button
                     v-for="option in emailSystem.emailTypeOptions"
                     :key="option.value"
-                    @click="form.emailType = option.value"
+                    @click="pickEmailType(option.value)"
                     :class="[
                       'p-3 rounded-lg border-2 text-center transition-all',
                       form.emailType === option.value
@@ -943,6 +981,33 @@ useSeoMeta({
                     <Icon :name="option.icon" class="w-5 h-5 mx-auto mb-1" />
                     <div class="text-xs font-medium">{{ option.label }}</div>
                   </button>
+                </div>
+
+                <!-- Phase 3a: the class decides the footer, the unsubscribe
+                     headers and who is left out (opted-out members drop from
+                     community mail; bounced addresses from both). -->
+                <div class="mt-5 space-y-2" data-email-class>
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm font-medium t-text">Delivery</p>
+                    <AppSegmentedControl
+                      :items="emailClassItems"
+                      :model-value="form.emailClass"
+                      size="sm"
+                      label="Email class"
+                      @update:model-value="setEmailClass"
+                    />
+                  </div>
+                  <p class="text-xs t-text-muted">
+                    <template v-if="form.emailClass === 'essential'">
+                      Essential: dues, meetings, violations, governance. Goes to every member with a working
+                      address and can't be unsubscribed — the footer says so.
+                    </template>
+                    <template v-else>
+                      Community: news and announcements. Carries an unsubscribe link and your mailing address;
+                      members who opted out are skipped.
+                    </template>
+                    <template v-if="!canBeEssential(form.emailType)"> A newsletter is always community.</template>
+                  </p>
                 </div>
               </CardContent>
             </Card>

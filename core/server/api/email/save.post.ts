@@ -1,5 +1,8 @@
 import { createItem, updateItem, readItem, readItems } from "@directus/sdk";
 import type { EmailType } from "../../utils/email-templates-mjml";
+import { resolveEmailClass } from "#core/shared/email/email-class";
+import { checkSendCompliance } from "#core/shared/email/unsubscribe";
+import { emailComplianceSchema } from "../../utils/email-compliance";
 
 interface SaveEmailBody {
   emailId?: string;
@@ -21,6 +24,8 @@ interface SaveEmailBody {
   footerImageId?: string | null;
   cc?: string[];
   bcc?: string[];
+  /** essential | community — defaults from emailType; a newsletter can't be essential. */
+  emailClass?: string;
 }
 
 export default defineEventHandler(async (event) => {
@@ -47,6 +52,7 @@ export default defineEventHandler(async (event) => {
     footerImageId,
     cc,
     bcc,
+    emailClass: requestedClass,
   } = body;
 
   // Validation
@@ -57,8 +63,35 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Authorize: the same gate as send.post.ts. A saved email with status
+  // "scheduled" is sent by the cron to the whole org, so saving one is sending
+  // one; this route previously required only a session — any session, any org.
+  await requireAdminOrManagerGrant(event, organizationId, "communications");
+
+  // A newsletter can't be essential, saved or sent.
+  const classResolution = resolveEmailClass(emailType, requestedClass);
+  if (classResolution.ok === false) {
+    throw createError({ statusCode: 400, message: classResolution.message, data: { code: classResolution.code } });
+  }
+
   try {
     const directus = getTypedDirectus();
+
+    // Scheduling is sending later: refuse now what the cron would refuse then
+    // (community mail from an org with no postal address), while the admin is
+    // still on the page. Drafts are saved either way.
+    if (status === "scheduled") {
+      const org = (await directus.request(
+        readItem("hoa_organizations", organizationId, {
+          fields: ["id", "name", "street_address", "city", "state", "zip"],
+        })
+      )) as any;
+      const compliance = checkSendCompliance({ emailType, requestedClass, org: org || {} });
+      if (compliance.ok === false) {
+        throw createError({ statusCode: compliance.statusCode, message: compliance.message, data: { code: compliance.code } });
+      }
+    }
+    const schema = await emailComplianceSchema(directus);
 
     // Format attachments for M2M relationship
     const attachmentsData = attachmentIds && attachmentIds.length > 0
@@ -111,6 +144,7 @@ export default defineEventHandler(async (event) => {
       cc: cc?.length ? cc : null,
       bcc: bcc?.length ? bcc : null,
       web_slug: webSlug,
+      ...(schema.emailClass ? { email_class: classResolution.emailClass } : {}),
     };
 
     let email;

@@ -1,9 +1,12 @@
 import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
 import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
-import { buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
+import { appendComplianceFooterHtml, buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile, HoaEmailRecipient } from "#core/types/directus";
 import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
+import { partitionAudience } from "#core/shared/email/email-class";
+import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
+import { emailComplianceSchema, ensureUnsubscribeTokens, MEMBER_SUPPRESSION_FIELDS } from "../../utils/email-compliance";
 
 interface CidImage {
   cid: string;
@@ -114,13 +117,15 @@ interface SendEmailBody {
   footerImageId?: string | null; // Per-send override of the org's default footer photo
   cc?: string[]; // CC entries: emails and/or group tokens (@board, @property_manager)
   bcc?: string[]; // BCC entries: emails and/or group tokens
+  /** essential | community — defaults from emailType; a newsletter can't be essential. */
+  emailClass?: string;
 }
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
-  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId, cc, bcc } = body;
+  const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId, cc, bcc, emailClass: requestedClass } = body;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType || !recipientIds?.length) {
@@ -154,6 +159,18 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Phase 3a: the class this goes out as, and — for community mail — the
+    // org's postal address, refused up front so nothing is half-sent.
+    const compliance = checkSendCompliance({ emailType, requestedClass, org: organization });
+    if (compliance.ok === false) {
+      throw createError({ statusCode: compliance.statusCode, message: compliance.message, data: { code: compliance.code } });
+    }
+    const { emailClass, mailingAddress } = compliance;
+    // Which Phase 3a fields exist: before `pnpm add:email-compliance` runs there
+    // is nothing to suppress and nowhere to keep a token, so the send proceeds
+    // as before (no List-Unsubscribe header, the generic page in the footer).
+    const schema = await emailComplianceSchema(directus);
+
     // Get board members if needed
     let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
     if (includeBoardFooter) {
@@ -183,7 +200,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get recipients (members) with their unit information
-    const members = await directus.request(
+    const audience = await directus.request(
       readItems("hoa_members", {
         filter: {
           id: { _in: recipientIds },
@@ -191,7 +208,8 @@ export default defineEventHandler(async (event) => {
           status: { _eq: "active" },
         },
         fields: ["id", "first_name", "last_name", "email", "phone", "member_type", "company",
-          "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date", {
+          "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date",
+          ...(schema.members ? MEMBER_SUPPRESSION_FIELDS : []), {
           // `member_type` and `end_date` are what residencyFor() reads off the
           // link, via the {{member_type}} merge field; the rest feeds the unit
           // merge fields. Recipients here are explicit ids, so residency does
@@ -203,14 +221,34 @@ export default defineEventHandler(async (event) => {
           pets: ["id", "name", "type", "breed"],
         }],
       })
-    ) as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }>; vehicles?: any[]; pets?: any[] }>;
+    ) as unknown as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }>; vehicles?: any[]; pets?: any[] }>;
 
-    if (!members.length) {
+    if (!audience.length) {
       throw createError({
         statusCode: 400,
         message: "No valid recipients found",
       });
     }
+
+    // Bounced addresses drop out of every send; opted-out members out of
+    // community mail. Explicit ids don't override that — a recipient picker is
+    // not consent.
+    const { recipients, suppressed } = partitionAudience(audience, emailClass);
+    const suppressedStats = {
+      bounced: suppressed.filter((s) => s.reason === "bounced").length,
+      optedOut: suppressed.filter((s) => s.reason === "opted_out").length,
+    };
+    if (!recipients.length) {
+      throw createError({
+        statusCode: 400,
+        message: `Nobody to send to: of the ${audience.length} selected, ${suppressedStats.bounced} have bounced addresses and ${suppressedStats.optedOut} opted out of community email.`,
+        data: { code: "all_recipients_suppressed", suppressed: suppressedStats },
+      });
+    }
+    const members =
+      emailClass === "community" && schema.members
+        ? await ensureUnsubscribeTokens(directus, recipients)
+        : recipients;
 
     // Process attachments if provided
     let emailAttachments: EmailAttachment[] = [];
@@ -302,6 +340,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
+          ...(schema.emailClass ? { email_class: emailClass } : {}),
           attachments: attachmentsData,
           web_slug: webSlug,
           header_text: headerText || null,
@@ -325,6 +364,7 @@ export default defineEventHandler(async (event) => {
           include_board_footer: includeBoardFooter,
           status: "sending",
           recipient_count: members.length,
+          ...(schema.emailClass ? { email_class: emailClass } : {}),
           attachments: attachmentsData,
           web_slug: webSlug,
           header_text: headerText || null,
@@ -460,6 +500,18 @@ export default defineEventHandler(async (event) => {
         personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
       }
 
+      // The class footer and, on community mail with a token, the one-click
+      // headers. A CC/BCC copy has no member and so no token: it gets the
+      // generic unsubscribe page and no List-Unsubscribe header.
+      const rc = recipientCompliance({
+        emailClass,
+        org: organization,
+        mailingAddress,
+        appUrl: config.public.appUrl as string,
+        emailId: String((email as any).id),
+        token: (member as { unsubscribe_token?: string | null } | null)?.unsubscribe_token ?? null,
+      });
+
       const text = buildEmailText({
         organization,
         subject: recipientSubject,
@@ -470,6 +522,7 @@ export default defineEventHandler(async (event) => {
         boardMembers: includeBoardFooter ? boardMembers : undefined,
         recipientFirstName,
         directusUrl: config.directus.url,
+        complianceFooter: rc.footer,
       });
 
       const allAttachments = [...emailAttachments, ...inlineAttachments];
@@ -492,11 +545,15 @@ export default defineEventHandler(async (event) => {
         organizationId,
         cc: ccCopies,
         bcc: bccCopies,
+        headers: rc.headers,
       };
 
       if (contentMode === "mjml") {
         // Raw MJML/HTML mode: the author controls the whole email.
-        return sendOrganizationEmail({ ...common, html: buildRawEmailHtml(recipientContent) });
+        return sendOrganizationEmail({
+          ...common,
+          html: appendComplianceFooterHtml(buildRawEmailHtml(recipientContent), rc.footer),
+        });
       }
 
       if (useDynamicTemplate) {
@@ -505,7 +562,7 @@ export default defineEventHandler(async (event) => {
           unit: unitNumber || "",
           subject: recipientSubject,
           subtitle: subtitle || "",
-          content: personalizedContent,
+          content: `${personalizedContent}${rc.footer.html}`,
           salutation: salutation || undefined,
           urgent: urgent || false,
           category: emailType,
@@ -524,9 +581,12 @@ export default defineEventHandler(async (event) => {
           footer_image_url: footerImageUrl || undefined,
           board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
           Weblink: webViewUrl,
+          unsubscribe_url: rc.unsubscribeUrl || undefined,
+          preferences_url: rc.preferencesUrl,
+          compliance_footer: rc.footer.html,
           year: new Date().getFullYear().toString(),
         };
-        return sendOrganizationEmail({ ...common, html: personalizedContent, templateId, templateData });
+        return sendOrganizationEmail({ ...common, html: `${personalizedContent}${rc.footer.html}`, templateId, templateData });
       }
 
       const html = buildEmailHtml({
@@ -545,6 +605,7 @@ export default defineEventHandler(async (event) => {
         footerImage: branding.footerImage,
         homepageUrl: branding.homepageUrl,
         webViewUrl,
+        complianceFooter: rc.footer,
       });
       return sendOrganizationEmail({ ...common, html });
     };
@@ -653,10 +714,12 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       emailId: email.id,
+      emailClass,
       stats: {
         total: members.length,
         delivered: deliveredCount,
         failed: failedCount,
+        suppressed: suppressedStats,
       },
       recipients: recipientResults,
     };

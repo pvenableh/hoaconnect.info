@@ -19,6 +19,8 @@ import type { HoaEmail, HoaEmailRecipient, HoaMember } from "#core/types/directu
 
 export type EmailType = "basic" | "alert" | "newsletter" | "announcement" | "reminder" | "notice";
 
+import type { EmailClass } from "#core/shared/email/email-class";
+
 export interface EmailAttachmentInfo {
   id: string;
   filename: string;
@@ -46,6 +48,8 @@ export interface EmailFormData {
   cc?: string[];
   /** BCC entries — emails and/or group tokens. */
   bcc?: string[];
+  /** essential | community (Phase 3a). Omitted = the type's default; a newsletter can't be essential. */
+  emailClass?: EmailClass;
 }
 
 export interface EmailSaveData {
@@ -72,6 +76,8 @@ export interface EmailSaveData {
   cc?: string[];
   /** BCC entries — emails and/or group tokens. */
   bcc?: string[];
+  /** essential | community (Phase 3a). Omitted = the type's default; a newsletter can't be essential. */
+  emailClass?: EmailClass;
 }
 
 export interface EmailSendData extends EmailFormData {
@@ -91,6 +97,8 @@ export interface EmailPreviewData {
   attachmentIds?: string[];
   headerText?: string | null;
   footerImageId?: string | null;
+  /** essential | community (Phase 3a). Omitted = the type's default; a newsletter can't be essential. */
+  emailClass?: EmailClass;
 }
 
 export interface EmailListResponse {
@@ -111,6 +119,8 @@ export interface EmailSendResponse {
     total: number;
     delivered: number;
     failed: number;
+    /** Left out by the class rules: bounced (every class), opted out (community). */
+    suppressed?: { bounced: number; optedOut: number };
   };
   recipients: Array<{
     memberId: string;
@@ -129,6 +139,9 @@ export interface EmailPreviewResponse {
   };
   boardMemberCount: number;
   attachments?: EmailAttachmentInfo[];
+  emailClass?: EmailClass;
+  /** Whether the send would be refused (e.g. community mail with no postal address). */
+  compliance?: { ok: true } | { ok: false; code: string; message: string };
 }
 
 export interface EmailTestData {
@@ -145,6 +158,8 @@ export interface EmailTestData {
   attachmentIds?: string[]; // File IDs from Directus to attach
   /** Per-send override of the org's default header line ("Official Communication of …"). */
   headerText?: string | null;
+  /** essential | community (Phase 3a). Omitted = the type's default; a newsletter can't be essential. */
+  emailClass?: EmailClass;
 }
 
 export interface EmailTestResult {

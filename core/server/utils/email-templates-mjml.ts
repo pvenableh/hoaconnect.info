@@ -41,6 +41,12 @@ interface EmailTemplateOptions {
   homepageUrl?: string | null;
   /** Friendly public web-view URL for the "open in browser" banner (overrides the /api/email/view fallback). */
   webViewUrl?: string | null;
+  /**
+   * The class footer (core/shared/email/unsubscribe.ts `recipientCompliance`):
+   * Unsubscribe · Preferences · the org's address on community mail, the
+   * can't-be-unsubscribed line on essential. Rendered last in the bottom footer.
+   */
+  complianceFooter?: { html: string; text: string } | null;
 }
 
 // Email type configurations with colors and styling.
@@ -631,6 +637,7 @@ export function buildEmailHtml(
     footerImage,
     homepageUrl,
     webViewUrl,
+    complianceFooter,
   } = options;
 
   const orgName = organization.name || "Organization";
@@ -848,6 +855,7 @@ export function buildEmailHtml(
           <mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">
             © ${new Date().getFullYear()} ${legalName}. All rights reserved.
           </mj-text>
+          ${complianceFooter ? `<mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">${complianceFooter.html}</mj-text>` : ""}
         </mj-column>
       </mj-section>
 
@@ -916,6 +924,21 @@ export function buildRawEmailHtml(content: string): string {
     return html;
   }
   return content;
+}
+
+/**
+ * Raw mode has no footer of ours, so the class footer is added to the author's
+ * document: just before `</body>` when there is one, else at the end. The
+ * author controls everything above it; they don't get to leave it off.
+ */
+export function appendComplianceFooterHtml(
+  html: string,
+  footer: { html: string } | null | undefined
+): string {
+  if (!footer?.html) return html;
+  const block = `<div style="max-width:600px;margin:24px auto 0;padding:16px 24px;">${footer.html}</div>`;
+  const close = html.search(/<\/body>/i);
+  return close >= 0 ? `${html.slice(0, close)}${block}${html.slice(close)}` : `${html}${block}`;
 }
 
 /**
@@ -1014,6 +1037,9 @@ export function buildEmailText(options: EmailTemplateOptions): string {
     text += `${organization.email}\n`;
   }
   text += `\n© ${new Date().getFullYear()} ${orgName}. All rights reserved.`;
+  if (options.complianceFooter?.text) {
+    text += `\n\n${options.complianceFooter.text}`;
+  }
 
   return text;
 }
@@ -1040,6 +1066,8 @@ interface WebViewTemplateOptions {
   footerImage?: DirectusFile | string | null;
   /** Homepage link shown in the footer. */
   homepageUrl?: string | null;
+  /** The class footer, as in the sent mail but without a personal unsubscribe link. */
+  complianceFooter?: { html: string; text: string } | null;
 }
 
 /**
@@ -1411,6 +1439,7 @@ export function buildWebViewHtml(options: WebViewTemplateOptions): string {
                                 <div style="font-family:${bodyFamily};font-size:8px;font-weight:700;letter-spacing:0.3em;line-height:1;text-align:center;text-decoration:none;text-transform:uppercase;color:#666666;">
                                   © ${year} ${organization.legal_name || orgName}
                                 </div>
+                                ${options.complianceFooter ? `<div style="font-family:${bodyFamily};padding-top:14px;">${options.complianceFooter.html}</div>` : ""}
                               </td>
                             </tr>
                           </tbody>

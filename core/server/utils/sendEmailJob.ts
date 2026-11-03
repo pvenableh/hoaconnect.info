@@ -12,6 +12,7 @@
 import { readItem, readItems, createItem, updateItem } from "@directus/sdk";
 import { sendOrganizationEmail } from "./sendgrid";
 import {
+  appendComplianceFooterHtml,
   buildEmailHtml,
   buildEmailText,
   buildRawEmailHtml,
@@ -19,6 +20,9 @@ import {
 } from "./email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "./email-merge";
 import { residencyFor } from "#core/shared/members/residency";
+import { partitionAudience } from "#core/shared/email/email-class";
+import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
+import { emailComplianceSchema, ensureUnsubscribeTokens, MEMBER_SUPPRESSION_FIELDS } from "./email-compliance";
 import type {
   HoaBoardMember,
   HoaEmailRecipient,
@@ -32,6 +36,20 @@ export interface SendJobResult {
   total: number;
   delivered: number;
   failed: number;
+  /** Left out by the class rules: bounced (every class), opted out (community). */
+  suppressed: { bounced: number; optedOut: number };
+}
+
+/**
+ * A send the compliance rules refuse outright (a community email from an org
+ * with no postal address; a newsletter marked essential). Retrying can't fix
+ * it, so process-scheduled marks the email failed instead of rescheduling it.
+ */
+export class EmailComplianceRefusal extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "EmailComplianceRefusal";
+  }
 }
 
 /**
@@ -41,7 +59,8 @@ async function resolveRecipients(
   directus: ReturnType<typeof getTypedDirectus>,
   organizationId: string,
   recipientFilter: string,
-  recipientIds: string[] | null
+  recipientIds: string[] | null,
+  suppressionFields: readonly (typeof MEMBER_SUPPRESSION_FIELDS)[number][] = []
 ): Promise<any[]> {
   const baseFilter: Record<string, any> = {
     organization: { _eq: organizationId },
@@ -72,6 +91,7 @@ async function resolveRecipients(
       fields: [
         "id", "first_name", "last_name", "email", "phone", "member_type", "company",
         "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date",
+        ...suppressionFields,
         // `member_type` and `end_date` are what residencyFor() reads off the
         // link; the rest of this alias feeds the unit merge fields below.
         { units: ["id", "is_primary_unit", "member_type", "end_date", { unit_id: ["id", "unit_number"] }] },
@@ -96,10 +116,14 @@ async function resolveRecipients(
 export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
   const config = useRuntimeConfig();
   const directus = getTypedDirectus();
+  // Before `pnpm add:email-compliance` runs, neither the class nor the member
+  // flags exist: the job sends as it always did, by the type's default class.
+  const schema = await emailComplianceSchema(directus);
 
   const email = (await directus.request(
     readItem("hoa_emails", emailId, {
       fields: [
+        ...(schema.emailClass ? (["email_class"] as const) : []),
         "id", "organization", "subject", "subtitle", "content", "email_type",
         "content_mode", "greeting", "salutation", "include_board_footer", "urgent",
         "recipient_filter", "recipient_ids", "web_slug", "header_text", "footer_image",
@@ -118,6 +142,14 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
         { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"] }],
     })
   )) as HoaOrganization & { settings: BlockSetting | null };
+
+  const compliance = checkSendCompliance({
+    emailType: email.email_type,
+    requestedClass: email.email_class,
+    org: organization,
+  });
+  if (compliance.ok === false) throw new EmailComplianceRefusal(compliance.code, compliance.message);
+  const { emailClass, mailingAddress } = compliance;
 
   const includeBoardFooter = email.include_board_footer ?? true;
   let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
@@ -141,12 +173,22 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
       }));
   }
 
-  const members = await resolveRecipients(
+  const audience = await resolveRecipients(
     directus,
     organizationId,
     email.recipient_filter || "all",
-    Array.isArray(email.recipient_ids) ? email.recipient_ids : null
+    Array.isArray(email.recipient_ids) ? email.recipient_ids : null,
+    schema.members ? MEMBER_SUPPRESSION_FIELDS : []
   );
+  const { recipients, suppressed } = partitionAudience(audience, emailClass);
+  const suppressedStats = {
+    bounced: suppressed.filter((s) => s.reason === "bounced").length,
+    optedOut: suppressed.filter((s) => s.reason === "opted_out").length,
+  };
+  const members =
+    emailClass === "community" && schema.members
+      ? await ensureUnsubscribeTokens(directus, recipients)
+      : recipients;
 
   const emailType = (email.email_type || "basic") as EmailType;
   const contentMode = email.content_mode === "mjml" ? "mjml" : "visual";
@@ -192,23 +234,28 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
     const mergeValues = resolveMergeFields(member, organization);
     const recipientContent = applyMergeFields(email.content || "", mergeValues);
     const recipientSubject = applyMergeFields(email.subject || "", mergeValues) || email.subject || "";
+    const rc = recipientCompliance({
+      emailClass, org: organization, mailingAddress,
+      appUrl: config.public.appUrl as string, emailId: String(email.id),
+      token: member.unsubscribe_token ?? null,
+    });
 
     const text = buildEmailText({
       organization, subject: recipientSubject, content: recipientContent, emailType,
       greeting, salutation, boardMembers: includeBoardFooter ? boardMembers : undefined,
-      recipientFirstName, directusUrl: config.directus.url,
+      recipientFirstName, directusUrl: config.directus.url, complianceFooter: rc.footer,
     });
 
     const html =
       contentMode === "mjml"
-        ? buildRawEmailHtml(recipientContent)
+        ? appendComplianceFooterHtml(buildRawEmailHtml(recipientContent), rc.footer)
         : buildEmailHtml({
             organization, subject: recipientSubject, content: recipientContent, emailType,
             greeting, salutation, boardMembers: includeBoardFooter ? boardMembers : undefined,
             recipientFirstName, directusUrl: config.directus.url,
             emailId: email.id, appUrl: config.public.appUrl as string,
             headerText: branding.headerText, footerImage: branding.footerImage,
-            homepageUrl: branding.homepageUrl, webViewUrl,
+            homepageUrl: branding.homepageUrl, webViewUrl, complianceFooter: rc.footer,
           });
 
     try {
@@ -222,6 +269,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
         replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
         customArgs: { email_id: String(email.id), recipient_email: member.email, organization_id: organizationId },
         organizationId,
+        headers: rc.headers,
       });
       delivered++;
       await directus.request(
@@ -246,11 +294,12 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
   await directus.request(
     updateItem("hoa_emails", email.id, {
       recipient_count: members.length,
+      ...(schema.emailClass ? { email_class: emailClass } : {}),
       delivered_count: delivered,
       failed_count: failed,
       last_run_at: new Date().toISOString(),
     })
   );
 
-  return { emailId: email.id, total: members.length, delivered, failed };
+  return { emailId: email.id, total: members.length, delivered, failed, suppressed: suppressedStats };
 }

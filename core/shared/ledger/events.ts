@@ -111,6 +111,18 @@ const CATALOGUE = [
     note: "A property manager's permissions were widened or narrowed.",
   },
   {
+    key: "member_email_status_cleared",
+    label: "Email delivery restored",
+    icon: "mail-check",
+    category: "access",
+    // Board-only: it names one member's standing (their address bounced, or they
+    // left community mail). It is record rather than activity because clearing
+    // an opt-out is a consent decision taken for someone else — the one email
+    // action a board may later have to show was asked for.
+    defaultVisibility: "board",
+    note: "An admin cleared a member's bounced address or community-mail opt-out, so mail resumes.",
+  },
+  {
     key: "payment_recorded",
     label: "Payment recorded",
     icon: "receipt",

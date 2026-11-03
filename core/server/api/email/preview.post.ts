@@ -1,5 +1,7 @@
 import { readItem, readItems, readFiles } from "@directus/sdk";
-import { buildEmailHtml, buildRawEmailHtml, type EmailType } from "../../utils/email-templates-mjml";
+import { appendComplianceFooterHtml, buildEmailHtml, buildRawEmailHtml, type EmailType } from "../../utils/email-templates-mjml";
+import { defaultEmailClass } from "#core/shared/email/email-class";
+import { checkSendCompliance, orgMailingAddress, recipientCompliance } from "#core/shared/email/unsubscribe";
 import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
 
@@ -15,11 +17,18 @@ interface PreviewEmailBody {
   attachmentIds?: string[];
   headerText?: string | null;
   footerImageId?: string | null;
+  /** essential | community — the footer shown is the class's. */
+  emailClass?: string;
 }
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
   const body = await readBody<PreviewEmailBody>(event);
+  // Org-gated like save and send: the preview renders this org's branding and
+  // board roster.
+  if (body?.organizationId) {
+    await requireAdminOrManagerGrant(event, body.organizationId, "communications");
+  }
 
   const {
     organizationId,
@@ -33,6 +42,7 @@ export default defineEventHandler(async (event) => {
     attachmentIds,
     headerText,
     footerImageId,
+    emailClass: requestedClass,
   } = body;
 
   // Validation
@@ -103,9 +113,22 @@ export default defineEventHandler(async (event) => {
       overrides: { headerText: headerText ?? null, footerImage: footerImageId ?? null },
     });
 
+    // The preview shows the class footer the send will carry, and says now —
+    // not at Send — when the send would be refused. A refused class (a
+    // newsletter marked essential) previews as the type's default.
+    const compliance = checkSendCompliance({ emailType, requestedClass, org: organization });
+    const previewClass = compliance.ok === false ? defaultEmailClass(emailType) : compliance.emailClass;
+    const rc = recipientCompliance({
+      emailClass: previewClass,
+      org: organization,
+      mailingAddress: orgMailingAddress(organization),
+      appUrl: config.public.appUrl as string,
+      token: null,
+    });
+
     const html =
       contentMode === "mjml"
-        ? buildRawEmailHtml(applyMergeFields(content, SAMPLE_MERGE_VALUES(organization)))
+        ? appendComplianceFooterHtml(buildRawEmailHtml(applyMergeFields(content, SAMPLE_MERGE_VALUES(organization))), rc.footer)
         : buildEmailHtml({
             organization,
             subject,
@@ -119,6 +142,7 @@ export default defineEventHandler(async (event) => {
             headerText: branding.headerText,
             footerImage: branding.footerImage,
             homepageUrl: branding.homepageUrl,
+            complianceFooter: rc.footer,
           });
 
     console.log(`[preview.post] Preview HTML generated (${html.length} chars)`);
@@ -152,6 +176,11 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       html,
+      emailClass: previewClass,
+      compliance:
+        compliance.ok === false
+          ? { ok: false as const, code: compliance.code, message: compliance.message }
+          : { ok: true as const },
       organization: {
         id: organization.id,
         name: organization.name,
