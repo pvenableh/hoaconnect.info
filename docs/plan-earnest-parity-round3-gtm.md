@@ -1097,7 +1097,8 @@ resumed (audiences are one or two batches).
 
 Open questions (spec §9, Peter): (1) **Vercel plan** — per-minute crons and `maxDuration:
 60` need Pro; if Hobby, the chained-kick fallback; the build needs this before
-`vercel.json`. (2) When to switch off the Directus Flow scheduler. (3) `run_key` vs one
+`vercel.json`. **Answered 2026-11-03: Vercel Pro.** Build the per-minute cron and
+`maxDuration: 60` as specified; no chained kick. (2) When to switch off the Directus Flow scheduler. (3) `run_key` vs one
 `hoa_emails` row per occurrence — Phase 4's call. (4) "Resend to these N unknown" as a
 Phase 4 action — OK to leave out of 3b-build? (5) `member_fields` holds balances; the
 script narrows non-admin reads like 3a's did — confirm.
