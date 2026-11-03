@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import type { HoaChannel } from "#core/types/directus";
-
 definePageMeta({
   middleware: ["channel-access", "subscription"],
-  layout: "channels",
+  layout: "auth",
+  // Full height inside the workspace shell: the footer hides, the dock stays.
+  immersive: true,
   // No route animation when switching channels — just swap the content.
   pageTransition: false,
-  layoutTransition: false,
 });
 
 const route = useRoute();
-const router = useRouter();
-const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const { isAdminOfCurrentDomain, isBoardMemberOfCurrentDomain } = useCurrentDomainAccess();
 
@@ -22,7 +19,6 @@ const canManage = computed(() => isAdmin.value || isBoardMemberOfCurrentDomain.v
 
 const channelSlug = computed(() => route.params.channel as string);
 const highlightMessageId = computed(() => route.query.message as string | undefined);
-const showCreateModal = ref(false);
 
 // Anchor the AI assistant to the open channel. The route carries the slug, so we
 // resolve the channel id (the dossier keys on id) client-side and set focus.
@@ -48,11 +44,6 @@ onMounted(syncChannelFocus);
 watch(channelSlug, syncChannelFocus);
 onBeforeUnmount(clearAiFocus);
 
-const handleChannelSelect = (channel: HoaChannel) =>
-  router.push(buildOrgPath(`/admin/channels/${channel.slug}`));
-const handleChannelCreated = (channel: any) =>
-  router.push(buildOrgPath(`/admin/channels/${channel.slug}`));
-const backToList = () => router.push(buildOrgPath("/admin/channels"));
 </script>
 
 <template>
@@ -61,53 +52,15 @@ const backToList = () => router.push(buildOrgPath("/admin/channels"));
       <template #fallback>
         <div class="h-full flex items-center justify-center"><div class="spinner-ios" /></div>
       </template>
-      <div class="flex h-full min-h-0">
-        <!-- Sidebar with Channels List -->
-        <aside
-          class="w-64 border-r t-border t-bg-alt overflow-y-auto hidden md:block"
-        >
-          <div class="p-4 border-b t-border flex items-center gap-2.5">
-            <NuxtLink
-              :to="buildOrgPath('/')"
-              class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80 shrink-0"
-              title="Back to dashboard"
-            >
-              <Icon name="lucide:chevron-left" class="w-4 h-4" />
-            </NuxtLink>
-            <h1 class="font-semibold text-lg truncate">{{ orgName }}</h1>
-          </div>
-
-          <ChannelsList
-            v-if="orgId"
-            :organization-id="orgId"
-            :selected-channel-slug="channelSlug"
-            :is-admin="isAdmin"
-            @select="handleChannelSelect"
-            @create="showCreateModal = true"
-          />
-        </aside>
-
-        <!-- Thread -->
-        <ChannelsChannelThread
-          v-if="orgId"
-          :organization-id="orgId"
-          :channel-slug="channelSlug"
-          :is-admin="isAdmin"
-          :can-manage="canManage"
-          :highlight-message-id="highlightMessageId"
-          @back="backToList"
-          @archived="backToList"
-          @deleted="backToList"
-        />
-
-        <!-- Create Channel Modal -->
-        <ChannelsCreateChannelModal
-          v-if="orgId"
-          v-model:open="showCreateModal"
-          :organization-id="orgId"
-          @created="handleChannelCreated"
-        />
-      </div>
+      <ChannelsWorkspace
+        v-if="orgId"
+        :organization-id="orgId"
+        :org-name="orgName"
+        :is-admin="isAdmin"
+        :can-manage="canManage"
+        :channel-slug="channelSlug"
+        :highlight-message-id="highlightMessageId"
+      />
     </ClientOnly>
   </div>
 </template>

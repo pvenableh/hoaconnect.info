@@ -151,6 +151,10 @@ const recentActivity = computed(() => {
 
 // --- New charge form ----------------------------------------------------
 const showNew = ref(false);
+// "+ New → New Charge" and Spotlight land here with ?new=charge.
+useCreateIntent("charge", () => {
+  showNew.value = true;
+});
 const recurring = ref(false);
 const saving = ref(false);
 const form = ref({

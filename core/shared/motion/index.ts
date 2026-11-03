@@ -105,3 +105,50 @@ export function afterFirstFrame(fn: () => void): () => void {
     clearTimeout(timer);
   };
 }
+
+/**
+ * The longest `transition` on an element, delay included, in ms — 0 when it
+ * has none (reduced motion flattens every duration to 1ms or `none`).
+ * Parses the computed lists, which pair durations with delays by index.
+ */
+export function longestTransitionMs(style: Pick<CSSStyleDeclaration, "transitionDuration" | "transitionDelay">): number {
+  const toMs = (v: string) => (v.trim().endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000) || 0;
+  const durations = (style.transitionDuration || "0s").split(",").map(toMs);
+  const delays = (style.transitionDelay || "0s").split(",").map(toMs);
+  return Math.max(0, ...durations.map((d, i) => d + (delays[i % delays.length] ?? 0)));
+}
+
+/**
+ * A `<Transition>` JS hook (`onEnter` / `onLeave`) that ends the phase on the
+ * element's own `transitionend` — or, failing that, once its longest
+ * transition has had time to run. Vue otherwise waits on `transitionend`
+ * alone, and a throttled, hidden or headless tab may never deliver it: under
+ * `mode="out-in"` the leaving page then never finishes leaving and the next one
+ * never mounts (ported from Earnest's useDirectionalPageTransition). With no
+ * transition at all it ends at once, so reduced motion swaps instantly — and
+ * so does a node that is not an element.
+ */
+export function settleTransition(slackMs = 100) {
+  return (el: Element, done: () => void) => {
+    // ⚠️ The node can be a comment — an empty page root, a v-if'd placeholder.
+    // getComputedStyle throws on one, and a hook that throws never calls
+    // `done`, which under out-in strands the swap for good: the page area stays
+    // empty through every later navigation. Nothing to animate; end now.
+    if (el?.nodeType !== 1) return done();
+    const longest = longestTransitionMs(getComputedStyle(el));
+    if (longest <= 1) return done();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      el.removeEventListener("transitionend", onEnd);
+      clearTimeout(timer);
+      done();
+    };
+    const onEnd = (e: Event) => {
+      if (e.target === el) finish();
+    };
+    el.addEventListener("transitionend", onEnd);
+    const timer = setTimeout(finish, longest + slackMs);
+  };
+}

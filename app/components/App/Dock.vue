@@ -1,54 +1,10 @@
 <script setup lang="ts">
-import { badgeCountsFor, type AppDef, type HSL } from "#core/app/composables/useAppNav";
-
 const { user } = useDirectusAuth();
-const route = useRoute();
 
-const {
-  palette,
-  dockPosition,
-  showLabels,
-  glassChrome,
-  appsFor,
-  accentsForApps,
-  activeKeyFor,
-  go,
-  applyDocumentAccent,
-} = useAppNav();
+const { palette, dockPosition, showLabels, glassChrome, applyDocumentAccent } = useAppNav();
+const { isOnOrgPage, apps, accents, activeKey, activeIndex, badges, accentVars, go } = useDockApps();
 
-const onAppClick = (app: AppDef) => go(app);
-
-// Role detection (mirrors App/Nav.vue)
-const { isAdmin } = user.value ? await useSelectedOrg() : { isAdmin: ref(false) };
-const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
-const { isPreviewingMember } = useViewAs();
-const isOnOrgPage = computed(() => !!route.params.slug);
-const showAdminUI = computed(() =>
-  isPreviewingMember.value
-    ? false
-    : isOnOrgPage.value
-    ? isAdminOfCurrentDomain.value
-    : isAdmin.value
-);
-
-const apps = computed(() => appsFor(showAdminUI.value));
-const accents = computed(() => accentsForApps(apps.value, palette.value));
-const activeKey = computed(() => activeKeyFor(apps.value));
-const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeKey.value));
-
-const accentVars = (a: HSL) =>
-  ({ "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` }) as Record<string, string>;
-
-// Per-app unread badges from the notification system (best-effort). Mapping
-// lives in useAppNav (badgeCountsFor) so the dock and the sidebar can't drift —
-// it fans each notification onto both the admin hub key and the member leaf key.
-const { notifications } = useNotifications();
-const channelUnread = useChannelUnread();
-channelUnread.watchLive();
-onMounted(() => channelUnread.refresh());
-const badges = computed<Record<string, number>>(() =>
-  badgeCountsFor(notifications.value, channelUnread.total.value)
-);
+const onAppClick = go;
 
 // Keep the document default accent synced to the active app
 watch(
@@ -168,6 +124,13 @@ watch(apps, reset, { immediate: true });
 }
 .app-dock--bottom {
   bottom: max(1rem, env(safe-area-inset-bottom));
+}
+/* Below md there is no dock: a full row of chips does not fit a phone, and the
+   Nav's grid button opens the same apps as the App Library instead. */
+@media (max-width: 767px) {
+  .app-dock {
+    display: none;
+  }
 }
 .app-dock--top {
   top: max(1rem, env(safe-area-inset-top));

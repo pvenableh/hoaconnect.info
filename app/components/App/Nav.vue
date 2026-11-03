@@ -104,6 +104,20 @@ const aiAssistant = useAiAssistant();
 // Shared count of AI actions awaiting the user's review → launcher badge (Phase 4).
 const aiPendingCount = useAiPendingCount();
 const spotlight = useSpotlight();
+
+// ── The page title, handed up on scroll (usePageTitle) ──────────────────────
+// In the workspace the large title lives in the shell's outlet; once it scrolls
+// under this bar, the bar's centre carries a compact copy where the org mark
+// was, and the bar earns its bottom hairline — a static rule under an
+// unscrolled page is chrome for its own sake. Outside the workspace (no
+// outlet) the bar keeps its permanent rule.
+const { pageTitle, collapsed: titleCollapsed, hasOutlet, visible: hasPageTitle } = usePageTitle();
+const showChromeTitle = computed(() => hasOutlet.value && titleCollapsed.value && hasPageTitle.value);
+const earnedRule = computed(() => hasOutlet.value);
+const scrollToTop = () => {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+};
 // "⌘K" on Apple platforms, "Ctrl K" elsewhere — the hint should name the key
 // the user actually has. Client-only (navigator), so SSR renders the neutral form.
 const spotlightShortcut = ref("Ctrl K");
@@ -363,15 +377,25 @@ watch(
 </script>
 
 <template>
-  <nav class="glass-bar sticky top-0 z-40 border-b t-border px-6">
+  <nav
+    class="app-nav glass-bar sticky top-0 z-40 border-b px-6"
+    :class="earnedRule ? ['app-nav--earned', { 'app-nav--ruled': titleCollapsed }] : 't-border'"
+    data-app-nav
+  >
     <div class="max-w-7xl mx-auto py-4">
       <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         <!-- Logo / Brand — centered org identity -->
         <!-- On org page (slug route): link to org root -->
         <!-- Otherwise (main domain or custom domain): link to home -->
+        <div
+          class="app-nav__centre col-start-2 row-start-1 justify-self-center"
+          :class="{ 'app-nav__centre--title': showChromeTitle }"
+        >
         <NuxtLink
           :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
-          class="col-start-2 row-start-1 justify-self-center flex items-center gap-2 hover:opacity-80 transition"
+          class="app-nav__brand flex items-center gap-2 hover:opacity-80 transition"
+          :tabindex="showChromeTitle ? -1 : undefined"
+          :aria-hidden="showChromeTitle ? 'true' : undefined"
         >
           <!-- Show org logo when on org page or logged in with org logo -->
           <template v-if="showOrgBranding && orgLogoUrl">
@@ -398,6 +422,19 @@ watch(
             >
           </template>
         </NuxtLink>
+        <!-- The page title, once its large copy has scrolled under the bar.
+             Tapping it returns to the top, as a status-bar tap does on iOS. -->
+        <button
+          type="button"
+          class="app-nav__title"
+          :tabindex="showChromeTitle ? undefined : -1"
+          :aria-hidden="showChromeTitle ? undefined : 'true'"
+          data-chrome-title
+          @click="scrollToTop"
+        >
+          {{ pageTitle.title }}
+        </button>
+        </div>
 
         <!-- Org switcher — Earnest-style avatar + dropdown, top-left. Shows for
              authenticated users off the marketing domain (which uses the left
@@ -406,6 +443,13 @@ watch(
           v-if="user && !isMainMarketingDomain"
           class="col-start-1 row-start-1 justify-self-start flex items-center gap-2"
         >
+          <!-- Below md the dock is gone; its apps open from here as the App
+               Library grid. -->
+          <ClientOnly>
+            <div v-if="isOnOrgPage" class="md:hidden">
+              <AppLibrary />
+            </div>
+          </ClientOnly>
           <div class="hidden sm:flex">
             <OrgSelector />
           </div>
@@ -431,6 +475,14 @@ watch(
           <ClientOnly>
             <DirectorTrustBar v-if="showAssistant" class="hidden sm:block" />
           </ClientOnly>
+          <!-- "+ New": the create verbs this viewer may run here (useCreateVerbs).
+               Renders nothing for members. -->
+          <ClientOnly>
+            <div v-if="isOnOrgPage" class="hidden sm:flex">
+              <AppCreateMenu />
+            </div>
+          </ClientOnly>
+
           <!-- Spotlight (⌘K) — search records and jump anywhere in the workspace. -->
           <button
             v-if="isOnOrgPage"
@@ -589,8 +641,9 @@ watch(
 
               <DropdownMenuSeparator />
 
-              <!-- App dock appearance (palette, labels, glass, position) — only
-                   relevant for modern orgs that render the dock. -->
+              <!-- Dock appearance (palette, labels, glass, position). Saved to
+                   the user's account (app_prefs), so it follows them across
+                   devices; shown wherever there is an org, i.e. a dock. -->
               <template v-if="showDockSettings">
                 <div class="px-2 pb-1" @click.stop @keydown.stop>
                   <AppAppearanceSettings />
@@ -858,3 +911,68 @@ watch(
     </div>
   </nav>
 </template>
+
+<style scoped>
+/* The earned rule: in the workspace the hairline appears only once content is
+   scrolling under the bar. `border-b` stays on so the box never changes size —
+   only the colour moves. */
+.app-nav--earned {
+  border-bottom-color: transparent;
+  transition: border-bottom-color var(--motion-base, 240ms) ease;
+}
+.app-nav--earned.app-nav--ruled {
+  border-bottom-color: var(--theme-border-primary);
+}
+
+/* The centre cell holds the org mark and the page title in ONE grid cell, so
+   they cross-fade in place and the cell is as wide as the wider of the two. */
+.app-nav__centre {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+}
+.app-nav__centre > * {
+  grid-area: 1 / 1;
+}
+.app-nav__brand,
+.app-nav__title {
+  transition:
+    opacity var(--motion-base, 240ms) var(--spring),
+    transform var(--motion-base, 240ms) var(--spring);
+}
+.app-nav__title {
+  max-width: min(60vw, 28rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--theme-text-primary);
+  background: transparent;
+  border: 0;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+}
+.app-nav__centre--title .app-nav__title {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.app-nav__centre--title .app-nav__brand {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav__brand,
+  .app-nav__title {
+    transition: none;
+  }
+}
+</style>

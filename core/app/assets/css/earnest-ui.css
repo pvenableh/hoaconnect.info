@@ -931,6 +931,18 @@ a[role='button']:not([data-no-press]):active,
 }
 
 /* =============================================================================
+   APP LIBRARY CHIP ENTRANCE — App/AppLibrary's grid, below md
+   Global, not in the component's scoped block: Vue renames a scoped keyframe
+   per file (`apps-chip-in-<hash>`), and the name is Earnest's, kept so the two
+   apps' motion stays recognisably one system. The component staggers it by
+   `--i` and turns it off under reduced motion.
+============================================================================= */
+@keyframes apps-chip-in {
+	from { opacity: 0; transform: scale(0.6); }
+	to   { opacity: 1; transform: none; }
+}
+
+/* =============================================================================
    LIST STAGGER — a pure-CSS entrance for lists that arrive together
    Put `.stagger-item` on each child of a freshly-rendered list. Items enter in
    sequence, which reads as the list assembling rather than snapping into place.

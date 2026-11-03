@@ -10,6 +10,7 @@
  *
  * View at /ui-kit on the main domain. Standalone (no app shell, no org context).
  */
+import { visibleVerbs } from "#core/shared/create-verbs";
 import {
   BRAND_ACCENT_HEX,
   getAdminAccent,
@@ -17,6 +18,9 @@ import {
 } from "#core/shared/branding/accent";
 
 definePageMeta({ layout: false });
+
+// Every create verb, as an admin with every module on would see them.
+const kitVerbs = visibleVerbs({ isAdmin: true, isEnabled: () => true });
 useHead({ title: "UI Kit — HOA Connect design system" });
 
 // The showcase renders the real workspace theme, so what you see here is what
@@ -471,6 +475,64 @@ const materials = [
             <Icon name="lucide:search" />
             Search
           </Button>
+        </div>
+      </section>
+
+      <!-- ── Navigation ───────────────────────────────────────────────── -->
+      <section data-kit="nav-system">
+        <h2 class="type-section">Navigation</h2>
+        <p class="type-body">
+          One shell for every workspace page. The dock carries the apps from md up;
+          below md it gives way to the App Library, opened from the bar's grid
+          button. Channels runs inside the shell as an immersive page (full
+          height, no footer, dock kept).
+        </p>
+
+        <div class="mt-4 grid gap-6 md:grid-cols-2 content-column">
+          <div>
+            <p class="type-micro">App Library — below md</p>
+            <p class="helper-text mb-3">
+              The dock's own apps, accents and badges (useDockApps), four across.
+              Chips stagger in on open (<code>apps-chip-in</code>).
+            </p>
+            <AppLibrary preview data-kit="app-library" />
+          </div>
+
+          <div>
+            <p class="type-micro">Create — the "+ New" pill and Spotlight</p>
+            <p class="helper-text mb-3">
+              Declared once (<code>core/shared/create-verbs.ts</code>) and gated
+              there: admins of the org being viewed, module on. Each opens the
+              page's own form via <code>?new=</code>.
+            </p>
+            <ul class="glass-surface glass-surface--strong rounded-2xl p-2 grid grid-cols-2 gap-0.5" data-kit="create-verbs">
+              <li v-for="v in kitVerbs" :key="v.id" class="flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+                <Icon :name="v.icon" class="size-4 text-muted-foreground" />
+                <span class="text-sm">{{ v.label }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-6 content-column">
+          <p class="type-micro">Page title</p>
+          <p class="helper-text mb-3">
+            Pages register their title with <code>&lt;AppPageHeader&gt;</code>; the
+            shell's outlet renders it above the page and keeps it across
+            navigation. Scrolled under the bar, the bar's centre carries it and
+            the bar earns its hairline. Here, with no shell, it renders inline:
+          </p>
+          <AppPageHeader eyebrow="Records" title="Meetings" description="Agendas, minutes, RSVPs, and votes." />
+        </div>
+
+        <div class="mt-2 content-column">
+          <p class="type-micro">Page motion</p>
+          <ul class="helper-text list-disc pl-5 space-y-1">
+            <li><strong>Across dock apps</strong> — a full slide in dock order (<code>page-forward</code> / <code>page-back</code>).</li>
+            <li><strong>Across SubNav pills</strong> — the floor strip, a short slide in pill order (<code>floor-forward</code> / <code>floor-back</code>).</li>
+            <li><strong>Into a record and back</strong> — the navigation-stack push and pop.</li>
+            <li><strong>Same page</strong> — a quick fade. Reduced motion: all instant.</li>
+          </ul>
         </div>
       </section>
 

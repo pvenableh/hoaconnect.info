@@ -20,7 +20,9 @@
  * field it does not display (a phone number, a request's description) would be
  * hidden by the client a moment after it arrived.
  *
- * Create verbs (Phase 2, item 2.4) will be a third group here.
+ * CREATE — the create verbs (core/shared/create-verbs.ts), gated by
+ * useCreateVerbs and matched as you type ("new", a noun, an alias like "dues").
+ * Picking one runs it: the page that owns the form opens it (useCreateIntent).
  *
  * `searchFn` / `destinations` override the sources — /ui-kit uses them to show
  * the real component without a session.
@@ -30,6 +32,7 @@ import { ListboxFilter } from "reka-ui";
 import { CommandDialog, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import type { SearchGroupResult } from "#core/shared/search";
 import { MIN_QUERY } from "#core/shared/search";
+import type { VerbId } from "#core/shared/create-verbs";
 
 interface Destination {
   key: string;
@@ -46,6 +49,7 @@ const props = defineProps<{
 }>();
 
 const { isOpen, close, toggle } = useSpotlight();
+const createVerbs = useCreateVerbs();
 const router = useRouter();
 const route = useRoute();
 const { appsFor } = useAppNav();
@@ -140,11 +144,17 @@ const matchingDestinations = computed(() => {
   );
 });
 
+// Off for the /ui-kit demo (its sources are sample data, not this session).
+const matchingVerbs = computed(() =>
+  props.destinations || props.searchFn ? [] : createVerbs.matching(query.value),
+);
+
 const nothingFound = computed(
   () =>
     query.value.trim().length >= MIN_QUERY &&
     !searching.value &&
     !matchingDestinations.value.length &&
+    !matchingVerbs.value.length &&
     !recordGroups.value.some((g) => g.items.length),
 );
 
@@ -165,9 +175,21 @@ const firstResultTo = computed(
 const onEnter = (e: KeyboardEvent) => {
   const list = (e.target as HTMLElement).closest('[data-slot="command"]');
   if (list?.querySelector("[data-highlighted]")) return;
+  // Groups render Go to → Create → records, and Enter takes the first row.
+  const firstVerb = !matchingDestinations.value.length ? matchingVerbs.value[0] : undefined;
+  if (firstVerb) {
+    e.preventDefault();
+    runVerb(firstVerb.id);
+    return;
+  }
   if (!firstResultTo.value) return;
   e.preventDefault();
   go(firstResultTo.value);
+};
+
+const runVerb = (id: VerbId) => {
+  close();
+  createVerbs.run(id);
 };
 
 const go = (to: string) => {
@@ -225,6 +247,20 @@ const placeholder = computed(() =>
             <span class="block truncate text-sm font-medium">{{ d.label }}</span>
             <span v-if="d.description" class="block truncate text-xs text-muted-foreground">{{ d.description }}</span>
           </span>
+        </CommandItem>
+      </CommandGroup>
+
+      <CommandGroup v-if="matchingVerbs.length" heading="Create" data-spotlight-group="create">
+        <CommandItem
+          v-for="v in matchingVerbs"
+          :key="v.id"
+          :value="`verb:${v.id}`"
+          class="gap-3 rounded-lg px-2.5 py-2"
+          :data-spotlight-verb="v.id"
+          @select="runVerb(v.id)"
+        >
+          <Icon :name="v.icon" class="size-4 shrink-0 text-muted-foreground" />
+          <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ v.label }}</span>
         </CommandItem>
       </CommandGroup>
 

@@ -24,6 +24,27 @@ useEdgeSwipeBack();
 // "composable that requires the Nuxt instance was called outside setup".
 const route = useRoute();
 
+// ── Immersive pages (Channels) ──────────────────────────────────────────────
+// A page that owns the whole viewport and scrolls internally sets
+// `definePageMeta({ immersive: true })`: the shell pins to h-dvh, the footer
+// hides, and the dock STAYS — it used to take a separate `channels` layout
+// that dropped the dock, which left the surface people keep open longest with
+// no way across to the rest of the app. The page pads its foot for the
+// floating dock (md and up; below md the App Library replaces the dock).
+const immersive = computed(() => !!route.meta.immersive);
+const { dockPosition, showLabels } = useAppNav();
+// The page title lives in the shell (AppHeaderOutlet, below); this hands it to
+// the Nav as it scrolls under the chrome, and earns the Nav its hairline.
+useTitleCollapse();
+
+const immersiveDockPad = computed(() =>
+  immersive.value && dockPosition.value === "bottom"
+    ? showLabels.value
+      ? "app-main--dock-pad-labels"
+      : "app-main--dock-pad"
+    : null
+);
+
 // ── Persistent "view as member" preview (admins) ────────────────────────────
 // `?as=member` is the entry point (OrgSelector menu, the view switcher); arriving
 // with it flips the sticky cookie so the member preview survives navigation. A
@@ -97,7 +118,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="ui-kit min-h-screen bg-background flex flex-col">
+  <div
+    class="ui-kit bg-background flex flex-col"
+    :class="immersive ? 'h-dvh overflow-hidden' : 'min-h-screen'"
+  >
     <AppNav />
 
     <!-- Secondary sub-nav: the section's child pages as pills. -->
@@ -135,10 +159,18 @@ onMounted(() => {
       :is-free-account="currentOrg.organization.is_free_account"
       :grace-ends-at="currentOrg.organization.grace_ends_at"
     />
-    <main class="flex-1 pb-28">
+    <!-- The page's ONE title. Here — outside <slot />, so it survives every
+         navigation and changes in place while the page slides — and pages
+         register into it with <AppPageHeader> (composables/usePageTitle.ts). -->
+    <AppHeaderOutlet />
+
+    <main
+      class="flex-1"
+      :class="immersive ? ['min-h-0', immersiveDockPad] : 'pb-12 md:pb-28'"
+    >
       <slot />
     </main>
-    <AppFooter />
+    <AppFooter v-if="!immersive" />
 
     <!-- Floating app dock (macOS-style); additive alongside the top nav. -->
     <ClientOnly>
@@ -194,3 +226,16 @@ onMounted(() => {
     </ClientOnly>
   </div>
 </template>
+
+<style scoped>
+/* Immersive pages run to the foot of the viewport; at md and up the floating
+   dock sits over that foot, so the page stops above it (pill + its offset). */
+@media (min-width: 768px) {
+  .app-main--dock-pad {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+  .app-main--dock-pad-labels {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+}
+</style>

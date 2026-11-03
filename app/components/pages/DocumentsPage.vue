@@ -53,6 +53,10 @@ const status = ref<"published" | "draft" | "archived">("published");
 const showCreateFolderDialog = ref(false);
 const showCategoryManager = ref(false);
 const showBatchUploadDialog = ref(false);
+// "+ New → Upload Document" and Spotlight land here with ?new=document.
+useCreateIntent("document", () => {
+  showBatchUploadDialog.value = true;
+});
 // Linkable, replace-not-push — the same tab contract as every other page.
 const activeTab = useTabQuery({
   values: ["categories", "files"],

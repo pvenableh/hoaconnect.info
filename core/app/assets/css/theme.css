@@ -757,6 +757,11 @@ html.theme-modern-dark {
   transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease,
     scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
 }
+/* A pill that carries a word as well as a glyph (the Nav's "+ New"). */
+.header-pill.header-pill--wide {
+  width: auto;
+  padding-inline: 0.75rem;
+}
 .header-pill:active {
   scale: 0.92;
 }

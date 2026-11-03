@@ -15,6 +15,10 @@ const basePath = computed(() => buildOrgPath("/admin/requests"));
 const typeFilter = ref<string>("all");
 const statusFilter = ref<string>("open");
 const showNew = ref(false);
+// "+ New → New Request" and Spotlight land here with ?new=request.
+useCreateIntent("request", () => {
+  showNew.value = true;
+});
 
 const { data: requests, pending, refresh } = await useAsyncData(
   `admin-requests-${selectedOrgId.value}`,

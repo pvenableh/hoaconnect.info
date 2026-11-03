@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import type { HoaChannel } from "#core/types/directus";
-
-// First-class Channels destination inside the Communications hub (auth layout +
-// the Email·Channels·Audience tab strip). Reuses the channels list + search +
-// create-modal; selecting a channel opens the full focused thread view. The
-// top-nav quick-peek chat slide-over stays available for power users.
+// Channels inside the Communications hub (auth layout + the Email · Channels ·
+// Audience tab strip). The same ChannelsWorkspace the full-height
+// /admin/channels pages render, embedded; picking a channel opens the
+// full-height thread. The top-nav quick-peek chat slide-over stays available.
 definePageMeta({
   middleware: ["admin", "subscription"],
   layout: "auth",
 });
 
-const router = useRouter();
-const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
 const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 const { isEnabled } = useModules();
@@ -21,41 +17,11 @@ const orgName = computed(() => currentOrg.value?.organization?.name || "Channels
 const isAdmin = computed(() => isAdminOfCurrentDomain.value);
 const channelsEnabled = computed(() => isEnabled("channels"));
 
-const showCreateModal = ref(false);
-
-// Org-wide message search (mirrors the full channels page).
-const { searchOrg } = useChannelSearch();
-const searchQuery = ref("");
-const searchResults = ref<Awaited<ReturnType<typeof searchOrg>>>([]);
-const searching = ref(false);
-
-const runSearch = async () => {
-  if (!orgId.value || !searchQuery.value.trim()) {
-    searchResults.value = [];
-    return;
-  }
-  searching.value = true;
-  try {
-    searchResults.value = await searchOrg(orgId.value, searchQuery.value);
-  } finally {
-    searching.value = false;
-  }
-};
-watch(searchQuery, runSearch);
-
-const fmtTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
-
-const openChannel = (channel: HoaChannel) =>
-  router.push(buildOrgPath(`/admin/channels/${channel.slug}`));
-
-const openResult = (r: { channel: { slug: string } | null; id: string }) => {
-  if (!r.channel) return;
-  router.push(buildOrgPath(`/admin/channels/${r.channel.slug}?message=${r.id}`));
-};
-
-const handleChannelCreated = (channel: { slug: string }) =>
-  router.push(buildOrgPath(`/admin/channels/${channel.slug}`));
+// The workspace below owns the create modal and opens it for `?new=channel`
+// (useCreateIntent), so the hub's own button asks the same way.
+const router = useRouter();
+const route = useRoute();
+const newChannel = () => router.replace({ query: { ...route.query, new: "channel" } });
 </script>
 
 <template>
@@ -71,7 +37,7 @@ const handleChannelCreated = (channel: { slug: string }) =>
             Ongoing group conversations for {{ orgName }} — board, committees, and community threads.
           </p>
         </div>
-        <Button v-if="isAdmin && channelsEnabled" @click="showCreateModal = true" size="lg">
+        <Button v-if="isAdmin && channelsEnabled" size="lg" @click="newChannel">
           <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
           New channel
         </Button>
@@ -91,72 +57,17 @@ const handleChannelCreated = (channel: { slug: string }) =>
           <div class="py-16 flex justify-center"><div class="spinner-ios" /></div>
         </template>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-6">
-          <!-- Channel list -->
-          <Card class="overflow-hidden">
-            <div class="max-h-[34rem] overflow-y-auto">
-              <ChannelsList
-                v-if="orgId"
-                :organization-id="orgId"
-                :is-admin="isAdmin"
-                @select="openChannel"
-                @create="showCreateModal = true"
-              />
-            </div>
-          </Card>
-
-          <!-- Search + welcome -->
-          <Card class="p-6">
-            <div class="relative mb-4">
-              <Icon
-                name="lucide:search"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
-              />
-              <Input v-model="searchQuery" placeholder="Search all channels…" class="pl-9" />
-            </div>
-
-            <div v-if="searchQuery.trim()">
-              <div v-if="searching" class="py-10 flex justify-center"><div class="spinner-ios" /></div>
-              <div
-                v-else-if="searchResults.length"
-                class="divide-y t-border-divider rounded-lg overflow-hidden border t-border"
-              >
-                <button
-                  v-for="r in searchResults"
-                  :key="r.id"
-                  class="w-full text-left px-4 py-3 hover:t-bg-subtle transition-colors"
-                  @click="openResult(r)"
-                >
-                  <div class="flex items-center gap-2 mb-0.5">
-                    <Icon name="lucide:hash" class="w-3.5 h-3.5 t-text-muted" />
-                    <span class="text-xs font-medium t-text-muted">{{ r.channel?.name }}</span>
-                    <span class="text-xs t-text-muted ml-auto">{{ fmtTime(r.date_created) }}</span>
-                  </div>
-                  <p class="text-sm t-text line-clamp-2">{{ r.snippet }}</p>
-                </button>
-              </div>
-              <p v-else class="text-sm t-text-muted py-10 text-center">No matches.</p>
-            </div>
-
-            <div v-else class="py-12 text-center">
-              <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <Icon name="lucide:message-square" class="w-7 h-7 text-primary" />
-              </div>
-              <h2 class="text-lg font-semibold t-text mb-1">Pick a channel</h2>
-              <p class="t-text-muted text-sm">
-                Select a channel on the left to open the conversation, or search across all of them.
-              </p>
-            </div>
-          </Card>
-        </div>
+        <Card class="overflow-hidden p-0">
+          <ChannelsWorkspace
+            v-if="orgId"
+            embedded
+            :organization-id="orgId"
+            :org-name="orgName"
+            :is-admin="isAdmin"
+          />
+        </Card>
       </ClientOnly>
 
-      <ChannelsCreateChannelModal
-        v-if="orgId && channelsEnabled"
-        v-model:open="showCreateModal"
-        :organization-id="orgId"
-        @created="handleChannelCreated"
-      />
     </PageContainer>
   </div>
 </template>

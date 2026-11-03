@@ -7,9 +7,21 @@
  * the app appeared to change its mind about how a page starts. One component
  * means the page title is the same size everywhere, and changing it is one edit.
  *
+ * In the workspace it REGISTERS rather than renders (usePageTitle): it hands
+ * {title, eyebrow → kicker, description → blurb, backTo} to the shell's
+ * `<AppHeaderOutlet>` and teleports `#actions` / `#meta` into it. The outlet
+ * outlives navigation, so the title changes in place while the page slides, and
+ * hands itself to the Nav when you scroll past it. The props are unchanged, so
+ * no caller had to.
+ *
+ * It still renders itself inline (a) where no outlet is listening — a layout
+ * without one — and (b) on the server and through hydration, because the
+ * outlet renders before the page in SSR and cannot know the title (see the
+ * docblock in usePageTitle). At mount it hands off, in the same place.
+ *
  * Titles use `type-display`, which is capped at one per page.
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string;
     /** Small uppercase line above the title — usually the section or org name. */
@@ -21,10 +33,48 @@ withDefaults(
   }>(),
   { backLabel: "Back" },
 );
+
+const { setPageTitle, hasOutlet } = usePageTitle();
+
+// Inline until mounted ONLY when this render is part of hydration: then the
+// server's inline markup has to be matched first. A client-side navigation
+// hands off from the first render, so the page never draws a header that is
+// about to jump into the outlet.
+const nuxtApp = useNuxtApp();
+const handedOff = ref(import.meta.client && !nuxtApp.isHydrating);
+// The slots teleport only once mounted: on a navigation INTO the workspace the
+// layout (and the outlet's targets) mount in the same pass as this page, and a
+// Teleport that looks for its target before that pass is attached finds none.
+const mounted = ref(false);
+onMounted(() => {
+  handedOff.value = true;
+  mounted.value = true;
+});
+const inOutlet = computed(() => hasOutlet.value && handedOff.value);
+
+watchEffect(() => {
+  if (!inOutlet.value) return;
+  setPageTitle({
+    title: props.title,
+    blurb: props.description ?? null,
+    kicker: props.eyebrow ?? null,
+    backTo: props.backTo ?? null,
+    backLabel: props.backTo ? props.backLabel : null,
+  });
+});
 </script>
 
 <template>
-  <header class="page-header">
+  <template v-if="inOutlet">
+    <Teleport v-if="mounted && $slots.actions" to="#app-header-actions">
+      <slot name="actions" />
+    </Teleport>
+    <Teleport v-if="mounted && $slots.meta" to="#app-header-meta">
+      <slot name="meta" />
+    </Teleport>
+  </template>
+
+  <header v-else class="page-header">
     <NuxtLink v-if="backTo" :to="backTo" class="page-header__back type-meta">
       <Icon name="lucide:chevron-left" class="size-3.5" />
       {{ backLabel }}

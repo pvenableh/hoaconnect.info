@@ -77,12 +77,14 @@ img {
   transform: translateY(20px);
 }
 
-/* Page Transitions — direction-aware iOS push/pop.
+/* Page Transitions — direction-aware.
    The transition NAME is swapped per-navigation by
-   `app/middleware/page-transition.global.ts` (page-forward on a push,
-   page-back on a pop, plain `page` for same-page tab/query switches). All
-   three ride the motion-token scale + Framework7 spring curve so the whole
-   app's pacing is tuned in one place (variables.css). With the configured
+   `core/app/middleware/page-transition.global.ts`, which asks
+   `pickPageTransition` (core/shared/nav/page-transition.ts): page-forward /
+   page-back across dock apps (in dock order) and for drill-downs (push/pop),
+   floor-forward / floor-back across a section's SubNav pills, plain `page` for
+   same-page tab/query switches. All ride the motion tokens (variables.css):
+   positional moves on `--spring`, the iOS push curve. With the configured
    `mode: out-in`, the leaving view animates first, then the entering one. */
 
 /* Clip the horizontal overflow the off-screen view creates during a slide.
@@ -107,8 +109,8 @@ img {
 .page-forward-enter-active,
 .page-forward-leave-active {
   transition:
-    transform var(--motion-page, 300ms) var(--spring-out, ease),
-    opacity var(--motion-page, 300ms) var(--spring-out, ease);
+    transform var(--motion-page, 300ms) var(--spring),
+    opacity var(--motion-page, 300ms) var(--spring);
   will-change: transform;
 }
 .page-forward-enter-from {
@@ -124,8 +126,8 @@ img {
 .page-back-enter-active,
 .page-back-leave-active {
   transition:
-    transform var(--motion-page, 300ms) var(--spring-out, ease),
-    opacity var(--motion-page, 300ms) var(--spring-out, ease);
+    transform var(--motion-page, 300ms) var(--spring),
+    opacity var(--motion-page, 300ms) var(--spring);
   will-change: transform;
 }
 .page-back-enter-from {
@@ -136,6 +138,28 @@ img {
   transform: translate3d(100%, 0, 0);
 }
 
+/* Floor strip: moving between a section's SubNav pills (Members → Units).
+   Same app, so the page shifts a pill's width rather than leaving: a short
+   slide in the pills' order, with the fade doing most of the work. */
+.floor-forward-enter-active,
+.floor-forward-leave-active,
+.floor-back-enter-active,
+.floor-back-leave-active {
+  transition:
+    transform var(--motion-base, 240ms) var(--spring),
+    opacity var(--motion-base, 240ms) var(--spring);
+}
+.floor-forward-enter-from,
+.floor-back-leave-to {
+  transform: translate3d(24px, 0, 0);
+  opacity: 0;
+}
+.floor-forward-leave-to,
+.floor-back-enter-from {
+  transform: translate3d(-24px, 0, 0);
+  opacity: 0;
+}
+
 /* Reduced motion → no slide, no fade: views swap instantly. */
 @media (prefers-reduced-motion: reduce) {
   .page-enter-active,
@@ -143,7 +167,11 @@ img {
   .page-forward-enter-active,
   .page-forward-leave-active,
   .page-back-enter-active,
-  .page-back-leave-active {
+  .page-back-leave-active,
+  .floor-forward-enter-active,
+  .floor-forward-leave-active,
+  .floor-back-enter-active,
+  .floor-back-leave-active {
     transition: none;
   }
   .page-enter-from,
@@ -151,7 +179,11 @@ img {
   .page-forward-enter-from,
   .page-forward-leave-to,
   .page-back-enter-from,
-  .page-back-leave-to {
+  .page-back-leave-to,
+  .floor-forward-enter-from,
+  .floor-forward-leave-to,
+  .floor-back-enter-from,
+  .floor-back-leave-to {
     transform: none;
     opacity: 1;
   }

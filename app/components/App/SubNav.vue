@@ -14,6 +14,7 @@
     ref="trackEl"
     class="app-subnav glass-bar sticky top-0 z-30 border-b t-border"
     aria-label="Section"
+    data-app-subnav
   >
     <!-- The bar is full-bleed so the glass spans the window, but its CONTENT
          sits on the same column as the page below it — otherwise the first pill

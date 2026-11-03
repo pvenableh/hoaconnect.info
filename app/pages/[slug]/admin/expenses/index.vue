@@ -57,6 +57,8 @@ const form = ref(blank());
 const originalStatus = ref<PaymentExpense["status"] | null>(null);
 
 const openCreate = () => { editingId.value = null; originalStatus.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
+// "+ New → Log Expense" and Spotlight land here with ?new=expense.
+useCreateIntent("expense", openCreate);
 const openEdit = (e: PaymentExpense) => {
   editingId.value = e.id;
   originalStatus.value = e.status || "draft";

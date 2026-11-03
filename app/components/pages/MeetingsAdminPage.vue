@@ -262,6 +262,8 @@ const handleAdd = () => {
   resetForm();
   showModal.value = true;
 };
+// "+ New → New Meeting" and Spotlight land here with ?new=meeting.
+useCreateIntent("meeting", handleAdd);
 
 const handleEdit = (m: any) => {
   resetForm();

@@ -1,11 +1,13 @@
-// page-transition.global — direction-aware iOS push/pop for <NuxtPage>.
+// page-transition.global — direction-aware page motion for <NuxtPage>.
 //
 // app.vue binds `<NuxtPage :transition>` to a SINGLE reactive name held in
 // shared state (`page-transition-name`); this middleware swaps that name per
-// navigation so the CSS in main.css plays a horizontal push or pop:
-//   forward → `page-forward`  (new view slides in from the right, old parallaxes left)
-//   back    → `page-back`     (current view slides off right, previous parallaxes in from left)
-//   same path / first paint → `page` (neutral quick fade — tab/query switches don't slide)
+// navigation so the CSS in main.css plays the right move. WHICH move is
+// decided by `pickPageTransition` (core/shared/nav/page-transition.ts):
+//   across dock apps     → `page-forward` / `page-back` in DOCK order
+//   across SubNav floors → `floor-forward` / `floor-back` in pill order
+//   a drill-down         → `page-forward` / `page-back` from the history stack
+//   same path            → `page` (neutral quick fade — tab/query switches don't slide)
 //
 // Why one shared name instead of per-route `to.meta.pageTransition`: with
 // `mode: out-in` the LEAVE of the outgoing view uses whatever transition was
@@ -18,6 +20,22 @@
 // it's a forward/push. This tracks the browser Back/Forward buttons and
 // swipe-back, not just in-app links. Reduced motion is honored in CSS (the
 // classes collapse to instant), so nothing here needs to branch on it.
+
+import { pickPageTransition, type NavOrder } from "#core/shared/nav/page-transition";
+import { ADMIN_APPS, MEMBER_APPS } from "#core/app/composables/useAppNav";
+import { ADMIN_SECTION_LINKS } from "#core/app/composables/useSectionNav";
+
+const NAV_ORDER: NavOrder = {
+  adminApps: ADMIN_APPS,
+  memberApps: MEMBER_APPS,
+  sections: ADMIN_SECTION_LINKS,
+};
+
+// The org-relative path: `/{slug}/admin/members` → `/admin/members`.
+const orgRelative = (path: string, slug: unknown) =>
+  typeof slug === "string" && slug && path.startsWith(`/${slug}`)
+    ? path.slice(slug.length + 1) || "/"
+    : path;
 
 // Module-level so it persists across navigations for the life of the SPA.
 let stack: string[] = [];
@@ -44,14 +62,26 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   const seenAt = stack.lastIndexOf(toPath);
+  let direction: "forward" | "back";
 
   if (seenAt !== -1 && seenAt < stack.length - 1) {
     // Target is behind us → pop. Unwind the stack to that point.
-    name.value = "page-back";
+    direction = "back";
     stack = stack.slice(0, seenAt + 1);
   } else {
     // New (or re-pushed) path → push.
-    name.value = "page-forward";
+    direction = "forward";
     if (stack[stack.length - 1] !== toPath) stack.push(toPath);
   }
+
+  name.value = from
+    ? pickPageTransition(
+        orgRelative(from.path, from.params.slug),
+        orgRelative(toPath, to.params.slug),
+        NAV_ORDER,
+        direction
+      )
+    : direction === "back"
+      ? "page-back"
+      : "page-forward";
 });

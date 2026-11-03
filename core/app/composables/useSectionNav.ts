@@ -9,8 +9,9 @@
 //
 // `module` is the module-gate key (omit for always-on links like Teams /
 // Approvals / Activity). `path` is org-relative — consumers run it through
-// buildOrgPath. NOTE: Board (/board) and Rules (/rules) are member routes (not
-// /admin/*); they render workspace chrome via their layout:auth.
+// buildOrgPath. NOTE: Board (/board), Rules (/rules) and Polls (/polls) are
+// member routes (not /admin/*); they render workspace chrome via their
+// layout:auth, and show their manage controls to whoever may manage them.
 
 export interface SectionLink {
   label: string;
@@ -20,7 +21,7 @@ export interface SectionLink {
   module?: string;
 }
 
-const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
+export const ADMIN_SECTION_LINKS: Readonly<Record<string, SectionLink[]>> = {
   // Dashboard is the "insights" home: the at-a-glance overview plus the usage
   // analytics (resident Activity, AI spend) that don't belong with the
   // association's materials in Records.
@@ -45,6 +46,10 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
   comms: [
     { label: "Email", path: "/admin/communications", icon: "mail", description: "Compose and send to your community.", module: "email" },
     { label: "Channels", path: "/admin/channels", icon: "messages-square", description: "Group chat for the board and committees.", module: "channels" },
+    // Polls has no /admin page: the member route carries the create form and
+    // the results for anyone the polls routes call a manager, like Board and
+    // Rules elsewhere (see the NOTE at the top of this file).
+    { label: "Polls", path: "/polls", icon: "vote", description: "Community votes and surveys.", module: "polls" },
   ],
   records: [
     { label: "Meetings", path: "/admin/meetings", icon: "calendar-days", description: "Agendas, minutes, RSVPs, and votes.", module: "meetings" },
@@ -63,6 +68,10 @@ const ADMIN_SECTION_LINKS: Record<string, SectionLink[]> = {
   requests: [
     { label: "Requests", path: "/admin/requests", icon: "clipboard-list", description: "Resident maintenance, architectural, and general requests.", module: "requests" },
     { label: "Projects", path: "/admin/projects", icon: "kanban-square", description: "Track community projects and tasks to completion.", module: "projects" },
+    // Inquiries from the public site's contact form. Ungated: they arrive
+    // whether or not the Requests module is on, and were reachable only from a
+    // link on the Requests page.
+    { label: "Leads", path: "/admin/leads", icon: "inbox", description: "Inquiries from your public site's contact form." },
     { label: "Approvals", path: "/admin/approvals", icon: "clipboard-check", description: "Review resident-submitted changes to contact info, mailing address, vehicles, and pets." },
     { label: "Moderation", path: "/admin/moderation", icon: "shield-alert", description: "Review flagged posts, comments, and reports.", module: "moderation" },
   ],

@@ -17,6 +17,10 @@ const view = ref<"board" | "list" | "timeline">("board");
 const viewPicked = ref(false);
 const statusFilter = ref<string>("active-set");
 const showNew = ref(false);
+// "+ New → New Project" and Spotlight land here with ?new=project.
+useCreateIntent("project", () => {
+  showNew.value = true;
+});
 
 const { data: projects, pending, refresh } = await useAsyncData(
   `admin-projects-${selectedOrgId.value}`,

@@ -8,6 +8,8 @@ import {
   DURATION_VARS,
   transition,
   afterFirstFrame,
+  longestTransitionMs,
+  settleTransition,
 } from "#core/shared/motion";
 
 const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), "utf8");
@@ -73,5 +75,68 @@ describe("afterFirstFrame()", () => {
     vi.advanceTimersByTime(100);
     expect(fn).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+});
+
+describe("longestTransitionMs()", () => {
+  it("takes the longest duration + delay pair, in ms", () => {
+    expect(longestTransitionMs({ transitionDuration: "0.3s, 240ms", transitionDelay: "0s, 100ms" })).toBe(340);
+  });
+  it("is 0 with no transition", () => {
+    expect(longestTransitionMs({ transitionDuration: "0s", transitionDelay: "0s" })).toBe(0);
+    expect(longestTransitionMs({ transitionDuration: "", transitionDelay: "" })).toBe(0);
+  });
+});
+
+// The page swap must never wait on transitionend alone: a headless or hidden
+// tab may not deliver it, and an out-in swap that never ends strands the old
+// page on screen with the new one never mounted.
+describe("settleTransition()", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("ends at once when there is nothing to animate (reduced motion)", () => {
+    const el = document.createElement("div");
+    const done = vi.fn();
+    settleTransition()(el, done);
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends at once, without throwing, for a comment node (an empty page root)", () => {
+    const done = vi.fn();
+    expect(() => settleTransition()(document.createComment("") as unknown as Element, done)).not.toThrow();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends on the element's own transitionend, once", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("div");
+    el.style.transitionProperty = "opacity";
+    el.style.transitionDuration = "300ms";
+    document.body.appendChild(el);
+    const done = vi.fn();
+    settleTransition()(el, done);
+    const child = document.createElement("span");
+    el.appendChild(child);
+    child.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    expect(done).not.toHaveBeenCalled();
+    el.dispatchEvent(new Event("transitionend"));
+    vi.advanceTimersByTime(1000);
+    expect(done).toHaveBeenCalledTimes(1);
+    el.remove();
+  });
+
+  it("ends anyway when transitionend never comes", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("div");
+    el.style.transitionProperty = "opacity";
+    el.style.transitionDuration = "300ms";
+    document.body.appendChild(el);
+    const done = vi.fn();
+    settleTransition(100)(el, done);
+    vi.advanceTimersByTime(399);
+    expect(done).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2);
+    expect(done).toHaveBeenCalledTimes(1);
+    el.remove();
   });
 });

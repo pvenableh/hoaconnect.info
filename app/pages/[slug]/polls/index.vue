@@ -9,6 +9,11 @@ definePageMeta({
 const { fetchOrgPolls } = usePolls();
 
 const showNew = ref(false);
+// "+ New → New Poll" and Spotlight land here with ?new=poll. The form below
+// only renders for a viewer the polls routes call a manager.
+useCreateIntent("poll", () => {
+  showNew.value = true;
+});
 
 // The route decides who may run these — including a property manager on this
 // community's `feedback` grant, which no role check on this page could see.
@@ -58,7 +63,7 @@ const onCreated = async () => {
         </Button>
       </div>
 
-      <div v-if="showNew" class="ios-card p-6">
+      <div v-if="showNew && canManage" class="ios-card p-6">
         <PollsPollForm @created="onCreated" @cancel="showNew = false" />
       </div>
 

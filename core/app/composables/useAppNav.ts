@@ -1,6 +1,9 @@
 // useAppNav — the "Apps" model for the floating dock navigation, plus the
 // Earnest-style appearance prefs (named color palettes, label visibility,
-// dock position, glass chrome). State persists to localStorage.
+// dock position, glass chrome). The prefs belong to the USER
+// (`directus_users.app_prefs`, core/shared/nav/app-prefs.ts) so they follow
+// them across devices; localStorage is the SSR-safe cache that paints the
+// right dock on the first frame, until the account copy arrives and wins.
 //
 // Color model (ported from Earnest's useAppAccent): each palette is a source
 // HSL ramp; the apps in view get accents sampled across that ramp via pickGappy
@@ -31,8 +34,8 @@ export interface AppDef {
   children?: string[];
 }
 
-export type DockPosition = "bottom" | "top";
-export type PaletteId = "fresh" | "aurora" | "neutral" | "vivid";
+import type { DockPosition, DockPrefs, PaletteId } from "#core/shared/nav/app-prefs";
+export type { DockPosition, PaletteId };
 
 interface Palette {
   label: string;
@@ -150,6 +153,66 @@ export function badgeCountsFor(
   return counts;
 }
 
+// Admin dock — job-based sections rather than a flat tool list. Seven slots:
+// Home + five content sections (People, Communications, Records, Money,
+// Requests) + Settings. Each section fronts several modules and opens on the
+// first of them (see appsFor); AppSubNav discloses the rest as pills. A
+// section's `children` are its module keys; the slot shows iff any child is on
+// (anyEnabled). Leaf slots (dashboard, settings) gate on their own `key` and
+// are core (always shown). `match[]` covers every child route so the
+// longest-prefix activeKeyFor highlights the right section. Channels is still
+// reached via the top-nav chat button (deliberately off the dock).
+export const ADMIN_APPS: readonly AppDef[] = [
+  { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__", "/admin/boardroom", "/admin/activity", "/admin/ai-spend"] },
+  {
+    key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
+    // Vendors is a People-area route (/admin/vendors). It used to live under
+    // /admin/settings/property-management, which collided with the Settings hub
+    // prefix and made the sidebar jump to Settings; the dedicated URL fixes that.
+    match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/vendors"],
+    children: ["directory", "board", "vendors", "teams"],
+  },
+  {
+    key: "comms", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications",
+    match: ["/admin/communications", "/admin/email", "/admin/announcements", "/admin/channels", "/polls"],
+    children: ["email", "channels", "polls"],
+  },
+  {
+    key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
+    match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/admin/ledger"],
+    children: ["meetings", "documents", "rules", "files"],
+  },
+  {
+    key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments",
+    match: ["/admin/payments", "/admin/expenses"],
+    children: ["payments", "expenses"],
+  },
+  {
+    key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/more",
+    match: ["/admin/more", "/admin/requests", "/admin/projects", "/admin/leads", "/admin/approvals", "/admin/moderation"],
+    children: ["requests", "projects", "moderation", "approvals"],
+  },
+  // Settings is a core app (never module-toggled) — keep it last so the dock
+  // always ends with a way into org configuration / public site / billing.
+  { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings", "/admin/users"] },
+];
+
+export const MEMBER_APPS: readonly AppDef[] = [
+  { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
+  { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
+  { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
+  { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
+  { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
+  // Ungated, like the admin link: Pillar B's promise is that an owner can see
+  // what their board decided WITHOUT asking permission, and a ledger an org
+  // can hide from its own owners is not that promise.
+  { key: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", match: ["/ledger"] },
+  { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
+  { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
+  { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },
+  { key: "polls", label: "Polls", shortName: "Polls", icon: "vote", path: "/polls", match: ["/polls"] },
+];
+
 const PALETTE_KEY = "app-nav-palette";
 const POSITION_KEY = "app-nav-position";
 const LABELS_KEY = "app-nav-labels";
@@ -174,71 +237,72 @@ function loadPrefs() {
   if (g != null) glassChrome.value = g === "1";
 }
 
+// Cache a value on this device. The account copy is the source of truth; this
+// is what the next cold load paints before it arrives.
+function cachePrefs() {
+  if (!import.meta.client) return;
+  localStorage.setItem(PALETTE_KEY, palette.value);
+  localStorage.setItem(POSITION_KEY, dockPosition.value);
+  localStorage.setItem(LABELS_KEY, showLabels.value ? "1" : "0");
+  localStorage.setItem(GLASS_KEY, glassChrome.value ? "1" : "0");
+}
+
+// ── The account copy ───────────────────────────────────────────────────────
+// Pulled once per signed-in user per page load; a stored key overrides the
+// cache, an absent one leaves it alone. Pushed on every change, debounced, as
+// the whole dock object (the route merges it into the row). Both are
+// best-effort: until the field is provisioned the GET answers
+// `available: false`, the PATCH 503s, and the cache is the only copy — which
+// is exactly the old behaviour.
+let pulledFor: string | null = null;
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+// Bumped by every setter: a choice made while the pull is in flight is newer
+// than what the pull brings back, so the pull must not undo it.
+let localEdits = 0;
+
+async function pullUserPrefs(userId: string) {
+  if (pulledFor === userId) return;
+  pulledFor = userId;
+  const editsBefore = localEdits;
+  try {
+    const res = await $fetch<{ available: boolean; prefs: { dock?: DockPrefs } }>("/api/user/app-prefs");
+    const dock = res?.prefs?.dock;
+    if (!dock || localEdits !== editsBefore) return;
+    if (dock.palette && dock.palette in PALETTES) palette.value = dock.palette;
+    if (dock.position) dockPosition.value = dock.position;
+    if (typeof dock.labels === "boolean") showLabels.value = dock.labels;
+    if (typeof dock.glass === "boolean") glassChrome.value = dock.glass;
+    cachePrefs();
+  } catch {
+    // Signed out, offline, or the route is unavailable: the cache stands.
+  }
+}
+
+function pushUserPrefs() {
+  localEdits++;
+  if (!import.meta.client || !pulledFor) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    const dock: DockPrefs = {
+      palette: palette.value,
+      position: dockPosition.value,
+      labels: showLabels.value,
+      glass: glassChrome.value,
+    };
+    $fetch("/api/user/app-prefs", { method: "PATCH", body: { dock } }).catch(() => {});
+  }, 400);
+}
+
 export function useAppNav() {
   const route = useRoute();
   const { buildOrgPath, navigateToOrg } = useOrgNavigation();
   const { isEnabled, anyEnabled } = useModules();
+  const { user } = useDirectusAuth();
 
   loadPrefs();
-
-  // Admin dock — job-based sections rather than a flat tool list. Seven slots:
-  // Home + five content sections (People, Communications, Records, Money,
-  // Requests) + Settings. Each section fronts several modules and opens on the
-  // first of them (see appsFor); AppSubNav discloses the rest as pills. A
-  // section's `children` are its module keys; the slot shows iff any child is on
-  // (anyEnabled). Leaf slots (dashboard, settings) gate on their own `key` and
-  // are core (always shown). `match[]` covers every child route so the
-  // longest-prefix activeKeyFor highlights the right section. Channels is still
-  // reached via the top-nav chat button (deliberately off the dock).
-  const ADMIN_APPS: AppDef[] = [
-    { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__", "/admin/boardroom", "/admin/activity", "/admin/ai-spend"] },
-    {
-      key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
-      // Vendors is a People-area route (/admin/vendors). It used to live under
-      // /admin/settings/property-management, which collided with the Settings hub
-      // prefix and made the sidebar jump to Settings; the dedicated URL fixes that.
-      match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/vendors"],
-      children: ["directory", "board", "vendors", "teams"],
-    },
-    {
-      key: "comms", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications",
-      match: ["/admin/communications", "/admin/email", "/admin/announcements", "/admin/channels"],
-      children: ["email", "channels"],
-    },
-    {
-      key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
-      match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/admin/ledger"],
-      children: ["meetings", "documents", "rules", "files"],
-    },
-    {
-      key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments",
-      match: ["/admin/payments", "/admin/expenses"],
-      children: ["payments", "expenses"],
-    },
-    {
-      key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/more",
-      match: ["/admin/more", "/admin/requests", "/admin/projects", "/admin/approvals", "/admin/moderation"],
-      children: ["requests", "projects", "moderation", "approvals"],
-    },
-    // Settings is a core app (never module-toggled) — keep it last so the dock
-    // always ends with a way into org configuration / public site / billing.
-    { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings", "/admin/users"] },
-  ];
-
-  const MEMBER_APPS: AppDef[] = [
-    { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
-    { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
-    { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
-    { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
-    { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
-    // Ungated, like the admin link: Pillar B's promise is that an owner can see
-    // what their board decided WITHOUT asking permission, and a ledger an org
-    // can hide from its own owners is not that promise.
-    { key: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", match: ["/ledger"] },
-    { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
-    { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
-    { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },
-  ];
+  const userId = user.value?.id;
+  if (import.meta.client && userId) void pullUserPrefs(userId);
 
   // Hide apps whose org module is toggled off (Track B). A hub slot shows iff
   // ANY of its children is enabled (anyEnabled); a leaf slot gates on its own
@@ -290,21 +354,26 @@ export function useAppNav() {
   const go = (app: AppDef) => navigateToOrg(app.path);
 
   // ---- Preference setters ----
+  // Each writes the cache now and the account copy shortly after.
   const setPalette = (p: PaletteId) => {
     palette.value = p;
-    if (import.meta.client) localStorage.setItem(PALETTE_KEY, p);
+    cachePrefs();
+    pushUserPrefs();
   };
   const setPosition = (pos: DockPosition) => {
     dockPosition.value = pos;
-    if (import.meta.client) localStorage.setItem(POSITION_KEY, pos);
+    cachePrefs();
+    pushUserPrefs();
   };
   const setShowLabels = (v: boolean) => {
     showLabels.value = v;
-    if (import.meta.client) localStorage.setItem(LABELS_KEY, v ? "1" : "0");
+    cachePrefs();
+    pushUserPrefs();
   };
   const setGlassChrome = (v: boolean) => {
     glassChrome.value = v;
-    if (import.meta.client) localStorage.setItem(GLASS_KEY, v ? "1" : "0");
+    cachePrefs();
+    pushUserPrefs();
   };
 
   // Drive the document default accent from an HSL (per-page .accent-* still wins)

@@ -97,6 +97,8 @@ const handleAdd = () => {
   resetForm();
   showModal.value = true;
 };
+// "+ New → Add Unit" and Spotlight land here with ?new=unit.
+useCreateIntent("unit", handleAdd);
 
 const handleEdit = (unit: any) => {
   form.unit_number = unit.unit_number;
