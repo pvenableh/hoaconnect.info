@@ -17,7 +17,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
 | 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: run `pnpm add:user-app-prefs` (blocked here) — until then dock prefs stay per-device. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
-| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
+| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [~] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` (blocked here) — until then sends go out unsuppressed and without the header. **3b-design [ ]**, **3b-build [ ]**. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
@@ -772,6 +772,258 @@ When done: update the Status row, append Session 5 to the Session log
 (shipped, deviations, operator TODOs), write the Phase 3b-design kickoff
 prompt (Fable 5.1, effort high — a written spec and the named test list, no
 code), and stop. One phase per session.
+```
+
+**Session 5 — Phase 3a: email classes, unsubscribe, suppression** (2026-11-03) — local, on
+`main`, not pushed. At the start `origin/main..main` held Session 4b's four commits
+(`a1b8387`, `5a2df08`, `08f08ac`, `3ed7944`); they are still unpushed. One code commit,
+`8513eeb`.
+
+Shipped:
+
+- **Two classes.** `core/shared/email/email-class.ts`: `essential` (dues, meetings, violations,
+  governance, membership — can't be unsubscribed) and `community` (news — opt-out-able).
+  Alert, reminder and notice default to essential. Newsletter, announcement and basic
+  default to community. **A newsletter is never essential**: a request for it is refused
+  (400 `newsletter_not_essential`) at save, schedule, test and send, never downgraded.
+  `hoa_emails.email_class` is stored once the field exists. The composer gains a Delivery
+  control, and picking a type resets it to that type's default.
+- **Audience.** `partitionAudience`: bounced addresses drop from both classes, opted-out
+  members from community only. It applies in `send.post.ts` (explicit ids too — a recipient
+  picker is not consent), in `sendEmailJob.resolveRecipients` and in the digest worker
+  (which counts as community). The send returns `stats.suppressed`, and the composer's
+  toast names it. When everyone selected is held back, the send fails with 400
+  `all_recipients_suppressed`.
+- **Tokens and routes.** `hoa_members.unsubscribe_token` holds 24 random bytes as base64url
+  and is minted lazily at send, in one batch write. The send uses the copy read back from
+  the store (`ensureUnsubscribeTokens`); a failed mint never fails the send.
+  `findMemberByToken` resolves to exactly one member of one org, or to nobody (two rows →
+  nobody).
+  - `/unsubscribe`: a standalone glass page (`auth-blank` + `AuthShell`). Opening it
+    changes nothing. One tap confirms. It lists what still arrives, offers "Changed your
+    mind? Resubscribe", and links to the household page.
+  - `GET`/`POST /api/email/unsubscribe` back the page.
+  - `POST /api/email/unsubscribe/one-click` (RFC 8058): no auth, 200 with an empty body,
+    idempotent, the same 200 for an unknown token, 503 on a failed read or write. `GET` on
+    the same URL 302s to the page.
+  - `sendOrganizationEmail` takes `headers`. Every community send that has a token carries
+    `List-Unsubscribe: <https one-click>` and `List-Unsubscribe-Post`.
+- **Footer.** `core/shared/email/unsubscribe.ts` is the assembler.
+  - `checkSendCompliance` runs once per send: the class, and for community mail the org's
+    postal address. Without the address the send is refused (400 `sender_address_missing`,
+    naming Settings → Organization), as Earnest's `SENDER_ADDRESS_MISSING` does.
+  - `recipientCompliance` runs once per recipient and returns the headers and the footer.
+    Community footer: Unsubscribe · Preferences · address. Essential: "You receive this
+    because you are a member of {org}; it cannot be unsubscribed." · Preferences.
+  - The footer is in every body: MJML, plain text, raw mode (`appendComplianceFooterHtml`,
+    before `</body>`), the dynamic-template branch (appended to `content`, plus
+    `unsubscribe_url` / `preferences_url` / `compliance_footer` template keys) and the web
+    view (no personal link).
+  - Transactional notifications (`transactional-email.ts`) carry the essential footer with
+    "notifications" wording.
+- **Suppression from the webhook.** `core/shared/email/suppression-events.ts` holds
+  `eventAction()`, ported row for row. A hard bounce (`type: bounce`, classification
+  Invalid Address / Mailbox Unavailable / none) or a `dropped` "Bounced Address" sets
+  `email_bounced` + `_at` + `_reason`. `spamreport` (source `spam`) and
+  `unsubscribe`/`group_unsubscribe` (source `link`) set the opt-out. Reputation, content
+  and `blocked` bounces do nothing.
+  - Matching is case-insensitive, exact, and inside the event's org only. Org-less events
+    are never applied.
+  - The pass runs **before** any activity row or downstream forward. A failed store answers
+    503, so SendGrid's redelivery can't duplicate a row or a forward. Every write is a
+    no-op the second time.
+- **Members page.** Bounced / Unsubscribed chips beside the name carry the reason. "Clear"
+  sits behind `useConfirm`, is admin only, and writes a ledger entry
+  (`member_email_status_cleared`, board-only, Access) that keeps the cleared reason. The
+  data comes from `GET`/`POST /api/hoa/member-email-status`, a separate read, so the
+  roster's own read never names a field that may not exist.
+- **Resident preferences.** `Profile/EmailPreferences.vue` is a glass section on
+  `/{slug}/profile#email`, where the footer's "Preferences" link lands. It holds the
+  community switch (`/api/user/email-subscription`, the session's own membership only), the
+  bounced banner, an "Always sent" list, and the master switch plus the 10-category matrix,
+  in-app and email. `useNotificationPreferences` gains the email half; the digest stays on
+  `/account`.
+- **Schema.** `scripts/add-email-compliance-fields.ts` (`pnpm add:email-compliance`) is one
+  idempotent script for the seven `hoa_members` fields (the token is unique) and
+  `hoa_emails.email_class`. The types are hand-added with the generator's notes.
+  `emailComplianceSchema()` probes the fields, caching a yes for the life of the process
+  and a no for a minute, and every path degrades until the script has run:
+  - sends go out unsuppressed, without a token or header, linking the generic page;
+  - the preference reads return `available: false` and the writes 503;
+  - the webhook stores the batch and logs that suppression was skipped;
+  - the page reports a dead link.
+- **Tests (6 files, 111 tests).** Class rules; the `eventAction` table; the assembler's
+  output in MJML, text, raw and web view; one-click (no session, 200 empty, idempotent,
+  unknown token, malformed token never reaches Directus, 503 read, 503 write); token
+  minting and lookup; the schema probe; org scope for every new route (the session's own
+  row; an admin of another org gets 403; Clear by id across orgs gets 404); save's new
+  gate; send's missing-address 400 before any member read; the class rules end to end
+  through `send.post.ts`; webhook ordering and 503.
+
+Deviations and judgment calls:
+
+1. **The postal address is the org's own** `street_address`/`city`/`state`/`zip` (Settings →
+   Organization), not `settings.landing`. `landing` holds no address, and `send.post.ts`
+   already built the footer address from these fields. "Complete" means a street plus a
+   city or a ZIP. Today only `transition-test` lacks one; its community sends now refuse.
+2. **`save.post.ts` and `preview.post.ts` now require the `communications` grant.** Save
+   previously required *any* session for *any* org. A saved email with status `scheduled`
+   is mailed to the whole org by the cron, so saving one is sending one. Found while
+   adding the class to save. **Not fixed, same shape:** `email/[id].delete.ts` (delete any
+   org's draft) and `email/[id].get.ts` (read any email by id) still require only a session.
+3. **The schema script narrows read permissions.** The HOA Member, HOA Admin and Property
+   Manager policies read `hoa_members` with `*`. A new token column would therefore reach
+   every resident through the items proxy, and with it the power to unsubscribe a
+   neighbour. The script rewrites each non-admin-access read permission on `hoa_members`
+   to "every current field except the seven". It fails closed: a field added later must be
+   added to those policies explicitly. Create and update permissions are untouched, so an
+   HOA Admin can still write the flags through Directus directly.
+4. **Opt-out sources.** The member's own switch, on the page or the household page, is
+   recorded as `link`; the enum has no `self`. SendGrid's `unsubscribe` and
+   `group_unsubscribe` are `link`, a spam report is `spam`. The first opt-out's source and
+   time are kept; a later event never rewrites why someone left.
+5. **Not suppressed yet (left to 3b's sender unification):**
+   - Project notifications (`transactional-email.ts`) get the footer, but a bounced user
+     still receives them.
+   - `scripts/billing-worker.ts` dues reminders don't check `email_bounced`.
+   Neither was one of the three audience paths 3a names.
+6. **The dynamic-template branch** (when `SENDGRID_EMAIL_TEMPLATE_ID` is set) can't change
+   the SendGrid-hosted template. The footer is therefore appended to `{{content}}`, and the
+   three new template keys let the template place it itself.
+7. **Clear writes to the ledger, not `hoa_activity`.** Clearing an opt-out is a consent
+   decision taken for someone else, the one email action a board may later have to show
+   was asked for. Board-only, because it names one member's standing.
+8. **A compliance refusal fails a scheduled email instead of retrying it.**
+   `EmailComplianceRefusal` is thrown by `sendEmailJob`, and `process-scheduled` marks the
+   email `failed` rather than rescheduling it every tick. Saving with `status: scheduled`
+   checks the address up front, while the admin is on the page.
+9. **Before provisioning, the page's GET answers `valid: false`, not 503.** No token can
+   exist yet, so "this link no longer works" is the truth. The one-click route keeps its
+   503: before provisioning it 503s, which is harmless.
+10. **Browser verification ran with a real session on the demo org.** The run used
+    `scripts/browser/verify-p3a-email.cjs` against a local build with the project's `.env`,
+    signed in through `POST /api/demo/login`, and scored **92/92 on three consecutive
+    runs** in light and dark: `/unsubscribe`, the household Email section, the Members
+    chips and the composer's Delivery control. **It sent no mail and wrote nothing:**
+    - every UI write was intercepted with `page.route`, and the check reads the request
+      body;
+    - the states that can't exist before provisioning (a provisioned or bounced member, a
+      valid token) were answered by the route, and those checks are labelled "(mocked)";
+    - everything else is real: the token reads, one-click (503 while unprovisioned), the
+      302, the degraded switch.
+    Snapshots of `demo` and `demo-classic` (members, emails, recipients, activity, ledger
+    and the members' users' notification prefs, all hashed) are **identical** before and
+    after. Two harness facts:
+    - a hard load of `/unsubscribe` reads during SSR, out of `page.route`'s reach, so the
+      mocked states are reached by a router push;
+    - a page arriving by the router fades in, so the screenshot waits for full opacity.
+      The first dark capture caught it mid-fade at opacity 0, and its text was in fact
+      `rgb(233,239,245)`.
+11. **Census side findings, not touched (out of scope):**
+    - `sendEmail()` and `sendWelcomeEmail()` have no demo guard. `public-inquiry`,
+      `inquiry-routing`, `request-join` and `approve-join-request` can therefore send real
+      mail from a demo org.
+    - `public-inquiry.post.ts` is unauthenticated and has no rate-limit.
+    - Invite, welcome and accept sends carry no categories or `custom_args`.
+    - `sendBulkEmail()` and `notify.ts`'s email twin have no callers.
+
+Gates (final tree, `8513eeb`): typecheck 0 · vitest 107 files / 1814 tests (from 101 / 1703)
+· build green · `audit:hairline-surfaces` 0 · `verify-p3a-email.cjs` **92/92 ×3** (demo
+session, light + dark) · `demo` / `demo-classic` snapshots identical before and after.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: Session 4b's four commits, `8513eeb` and this docs commit, all on
+      local `main`.
+- [ ] **Provision**: `pnpm add:email-compliance`, then `pnpm generate:types` (expect no diff on
+      the eight fields). Read the script's permission lines: it should report HOA Member,
+      HOA Admin and Property Manager "read narrowed". Until it runs, nothing is suppressed
+      and no community send carries `List-Unsubscribe`.
+- [ ] **After provisioning, one real community test** from a non-demo org to your own
+      address (demo orgs block mail):
+      - Gmail shows "Unsubscribe" beside the sender;
+      - the footer links work;
+      - Gmail's button lands a one-click;
+      - the member shows "Unsubscribed" on the Members page.
+      Clear it there, then check the ledger entry.
+- [ ] **SendGrid Event Webhook**: confirm it sends Bounced, Dropped, Spam Reports,
+      Unsubscribes and Group Unsubscribes, and that `SENDGRID_WEBHOOK_PUBLIC_KEY` is set (the
+      route warns while it isn't).
+- [ ] If `SENDGRID_EMAIL_TEMPLATE_ID` is set on Vercel, look at where the footer lands
+      inside the template; optionally place `{{{compliance_footer}}}` in the template
+      itself.
+- [ ] `email/[id].delete.ts` and `email/[id].get.ts` still need the org gate (deviation 2):
+      a short session, or Phase 9.
+- [ ] Still open from Phase 2: `pnpm add:user-app-prefs`.
+
+#### Phase 3b-design — kickoff prompt (Fable 5.1, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entries for Session 1 (cron auth) and Session 5
+(Phase 3a: what the send path now does once per send and once per
+recipient), §Token budget, and §3b. Do not read §4 onwards, and never open
+docs/plan-earnest-parity-round2.md.
+
+This session = Phase 3b-DESIGN ONLY, on Fable 5.1 at effort high: a written
+spec and the named test list for the email send queue's state machine. NO
+CODE: no source, test, script or schema edits. The spec goes in
+docs/spec-email-send-queue.md, linked from §3b.
+
+Read only the lines you need (sed -n), never whole files:
+  Earnest (~/Sites/earnest/earnest): server/utils/newsletter-batch.ts and
+    newsletter-prepare.ts, the §3b port. Do not re-survey anything else.
+  HOA Connect:
+    core/server/api/email/send.post.ts: the synchronous per-recipient loop
+      the queue replaces (deliverTo, CC/BCC copies, CID images, the three
+      body branches);
+    core/server/utils/sendEmailJob.ts + api/email/process-scheduled.post.ts:
+      the scheduled path, EmailComplianceRefusal, recurrence;
+    core/shared/email/email-class.ts, core/shared/email/unsubscribe.ts and
+      core/server/utils/email-compliance.ts: 3a's checkSendCompliance (once
+      per send), recipientCompliance (once per recipient),
+      partitionAudience, ensureUnsubscribeTokens and emailComplianceSchema.
+      The queue must keep calling them at the same two points;
+    core/server/utils/cron-auth.ts (requireCronOrAppAdmin).
+  Use a Haiku 5.5 subagent for any census (every caller of
+  sendOrganizationEmail; every writer of hoa_email_recipients).
+
+The spec must decide each of these and write down why:
+1. Recipients as the queue: hoa_email_recipients states (queued, claimed,
+   sent, failed, suppressed), what is written at each step, and the unique
+   key that makes enqueueing idempotent.
+2. Claim and settle: how a worker claims a batch (conditional update vs a
+   claim token), how it settles, and what "at most once" means when Vercel
+   kills the function after SendGrid accepted a message but before its row
+   was written. Choose a side of that window: a dues notice sent twice, or
+   one dropped. Say what makes the choice safe.
+3. Stale-claim expiry: the timeout, who reclaims, and the evidence that
+   stops a reclaimed row being sent twice (x-message-id, custom_args, the
+   activity webhook).
+4. Progress arithmetic: hoa_emails counts derived from rows rather than
+   incremented; the done condition; partial failure; the progress route.
+5. Where 3a's rules run. Suppression and token minting at enqueue
+   (partitionAudience, ensureUnsubscribeTokens). Then re-checked at send:
+   a member who unsubscribes or bounces mid-send must not get the rest.
+6. The continue-sends cron: auth, batch size and time budget under
+   Vercel's limit. Sender unification: which of send.post, sendEmailJob,
+   test.post, transactional-email, the digest worker and
+   scripts/billing-worker.ts become queue clients and which stay direct,
+   and why. Session 5 left bounced-suppression out of the transactional
+   and billing paths for this decision.
+7. CC/BCC copies, attachments and CID images in a queued world.
+
+Then the named test list: about 50 tests, grouped by concern, one line
+each ("name: the property it pins"). Include a kill-at-every-step test
+for the at-most-once property, and the 3a rules re-pinned at both points.
+
+Local session: work on main, ask before pushing. Check `git log
+origin/main..main` and say what is unpushed (Session 4b and 5 may still
+be). When done: update the Status row (3b-design), append Session 6 to the
+Session log (decisions, open questions), write the Phase 3b-build kickoff
+prompt (Opus 5.5, effort xhigh; it names the spec, the test list and the
+files), and stop. One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
