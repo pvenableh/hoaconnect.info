@@ -18,7 +18,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
 | 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: `pnpm add:user-app-prefs` ran 2026-11-03; dock prefs are now per user. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [x] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [x]** (session 6, docs only): `docs/spec-email-send-queue.md` — per-email lease by unique insert (Directus filter-updates are not atomic), at-most-once chooses dropped over doubled with the webhook as the evidence that closes the gap, counts derived from rows, 64 named tests; five open questions for Peter (Vercel plan first). **3b-build [x]** (session 7, local `main`, not pushed): the queue as specified — lease, claim/settle, at-most-once, derived counts, the tick (`* * * * *`, `maxDuration: 60` via a per-route Vercel function), progress route + dialog + detail chips + dock badge, `resolveSender` + bounced guard on the direct senders; all 66 spec tests (kill matrix at 15 steps); runs synchronous until `pnpm add:email-send-queue`. Gates green (typecheck 0, vitest 115/1911, Vercel-preset build, browser 38/38 mocked); operator: run the script, then `--real`. |
-| 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
+| 8 | Phase 4 — Email: health, scheduling, branding parity | [x] | Session 8, local `main`, not pushed: auto-pause + Resume (under the send's lease, one notification, baseline), recurrence (daily … annual, nth / last weekday, on the sender's time zone, composer sentence), MJML partials (`_layout` / `_header` / `org-email` / `_footer`, byte-identical to the string builder on 19 fixtures), `brandVars` + WCAG `brandOnColor`, logo 50 px from file metadata, `GET /api/email/preview-mjml` + the Branding card's iframe. Q4 (resend unknown) and copy overrides not built. Operator: re-run `pnpm add:email-send-queue` (Phase 4 fields) — until then no auto-pause and repeats stay on UTC. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
 | 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
@@ -1407,6 +1407,204 @@ row you create.
 Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 8 to the Session log (shipped, deviations, operator
 TODOs), write the Phase 5a kickoff prompt (Opus 5.5, effort xhigh), and stop.
+One phase per session.
+```
+
+**Session 8 — Phase 4: email health, scheduling, branding parity** (2026-11-03) — local, on
+`main`, Opus 5.5 at effort high. Peter confirmed `main` was fully pushed and that
+`pnpm add:email-send-queue` + `pnpm generate:types` had run (`4dd20bf`); the unpushed check
+was skipped. One code commit.
+
+Before the phase, at Peter's request: `verify-p3b-queue.cjs --real` against a local build —
+**8/12**. The real send worked end to end (enqueued, 6 rows settled `sent` under the demo
+guard, none left queued/claimed, cleanup restored both snapshots). The 4 failures are one
+precondition: `demo` has **6 members**, the script needs ≥ 60, and a ≤ 50 send finishes
+inline, so the composer (correctly) never opens the progress dialog.
+
+Shipped (runbook: `docs/email-sending.md` §6, §7, §10):
+
+- **Auto-pause + Resume** — `core/shared/email/send-health.ts` (the lines: 50 outcomes, 8%
+  hard bounces of delivered + hard-bounced, 0.5% spam of delivered; the sentence; the
+  `{ health }` record in `send_errors`, keyed to the `run_key`) and
+  `core/server/utils/email-send-health.ts`:
+  - `checkSendHealth` runs in `runSendTick` after a run that left its send unfinished,
+    outside `runBatch`, **under the send's lease**; the pause is a filter-update on
+    `(id, status = sending)` and only a call whose write moved the row notifies (bell +
+    branded email via `notifyUsers` to `adminUserIds` + the sender, CTA "Review and resume");
+  - `resumeSend` + `POST /api/email/[id]/resume` (org-gated; 409 `not_paused` / `send_busy`)
+    store the counts as the baseline;
+  - events are counted per occurrence through `email_recipient.{email, run_key}`; a hard
+    bounce is a `bounce` whose `bounce_type` isn't `blocked`, or a `dropped` "Bounced Address";
+  - `deriveProgress` gains phase `paused` + `paused: { reason, sentence }`; the dialog and the
+    detail card say "Paused · too many bounces" with the sentence and **Resume sending**;
+    `paused` badges in the lists; save/delete 409 a paused email as they do a sending one.
+- **Recurrence** — `core/shared/email/recurrence.ts`: `computeNextRun(base, rule, timeZone)`
+  for daily, weekly, biweekly, monthly, `monthly_nth_weekday`, `monthly_last_weekday`,
+  quarterly, annual, on the wall clock of the zone (`@internationalized/date`); the Repeat
+  picker's choices name the chosen date's weekday ("Monthly on the second Tuesday"); the
+  sentence under it ("Every second Tuesday of the month at 9:00 AM — first on Tue, Nov 10, then
+  Tue, Dec 8."). `email-send-queue.ts` re-exports `computeNextRun`; completion reads the
+  email's zone through an optional `store.recurrenceTimeZone`. `save.post` validates the rule.
+- **MJML partials** — `core/server/emails/_layout.mjml` (head, browser banner, wrapper with
+  `@HEADER` / `@CONTENT` / `@FOOTER`), `_header.mjml`, `org-email.mjml`, `_footer.mjml`;
+  `core/server/utils/email-partials.ts` fills them (`{{var}}`, nested `{{#if}}…{{else}}`,
+  `{{!-- --}}` notes; one pass, so an author's `{{first_name}}` survives; a missing var
+  throws). `buildEmailHtml` = compile(`buildEmailMjml`). `core/build/raw-mjml.ts` inlines
+  `.mjml` imports as strings for Nitro (`core/modules/raw-mjml.ts`, which also declares the
+  module type) and vitest — no `serverAssets`.
+- **`brandVars()`** (header band, plate, logo, `accentColor`, `brandOnColor`) with
+  `core/shared/color-contrast.ts` (WCAG luminance/contrast, `onColor`). **Logo sizing:**
+  50 px tall, ≤ 240 px wide, never enlarged, explicit width/height, bitmap at 2× — when the
+  file's dimensions are known; the email paths now read `settings.logo` as
+  `{ id, width, height }`.
+- **Preview** — `GET /api/email/preview-mjml?org&template&format` (`format` html | text |
+  mjml; `template` = the six types or `notification&category=<key>` for every notification
+  category; unsaved `primary` / `secondary` / `accent` / `palette=none` / `headerText`);
+  `communications` gate; `Content-Security-Policy: sandbox` on the HTML. The Branding card's
+  iframe is `src`-driven by it (debounced, with a Notification option + category).
+  `transactionalContent()` is lifted out of `sendBrandedTransactionalEmail` so the preview
+  is the email.
+- **Schema** — `scripts/add-email-send-queue.ts` gains its Phase 4 part (idempotent):
+  `paused` on `hoa_emails.status`, the six repeat rules on `recurrence_rule`,
+  `hoa_emails.recurrence_timezone`, `hoa_email_activity.bounce_type`. Types hand-added.
+  `emailPhase4Schema()` gates the tick's health check, the webhook's `bounce_type` write
+  and `save.post`'s zone write.
+- **Tests** — `email-send-health.test.ts` (18: the lines table; the conditional write under
+  the lease; a held lease; three ticks → one pause, one notification; skip-while-paused;
+  the baseline; the Directus store's filters, with and without `bounce_type`),
+  `email-recurrence.test.ts` (27: the table, last / fifth weekday, a year without drift,
+  DST, the sender's Tuesday vs UTC's, the 31st, the choices and sentences, completion in
+  the zone), `email-partials.test.ts` (32: 19 byte-stability fixtures in
+  `tests/server/__fixtures__/email-html/` written by the string builder before the
+  refactor, logo boxes, `brandOnColor`, the filler), `email-preview-mjml.test.ts` (7: the
+  org gate, formats, the unsaved palette, notification, CSP), and the footer sentinel per
+  type in `email-sender-unification.test.ts` (+6).
+
+Deviations, with reasons:
+
+1. **`shared/color-contrast.ts` didn't exist** (the plan assumed Earnest's). Written as
+   `core/shared/color-contrast.ts`; the template's YIQ `isDarkColor` now asks it. One
+   exception: alert's red pill keeps its white label on any palette (it is semantic, not
+   brand; WCAG calls white vs ink on `#ef4444` a near-tie, 3.8 vs 4.0).
+2. **"≥ 4 template types"**: HOA has one org-email builder dressed six ways (basic, alert,
+   newsletter, announcement, reminder, notice), plus the branded notification (a notice).
+   All seven compose through the partials, so the refactor was one builder, not one type
+   at a time. The invitation / welcome / accepted emails are SendGrid dynamic templates
+   (`email-templates-invite.mjml` is their source) — not composed or previewable here.
+3. **Two fields the plan didn't name.** `hoa_email_activity.bounce_type`: the webhook
+   never stored SendGrid's bounce type, so a blocked bounce couldn't be told from a hard
+   one. `hoa_emails.recurrence_timezone`: "the second Tuesday at 9:00" needs the sender's
+   zone (a 9 pm New York Tuesday is a UTC Wednesday; Sept 2027 shows they diverge). The
+   org timezone 5a adds can become its default.
+4. **The pause is serialized by the lease**, not only by the filter-update: in Directus a
+   filter-update is read-then-write (spec §3.1), so two ticks could both "move" the row.
+5. **Monthly on the 29th–31st now constrains** (Jan 31 → Feb 28) instead of overflowing
+   (Jan 31 → Mar 3, `Date.setMonth`). Each run is computed from the previous, so it then
+   stays on the 28th; no anchor field was added.
+6. **The parked-send note is now "Waiting: …"** (was "Paused: …"), so "paused" means one
+   thing.
+7. **`branding-preview.post.ts` removed**: it had no org gate (any signed-in user could
+   render any org's branding); its only caller now uses the gated GET route.
+8. **Spec Q3 decided: keep `run_key`** (one `hoa_emails` row per recurring email, rows per
+   occurrence). Completion already rolls forward through it, history is per occurrence on
+   the rows, and nothing needs migrating.
+9. **Not built**: "Resend to these N unknown" (Q4 — no yes from Peter); per-org copy
+   overrides (not cheap: a schema field plus the three transactional senders' copy).
+10. **Found while verifying**: Directus answers 403 for a filter on a field that doesn't
+    exist yet, so Resume failed before the script reruns; the health store now counts
+    every bounce until `bounce_type` exists (`directusHealthStore(…, { bounceTypes })`).
+
+Gates (final tree):
+- typecheck 0;
+- vitest **119 files / 2001 tests** (from 115 / 1911);
+- `pnpm build` (node-server) green; the partials are inlined in `chunks/nitro/nitro.mjs`.
+  A Vercel-preset build was not run (the plugin is preset-independent rollup);
+- `audit:hairline-surfaces` 0;
+- `verify-p4-email.cjs` **36/36**, light and dark, real (a paused email on `demo` → Resume
+  → the tick → Sent; the repeat sentence; the Branding preview incl. a notification;
+  the sandbox CSP), twice; `demo` / `demo-classic` snapshots identical after cleanup.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: this session's two commits (code + docs) on local `main`.
+- [ ] **Re-run** `pnpm add:email-send-queue` (it now adds Phase 4's fields), then
+      `pnpm generate:types` (expect no diff: `paused`, the repeat rules,
+      `recurrence_timezone`, `bounce_type` are hand-added). Until then: no auto-pause, the
+      composer's zone isn't stored, repeats roll forward on UTC.
+- [ ] **Look at one real email with a logo**: logos are now 50 px tall (≤ 240 px wide) where
+      Directus knows the file's size — the one deliberate visual change. To tune it:
+      `LOGO_MAX_HEIGHT` / `LOGO_MAX_WIDTH` in `email-templates-mjml.ts`.
+- [ ] **`verify-p3b-queue.cjs --real` needs ≥ 60 members on `demo`** (it has 6). Seed more, or
+      run it with `ORG_SLUG` set to an org that has them (it mails nobody only on a demo org).
+- [ ] Spec Q4 ("Resend to these N unknown") stays open.
+- [ ] Still open from Session 7: confirm the tick's 60 s function + the cron after deploy;
+      one real send > 50 from a non-demo org; retire the Directus Flow "Email Scheduler";
+      `email/[id].get.ts` has no org gate.
+
+#### Phase 5a — kickoff prompt (Opus 5.5, effort xhigh)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 8 (Phase 4: shipped, deviations,
+operator TODOs), §Token budget, and §5a. Do not read §5b onwards, the Session
+log before Session 8, or docs/spec-email-send-queue.md, and never open
+docs/plan-earnest-parity-round2.md. From docs/email-sending.md read only §7
+(recurrence and time zones) and §10 (the partials): 5a's templates are content
+partials composed the same way.
+
+This session = Phase 5a (the reminder engine) ONLY, on Opus 5.5 at effort
+xhigh. Earnest reference: ~/Sites/earnest/earnest — grep `reminder_key` and
+read only those lines (the idempotency key); do not re-survey Earnest.
+
+First: check `git log origin/main..main` and say what is unpushed, and whether
+`pnpm add:email-send-queue` has been re-run since Session 8 (the Phase 4
+fields `hoa_email_activity.bounce_type`, `hoa_emails.recurrence_timezone`).
+5a doesn't depend on them: say which, and carry on.
+
+Deliverables (§5a, fitted to what exists):
+1. Schema: scripts/create-reminder-log.ts (`pnpm create:reminder-log`),
+   idempotent like add-email-send-queue.ts: `hoa_reminder_log` with
+   `reminder_key` UNIQUE — the unique insert IS the claim (a Directus
+   filter-update is read-then-write, so it can't be); `hoa_organizations.
+   timezone` (IANA; decide the default and say why); the
+   `settings.reminders` JSON shape. Hand-add the types.
+2. core/shared/reminders/rules.ts — pure; each rule yields {key, audience,
+   template, vars, urgency} for an `asOf` in the org's zone, with
+   @internationalized/date as core/shared/email/recurrence.ts does: dues
+   (−7d, day-of, +1d past grace), meetings (T−7d, T−24h, T−1h push only),
+   requests (resident-facing status change; 7-day no-activity nudge to the
+   assignee), violations (cure_by −3d, day-of), polls (opens, closes in 24h,
+   closed), documents (COI / insurance expiry to admins).
+3. The tick: POST /api/reminders/run (hourly Vercel cron, `CRON_SECRET`,
+   requireCronOrAppAdmin, its own entry in vercel.json): per org, evaluate,
+   skip keys already logged, insert the log row BEFORE sending, fan out through
+   notifyUsers() (dues and violation reminders are `essential`), write
+   `result` after; 40 s budget, continues next tick; `?dry=1` lists what would
+   go out and writes nothing. The digest reads the org timezone instead of the
+   global DIGEST_TZ.
+4. Templates reminder-dues / -meeting / -violation / -poll as content partials
+   beside core/server/emails/org-email.mjml, composed by composeEmail(); add
+   them to GET /api/email/preview-mjml as templates; the essential footer.
+
+Tests: every rule × offset × idempotency (a re-run inserts and sends nothing;
+two overlapping runs send once — the losing insert gets RECORD_NOT_UNIQUE);
+zone edges (DST, late evening, an org west of UTC); the cron gate; the dry
+run writes nothing; each template through the partials keeps the class
+footer.
+
+Use a Haiku 5.5 subagent for any census (where payment_requests, hoa_meetings,
+polls, violations and documents keep their dates and audiences; the existing
+notify-event callers). Read only the lines you need. Gates in the background,
+tail only: `pnpm test | tail -6`; typecheck with
+NODE_OPTIONS=--max-old-space-size=6144 into a log, grep `error TS`; build into
+a log, grep exit; `pnpm audit:hairline-surfaces`. 5a has no UI (5b does):
+prove it with tests and one `?dry=1` run of the tick against the demo org on a
+local build, not screenshots.
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 9 to the Session log (shipped, deviations, operator
+TODOs), write the Phase 5b kickoff prompt (Sonnet 5.5, effort high), and stop.
 One phase per session.
 ```
 
