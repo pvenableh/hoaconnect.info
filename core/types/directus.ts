@@ -1429,9 +1429,9 @@ export interface HoaOrganization {
 	late_fee_repeat?: 'once' | 'monthly' | null;
 	/** @description Max total late fees on one charge. Empty = uncapped. */
 	late_fee_cap?: number | null;
-	amenities?: HoaAmenity[] | string[];
 	/** @description The community's time zone (IANA). Reminders fire on its wall clock and the digest goes out at each member's hour in it. */
-	timezone?: string | null;
+	timezone?: `America/New_York` | `America/Chicago` | `America/Denver` | `America/Phoenix` | `America/Los_Angeles` | `America/Anchorage` | `Pacific/Honolulu` | `America/Puerto_Rico` | null;
+	amenities?: HoaAmenity[] | string[];
 }
 
 export interface HoaPet {
