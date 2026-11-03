@@ -19,7 +19,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: `pnpm add:user-app-prefs` ran 2026-11-03; dock prefs are now per user. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [x] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [x]** (session 6, docs only): `docs/spec-email-send-queue.md` — per-email lease by unique insert (Directus filter-updates are not atomic), at-most-once chooses dropped over doubled with the webhook as the evidence that closes the gap, counts derived from rows, 64 named tests; five open questions for Peter (Vercel plan first). **3b-build [x]** (session 7, local `main`, not pushed): the queue as specified — lease, claim/settle, at-most-once, derived counts, the tick (`* * * * *`, `maxDuration: 60` via a per-route Vercel function), progress route + dialog + detail chips + dock badge, `resolveSender` + bounced guard on the direct senders; all 66 spec tests (kill matrix at 15 steps); runs synchronous until `pnpm add:email-send-queue`. Gates green (typecheck 0, vitest 115/1911, Vercel-preset build, browser 38/38 mocked); operator: run the script, then `--real`. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [x] | Session 8, local `main`, not pushed: auto-pause + Resume (under the send's lease, one notification, baseline), recurrence (daily … annual, nth / last weekday, on the sender's time zone, composer sentence), MJML partials (`_layout` / `_header` / `org-email` / `_footer`, byte-identical to the string builder on 19 fixtures), `brandVars` + WCAG `brandOnColor`, logo 50 px from file metadata, `GET /api/email/preview-mjml` + the Branding card's iframe. Q4 (resend unknown) and copy overrides not built. Operator: re-run `pnpm add:email-send-queue` (Phase 4 fields) — until then no auto-pause and repeats stay on UTC. |
-| 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [~] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [ ]**: Settings → Reminders, resident surfaces, six events. |
+| 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [x] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [x]** (session 10, local `main`, not pushed): Settings → Organization → Reminders (per-rule toggle = the board's approval, stamped server-side; stages, lead days, tenants, own wording, send hour, time zone; template preview, "send me a test", a 24-hour dry run), the resident home's **Up next** and "Reminder sent" on `/payments`, and the events — request status, poll opened / closed (same log keys as the tick, so one path sends), payment received, board decision shared; payment overdue and document published were already covered. Operator: turn the rules on per community. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
 | 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
 | 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
@@ -1801,6 +1801,187 @@ Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 10 to the Session log (shipped, deviations, operator
 TODOs), write the Phase 6 kickoff prompt (Sonnet 5.5, effort high), and stop.
 One phase per session.
+```
+
+**Session 10 — Phase 5b: settings, visibility, events** (2026-11-03) — local, on `main`, Sonnet 5.5 at
+effort high. Peter confirmed `main` was pushed (Session 9's commits included) and that `pnpm create:reminder-log`
++ `pnpm generate:types` had run (`hoa_reminder_log`, `hoa_organizations.timezone` and
+`block_settings.reminders` exist); those checks were skipped. Three Haiku 5.5 census agents (the Settings page and
+Branding card; the resident home and `/payments`; the event call sites). One code commit, one docs commit.
+
+Shipped (runbook: `docs/reminders.md` §3 and §5):
+
+- **Settings → Organization → Reminders** — `app/components/Settings/RemindersSettingsForm.vue`, a tab on
+  `SettingsOrganizationPage` and a hub entry. Per rule: the toggle, the stages (a stage off is stored as
+  `stages: { <stage>: false }`), the lead days (dues, violations, vendor coverage, request quiet days), tenants
+  (dues) and the board's own subject and first sentence with the `{{tokens}}` each rule offers
+  (`RULE_GUIDE`); the send hour (6 am–8 pm) and the community's time zone (the eight zones the 5a script lists,
+  `US_TIME_ZONES`). **Saved by `PUT /api/org/reminders/settings`, not a browser PATCH**: turning a rule on writes
+  `enabled`, `approved_at` and `approved_by` together, from the signed-in admin; a rule that stays on keeps its
+  approval; new wording on a rule that is on, or off-then-on, re-approves; a rule that is off carries none
+  (`prepareReminderSettings`, `core/shared/reminders/admin.ts`). 409 with the command before the script has run.
+  Gate on all three routes: `requireReminderAdmin` = `requireAdminOrManagerGrant(…, "communications")`, the gate
+  `preview-mjml` uses.
+- **See it, try it** — the template preview (a sandboxed iframe on `preview-mjml?template=reminder-*`; the
+  Branding card's select now offers the four too); **"send me a test"** (`POST /api/org/reminders/test`: one sample,
+  made by the real rules, to the signed-in admin only, through `sendReminder`, marked `[Test]`, never logged);
+  **the next 24 hours** (`POST /api/org/reminders/dry-run`: the tick's dry run at each of the next 24 hours, the
+  snapshot read once, folded by `summarizeDryRuns` into "14 dues reminders, 1 meeting reminder" + what rules that
+  are off would add + who can't be reached: "5 have no app account — the billing worker emails them"). It reads
+  the **saved** settings; the card says so.
+- **Resident surfaces** — **Up next** on the resident home (`HomeUpNext` on `MemberDashboardPage`'s Overview, so
+  also the admin's "view as member"): dues due inside two weeks or overdue, the next meeting, a poll still waiting
+  on this member's vote, a request of theirs that changed in the last week; `buildUpNext`
+  (`core/shared/home/up-next.ts`, pure, in the reminders' words and the community's clock) +
+  `useUpNextGlance` (in `useHomeGlances.ts`; four reads, each allowed to fail alone). Hidden when empty.
+  `/payments` shows "Reminder sent {date}" from `payment_requests.reminder_sent_at` on each open charge.
+- **Events** — `announceReminderEvent` (`core/server/utils/reminders.ts`) runs the engine's own rule for one request
+  or poll, under the engine's own log key, minus the quiet hours: request status
+  (`POST /api/org/requests/status-event`, called by `applyTransition`), poll opened (create open; a draft opened),
+  poll closed (`POST /api/org/polls/close`). With the rule and stage on it sends what the tick would (the approved
+  email too); with them off it is a bell and a push. The key is claimed either way. **Payment received** — a bell
+  and a push to the member from the Stripe webhook (autopay included) and from an admin recording a payment
+  (`payment-notify.ts`). **Board decision shared** — sharing Board Room minutes notifies the seated board and the
+  admins, once.
+- **Tests** — `reminder-admin.test.ts` (26: approval stamping, clamping, junk, the guide, the dry-run fold),
+  `up-next.test.ts` (16), `reminder-events.test.ts` (18: an event then the tick sends once, the tick then the event
+  sends once, quiet hours, two events at once, rule off, an old draft, clock skew, a failed send, no log yet),
+  `reminder-admin-routes.test.ts` (17: the gate, who approved, the 24-hour fold, the test send, the status event's
+  trust), `poll-events-routes.test.ts` (11), `payment-notify.test.ts` (7), plus the webhook (receipt once, none on a
+  redelivery) and the minutes share (the board is told once).
+
+Deviations, with reasons:
+
+1. **There was no "Up next" stack to extend** (the census: `useHomeGlances` feeds the admin rail only; the resident
+   home had no upcoming list). Built one, small, on the resident home.
+2. **Three of the six events were already something.** *Payment overdue* is the dues rule's `overdue` stage: the
+   status flips in the GitHub Actions billing worker, which can't call `notifyUsers`, and the engine reaches every
+   member with an account when the rule is on. *Document published* already notifies every member
+   (`documents/publish.post.ts`). *Board decision posted*: no collection named decision or resolution exists; the
+   nearest is the Board Room's minutes (`hoa_director_minutes`), whose "share with the board" now notifies the
+   board. A resident-facing "decision" (a closed poll with its result) is the poll-closed event.
+3. **Request status needed a route.** Transitions are written from the browser (`useRequests.applyTransition`);
+   the route is member-gated like `requests/notify` and trusts only the id: it announces the request as it
+   stands, under the engine's key, so a call for a change that didn't happen finds nothing due. The system comment
+   no longer rings the comment bell for the submitter on a resident-facing status change (`createComment`
+   gained `announce: false`), so they aren't told twice; other request types keep the comment bell.
+4. **Poll close records its moment.** The engine anchors "closed" on `closes_at`, so closing by hand sets
+   `closes_at` to now when there is none, it is still ahead, or it is more than 40 h past (the engine's window is
+   48 h). A close time inside the last 40 h is left as it is. No screen shows `closes_at` on a closed poll.
+5. **Events send when the rule is off** (bell and push — the weight of "new document available"); the email waits
+   for the board's approval. The key is claimed either way, so turning a rule on later doesn't announce it twice.
+6. **A draft opened later is news; a closed poll reopened is a correction.** The engine anchors "opened" on
+   `date_created`, so an old draft would be outside its window: the event treats it as opened now.
+7. **Status-change clock skew.** `status_changed_at` is the browser's clock: the event evaluates at the later of
+   now and that time.
+8. **Engine hooks, no behaviour change for the tick**: `evaluateReminders(…, { allHours })`,
+   `loadSnapshot({ only })`, `instant` exported; the four coercion helpers in `settings.ts` exported.
+9. **The dry run's `off` and `unreachable` carry counts, not keys**, so across 24 hours they take the largest count
+   any hour saw per stage, then add the stages up; notifications are counted once per group.
+10. **Not built**: a ledger entry when a board approves a rule (who approved what is on the settings, not in the
+    Community Ledger); a test of `payments/record.post.ts` itself (the one-line hook shares `payment-notify.ts` with
+    the webhook and is covered there).
+11. **The Settings page re-renders once while it loads** (it reads the organization twice); a click in the first
+    second or two lands on the instance that is replaced. The card compares saved values, not object identity, so
+    the re-read can't wipe an edit; the browser script waits two seconds for the page to settle.
+
+Gates (final tree):
+- typecheck 0;
+- vitest **129 files / 2,200 tests** (from 123 / 2,101 at Session 9);
+- `pnpm build` (node-server) green;
+- `audit:hairline-surfaces` 0;
+- browser, `scripts/browser/verify-p5b-reminders.cjs` on a local build (`:3417`), demo org, light and dark, a real
+  session: **52/52** — six rule cards, a saved toggle round-trip (Directus holds `enabled`, `approved_at`,
+  `approved_by` = the signed-in admin, the 5 days and the overdue stage off; a reload shows them; off clears the
+  approval), the dry run answers, the preview is sandboxed and follows the select, the Branding select offers the
+  four reminder templates, Up next shows a meeting, a poll and a charge made for the run, "Reminder sent" on
+  `/payments`; no page errors; `demo` identical before and after. "Send me a test" is not pressed there (it would
+  put a bell row in the demo inbox); the route is tested. Screenshots are in the scratch dir and were not read.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: this session's two commits (code + docs) on local `main`.
+- [ ] **Turn the rules on, per community**, in Settings → Organization → Reminders (every rule is off; turning one on
+      is the board's approval of its wording). Try it first with "send me a test" and "check the next 24 hours".
+- [ ] **Set each community's time zone** there (all New York by default).
+- [ ] Payment receipts and "board decision shared" notifications are live on deploy (no setting): confirm the first
+      real payment gives the member one bell row.
+- [ ] Still open from Sessions 7–9 (unchanged).
+
+#### Phase 6 — kickoff prompt (Sonnet 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 10 (Phase 5b: shipped, deviations,
+operator TODOs), §Token budget, and §6. Do not read §7 onwards, the Session
+log before Session 10, or docs/spec-email-send-queue.md, and never open
+docs/plan-earnest-parity-round2.md. Do not re-survey Earnest beyond the files
+named below.
+
+This session = Phase 6 (PWA and push completion) ONLY, on Sonnet 5.5 at effort
+high. Earnest reference: ~/Sites/earnest/earnest — read only its sw.js, its
+pwa-standalone.client.ts and its install composable/card, and only the lines
+you need (`sed -n`). This is a specified port, not a design.
+
+HOA side, already verified: core/public/sw.js (the worker; push and click
+handling mostly exist — diff against Earnest's and close the gaps),
+core/server/utils/push.ts and core/shared/notifications/push.ts (the payload),
+core/server/utils/notify.ts (`push: false | { urgency, ttlSeconds }` — Phase 5a;
+the reminders send through it), core/server/api/user/push/{config,subscribe,
+test,unsubscribe}.ts, core/app/composables/useAppBadge.ts,
+core/server/api/manifest.webmanifest.get.ts (the per-host manifest),
+app/pages/account.vue (the iOS add-to-home-screen steps are buried there),
+docs/go-live-checklist.md §5 (VAPID: built, inert until the production pair
+exists). Push for reminders is the new thing since Round 2: `sendReminder`
+(core/server/utils/reminders.ts) passes urgency and TTL; a dues, meeting or
+request notification should carry an action.
+
+Deliverables (§6, fitted to what exists):
+1. The service worker registered app-wide from a `pwa.client.ts` plugin
+   (`updateViaCache: 'none'`, `update()` on visibility), not only after a push
+   opt-in; keep no fetch handler and no precache. Port pwa-standalone.client.ts
+   (`html[data-standalone]`, same-origin link taps through `location.assign`).
+2. Remove `@vite-pwa/nuxt` from devDependencies (configured nowhere; the plan's
+   default). Say so in the log and check `pnpm install` leaves the lockfile
+   consistent.
+3. `useInstallPrompt()` + a glass `InstallCard` on the portal home and the admin
+   home (dismissible per build; the iOS Share → Add to Home Screen steps);
+   manifest `shortcuts` (Pay dues, Requests, Documents, Channels), `id`,
+   `start_url: /?source=pwa`.
+4. Push semantics: `tag` (renotify), `badgeCount`, `url`; `notificationclick`
+   focuses an open client and posts `push-navigate`, else `openWindow`;
+   notification **actions** for the reminder types (dues → Pay, meeting → Add to
+   calendar, request → Open) — carry them from `sendReminder` through
+   `notifyUsers` to the payload. Channels' push waits for Phase 7.
+5. docs/push-verification.md: the device matrix as a checklist for Peter (iOS 17+
+   Safari standalone, Android Chrome, desktop Chrome: subscribe → `POST
+   /api/user/push/test` → received → click routes → badge clears). Device
+   verification is Peter's, not the model's: write the doc and the test route
+   notes, do not claim a device passed.
+
+Tests: the payload (tag, badgeCount, url, actions per reminder type), the
+manifest route (shortcuts, id, start_url), `useInstallPrompt` states (iOS Safari
+not standalone, beforeinstallprompt captured, already installed, dismissed for
+this build), and that `sendReminder` still sends the same notifications.
+
+Use a Haiku 5.5 subagent for any census (where the SW is registered today; every
+caller of `navigator.serviceWorker`). Read only the lines you need. Gates in the
+background, tail only: `pnpm test | tail -6`; typecheck with
+NODE_OPTIONS=--max-old-space-size=6144 into a log, grep `error TS`; build into a
+log, grep exit; `pnpm audit:hairline-surfaces`. Browser verification is one
+headless Playwright script (scripts/browser/verify-p6-pwa.cjs, demo org, light
+and dark: the worker is registered on load, the install card shows and
+dismisses, the manifest serves its shortcuts). playwright@1.63.0 was installed
+in earlier sessions' scratchpads: find one with `find /private/tmp/claude-501
+-type d -path '*pw/node_modules/playwright'` and use it with NODE_PATH; only if
+none is left, ask Peter before installing it into this session's scratchpad.
+Screenshots are read only on failure.
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 11 to the Session log (shipped, deviations, operator TODOs),
+write the Phase 7 kickoff prompt (Sonnet 5.5, effort high), and stop. One phase
+per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
