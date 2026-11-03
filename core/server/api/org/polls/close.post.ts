@@ -26,6 +26,10 @@
 
 import { updateItem } from "@directus/sdk";
 import { buildPollClosedEntry } from "#core/shared/ledger/entries";
+import { instant } from "#core/shared/reminders/rules";
+
+/** Past this (40 h; the engine's window is 48) a scheduled close time is too old to announce from. */
+const CLOSED_STAMP_AFTER_MS = 40 * 3_600_000;
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -71,7 +75,17 @@ export default defineEventHandler(async (event) => {
     return { closed: false, recorded: false, recordError: null, summary: null };
   }
 
-  await getTypedDirectus().request(updateItem("hoa_polls", pollId, { status: "closed" } as any));
+  // The close moment. A poll closed by hand records no close time, and the reminder
+  // engine anchors "closed" on `closes_at` — so when there is none, or it is still
+  // ahead, or it passed so long ago the engine's window (48 h) has shut, `closes_at`
+  // becomes the moment it actually closed. The notification below claims the same
+  // key the tick would, so the community hears the result once.
+  const closedAt = Date.now();
+  const scheduled = instant(poll.closes_at);
+  const stamp = !Number.isFinite(scheduled) || scheduled > closedAt || scheduled < closedAt - CLOSED_STAMP_AFTER_MS;
+  await getTypedDirectus().request(
+    updateItem("hoa_polls", pollId, { status: "closed", ...(stamp ? { closes_at: new Date(closedAt).toISOString() } : {}) } as any)
+  );
 
   let recorded = false;
   let recordError: string | null = null;
@@ -82,6 +96,8 @@ export default defineEventHandler(async (event) => {
     console.error("[polls/close] audit write failed:", e);
     recordError = e?.message || "The poll was closed but could not be recorded in the ledger.";
   }
+
+  await notifyReminderEvent(orgId, { collection: "hoa_polls", id: pollId }, "closed");
 
   return { closed: true, recorded, recordError, summary: entry.summary };
 });

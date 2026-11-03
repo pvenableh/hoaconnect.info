@@ -39,7 +39,9 @@ import {
 } from "#core/shared/reminders/settings";
 import {
   evaluateReminders,
+  EVENT_WINDOW_MS,
   groupReminders,
+  instant,
   OVERDUE_SPAN_DAYS,
   WORKER_STAGE,
   type ChargeInput,
@@ -79,11 +81,21 @@ export interface ReminderLogRow {
   result: "claimed";
 }
 
+/** One poll or request: an event reads just it, not the community's whole queue. */
+export interface ReminderEntityRef {
+  collection: "hoa_polls" | "hoa_requests";
+  id: string;
+}
+
 export interface ReminderStore {
   /** Every community, or the one whose slug or id is `org`. */
   listOrgs(org?: string | null): Promise<ReminderOrg[]>;
   /** What the rules read, for `rules` only. */
-  loadSnapshot(org: ReminderOrg, settings: ResolvedReminderSettings, opts: { asOf: Date; rules: ReminderRule[] }): Promise<ReminderSnapshot>;
+  loadSnapshot(
+    org: ReminderOrg,
+    settings: ResolvedReminderSettings,
+    opts: { asOf: Date; rules: ReminderRule[]; only?: ReminderEntityRef }
+  ): Promise<ReminderSnapshot>;
   /** Which of these keys are already logged. */
   existingKeys(keys: string[]): Promise<Set<string>>;
   /** One transaction: every row or none. Throws RECORD_NOT_UNIQUE when a key is taken. Returns the ids. */
@@ -330,6 +342,107 @@ export async function runReminderTick(opts: ReminderTickOptions): Promise<Remind
   return result;
 }
 
+// ── Events ──────────────────────────────────────────────────────────────────
+
+export interface ReminderEventOptions {
+  store: ReminderStore;
+  send: ReminderSender;
+  /** Has `pnpm create:reminder-log` run? Without the log there is no key to claim — and no tick to double up with. */
+  provisioned: boolean;
+  org: ReminderOrg;
+  /** The poll or request it happened to. */
+  entity: ReminderEntityRef;
+  /** `status` (a request changed), `opened` / `closed` (a poll did). */
+  stage: "status" | "opened" | "closed";
+  /** The moment it happened (default now). */
+  asOf?: Date;
+}
+
+export interface ReminderEventResult {
+  /** People a notification went to. */
+  recipients: number;
+  /** Log rows claimed and sent. */
+  sent: number;
+  /** Keys already in the log: another path sent it. */
+  skipped: number;
+  lost: number;
+  failed: number;
+}
+
+/**
+ * The engine, for one thing that just happened — a request changed status, a
+ * poll opened or closed — sent now instead of at the next tick, and **through
+ * the same keys**, so whichever path gets there first is the only one that
+ * sends (Session 9, deviation 9). The rule is evaluated exactly as the tick
+ * would (same audience, same words, same key), minus the quiet hours.
+ *
+ * The board's approval still decides the email: with the rule and stage on, the
+ * event sends what the tick would (bell, push and the approved email); with
+ * them off it is a plain bell and push — the same weight as "new document
+ * available" — and the key is claimed either way, so turning the rule on
+ * later doesn't announce it a second time.
+ */
+export async function announceReminderEvent(opts: ReminderEventOptions): Promise<ReminderEventResult> {
+  const { store, org, entity, stage } = opts;
+  const rule: ReminderRule = entity.collection === "hoa_polls" ? "poll" : "request";
+  let asOf = opts.asOf ?? new Date();
+  const settings = resolveReminderSettings(org.reminders);
+  const result: ReminderEventResult = { recipients: 0, sent: 0, skipped: 0, lost: 0, failed: 0 };
+
+  const snapshot = await store.loadSnapshot(org, settings, { asOf, rules: [rule], only: entity });
+  if (stage === "status") {
+    // `status_changed_at` is the browser's clock; a browser a few seconds ahead of the
+    // server would put the change in the future and the rule would find nothing due.
+    const changed = instant(snapshot.requests.find((r) => r.id === entity.id)?.statusChangedAt);
+    if (Number.isFinite(changed) && changed > asOf.getTime()) asOf = new Date(changed);
+  }
+  if (stage === "opened") {
+    // A draft put to the community now is "just opened" whatever its `date_created`: the
+    // engine anchors "opened" on creation, so an old draft would otherwise be outside the
+    // window. A poll created inside the window keeps its own anchor — the tick computes
+    // the same key, which is what makes one path send.
+    snapshot.polls = snapshot.polls.map((p) =>
+      p.id === entity.id && !(instant(p.createdAt) > asOf.getTime() - EVENT_WINDOW_MS) ? { ...p, createdAt: asOf.toISOString() } : p
+    );
+  }
+  const due = evaluateReminders(snapshot, asOf, undefined, { allHours: true }).filter(
+    (r) => r.rule === rule && r.stage === stage && r.entity.id === entity.id
+  );
+  const logged = opts.provisioned && due.length ? await store.existingKeys(due.map((r) => r.key)) : new Set<string>();
+  const fresh = due.filter((r) => !logged.has(r.key));
+  result.skipped = due.length - fresh.length;
+
+  for (const group of groupReminders(fresh)) {
+    const claim = opts.provisioned
+      ? await claimGroup(store, org.id, group)
+      : { claimed: group.map((reminder) => ({ reminder, id: "" })), lost: 0 };
+    result.lost += claim.lost;
+    if (!claim.claimed.length) continue;
+
+    const on = claim.claimed[0]!.reminder.enabled;
+    const composed = composeReminder(claim.claimed.map((c) => c.reminder), on ? settings.rules[rule].copy : null);
+    const ids = claim.claimed.map((c) => c.id).filter(Boolean);
+    try {
+      const counts = await opts.send(org, { ...composed, channels: on ? composed.channels : composed.channels.filter((c) => c !== "email") });
+      result.sent += claim.claimed.length;
+      result.recipients += composed.recipients.length;
+      if (ids.length) {
+        await store
+          .settleLogs(ids, { result: "sent", detail: `event · bell ${counts.bell} · push ${counts.push} · email ${counts.email}`, sent_at: new Date().toISOString() })
+          .catch((e) => console.warn("[reminders] settle failed", (e as Error).message));
+      }
+    } catch (e) {
+      result.failed += claim.claimed.length;
+      if (ids.length) {
+        await store
+          .settleLogs(ids, { result: "failed", detail: String((e as Error)?.message || e).slice(0, 500), sent_at: new Date().toISOString() })
+          .catch(() => {});
+      }
+    }
+  }
+  return result;
+}
+
 // ── Sending ─────────────────────────────────────────────────────────────────
 
 /** One composed reminder through the notify layer: bell, push, and the email twin. */
@@ -448,7 +561,7 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
       }));
     },
 
-    async loadSnapshot(org, settings, { asOf, rules }) {
+    async loadSnapshot(org, settings, { asOf, rules, only }) {
       const want = new Set(rules);
       const tz = org.timeZone;
       const snap: ReminderSnapshot = {
@@ -556,6 +669,7 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
             const rows = await read<any>("hoa_requests", {
               filter: {
                 organization: { _eq: org.id },
+                ...(only?.collection === "hoa_requests" ? { id: { _eq: only.id } } : {}),
                 _or: [
                   { status: { _in: OPEN_REQUEST } },
                   { status: { _in: ["resolved", "closed"] }, date_updated: { _gte: new Date(asOf.getTime() - 48 * HOUR_MS).toISOString() } },
@@ -611,6 +725,7 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
             const rows = await read<any>("hoa_polls", {
               filter: {
                 organization: { _eq: org.id },
+                ...(only?.collection === "hoa_polls" ? { id: { _eq: only.id } } : {}),
                 _or: [{ status: { _eq: "open" } }, { status: { _eq: "closed" }, closes_at: { _gte: since } }],
               },
               fields: ["id", "title", "status", "date_created", "closes_at", "target_audience", "options"],

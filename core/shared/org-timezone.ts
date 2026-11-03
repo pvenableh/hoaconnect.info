@@ -14,6 +14,18 @@ import { validTimeZone } from "./email/recurrence";
 
 export const DEFAULT_ORG_TIMEZONE = "America/New_York";
 
+/** The zones Settings offers — the same eight `scripts/create-reminder-log.ts` lists as the field's choices. */
+export const US_TIME_ZONES = [
+  { value: "America/New_York", label: "Eastern (New York)" },
+  { value: "America/Chicago", label: "Central (Chicago)" },
+  { value: "America/Denver", label: "Mountain (Denver)" },
+  { value: "America/Phoenix", label: "Mountain, no DST (Phoenix)" },
+  { value: "America/Los_Angeles", label: "Pacific (Los Angeles)" },
+  { value: "America/Anchorage", label: "Alaska (Anchorage)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
+  { value: "America/Puerto_Rico", label: "Atlantic (Puerto Rico)" },
+] as const;
+
 /** The org's zone, or the default when it is unset or not a real IANA zone. */
 export function orgTimeZone(org: { timezone?: string | null } | null | undefined): string {
   return validTimeZone(org?.timezone) ?? DEFAULT_ORG_TIMEZONE;

@@ -514,6 +514,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <AppTabPanels :value="activeTab" :items="tabItems" class="mt-8">
           <div v-if="activeTab === 'overview'" class="space-y-10">
+        <!-- Up next (Phase 5b): what the reminders are about, so the push lands on a page that knows. -->
+        <HomeUpNext :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
+
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <AppStatCard

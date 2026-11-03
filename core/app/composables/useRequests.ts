@@ -11,6 +11,7 @@ import {
   getStateMeta,
   type RequestType,
 } from "#core/app/config/requestWorkflows";
+import { isResidentStatusChange } from "#core/shared/reminders/rules";
 
 export interface RequestRow {
   id: string;
@@ -137,14 +138,28 @@ export const useRequests = () => {
       },
     } as Partial<RequestRow>);
 
+    // The person who submitted it hears of the change from the reminder engine's event
+    // (below: bell, push, and the approved email), so the system note doesn't ring the
+    // comment bell for them as well. Other kinds of request keep the comment bell.
+    const statusChanged = stateMeta.status !== request.status;
+    const tellsSubmitter = statusChanged && isResidentStatusChange(request.type, stateMeta.status);
+
     // System comment so the timeline records the change.
     try {
       const { createComment } = useComments("hoa_requests", () => request.id);
       await createComment({
         body: `<p><em>${label} — status set to <strong>${stateMeta.label}</strong></em></p>`,
+        announce: !tellsSubmitter,
       });
     } catch (e) {
       console.warn("Could not post status system comment:", e);
+    }
+
+    // Fire-and-forget, like the inquiry notify above: a status change never fails on a notification.
+    if (tellsSubmitter) {
+      $fetch("/api/org/requests/status-event", { method: "POST", body: { requestId: request.id } }).catch((e) =>
+        console.warn("[useRequests] status event failed:", e)
+      );
     }
   };
 

@@ -23,7 +23,7 @@ const { data: requests, pending, refresh } = await useAsyncData(
     const rows = await listRequests({
       fields: [
         "id", "title", "description", "status", "request_type",
-        "amount", "amount_paid", "amount_remaining", "due_date", "paid_at",
+        "amount", "amount_paid", "amount_remaining", "due_date", "paid_at", "reminder_sent_at",
         "organization", "member",
       ],
       filter: {
@@ -205,6 +205,9 @@ const TYPE_LABEL: Record<string, string> = {
                 <div class="flex items-center gap-4 text-sm t-text-muted mt-2">
                   <span class="inline-flex items-center gap-1">
                     <Icon name="heroicons:calendar" class="h-4 w-4" /> Due {{ formatDate(request.due_date) }}
+                  </span>
+                  <span v-if="request.reminder_sent_at" class="inline-flex items-center gap-1" data-testid="payment-reminder-sent">
+                    <Icon name="heroicons:bell" class="h-4 w-4" /> Reminder sent {{ formatDate(request.reminder_sent_at) }}
                   </span>
                   <span class="inline-flex items-center gap-1">
                     <Icon name="heroicons:tag" class="h-4 w-4" /> {{ TYPE_LABEL[request.request_type as string] || request.request_type }}

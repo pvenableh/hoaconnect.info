@@ -255,6 +255,15 @@ async function handlePaymentIntentSucceeded(directus: ReturnType<typeof getTyped
 			reference: paymentIntent.id,
 			source: 'stripe',
 		});
+
+		// The member's receipt: bell + push. Never throws (see payment-notify.ts).
+		await notifyPaymentReceived(directus, {
+			organizationId: organizationId || null,
+			memberId: memberId || null,
+			amount: paymentIntent.amount / 100,
+			currency: paymentIntent.currency,
+			label: paymentIntent.description || null,
+		});
 	} catch (err) {
 		console.error('Error creating payment transaction:', err);
 	}

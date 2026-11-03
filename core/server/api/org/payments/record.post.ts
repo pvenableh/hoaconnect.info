@@ -162,5 +162,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // The member's receipt, bell + push — nothing to do if they have no app account.
+  await notifyPaymentReceived(directus, { organizationId: orgId, memberId, amount, currency: "usd", label: request.title ?? null });
+
   return { recordedPayment: true, recorded, recordError, summary: entry?.summary ?? null };
 });

@@ -92,5 +92,12 @@ export default defineEventHandler(async (event) => {
     } as any)
   )) as any;
 
+  // A poll put to the community now tells the community (bell + push; the
+  // approved email too when the board has the polls reminder on). A draft says
+  // nothing until it is opened — see reopen.post.ts.
+  if (status === "open" && created?.id) {
+    await notifyReminderEvent(orgId, { collection: "hoa_polls", id: String(created.id) }, "opened");
+  }
+
   return { id: String(created?.id ?? ""), status };
 });

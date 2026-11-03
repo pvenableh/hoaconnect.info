@@ -44,6 +44,8 @@ import {
   type RequestRowLite,
   type UnitRowLite,
 } from "#core/shared/home/glances";
+import { buildUpNext, type UpNextInput } from "#core/shared/home/up-next";
+import { orgTimeZone } from "#core/shared/org-timezone";
 
 /**
  * Charges — ONE query serving money-in, what is outstanding, and how overdue.
@@ -281,4 +283,126 @@ export async function useEmailActivityGlance(org: MaybeRefOrGetter<string | null
     stats: computed(() => data.value?.stats || null),
     sent7d: computed(() => days.value.reduce((s, d) => s + (d.sent || 0), 0)),
   };
+}
+
+/**
+ * The resident home's "Up next" (Phase 5b): what the reminders are about —
+ * this member's dues that are due, the next meeting, a poll still waiting on
+ * their vote, a request of theirs that just changed — so the push or email
+ * they got lands on a page that already shows it. The picking and the wording
+ * are `buildUpNext` (`#core/shared/home/up-next`); this fetches.
+ *
+ * Four small reads, each gated by its module and each allowed to fail without
+ * taking the others down: a resident whose poll read errors still sees their
+ * dues. Nothing here writes.
+ */
+export async function useUpNextGlance(
+  org: MaybeRefOrGetter<string | null | undefined>,
+  who: {
+    /** The `hoa_members` row (what `payment_requests.member` points at). */
+    memberId: MaybeRefOrGetter<string | null | undefined>;
+    /** The Directus user (what `hoa_requests.submitted_by` points at). */
+    userId: MaybeRefOrGetter<string | null | undefined>;
+  },
+) {
+  const orgItems = useDirectusItems("hoa_organizations");
+  const chargeItems = useDirectusItems("payment_requests");
+  const meetingItems = useDirectusItems("hoa_meetings");
+  const requestItems = useDirectusItems("hoa_requests");
+  const { listOrgPolls, getResults } = usePolls();
+  const { isEnabled } = useModules();
+  const orgId = computed(() => toValue(org) || null);
+  const memberId = computed(() => toValue(who.memberId) || null);
+  const userId = computed(() => toValue(who.userId) || null);
+
+  const empty = (): { input: UpNextInput; timezone: string | null } => ({
+    input: { charges: [], meetings: [], polls: [], requests: [] },
+    timezone: null,
+  });
+  const quietly = async <T>(read: Promise<T>, fallback: T): Promise<T> => read.catch(() => fallback);
+
+  const { data, pending } = await useAsyncData(
+    `home-up-next-${orgId.value}-${memberId.value}`,
+    async () => {
+      if (!orgId.value) return empty();
+      const now = new Date();
+      const [charges, meetings, polls, requests, timezone] = await Promise.all([
+        isEnabled("payments") && memberId.value
+          ? quietly(
+              chargeItems.list({
+                fields: ["id", "title", "status", "amount_remaining", "due_date"],
+                filter: {
+                  organization: { _eq: orgId.value },
+                  member: { _eq: memberId.value },
+                  status: { _in: ["active", "partially_paid", "overdue"] },
+                  amount_remaining: { _gt: 0 },
+                },
+                sort: ["due_date"],
+                limit: 20,
+              }) as Promise<UpNextInput["charges"]>,
+              [],
+            )
+          : [],
+        isEnabled("meetings")
+          ? quietly(
+              meetingItems.list({
+                fields: ["id", "title", "meeting_date", "location"],
+                filter: {
+                  organization: { _eq: orgId.value },
+                  is_published: { _eq: true },
+                  status: { _neq: "completed" },
+                  meeting_date: { _gte: now.toISOString() },
+                },
+                sort: ["meeting_date"],
+                limit: 5,
+              }) as Promise<UpNextInput["meetings"]>,
+              [],
+            )
+          : [],
+        isEnabled("polls")
+          ? quietly(
+              (async () => {
+                const open = (await listOrgPolls(["open"])).slice(0, 6);
+                const results = await Promise.all(open.map((p: any) => quietly(getResults(String(p.id)), null)));
+                // Only a poll this member can vote in, and hasn't.
+                return open.flatMap((p: any, i: number) =>
+                  results[i]?.canVote
+                    ? [{ id: String(p.id), title: p.title, closes_at: p.closes_at ?? null, voted: (results[i]!.myOptionIds?.length ?? 0) > 0 }]
+                    : [],
+                );
+              })(),
+              [],
+            )
+          : [],
+        isEnabled("requests") && userId.value
+          ? quietly(
+              requestItems.list({
+                fields: ["id", "title", "type", "status", "metadata"],
+                filter: {
+                  organization: { _eq: orgId.value },
+                  submitted_by: { _eq: userId.value },
+                  type: { _in: ["maintenance", "arc", "complaint"] },
+                  date_updated: { _gte: new Date(now.getTime() - 8 * 86_400_000).toISOString() },
+                },
+                sort: ["-date_updated"],
+                limit: 10,
+              }) as Promise<UpNextInput["requests"]>,
+              [],
+            )
+          : [],
+        // The community's clock, so "due tomorrow" is its tomorrow. Read apart from the
+        // selected-org fetch: a server without the field yet answers "no zone", not an error.
+        quietly(orgItems.get(orgId.value, { fields: ["timezone"] }) as Promise<any>, null).then((o) => (o?.timezone as string | null) ?? null),
+      ]);
+      return { input: { charges, meetings, polls, requests }, timezone };
+    },
+    { watch: [orgId, memberId, userId], server: false, default: empty },
+  );
+
+  const items = computed(() => {
+    const d = data.value || empty();
+    return buildUpNext(d.input, { asOf: new Date(), timeZone: orgTimeZone({ timezone: d.timezone }) });
+  });
+
+  return { pending, items };
 }

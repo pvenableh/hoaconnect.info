@@ -39,8 +39,31 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: "Admin or board access required" });
   }
 
+  // Only the first share tells anyone: the flip is idempotent, the notification is not.
+  const before = await loadMinutes(minutesId, orgId);
   const ok = await markMinutesShared(minutesId, orgId);
   if (!ok) throw createError({ statusCode: 404, message: "Minutes not found" });
 
-  return { ok: true, minutes: await loadMinutes(minutesId, orgId) };
+  const minutes = await loadMinutes(minutesId, orgId);
+
+  // "Board decision posted" (Earnest parity round 3, Phase 5b): the decision record is
+  // the board's, so the board — its seated members and the admins — hears it was shared.
+  if (before && before.status !== "shared") {
+    const board = await Promise.all([orgAudienceUserIds(orgId, "board_members"), adminUserIds(orgId)]).then((lists) => [...new Set(lists.flat())]);
+    const what = minutes?.subject || minutes?.title || "A Board Room meeting";
+    await notifyUsers({
+      organizationId: orgId,
+      recipientUserIds: board,
+      category: "announcement",
+      subject: "Board decision shared",
+      message: `${what}${minutes?.summary ? ` — ${String(minutes.summary).slice(0, 160)}` : ""}`,
+      collection: "hoa_director_minutes",
+      item: minutesId,
+      path: "/meetings",
+      origin: await safeRequestOrigin(event),
+      excludeUserId: userId,
+    }).catch((e) => console.warn("[minutes/share] notify failed", (e as Error).message));
+  }
+
+  return { ok: true, minutes };
 });

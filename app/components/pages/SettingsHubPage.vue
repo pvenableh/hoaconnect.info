@@ -18,6 +18,7 @@ const groups = computed<HubGroup[]>(() => [
     items: [
       { label: "General", description: "Name, contact details, and address.", icon: "building-2", to: buildOrgPath("/admin/settings/organization?tab=general") },
       { label: "Branding", description: "Logo, colors, and theme.", icon: "palette", to: buildOrgPath("/admin/settings/organization?tab=branding") },
+      { label: "Reminders", description: "Dues, meetings, polls and more — what goes out, and when.", icon: "bell-ring", to: buildOrgPath("/admin/settings/organization?tab=reminders") },
       { label: "SEO", description: "Search and social preview metadata.", icon: "search", to: buildOrgPath("/admin/settings/organization?tab=seo") },
     ],
   },

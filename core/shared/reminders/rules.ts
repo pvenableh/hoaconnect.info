@@ -142,9 +142,9 @@ export interface PollInput {
   status: string | null;
   createdAt: string | null;
   /**
-   * `closes_at`. It is also the "closed" stage's anchor: a poll closed by hand
-   * before it (or with none) records no close time on the row, so that stage
-   * is left to the close route's own event (Phase 5b).
+   * `closes_at`. It is also the "closed" stage's anchor, so the close route
+   * (`POST /api/org/polls/close`) sets it to the moment a poll is closed by hand
+   * before it, or with none, and announces the close under the same key.
    */
   closesAt?: string | null;
   audienceUserIds: string[];
@@ -225,7 +225,8 @@ export function localDay(value: string | null | undefined, timeZone: string): Ca
   }
 }
 
-const instant = (value: string | null | undefined): number => {
+/** A timestamp as ms; a zone-less datetime is read as UTC. NaN when there isn't one. */
+export const instant = (value: string | null | undefined): number => {
   if (!value) return NaN;
   // A zone-less datetime is read as UTC, which is what Directus `timestamp` returns without the Z.
   return Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`);
@@ -290,6 +291,9 @@ const STATUS_LABELS: Record<string, string> = {
   resolved: "Resolved",
   closed: "Closed",
 };
+/** Does this status change on this kind of request tell the person who submitted it? (The status event and the comment bell both ask.) */
+export const isResidentStatusChange = (type: string | null | undefined, status: string | null | undefined): boolean =>
+  RESIDENT_REQUEST_TYPES.has(type ?? "") && !!STATUS_LABELS[status ?? ""];
 const ALL: ReminderChannel[] = ["bell", "push", "email"];
 
 type Emit = (r: Omit<Reminder, "enabled" | "key"> & { anchor: string }) => void;
@@ -574,9 +578,12 @@ function coverage(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit) {
 export function evaluateReminders(
   snap: ReminderSnapshot,
   asOf: Date,
-  unreachable: Unreachable = () => {}
+  unreachable: Unreachable = () => {},
+  opts: { allHours?: boolean } = {}
 ): Reminder[] {
-  const clock = reminderClock(asOf, snap.org.timeZone, snap.settings.sendHour);
+  // `allHours`: an event (a poll just closed) goes out when it happens, not at the
+  // next send hour — the quiet hours are for the tick's day-based reminders.
+  const clock = { ...reminderClock(asOf, snap.org.timeZone, snap.settings.sendHour), ...(opts.allHours ? { awake: true } : {}) };
   const out = new Map<string, Reminder>();
   const emit: Emit = ({ anchor, ...r }) => {
     const key = reminderKey(r.rule, r.entity.id, r.stage, anchor, r.member);

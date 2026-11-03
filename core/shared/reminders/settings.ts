@@ -104,7 +104,7 @@ export interface ResolvedReminderSettings {
   rules: Record<ReminderRule, ResolvedRuleSettings>;
 }
 
-const obj = (v: unknown): Record<string, any> | null => {
+export const obj = (v: unknown): Record<string, any> | null => {
   if (typeof v === "string") {
     try {
       return obj(JSON.parse(v));
@@ -115,12 +115,12 @@ const obj = (v: unknown): Record<string, any> | null => {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, any>) : null;
 };
 
-const intIn = (v: unknown, min: number, max: number, fallback: number): number => {
+export const intIn = (v: unknown, min: number, max: number, fallback: number): number => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
   return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 };
 
-const text = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, 300) : null);
+export const text = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, 300) : null);
 
 /** The settings with every default filled in. Accepts the raw json (object or string) or nothing. */
 export function resolveReminderSettings(raw: unknown): ResolvedReminderSettings {

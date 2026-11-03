@@ -66,9 +66,13 @@ function matches(row: any, filter: any): boolean {
   });
 }
 
+/** What the share route told the board (it calls the notify layer through Nitro auto-imports). */
+let notified: any[] = [];
+
 beforeEach(() => {
   vi.resetModules();
   ops = [];
+  notified = [];
   seq = 0;
   isAdminOf = [HOME];
   isBoardOf = [];
@@ -95,6 +99,13 @@ beforeEach(() => {
   vi.stubGlobal("isActiveBoardMember", async (_d: any, _u: string, orgId: string) =>
     isBoardOf.includes(orgId)
   );
+  vi.stubGlobal("orgAudienceUserIds", async () => [ME, THEM]);
+  vi.stubGlobal("adminUserIds", async () => [ME]);
+  vi.stubGlobal("safeRequestOrigin", async () => "https://hoa.test");
+  vi.stubGlobal("notifyUsers", async (n: any) => {
+    notified.push(n);
+    return { bell: 0, push: 0, email: 0 };
+  });
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (desc: Op) => {
       ops.push(desc);
@@ -515,6 +526,30 @@ describe("GET/POST /api/ai/director/minutes/[id] — reading and sharing", () =>
       __params: { id: "m1" },
     });
     expect(again.minutes.status).toBe("shared");
+  });
+
+  it("tells the board once — the first share, not the repeat — and not the person who shared", async () => {
+    rows.hoa_director_minutes = [minutesRow()];
+    const handler = await shareMinutesRoute();
+    await handler({ __body: { orgId: HOME, op: "share" }, __params: { id: "m1" } });
+    await handler({ __body: { orgId: HOME, op: "share" }, __params: { id: "m1" } });
+    expect(notified).toHaveLength(1);
+    expect(notified[0]).toMatchObject({
+      organizationId: HOME,
+      category: "announcement",
+      subject: "Board decision shared",
+      collection: "hoa_director_minutes",
+      item: "m1",
+      excludeUserId: ME,
+    });
+    expect([...notified[0].recipientUserIds].sort()).toEqual([ME, THEM].sort());
+  });
+
+  it("does not notify when the share is refused", async () => {
+    rows.hoa_director_minutes = [minutesRow({ organization: OTHER })];
+    const handler = await shareMinutesRoute();
+    await expect(handler({ __body: { orgId: HOME, op: "share" }, __params: { id: "m1" } })).rejects.toMatchObject({ statusCode: 404 });
+    expect(notified).toEqual([]);
   });
 
   it("refuses an op it does not know", async () => {

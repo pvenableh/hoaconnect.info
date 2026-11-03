@@ -51,6 +51,15 @@
             <SettingsEmailSenderForm :organization="organization" />
           </div>
 
+          <!-- Reminders Tab (Phase 5b): which reminders go out, when, with a dry run -->
+          <div v-if="activeTab === 'reminders'" class="space-y-6">
+            <SettingsRemindersSettingsForm
+              :organization="organization"
+              :settings="settings"
+              @updated="handleRemindersUpdate"
+            />
+          </div>
+
           <!-- SEO Tab -->
           <div v-if="activeTab === 'seo'" class="space-y-6">
             <SettingsSeoSettingsForm
@@ -123,6 +132,7 @@ const { get: getSettings } =
 const allTabs = [
   { id: "general", label: "General", icon: "lucide:building-2" },
   { id: "branding", label: "Branding", icon: "lucide:palette" },
+  { id: "reminders", label: "Reminders", icon: "lucide:bell-ring" },
   { id: "seo", label: "SEO", icon: "lucide:search" },
   { id: "payments", label: "Payment Settings", icon: "lucide:credit-card" },
   { id: "modules", label: "Modules", icon: "lucide:toggle-right" },
@@ -202,6 +212,14 @@ const handleOrganizationUpdate = async (updatedOrg: HoaOrganization) => {
     name: updatedOrg.name,
   });
   toast.success("Organization settings saved");
+};
+
+// Reminders save through their own route (it stamps who approved them), so
+// there is no row to read back: fold the saved value into what the page holds.
+const handleRemindersUpdate = ({ reminders, timezone }: { reminders: Record<string, any>; timezone: string }) => {
+  settings.value = { ...(settings.value || {}), reminders } as BlockSetting;
+  if (organization.value) organization.value = { ...organization.value, timezone } as HoaOrganization;
+  toast.success("Reminders saved");
 };
 
 // Handle settings update

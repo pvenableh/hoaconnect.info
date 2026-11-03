@@ -93,7 +93,12 @@ export default defineEventHandler(async (event) => {
   );
 
   if (!entry) {
-    // A draft being put to the community. Opened, correctly unrecorded.
+    // A draft being put to the community. Opened, correctly unrecorded — and the
+    // first time anyone is asked, so the community hears of it. (Reopening a
+    // CLOSED poll is a correction, not news: no notification.)
+    if (poll.status === "draft") {
+      await notifyReminderEvent(orgId, { collection: "hoa_polls", id: pollId }, "opened");
+    }
     return { reopened: true, recorded: false, recordError: null, summary: null };
   }
 

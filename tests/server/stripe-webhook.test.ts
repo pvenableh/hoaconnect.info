@@ -57,6 +57,7 @@ type Cmd = { cmd: string; collection: string; id?: string; data?: any; query?: a
 let reads: Record<string, any[]>;
 let directusRequest: ReturnType<typeof vi.fn>;
 let creditWallet: ReturnType<typeof vi.fn>;
+let notifyPaymentReceived: ReturnType<typeof vi.fn>;
 
 /** Every command the handler sent to Directus, in order. */
 const commands = () => directusRequest.mock.calls.map((c) => c[0] as Cmd);
@@ -87,6 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   reads = { payment_transactions: [], hoa_organizations: [], billing_accounts: [] };
   creditWallet = vi.fn(async () => ({ credited: true, balanceCredits: 1000 }));
+  notifyPaymentReceived = vi.fn(async () => true);
 
   directusRequest = vi.fn(async (cmd: Cmd) => {
     if (cmd.cmd === "readItems") return reads[cmd.collection] ?? [];
@@ -106,6 +108,7 @@ beforeEach(() => {
   vi.stubGlobal("getStripeWebhookSecret", () => "whsec_x");
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
   vi.stubGlobal("creditWallet", creditWallet);
+  vi.stubGlobal("notifyPaymentReceived", notifyPaymentReceived);
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
 });
 
@@ -181,6 +184,29 @@ describe("payment_intent.succeeded", () => {
     expect(writes("createItem", "payment_transactions")).toHaveLength(0);
     // The real damage a duplicate would do: double-crediting the request.
     expect(writes("updateItem", "payment_requests")).toHaveLength(0);
+  });
+
+  it("tells the member who paid — once: a redelivered event sends no second receipt", async () => {
+    reads.payment_requests = [{ id: REQUEST, amount: 250, amount_paid: 0 }];
+    await fire("payment_intent.succeeded", paymentIntent());
+    expect(notifyPaymentReceived).toHaveBeenCalledTimes(1);
+    expect(notifyPaymentReceived.mock.calls[0]![1]).toEqual({
+      organizationId: ORG,
+      memberId: MEMBER,
+      amount: 250,
+      currency: "usd",
+      label: "January dues",
+    });
+
+    notifyPaymentReceived.mockClear();
+    reads.payment_transactions = [{ id: "existing" }];
+    await fire("payment_intent.succeeded", paymentIntent());
+    expect(notifyPaymentReceived).not.toHaveBeenCalled();
+  });
+
+  it("an AI credit top-up is not a resident's payment: no receipt", async () => {
+    await fire("payment_intent.succeeded", { ...paymentIntent(), metadata: { kind: "ai_credits", org_id: ORG, credits: "100" } });
+    expect(notifyPaymentReceived).not.toHaveBeenCalled();
   });
 
   it("dedupes on the PaymentIntent id and only against a succeeded row", async () => {

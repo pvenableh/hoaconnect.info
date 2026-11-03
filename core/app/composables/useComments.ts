@@ -132,6 +132,8 @@ export const useComments = (
     attachments?: string[];
     isInternal?: boolean;
     mentionedUsers?: string[];
+    /** Tell the people in the conversation (default). A system note whose news is sent another way says no. */
+    announce?: boolean;
   }) => {
     if (!selectedOrgId.value) throw new Error("No organization selected");
     const payload: Partial<Comment> = {
@@ -150,7 +152,7 @@ export const useComments = (
     // Comments are written from the browser, so this is the only place the
     // server can learn a conversation moved. It reaches the people already in
     // that conversation — and, for an internal note, staff only.
-    announce("hoa_comments", (created as Comment | undefined)?.id);
+    if (input.announce !== false) announce("hoa_comments", (created as Comment | undefined)?.id);
     await refresh();
     return created;
   };

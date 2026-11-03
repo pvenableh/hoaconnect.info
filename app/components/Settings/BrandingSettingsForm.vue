@@ -379,6 +379,12 @@
                 <option value="alert">Alert</option>
                 <option value="basic">Basic</option>
                 <option value="notification">Notification</option>
+                <optgroup label="Reminders">
+                  <option value="reminder-dues">Dues reminder</option>
+                  <option value="reminder-meeting">Meeting reminder</option>
+                  <option value="reminder-violation">Violation reminder</option>
+                  <option value="reminder-poll">Poll reminder</option>
+                </optgroup>
               </select>
             </div>
             <div v-if="previewType === 'notification'" class="flex items-center justify-between gap-4">
