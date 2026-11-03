@@ -934,8 +934,6 @@ export interface HoaEmail {
 	last_run_at?: string | null;
 	/** @description Next scheduled run (recurring) */
 	next_run_at?: string | null;
-	/** @description IANA time zone the repeat follows (the composer's). UTC when empty. */
-	recurrence_timezone?: string | null;
 	/** @description How `content` should be interpreted by the renderer */
 	content_mode?: 'visual' | 'mjml' | null;
 	/** @description Pretty URL slug for the public web view (/{org}/announcements/email/{web_slug}). Auto-derived from the subject; falls back to the id. */
@@ -972,6 +970,8 @@ export interface HoaEmail {
 	send_errors?: Record<string, any> | null;
 	/** @description What stopped the last run before it sent anything; cleared by the next chunk that sends. */
 	send_last_error?: string | null;
+	/** @description IANA time zone the repeat follows (the composer's). UTC when empty. */
+	recurrence_timezone?: string | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
