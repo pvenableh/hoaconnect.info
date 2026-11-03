@@ -776,7 +776,7 @@ const excludedBuckets = [
   },
   {
     title: "The platform's",
-    why: "Catalogs and marketing content that are identical for every customer, plus the bookkeeping of the export mechanism itself. There is nothing of yours in them, and every archive already carries its own manifest.",
+    why: "Catalogs and marketing content that are identical for every customer, plus the bookkeeping of the export and email-sending machinery itself. There is nothing of yours in them: every archive already carries its own manifest, and every email you sent travels with its recipients.",
     collections: [
       "subscription_plans",
       "coupons",
@@ -784,6 +784,7 @@ const excludedBuckets = [
       "block_hero",
       "waitlist_signups",
       "hoa_data_exports",
+      "hoa_email_send_leases",
     ],
     items: [
       "Pricing catalog",
@@ -791,6 +792,7 @@ const excludedBuckets = [
       "Marketing page content",
       "Signup waitlist",
       "Export job history",
+      "Email send locks",
     ],
   },
   {

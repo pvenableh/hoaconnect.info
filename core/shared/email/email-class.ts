@@ -112,6 +112,16 @@ export function suppressionReason(
   return null;
 }
 
+/**
+ * May an essential, one-to-one message (a dues reminder, a project notice) go
+ * to this member by email? A hard-bounced address gets nothing — SendGrid would
+ * drop it and count it against the sender. The community opt-out does not
+ * apply: these are essential (Phase 3b, docs/spec-email-send-queue.md §7.4).
+ */
+export function essentialEmailAllowed(member: MemberEmailState | null | undefined): boolean {
+  return member?.email_bounced !== true;
+}
+
 /** Split a resolved audience into who is mailed and who is left out (and why). */
 export function partitionAudience<T extends MemberEmailState>(
   members: readonly T[],

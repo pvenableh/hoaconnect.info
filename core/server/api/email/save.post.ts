@@ -170,6 +170,15 @@ export default defineEventHandler(async (event) => {
         });
       }
 
+      // A send in flight: its rows are being delivered from this content.
+      if (existingEmail.status === "sending") {
+        throw createError({
+          statusCode: 409,
+          message: "This email is being sent; it can't be edited until the send finishes.",
+          data: { code: "send_in_progress" },
+        });
+      }
+
       // Only allow updating drafts or scheduled emails
       if (existingEmail.status !== "draft" && existingEmail.status !== "scheduled") {
         throw createError({

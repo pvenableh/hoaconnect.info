@@ -565,16 +565,27 @@ const handleSend = async () => {
       bcc: form.bcc.length > 0 ? form.bcc : undefined,
     });
 
-    if (result.stats.failed > 0) {
-      toast.warning(
-        `Email sent with ${result.stats.failed} failures. ${result.stats.delivered}/${result.stats.total} delivered.`
-      );
+    const held = result.stats.suppressed;
+    const heldNote = held && (held.bounced || held.optedOut)
+      ? ` · skipped ${[held.bounced ? `${held.bounced} bounced` : "", held.optedOut ? `${held.optedOut} unsubscribed` : ""].filter(Boolean).join(", ")}`
+      : "";
+
+    // The send queue: unless the inline tick already finished it, show the
+    // send's progress (it carries on in the background if the dialog closes).
+    if (result.queued && result.phase !== "done") {
+      sendingEmailId.value = result.emailId;
+      sendProgress.watchSend(result.emailId, result.progress ?? null);
+      showSendProgress.value = true;
+      sendingEmails.refresh();
+      return;
+    }
+
+    const delivered = result.progress?.sent ?? result.stats.delivered;
+    const failed = result.progress?.failed ?? result.stats.failed;
+    if (failed > 0) {
+      toast.warning(`Email sent with ${failed} failures. ${delivered}/${result.stats.total} accepted.`);
     } else {
-      const held = result.stats.suppressed;
-      const heldNote = held && (held.bounced || held.optedOut)
-        ? ` · skipped ${[held.bounced ? `${held.bounced} bounced` : "", held.optedOut ? `${held.optedOut} unsubscribed` : ""].filter(Boolean).join(", ")}`
-        : "";
-      toast.success(`Email sent to ${result.stats.delivered} recipients${heldNote}`);
+      toast.success(`Email sent to ${delivered} recipients${heldNote}`);
     }
 
     navigateToOrg("/admin/communications");
@@ -583,6 +594,19 @@ const handleSend = async () => {
     // essential, everyone selected unsubscribed) beats $fetch's "[POST] …: 400".
     toast.error(error?.data?.message || error.message || "Failed to send email");
   }
+};
+
+// ---- Send progress (Phase 3b: the send queue) ----
+const sendProgress = useSendProgress();
+const sendingEmails = useSendingEmails();
+const showSendProgress = ref(false);
+const sendingEmailId = ref<string | null>(null);
+const closeSendProgress = () => {
+  showSendProgress.value = false;
+  sendProgress.stop();
+  const id = sendingEmailId.value;
+  sendingEmailId.value = null;
+  navigateToOrg(id ? `/admin/communications/${id}` : "/admin/communications");
 };
 
 // ---- Scheduling (Phase 9 Stage C) ----
@@ -1760,6 +1784,26 @@ useSeoMeta({
 
             <DialogFooter>
               <Button variant="outline" @click="showTemplatePicker = false">Cancel</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <!-- Send progress (the send queue) -->
+        <Dialog :open="showSendProgress" @update:open="(v: boolean) => { if (!v) closeSendProgress(); }">
+          <DialogContent class="sm:max-w-md" data-testid="send-progress-dialog">
+            <DialogHeader>
+              <DialogTitle>{{ sendProgress.done.value ? "Sent" : "Sending" }} “{{ form.subject }}”</DialogTitle>
+              <DialogDescription>
+                {{ sendProgress.done.value
+                  ? "Every recipient has been handed to the mail service."
+                  : "You can close this — the send carries on in the background." }}
+              </DialogDescription>
+            </DialogHeader>
+            <CommunicationsSendProgress :progress="sendProgress.progress.value" />
+            <DialogFooter>
+              <Button data-testid="send-progress-close" @click="closeSendProgress">
+                {{ sendProgress.done.value ? "Done" : "Close" }}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

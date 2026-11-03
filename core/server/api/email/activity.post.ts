@@ -2,6 +2,7 @@ import { createItem, readItems, updateItem } from "@directus/sdk";
 import type { HoaEmailActivity, HoaEmailRecipient, HoaMember } from "#core/types/directus";
 import { eventAction } from "#core/shared/email/suppression-events";
 import { applySuppressionActions, emailComplianceSchema, type SuppressionWork } from "../../utils/email-compliance";
+import { directusRecipientStore, emailQueueSchema, queueRowPatch, refreshTotals } from "../../utils/email-send-queue";
 
 /**
  * SendGrid Event Webhook Handler
@@ -25,6 +26,14 @@ import { applySuppressionActions, emailComplianceSchema, type SuppressionWork } 
  * If that can't be stored the route answers 503 so SendGrid redelivers — and
  * because nothing else has happened yet, the redelivery doesn't duplicate an
  * activity row or a downstream forward.
+ *
+ * The send queue (Phase 3b, docs/spec-email-send-queue.md §4.3): queued mail
+ * also stamps `recipient_id` (the row) and `run_key`. The row is looked up by
+ * `recipient_id` first — exact, and right when two members of a household share
+ * an address — then by email_id + address, then by message id. Any event proves
+ * SendGrid accepted the message, so a row still `claimed` or `unknown` (its run
+ * died before settling) is promoted to `sent`. Delivery outcomes go to
+ * `delivery_status`; the webhook never writes the queue's `status` otherwise.
  */
 
 interface SendGridEvent {
@@ -47,6 +56,9 @@ interface SendGridEvent {
   email_id?: string;
   recipient_email?: string;
   organization_id?: string;
+  /** The queue's row id and occurrence (Phase 3b). */
+  recipient_id?: string;
+  run_key?: string;
 }
 
 export default defineEventHandler(async (event) => {
@@ -233,6 +245,12 @@ export default defineEventHandler(async (event) => {
 
   const directus = getTypedDirectus();
   const processed = { success: 0, skipped: 0, failed: 0 };
+  // Which shape the recipient rows have. Unknown (Directus unreachable) → leave
+  // the rows alone rather than write the legacy status over a queue row.
+  const queueRows = await emailQueueSchema(directus).catch(() => null);
+  const rowFields = queueRows ? ["id", "status", "member", "email", "delivery_status"] : ["id", "status", "member"];
+  // Emails whose rows this batch promoted to `sent`: their totals are re-derived after.
+  const promoted = new Set<string>();
 
   for (const sg of appEvents) {
     try {
@@ -248,29 +266,40 @@ export default defineEventHandler(async (event) => {
 
       const organizationId = eventOrganizationId(sg);
 
-      // Recipient row: prefer (email_record + recipient_email), else sg_message_id.
+      // Recipient row: the queue's recipient_id, else (email_record +
+      // recipient_email), else sg_message_id.
       let recipient: HoaEmailRecipient | null = null;
-      if (sg.email_id) {
+      if (sg.recipient_id && queueRows) {
+        const rows = (await directus.request(
+          readItems("hoa_email_recipients", {
+            filter: { id: { _eq: sg.recipient_id }, ...(sg.email_id ? { email: { _eq: sg.email_id } } : {}) },
+            fields: rowFields as any,
+            limit: 1,
+          })
+        )) as unknown as HoaEmailRecipient[];
+        recipient = rows[0] ?? null;
+      }
+      if (!recipient && sg.email_id) {
         const rows = (await directus.request(
           readItems("hoa_email_recipients", {
             filter: {
               email: { _eq: sg.email_id },
               recipient_email: { _eq: sg.recipient_email || sg.email },
             },
-            fields: ["id", "status", "member"],
+            fields: rowFields as any,
             limit: 1,
           })
-        )) as HoaEmailRecipient[];
+        )) as unknown as HoaEmailRecipient[];
         recipient = rows[0] ?? null;
       }
       if (!recipient && cleanMessageId) {
         const rows = (await directus.request(
           readItems("hoa_email_recipients", {
             filter: { sg_message_id: { _eq: cleanMessageId } },
-            fields: ["id", "status", "member"],
+            fields: rowFields as any,
             limit: 1,
           })
-        )) as HoaEmailRecipient[];
+        )) as unknown as HoaEmailRecipient[];
         recipient = rows[0] ?? null;
       }
 
@@ -313,8 +342,13 @@ export default defineEventHandler(async (event) => {
 
       await directus.request(createItem("hoa_email_activity", activityData as any));
 
-      // Reflect terminal delivery states back onto the recipient row.
-      if (recipient) {
+      if (recipient && queueRows) {
+        const patch = queueRowPatch(recipient, sg, cleanMessageId);
+        if (patch) await directus.request(updateItem("hoa_email_recipients", recipient.id, patch as any));
+        const rowEmail = typeof recipient.email === "object" ? recipient.email?.id : recipient.email;
+        if (patch?.status === "sent" && rowEmail) promoted.add(rowEmail);
+      } else if (recipient && queueRows === false) {
+        // Before the queue's schema: terminal delivery states onto `status`, as before.
         let newStatus: HoaEmailRecipient["status"] | null = null;
         if (sg.event === "delivered") newStatus = "delivered";
         else if (sg.event === "bounce" || sg.event === "dropped") newStatus = "bounced";
@@ -330,6 +364,13 @@ export default defineEventHandler(async (event) => {
       console.error("[email/activity] error processing event:", err, sg);
       processed.failed++;
     }
+  }
+
+  // The totals follow the rows (the queue never increments a count).
+  for (const emailId of promoted) {
+    await refreshTotals(directusRecipientStore(directus), emailId).catch((e) =>
+      console.error(`[email/activity] totals for ${emailId} not refreshed:`, e)
+    );
   }
 
   // Ensure any downstream forward finishes before the serverless function is

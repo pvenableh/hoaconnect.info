@@ -1,5 +1,12 @@
 import { readItem, readItems } from "@directus/sdk";
 import { emailComplianceSchema } from "../../utils/email-compliance";
+import { emailQueueSchema } from "../../utils/email-send-queue";
+
+// The send queue's fields (Phase 3b), read once `pnpm add:email-send-queue` has run.
+const QUEUE_EMAIL_FIELDS = [
+  "total_recipients", "total_sent", "total_failed", "total_suppressed", "total_unknown",
+  "send_run_key", "send_started_at", "send_finished_at", "send_last_error",
+];
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -17,6 +24,7 @@ export default defineEventHandler(async (event) => {
     // `email_class` once the Phase 3a field exists; the composer falls back to
     // the type's default without it.
     const schema = await emailComplianceSchema(directus).catch(() => ({ members: false, emailClass: false }));
+    const queue = await emailQueueSchema(directus).catch(() => false);
 
     // Get email with organization info and attachment details
     const email = await directus.request(
@@ -43,6 +51,7 @@ export default defineEventHandler(async (event) => {
           "recipient_count",
           "delivered_count",
           "failed_count",
+          ...(queue ? QUEUE_EMAIL_FIELDS : []),
           {
             organization: ["id", "name"],
           },
@@ -60,13 +69,17 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Get recipients if email has been sent
+    // Get recipients if email has been sent. With the send queue, the rows of
+    // the latest occurrence (a recurring email keeps every occurrence's rows),
+    // in send order, with the queue's chips.
     let recipients: any[] = [];
-    if (email.status === "sent" || email.status === "sending" || email.status === "failed") {
+    const occurrence = queue ? (email.send_run_key as string | null) : null;
+    if (email.status === "sent" || email.status === "sending" || email.status === "failed" || occurrence) {
       recipients = await directus.request(
         readItems("hoa_email_recipients", {
           filter: {
             email: { _eq: id },
+            ...(occurrence ? { run_key: { _eq: occurrence } } : {}),
           },
           fields: [
             "id",
@@ -75,11 +88,13 @@ export default defineEventHandler(async (event) => {
             "status",
             "sent_at",
             "error_message",
+            ...(queue ? ["kind", "suppressed_reason", "delivery_status"] : []),
             {
               member: ["id", "first_name", "last_name"],
             } as any,
-          ],
-          sort: ["recipient_name"],
+          ] as any,
+          sort: occurrence ? ["position", "id"] : ["recipient_name"],
+          limit: -1,
         })
       ) as any[];
     }

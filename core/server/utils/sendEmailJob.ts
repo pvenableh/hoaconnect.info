@@ -1,16 +1,16 @@
 /**
- * Phase 9 (Stage C) — headless send job for scheduled emails.
+ * Phase 9 (Stage C) — the scheduled-email send job; since Phase 3b a client of
+ * the send queue (docs/spec-email-send-queue.md §7.4).
  *
- * Sends an already-saved hoa_emails record to its targeted recipients without a
- * user session (the Directus scheduled Flow calls process-scheduled, which calls
- * this). It reuses the same rendering + merge utilities as the interactive
- * send.post.ts so output matches; it does NOT re-embed images as CID (scheduled
- * emails keep absolute Directus asset URLs, which load in most clients).
- *
- * Returns delivery stats; the caller handles status + recurrence.
+ * Once `pnpm add:email-send-queue` has run, `sendEmailJob(id)` only ENQUEUES:
+ * it snapshots the email's audience as `queued` rows (email-send-enqueue.ts)
+ * and returns once `total_recipients` is set; the tick
+ * (`/api/email/cron/continue-sends`) does the sending. Before the script runs
+ * it keeps today's synchronous loop (`legacySendEmailJob`), so a deploy ahead
+ * of the script changes nothing.
  */
 import { readItem, readItems, createItem, updateItem } from "@directus/sdk";
-import { sendOrganizationEmail } from "./sendgrid";
+import { sendOrganizationEmail, resolveSender } from "./sendgrid";
 import {
   appendComplianceFooterHtml,
   buildEmailHtml,
@@ -19,10 +19,11 @@ import {
   type EmailType,
 } from "./email-templates-mjml";
 import { resolveMergeFields, applyMergeFields } from "./email-merge";
-import { residencyFor } from "#core/shared/members/residency";
 import { partitionAudience } from "#core/shared/email/email-class";
 import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
-import { emailComplianceSchema, ensureUnsubscribeTokens, MEMBER_SUPPRESSION_FIELDS } from "./email-compliance";
+import { emailComplianceSchema, ensureUnsubscribeTokens } from "./email-compliance";
+import { directusRecipientStore, emailQueueSchema } from "./email-send-queue";
+import { EmailComplianceRefusal, enqueueScheduled, resolveScheduledAudience } from "./email-send-enqueue";
 import type {
   HoaBoardMember,
   HoaEmailRecipient,
@@ -33,6 +34,8 @@ import type {
 
 export interface SendJobResult {
   emailId: string;
+  /** True when the email was enqueued (the tick sends it); delivered/failed are then 0. */
+  queued?: boolean;
   total: number;
   delivered: number;
   failed: number;
@@ -41,79 +44,26 @@ export interface SendJobResult {
 }
 
 /**
- * A send the compliance rules refuse outright (a community email from an org
- * with no postal address; a newsletter marked essential). Retrying can't fix
- * it, so process-scheduled marks the email failed instead of rescheduling it.
- */
-export class EmailComplianceRefusal extends Error {
-  constructor(public readonly code: string, message: string) {
-    super(message);
-    this.name = "EmailComplianceRefusal";
-  }
-}
-
-/**
- * Resolve the recipient members for an email based on its stored targeting.
- */
-async function resolveRecipients(
-  directus: ReturnType<typeof getTypedDirectus>,
-  organizationId: string,
-  recipientFilter: string,
-  recipientIds: string[] | null,
-  suppressionFields: readonly (typeof MEMBER_SUPPRESSION_FIELDS)[number][] = []
-): Promise<any[]> {
-  const baseFilter: Record<string, any> = {
-    organization: { _eq: organizationId },
-    status: { _eq: "active" },
-    email: { _nnull: true },
-  };
-
-  // Owner/tenant targeting is resolved in JS rather than as a Directus filter.
-  //
-  // Residency now lives on the unit link first and falls back to
-  // `hoa_members.member_type` (see `residencyFor`), and that "prefer the link,
-  // else the member, and ignore a link whose occupancy has ended" rule is not
-  // expressible as a flat `member_type` filter. Trying to write it as one is
-  // how you mail owners a tenant notice.
-  //
-  // The cost is fetching the org's active members and filtering locally. That is
-  // tens of rows for a real org — 59 for the largest today — against a decision
-  // that determines who receives real mail, so it is the right trade.
-  const wantsResidency = recipientFilter === "owners" || recipientFilter === "tenants";
-  if (recipientFilter === "custom") {
-    if (!recipientIds || recipientIds.length === 0) return [];
-    baseFilter.id = { _in: recipientIds };
-  }
-
-  const members = (await directus.request(
-    readItems("hoa_members", {
-      filter: baseFilter,
-      fields: [
-        "id", "first_name", "last_name", "email", "phone", "member_type", "company",
-        "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date",
-        ...suppressionFields,
-        // `member_type` and `end_date` are what residencyFor() reads off the
-        // link; the rest of this alias feeds the unit merge fields below.
-        { units: ["id", "is_primary_unit", "member_type", "end_date", { unit_id: ["id", "unit_number"] }] },
-        { vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"] },
-        { pets: ["id", "name", "type", "breed"] },
-      ],
-      limit: -1,
-    })
-  )) as any[];
-
-  if (!wantsResidency) return members;
-
-  const target = recipientFilter === "owners" ? "owner" : "tenant";
-  return members.filter((m) => residencyFor(m) === target);
-}
-
-/**
- * Send a saved email (by id) to its targeted recipients. Updates the email's
- * delivered/failed counts but NOT its status/recurrence — the caller decides
- * whether to mark it sent or reschedule.
+ * Enqueue a saved scheduled email for the tick to send. Throws
+ * EmailComplianceRefusal for what retrying can't fix (the caller marks the
+ * email failed) and SendInProgress when another scheduler got there first.
+ * Before the queue's schema exists, sends synchronously as before.
  */
 export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
+  const directus = getTypedDirectus();
+  if (await emailQueueSchema(directus)) {
+    const r = await enqueueScheduled(directus, directusRecipientStore(directus), emailId, { now: () => Date.now() });
+    return { emailId, queued: true, total: r.total, delivered: 0, failed: 0, suppressed: r.suppressed };
+  }
+  return legacySendEmailJob(emailId);
+}
+
+/**
+ * Before `pnpm add:email-send-queue`: send to every recipient inside the
+ * caller's request, one at a time. Updates the email's delivered/failed counts
+ * but NOT its status/recurrence — the caller decides.
+ */
+export async function legacySendEmailJob(emailId: string): Promise<SendJobResult> {
   const config = useRuntimeConfig();
   const directus = getTypedDirectus();
   // Before `pnpm add:email-compliance` runs, neither the class nor the member
@@ -139,7 +89,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
   const organization = (await directus.request(
     readItem("hoa_organizations", organizationId, {
       fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url",
-        { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"] }],
+        { settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme", "from_name", "from_email", "email_domain_verified"] }],
     })
   )) as HoaOrganization & { settings: BlockSetting | null };
 
@@ -173,13 +123,13 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
       }));
   }
 
-  const audience = await resolveRecipients(
+  const audience = (await resolveScheduledAudience(
     directus,
     organizationId,
     email.recipient_filter || "all",
     Array.isArray(email.recipient_ids) ? email.recipient_ids : null,
-    schema.members ? MEMBER_SUPPRESSION_FIELDS : []
-  );
+    schema.members
+  )) as any[];
   const { recipients, suppressed } = partitionAudience(audience, emailClass);
   const suppressedStats = {
     bounced: suppressed.filter((s) => s.reason === "bounced").length,
@@ -223,6 +173,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
     ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || email.id}`
     : `${config.public.appUrl}/api/email/view/${email.id}`;
 
+  const sender = resolveSender(organization, "bulk");
   let delivered = 0;
   let failed = 0;
 
@@ -265,8 +216,7 @@ export async function sendEmailJob(emailId: string): Promise<SendJobResult> {
         subject: recipientSubject,
         html,
         text,
-        fromName: organization.name || undefined,
-        replyTo: organization.email ? { email: organization.email, name: organization.name || undefined } : undefined,
+        ...sender,
         customArgs: { email_id: String(email.id), recipient_email: member.email, organization_id: organizationId },
         organizationId,
         headers: rc.headers,

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { HoaEmailsFile } from "#core/types/directus";
+import { recipientChip } from "#core/shared/email/send-progress";
 
 const props = defineProps<{
   emailId: string;
@@ -48,6 +49,26 @@ const {
 );
 
 const email = computed(() => emailData.value?.email || null);
+
+// The send queue (Phase 3b): while this email is sending, poll its progress
+// every 5 s; when it finishes, reload the email so the counts and the rows
+// catch up. A finished queued send keeps its final label.
+const sendProgress = useSendProgress();
+const isQueuedSend = computed(() => !!(email.value as any)?.send_run_key);
+watch(
+  () => [email.value?.status, isQueuedSend.value] as const,
+  ([status, queued]) => {
+    if (status === "sending" && queued) sendProgress.watchSend(props.emailId);
+    else if (queued && !sendProgress.progress.value) sendProgress.watchSend(props.emailId);
+  },
+  { immediate: true }
+);
+watch(
+  () => sendProgress.progress.value?.phase,
+  (phase, prev) => {
+    if (phase === "done" && prev && prev !== "done") refresh();
+  }
+);
 
 // Activity data state - using manual fetch instead of useAsyncData for better control
 const activityData = ref<{
@@ -223,6 +244,19 @@ const getStatusBadgeClass = (status: string) => {
     failed: "bg-destructive/15 text-destructive",
   };
   return classes[status] || classes.draft;
+};
+
+// The queue's chips (held back with the reason, unknown, the webhook's
+// delivery outcome) — one wording, shared with the server's tests.
+const CHIP_TONE: Record<string, string> = {
+  ok: "bg-success/15 text-success",
+  warn: "bg-warning/15 text-warning",
+  bad: "bg-destructive/15 text-destructive",
+  muted: "t-bg-subtle t-text-secondary",
+};
+const chipFor = (row: Record<string, any>) => {
+  const chip = recipientChip(row);
+  return { label: chip.label, class: CHIP_TONE[chip.tone] };
 };
 
 const getRecipientStatusBadgeClass = (status: string) => {
@@ -454,6 +488,13 @@ useSeoMeta({
               </CardContent>
             </Card>
 
+            <!-- Send progress (the send queue) -->
+            <Card v-if="isQueuedSend && sendProgress.progress.value" data-testid="detail-send-progress">
+              <CardContent class="py-4">
+                <CommunicationsSendProgress :progress="sendProgress.progress.value" />
+              </CardContent>
+            </Card>
+
             <!-- Recipients List -->
             <Card v-if="email.recipients && email.recipients.length > 0">
               <CardHeader class="py-3">
@@ -475,8 +516,18 @@ useSeoMeta({
                     <template #cell-recipient_email="{ value }">
                       <span class="t-text-secondary">{{ value }}</span>
                     </template>
-                    <template #cell-status="{ value }">
+                    <template #cell-status="{ value, row }">
                       <span
+                        v-if="isQueuedSend"
+                        class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded"
+                        :class="chipFor(row).class"
+                        :title="(row as any).error_message || undefined"
+                        data-testid="recipient-chip"
+                      >
+                        {{ chipFor(row).label }}
+                      </span>
+                      <span
+                        v-else
                         class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded capitalize"
                         :class="getRecipientStatusBadgeClass((value as string) || 'pending')"
                       >

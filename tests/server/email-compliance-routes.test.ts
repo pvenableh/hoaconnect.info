@@ -37,7 +37,9 @@ vi.mock("#core/server/utils/audit-log", () => ({
 }));
 
 const sent: any[] = [];
-vi.mock("#core/server/utils/sendgrid", () => ({
+vi.mock("#core/server/utils/sendgrid", async (orig) => ({
+  // The real resolveSender (Phase 3b's shared renderer calls it); only the send is faked.
+  ...(await orig<typeof import("#core/server/utils/sendgrid")>()),
   sendOrganizationEmail: async (m: any) => {
     sent.push(m);
     return { success: true, messageId: `msg-${sent.length}` };

@@ -15,6 +15,7 @@
  * const emails = await emailSystem.listEmails(orgId)
  */
 
+import type { SendPhase, SendProgressView } from "#core/shared/email/send-progress";
 import type { HoaEmail, HoaEmailRecipient, HoaMember } from "#core/types/directus";
 
 export type EmailType = "basic" | "alert" | "newsletter" | "announcement" | "reminder" | "notice";
@@ -122,12 +123,20 @@ export interface EmailSendResponse {
     /** Left out by the class rules: bounced (every class), opted out (community). */
     suppressed?: { bounced: number; optedOut: number };
   };
-  recipients: Array<{
+  /** The synchronous send (before the queue's schema exists) lists every recipient. */
+  recipients?: Array<{
     memberId: string;
     email: string;
     status: "sent" | "failed";
     error?: string;
   }>;
+  /** The send queue (Phase 3b): the send was enqueued; `progress` is where it stands. */
+  queued?: boolean;
+  /** A small send ran one tick inside the request. */
+  inline?: boolean;
+  total?: number;
+  phase?: SendPhase;
+  progress?: SendProgressView | null;
 }
 
 export interface EmailPreviewResponse {

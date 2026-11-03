@@ -149,6 +149,8 @@ export const PLATFORM_COLLECTIONS: Readonly<Record<string, string>> = {
   waitlist_signups: "Platform signup funnel, predates any organization.",
   push_subscriptions:
     "Browser push endpoints and encryption keys per device. Useless outside this install and a live credential — never exported.",
+  hoa_email_send_leases:
+    "The send queue's per-email mutex — a row exists only while a run is preparing or sending, and means nothing outside this install. The send itself travels as hoa_emails and its recipient rows.",
 };
 
 /**

@@ -1,10 +1,16 @@
 /**
  * Phase 9 (Stage C) — process due scheduled emails.
  *
- * Called on a cron schedule by a Directus Flow (or any external scheduler).
- * Finds hoa_emails with status='scheduled' and scheduled_at <= now, sends each
- * via sendEmailJob, then either marks it 'sent' or — when recurrence_rule is set
- * — rolls scheduled_at forward and leaves it 'scheduled'.
+ * Called on a schedule by the Directus Flow "Email Scheduler" (or by hand).
+ * Since Phase 3b it only ENQUEUES: each due email's audience is snapshotted as
+ * `queued` rows (email-send-enqueue.ts) and the tick,
+ * `GET /api/email/cron/continue-sends`, sends them — the same enqueue the tick
+ * itself runs first, so the Flow and the Vercel cron can both fire until the
+ * Flow is retired: the per-email lease means two schedulers cannot
+ * double-enqueue. Recurrence is rolled forward at completion.
+ *
+ * Before `pnpm add:email-send-queue` has run, it keeps the old synchronous
+ * send (legacySendEmailJob), status and recurrence included.
  *
  * Auth: the cron secret (`x-cron-secret`, or `Authorization: Bearer` from
  * Vercel Cron), or a signed-in App Administrator triggering a run by hand —
@@ -12,24 +18,23 @@
  * session is not enough (until 2026-10 any session was accepted).
  */
 import { readItems, updateItem } from "@directus/sdk";
-import { EmailComplianceRefusal, sendEmailJob } from "../../utils/sendEmailJob";
+import { legacySendEmailJob } from "../../utils/sendEmailJob";
+import { EmailComplianceRefusal, enqueueDue } from "../../utils/email-send-enqueue";
+import { computeNextRun, directusRecipientStore, emailQueueSchema } from "../../utils/email-send-queue";
 import { requireCronOrAppAdmin } from "../../utils/cron-auth";
 
-function computeNextRun(base: Date, rule: string): Date | null {
-  const d = new Date(base);
-  if (rule === "weekly") { d.setDate(d.getDate() + 7); return d; }
-  if (rule === "monthly") { d.setMonth(d.getMonth() + 1); return d; }
-  return null;
-}
-
 export default defineEventHandler(async (event) => {
-  // --- Authorization ---
   await requireCronOrAppAdmin(event);
 
   const directus = getTypedDirectus();
   const nowIso = new Date().toISOString();
 
-  // Find due scheduled emails
+  if (await emailQueueSchema(directus)) {
+    const r = await enqueueDue(directus, directusRecipientStore(directus), { now: () => Date.now() });
+    return { success: true, checkedAt: nowIso, queued: true, processedCount: r.enqueued.length, ...r };
+  }
+
+  // ── Before the queue's schema exists: today's synchronous send ────────────
   const due = (await directus.request(
     readItems("hoa_emails", {
       filter: {
@@ -49,7 +54,7 @@ export default defineEventHandler(async (event) => {
       // Mark sending to avoid a double-fire if a second poll overlaps
       await directus.request(updateItem("hoa_emails", item.id, { status: "sending" }));
 
-      const result = await sendEmailJob(item.id);
+      const result = await legacySendEmailJob(item.id);
 
       const rule = item.recurrence_rule || "none";
       const next = rule !== "none" ? computeNextRun(new Date(item.scheduled_at || nowIso), rule) : null;

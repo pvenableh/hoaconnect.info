@@ -28,6 +28,21 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // The same gate as send and save: an admin of the email's org, or a
+    // property manager with the communications grant. (Until Phase 3b any
+    // session could delete any org's draft.)
+    const organizationId = typeof email.organization === "object" ? (email.organization as { id: string })?.id : email.organization;
+    await requireAdminOrManagerGrant(event, String(organizationId), "communications");
+
+    // A send in flight: its rows are being delivered.
+    if (email.status === "sending") {
+      throw createError({
+        statusCode: 409,
+        message: "This email is being sent; it can't be deleted.",
+        data: { code: "send_in_progress" },
+      });
+    }
+
     // Only allow deleting drafts
     if (email.status !== "draft") {
       throw createError({

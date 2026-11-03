@@ -1,103 +1,44 @@
-import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
-import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
-import { appendComplianceFooterHtml, buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
-import { resolveMergeFields, applyMergeFields } from "../../utils/email-merge";
-import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile, HoaEmailRecipient } from "#core/types/directus";
-import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
-import { partitionAudience } from "#core/shared/email/email-class";
-import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
-import { emailComplianceSchema, ensureUnsubscribeTokens, MEMBER_SUPPRESSION_FIELDS } from "../../utils/email-compliance";
-
-interface CidImage {
-  cid: string;
-  content: string; // base64
-  type: string;
-  filename: string;
-}
-
 /**
- * Extract images from content and prepare them as CID attachments
- * CID (Content-ID) embedding works better in Outlook than base64 data URIs
+ * Send a composed email — since Phase 3b a client of the send queue
+ * (docs/spec-email-send-queue.md §7.3–7.4). Nothing is mailed inside this
+ * request except one inline tick for a small send:
+ *
+ *   1. the class and postal address (checkSendCompliance) — refused before any write;
+ *   2. the audience (explicit ids) through partitionAudience — a recipient
+ *      picker is not consent; everyone held back → 400;
+ *   3. the email row saved, then the snapshot (email-send-enqueue.ts) under a
+ *      prepare lease: one `queued` row per person, total last (409 when the
+ *      email is already being sent);
+ *   4. ≤ INLINE_MAX recipients: one tick inline, awaited (Vercel freezes a
+ *      function once it responds); the response carries the progress. Larger:
+ *      the response is immediate and the cron sends within a minute.
+ *
+ * Before `pnpm add:email-send-queue` has run (emailQueueSchema), it sends
+ * synchronously as it always did, through the same renderer.
  */
-async function extractImagesAsCid(
-  content: string,
-  directusUrl: string,
-  staticToken: string
-): Promise<{ processedContent: string; cidImages: CidImage[] }> {
-  const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
-  let processedContent = content;
-  const cidImages: CidImage[] = [];
-  const matches = [...content.matchAll(imgRegex)];
-
-  console.log(`[extractImagesAsCid] Processing ${matches.length} image(s) in content`);
-
-  for (const match of matches) {
-    const [fullMatch, beforeSrc, src, afterSrc = ""] = match;
-    if (!src) continue;
-    const isSelfClosing = fullMatch.endsWith('/>');
-
-    // Check if this is a Directus asset URL
-    if (src.includes(directusUrl) || src.includes('/assets/')) {
-      try {
-        // Extract asset ID from URL
-        const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
-        if (!assetMatch) {
-          console.log(`[extractImagesAsCid] Could not extract asset ID from: ${src}`);
-          continue;
-        }
-
-        const assetId = assetMatch[1];
-        const assetUrl = `${directusUrl}/assets/${assetId}`;
-
-        console.log(`[extractImagesAsCid] Downloading image: ${assetId}`);
-
-        // Download the image
-        const response = await fetch(assetUrl, {
-          headers: {
-            Authorization: `Bearer ${staticToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          console.error(`[extractImagesAsCid] Failed to download image ${assetId}: ${response.status}`);
-          continue;
-        }
-
-        // Get content type and determine extension
-        const contentType = response.headers.get('content-type') || 'image/png';
-        const ext = contentType.split('/')[1] || 'png';
-
-        // Convert to base64
-        const arrayBuffer = await response.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-        // Generate unique CID
-        const cid = `image-${assetId}@hoamail`;
-        const filename = `image-${assetId}.${ext}`;
-
-        cidImages.push({
-          cid,
-          content: base64,
-          type: contentType,
-          filename,
-        });
-
-        console.log(`[extractImagesAsCid] Prepared CID image: ${cid} (${contentType})`);
-
-        // Replace the src with cid: reference
-        const cleanAfterSrc = afterSrc.replace(/\s*\/\s*$/, '');
-        const newImgTag = isSelfClosing
-          ? `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc} />`
-          : `<img${beforeSrc}src="cid:${cid}"${cleanAfterSrc}>`;
-        processedContent = processedContent.replace(fullMatch, newImgTag);
-      } catch (error) {
-        console.error(`[extractImagesAsCid] Error processing image:`, error);
-      }
-    }
-  }
-
-  return { processedContent, cidImages };
-}
+import { readItem, readItems, readFiles, createItem, updateItem } from "@directus/sdk";
+import { sendOrganizationEmail } from "../../utils/sendgrid";
+import type { EmailType } from "../../utils/email-templates-mjml";
+import { resolveMergeFields } from "../../utils/email-merge";
+import type { DirectusFile, HoaEmailRecipient } from "#core/types/directus";
+import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
+import { checkSendCompliance } from "#core/shared/email/unsubscribe";
+import { emailComplianceSchema } from "../../utils/email-compliance";
+import { resolveCcBccEmails } from "../../utils/email-cc-contacts";
+import { buildUniqueWebSlug } from "../../utils/email-branding";
+import { INLINE_MAX } from "../../utils/email-send-constants";
+import { directusRecipientStore, emailQueueSchema, manualRunKey, SendInProgress } from "../../utils/email-send-queue";
+import { audienceFields, plannedFor, prepareAudience, writeSnapshot, type AudienceMember } from "../../utils/email-send-enqueue";
+import {
+  buildRenderContext,
+  extractImagesAsCid,
+  loadAttachments,
+  readBoardMembers,
+  renderMessage,
+  RENDER_ORG_FIELDS,
+  type RenderOrg,
+} from "../../utils/email-send-render";
+import { readSendProgress, runInlineTick } from "../../utils/email-send-tick";
 
 interface SendEmailBody {
   organizationId: string;
@@ -122,7 +63,7 @@ interface SendEmailBody {
 }
 
 export default defineEventHandler(async (event) => {
-  const session = await requireUserSession(event);
+  await requireUserSession(event);
   const body = await readBody<SendEmailBody>(event);
 
   const { organizationId, subject, subtitle, content, emailType, contentMode = "visual", recipientIds, greeting, salutation, includeBoardFooter = true, emailId, attachmentIds, urgent, headerText, footerImageId, cc, bcc, emailClass: requestedClass } = body;
@@ -143,14 +84,9 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
 
-    // Get organization with settings
-    const organization = await directus.request(
-      readItem("hoa_organizations", organizationId, {
-        fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url", {
-          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme", "cc_bcc_threshold", "from_name", "from_email", "email_domain_verified"],
-        }],
-      })
-    ) as HoaOrganization & { settings: BlockSetting | null };
+    const organization = (await directus.request(
+      readItem("hoa_organizations", organizationId, { fields: RENDER_ORG_FIELDS as any })
+    )) as unknown as RenderOrg;
 
     if (!organization) {
       throw createError({
@@ -170,58 +106,39 @@ export default defineEventHandler(async (event) => {
     // is nothing to suppress and nowhere to keep a token, so the send proceeds
     // as before (no List-Unsubscribe header, the generic page in the footer).
     const schema = await emailComplianceSchema(directus);
+    const queued = await emailQueueSchema(directus);
 
-    // Get board members if needed
-    let boardMembers: Array<{ name: string; title: string; icon?: string }> = [];
-    if (includeBoardFooter) {
-      const boardMemberRecords = await directus.request(
-        readItems("hoa_board_members", {
-          filter: {
-            hoa_member: {
-              organization: { _eq: organizationId },
-              status: { _eq: "active" },
-            },
-            status: { _eq: "published" },
-          },
-          fields: ["id", "title", "icon", {
-            hoa_member: ["id", "first_name", "last_name"],
-          }],
-          sort: ["sort"],
-        })
-      ) as Array<HoaBoardMember & { hoa_member: HoaMember }>;
-
-      boardMembers = boardMemberRecords
-        .filter((bm) => bm.hoa_member)
-        .map((bm) => ({
-          name: `${bm.hoa_member.first_name || ""} ${bm.hoa_member.last_name || ""}`.trim() || "Board Member",
-          title: bm.title || "Board Member",
-          icon: bm.icon || '',
-        }));
+    // Re-sending a saved email: never while it is being sent (its rows are in flight).
+    let previousStatus = "draft";
+    let webSlug: string | null = null;
+    if (emailId) {
+      const existing = (await directus.request(
+        readItem("hoa_emails", emailId, { fields: ["id", "status", "organization", "web_slug"] })
+      )) as { status?: string | null; organization?: string | { id: string } | null; web_slug?: string | null } | null;
+      const owner = existing && (typeof existing.organization === "object" ? existing.organization?.id : existing.organization);
+      if (!existing || (owner && owner !== organizationId)) {
+        throw createError({ statusCode: 404, message: "Email not found" });
+      }
+      if (existing.status === "sending") {
+        throw createError({ statusCode: 409, message: "This email is already being sent.", data: { code: "send_in_progress" } });
+      }
+      previousStatus = existing.status || "draft";
+      webSlug = existing.web_slug || null;
     }
 
-    // Get recipients (members) with their unit information
-    const audience = await directus.request(
+    // Recipients (explicit ids) with the merge relations.
+    const audience = (await directus.request(
       readItems("hoa_members", {
         filter: {
           id: { _in: recipientIds },
           organization: { _eq: organizationId },
           status: { _eq: "active" },
         },
-        fields: ["id", "first_name", "last_name", "email", "phone", "member_type", "company",
-          "outstanding_balance", "payment_status", "last_payment_amount", "last_payment_date",
-          ...(schema.members ? MEMBER_SUPPRESSION_FIELDS : []), {
-          // `member_type` and `end_date` are what residencyFor() reads off the
-          // link, via the {{member_type}} merge field; the rest feeds the unit
-          // merge fields. Recipients here are explicit ids, so residency does
-          // not decide who is mailed — only what the token renders as.
-          units: ["id", "is_primary_unit", "member_type", "end_date", {
-            unit_id: ["id", "unit_number"],
-          }],
-          vehicles: ["id", "make", "model", "year", "license_plate", "parking_spot"],
-          pets: ["id", "name", "type", "breed"],
-        }],
+        fields: audienceFields(schema.members) as any,
+        // Without it Directus answers 100 rows: a 150-person send mailed 100.
+        limit: -1,
       })
-    ) as unknown as Array<HoaMember & { units?: Array<{ is_primary_unit?: boolean; unit_id?: { unit_number?: string } }>; vehicles?: any[]; pets?: any[] }>;
+    )) as unknown as AudienceMember[];
 
     if (!audience.length) {
       throw createError({
@@ -233,81 +150,19 @@ export default defineEventHandler(async (event) => {
     // Bounced addresses drop out of every send; opted-out members out of
     // community mail. Explicit ids don't override that — a recipient picker is
     // not consent.
-    const { recipients, suppressed } = partitionAudience(audience, emailClass);
-    const suppressedStats = {
-      bounced: suppressed.filter((s) => s.reason === "bounced").length,
-      optedOut: suppressed.filter((s) => s.reason === "opted_out").length,
-    };
-    if (!recipients.length) {
+    const prepared = await prepareAudience(directus, audience, emailClass, schema.members);
+    const suppressedStats = prepared.stats;
+    if (!prepared.recipients.length) {
       throw createError({
         statusCode: 400,
         message: `Nobody to send to: of the ${audience.length} selected, ${suppressedStats.bounced} have bounced addresses and ${suppressedStats.optedOut} opted out of community email.`,
         data: { code: "all_recipients_suppressed", suppressed: suppressedStats },
       });
     }
-    const members =
-      emailClass === "community" && schema.members
-        ? await ensureUnsubscribeTokens(directus, recipients)
-        : recipients;
+    const members = prepared.recipients;
 
-    // Process attachments if provided
-    let emailAttachments: EmailAttachment[] = [];
-    if (attachmentIds && attachmentIds.length > 0) {
-      // Fetch file metadata from Directus (use readFiles for core collection)
-      const files = await directus.request(
-        readFiles({
-          filter: {
-            id: { _in: attachmentIds },
-          },
-          fields: ["id", "filename_download", "type", "title"],
-        })
-      ) as DirectusFile[];
-
-      // Download each file and convert to base64
-      for (const file of files) {
-        try {
-          const fileUrl = `${config.directus.url}/assets/${file.id}`;
-          const response = await fetch(fileUrl, {
-            headers: {
-              Authorization: `Bearer ${config.directus.staticToken}`,
-            },
-          });
-
-          if (!response.ok) {
-            console.error(`Failed to download attachment ${file.id}: ${response.status}`);
-            continue;
-          }
-
-          const arrayBuffer = await response.arrayBuffer();
-          const base64Content = Buffer.from(arrayBuffer).toString("base64");
-
-          emailAttachments.push({
-            content: base64Content,
-            filename: file.filename_download || file.title || "attachment",
-            type: file.type || "application/octet-stream",
-            disposition: "attachment",
-          });
-        } catch (attachError) {
-          console.error(`Error processing attachment ${file.id}:`, attachError);
-        }
-      }
-    }
-
-    // Format attachments for M2M relationship
-    const attachmentsData = attachmentIds && attachmentIds.length > 0
-      ? attachmentIds.map(fileId => ({ directus_files_id: fileId }))
-      : [];
-
-    // Resolve a friendly web_slug for the public view page. Reuse an existing
-    // one when re-sending a draft; otherwise derive it from the subject and make
-    // it unique within the org.
-    let webSlug: string | null = null;
-    if (emailId) {
-      const existing = (await directus.request(
-        readItem("hoa_emails", emailId, { fields: ["web_slug"] })
-      )) as { web_slug?: string | null };
-      webSlug = existing?.web_slug || null;
-    }
+    // A friendly web_slug for the public view page: reuse a draft's, else
+    // derive one from the subject, unique within the org.
     if (!webSlug) {
       const slugRows = (await directus.request(
         readItems("hoa_emails", {
@@ -324,405 +179,99 @@ export default defineEventHandler(async (event) => {
       webSlug = buildUniqueWebSlug(subject, taken);
     }
 
-    // Create or update email record
-    let email;
-    if (emailId) {
-      email = await directus.request(
-        updateItem("hoa_emails", emailId, {
-          subject,
-          subtitle: subtitle || null,
-          content,
-          email_type: emailType,
-          content_mode: contentMode,
-          urgent: urgent || false,
-          greeting: greeting || null,
-          salutation: salutation || null,
-          include_board_footer: includeBoardFooter,
-          status: "sending",
-          recipient_count: members.length,
-          ...(schema.emailClass ? { email_class: emailClass } : {}),
-          attachments: attachmentsData,
-          web_slug: webSlug,
-          header_text: headerText || null,
-          footer_image: footerImageId || null,
-          cc: cc?.length ? cc : null,
-          bcc: bcc?.length ? bcc : null,
-        })
-      );
-    } else {
-      email = await directus.request(
-        createItem("hoa_emails", {
-          organization: organizationId,
-          subject,
-          subtitle: subtitle || null,
-          content,
-          email_type: emailType,
-          content_mode: contentMode,
-          urgent: urgent || false,
-          greeting: greeting || null,
-          salutation: salutation || null,
-          include_board_footer: includeBoardFooter,
-          status: "sending",
-          recipient_count: members.length,
-          ...(schema.emailClass ? { email_class: emailClass } : {}),
-          attachments: attachmentsData,
-          web_slug: webSlug,
-          header_text: headerText || null,
-          footer_image: footerImageId || null,
-          cc: cc?.length ? cc : null,
-          bcc: bcc?.length ? bcc : null,
-        })
-      );
-    }
-
-    // Process content to extract images as CID attachments (works better in Outlook)
-    const { processedContent, cidImages } = await extractImagesAsCid(
+    const emailData = {
+      subject,
+      subtitle: subtitle || null,
       content,
-      config.directus.url,
-      config.directus.staticToken
-    );
+      email_type: emailType,
+      content_mode: contentMode,
+      urgent: urgent || false,
+      greeting: greeting || null,
+      salutation: salutation || null,
+      include_board_footer: includeBoardFooter,
+      ...(schema.emailClass ? { email_class: emailClass } : {}),
+      attachments: attachmentIds?.length ? attachmentIds.map((fileId) => ({ directus_files_id: fileId })) : [],
+      web_slug: webSlug,
+      header_text: headerText || null,
+      footer_image: footerImageId || null,
+      cc: cc?.length ? cc : null,
+      bcc: bcc?.length ? bcc : null,
+      // The queue sets `sending` itself, under the lease, as its first write.
+      ...(queued ? {} : { status: "sending", recipient_count: members.length }),
+    };
+    const email = (emailId
+      ? await directus.request(updateItem("hoa_emails", emailId, emailData as any))
+      : await directus.request(createItem("hoa_emails", { organization: organizationId, status: "draft", ...emailData } as any))) as { id: string };
 
-    // Convert CID images to email attachments with inline disposition
-    const inlineAttachments: EmailAttachment[] = cidImages.map((img) => ({
-      content: img.content,
-      filename: img.filename,
-      type: img.type,
-      disposition: "inline" as const,
-      contentId: img.cid,
-    }));
-
-    // Log content for debugging
-    console.log(`[send.post] Original content length: ${content.length}, Processed content length: ${processedContent.length}`);
-    console.log(`[send.post] CID images extracted: ${cidImages.length}`);
-    console.log(`[send.post] Content preview: ${content.substring(0, 200)}...`);
-
-    // Send emails to each recipient
-    let deliveredCount = 0;
-    let failedCount = 0;
-    const recipientResults: Array<{
-      memberId: string;
-      email: string;
-      status: "sent" | "failed";
-      error?: string;
-    }> = [];
-
-    // Check if we should use dynamic templates
-    const templateId = config.sendgridEmailTemplateId;
-    const useDynamicTemplate = !!templateId;
-    console.log(`[send.post] Using dynamic template: ${useDynamicTemplate} (templateId: ${templateId || 'none'})`);
-
-    // Build org logo URL if available
-    let orgLogoUrl: string | undefined;
-    if (organization.settings?.logo) {
-      orgLogoUrl = `${config.directus.url}/assets/${organization.settings.logo}`;
-    }
-
-    // Build org address string
-    const orgAddress = [
-      organization.street_address,
-      organization.city,
-      organization.state,
-      organization.zip,
-    ].filter(Boolean).join(', ');
-
-    // Build org website URL (slug-based)
-    const orgUrl = organization.slug
-      ? `${config.public.appUrl}/${organization.slug}`
-      : `${config.public.appUrl}`;
-
-    // Resolve branding (custom header line, footer photo, homepage link) with
-    // per-send overrides winning over the org defaults.
-    const branding = resolveEmailBranding(organization, null, {
-      appUrl: config.public.appUrl as string,
-      overrides: { headerText: headerText ?? null, footerImage: footerImageId ?? null },
-    });
-    const footerImageUrl = branding.footerImage
-      ? `${config.directus.url}/assets/${branding.footerImage}`
-      : "";
-
-    // Friendly public web-view URL (/{slug}/announcements/email/{web_slug}).
-    const webViewUrl = organization.slug
-      ? `${config.public.appUrl}/${organization.slug}/announcements/email/${webSlug || (email as any).id}`
-      : `${config.public.appUrl}/api/email/view/${(email as any).id}`;
-
-    // Resolve CC/BCC group tokens (@board / @property_manager) + free-form
-    // emails into live addresses.
+    // CC/BCC: group tokens (@board / @property_manager) and free-form
+    // addresses, resolved once — the board at the moment of Send is copied.
     const ccEmails = await resolveCcBccEmails(organizationId, cc);
     const bccEmails = await resolveCcBccEmails(organizationId, bcc);
-    const ccBccThreshold =
-      Number((organization.settings as any)?.cc_bcc_threshold) || DEFAULT_CC_BCC_THRESHOLD;
-    const memberEmailSet = new Set(
-      members.map((m) => (m.email || "").toLowerCase()).filter(Boolean)
-    );
-    // Small/targeted send: attach CC/BCC to every personalized email, so the
-    // copied parties see themselves as real CC/BCC recipients. Large send: keep
-    // per-recipient privacy and give each CC/BCC contact a single copy instead.
-    const attachCopiesPerRecipient = members.length <= ccBccThreshold;
-    const ccArg = ccEmails.length ? ccEmails.map((addr) => ({ email: addr })) : undefined;
-    const bccArg = bccEmails.length ? bccEmails.map((addr) => ({ email: addr })) : undefined;
 
-    // White-label sender: the display name applies always; the custom from-address
-    // only once the org's sending domain is verified (else SendGrid would flag it).
-    const senderName = (organization.settings as any)?.from_name?.trim() || organization.name || undefined;
-    const senderFrom =
-      (organization.settings as any)?.email_domain_verified && (organization.settings as any)?.from_email
-        ? String((organization.settings as any).from_email).trim()
-        : undefined;
-
-    // Send one personalized email to a target — a member, or (member: null) a
-    // standalone CC/BCC copy. Centralizes the mjml / dynamic-template / fallback
-    // branches that were previously inlined per recipient.
-    const deliverTo = async (opts: {
-      toEmail: string;
-      toName?: string;
-      member?: (typeof members)[number] | null;
-      cc?: Array<{ email: string }>;
-      bcc?: Array<{ email: string }>;
-    }): Promise<{ messageId: string | null }> => {
-      const { toEmail, toName, member = null, cc: ccCopies, bcc: bccCopies } = opts;
-      const recipientFirstName = member?.first_name || undefined;
-      const primaryUnit = member?.units?.find((u) => u.is_primary_unit) || member?.units?.[0];
-      const unitNumber = primaryUnit?.unit_id?.unit_number || undefined;
-
-      const mergeValues = member ? resolveMergeFields(member, organization) : {};
-      const recipientContent = applyMergeFields(processedContent, mergeValues);
-      const recipientSubject = applyMergeFields(subject, mergeValues) || subject;
-      const processedHtmlContent = processHtmlForEmail(recipientContent);
-
-      let personalizedContent = processedHtmlContent;
-      if (greeting) {
-        const greetingWithName = recipientFirstName
-          ? `${greeting} ${recipientFirstName},`
-          : `${greeting},`;
-        personalizedContent = `<p>${greetingWithName}</p>${processedHtmlContent}`;
-      }
-      if (salutation) {
-        personalizedContent = `${personalizedContent}<p>${salutation}</p>`;
-      }
-
-      // The class footer and, on community mail with a token, the one-click
-      // headers. A CC/BCC copy has no member and so no token: it gets the
-      // generic unsubscribe page and no List-Unsubscribe header.
-      const rc = recipientCompliance({
-        emailClass,
-        org: organization,
-        mailingAddress,
-        appUrl: config.public.appUrl as string,
-        emailId: String((email as any).id),
-        token: (member as { unsubscribe_token?: string | null } | null)?.unsubscribe_token ?? null,
-      });
-
-      const text = buildEmailText({
-        organization,
-        subject: recipientSubject,
-        content: recipientContent,
-        emailType,
-        greeting,
-        salutation,
-        boardMembers: includeBoardFooter ? boardMembers : undefined,
-        recipientFirstName,
-        directusUrl: config.directus.url,
-        complianceFooter: rc.footer,
-      });
-
-      const allAttachments = [...emailAttachments, ...inlineAttachments];
-      const common = {
-        to: toEmail,
-        toName: toName || undefined,
-        subject: recipientSubject,
-        text,
-        fromName: senderName,
-        fromAddress: senderFrom,
-        attachments: allAttachments.length > 0 ? allAttachments : undefined,
-        replyTo: organization.email
-          ? { email: organization.email, name: organization.name || undefined }
-          : undefined,
-        customArgs: {
-          email_id: String((email as any).id),
-          recipient_email: toEmail,
-          organization_id: organizationId,
-        },
-        organizationId,
-        cc: ccCopies,
-        bcc: bccCopies,
-        headers: rc.headers,
-      };
-
-      if (contentMode === "mjml") {
-        // Raw MJML/HTML mode: the author controls the whole email.
-        return sendOrganizationEmail({
-          ...common,
-          html: appendComplianceFooterHtml(buildRawEmailHtml(recipientContent), rc.footer),
-        });
-      }
-
-      if (useDynamicTemplate) {
-        const templateData: EmailTemplateData = {
-          first_name: recipientFirstName || "Resident",
-          unit: unitNumber || "",
-          subject: recipientSubject,
-          subtitle: subtitle || "",
-          content: `${personalizedContent}${rc.footer.html}`,
-          salutation: salutation || undefined,
-          urgent: urgent || false,
-          category: emailType,
-          org_name: organization.name || "Your HOA",
-          org_legal_name: organization.legal_name || "",
-          org_type: organization.type || undefined,
-          org_logo_url: orgLogoUrl || "",
-          org_url: orgUrl,
-          org_address: orgAddress || undefined,
-          org_email: organization.email || undefined,
-          org_phone_number: organization.phone || "",
-          org_header_text:
-            applyHeaderTextTokens(branding.headerText, organization.name || "Your HOA", organization.legal_name) ||
-            undefined,
-          org_homepage_url: branding.homepageUrl || undefined,
-          footer_image_url: footerImageUrl || undefined,
-          board_members: includeBoardFooter && boardMembers.length > 0 ? boardMembers : [],
-          Weblink: webViewUrl,
-          unsubscribe_url: rc.unsubscribeUrl || undefined,
-          preferences_url: rc.preferencesUrl,
-          compliance_footer: rc.footer.html,
-          year: new Date().getFullYear().toString(),
-        };
-        return sendOrganizationEmail({ ...common, html: `${personalizedContent}${rc.footer.html}`, templateId, templateData });
-      }
-
-      const html = buildEmailHtml({
-        organization,
-        subject: recipientSubject,
-        content: recipientContent,
-        emailType,
-        greeting,
-        salutation,
-        boardMembers: includeBoardFooter ? boardMembers : undefined,
-        recipientFirstName,
-        directusUrl: config.directus.url,
-        emailId: (email as any).id,
-        appUrl: config.public.appUrl as string,
-        headerText: branding.headerText,
-        footerImage: branding.footerImage,
-        homepageUrl: branding.homepageUrl,
-        webViewUrl,
-        complianceFooter: rc.footer,
-      });
-      return sendOrganizationEmail({ ...common, html });
-    };
-
-    for (const member of members) {
-      if (!member.email) {
-        failedCount++;
-        recipientResults.push({
-          memberId: member.id,
-          email: "",
-          status: "failed",
-          error: "No email address",
-        });
-        continue;
-      }
-
-      const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
+    if (queued) {
+      const store = directusRecipientStore(directus);
+      const runKey = manualRunKey(Date.now());
+      const plan = plannedFor(email.id, runKey, organization, prepared, { ccEmails, bccEmails });
       try {
-        const sendResult = await deliverTo({
-          toEmail: member.email,
-          toName: recipientName || undefined,
-          member,
-          cc: attachCopiesPerRecipient ? ccArg : undefined,
-          bcc: attachCopiesPerRecipient ? bccArg : undefined,
+        await writeSnapshot(store, {
+          emailId: email.id,
+          runKey,
+          rows: plan.rows,
+          total: plan.total,
+          suppressedCount: plan.suppressedCount,
+          worker: "inline",
+          clock: { now: () => Date.now() },
+          expect: (status) => status !== "sending",
+          restoreStatus: previousStatus,
         });
-
-        deliveredCount++;
-        recipientResults.push({
-          memberId: member.id,
-          email: member.email,
-          status: "sent",
-        });
-
-        // Create recipient record with SendGrid message ID for tracking
-        await directus.request(
-          createItem("hoa_email_recipients", {
-            email: email.id,
-            member: member.id,
-            recipient_email: member.email,
-            recipient_name: recipientName || null,
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            sg_message_id: sendResult.messageId || null,
-          } as Partial<HoaEmailRecipient>)
-        );
-      } catch (sendError: any) {
-        failedCount++;
-        recipientResults.push({
-          memberId: member.id,
-          email: member.email,
-          status: "failed",
-          error: sendError.message || "Failed to send",
-        });
-
-        // Create failed recipient record
-        await directus.request(
-          createItem("hoa_email_recipients", {
-            email: email.id,
-            member: member.id,
-            recipient_email: member.email,
-            recipient_name: recipientName || null,
-            status: "failed",
-            error_message: sendError.message || "Failed to send",
-          } as Partial<HoaEmailRecipient>)
-        );
-      }
-    }
-
-    // Large send: the CC/BCC contacts weren't attached per-recipient (privacy),
-    // so give each one a single standalone copy — but skip any who are already
-    // members in this send (they got their own personalized email).
-    if (!attachCopiesPerRecipient) {
-      const copyTargets = [...new Set([...ccEmails, ...bccEmails])].filter(
-        (addr) => !memberEmailSet.has(addr)
-      );
-      for (const addr of copyTargets) {
-        try {
-          const copyResult = await deliverTo({ toEmail: addr, member: null });
-          await directus.request(
-            createItem("hoa_email_recipients", {
-              email: email.id,
-              member: null,
-              recipient_email: addr,
-              recipient_name: null,
-              status: "sent",
-              sent_at: new Date().toISOString(),
-              sg_message_id: copyResult.messageId || null,
-            } as Partial<HoaEmailRecipient>)
-          );
-        } catch (copyError: any) {
-          console.error(`[send.post] CC/BCC copy to ${addr} failed:`, copyError?.message || copyError);
+      } catch (e) {
+        if (e instanceof SendInProgress) {
+          throw createError({ statusCode: 409, message: e.message, data: { code: e.code } });
         }
+        throw e;
       }
+
+      // Small sends feel instant: one tick here, awaited. If a cron tick got
+      // the lease first this is `busy`, and the UI polls either way.
+      const inline = plan.total <= INLINE_MAX;
+      if (inline) {
+        await runInlineTick(email.id).catch((e) => console.error("[send.post] inline tick failed:", e));
+      }
+      const progress = await readSendProgress(directus, email.id).catch(() => null);
+      return {
+        success: true,
+        emailId: email.id,
+        emailClass,
+        queued: true,
+        inline,
+        total: plan.total,
+        phase: progress?.phase ?? "sending",
+        progress,
+        stats: {
+          total: plan.total,
+          delivered: progress?.sent ?? 0,
+          failed: progress?.failed ?? 0,
+          suppressed: suppressedStats,
+        },
+      };
     }
 
-    // Update email with final counts and status
-    await directus.request(
-      updateItem("hoa_emails", email.id, {
-        status: failedCount === members.length ? "failed" : "sent",
-        sent_at: new Date().toISOString(),
-        delivered_count: deliveredCount,
-        failed_count: failedCount,
-      })
-    );
-
-    return {
-      success: true,
-      emailId: email.id,
+    return await sendSynchronously({
+      directus,
+      config,
+      organization,
       emailClass,
-      stats: {
-        total: members.length,
-        delivered: deliveredCount,
-        failed: failedCount,
-        suppressed: suppressedStats,
-      },
-      recipients: recipientResults,
-    };
+      mailingAddress,
+      email: { id: email.id, ...emailData, content, subject },
+      members,
+      includeBoardFooter,
+      attachmentIds,
+      headerText,
+      footerImageId,
+      ccEmails,
+      bccEmails,
+      suppressedStats,
+    });
   } catch (error: any) {
     console.error("Email send error:", error);
     if (error.statusCode) {
@@ -734,3 +283,153 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
+/**
+ * Before the queue's schema exists: every recipient mailed inside this
+ * request, one at a time, a row written after each — today's behaviour,
+ * through the shared renderer.
+ */
+async function sendSynchronously(input: {
+  directus: ReturnType<typeof getTypedDirectus>;
+  config: ReturnType<typeof useRuntimeConfig>;
+  organization: RenderOrg;
+  emailClass: Parameters<typeof buildRenderContext>[0]["emailClass"];
+  mailingAddress: string | null;
+  email: { id: string; subject: string; content: string; [k: string]: unknown };
+  members: AudienceMember[];
+  includeBoardFooter: boolean;
+  attachmentIds?: string[];
+  headerText?: string | null;
+  footerImageId?: string | null;
+  ccEmails: string[];
+  bccEmails: string[];
+  suppressedStats: { bounced: number; optedOut: number };
+}) {
+  const { directus, config, organization, email, members } = input;
+  const directusUrl = config.directus.url as string;
+  const staticToken = config.directus.staticToken as string;
+
+  let files: DirectusFile[] = [];
+  if (input.attachmentIds?.length) {
+    files = (await directus.request(
+      readFiles({ filter: { id: { _in: input.attachmentIds } }, fields: ["id", "filename_download", "type", "title"] })
+    )) as DirectusFile[];
+  }
+  const attachments = await loadAttachments(files as any, { directusUrl, staticToken, strict: false });
+  const { processedContent, inline } = await extractImagesAsCid(email.content, { directusUrl, staticToken });
+
+  const ctx = buildRenderContext({
+    emailId: String(email.id),
+    org: organization,
+    emailClass: input.emailClass,
+    mailingAddress: input.mailingAddress,
+    email: email as any,
+    content: processedContent,
+    boardMembers: input.includeBoardFooter ? await readBoardMembers(directus, organization.id) : [],
+    attachments: [...attachments, ...inline],
+    brandingOverrides: { headerText: input.headerText ?? null, footerImage: input.footerImageId ?? null },
+    config: {
+      appUrl: config.public.appUrl as string,
+      directusUrl,
+      templateId: (config.sendgridEmailTemplateId as string | undefined) || undefined,
+    },
+  });
+
+  const threshold = Number((organization.settings as any)?.cc_bcc_threshold) || DEFAULT_CC_BCC_THRESHOLD;
+  const small = members.length <= threshold;
+  const copies = small && (input.ccEmails.length || input.bccEmails.length) ? { cc: input.ccEmails, bcc: input.bccEmails } : null;
+
+  let deliveredCount = 0;
+  let failedCount = 0;
+  const recipientResults: Array<{ memberId: string; email: string; status: "sent" | "failed"; error?: string }> = [];
+
+  for (const member of members) {
+    if (!member.email) {
+      failedCount++;
+      recipientResults.push({ memberId: member.id, email: "", status: "failed", error: "No email address" });
+      continue;
+    }
+    const recipientName = `${member.first_name || ""} ${member.last_name || ""}`.trim();
+    try {
+      const msg = renderMessage(
+        ctx,
+        { toEmail: member.email, toName: recipientName, fields: resolveMergeFields(member, organization), copies },
+        member.unsubscribe_token ?? null
+      );
+      const sendResult = await sendOrganizationEmail(msg);
+      deliveredCount++;
+      recipientResults.push({ memberId: member.id, email: member.email, status: "sent" });
+      await directus.request(
+        createItem("hoa_email_recipients", {
+          email: email.id,
+          member: member.id,
+          recipient_email: member.email,
+          recipient_name: recipientName || null,
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          sg_message_id: sendResult.messageId || null,
+        } as Partial<HoaEmailRecipient>)
+      );
+    } catch (sendError: any) {
+      failedCount++;
+      recipientResults.push({ memberId: member.id, email: member.email, status: "failed", error: sendError.message || "Failed to send" });
+      await directus.request(
+        createItem("hoa_email_recipients", {
+          email: email.id,
+          member: member.id,
+          recipient_email: member.email,
+          recipient_name: recipientName || null,
+          status: "failed",
+          error_message: sendError.message || "Failed to send",
+        } as Partial<HoaEmailRecipient>)
+      );
+    }
+  }
+
+  // Large send: the CC/BCC contacts weren't attached per-recipient (privacy),
+  // so each gets one standalone copy — unless already a member of this send.
+  if (!small) {
+    const memberEmailSet = new Set(members.map((m) => (m.email || "").toLowerCase()).filter(Boolean));
+    for (const addr of new Set([...input.ccEmails, ...input.bccEmails])) {
+      if (memberEmailSet.has(addr)) continue;
+      try {
+        const copyResult = await sendOrganizationEmail(renderMessage(ctx, { toEmail: addr, fields: {} }, null));
+        await directus.request(
+          createItem("hoa_email_recipients", {
+            email: email.id,
+            member: null,
+            recipient_email: addr,
+            recipient_name: null,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            sg_message_id: copyResult.messageId || null,
+          } as Partial<HoaEmailRecipient>)
+        );
+      } catch (copyError: any) {
+        console.error(`[send.post] CC/BCC copy to ${addr} failed:`, copyError?.message || copyError);
+      }
+    }
+  }
+
+  await directus.request(
+    updateItem("hoa_emails", email.id, {
+      status: failedCount === members.length ? "failed" : "sent",
+      sent_at: new Date().toISOString(),
+      delivered_count: deliveredCount,
+      failed_count: failedCount,
+    })
+  );
+
+  return {
+    success: true,
+    emailId: email.id,
+    emailClass: input.emailClass,
+    stats: {
+      total: members.length,
+      delivered: deliveredCount,
+      failed: failedCount,
+      suppressed: input.suppressedStats,
+    },
+    recipients: recipientResults,
+  };
+}

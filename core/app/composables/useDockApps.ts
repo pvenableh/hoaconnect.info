@@ -28,8 +28,10 @@ export function useDockApps() {
   const channelUnread = useChannelUnread();
   channelUnread.watchLive();
   onMounted(() => channelUnread.refresh());
+  const sendingEmails = useSendingEmails();
+  sendingEmails.watchLive(showAdminUI);
   const badges = computed<Record<string, number>>(() =>
-    badgeCountsFor(notifications.value, channelUnread.total.value)
+    badgeCountsFor(notifications.value, channelUnread.total.value, showAdminUI.value ? sendingEmails.count.value : 0)
   );
   const totalUnread = computed(() =>
     apps.value.reduce((n, a) => n + (badges.value[a.key] || 0), 0)

@@ -75,6 +75,7 @@
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
     "add:user-app-prefs": "dotenv -- tsx scripts/add-user-app-prefs-field.ts",
     "add:email-compliance": "dotenv -- tsx scripts/add-email-compliance-fields.ts",
+    "add:email-send-queue": "dotenv -- tsx scripts/add-email-send-queue.ts",
     "create:expenses": "dotenv -- tsx scripts/create-expenses-collection.ts",
     "add:project-phase3": "dotenv -- tsx scripts/add-project-phase3-fields.ts",
     "create:property-mgmt": "dotenv -- tsx scripts/create-property-management.ts",

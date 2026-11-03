@@ -139,7 +139,11 @@ export function badgeCountsFor(
   // their unread rolls into that section's badge — otherwise the one surface
   // that counts unread messages is the one place the dock stays silent about.
   // Passed in rather than read here so this stays a pure mapping function.
-  channelUnread = 0
+  channelUnread = 0,
+  // Emails of this org mid-send (the send queue, Phase 3b): Communications
+  // shows them until they finish, so a send running in the background is
+  // visible from anywhere.
+  sendingEmails = 0
 ): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const n of notifications || []) {
@@ -150,6 +154,8 @@ export function badgeCountsFor(
   }
   const channels = Math.max(0, Math.floor(Number(channelUnread) || 0));
   if (channels) counts.comms = (counts.comms || 0) + channels;
+  const sending = Math.max(0, Math.floor(Number(sendingEmails) || 0));
+  if (sending) counts.comms = (counts.comms || 0) + sending;
   return counts;
 }
 

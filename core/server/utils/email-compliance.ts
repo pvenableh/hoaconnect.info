@@ -29,11 +29,13 @@ type DirectusLike = { request: (op: any) => Promise<any> };
 
 // The client here is `DirectusLike` (the routes pass getTypedDirectus(), the
 // tests a stub), so the builders are used untyped; the field lists are checked
-// against core/types/directus.ts by the callers' reads instead.
-const readFieldsByCollection = sdk.readFieldsByCollection as (collection: string) => any;
-const readItems = sdk.readItems as unknown as (collection: string, query: Record<string, unknown>) => any;
-const updateItem = sdk.updateItem as unknown as (collection: string, id: string, data: Record<string, unknown>) => any;
-const updateItemsBatch = sdk.updateItemsBatch as unknown as (collection: string, data: Array<Record<string, unknown>>) => any;
+// against core/types/directus.ts by the callers' reads instead. They are looked
+// up when called, so a test that mocks @directus/sdk without one of them can
+// still import a module that imports this one.
+const readFieldsByCollection = (collection: string) => (sdk as any).readFieldsByCollection(collection);
+const readItems = (collection: string, query: Record<string, unknown>) => (sdk as any).readItems(collection, query);
+const updateItem = (collection: string, id: string, data: Record<string, unknown>) => (sdk as any).updateItem(collection, id, data);
+const updateItemsBatch = (collection: string, data: Array<Record<string, unknown>>) => (sdk as any).updateItemsBatch(collection, data);
 
 /** 24 random bytes, base64url: 32 characters, 192 bits. */
 export function mintUnsubscribeToken(): string {

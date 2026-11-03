@@ -7,7 +7,8 @@ import {
   resolveEmailFonts,
   type EmailType,
 } from "./email-templates-mjml";
-import { sendOrganizationEmail } from "./sendgrid";
+import { resolveSender, sendOrganizationEmail } from "./sendgrid";
+import { emailComplianceSchema } from "./email-compliance";
 import { scopeRecipientsToOrg } from "./org-members";
 import {
   emailAllowed,
@@ -92,10 +93,13 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     const rows = (await admin.request(
       readItems("hoa_organizations", {
         filter: { id: { _eq: opts.organizationId } },
-        fields: ["id", "name", "legal_name", "slug", "external_url", "settings", "street_address", "city", "state", "zip"],
+        fields: [
+          "id", "name", "legal_name", "slug", "external_url", "email", "street_address", "city", "state", "zip",
+          { settings: ["id", "logo", "title", "header_text", "homepage_url", "footer_image", "colors", "theme", "from_name", "from_email", "email_domain_verified"] },
+        ] as any,
         limit: 1,
       })
-    )) as OrgRow[];
+    )) as unknown as OrgRow[];
     org = rows?.[0] || null;
   } catch (e) {
     console.warn("[transactional-email] failed to load org", e);
@@ -123,6 +127,26 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     return;
   }
 
+  // Bounced addresses (Phase 3a's flag) get nothing — not even an essential
+  // notice: SendGrid would drop it and count it against the sender. The opt-out
+  // does not apply here; these are switched off in notification preferences.
+  const bounced = new Set<string>();
+  try {
+    if ((await emailComplianceSchema(admin)).members) {
+      const rows = (await admin.request(
+        readItems("hoa_members", {
+          filter: { organization: { _eq: opts.organizationId }, email_bounced: { _eq: true } } as any,
+          fields: ["email"],
+          limit: -1,
+        })
+      )) as Array<{ email?: string | null }>;
+      for (const r of rows || []) if (r.email) bounced.add(r.email.trim().toLowerCase());
+    }
+  } catch (e) {
+    console.warn("[transactional-email] bounced read failed; sending without it", e);
+  }
+
+  const sender = resolveSender(org, "transactional");
   const branding = resolveEmailBranding(org, null, { appUrl });
   const emailType: EmailType = opts.emailType || "notice";
   const slug = org.slug || "";
@@ -159,6 +183,10 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
 
   for (const u of users) {
     if (!u.email) continue;
+    if (bounced.has(u.email.trim().toLowerCase())) {
+      console.info(`[transactional-email] skipped ${u.id}: address bounced`);
+      continue;
+    }
     // Respect the member's notification preferences (revives the previously
     // ignored email_notifications field + honors per-category opt-out).
     const prefs = (u.notification_preferences as any) || null;
@@ -196,6 +224,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         subject: opts.subject,
         html,
         text,
+        ...sender,
         organizationId: opts.organizationId,
       });
     } catch (e) {

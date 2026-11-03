@@ -16,7 +16,9 @@ vi.mock("@directus/sdk", () => ({
 }));
 
 const sent: Array<{ to: string; subject: string; organizationId: string }> = [];
-vi.mock("#core/server/utils/sendgrid", () => ({
+vi.mock("#core/server/utils/sendgrid", async (orig) => ({
+  // The real resolveSender (Phase 3b); only the send is faked.
+  ...(await orig<typeof import("#core/server/utils/sendgrid")>()),
   sendOrganizationEmail: async (m: any) => {
     sent.push({ to: m.to, subject: m.subject, organizationId: m.organizationId });
   },

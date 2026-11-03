@@ -1,5 +1,5 @@
 import { readItem, readItems, readFiles } from "@directus/sdk";
-import { sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
+import { resolveSender, sendOrganizationEmail, type EmailAttachment, type EmailTemplateData } from "../../utils/sendgrid";
 import { appendComplianceFooterHtml, buildEmailHtml, buildEmailText, buildRawEmailHtml, processHtmlForEmail, type EmailType } from "../../utils/email-templates-mjml";
 import { checkSendCompliance, recipientCompliance } from "#core/shared/email/unsubscribe";
 import { resolveEmailBranding } from "../../utils/email-branding";
@@ -167,7 +167,7 @@ export default defineEventHandler(async (event) => {
     const organization = await directus.request(
       readItem("hoa_organizations", organizationId, {
         fields: ["id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", {
-          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme"],
+          settings: ["id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme", "from_name", "from_email", "email_domain_verified"],
         }],
       })
     ) as HoaOrganization & { settings: BlockSetting | null };
@@ -184,6 +184,9 @@ export default defineEventHandler(async (event) => {
     // address isn't a member, so the footer carries the generic unsubscribe
     // page and no List-Unsubscribe header — the real send adds both.
     const compliance = checkSendCompliance({ emailType, requestedClass, org: organization });
+    // The org's white-label sender, as members will see it (resolveSender —
+    // the one rule every org sender uses since Phase 3b).
+    const sender = resolveSender(organization as any, "test");
     if (compliance.ok === false) {
       throw createError({ statusCode: compliance.statusCode, message: compliance.message, data: { code: compliance.code } });
     }
@@ -370,7 +373,7 @@ export default defineEventHandler(async (event) => {
             subject: `[TEST] ${mergedSubject}`,
             html,
             text,
-            fromName: organization.name || undefined,
+            ...sender,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
             organizationId,
           });
@@ -420,7 +423,7 @@ export default defineEventHandler(async (event) => {
             subject: `[TEST] ${mergedSubject}`,
             html: `${personalizedContent}${rc.footer.html}`, // Fallback if template fails
             text,
-            fromName: organization.name || undefined,
+            ...sender,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
             templateId,
             templateData,
@@ -460,7 +463,7 @@ export default defineEventHandler(async (event) => {
             subject: `[TEST] ${mergedSubject}`,
             html,
             text,
-            fromName: organization.name || undefined,
+            ...sender,
             attachments: allAttachments.length > 0 ? allAttachments : undefined,
             organizationId,
           });

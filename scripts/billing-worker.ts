@@ -59,6 +59,8 @@ import { buildBillingRunEntry } from "../core/shared/ledger/entries";
 import { bellAllowed } from "../core/shared/notifications/preferences";
 import { resolveEmailBranding } from "../core/server/utils/email-branding";
 import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
+import { resolveSender } from "../core/server/utils/sendgrid";
+import { essentialEmailAllowed } from "../core/shared/email/email-class";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -196,6 +198,8 @@ interface MemberRow {
   last_name?: string | null;
   email?: string | null;
   user?: string | null;
+  /** Phase 3a's flag: a hard-bounced address gets no reminder. */
+  email_bounced?: boolean | null;
 }
 
 interface RunCounts {
@@ -549,8 +553,10 @@ async function sendReminders(org: OrgRow, charges: ChargeRow[], members: Map<str
   const settings = org.settings && typeof org.settings === "object" ? org.settings : null;
   const orgForEmail = { ...org, settings };
   const branding = resolveEmailBranding(orgForEmail as any, null, { appUrl: APP_URL });
-  const verified = settings?.email_domain_verified === true;
-  const from = { email: verified && settings?.from_email ? settings.from_email : FROM_EMAIL, name: settings?.from_name || FROM_NAME };
+  // One sender rule for every path (core/server/utils/sendgrid.ts): the org's
+  // name, its address only once the domain is verified, its reply-to.
+  const sender = resolveSender(orgForEmail, "transactional");
+  const from = { email: sender.fromAddress || FROM_EMAIL, name: sender.fromName || FROM_NAME };
   const orgName = org.name || org.slug;
   const payUrl = APP_URL ? `${APP_URL}/${org.slug}/payments` : "";
 
@@ -567,6 +573,12 @@ async function sendReminders(org: OrgRow, charges: ChargeRow[], members: Map<str
     if (org.is_demo && !DEMO_ALLOW_EMAIL) {
       console.log(`   [demo] suppressed reminder → ${who} · ${stage} · ${money(total)}`);
       continue;
+    }
+    const emailAllowed = essentialEmailAllowed(member);
+    if (!emailAllowed) {
+      // Essential mail still skips a dead address; the bell and push below
+      // still fire, so the member is reminded in the app.
+      console.log(`   skipped email → ${who}: address bounced`);
     }
     if (DRY_RUN) {
       console.log(`   would remind ${who} (${email ?? "no email"}) · ${stage} · ${list.length} charge(s) · ${money(total)}`);
@@ -594,13 +606,13 @@ async function sendReminders(org: OrgRow, charges: ChargeRow[], members: Map<str
     const base = { organization: orgForEmail as any, subject, content, emailType: "notice", recipientFirstName: member?.first_name || undefined, directusUrl: DIRECTUS_URL } as any;
 
     let delivered = false;
-    if (email && SENDGRID_API_KEY && user?.email_notifications !== false) {
+    if (email && SENDGRID_API_KEY && user?.email_notifications !== false && emailAllowed) {
       try {
         await sendViaSendgrid({
           to: email,
           toName: member?.first_name || undefined,
           from,
-          replyTo: settings?.reply_to_email ? { email: settings.reply_to_email } : undefined,
+          replyTo: sender.replyTo ? { email: sender.replyTo.email } : undefined,
           subject,
           html: buildEmailHtml({ ...base, appUrl: APP_URL, headerText: branding.headerText, footerImage: branding.footerImage, homepageUrl: branding.homepageUrl }),
           text: buildEmailText(base),
@@ -654,7 +666,7 @@ async function runOrg(org: OrgRow): Promise<RunCounts> {
       filter: { organization: { _eq: org.id } },
       fields: ["id", "title", "amount", "frequency", "cadence", "amount_source", "audience", "generate_days_ahead", "start_date", "end_date", "last_generated_period", "status", "member", "total_payments_generated"],
     }),
-    items("hoa_members", { filter: { organization: { _eq: org.id }, status: { _eq: "active" } }, fields: ["id", "first_name", "last_name", "email", "user"] }),
+    items("hoa_members", { filter: { organization: { _eq: org.id }, status: { _eq: "active" } }, fields: ["id", "first_name", "last_name", "email", "user", "email_bounced"] }),
     items("hoa_member_units", {
       // Status is filtered here, not in the query: `_neq` never matches a NULL.
       filter: { unit_id: { organization: { _eq: org.id } } },

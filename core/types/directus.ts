@@ -853,7 +853,8 @@ export interface HoaEmailRecipient {
 	recipient_email?: string | null;
 	/** @description Recipient name at time of sending */
 	recipient_name?: string | null;
-	status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced' | null;
+	/** @description The send queue's state: queued → claimed → sent | failed | suppressed | unknown. Delivery events live in delivery_status. */
+	status?: 'queued' | 'claimed' | 'sent' | 'failed' | 'suppressed' | 'unknown' | 'pending' | 'delivered' | 'bounced' | null;
 	sent_at?: string | null;
 	/** @description Error message if delivery failed */
 	error_message?: string | null;
@@ -862,6 +863,39 @@ export interface HoaEmailRecipient {
 	email?: HoaEmail | string | null;
 	/** @description The hoa_member this recipient row belongs to. */
 	member?: HoaMember | string | null;
+	/** @description member: one personalised message to one member. copy: a standalone CC/BCC copy of a large send (no member). */
+	kind?: 'member' | 'copy' | null;
+	/** @description Which occurrence of the email this row belongs to (m:<enqueue time> or s:<scheduled time>). */
+	run_key?: string | null;
+	/** @description Send order within the occurrence. */
+	position?: number | null;
+	/** @description email:run_key:m:member or email:run_key:a:address — unique, so nobody is queued twice for one occurrence. */
+	dedupe_key?: string | null;
+	/** @description The sending run's token while the row is claimed. */
+	claim?: string | null;
+	/** @description When a run claimed the row. */
+	claimed_at?: string | null;
+	/** @description The merge values at enqueue (name, unit, balance…). Admin-only: non-admin policies cannot read it. */
+	member_fields?: Record<string, any> | null;
+	/** @description { cc, bcc } carried on this message (small sends only). */
+	copies?: Record<string, any> | null;
+	/** @description Why the row was held back. */
+	suppressed_reason?: 'bounced' | 'opted_out' | 'bounced_mid_send' | 'opted_out_mid_send' | null;
+	/** @description SendGrid's delivery event for this message (the webhook writes it). */
+	delivery_status?: 'delivered' | 'bounced' | null;
+}
+
+export interface HoaEmailSendLease {
+	/** @primaryKey */
+	id: string;
+	/** @description The email this lease locks. Unique. @required */
+	email: HoaEmail | string;
+	/** @description The holding run's UUID. @required */
+	token: string;
+	purpose?: 'prepare' | 'send' | null;
+	worker?: 'inline' | 'cron' | 'manual' | null;
+	/** @description A lease older than 3 minutes belongs to a dead run and may be broken. @required */
+	started_at: string;
 }
 
 export interface HoaEmail {
@@ -927,6 +961,26 @@ export interface HoaEmail {
 	visibility?: 'public' | 'private' | null;
 	/** @description essential: dues, meetings, governance — cannot be unsubscribed. community: newsletters, announcements — members can opt out. A newsletter is always community. */
 	email_class?: 'essential' | 'community' | null;
+	/** @description People this occurrence will be sent to (members + CC/BCC copies, not held back). Empty while getting ready. */
+	total_recipients?: number | null;
+	/** @description Accepted by SendGrid — derived from the recipient rows. */
+	total_sent?: number | null;
+	/** @description Refused or unrenderable — derived from the recipient rows. */
+	total_failed?: number | null;
+	/** @description Held back (bounced or opted out) — derived from the recipient rows. */
+	total_suppressed?: number | null;
+	/** @description Its run stopped mid-send; may or may not have gone. Never resent automatically. */
+	total_unknown?: number | null;
+	/** @description The occurrence in flight (or last sent). */
+	send_run_key?: string | null;
+	/** @description When this occurrence was queued. */
+	send_started_at?: string | null;
+	/** @description When this occurrence finished. */
+	send_finished_at?: string | null;
+	/** @description The first 20 failures of the occurrence, as "address: reason". */
+	send_errors?: Record<string, any> | null;
+	/** @description What stopped the last run before it sent anything; cleared by the next chunk that sends. */
+	send_last_error?: string | null;
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
@@ -2519,6 +2573,7 @@ export interface Schema {
 	hoa_email_activity: HoaEmailActivity[];
 	hoa_email_partials: HoaEmailPartial[];
 	hoa_email_recipients: HoaEmailRecipient[];
+	hoa_email_send_leases: HoaEmailSendLease[];
 	hoa_emails: HoaEmail[];
 	hoa_emails_files: HoaEmailsFile[];
 	hoa_email_templates: HoaEmailTemplate[];
@@ -2630,6 +2685,7 @@ export enum CollectionNames {
 	hoa_email_activity = 'hoa_email_activity',
 	hoa_email_partials = 'hoa_email_partials',
 	hoa_email_recipients = 'hoa_email_recipients',
+	hoa_email_send_leases = 'hoa_email_send_leases',
 	hoa_emails = 'hoa_emails',
 	hoa_emails_files = 'hoa_emails_files',
 	hoa_email_templates = 'hoa_email_templates',

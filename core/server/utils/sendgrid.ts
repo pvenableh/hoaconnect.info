@@ -1,4 +1,5 @@
 import sgMail from "@sendgrid/mail";
+import { SENDGRID_TIMEOUT_MS } from "./email-send-constants";
 
 /**
  * The platform's own sender, used when an org has no verified white-label
@@ -9,6 +10,80 @@ export const PLATFORM_FROM_EMAIL = "noreply@hoaconnect.info";
 
 export function platformFromEmail(config: { public: { fromEmail?: string } }): string {
   return config.public.fromEmail || PLATFORM_FROM_EMAIL;
+}
+
+/** Which kind of mail a sender is resolved for (docs/spec-email-send-queue.md §7.4). */
+export type SenderStream = "bulk" | "transactional" | "test";
+
+/** The org fields `resolveSender` reads; `settings` may be a row or an unexpanded id. */
+export interface SenderOrg {
+  name?: string | null;
+  email?: string | null;
+  settings?:
+    | {
+        from_name?: string | null;
+        from_email?: string | null;
+        email_domain_verified?: boolean | null;
+        reply_to?: string | null;
+        /** The billing worker's spelling; neither field exists yet — both are read. */
+        reply_to_email?: string | null;
+      }
+    | string
+    | null;
+}
+
+export interface ResolvedSender {
+  fromName?: string;
+  /** Set only when the org's sending domain is verified; otherwise the platform sender applies. */
+  fromAddress?: string;
+  replyTo?: { email: string; name?: string };
+}
+
+/**
+ * The org's white-label sender, one rule for every path that mails on an org's
+ * behalf (the queue's render, test sends, transactional notices, the billing
+ * worker): `settings.from_name` else the org's name, always; `settings.from_email`
+ * only once the domain is verified (SendGrid flags an unverified one); reply-to
+ * from `settings.reply_to` else the org's own address; the platform sender
+ * otherwise. Before Phase 3b, scheduled and transactional sends dropped the
+ * white-label sender entirely.
+ *
+ * `stream` is the seam per-stream senders hang on; today every stream resolves
+ * the same way.
+ */
+export function resolveSender(org: SenderOrg | null | undefined, _stream: SenderStream = "bulk"): ResolvedSender {
+  const settings = org?.settings && typeof org.settings === "object" ? org.settings : null;
+  const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const fromName = clean(settings?.from_name) || clean(org?.name);
+  const fromAddress = settings?.email_domain_verified ? clean(settings.from_email) : undefined;
+  const replyEmail = clean(settings?.reply_to) || clean(settings?.reply_to_email) || clean(org?.email);
+  return {
+    fromName,
+    fromAddress,
+    replyTo: replyEmail ? { email: replyEmail, name: clean(org?.name) } : undefined,
+  };
+}
+
+/**
+ * `OUTBOUND_EMAIL_ONLY_TO` — a dev/staging allow-list: comma- or space-separated
+ * addresses and `@domain` entries. When set, mail to anyone else is not sent
+ * (logged, and reported to the caller as accepted with no message id, like the
+ * demo guard), so a run against prod-shaped data can only reach named inboxes.
+ * Unset in production.
+ */
+export function outboundAllowList(raw: string | undefined = process.env.OUTBOUND_EMAIL_ONLY_TO): string[] | null {
+  const entries = (raw || "")
+    .split(/[\s,]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return entries.length ? entries : null;
+}
+
+export function isOutboundAllowed(address: string, allow: string[] | null): boolean {
+  if (!allow) return true;
+  const a = (address || "").trim().toLowerCase();
+  const domain = a.slice(a.lastIndexOf("@"));
+  return allow.some((e) => (e.startsWith("@") ? domain === e : a === e));
 }
 
 /**
@@ -23,6 +98,9 @@ const initSendGrid = () => {
   }
 
   sgMail.setApiKey(apiKey);
+  // A hung request must not hold a queue run past its budget: 8 s, then the
+  // client gives up (the queue settles that row `unknown` — it may have gone).
+  sgMail.setTimeout(SENDGRID_TIMEOUT_MS);
   return sgMail;
 };
 
@@ -536,6 +614,17 @@ export const sendOrganizationEmail = async ({
   if (await shouldBlockDemoEmail(organizationId)) {
     console.log(`[demo] email suppressed for demo org ${organizationId} → ${to} — "${subject}"`);
     return { success: true, messageId: null };
+  }
+
+  // Dev allow-list: one check here covers every path that sends org mail.
+  const allow = outboundAllowList();
+  if (!isOutboundAllowed(to, allow)) {
+    console.log(`[OUTBOUND_EMAIL_ONLY_TO] not sent → ${to} — "${subject}"`);
+    return { success: true, messageId: null };
+  }
+  if (allow) {
+    cc = cc?.filter((r) => isOutboundAllowed(r.email, allow));
+    bcc = bcc?.filter((r) => isOutboundAllowed(r.email, allow));
   }
 
   const sg = initSendGrid();
