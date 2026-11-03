@@ -16,7 +16,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
-| 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` on local `main` (not pushed); gates green, browser 72/72 ×3 on the demo org. Operator: run `pnpm add:user-app-prefs` (blocked here) — until then dock prefs stay per-device. Found a pre-existing SSR auth gap (Session 4, deviation 8). |
+| 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: run `pnpm add:user-app-prefs` (blocked here) — until then dock prefs stay per-device. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [ ] | CAN-SPAM blocker + the synchronous send loop. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
@@ -619,17 +619,81 @@ Gates (final tree, `6ea771c`): typecheck 0 · vitest 99 files / 1687 tests · bu
 
 Operator TODOs (Peter):
 
-- [ ] **Push is yours**: one code commit + one docs commit on local `main`.
+- [x] **Push is yours**: one code commit + one docs commit on local `main`. *(Pushed 2026-11-02.)*
 - [ ] **Provision `app_prefs`**: `pnpm add:user-app-prefs`, then `pnpm generate:types` (expect a
       no-op diff on `app_prefs` — the hand-added line matches the generator). Then, signed in on
       two browsers, change the dock palette in one and reload the other.
 - [ ] On the preview deploy, eyeball a cold load of Members and Email: the title should not
       jump at hydration (Email's moves above its tabs, once — deviation 4).
-- [ ] **SSR membership read (deviation 8)**: hard-refresh `/{slug}/admin/members` signed in on
+- [x] **SSR membership read (deviation 8)**: hard-refresh `/{slug}/admin/members` signed in on
       prod; if it bounces to the org root, that is this bug — worth its own session before
-      launch (it also breaks the demo button's landing).
+      launch (it also breaks the demo button's landing). *(Fixed in `a1b8387` — Session 4b.)*
 - [ ] Phone check on a real device: the App Library grid from the Nav's grid button, and
       Channels with the dock (md+) not covering the composer.
+
+**Session 4b — Phase 2 follow-ups: SSR membership read, blank `<main>` on a mid-load
+navigation** (2026-11-03) — local, on `main`, not pushed. Two commits, both found by
+verifying Phase 2:
+
+- **`a1b8387` — SSR auth** (a side session; Peter merged its branch into `main`). Closes
+  deviation 8. `useDirectusItems` captures `useRequestFetch()` at setup, so server-side reads
+  carry the page request's cookie even after the caller's first `await`. A session cookie
+  re-sealed by a token refresh during the render is forwarded to the page response (Directus
+  refresh tokens are single-use). `useSelectedOrg`'s server read of `/api/org/selected` uses
+  the same fetch. Signed-in hard loads of `/{slug}/admin/*` now return 200 (they 302'd to the
+  org root), and "Try the live demo" lands on the dashboard. `tests/composables/
+  useDirectusItems.test.ts` (6). `verify-p2-nav.cjs` drops its boot workaround and
+  hard-loads `/demo/admin/members`.
+- **`5a2df08` — blank `<main>` after navigating mid-load.** Navigating while the page on
+  screen is still awaiting its setup makes Nuxt re-key NuxtPage's `<Suspense>`
+  (`suspenseKey++`). app.vue's `<Transition mode="out-in">` then leaves the old Suspense and
+  holds an empty placeholder until a hand-off that Vue never makes for a Suspense child.
+  `<main>` stayed `<!--[--><!----><!--]-->` for every later page until a full reload.
+  - **Not Channels-specific.** Channels was simply the next page in the side session's
+    repro; any page could be hit.
+  - **Older than Phase 2.** The out-in transition dates from `9bf3b98`. Phase 2 made it
+    easier to reach: Channels joined the shared layout, and the dock invites quick app
+    switches.
+  - **Easy to hit here.** Against the `.env` Directus a page takes 0.05–1.9s to resolve, so
+    a second click inside that window hits it. A race script (push, then push again 30–141ms
+    later) blanked 6 of 8 before the fix and 0 of 8 after.
+  - **The fix.** `PAGE_CUT` and `shouldCutPageTransition` live in
+    `core/shared/nav/page-transition.ts`. app.vue keeps `page-transition-pending` from
+    `page:start` / `page:finish`. The middleware names a navigation away from a still-loading
+    page `page-cut`, which app.vue plays with `mode: "default"` (explicitly — an absent mode is
+    filled with out-in from `app.pageTransition`) and both phases ended at once. The name is
+    read when a phase runs, because the page on screen leaves through the hooks it entered
+    with.
+  - **What the user sees on a cut.** The old page goes at once, and the next appears when
+    ready, without the slide. That happens only when someone moves before the page has
+    loaded.
+  - **Channels' opt-out now works.** The same cut honours `definePageMeta({ pageTransition:
+    false })` between two such routes (channel → channel), which app.vue's explicit
+    `:transition` had been overriding (NuxtPage merges a `false` meta away).
+  - **Tests.** `tests/shared/page-transition-cut.test.ts` reproduces the stranding on Vue's
+    own `<Transition>` + `<Suspense>` and pins the cut's recovery.
+    `tests/shared/page-transition.test.ts` +8: the decision table, and the middleware,
+    including the history stack surviving a cut.
+- **Harness.** `verify-p2-nav.cjs` gains the mid-load race: four pairs, in both modes, never
+  blank and the cut engages. Its create-intent checks now wait for the form instead of a
+  fixed 1.2s. Meetings resolves in about 1.3–1.9s here, so the old pause failed 2 of 3 runs;
+  the form always opened.
+
+Not fixed, noted: a hard load of `/demo/admin/members` logs hydration mismatches. The stat
+cards and chart empty states render on the server where the client first draws skeletons.
+It only became visible because the server now renders the page instead of redirecting.
+
+Gates (final tree): typecheck 0 · vitest 101 files / 1703 tests · build green · `audit:hairline-surfaces` 0 ·
+`verify-p2-nav.cjs` **76/76 ×3** (demo session, light + dark) · `demo` / `demo-classic`
+snapshots identical before and after.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: `a1b8387`, `5a2df08` and this docs commit on local `main`.
+- [ ] After the deploy, on prod: hard-refresh an admin page while signed in (expect the page,
+      not the org landing), and click two dock apps in quick succession (expect the second
+      page, never an empty workspace).
+- [ ] Members' cold-load hydration mismatches: Phase 9 polish, or a short session of its own.
 
 #### Phase 3a — kickoff prompt (Opus 5.5, effort xhigh)
 
