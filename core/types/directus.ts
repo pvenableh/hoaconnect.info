@@ -885,19 +885,6 @@ export interface HoaEmailRecipient {
 	delivery_status?: 'delivered' | 'bounced' | null;
 }
 
-export interface HoaEmailSendLease {
-	/** @primaryKey */
-	id: string;
-	/** @description The email this lease locks. Unique. @required */
-	email: HoaEmail | string;
-	/** @description The holding run's UUID. @required */
-	token: string;
-	purpose?: 'prepare' | 'send' | null;
-	worker?: 'inline' | 'cron' | 'manual' | null;
-	/** @description A lease older than 3 minutes belongs to a dead run and may be broken. @required */
-	started_at: string;
-}
-
 export interface HoaEmail {
 	/** @primaryKey */
 	id: string;
@@ -984,6 +971,19 @@ export interface HoaEmail {
 	/** @description Email recipients and their delivery status */
 	recipients?: HoaEmailRecipient[] | string[];
 	attachments?: HoaEmailsFile[] | string[];
+}
+
+export interface HoaEmailSendLease {
+	/** @primaryKey */
+	id: string;
+	/** @description The email this lease locks. Unique. */
+	email?: HoaEmail | string;
+	/** @description The holding run's UUID. */
+	token?: string;
+	purpose?: 'prepare' | 'send' | null;
+	worker?: 'inline' | 'cron' | 'manual' | null;
+	/** @description A lease older than 3 minutes belongs to a dead run and may be broken. */
+	started_at?: string;
 }
 
 export interface HoaEmailsFile {
@@ -2573,8 +2573,8 @@ export interface Schema {
 	hoa_email_activity: HoaEmailActivity[];
 	hoa_email_partials: HoaEmailPartial[];
 	hoa_email_recipients: HoaEmailRecipient[];
-	hoa_email_send_leases: HoaEmailSendLease[];
 	hoa_emails: HoaEmail[];
+	hoa_email_send_leases: HoaEmailSendLease[];
 	hoa_emails_files: HoaEmailsFile[];
 	hoa_email_templates: HoaEmailTemplate[];
 	hoa_governance: HoaGovernance[];
@@ -2685,8 +2685,8 @@ export enum CollectionNames {
 	hoa_email_activity = 'hoa_email_activity',
 	hoa_email_partials = 'hoa_email_partials',
 	hoa_email_recipients = 'hoa_email_recipients',
-	hoa_email_send_leases = 'hoa_email_send_leases',
 	hoa_emails = 'hoa_emails',
+	hoa_email_send_leases = 'hoa_email_send_leases',
 	hoa_emails_files = 'hoa_emails_files',
 	hoa_email_templates = 'hoa_email_templates',
 	hoa_governance = 'hoa_governance',
