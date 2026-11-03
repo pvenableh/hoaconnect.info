@@ -15,6 +15,9 @@ export const useSelectedOrg = async () => {
   // Capture Nuxt context IMMEDIATELY at the top, before any awaits
   const nuxtApp = useNuxtApp();
   const route = useRoute();
+  // Forwards the request's cookies during SSR (global $fetch does not), so the
+  // session read below actually sees the session.
+  const requestFetch = useRequestFetch();
 
   const { user } = useDirectusAuth();
   const { list: listMembers } = useDirectusItems("hoa_members");
@@ -121,7 +124,7 @@ export const useSelectedOrg = async () => {
           } else {
             // On server (SSR): try to get from session
             try {
-              const sessionOrg = await $fetch("/api/org/selected");
+              const sessionOrg = await requestFetch("/api/org/selected");
               if (sessionOrg?.selectedOrgId) {
                 nuxtApp.runWithContext(() => {
                   selectedOrgId.value = sessionOrg.selectedOrgId;

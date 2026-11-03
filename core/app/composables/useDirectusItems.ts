@@ -34,6 +34,38 @@ export const useDirectusItems = <T = any>(
   const { requireAuth = true } = options;
   const { loggedIn } = useUserSession();
 
+  // During SSR the global $fetch calls the route in-process WITHOUT the incoming
+  // request's cookies, so /api/directus/items saw no session, fell back to the
+  // public client, and Directus refused hoa_members — a hard load rendered a
+  // signed-in admin as a visitor. useRequestFetch() forwards the request's
+  // headers (it is plain $fetch in the browser). Captured here, at setup,
+  // because the Nuxt context is gone after the caller's first await.
+  const requestFetch = useRequestFetch();
+  const serverEvent = useRequestEvent(); // undefined in the browser
+  const responseCookies = serverEvent ? useResponseHeader("set-cookie") : null;
+
+  // A forwarded call can refresh an expiring token, which rotates Directus's
+  // single-use refresh token and re-seals the session cookie on the in-process
+  // response. Relay that cookie to the page response, or the browser keeps the
+  // dead token and its next refresh logs the user out. Same relay nuxt-auth-utils
+  // does for its own session DELETE. Logged-out calls are left alone so public
+  // SSR never starts setting session cookies.
+  const relaySessionCookie = ({ response }: { response: Response }) => {
+    if (!responseCookies || !loggedIn.value) return;
+    const relayed = response.headers.getSetCookie();
+    if (!relayed.length) return;
+    const current = responseCookies.value;
+    const existing = current == null ? [] : Array.isArray(current) ? current : [String(current)];
+    responseCookies.value = [...existing, ...relayed];
+  };
+
+  const request = <R = any>(body: Record<string, any>): Promise<R> =>
+    requestFetch("/api/directus/items", {
+      method: "POST",
+      body,
+      onResponse: relaySessionCookie,
+    }) as Promise<R>;
+
   /**
    * List items from collection
    */
@@ -42,13 +74,10 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    const result = await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "list",
-        query,
-      },
+    const result = await request({
+      collection,
+      operation: "list",
+      query,
     });
 
     return result as T[];
@@ -65,14 +94,11 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    return await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "get",
-        id,
-        query,
-      },
+    return await request({
+      collection,
+      operation: "get",
+      id,
+      query,
     });
   };
 
@@ -87,14 +113,11 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    return await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "create",
-        data,
-        query,
-      },
+    return await request({
+      collection,
+      operation: "create",
+      data,
+      query,
     });
   };
 
@@ -110,15 +133,12 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    return await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "update",
-        id,
-        data,
-        query,
-      },
+    return await request({
+      collection,
+      operation: "update",
+      id,
+      data,
+      query,
     });
   };
 
@@ -132,13 +152,10 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "delete",
-        id,
-      },
+    await request({
+      collection,
+      operation: "delete",
+      id,
     });
 
     return true;
@@ -154,13 +171,10 @@ export const useDirectusItems = <T = any>(
       throw new Error("Authentication required");
     }
 
-    return await $fetch("/api/directus/items", {
-      method: "POST",
-      body: {
-        collection,
-        operation: "aggregate",
-        query,
-      },
+    return await request({
+      collection,
+      operation: "aggregate",
+      query,
     });
   };
 

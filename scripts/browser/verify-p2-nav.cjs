@@ -109,29 +109,21 @@ async function signIn(page) {
   return res.ok();
 }
 
-// Sign in the way the app's "Try the demo" button does (POST, then a full load
-// of the org root), then refresh the app's data client-side.
-//
-// ⚠️ WORKAROUND for a pre-existing server-render gap (Session 4 log): during SSR
-// `useSelectedOrg` reads memberships through `$fetch("/api/directus/items")`,
-// which does not carry the request's cookies, so the server renders the org as
-// a visitor and a hard load of any /admin URL redirects to the org root. A
-// client-side refresh reads them with the session, as every navigation after
-// the first does. So after boot, this script moves with the router (`spa`),
-// never with page.goto.
+// Sign in the way the app's "Try the demo" button does (POST, then a full
+// load), landing straight on an admin page: a hard load of /admin must render
+// for a signed-in admin, not redirect to the org root (the server render reads
+// memberships with the request's session — useDirectusItems' useRequestFetch).
+// After boot the script moves with the router (`spa`), so the navigations it
+// checks are the client-side ones.
 async function boot(page) {
   const ok = await signIn(page);
-  await page.goto(`${BASE}/${ORG}`, { waitUntil: "networkidle" });
-  // Done when an admin page actually renders: the refresh has to have landed
-  // the memberships before the admin middleware asks for them.
-  for (let attempt = 0; attempt < 4; attempt++) {
-    await page.evaluate(() => document.querySelector("#__nuxt").__vue_app__.$nuxt.hooks.callHookParallel("app:data:refresh"));
-    await page.waitForSelector("[data-app-nav]", { timeout: 8000 }).catch(() => null);
-    await settle(page, 800);
-    await spa(page, `/${ORG}/admin/members`);
-    if (new URL(page.url()).pathname === `/${ORG}/admin/members` && (await page.$("[data-app-nav]"))) return ok;
-  }
-  return false;
+  const res = await page.goto(`${BASE}/${ORG}/admin/members`, { waitUntil: "networkidle" });
+  return (
+    ok &&
+    res?.status() === 200 &&
+    new URL(page.url()).pathname === `/${ORG}/admin/members` &&
+    !!(await page.waitForSelector("[data-app-nav]", { timeout: 8000 }).catch(() => null))
+  );
 }
 
 async function spa(page, path) {
