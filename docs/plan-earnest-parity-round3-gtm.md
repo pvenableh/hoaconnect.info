@@ -19,7 +19,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: `pnpm add:user-app-prefs` ran 2026-11-03; dock prefs are now per user. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [x] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [x]** (session 6, docs only): `docs/spec-email-send-queue.md` — per-email lease by unique insert (Directus filter-updates are not atomic), at-most-once chooses dropped over doubled with the webhook as the evidence that closes the gap, counts derived from rows, 64 named tests; five open questions for Peter (Vercel plan first). **3b-build [x]** (session 7, local `main`, not pushed): the queue as specified — lease, claim/settle, at-most-once, derived counts, the tick (`* * * * *`, `maxDuration: 60` via a per-route Vercel function), progress route + dialog + detail chips + dock badge, `resolveSender` + bounced guard on the direct senders; all 66 spec tests (kill matrix at 15 steps); runs synchronous until `pnpm add:email-send-queue`. Gates green (typecheck 0, vitest 115/1911, Vercel-preset build, browser 38/38 mocked); operator: run the script, then `--real`. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [x] | Session 8, local `main`, not pushed: auto-pause + Resume (under the send's lease, one notification, baseline), recurrence (daily … annual, nth / last weekday, on the sender's time zone, composer sentence), MJML partials (`_layout` / `_header` / `org-email` / `_footer`, byte-identical to the string builder on 19 fixtures), `brandVars` + WCAG `brandOnColor`, logo 50 px from file metadata, `GET /api/email/preview-mjml` + the Branding card's iframe. Q4 (resend unknown) and copy overrides not built. Operator: re-run `pnpm add:email-send-queue` (Phase 4 fields) — until then no auto-pause and repeats stay on UTC. |
-| 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
+| 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [~] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [ ]**: Settings → Reminders, resident surfaces, six events. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
 | 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
 | 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
@@ -1605,6 +1605,201 @@ local build, not screenshots.
 Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 9 to the Session log (shipped, deviations, operator
 TODOs), write the Phase 5b kickoff prompt (Sonnet 5.5, effort high), and stop.
+One phase per session.
+```
+
+**Session 9 — Phase 5a: the reminder engine** (2026-11-03) — local, on `main`, Opus 5.5 at
+effort xhigh. Peter confirmed `main` was pushed (`e582d70`) and that `pnpm add:email-send-queue`
++ `pnpm generate:types` had run (the Phase 4 fields exist); those checks were skipped. Two Haiku
+5.5 census agents (data sources and audiences; notify callers, cron, digest). Earnest read only
+for `reminder_key` (`billing-schedule-run.ts`: the claim is inserted before the send). One code
+commit, one docs commit.
+
+Shipped (runbook: `docs/reminders.md`):
+
+- **Schema** — `scripts/create-reminder-log.ts` (`pnpm create:reminder-log`), idempotent like
+  `add-email-send-queue.ts`, and it checks `is_unique` after creating the column:
+  `hoa_reminder_log` (`organization` cascade, `rule`, `stage`, `reminder_key` string(255)
+  UNIQUE, `recipient` → directus_users, `entity_collection` / `entity_id`, `channels`,
+  `result` claimed | sent | failed, `detail`, `sent_at`, `date_created` = the claim);
+  `hoa_organizations.timezone` (IANA, **default `America/New_York`**: the digest's
+  `DIGEST_TZ` and the billing worker's `BILLING_TZ` already put every org on New York, so no
+  org's times move; Postgres fills existing rows); `block_settings.reminders` (json — what
+  `organization.settings.reminders` reads). Types hand-added. `reminderSchema()` gates the tick.
+- **Rules** — `core/shared/reminders/`: `settings.ts` (the shape; `resolveReminderSettings`
+  never throws; every rule **off** until `enabled: true`; `send_hour` 6–20, default 9; per rule
+  `stages`, `days`, `tenants`, `approved_at/by`, `copy`), `rules.ts` (pure; `{key, audience,
+  template, vars, urgency}` + channels, category, essential, group, TTL; on the org's wall clock
+  with `@internationalized/date`; each stage a window, nothing before the send hour or from
+  21:00 except the meeting-in-an-hour push), `messages.ts` (`composeReminder`: one notification
+  per group — one member's dues at one stage, one meeting's invitees — with its subject, bell
+  line, heading, intro, link; the board's `copy` replaces subject/intro with `{{var}}` tokens).
+  Rules: dues (before 7 d / due / the day after grace, 30 d), meetings (week / day / hour, push
+  only), requests (status change → submitter; 7 quiet days → assignee, bell), violations (cure
+  date −3 d / on the day), polls (opened / closing in 24 h, non-voters / closed with the result),
+  coverage (vendor `active_until` −30 d / ended, admins, bell). Key:
+  `<rule>:<entity>:<stage>@<anchor>:<user>`.
+- **The tick** — `core/server/utils/reminders.ts` + `GET|POST /api/reminders/run`
+  (`requireCronOrAppAdmin`; vercel.json `5 * * * *`): per org with a rule on, load only what
+  those rules read, evaluate, skip logged keys, **insert the group's log rows** (batch; on
+  `RECORD_NOT_UNIQUE`, one by one — the free keys are claimed, the taken ones lost), send
+  through `notifyUsers`, write `result`; dues stamp `payment_requests.metadata.reminders` /
+  `reminder_sent_at` in the billing worker's words. 40 s budget before each org and group;
+  one org's error doesn't stop the rest. `?dry=1` (+ `org`, `asOf`) lists `wouldSend`,
+  `wouldSendGroups` (subjects), `off` (what rules that are off would send) and `unreachable`,
+  and writes nothing — also before the script has run.
+- **Notify layer** — `notifyUsers` gains `bell: false` (push without a row, still on the
+  bell's switch), `push: false | { urgency, ttlSeconds }` (→ web-push `urgency` / `TTL`), and
+  `essential` (email past the category opt-out, never past the master switch or a bounce);
+  `sendBrandedTransactionalEmail` gains `essential`, `contentPartial` and returns the count;
+  the class footer gains reason `reminders` ("essential and cannot be unsubscribed").
+- **Templates** — `core/server/emails/reminder-{dues,meeting,violation,poll}.mjml`, content
+  partials beside `org-email.mjml`; `buildEmailMjml`'s `contentPartial` drops one into the
+  content slot (with `headingFont`, the brand accent as the button, `onColor` label), composed
+  by `composeEmail`; `core/server/utils/reminder-email.ts` escapes every var and builds the
+  rows. `GET /api/email/preview-mjml?template=reminder-*` renders `sampleReminders()` — made by
+  the real rules from a fixed snapshot — with the footer the send would carry.
+- **Digest on the org's zone** — `scripts/notification-digest-worker.ts` reads every org's
+  `timezone` (fallback `DIGEST_TZ`, also before the field exists) and checks each member's
+  digest hour per community (`core/shared/org-timezone.ts`).
+- **Billing worker** — with an org's dues rule on, it reminds only members **without an app
+  account** (the engine can't reach them) and leaves the rest to the engine.
+- Request workflow (`useRequests.applyTransition`) writes `metadata.status_changed_at`; the
+  export map takes `hoa_reminder_log` (both tiers, like the email recipients).
+- **Tests** — `tests/shared/reminder-rules.test.ts` (64: every rule × stage at its window
+  edges, keys, the clock, DST both ways, a New York late evening that is UTC tomorrow, an org in
+  Los Angeles, settings, grouping, copy), `tests/server/reminder-tick.test.ts` (19: claim before
+  send, a re-run inserts and sends nothing, two overlapping runs send once with the loser's
+  `RECORD_NOT_UNIQUE`, a key taken mid-group, failed and killed runs never resend, the budget,
+  stamps, the dry run writes nothing; the route's cron gate, `provisioned`, `asOf`),
+  `tests/server/reminder-email.test.ts` (9: each template through the partials with its class
+  footer last, the button, escaping, who an essential email reaches),
+  `tests/server/notify-reminder-options.test.ts` (4), and 4 reminder cases in
+  `email-preview-mjml.test.ts`.
+
+Deviations, with reasons:
+
+1. **No COI or insurance-expiry field exists** (the census grepped every collection). The
+   "documents" rule is `coverage`, on `hoa_vendors.active_until` — the field the AI notices
+   already read as a vendor's contract/insurance end. A real certificate expiry is a field plus
+   an upload; not 5a.
+2. **`settings` is an M2O to `block_settings`**, not JSON, so `settings.reminders` is a json
+   field there.
+3. **Every rule is off by default**, and `enabled` is the board's approval (5b writes it with
+   `approved_at`): reminders reach inboxes in the board's name, and a deploy that switched on
+   "7 quiet days" nudges for every old request would flood boards.
+4. **Log columns**: `stage`, not `offset` (a reserved word and a REST query parameter);
+   `recipient`, not `member` (it is a Directus user; `member` means `hoa_members` here);
+   `channels` (what was asked) on one row per person, not one row per channel — `notifyUsers`
+   decides each channel from that person's preferences.
+5. **`run.ts`, not a POST-only route** (Vercel Cron sends GET). No per-route Vercel function:
+   40 s fits the default; the unique key, not a hard stop, is the guard against overlap.
+6. **Stages are windows with catch-up**, not Earnest's day equality: a late or over-budget tick
+   still sends on the next. Overdue dues stop after 30 days (after that it is collections).
+7. **The billing worker already sent dues reminders** (`due_soon` / `due` / `past_grace` in
+   `metadata.reminders`, daily, `BILLING_TZ`). The engine skips a stage the worker stamped and
+   stamps the same words. Found on the demo dry run: `demo`'s five charges are billed to
+   members with **no app account**, whom `notifyUsers` can't reach — so the worker keeps those
+   members when the rule is on, and the dry run reports them as `unreachable`.
+8. **Essential = the billing worker's rule**: the master email switch and a bounce stop it; the
+   category opt-out doesn't.
+9. **Event-shaped stages**: a request's status reminder needs `metadata.status_changed_at`,
+   which only the workflow transition writes (from now on). A poll's "closed" hangs off
+   `closes_at`; a poll closed by hand early records no close time, and "opened" uses
+   `date_created` — both left to 5b's close/open events. A status change also posts a system
+   comment that rings the comment bell; 5b's request-status event should claim the same key so
+   one path sends.
+10. **The dry run runs before the script** (unprovisioned: New York, rules off, an empty log),
+    so a board can see what would go out before anything can.
+
+Gates (final tree):
+- typecheck 0;
+- vitest **123 files / 2,101 tests** (from 119 / 2001 at Session 8);
+- `pnpm build` (node-server) green, the four partials inlined in `chunks/nitro/nitro.mjs`;
+- `audit:hairline-surfaces` 0;
+- the tick on a local build (`:3417`): no secret → 401; `?dry=1&org=demo` with the secret →
+  `provisioned: false`, nothing due (Tue 3:27 pm New York). `demo` has no meetings, polls, requests or vendors; its five
+  charges were due Sep 1 (grace 7), outside every window today. Stepping `asOf` back into the
+  overdue window: `unreachable: { "dues.overdue": 5 }` from Sep 9 (not Sep 8) through Oct 8 (not Oct 9) — the window to the day; a live run without `dry` answers `{ provisioned: false }` and does nothing. Nothing written (unprovisioned: no log to write).
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: this session's two commits (code + docs) on local `main`.
+- [ ] **Run** `pnpm create:reminder-log` (it prints `reminder_key is UNIQUE`), then
+      `pnpm generate:types` (expect no diff). Until then the tick answers `provisioned: false`
+      and the digest stays on `DIGEST_TZ`.
+- [ ] **Set each community's time zone** (`hoa_organizations.timezone`; all New York by
+      default) — any org outside Eastern gets its digest at the right hour once set.
+- [ ] To try it on `demo`: give one meeting a date a day out, set
+      `block_settings.reminders` to `{"rules":{"meeting":{"enabled":true}}}`, and run
+      `?dry=1&org=demo`, then without `dry` (the email is held by the demo guard).
+- [ ] After deploy: confirm the new cron (`/api/reminders/run`, :05 hourly) in Vercel.
+- [ ] Still open from Sessions 7–8 (unchanged).
+
+#### Phase 5b — kickoff prompt (Sonnet 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 9 (Phase 5a: shipped, deviations,
+operator TODOs), §Token budget, and §5b. Do not read §6 onwards, the Session
+log before Session 9, or docs/spec-email-send-queue.md, and never open
+docs/plan-earnest-parity-round2.md. Read docs/reminders.md whole (it is
+short). Do not re-survey Earnest.
+
+This session = Phase 5b (settings, visibility, events) ONLY, on Sonnet 5.5 at
+effort high. 5a's engine is done and tested — build on it, don't redesign it:
+core/shared/reminders/settings.ts (the settings shape and defaults; every rule
+off until `enabled`), core/server/utils/reminders.ts (`runReminderTick` with
+`dry`, `org`, `asOf`; its `ReminderTickResult` has `wouldSend`,
+`wouldSendGroups`, `off`, `unreachable`), core/server/utils/reminder-email.ts
+(`sampleReminders`), GET /api/email/preview-mjml (`template=reminder-*`).
+
+First ask Peter whether `pnpm create:reminder-log` has run (Session 9's
+operator TODO). If not, everything below still works against an unprovisioned
+dry run, but saving settings needs `block_settings.reminders`.
+
+Deliverables (§5b, fitted to what exists):
+1. Settings → Reminders (admin, org-gated with requireAdminOrManagerGrant like
+   preview-mjml): per-rule toggle — turning one on is the board's approval, so
+   write `enabled`, `approved_at`, `approved_by` together; stages; `days`;
+   dues `tenants`; the send hour; the org's time zone
+   (`hoa_organizations.timezone`, a select of the US zones the 5a script
+   lists); a template preview (the preview-mjml iframe, as the Branding card
+   does); "send me a test" (one reminder to the signed-in admin, through
+   `sendReminder`, never logged); and a dry-run panel: a new org-gated route
+   that calls `runReminderTick({ dry: true, org, asOf })` for each hour of the
+   next 24 h, dedupes by key and answers "14 dues reminders, 1 meeting
+   reminder" plus `off` and `unreachable` ("5 have no app account — the
+   billing worker emails them"). Use the shell primitives from Phase 1a/2 (no
+   raw date inputs, no confirm()); add the reminder templates to the Branding
+   card's preview select.
+2. Resident surfaces: the portal home's "Up next" (useHomeGlances) shows dues
+   due, the next meeting, a poll closing, a request update; the `/payments`
+   ledger shows "Reminder sent {date}" from `payment_requests.reminder_sent_at`
+   / `metadata.reminders`.
+3. The six notification events through core/shared/notifications/events.ts
+   with the existing categories: payment received, payment overdue, request
+   status changed, poll opened / closed, document published to members, board
+   decision posted. Where an event is also a reminder stage (request status,
+   poll opened, poll closed), the event INSERTS the same `hoa_reminder_log` key
+   the rule would (`reminderKey` in rules.ts) before it notifies, so the tick
+   then skips it — one path sends (Session 9, deviation 9). Poll close: anchor
+   on the close moment.
+
+Use a Haiku 5.5 subagent for any census (the Settings page layout and where a
+card goes; useHomeGlances; the /payments ledger component; the routes that
+publish documents, record payments, close and open polls). Read only the lines
+you need. Gates in the background, tail only: `pnpm test | tail -6`;
+typecheck with NODE_OPTIONS=--max-old-space-size=6144 into a log, grep
+`error TS`; build into a log, grep exit; `pnpm audit:hairline-surfaces`.
+Browser verification is one headless Playwright script
+(scripts/browser/verify-p5b-reminders.cjs, demo org, light and dark, the dry
+run panel and a saved toggle round-trip), screenshots read only on failure.
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 10 to the Session log (shipped, deviations, operator
+TODOs), write the Phase 6 kickoff prompt (Sonnet 5.5, effort high), and stop.
 One phase per session.
 ```
 
