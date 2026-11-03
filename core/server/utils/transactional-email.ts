@@ -67,6 +67,29 @@ type OrgRow = HoaOrganization & { settings?: BlockSetting | string | null };
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/**
+ * The body of a branded notification email: optional bold heading, the body,
+ * then a pill CTA. Shared with GET /api/email/preview-mjml (Phase 4), so the
+ * preview is the email.
+ */
+export function transactionalContent(
+  opts: Pick<BrandedTransactionalOptions, "heading" | "bodyHtml" | "cta">,
+  ctx: { appUrl: string; slug: string; settings: BlockSetting | null }
+): string {
+  const ctaHtml =
+    opts.cta && ctx.appUrl && ctx.slug
+      ? `<p style="margin:24px 0 4px"><a href="${escapeHtml(`${ctx.appUrl}/${ctx.slug}${opts.cta.path}`)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-weight:600;font-size:15px">${escapeHtml(opts.cta.label)}</a></p>`
+      : "";
+  // The lead line is this email's heading in every sense but the tag, so it
+  // takes the theme's heading face. Without this the classic and luxury display
+  // fonts would go unseen in transactional mail, which never carries an <h*>.
+  const fonts = resolveEmailFonts(ctx.settings);
+  const headingHtml = opts.heading
+    ? `<p style="font-weight:600;font-size:17px;margin:0 0 12px;font-family:${fonts.heading}">${escapeHtml(opts.heading)}</p>`
+    : "";
+  return `${headingHtml}${opts.bodyHtml}${ctaHtml}`;
+}
+
 export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOptions): Promise<void> {
   const asked = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
     (id) => id !== opts.excludeUserId
@@ -95,7 +118,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         filter: { id: { _eq: opts.organizationId } },
         fields: [
           "id", "name", "legal_name", "slug", "external_url", "email", "street_address", "city", "state", "zip",
-          { settings: ["id", "logo", "title", "header_text", "homepage_url", "footer_image", "colors", "theme", "from_name", "from_email", "email_domain_verified"] },
+          { settings: ["id", { logo: ["id", "width", "height"] }, "title", "header_text", "homepage_url", "footer_image", "colors", "theme", "from_name", "from_email", "email_domain_verified"] },
         ] as any,
         limit: 1,
       })
@@ -156,19 +179,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     settings: (org.settings && typeof org.settings === "object" ? org.settings : null) as BlockSetting | null,
   };
 
-  // Compose the body HTML: optional bold heading, the body, then a pill CTA.
-  const ctaHtml =
-    opts.cta && appUrl && slug
-      ? `<p style="margin:24px 0 4px"><a href="${escapeHtml(`${appUrl}/${slug}${opts.cta.path}`)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-weight:600;font-size:15px">${escapeHtml(opts.cta.label)}</a></p>`
-      : "";
-  // The lead line is this email's heading in every sense but the tag, so it
-  // takes the theme's heading face. Without this the classic and luxury display
-  // fonts would go unseen in transactional mail, which never carries an <h*>.
-  const fonts = resolveEmailFonts(orgForEmail.settings);
-  const headingHtml = opts.heading
-    ? `<p style="font-weight:600;font-size:17px;margin:0 0 12px;font-family:${fonts.heading}">${escapeHtml(opts.heading)}</p>`
-    : "";
-  const content = `${headingHtml}${opts.bodyHtml}${ctaHtml}`;
+  const content = transactionalContent(opts, { appUrl, slug, settings: orgForEmail.settings });
 
   // Essential class, notification wording: these are about the recipient's own
   // work (a task, an approval) and are switched off in their notification

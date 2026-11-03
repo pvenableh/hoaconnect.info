@@ -3,6 +3,8 @@ import type { EmailType } from "../../utils/email-templates-mjml";
 import { resolveEmailClass } from "#core/shared/email/email-class";
 import { checkSendCompliance } from "#core/shared/email/unsubscribe";
 import { emailComplianceSchema } from "../../utils/email-compliance";
+import { emailPhase4Schema } from "../../utils/email-send-health";
+import { isRecurrenceRule, validTimeZone, type RecurrenceRule } from "#core/shared/email/recurrence";
 
 interface SaveEmailBody {
   emailId?: string;
@@ -16,7 +18,9 @@ interface SaveEmailBody {
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
-  recurrenceRule?: "none" | "weekly" | "monthly";
+  recurrenceRule?: RecurrenceRule;
+  /** The composer's IANA zone; recurrence follows its wall clock (Phase 4). */
+  recurrenceTimeZone?: string | null;
   recipientFilter?: "all" | "owners" | "tenants" | "custom";
   recipientIds?: string[];
   attachmentIds?: string[];
@@ -44,7 +48,8 @@ export default defineEventHandler(async (event) => {
     includeBoardFooter = true,
     status = "draft",
     scheduledAt,
-    recurrenceRule = "none",
+    recurrenceRule: requestedRule = "none",
+    recurrenceTimeZone,
     recipientFilter = "all",
     recipientIds,
     attachmentIds,
@@ -54,6 +59,11 @@ export default defineEventHandler(async (event) => {
     bcc,
     emailClass: requestedClass,
   } = body;
+
+  if (!isRecurrenceRule(requestedRule)) {
+    throw createError({ statusCode: 400, message: `Unknown repeat: ${String(requestedRule)}` });
+  }
+  const recurrenceRule = requestedRule;
 
   // Validation
   if (!organizationId || !subject || !content || !emailType) {
@@ -135,6 +145,10 @@ export default defineEventHandler(async (event) => {
       status,
       scheduled_at: scheduledAt || null,
       recurrence_rule: recurrenceRule,
+      // Only once the field exists (pnpm add:email-send-queue, Phase 4).
+      ...((await emailPhase4Schema(directus).catch(() => false))
+        ? { recurrence_timezone: recurrenceRule !== "none" ? validTimeZone(recurrenceTimeZone) : null }
+        : {}),
       recipient_filter: recipientFilter,
       recipient_ids: recipientIds && recipientIds.length > 0 ? recipientIds : null,
       next_run_at: status === "scheduled" ? scheduledAt || null : null,
@@ -170,8 +184,8 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      // A send in flight: its rows are being delivered from this content.
-      if (existingEmail.status === "sending") {
+      // A send in flight (or paused mid-send): its rows are delivered from this content.
+      if (existingEmail.status === "sending" || existingEmail.status === "paused") {
         throw createError({
           statusCode: 409,
           message: "This email is being sent; it can't be edited until the send finishes.",

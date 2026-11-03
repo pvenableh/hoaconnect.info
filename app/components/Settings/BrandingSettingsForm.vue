@@ -378,6 +378,17 @@
                 <option value="reminder">Reminder</option>
                 <option value="alert">Alert</option>
                 <option value="basic">Basic</option>
+                <option value="notification">Notification</option>
+              </select>
+            </div>
+            <div v-if="previewType === 'notification'" class="flex items-center justify-between gap-4">
+              <Label for="emailPreviewCategory" class="text-xs text-muted-foreground">Notification about</Label>
+              <select
+                id="emailPreviewCategory"
+                v-model="previewCategory"
+                class="px-3 py-1.5 border rounded-md bg-background text-sm"
+              >
+                <option v-for="c in NOTIFICATION_CATEGORIES" :key="c.key" :value="c.key">{{ c.label }}</option>
               </select>
             </div>
             <p class="text-xs text-muted-foreground">
@@ -385,18 +396,20 @@
             </p>
             <div class="relative rounded-lg border overflow-hidden bg-white">
               <div
-                v-if="previewLoading && !previewHtml"
-                class="flex items-center justify-center h-[560px] text-muted-foreground"
+                v-if="previewLoading"
+                class="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none"
               >
                 <Icon name="lucide:loader-2" class="h-6 w-6 animate-spin" />
               </div>
               <iframe
-                v-else
-                :srcdoc="previewHtml"
+                v-if="previewSrc"
+                :src="previewSrc"
                 sandbox=""
                 title="Email preview"
+                data-testid="branding-email-preview"
                 class="w-full h-[560px] bg-white"
                 :class="{ 'opacity-60': previewLoading }"
+                @load="previewLoading = false"
               />
             </div>
           </div>
@@ -421,6 +434,7 @@
 <script setup lang="ts">
 import type { HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
 import { DEFAULT_CC_BCC_THRESHOLD } from "#core/shared/email/cc";
+import { NOTIFICATION_CATEGORIES } from "#core/shared/notifications/preferences";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
@@ -545,33 +559,37 @@ const effectivePalette = computed(() => {
   return undefined;
 });
 
-// Live email preview
+// Live email preview — GET /api/email/preview-mjml renders the real builders
+// (the MJML partials) with this form's unsaved palette and header line, so the
+// iframe shows the email as it will go out. Debounced; the iframe's own load
+// event ends the loading state.
 const previewType = ref("notice");
-const previewHtml = ref("");
-const previewLoading = ref(false);
+const previewCategory = ref("task");
+const previewSrc = ref("");
+const previewLoading = ref(true);
 
-const refreshPreview = async () => {
-  previewLoading.value = true;
-  try {
-    const res = await $fetch<{ html: string }>("/api/email/branding-preview", {
-      method: "POST",
-      body: {
-        organizationId: props.organization.id,
-        emailType: previewType.value,
-        colors: effectivePalette.value,
-      },
-    });
-    previewHtml.value = res.html;
-  } catch (error) {
-    console.error("Failed to render email preview:", error);
-  } finally {
-    previewLoading.value = false;
+const buildPreviewSrc = () => {
+  const params = new URLSearchParams({ org: props.organization.id, template: previewType.value, format: "html" });
+  if (previewType.value === "notification") params.set("category", previewCategory.value);
+  const palette = effectivePalette.value;
+  if (palette === null) params.set("palette", "none");
+  else if (palette?.[0]) {
+    for (const k of ["primary", "secondary", "accent"] as const) if (palette[0][k]) params.set(k, palette[0][k]!);
   }
+  params.set("headerText", form.value.headerText || "");
+  return `/api/email/preview-mjml?${params.toString()}`;
+};
+
+const refreshPreview = () => {
+  const next = buildPreviewSrc();
+  if (next === previewSrc.value) return;
+  previewLoading.value = true;
+  previewSrc.value = next;
 };
 
 const refreshPreviewDebounced = useDebounceFn(refreshPreview, 400);
 
-watch([previewType, effectivePalette], () => refreshPreviewDebounced(), { deep: true });
+watch([previewType, previewCategory, effectivePalette, () => form.value.headerText], () => refreshPreviewDebounced(), { deep: true });
 onMounted(refreshPreview);
 
 // Theme descriptions for the settings form

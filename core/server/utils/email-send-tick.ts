@@ -23,6 +23,7 @@ import {
   type Worker,
 } from "./email-send-queue";
 import { enqueueDue } from "./email-send-enqueue";
+import { checkSendHealth, directusHealthStore, emailPhase4Schema, sendPausedNotifier } from "./email-send-health";
 import { finalizeDraft, loadRenderContext, renderDraft, type Draft, type OrgMessage, type RenderTarget } from "./email-send-render";
 
 type DirectusLike = { request: (op: any) => Promise<any> };
@@ -83,6 +84,9 @@ export async function runEmailTick(worker: Worker = "cron"): Promise<TickResult>
   const directus = getTypedDirectus();
   const store = directusRecipientStore(directus);
   const clock = { now: () => Date.now() };
+  const healthy = await emailPhase4Schema(directus).catch(() => false);
+  const health = directusHealthStore(directus, { bounceTypes: healthy });
+  const notify = sendPausedNotifier(directus);
   return runSendTick({
     store,
     worker,
@@ -90,6 +94,9 @@ export async function runEmailTick(worker: Worker = "cron"): Promise<TickResult>
     clock,
     enqueueDue: async () => (await enqueueDue(directus, store, clock, worker)).enqueued.length,
     depsFor: (email) => queueRunDeps(directus, email.id),
+    checkHealth: healthy
+      ? async (email) => (await checkSendHealth(store, health, email.id, { worker, clock, notify })).paused
+      : undefined,
   });
 }
 
@@ -110,7 +117,7 @@ export async function runInlineTick(emailId: string): Promise<RunResult> {
 export async function readSendProgress(directus: DirectusLike, emailId: string): Promise<SendProgress | null> {
   const store = directusRecipientStore(directus);
   const email = (await directus.request(
-    sdkOp("readItem")("hoa_emails", emailId, { fields: [...EMAIL_QUEUE_FIELDS, "send_errors", "date_updated"] })
+    sdkOp("readItem")("hoa_emails", emailId, { fields: [...EMAIL_QUEUE_FIELDS, "date_updated"] })
   )) as (EmailQueueState & { send_errors?: unknown; date_updated?: string | null }) | null;
   if (!email) return null;
   const counts = email.send_run_key ? await store.counts(emailId, email.send_run_key) : { ...ZERO_COUNTS };

@@ -823,6 +823,8 @@ export interface HoaEmailActivity {
 	organization?: HoaOrganization | string | null;
 	/** @description The hoa_emails record this activity event belongs to (from the email_id custom_arg). */
 	email_record?: HoaEmail | string | null;
+	/** @description SendGrid's bounce type: bounce (permanent) or blocked (refused). Auto-pause counts permanent ones. */
+	bounce_type?: string | null;
 }
 
 export interface HoaEmailPartial {
@@ -888,7 +890,7 @@ export interface HoaEmailRecipient {
 export interface HoaEmail {
 	/** @primaryKey */
 	id: string;
-	status?: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | null;
+	status?: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'paused' | null;
 	sort?: number | null;
 	user_created?: string | null;
 	date_created?: string | null;
@@ -927,11 +929,13 @@ export interface HoaEmail {
 	/** @description Array of hoa_members ids (used when recipient_filter = custom) */
 	recipient_ids?: Record<string, any> | null;
 	/** @description Repeat cadence for a scheduled email */
-	recurrence_rule?: 'none' | 'weekly' | 'monthly' | null;
+	recurrence_rule?: 'none' | 'weekly' | 'monthly' | 'daily' | 'biweekly' | 'monthly_nth_weekday' | 'monthly_last_weekday' | 'quarterly' | 'annual' | null;
 	/** @description Last successful send */
 	last_run_at?: string | null;
 	/** @description Next scheduled run (recurring) */
 	next_run_at?: string | null;
+	/** @description IANA time zone the repeat follows (the composer's). UTC when empty. */
+	recurrence_timezone?: string | null;
 	/** @description How `content` should be interpreted by the renderer */
 	content_mode?: 'visual' | 'mjml' | null;
 	/** @description Pretty URL slug for the public web view (/{org}/announcements/email/{web_slug}). Auto-derived from the subject; falls back to the id. */

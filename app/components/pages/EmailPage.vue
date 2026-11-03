@@ -154,6 +154,7 @@ const getStatusBadgeClass = (status: string) => {
     draft: "t-bg-subtle t-text-secondary",
     scheduled: "bg-info/15 text-info",
     sending: "bg-warning/15 text-warning",
+    paused: "bg-warning/15 text-warning",
     sent: "bg-success/15 text-success",
     failed: "bg-destructive/15 text-destructive",
   };

@@ -7,10 +7,14 @@
  * Delivery is the webhook's word and shows per row, from `delivery_status`.
  */
 
-export type SendPhase = "preparing" | "sending" | "done";
+import { pauseReasonLabel, type PauseReason } from "./send-health";
+
+export type SendPhase = "preparing" | "sending" | "paused" | "done";
 
 export interface SendProgressNumbers {
   phase: SendPhase;
+  /** Phase 4: why a paused send is on hold. */
+  paused?: { reason: PauseReason | null; sentence: string | null; at?: string | null } | null;
   status: string | null;
   total: number | null;
   sent: number;
@@ -34,9 +38,10 @@ export function attemptedOf(p: Pick<SendProgressNumbers, "total" | "queued" | "c
   return Math.max(0, (p.total ?? 0) - p.queued - p.claimed);
 }
 
-/** The three labels: Getting ready → Sending → Sent / Not sent. */
+/** The three labels: Getting ready → Sending → Sent / Not sent; and Paused · why (Phase 4). */
 export function progressLabel(p: SendProgressNumbers): string {
   if (p.phase === "preparing") return `Getting ready · ${p.rows} ${p.rows === 1 ? "person" : "people"}`;
+  if (p.phase === "paused") return `Paused · ${pauseReasonLabel(p.paused?.reason)}`;
   if (p.phase === "sending") {
     return `Sending · ${attemptedOf(p)} of ${p.total ?? 0}${p.suppressed > 0 ? ` · ${p.suppressed} held back` : ""}`;
   }

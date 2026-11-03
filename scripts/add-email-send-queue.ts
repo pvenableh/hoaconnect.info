@@ -18,6 +18,19 @@
  *   hoa_emails.send_run_key / send_started_at / send_finished_at / send_errors / send_last_error
  *   hoa_email_send_leases                the per-email mutex: `email` UNIQUE
  *
+ * Phase 4 (health, scheduling) adds, in the same idempotent run:
+ *
+ *   hoa_emails.status                    + paused (auto-pause; Resume puts it back to sending)
+ *   hoa_emails.recurrence_rule           + daily | biweekly | monthly_nth_weekday |
+ *                                          monthly_last_weekday | quarterly | annual
+ *   hoa_emails.recurrence_timezone       string(64) — the composer's IANA zone; recurrence is
+ *                                          on its wall clock (core/shared/email/recurrence.ts)
+ *   hoa_email_activity.bounce_type       string(16) — SendGrid's `type` on a bounce: "bounce"
+ *                                          (hard) or "blocked"; auto-pause counts the hard ones
+ *
+ * Until those exist, `emailPhase4Schema()` says no: the tick doesn't pause and
+ * recurrence rolls forward on UTC, as before.
+ *
  * And one permission change, because the merge snapshot holds balances: every
  * non-admin-access policy's READ permission on hoa_email_recipients is narrowed
  * to "every field except `claim` and `member_fields`", the way
@@ -236,6 +249,53 @@ const EMAIL_FIELDS: Array<Record<string, any>> = [
   },
 ];
 
+// ── Phase 4 ──────────────────────────────────────────────────────────────────
+
+const EMAIL_STATUS_ADD = choices([["paused", "Paused"]]);
+const RECURRENCE_ADD = choices([
+  ["daily", "Daily"],
+  ["biweekly", "Every two weeks"],
+  ["monthly_nth_weekday", "Monthly on the nth weekday"],
+  ["monthly_last_weekday", "Monthly on the last weekday"],
+  ["quarterly", "Every three months"],
+  ["annual", "Yearly"],
+]);
+
+const PHASE4_EMAIL_FIELDS: Array<Record<string, any>> = [
+  {
+    field: "recurrence_timezone",
+    type: "string",
+    schema: { is_nullable: true, max_length: 64 },
+    meta: { interface: "input", width: "half", note: "IANA time zone the repeat follows (the composer's). UTC when empty." },
+  },
+];
+
+const PHASE4_ACTIVITY_FIELDS: Array<Record<string, any>> = [
+  {
+    field: "bounce_type",
+    type: "string",
+    schema: { is_nullable: true, max_length: 16 },
+    meta: { interface: "input", readonly: true, width: "half", note: "SendGrid's bounce type: bounce (permanent) or blocked (refused). Auto-pause counts permanent ones." },
+  },
+];
+
+/** Add choices to a dropdown field, keeping the ones it has. */
+async function extendChoices(collection: string, field: string, add: Array<{ text: string; value: string }>): Promise<void> {
+  const def = (await api(`/fields/${collection}/${field}`))?.data;
+  const current: Array<{ text: string; value: string }> = def?.meta?.options?.choices || [];
+  const have = new Set(current.map((c) => c.value));
+  const missing = add.filter((c) => !have.has(c.value));
+  if (!missing.length) {
+    console.log(`   ⏭️  ${collection}.${field} already has ${add.map((c) => c.value).join(", ")}`);
+    return;
+  }
+  await api(`/fields/${collection}/${field}`, {
+    method: "PATCH",
+    body: JSON.stringify({ meta: { options: { ...(def?.meta?.options || {}), choices: [...current, ...missing] } } }),
+  });
+  console.log(`   ✅ ${collection}.${field}: + ${missing.map((c) => c.value).join(", ")}`);
+}
+
 // ── hoa_email_send_leases ────────────────────────────────────────────────────
 
 const LEASES = "hoa_email_send_leases";
@@ -371,7 +431,7 @@ async function narrowRecipientReadPermissions(): Promise<void> {
 }
 
 async function main() {
-  console.log("📬 Email send queue (Phase 3b)\n");
+  console.log("📬 Email send queue (Phase 3b + Phase 4)\n");
 
   console.log("hoa_email_recipients:");
   await extendRecipientStatus();
@@ -382,6 +442,12 @@ async function main() {
 
   console.log(`\n${LEASES}:`);
   await ensureLeaseCollection();
+
+  console.log("\nPhase 4 — auto-pause and recurrence:");
+  await extendChoices("hoa_emails", "status", EMAIL_STATUS_ADD);
+  await extendChoices("hoa_emails", "recurrence_rule", RECURRENCE_ADD);
+  for (const def of PHASE4_EMAIL_FIELDS) await ensureField("hoa_emails", def);
+  for (const def of PHASE4_ACTIVITY_FIELDS) await ensureField("hoa_email_activity", def);
 
   console.log("\nhoa_email_recipients read permissions (non-admin policies):");
   await narrowRecipientReadPermissions();

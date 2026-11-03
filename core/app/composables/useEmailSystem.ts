@@ -21,6 +21,7 @@ import type { HoaEmail, HoaEmailRecipient, HoaMember } from "#core/types/directu
 export type EmailType = "basic" | "alert" | "newsletter" | "announcement" | "reminder" | "notice";
 
 import type { EmailClass } from "#core/shared/email/email-class";
+import type { RecurrenceRule } from "#core/shared/email/recurrence";
 
 export interface EmailAttachmentInfo {
   id: string;
@@ -65,7 +66,9 @@ export interface EmailSaveData {
   includeBoardFooter?: boolean;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
-  recurrenceRule?: "none" | "weekly" | "monthly";
+  recurrenceRule?: RecurrenceRule;
+  /** The composer's IANA zone; recurrence follows its wall clock (Phase 4). */
+  recurrenceTimeZone?: string | null;
   recipientFilter?: "all" | "owners" | "tenants" | "custom";
   recipientIds?: string[];
   attachmentIds?: string[];
@@ -520,6 +523,7 @@ export const useEmailSystem = () => {
       draft: { label: "Draft", color: "gray", icon: "heroicons-outline:pencil" },
       scheduled: { label: "Scheduled", color: "blue", icon: "heroicons-outline:clock" },
       sending: { label: "Sending", color: "yellow", icon: "heroicons-outline:refresh" },
+      paused: { label: "Paused", color: "orange", icon: "heroicons-outline:pause" },
       sent: { label: "Sent", color: "green", icon: "heroicons-outline:check-circle" },
       failed: { label: "Failed", color: "red", icon: "heroicons-outline:x-circle" },
     };

@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
+import { rawMjml } from "./core/build/raw-mjml";
 
 export default defineConfig({
-  plugins: [vue()],
+  // rawMjml: the email partials (core/server/emails/*.mjml) import as strings, as in Nitro.
+  plugins: [vue(), rawMjml()],
   resolve: {
     alias: {
       // Nuxt 4 srcDir layout: `~`/`@` → app/, `~~`/`@@` → project root

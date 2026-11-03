@@ -26,6 +26,8 @@
 import { randomUUID } from "node:crypto";
 import * as sdk from "@directus/sdk";
 import { suppressionReason, type EmailClass } from "#core/shared/email/email-class";
+import { readHealthRecord, type PauseReason } from "#core/shared/email/send-health";
+import { computeNextRun } from "#core/shared/email/recurrence";
 import {
   CHUNK,
   CHUNK_RESERVE_MS,
@@ -100,6 +102,8 @@ export interface EmailQueueState {
   scheduled_at?: string | null;
   recurrence_rule?: string | null;
   send_last_error?: string | null;
+  /** The failure list at completion; `{ health }` while paused or resumed (email-send-health.ts). */
+  send_errors?: unknown;
 }
 
 /** The recheck read: the member as they are now. */
@@ -149,6 +153,12 @@ export interface RecipientStore {
   /** Every `sending` email, oldest send_started_at first. */
   sendingEmails(): Promise<EmailQueueState[]>;
   liveMembers(ids: string[]): Promise<LiveMember[]>;
+  /**
+   * Phase 4: the zone a recurring email repeats in (`recurrence_timezone`).
+   * Null before the field exists, or when it can't be read: the roll-forward
+   * is then on UTC, as it was before.
+   */
+  recurrenceTimeZone?(emailId: string): Promise<string | null>;
 }
 
 // ── Errors and small helpers ────────────────────────────────────────────────
@@ -223,19 +233,8 @@ export function scheduledRunKey(scheduledAt: string | null | undefined, now: num
   return `s:${(Number.isNaN(t.getTime()) ? new Date(now) : t).toISOString()}`;
 }
 
-/** Recurrence, exactly as process-scheduled has always rolled it forward. */
-export function computeNextRun(base: Date, rule: string | null | undefined): Date | null {
-  const d = new Date(base);
-  if (rule === "weekly") {
-    d.setDate(d.getDate() + 7);
-    return d;
-  }
-  if (rule === "monthly") {
-    d.setMonth(d.getMonth() + 1);
-    return d;
-  }
-  return null;
-}
+/** Recurrence (Phase 4: core/shared/email/recurrence.ts), re-exported where completion uses it. */
+export { computeNextRun };
 
 // ── Lease ───────────────────────────────────────────────────────────────────
 
@@ -635,7 +634,9 @@ export async function completeSend(
   if (!email.send_finished_at) data.sent_at = nowIso;
 
   if (runKey.startsWith("s:")) {
-    const next = computeNextRun(new Date(email.scheduled_at || runKey.slice(2)), email.recurrence_rule);
+    const repeats = !!email.recurrence_rule && email.recurrence_rule !== "none";
+    const tz = repeats && store.recurrenceTimeZone ? await store.recurrenceTimeZone(email.id).catch(() => null) : null;
+    const next = computeNextRun(new Date(email.scheduled_at || runKey.slice(2)), email.recurrence_rule, tz);
     if (next) {
       data.status = "scheduled";
       data.scheduled_at = next.toISOString();
@@ -742,12 +743,17 @@ export interface TickResult {
   runs: Array<Pick<RunResult, "emailId" | "stopped" | "sent" | "failed" | "unknown" | "requeued" | "expired"> & { error?: string }>;
   closed: number;
   completed: number;
+  /** Sends this tick paused (Phase 4, email-send-health.ts). */
+  paused: number;
 }
 
 /**
  * One tick (§7.1): enqueue due scheduled emails, then run `sending` emails
  * oldest first while the budget lasts, then close stale preparing sends, then
  * complete any done-but-unwritten send the runs did not reach.
+ *
+ * `checkHealth` (Phase 4) runs after each run that left its send unfinished,
+ * outside runBatch and after its lease is released; it takes the lease itself.
  */
 export async function runSendTick<D, M>(opts: {
   store: RecipientStore;
@@ -757,10 +763,12 @@ export async function runSendTick<D, M>(opts: {
   hooks?: Hooks;
   enqueueDue?: () => Promise<number>;
   depsFor: (email: EmailQueueState) => RunDeps<D, M>;
+  /** Auto-pause: true when this call paused the send. */
+  checkHealth?: (email: EmailQueueState) => Promise<boolean>;
 }): Promise<TickResult> {
   const { store, clock } = opts;
   const t0 = clock.now();
-  const out: TickResult = { enqueued: 0, runs: [], closed: 0, completed: 0 };
+  const out: TickResult = { enqueued: 0, runs: [], closed: 0, completed: 0, paused: 0 };
 
   if (opts.enqueueDue) out.enqueued = await opts.enqueueDue();
 
@@ -783,6 +791,13 @@ export async function runSendTick<D, M>(opts: {
       });
       out.runs.push({ emailId: r.emailId, stopped: r.stopped, sent: r.sent, failed: r.failed, unknown: r.unknown, requeued: r.requeued, expired: r.expired, ...(r.error ? { error: r.error } : {}) });
       if (r.completed) out.completed++;
+      else if (opts.checkHealth && r.stopped !== "busy" && r.stopped !== "not_ready") {
+        try {
+          if (await opts.checkHealth(email)) out.paused++;
+        } catch (e) {
+          console.error(`[email-send-queue] health check for ${email.id} failed:`, e);
+        }
+      }
     } catch (e) {
       console.error(`[email-send-queue] run for ${email.id} failed:`, e);
       out.runs.push({ emailId: email.id, stopped: "stalled", sent: 0, failed: 0, unknown: 0, requeued: 0, expired: 0, error: (e as Error)?.message || String(e) });
@@ -821,7 +836,7 @@ export async function runSendTick<D, M>(opts: {
 
 export interface SendProgress {
   status: string | null;
-  phase: "preparing" | "sending" | "done";
+  phase: "preparing" | "sending" | "paused" | "done";
   total: number | null;
   sent: number;
   failed: number;
@@ -832,6 +847,8 @@ export interface SendProgress {
   /** Rows written so far (the "Getting ready" count). */
   rows: number;
   stalled: string | null;
+  /** Set while the send is paused (Phase 4): why, in one sentence. */
+  paused: { reason: PauseReason | null; sentence: string | null; at: string | null } | null;
   updatedAt: string | null;
   errors: Array<{ address: string; reason: string }>;
 }
@@ -846,9 +863,12 @@ export function deriveProgress(
   const phase: SendProgress["phase"] =
     status === "sent" || status === "failed" || doneScheduled
       ? "done"
-      : email.total_recipients == null
-        ? "preparing"
-        : "sending";
+      : status === "paused"
+        ? "paused"
+        : email.total_recipients == null
+          ? "preparing"
+          : "sending";
+  const health = status === "paused" ? readHealthRecord(email.send_errors, email.send_run_key) : null;
   const errors = (Array.isArray(email.send_errors) ? email.send_errors : [])
     .filter((e): e is string => typeof e === "string")
     .map((line) => {
@@ -867,6 +887,10 @@ export function deriveProgress(
     claimed: counts.claimed,
     rows: counts.queued + counts.claimed + counts.sent + counts.failed + counts.suppressed + counts.unknown,
     stalled: email.send_last_error || null,
+    paused:
+      status === "paused"
+        ? { reason: health?.reason ?? null, sentence: health?.sentence ?? null, at: health?.at ?? null }
+        : null,
     updatedAt: email.date_updated ?? null,
     errors,
   };
@@ -921,6 +945,7 @@ export const EMAIL_QUEUE_FIELDS = [
   "scheduled_at",
   "recurrence_rule",
   "send_last_error",
+  "send_errors",
 ] as const;
 
 const idOf = (v: unknown): string | null =>
@@ -1115,6 +1140,12 @@ export function directusRecipientStore(directus: DirectusLike): RecipientStore {
           })
         )) || []
       );
+    },
+    async recurrenceTimeZone(emailId) {
+      // Its own read, so a deploy ahead of the schema script reads nothing
+      // missing on the hot path; a 403 for a field that doesn't exist yet is null.
+      const r = await req(readItem("hoa_emails", emailId, { fields: ["recurrence_timezone"] })).catch(() => null);
+      return (r as { recurrence_timezone?: string | null } | null)?.recurrence_timezone || null;
     },
     async liveMembers(ids) {
       return (

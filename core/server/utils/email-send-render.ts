@@ -60,7 +60,7 @@ export const RENDER_ORG_FIELDS = [
   "id", "name", "legal_name", "type", "email", "phone", "street_address", "city", "state", "zip", "slug", "external_url",
   {
     settings: [
-      "id", "logo", "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme",
+      "id", { logo: ["id", "width", "height"] }, "title", "description", "header_text", "homepage_url", "footer_image", "colors", "theme",
       "cc_bcc_threshold", "from_name", "from_email", "email_domain_verified",
     ],
   },

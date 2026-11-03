@@ -91,13 +91,14 @@ almost certainly did not go.
 **What an admin sees:** "N unknown" in the send dialog and on the email's
 detail page, an **Unknown** chip on each row, and the addresses in the failure
 list. To reach those people, send them a new email. A "Resend to these N"
-action is planned for Phase 4.
+action is still an open question (spec §9 Q4); it is not built.
 
 ## 4. A parked send (`send_last_error`)
 
 A run can stop **before claiming anything**, leaving every row `queued`. It
 writes why to `hoa_emails.send_last_error`, and the dialog and detail page show
-it as **"Paused: …"**. The email stays `sending`; nothing is failed.
+it as **"Waiting: …"**. The email stays `sending`; nothing is failed. (Not to be
+confused with an auto-paused send, §6, which waits for a person.)
 
 | Message | Cause | Fix |
 |---|---|---|
@@ -117,7 +118,50 @@ After 10 minutes the tick marks the send **failed**, with "Stopped while getting
 ready — nobody was sent this. Send it again.", and deletes its rows. Send it
 again from the composer.
 
-## 6. Setting it up
+## 6. Auto-pause and Resume (Phase 4)
+
+After every run that leaves a send unfinished, the tick holds the occurrence's
+SendGrid events to two lines (`core/shared/email/send-health.ts`):
+
+| Line | Counted as | Pauses at |
+|---|---|---|
+| Hard bounces | `bounce` events that aren't `blocked`, plus `dropped` for "Bounced Address", out of everything delivered or hard-bounced | 8% |
+| Spam reports | `spamreport` events, out of everything delivered | 0.5% |
+
+Nothing is judged before 50 outcomes. Over a line, the email moves `sending` →
+**`paused`** (`core/server/utils/email-send-health.ts`). The check runs under
+the send's lease, outside the run, and only the call whose write moved the row
+notifies: the org's admins and property managers, and whoever pressed Send,
+get a bell and an email ("“Subject” paused itself", CTA **Review and resume**).
+A paused send's rows stay `queued`; nothing claims them.
+
+The dialog and the detail page say **"Paused · too many bounces"** (or "spam
+complaints") with the numbers, and a **Resume sending** button
+(`POST /api/email/:id/resume`). Resume moves it back to `sending` and stores
+the counts at that moment as a baseline in `send_errors.health`: from then on
+only new events are judged, with the same 50-outcome minimum. Completion
+replaces the record with the failure list.
+
+Before resuming, look at why: a list with many dead addresses (fix them in
+Members), or a message people don't recognise. A paused email can't be edited
+or deleted (409), the same as one that is sending.
+
+## 7. Recurring emails (Phase 4)
+
+A scheduled email can repeat **daily, weekly, every two weeks, monthly,
+monthly on the nth weekday** ("the second Tuesday"), **monthly on the last
+weekday, every three months or yearly** (`core/shared/email/recurrence.ts`).
+The composer shows the sentence: "Every second Tuesday of the month at 9:00 AM
+— first on Tue, Nov 10, then Tue, Dec 8."
+
+The repeat follows the composer's time zone (`recurrence_timezone`): 9:00
+stays 9:00 across daylight saving, and "Tuesday" is the sender's Tuesday. An
+email saved before the field existed rolls forward on UTC, as before. Each
+occurrence is computed from the one before, so a monthly email on the 31st
+settles on the 30th or 28th after a short month; the nth-weekday rules don't
+drift.
+
+## 8. Setting it up
 
 1. **Schema** (once, admin token in `.env`):
 
@@ -125,10 +169,15 @@ again from the composer.
    pnpm add:email-send-queue
    ```
 
-   It is idempotent, and it does four things:
+   It is idempotent, and it does five things:
    - extends `hoa_email_recipients` (the queue's fields, a unique `dedupe_key`);
    - extends `hoa_emails` (the totals and the send timeline);
    - creates `hoa_email_send_leases` (with `email` unique);
+   - Phase 4: adds `paused` to `hoa_emails.status`, the new repeat rules to
+     `recurrence_rule`, `hoa_emails.recurrence_timezone`, and
+     `hoa_email_activity.bounce_type` (so a blocked bounce isn't counted as a
+     hard one). Until these exist the tick doesn't auto-pause and repeats roll
+     forward on UTC;
    - narrows the non-admin read permissions on `hoa_email_recipients`, so no
      resident can read `claim` or `member_fields` (the merge snapshot holds
      balances).
@@ -156,7 +205,7 @@ again from the composer.
    schedulers is harmless: the lease stops them enqueuing the same email
    twice. Turn the Flow off once the cron has run a scheduled email.
 
-## 7. Testing without mailing anyone
+## 9. Testing without mailing anyone
 
 - **Demo orgs never send** (`shouldBlockDemoEmail`). Rows settle `sent` with no
   message id.
@@ -165,9 +214,31 @@ again from the composer.
   and skipped, for every path through `sendOrganizationEmail`.
 - `scripts/browser/verify-p3b-queue.cjs` drives the send dialog. The default
   mode answers the API itself and writes nothing. `--real` runs a real 60-person
-  send on the demo org, after the schema script.
+  send on the demo org, after the schema script (it needs ≥ 60 members on
+  `demo`; with fewer, the send finishes inline and the dialog never opens).
+- `scripts/browser/verify-p4-email.cjs` writes a paused email on `demo`,
+  presses Resume and drives the tick to Sent, then checks the repeat sentence
+  and the Branding card's preview, and deletes what it wrote.
+- `GET /api/email/preview-mjml?org=<slug>&template=<type>&format=html|text|mjml`
+  renders any email type, or `template=notification&category=<key>`, in the
+  org's branding without sending anything (§10).
 
-## 8. Who uses the queue
+## 10. How an email is put together (Phase 4)
+
+`buildEmailHtml` composes MJML partials in `core/server/emails/`:
+`_layout.mjml` (head, the browser banner, the wrapper with `@HEADER`,
+`@CONTENT` and `@FOOTER` slots), `_header.mjml` (logo plate, header line, type
+pill), `org-email.mjml` (greeting and body) and `_footer.mjml` (sign-off,
+board, address band, the class footer, the building photo). Restyle a partial
+and every email type changes. They are inlined into the server bundle as
+strings (`core/build/raw-mjml.ts`), not read at runtime.
+
+`brandVars()` dresses the header in the org's brand: the label colour on the
+brand colour is the higher-contrast of white and ink (`core/shared/color-contrast.ts`;
+alert's red stays white), and a logo whose dimensions Directus knows is shown
+50 px tall and at most 240 px wide.
+
+## 11. Who uses the queue
 
 **Queued:** one body fanned out to an org audience, with an `hoa_emails` row:
 

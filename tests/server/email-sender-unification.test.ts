@@ -165,6 +165,22 @@ describe("the shared renderer: render before the claim, finalize after", () => {
     }
   });
 
+  // Phase 4: buildEmailHtml composes _layout + _header + org-email + _footer.
+  // The sentinel must come through the footer partial for every type.
+  it.each(["basic", "alert", "newsletter", "announcement", "reminder", "notice"] as const)(
+    "partials, %s: the sentinel reaches the footer once and is swapped for the recipient's",
+    (emailType) => {
+      const ctx = ctxFor({ email_type: emailType });
+      const draft = renderDraft(ctx, target);
+      expect(draft.msg.html.split(FOOTER_SENTINEL)).toHaveLength(2);
+      expect(draft.msg.html.indexOf(FOOTER_SENTINEL)).toBeGreaterThan(draft.msg.html.indexOf("All rights reserved"));
+      const msg = finalizeDraft(ctx, draft, TOKEN);
+      expect(msg.html).not.toContain(FOOTER_SENTINEL);
+      expect(msg.html).toContain(`https://app.test/unsubscribe?token=${TOKEN}`);
+      expect(msg.html).toContain("Unit 4B");
+    }
+  );
+
   it("a copy (no token) gets the generic page and no List-Unsubscribe header", () => {
     const ctx = ctxFor();
     const msg = finalizeDraft(ctx, renderDraft(ctx, { toEmail: "board@oak.test", fields: {} }), null);

@@ -240,6 +240,7 @@ const getStatusBadgeClass = (status: string) => {
     draft: "t-bg-subtle t-text-secondary",
     scheduled: "bg-info/15 text-info",
     sending: "bg-warning/15 text-warning",
+    paused: "bg-warning/15 text-warning",
     sent: "bg-success/15 text-success",
     failed: "bg-destructive/15 text-destructive",
   };
@@ -491,7 +492,12 @@ useSeoMeta({
             <!-- Send progress (the send queue) -->
             <Card v-if="isQueuedSend && sendProgress.progress.value" data-testid="detail-send-progress">
               <CardContent class="py-4">
-                <CommunicationsSendProgress :progress="sendProgress.progress.value" />
+                <CommunicationsSendProgress
+                  :progress="sendProgress.progress.value"
+                  :resuming="sendProgress.resuming.value"
+                  :resume-error="sendProgress.resumeError.value"
+                  @resume="sendProgress.resume()"
+                />
               </CardContent>
             </Card>
 

@@ -20,6 +20,8 @@ export function useSendProgress() {
   const label = computed(() => (progress.value ? progressLabel(progress.value) : ""));
   const percent = computed(() => (progress.value ? progressPercent(progress.value) : 0));
   const done = computed(() => progress.value?.phase === "done");
+  const resuming = ref(false);
+  const resumeError = ref<string | null>(null);
 
   const { refresh: refreshSending } = useSendingEmails();
 
@@ -51,6 +53,23 @@ export function useSendProgress() {
     timer = setTimeout(poll, initial ? SEND_PROGRESS_POLL_MS : 0);
   }
 
+  /** Resume a paused send (POST /api/email/:id/resume), then watch it again. */
+  async function resume() {
+    const id = current;
+    if (!id || resuming.value) return;
+    resuming.value = true;
+    resumeError.value = null;
+    try {
+      const p = await $fetch<SendProgressView>(`/api/email/${id}/resume`, { method: "POST" });
+      watchSend(id, p);
+      refreshSending();
+    } catch (e: any) {
+      resumeError.value = e?.data?.message || e?.message || "Couldn't resume";
+    } finally {
+      resuming.value = false;
+    }
+  }
+
   function stop() {
     if (timer) clearTimeout(timer);
     timer = null;
@@ -59,5 +78,5 @@ export function useSendProgress() {
 
   if (getCurrentScope()) onScopeDispose(stop);
 
-  return { progress, label, percent, done, error, watchSend, stop };
+  return { progress, label, percent, done, error, resuming, resumeError, watchSend, resume, stop };
 }

@@ -15,6 +15,7 @@ const getStatusColor = (status: string | null | undefined) => {
   const colors: Record<string, string> = {
     sent: "bg-green-100 text-green-700",
     sending: "bg-blue-100 text-blue-700",
+    paused: "bg-orange-100 text-orange-700",
     scheduled: "bg-amber-100 text-amber-700",
     draft: "t-bg-subtle t-text-secondary",
     failed: "bg-red-100 text-red-700",

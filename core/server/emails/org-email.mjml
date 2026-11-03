@@ -1,0 +1,16 @@
+{{!--
+  The content of an organization email (every EmailType: basic, alert,
+  newsletter, announcement, reminder, notice — and the branded transactional
+  notification, which is a `notice`): the greeting, then the body sections
+  contentToMjml() built from the author's HTML.
+--}}
+      <!-- Body -->
+      <mj-section background-color="#ffffff" padding="{{bodyPadding}}">
+        <mj-column>
+          {{#if greeting}}
+          <mj-text padding="{{greetingPadding}}" color="#374151" font-size="16px" line-height="1.6">{{greeting}}</mj-text>
+          {{/if}}
+        </mj-column>
+      </mj-section>
+
+      {{body}}

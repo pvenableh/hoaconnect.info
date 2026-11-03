@@ -1,0 +1,32 @@
+{{!--
+  The header band: the org's logo on a white plate (or its name), the custom
+  header line, and the type pill (🚨 ALERT, 📰 NEWSLETTER …). The band takes the
+  org's brand colour; `basic` stays white. Variables: brandVars() and
+  headerVars() in core/server/utils/email-templates-mjml.ts.
+--}}
+      <!-- Header -->
+      <mj-section background-color="{{headerBandBg}}" padding="{{headerPadding}}">
+        <mj-column>
+          {{#if logoUrl}}
+          <mj-text align="center" padding="0">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;">
+              <tr>
+                <td {{plateTd}}>{{logoImg}}</td>
+              </tr>
+            </table>
+          </mj-text>
+          {{else}}
+          <mj-text align="center" font-size="{{orgNameSize}}" font-weight="600" color="{{orgNameColor}}" font-family="{{headingFont}}">{{orgName}}</mj-text>
+          {{/if}}
+          {{#if headerText}}
+          <mj-text align="center" padding-top="10px" font-size="11px" color="{{headerSubTextColor}}" text-transform="uppercase" letter-spacing="2px">{{headerText}}</mj-text>
+          {{/if}}
+          {{#if label}}
+          <mj-text align="center" padding-top="12px">
+              <span style="display: inline-block; background-color: {{accentColor}}; color: {{brandOnColor}}; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
+                {{icon}} {{label}}
+              </span>
+            </mj-text>
+          {{/if}}
+        </mj-column>
+      </mj-section>

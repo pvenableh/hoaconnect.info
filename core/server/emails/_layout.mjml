@@ -1,0 +1,47 @@
+{{!--
+  The frame every organization email is composed into (Earnest parity round 3,
+  Phase 4): head, attributes, the "open in a browser" banner, and the wrapper
+  whose slots take the header, the content and the footer
+  (core/server/utils/email-partials.ts). Restyle here and every email type
+  changes at once.
+
+  Whitespace inside mj-text / mj-style / mj-table is copied into the HTML, so
+  the indentation of those blocks is part of the output; tests pin it
+  (tests/server/email-partials.test.ts). These notes are stripped.
+--}}
+<mjml>
+  <mj-head>
+    <mj-title>{{subject}}</mj-title>
+    <mj-preview>{{preheader}}...</mj-preview>
+    {{webFonts}}
+    <mj-attributes>
+      <mj-all font-family="{{bodyFont}}" />
+      <mj-text font-size="16px" color="#374151" line-height="1.6" />
+    </mj-attributes>
+    <mj-style>
+      .outlook-group-fix { width:100% !important; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="{{bodyBg}}">
+    {{#if webViewHref}}
+    <mj-section background-color="#e5e7eb" padding="8px 16px">
+      <mj-column>
+        <mj-text align="center" font-size="8px" color="#6b7280" text-transform="uppercase" letter-spacing="0.5px">
+          <a href="{{webViewHref}}" style="color: #6b7280; text-decoration: none;">
+            OPEN THIS EMAIL IN A WEB BROWSER
+          </a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    {{/if}}
+
+    <!-- Main Container -->
+    <mj-wrapper padding="{{wrapperPadding}}" background-color="{{bodyBg}}">
+      <!-- @HEADER -->
+
+      <!-- @CONTENT -->
+
+      <!-- @FOOTER -->
+    </mj-wrapper>
+  </mj-body>
+</mjml>

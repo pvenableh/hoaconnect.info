@@ -3,6 +3,7 @@ import type { HoaEmailActivity, HoaEmailRecipient, HoaMember } from "#core/types
 import { eventAction } from "#core/shared/email/suppression-events";
 import { applySuppressionActions, emailComplianceSchema, type SuppressionWork } from "../../utils/email-compliance";
 import { directusRecipientStore, emailQueueSchema, queueRowPatch, refreshTotals } from "../../utils/email-send-queue";
+import { emailPhase4Schema } from "../../utils/email-send-health";
 
 /**
  * SendGrid Event Webhook Handler
@@ -248,6 +249,8 @@ export default defineEventHandler(async (event) => {
   // Which shape the recipient rows have. Unknown (Directus unreachable) → leave
   // the rows alone rather than write the legacy status over a queue row.
   const queueRows = await emailQueueSchema(directus).catch(() => null);
+  // Phase 4: a bounce's SendGrid type, so auto-pause counts permanent ones only.
+  const bounceTypes = await emailPhase4Schema(directus).catch(() => false);
   const rowFields = queueRows ? ["id", "status", "member", "email", "delivery_status"] : ["id", "status", "member"];
   // Emails whose rows this batch promoted to `sent`: their totals are re-derived after.
   const promoted = new Set<string>();
@@ -338,6 +341,7 @@ export default defineEventHandler(async (event) => {
         email_recipient: recipient?.id || null,
         // Direct link to the email record (from the email_id custom_arg).
         email_record: sg.email_id || null,
+        ...(bounceTypes && sg.event === "bounce" ? { bounce_type: sg.type || null } : {}),
       };
 
       await directus.request(createItem("hoa_email_activity", activityData as any));

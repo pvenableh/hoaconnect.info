@@ -18,6 +18,7 @@ import {
   isValidEmail,
 } from "#core/shared/email/cc";
 import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
+import { recurrenceOptions, recurrenceSentence, type RecurrenceRule } from "#core/shared/email/recurrence";
 import {
   canBeEssential,
   defaultEmailClass,
@@ -612,7 +613,24 @@ const closeSendProgress = () => {
 // ---- Scheduling (Phase 9 Stage C) ----
 const scheduleEnabled = ref(false);
 const scheduledAt = ref(""); // datetime-local string
-const recurrenceRule = ref<"none" | "weekly" | "monthly">("none");
+const recurrenceRule = ref<RecurrenceRule>("none");
+// Phase 4: the Repeat choices name the chosen date's weekday ("Monthly on the
+// second Tuesday"), and the sentence under the picker says what will happen.
+// Recurrence follows this browser's time zone, which is stored with the email.
+const browserTimeZone = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+})();
+const scheduledDate = computed(() => (scheduledAt.value ? new Date(scheduledAt.value) : null));
+const repeatOptions = computed(() => recurrenceOptions(scheduledDate.value, browserTimeZone));
+const repeatSentence = computed(() => recurrenceSentence(recurrenceRule.value, scheduledDate.value, browserTimeZone));
+// A date change can take away the nth-weekday choice the picker is on.
+watch(repeatOptions, (opts) => {
+  if (!opts.some((o) => o.value === recurrenceRule.value)) recurrenceRule.value = "none";
+});
 
 // Map the recipient UI to stored targeting for the scheduler
 const targetingForSave = () => {
@@ -658,12 +676,12 @@ const handleSchedule = async () => {
       status: "scheduled",
       scheduledAt: when.toISOString(),
       recurrenceRule: recurrenceRule.value,
+      recurrenceTimeZone: recurrenceRule.value !== "none" ? browserTimeZone : null,
       recipientFilter: rf,
       recipientIds: rids,
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
-    const repeat = recurrenceRule.value !== "none" ? `, repeating ${recurrenceRule.value}` : "";
-    toast.success(`Scheduled for ${when.toLocaleString()}${repeat}`);
+    toast.success(repeatSentence.value ? `Scheduled. ${repeatSentence.value}` : `Scheduled for ${when.toLocaleString()}`);
     navigateToOrg("/admin/communications");
   } catch (error: any) {
     toast.error(error.message || "Failed to schedule email");
@@ -1613,10 +1631,11 @@ useSeoMeta({
                         v-model="recurrenceRule"
                         class="glass-field w-full text-sm rounded-md px-3 py-2"
                       >
-                        <option value="none">Does not repeat</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
+                        <option v-for="o in repeatOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
                       </select>
+                      <p v-if="repeatSentence" class="text-xs t-text-secondary" data-testid="repeat-sentence">
+                        {{ repeatSentence }}
+                      </p>
                     </div>
                     <Button class="w-full" @click="handleSchedule" :disabled="emailSystem.isLoading.value">
                       <Icon name="lucide:calendar-clock" class="w-4 h-4 mr-2" />
@@ -1799,7 +1818,12 @@ useSeoMeta({
                   : "You can close this — the send carries on in the background." }}
               </DialogDescription>
             </DialogHeader>
-            <CommunicationsSendProgress :progress="sendProgress.progress.value" />
+            <CommunicationsSendProgress
+                  :progress="sendProgress.progress.value"
+                  :resuming="sendProgress.resuming.value"
+                  :resume-error="sendProgress.resumeError.value"
+                  @resume="sendProgress.resume()"
+                />
             <DialogFooter>
               <Button data-testid="send-progress-close" @click="closeSendProgress">
                 {{ sendProgress.done.value ? "Done" : "Close" }}

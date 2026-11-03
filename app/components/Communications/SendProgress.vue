@@ -1,16 +1,18 @@
 <script setup lang="ts">
 // The send queue's progress, rendered the same way in the compose page's send
 // dialog and on the email detail page: the label (Getting ready → Sending →
-// Sent), a bar, a "Paused" note when a run stopped before sending anything,
-// and the failures once the send is done. Presentational — the caller polls
-// (useSendProgress) and passes the progress in.
+// Sent), a bar, a "Waiting" note when a run stopped before sending anything,
+// the auto-pause sentence with Resume (Phase 4), and the failures once the send
+// is done. Presentational — the caller polls (useSendProgress), passes the
+// progress in, and handles `resume`.
 import {
   progressLabel,
   progressPercent,
   type SendProgressView,
 } from "#core/shared/email/send-progress";
 
-const props = defineProps<{ progress: SendProgressView | null }>();
+const props = defineProps<{ progress: SendProgressView | null; resuming?: boolean; resumeError?: string | null }>();
+defineEmits<{ resume: [] }>();
 
 const label = computed(() => (props.progress ? progressLabel(props.progress) : "Starting…"));
 const percent = computed(() => (props.progress ? progressPercent(props.progress) : 0));
@@ -24,7 +26,13 @@ const failedDone = computed(
   <div class="space-y-3" data-testid="send-progress" :data-phase="phase">
     <div class="flex items-center gap-2">
       <Icon
-        v-if="phase !== 'done'"
+        v-if="phase === 'paused'"
+        name="lucide:circle-pause"
+        class="w-4 h-4 text-amber-600 dark:text-amber-400"
+        aria-hidden="true"
+      />
+      <Icon
+        v-else-if="phase !== 'done'"
         name="lucide:loader-2"
         class="w-4 h-4 animate-spin text-muted-foreground"
         aria-hidden="true"
@@ -40,12 +48,25 @@ const failedDone = computed(
 
     <Progress :model-value="percent" class="h-1.5" :aria-label="label" />
 
+    <div v-if="phase === 'paused'" class="space-y-2" data-testid="send-progress-health">
+      <p class="text-xs text-amber-700 dark:text-amber-300">
+        {{ progress?.paused?.sentence || "This send is on hold. Nobody else gets it until you resume it." }}
+      </p>
+      <div class="flex items-center gap-3">
+        <Button size="sm" :disabled="resuming" data-testid="send-progress-resume" @click="$emit('resume')">
+          <Icon v-if="resuming" name="lucide:loader-2" class="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />
+          Resume sending
+        </Button>
+        <span v-if="resumeError" class="text-xs text-destructive">{{ resumeError }}</span>
+      </div>
+    </div>
+
     <p
-      v-if="progress?.stalled && phase !== 'done'"
+      v-else-if="progress?.stalled && phase !== 'done'"
       class="text-xs text-amber-700 dark:text-amber-300"
       data-testid="send-progress-paused"
     >
-      Paused: {{ progress.stalled }} It will carry on by itself within a minute of being fixed.
+      Waiting: {{ progress.stalled }} It will carry on by itself within a minute of being fixed.
     </p>
 
     <p v-if="phase === 'done' && (progress?.unknown ?? 0) > 0" class="text-xs text-muted-foreground">

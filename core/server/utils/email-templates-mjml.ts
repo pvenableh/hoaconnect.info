@@ -4,6 +4,9 @@ import type {
   BlockSetting,
   DirectusFile,
 } from "#core/types/directus";
+import { prefersLightText } from "#core/shared/color-contrast";
+import { composeEmail, fillPartial, PARTIALS } from "./email-partials";
+import orgEmailMjml from "../emails/org-email.mjml";
 
 export type EmailType =
   | "basic"
@@ -138,14 +141,13 @@ function isWhiteColor(hex: string): boolean {
   return expandHexColor(hex) === "#ffffff";
 }
 
-/** YIQ brightness test: is white text readable on this colour? */
+/**
+ * Is white text the legible choice on this colour? WCAG contrast against white
+ * and against the ink (core/shared/color-contrast.ts) — Phase 4 replaced the
+ * YIQ guess, which put white on mid-tone yellows and oranges.
+ */
 function isDarkColor(hex: string): boolean {
-  let h = hex.slice(1);
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+  return prefersLightText(hex);
 }
 
 /**
@@ -193,7 +195,8 @@ export function resolveEmailTypeStyle(
     headerTextColor: headerIsDark ? "#ffffff" : "#1f2937",
     headerSubTextColor: headerIsDark ? "#e5e7eb" : "#4b5563",
     footerTextColor: headerIsDark ? "#9ca3af" : "#4b5563",
-    badgeTextColor: isDarkColor(accentColor) ? "#ffffff" : "#1f2937",
+    // Alert's red is semantic, not brand: its label stays the platform's white.
+    badgeTextColor: emailType === "alert" || isDarkColor(accentColor) ? "#ffffff" : "#1f2937",
   };
 }
 
@@ -346,6 +349,90 @@ function getLogoUrl(
 
   const height = maxHeight ? `&height=${maxHeight}` : "";
   return `${directusUrl}/assets/${logoId}?width=200${height}&format=png&fit=inside&quality=80`;
+}
+
+// ── Brand variables for the partials (Phase 4) ─────────────────────────────
+
+/** Logo sizing: 50 px tall, at most 240 px wide, never enlarged. */
+export const LOGO_MAX_HEIGHT = 50;
+export const LOGO_MAX_WIDTH = 240;
+
+/** The logo's display box from its Directus file metadata; null when the dimensions aren't known. */
+export function logoBox(file: unknown): { width: number; height: number } | null {
+  const f = file && typeof file === "object" ? (file as { width?: unknown; height?: unknown }) : null;
+  const w = Number(f?.width);
+  const h = Number(f?.height);
+  if (!(w > 0 && h > 0)) return null;
+  const scale = Math.min(1, LOGO_MAX_HEIGHT / h, LOGO_MAX_WIDTH / w);
+  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
+}
+
+export interface BrandVars {
+  [k: string]: string;
+  /** The header band: the org's brand colour, white for `basic`. */
+  headerBandBg: string;
+  brandColor: string;
+  /** The type pill's colour, and the legible label colour on it (core/shared/color-contrast.ts). */
+  accentColor: string;
+  brandOnColor: string;
+  logoUrl: string;
+  logoImg: string;
+  plateTd: string;
+}
+
+/**
+ * What the header partial needs to dress an email in the org's brand.
+ *
+ * The logo lockup: an org's logo is whatever they uploaded, and it lands on a
+ * coloured band we choose (1033's is an opaque white square, 605's a grey
+ * wordmark on a grey band). So the logo sits on a white plate whenever the band
+ * is not already white — one requirement an org can meet: it must read on
+ * white. Hand-rolled rather than `mj-image`, whose container colour would paint
+ * the full column width; the nested centred table is what Outlook needs.
+ *
+ * Size: when the file's dimensions are known (the email paths read
+ * `settings.logo` as { id, width, height }), the logo is 50 px tall and at most
+ * 240 px wide, with explicit width/height (Outlook ignores max-height) and the
+ * bitmap fetched at 2× for sharp screens. Without them, the pre-Phase-4
+ * lockup: the bitmap capped to 200×120 by the asset URL, natural size.
+ */
+export function brandVars(
+  organization: EmailTemplateOptions["organization"],
+  emailType: EmailType,
+  directusUrl: string
+): BrandVars {
+  const isBasic = emailType === "basic";
+  const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
+  const orgName = organization.name || "Organization";
+  const settings = organization.settings as BlockSetting | undefined;
+  const logoFile = settings?.logo;
+  const logoId = typeof logoFile === "string" ? logoFile : (logoFile as DirectusFile | undefined)?.id;
+  const box = logoId ? logoBox(logoFile) : null;
+
+  let logoUrl = "";
+  let logoImg = "";
+  if (logoId && box) {
+    logoUrl = `${directusUrl}/assets/${logoId}?width=${box.width * 2}&height=${box.height * 2}&format=png&fit=inside&quality=80`;
+    logoImg = `<img src="${logoUrl}" alt="${orgName}" width="${box.width}" height="${box.height}" style="border:0;display:block;outline:none;text-decoration:none;width:${box.width}px;height:${box.height}px;" />`;
+  } else if (logoId) {
+    logoUrl = getLogoUrl(organization, directusUrl, 120) || "";
+    logoImg = `<img src="${logoUrl}" alt="${orgName}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;max-width:200px;" />`;
+  }
+
+  const headerBandBg = isBasic ? "#ffffff" : style.headerBg;
+  const plateTd = !isWhiteColor(headerBandBg)
+    ? `bgcolor="#ffffff" style="background-color:#ffffff;border-radius:8px;padding:14px 20px;text-align:center;"`
+    : `style="text-align:center;"`;
+
+  return {
+    headerBandBg,
+    brandColor: style.headerBg,
+    accentColor: style.accentColor,
+    brandOnColor: style.badgeTextColor,
+    logoUrl,
+    logoImg,
+    plateTd,
+  };
 }
 
 /**
@@ -617,260 +704,15 @@ function contentToMjml(content: string, emailType: EmailType = "basic"): string 
 /**
  * Build the complete MJML template and compile to HTML
  */
+/**
+ * An organization email as HTML: the MJML from buildEmailMjml, compiled. With
+ * `forPreview`, just the body in a font wrapper (the composer's preview pane).
+ */
 export function buildEmailHtml(
   options: EmailTemplateOptions & { forPreview?: boolean }
 ): string {
-  const {
-    organization,
-    subject,
-    content,
-    emailType,
-    greeting,
-    salutation,
-    boardMembers,
-    recipientFirstName,
-    directusUrl,
-    forPreview,
-    emailId,
-    appUrl,
-    headerText,
-    footerImage,
-    homepageUrl,
-    webViewUrl,
-    complianceFooter,
-  } = options;
-
-  const orgName = organization.name || "Organization";
-  const legalName = organization.legal_name || orgName;
-  const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
-  const fonts = resolveEmailFonts(organization.settings ?? null);
-  // 120px is the height cap. It only bites on TALL logos: a wide wordmark
-  // (605's is 200x75) is already width-constrained and comes back unchanged,
-  // while a square app-icon upload (1033's) stops being a 200px poster. The
-  // web view deliberately does NOT cap height — it is a real page with room to
-  // spare, and staying on the old URL keeps that surface byte-identical.
-  const logoUrl = getLogoUrl(organization, directusUrl, 120);
-  const finalSalutation = salutation || defaultSalutations[emailType];
-  const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
-  const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
-
-  // Process greeting
-  const greetingTemplate = greeting || getDefaultGreeting(orgName);
-  const processedGreeting = processGreeting(
-    greetingTemplate,
-    recipientFirstName,
-    orgName
-  );
-
-  // Process content for MJML
-  console.log(`[MJML] buildEmailHtml called with emailType: ${emailType}`);
-  console.log(`[MJML] Content input (${content.length} chars): "${content.substring(0, 200)}..."`);
-
-  const processedContent = processContentForMjml(content, fonts.heading);
-  const contentMjml = contentToMjml(processedContent, emailType);
-
-  console.log(`[MJML] Generated contentMjml (${contentMjml.length} chars)`);
-
-  // For basic emails, use minimal styling
-  const isBasic = emailType === "basic";
-
-  // Build board members section
-  let boardMembersMjml = "";
-  if (boardMembers && boardMembers.length > 0) {
-    const membersHtml = boardMembers
-      .map(
-        (member) => `
-        <td style="padding: 8px 16px; text-align: center; vertical-align: top;">
-          <div style="font-weight: 600; color: #1f2937; font-size: 14px;">${member.name}</div>
-          <div style="color: #6b7280; font-size: 12px; margin-top: 2px;">${formatTitle(member.title)}</div>
-        </td>`
-      )
-      .join("");
-
-    boardMembersMjml = `
-      <mj-section padding="24px 32px 0 32px">
-        <mj-column>
-          <mj-divider border-width="1px" border-color="#e5e7eb" padding="0 0 24px 0" />
-          <mj-text align="center" color="#6b7280" font-size="12px" text-transform="uppercase" letter-spacing="1px" padding-bottom="16px">
-            Board of Directors
-          </mj-text>
-          <mj-table>
-            <tr>${membersHtml}</tr>
-          </mj-table>
-        </mj-column>
-      </mj-section>`;
-  }
-
-  // Build address
-  const addressParts = [
-    organization.street_address,
-    organization.city,
-    organization.state,
-    organization.zip,
-  ].filter(Boolean);
-  const addressLine = addressParts.join(", ");
-
-  // Build web view banner — prefer the friendly /{slug}/announcements/email/{web_slug}
-  // URL, falling back to the /api/email/view/{id} endpoint.
-  const bannerHref = webViewUrl || (emailId && appUrl ? `${appUrl}/api/email/view/${emailId}` : null);
-  const webViewBanner = bannerHref
-    ? `
-    <mj-section background-color="#e5e7eb" padding="8px 16px">
-      <mj-column>
-        <mj-text align="center" font-size="8px" color="#6b7280" text-transform="uppercase" letter-spacing="0.5px">
-          <a href="${bannerHref}" style="color: #6b7280; text-decoration: none;">
-            OPEN THIS EMAIL IN A WEB BROWSER
-          </a>
-        </mj-text>
-      </mj-column>
-    </mj-section>`
-    : "";
-
-  // Build the MJML template
-  // For basic emails: white background, minimal padding, no grey wrapper
-  // For other types: styled headers with colors
-  const bodyBg = isBasic ? "#ffffff" : "#f3f4f6";
-  const wrapperPadding = isBasic ? "8px" : "24px 16px";
-  const headerPadding = isBasic ? "16px" : "24px 32px";
-  const greetingPadding = isBasic ? "8px 16px" : "0 32px 16px 32px";
-  const footerPadding = isBasic ? "16px" : "24px 32px";
-  const bottomPadding = isBasic ? "12px 16px" : "16px 32px";
-
-  // ── The logo lockup ───────────────────────────────────────────────────────
-  // An org's logo is whatever they uploaded, and it lands on a coloured band
-  // we choose. No small association reliably has a transparent, correctly
-  // -coloured wordmark: 1033's is an opaque white square (a white box on their
-  // ink band) and 605's is a grey wordmark on their grey band (invisible).
-  //
-  // So the renderer puts the logo on a white plate whenever the band is not
-  // already white. That is band-colour independent, so it fixes every org at
-  // once, and it replaces today's impossible requirement ("your logo must read
-  // on both your brand colour AND the white `basic` band") with one an org can
-  // actually satisfy: it must read on white. `basic`'s band IS white, so the
-  // plate is skipped there and that email is untouched.
-  //
-  // Hand-rolled rather than `mj-image`, because `container-background-color`
-  // would paint the full column width — a white strip, not a plate. The nested
-  // `<table align="center">` shrink-wraps and is what Outlook needs; the
-  // border-radius degrades to square corners there, which is fine.
-  const headerBandBg = isBasic ? "#ffffff" : style.headerBg;
-  const logoOnPlate = !isWhiteColor(headerBandBg);
-  // No width attribute: the bitmap is already capped to 200x120 by the asset
-  // URL, so its natural size IS the display size. That is what makes the cap
-  // survive Outlook, which ignores `max-height` and would happily upscale a
-  // width-forced `mj-image` back to 200px square.
-  const logoImg = `<img src="${logoUrl}" alt="${orgName}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;max-width:200px;" />`;
-  const plateTd = logoOnPlate
-    ? `bgcolor="#ffffff" style="background-color:#ffffff;border-radius:8px;padding:14px 20px;text-align:center;"`
-    : `style="text-align:center;"`;
-  const logoMjml = !logoUrl
-    ? ""
-    : `<mj-text align="center" padding="0">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;">
-              <tr>
-                <td ${plateTd}>${logoImg}</td>
-              </tr>
-            </table>
-          </mj-text>`;
-
-  const mjmlTemplate = `
-<mjml>
-  <mj-head>
-    <mj-title>${subject}</mj-title>
-    <mj-preview>${content.replace(/<[^>]*>/g, "").substring(0, 100).trim()}...</mj-preview>
-    ${fonts.webFonts.map((f) => `<mj-font name="${f.name}" href="${f.href}" />`).join("\n    ")}
-    <mj-attributes>
-      <mj-all font-family="${fonts.body}" />
-      <mj-text font-size="16px" color="#374151" line-height="1.6" />
-    </mj-attributes>
-    <mj-style>
-      .outlook-group-fix { width:100% !important; }
-    </mj-style>
-  </mj-head>
-  <mj-body background-color="${bodyBg}">
-    ${webViewBanner}
-
-    <!-- Main Container -->
-    <mj-wrapper padding="${wrapperPadding}" background-color="${bodyBg}">
-      <!-- Header -->
-      <mj-section background-color="${headerBandBg}" padding="${headerPadding}">
-        <mj-column>
-          ${
-            logoUrl
-              ? logoMjml
-              : isBasic
-                ? `<mj-text align="center" font-size="20px" font-weight="600" color="#1f2937" font-family="${fonts.heading}">${orgName}</mj-text>`
-                : `<mj-text align="center" font-size="24px" font-weight="600" color="${style.headerTextColor}" font-family="${fonts.heading}">${orgName}</mj-text>`
-          }
-          ${
-            processedHeaderText
-              ? `<mj-text align="center" padding-top="10px" font-size="11px" color="${isBasic ? "#6b7280" : style.headerSubTextColor}" text-transform="uppercase" letter-spacing="2px">${processedHeaderText}</mj-text>`
-              : ""
-          }
-          ${
-            style.label
-              ? `<mj-text align="center" padding-top="12px">
-              <span style="display: inline-block; background-color: ${style.accentColor}; color: ${style.badgeTextColor}; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
-                ${style.icon} ${style.label}
-              </span>
-            </mj-text>`
-              : ""
-          }
-        </mj-column>
-      </mj-section>
-
-      <!-- Body -->
-      <mj-section background-color="#ffffff" padding="${isBasic ? "8px 0 0 0" : "32px 0 0 0"}">
-        <mj-column>
-          ${
-            processedGreeting
-              ? `<mj-text padding="${greetingPadding}" color="#374151" font-size="16px" line-height="1.6">${processedGreeting}</mj-text>`
-              : ""
-          }
-        </mj-column>
-      </mj-section>
-
-      ${contentMjml}
-
-      <!-- Footer -->
-      <mj-section background-color="${isBasic ? "#ffffff" : "#f9fafb"}" padding="${footerPadding}"${isBasic ? "" : ' border-top="1px solid #e5e7eb"'}>
-        <mj-column>
-          <mj-text color="#374151" font-size="16px" padding-bottom="4px">${finalSalutation},</mj-text>
-          <mj-text color="#1f2937" font-size="16px" font-weight="600">${orgName}</mj-text>
-        </mj-column>
-      </mj-section>
-
-      ${boardMembersMjml}
-
-      <!-- Bottom Footer -->
-      <mj-section background-color="${isBasic ? "#f9fafb" : style.headerBg}" padding="${bottomPadding}">
-        <mj-column>
-          ${addressLine ? `<mj-text align="center" color="${isBasic ? "#6b7280" : style.footerTextColor}" font-size="12px">${addressLine}</mj-text>` : ""}
-          ${organization.email ? `<mj-text align="center" color="${isBasic ? "#6b7280" : style.footerTextColor}" font-size="12px" padding-top="4px">${organization.email}</mj-text>` : ""}
-          ${
-            homepageUrl
-              ? `<mj-text align="center" padding-top="6px" font-size="12px"><a href="${homepageUrl}" style="color: ${isBasic ? "#6b7280" : style.footerTextColor}; text-decoration: underline;">${homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></mj-text>`
-              : ""
-          }
-          <mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">
-            © ${new Date().getFullYear()} ${legalName}. All rights reserved.
-          </mj-text>
-          ${complianceFooter ? `<mj-text align="center" color="#6b7280" font-size="11px" padding-top="8px">${complianceFooter.html}</mj-text>` : ""}
-        </mj-column>
-      </mj-section>
-
-      ${
-        footerImageUrl
-          ? `<mj-section padding="0">
-        <mj-column>
-          <mj-image src="${footerImageUrl}" alt="${orgName}" padding="0" fluid-on-mobile="true" />
-        </mj-column>
-      </mj-section>`
-          : ""
-      }
-    </mj-wrapper>
-  </mj-body>
-</mjml>`;
+  const mjmlTemplate = buildEmailMjml(options);
+  const { forPreview } = options;
 
   console.log(`[MJML] MJML template generated (${mjmlTemplate.length} chars)`);
   console.log(`[MJML] Template preview: "${mjmlTemplate.substring(0, 500)}..."`);
@@ -897,6 +739,7 @@ export function buildEmailHtml(
     const bodyContent = bodyMatch?.[1];
     if (bodyContent !== undefined) {
       console.log(`[MJML] Preview mode: extracted body content (${bodyContent.length} chars)`);
+      const fonts = resolveEmailFonts(options.organization.settings ?? null);
       return `<div style="font-family: ${fonts.body};">${bodyContent}</div>`;
     } else {
       console.warn(`[MJML] Preview mode: could not extract body content, returning full HTML`);
@@ -904,6 +747,159 @@ export function buildEmailHtml(
   }
 
   return html;
+}
+
+/**
+ * The MJML source of an organization email: the partials in
+ * core/server/emails/ composed with this email's brand, content and footer
+ * (Phase 4). GET /api/email/preview-mjml?format=mjml shows it.
+ */
+export function buildEmailMjml(options: EmailTemplateOptions): string {
+  const {
+    organization,
+    subject,
+    content,
+    emailType,
+    greeting,
+    salutation,
+    boardMembers,
+    recipientFirstName,
+    directusUrl,
+    emailId,
+    appUrl,
+    headerText,
+    footerImage,
+    homepageUrl,
+    webViewUrl,
+    complianceFooter,
+  } = options;
+
+  const orgName = organization.name || "Organization";
+  const legalName = organization.legal_name || orgName;
+  const style = resolveEmailTypeStyle(emailType, organization.settings ?? null);
+  const fonts = resolveEmailFonts(organization.settings ?? null);
+  const finalSalutation = salutation || defaultSalutations[emailType];
+  const processedHeaderText = processHeaderText(headerText, orgName, organization.legal_name);
+  const footerImageUrl = getFileUrl(footerImage, directusUrl, "width=1200&format=jpg&fit=cover&quality=80");
+
+  // Process greeting
+  const greetingTemplate = greeting || getDefaultGreeting(orgName);
+  const processedGreeting = processGreeting(
+    greetingTemplate,
+    recipientFirstName,
+    orgName
+  );
+
+  // Process content for MJML
+  console.log(`[MJML] buildEmailHtml called with emailType: ${emailType}`);
+  console.log(`[MJML] Content input (${content.length} chars): "${content.substring(0, 200)}..."`);
+
+  const processedContent = processContentForMjml(content, fonts.heading);
+  const contentMjml = contentToMjml(processedContent, emailType);
+
+  console.log(`[MJML] Generated contentMjml (${contentMjml.length} chars)`);
+
+  // For basic emails, use minimal styling
+  const isBasic = emailType === "basic";
+
+  // Board members: one cell each, inside the footer's mj-table.
+  const boardCells =
+    boardMembers && boardMembers.length > 0
+      ? boardMembers
+          .map(
+            (member) => `
+        <td style="padding: 8px 16px; text-align: center; vertical-align: top;">
+          <div style="font-weight: 600; color: #1f2937; font-size: 14px;">${member.name}</div>
+          <div style="color: #6b7280; font-size: 12px; margin-top: 2px;">${formatTitle(member.title)}</div>
+        </td>`
+          )
+          .join("")
+      : "";
+
+  // Build address
+  const addressParts = [
+    organization.street_address,
+    organization.city,
+    organization.state,
+    organization.zip,
+  ].filter(Boolean);
+  const addressLine = addressParts.join(", ");
+
+  // The web view banner — prefer the friendly /{slug}/announcements/email/{web_slug}
+  // URL, falling back to the /api/email/view/{id} endpoint.
+  const bannerHref = webViewUrl || (emailId && appUrl ? `${appUrl}/api/email/view/${emailId}` : null);
+
+  // For basic emails: white background, minimal padding, no grey wrapper.
+  // For other types: styled headers with colors.
+  const brand = brandVars(organization, emailType, directusUrl);
+
+  // Compose the partials (core/server/emails/: _layout + _header + org-email +
+  // _footer). The MJML is the same as the string builder's was, so the HTML is
+  // byte-identical (tests/server/email-partials.test.ts) except the logo when
+  // its dimensions are known (brandVars).
+  const header = fillPartial(
+    PARTIALS.header,
+    {
+      ...brand,
+      orgName,
+      headerPadding: isBasic ? "16px" : "24px 32px",
+      orgNameSize: isBasic ? "20px" : "24px",
+      orgNameColor: isBasic ? "#1f2937" : style.headerTextColor,
+      headingFont: fonts.heading,
+      headerText: processedHeaderText,
+      headerSubTextColor: isBasic ? "#6b7280" : style.headerSubTextColor,
+      label: style.label,
+      icon: style.icon,
+    },
+    "_header"
+  );
+  const contentSlot = fillPartial(
+    orgEmailMjml,
+    {
+      bodyPadding: isBasic ? "8px 0 0 0" : "32px 0 0 0",
+      greeting: processedGreeting,
+      greetingPadding: isBasic ? "8px 16px" : "0 32px 16px 32px",
+      body: contentMjml,
+    },
+    "org-email"
+  );
+  const footer = fillPartial(
+    PARTIALS.footer,
+    {
+      orgName,
+      legalName,
+      footerBg: isBasic ? "#ffffff" : "#f9fafb",
+      footerPadding: isBasic ? "16px" : "24px 32px",
+      footerBorder: isBasic ? "" : ' border-top="1px solid #e5e7eb"',
+      salutation: finalSalutation,
+      boardCells,
+      bottomBg: isBasic ? "#f9fafb" : style.headerBg,
+      bottomPadding: isBasic ? "12px 16px" : "16px 32px",
+      footerTextColor: isBasic ? "#6b7280" : style.footerTextColor,
+      addressLine,
+      orgEmail: organization.email || "",
+      homepageUrl: homepageUrl || "",
+      homepageLabel: homepageUrl ? homepageUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : "",
+      year: new Date().getFullYear(),
+      complianceFooter: complianceFooter?.html || "",
+      footerImageUrl: footerImageUrl || "",
+    },
+    "_footer"
+  );
+  const mjmlTemplate = composeEmail(
+    {
+      subject,
+      preheader: content.replace(/<[^>]*>/g, "").substring(0, 100).trim(),
+      webFonts: fonts.webFonts.map((f) => `<mj-font name="${f.name}" href="${f.href}" />`).join("\n    "),
+      bodyFont: fonts.body,
+      bodyBg: isBasic ? "#ffffff" : "#f3f4f6",
+      webViewHref: bannerHref || "",
+      wrapperPadding: isBasic ? "8px" : "24px 16px",
+    },
+    { header, content: contentSlot, footer }
+  );
+
+  return mjmlTemplate;
 }
 
 /**
