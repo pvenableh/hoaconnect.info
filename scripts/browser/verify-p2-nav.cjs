@@ -68,9 +68,11 @@ async function transitionsDuring(page, fn, urlPart) {
   if (urlPart) await page.waitForURL((u) => u.pathname.endsWith(urlPart), { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState("networkidle").catch(() => {});
   await settle(page, 1200);
-  const name = await page.evaluate(() => document.querySelector("#__nuxt").__vue_app__.$nuxt.payload.state["$spage-transition-name"]);
-  return [name];
+  return [await transitionName(page)];
 }
+
+const transitionName = (page) =>
+  page.evaluate(() => document.querySelector("#__nuxt").__vue_app__.$nuxt.payload.state["$spage-transition-name"]);
 
 // ── /ui-kit: the specimens, no session ──────────────────────────────────────
 async function runKit(browser, mode) {
@@ -125,6 +127,16 @@ async function boot(page) {
     !!(await page.waitForSelector("[data-app-nav]", { timeout: 8000 }).catch(() => null))
   );
 }
+
+const visibleDialog = (page) =>
+  page
+    .waitForSelector('[role="dialog"]', { state: "visible", timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+
+// A bare router push — no waiting first, so it can land mid-load.
+const push = (page, path) =>
+  page.evaluate((p) => document.querySelector("#__nuxt").__vue_app__.config.globalProperties.$router.push(p), path);
 
 async function spa(page, path) {
   // Let any navigation still in flight (a page transition, a click's push)
@@ -195,9 +207,10 @@ async function runWorkspace(browser, mode) {
   const verbCount = await page.locator("[data-create-verb]").count();
   check(`[ws ${mode}] + New lists the gated verbs`, verbCount >= 5, String(verbCount));
   await page.locator('[data-create-verb="meeting"]').click();
-  await page.waitForURL(/\/admin\/meetings/, { timeout: 8000 }).catch(() => {});
-  await settle(page, 1200);
-  const meetingSheet = await page.locator('[role="dialog"]').first().isVisible().catch(() => false);
+  // The page opens its form once its own setup resolves — up to ~2s against a
+  // remote Directus — so wait for the form, not a fixed beat.
+  const meetingSheet = await visibleDialog(page);
+  await page.waitForURL((u) => !u.searchParams.has("new"), { timeout: 3000 }).catch(() => {});
   check(`[ws ${mode}] + New → New Meeting opens the meetings form`, meetingSheet, page.url());
   check(`[ws ${mode}] ?new= consumed after opening`, !/[?&]new=/.test(page.url()), page.url());
   await page.keyboard.press("Escape");
@@ -211,8 +224,9 @@ async function runWorkspace(browser, mode) {
   check(`[ws ${mode}] Spotlight offers Add Unit`, await page.locator('[data-spotlight-verb="unit"]').isVisible().catch(() => false));
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/admin\/units/, { timeout: 8000 }).catch(() => {});
-  await settle(page, 1200);
-  check(`[ws ${mode}] Spotlight → Add Unit opens the unit form`, await page.locator('[role="dialog"]').first().isVisible().catch(() => false), page.url());
+  // Spotlight is a dialog too: let it close before looking for the form.
+  await page.waitForSelector("[data-spotlight-input]", { state: "hidden", timeout: 3000 }).catch(() => {});
+  check(`[ws ${mode}] Spotlight → Add Unit opens the unit form`, await visibleDialog(page), page.url());
   await page.keyboard.press("Escape");
   await settle(page, 400);
 
@@ -274,6 +288,33 @@ async function runWorkspace(browser, mode) {
   await spa(page, org("/admin/communications/channels"));
   await page.waitForSelector("[data-channels-workspace]", { timeout: 15000 }).catch(() => {});
   check(`[ws ${mode}] Comms hub embeds the same channels workspace`, await page.locator("[data-channels-workspace]").isVisible());
+
+  // Navigating again while the page on screen is still loading must never
+  // strand an empty <main> (out-in + Nuxt's Suspense re-key — see PAGE_CUT in
+  // core/shared/nav/page-transition.ts). Push, then push again 30–141ms later,
+  // before the first page's setup has resolved against Directus.
+  const races = [
+    ["/admin/payments", "/admin/channels"],
+    ["/admin/units", "/admin/members"],
+    ["/admin/meetings", "/admin/payments"],
+    ["/admin/members", "/admin/units"],
+  ];
+  const raced = [];
+  for (const [i, [a, b]] of races.entries()) {
+    await push(page, org(a));
+    await page.waitForTimeout(30 + i * 37);
+    await push(page, org(b));
+    await page.waitForURL((u) => u.pathname === org(b), { timeout: 15000 }).catch(() => {});
+    const name = await transitionName(page);
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await settle(page, 1500);
+    const filled = await page.evaluate(() =>
+      [...(document.querySelector("main")?.children || [])].some((c) => c.getBoundingClientRect().height > 40)
+    );
+    raced.push(`${a}→${b}:${name}:${filled ? "ok" : "BLANK"}`);
+  }
+  check(`[ws ${mode}] navigating mid-load never blanks <main>`, raced.every((r) => r.endsWith(":ok")), raced.join(" "));
+  check(`[ws ${mode}] a mid-load navigation cuts instead of animating`, raced.some((r) => r.includes(":page-cut:")), raced.join(" "));
 
   await spa(page, org("/admin/units"));
   await page.screenshot({ path: `${OUT}/p2-units-${mode}.png` });

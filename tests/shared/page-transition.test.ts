@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { appFor, floorFor, pickPageTransition, type NavOrder } from "#core/shared/nav/page-transition";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  PAGE_CUT,
+  appFor,
+  floorFor,
+  pickPageTransition,
+  shouldCutPageTransition,
+  type NavOrder,
+} from "#core/shared/nav/page-transition";
 import { ADMIN_APPS, MEMBER_APPS } from "#core/app/composables/useAppNav";
 import { ADMIN_SECTION_LINKS } from "#core/app/composables/useSectionNav";
 
@@ -55,5 +62,73 @@ describe("appFor / floorFor", () => {
     expect(floorFor("/admin/projects/42", ADMIN_SECTION_LINKS.requests!)).toBe(1);
     expect(floorFor("/admin/settings/organization", ADMIN_SECTION_LINKS.settings!)).toBe(0);
     expect(floorFor("/nowhere", ADMIN_SECTION_LINKS.people!)).toBe(-1);
+  });
+});
+
+describe("shouldCutPageTransition", () => {
+  it("cuts when the page being left is still loading", () => {
+    expect(shouldCutPageTransition({ leavingPending: true, fromOptsOut: false, toOptsOut: false })).toBe(true);
+  });
+
+  it("cuts between two routes that opt out of page transitions", () => {
+    expect(shouldCutPageTransition({ leavingPending: false, fromOptsOut: true, toOptsOut: true })).toBe(true);
+  });
+
+  it("still animates into or out of an opted-out route from elsewhere", () => {
+    expect(shouldCutPageTransition({ leavingPending: false, fromOptsOut: false, toOptsOut: true })).toBe(false);
+    expect(shouldCutPageTransition({ leavingPending: false, fromOptsOut: true, toOptsOut: false })).toBe(false);
+    expect(shouldCutPageTransition({ leavingPending: false, fromOptsOut: false, toOptsOut: false })).toBe(false);
+  });
+});
+
+describe("page-transition.global middleware", () => {
+  type Mw = (to: unknown, from: unknown) => void;
+  let mw: Mw;
+  const route = (path: string, meta: Record<string, unknown> = {}) => ({ path, params: { slug: "demo" }, meta });
+  const name = () => useState<string>("page-transition-name").value;
+  const setPending = (v: boolean) => {
+    useState<boolean>("page-transition-pending", () => false).value = v;
+  };
+
+  beforeEach(async () => {
+    vi.stubGlobal("defineNuxtRouteMiddleware", (fn: Mw) => fn);
+    vi.resetModules(); // the history stack is module state
+    mw = (await import("#core/app/middleware/page-transition.global")).default as Mw;
+  });
+
+  it("names the move it would animate when nothing is loading", () => {
+    mw(route("/demo/admin/payments"), route("/demo/admin/members"));
+    expect(name()).toBe("page-forward");
+  });
+
+  it("cuts when the user navigates away from a page still loading", () => {
+    setPending(true);
+    mw(route("/demo/admin/channels"), route("/demo/admin/payments"));
+    expect(name()).toBe(PAGE_CUT);
+  });
+
+  it("cuts channel → channel (both opt out) but slides into Channels", () => {
+    const off = { pageTransition: false };
+    mw(route("/demo/admin/channels/general", off), route("/demo/admin/channels", off));
+    expect(name()).toBe(PAGE_CUT);
+    mw(route("/demo/admin/channels", off), route("/demo/admin/members"));
+    expect(name()).not.toBe(PAGE_CUT);
+  });
+
+  it("keeps the history stack through a cut, so the next Back still pops", () => {
+    mw(route("/demo/admin/members/1"), route("/demo/admin/members"));
+    expect(name()).toBe("page-forward");
+    setPending(true);
+    mw(route("/demo/admin/members/2"), route("/demo/admin/members/1"));
+    expect(name()).toBe(PAGE_CUT);
+    setPending(false);
+    mw(route("/demo/admin/members/1"), route("/demo/admin/members/2"));
+    expect(name()).toBe("page-back");
+  });
+
+  it("fades on a same-path change even while loading (no re-key, nothing to strand)", () => {
+    setPending(true);
+    mw(route("/demo/admin/members"), route("/demo/admin/members"));
+    expect(name()).toBe("page");
   });
 });

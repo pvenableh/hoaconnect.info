@@ -20,8 +20,18 @@
 // it's a forward/push. This tracks the browser Back/Forward buttons and
 // swipe-back, not just in-app links. Reduced motion is honored in CSS (the
 // classes collapse to instant), so nothing here needs to branch on it.
+//
+// Leaving a page that is still loading CUTS instead (`page-cut`, default mode,
+// no motion): under out-in that navigation strands an empty placeholder in
+// <main> for the rest of the session — see PAGE_CUT. app.vue keeps
+// `page-transition-pending` from Nuxt's page:start / page:finish.
 
-import { pickPageTransition, type NavOrder } from "#core/shared/nav/page-transition";
+import {
+  PAGE_CUT,
+  pickPageTransition,
+  shouldCutPageTransition,
+  type NavOrder,
+} from "#core/shared/nav/page-transition";
 import { ADMIN_APPS, MEMBER_APPS } from "#core/app/composables/useAppNav";
 import { ADMIN_SECTION_LINKS } from "#core/app/composables/useSectionNav";
 
@@ -45,6 +55,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (import.meta.server) return;
 
   const name = useState<string>("page-transition-name", () => "page");
+  const pending = useState<boolean>("page-transition-pending", () => false);
   const toPath = to.path;
 
   // Tab/query/hash changes on the same page shouldn't slide horizontally.
@@ -72,6 +83,17 @@ export default defineNuxtRouteMiddleware((to, from) => {
     // New (or re-pushed) path → push.
     direction = "forward";
     if (stack[stack.length - 1] !== toPath) stack.push(toPath);
+  }
+
+  if (
+    shouldCutPageTransition({
+      leavingPending: pending.value,
+      fromOptsOut: from?.meta.pageTransition === false,
+      toOptsOut: to.meta.pageTransition === false,
+    })
+  ) {
+    name.value = PAGE_CUT;
+    return;
   }
 
   name.value = from

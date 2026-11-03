@@ -15,7 +15,8 @@
  *   - EVERYTHING ELSE (a drill-down into a record and back out of it): the
  *     iOS navigation-stack push or pop the caller worked out from history.
  *
- * Same path (a tab or query change) is the neutral `page` fade.
+ * Same path (a tab or query change) is the neutral `page` fade. And some
+ * navigations do not animate at all — they CUT (`shouldCutPageTransition`).
  */
 
 export type PageTransitionName =
@@ -23,7 +24,42 @@ export type PageTransitionName =
   | "page-forward"
   | "page-back"
   | "floor-forward"
-  | "floor-back";
+  | "floor-back"
+  | typeof PAGE_CUT;
+
+/**
+ * The instant swap: no CSS, `mode: "default"`, and app.vue ends both phases at
+ * once. It exists because `out-in` can strand the whole app:
+ *
+ * Navigate while the page on screen is still awaiting its setup and Nuxt
+ * re-keys NuxtPage's <Suspense> (page.js: `isSuspensePending` → `suspenseKey++`).
+ * The <Transition mode="out-in"> around it then leaves the old Suspense and
+ * renders an empty placeholder until that leave reports back — a hand-off Vue
+ * never makes for a Suspense child. The placeholder stays for the rest of the
+ * session: every later page lands in a blank <main>. In default mode nothing
+ * waits on that hand-off, so the next page simply mounts.
+ */
+export const PAGE_CUT = "page-cut";
+
+/**
+ * Whether a navigation cuts instead of animating.
+ *
+ * @param leavingPending  the page being left has not finished loading (Nuxt's
+ *                        `page:start` fired without its `page:finish`).
+ * @param fromOptsOut / toOptsOut  the route declares
+ *                        `definePageMeta({ pageTransition: false })`. Both ends
+ *                        must opt out (channel → channel); arriving at or leaving
+ *                        such a page from elsewhere still plays the dock slide.
+ *                        app.vue's explicit :transition would otherwise override
+ *                        the meta, which NuxtPage merges away when false.
+ */
+export function shouldCutPageTransition(opts: {
+  leavingPending: boolean;
+  fromOptsOut: boolean;
+  toOptsOut: boolean;
+}): boolean {
+  return opts.leavingPending || (opts.fromOptsOut && opts.toOptsOut);
+}
 
 export interface NavApp {
   key: string;
