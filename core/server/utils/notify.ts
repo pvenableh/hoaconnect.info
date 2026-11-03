@@ -35,9 +35,10 @@ import {
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
 import { buildPushPayload, pushAllowed, type PushOrgContext } from "#core/shared/notifications/push";
-import { sendPushToUser } from "./push";
+import { sendPushToUser, type PushDeliveryOptions } from "./push";
 import { sendBrandedTransactionalEmail } from "./transactional-email";
 import { scopeRecipientsToOrg } from "./org-members";
+import type { PartialVars } from "./email-partials";
 
 /** The branded email twin, when this event deserves one. Omit for bell-only. */
 export interface NotifyEmail {
@@ -48,9 +49,11 @@ export interface NotifyEmail {
   /** Pill CTA — org-relative path, absolutised per send. */
   cta?: { label: string; path: string };
   /** Header treatment. Defaults to "notice". */
-  emailType?: "basic" | "notice" | "alert";
+  emailType?: "basic" | "notice" | "alert" | "reminder";
   /** Subject line, when it should differ from the bell's. */
   subject?: string;
+  /** A content partial for the body (the reminder templates); `bodyHtml` then makes the text part. */
+  contentPartial?: { name: string; source: string; vars: PartialVars } | null;
 }
 
 export interface NotifyOptions {
@@ -73,6 +76,19 @@ export interface NotifyOptions {
   excludeUserId?: string | null;
   /** Send a branded email twin as well, gated on the email preferences. */
   email?: NotifyEmail | null;
+  /**
+   * Write the bell row (default). `false` is a push without a row — the
+   * meeting-in-an-hour reminder — still gated on the bell's switch.
+   */
+  bell?: boolean;
+  /** Push (default), or not; or push with a Web Push urgency and time-to-live. */
+  push?: boolean | PushDeliveryOptions;
+  /**
+   * Essential (dues and violation reminders): the email twin is stopped only by
+   * the master email switch, not the category opt-out or the mute, and its
+   * footer says it can't be unsubscribed. Bell and push are unchanged.
+   */
+  essential?: boolean;
 }
 
 interface RecipientRow {
@@ -120,27 +136,34 @@ export async function notifyUsers(
     // showing a member a category they muted, so write the rows; send no push
     // and no email, since both physically interrupt someone and consent is
     // exactly what we just failed to read.
-    const bell = await writeBells(recipients, opts);
+    const bell = opts.bell === false ? 0 : await writeBells(recipients, opts);
     return { bell, push: 0, email: 0 };
   }
 
   const allowedBell = users.filter((u) =>
     bellAllowed((u.notification_preferences as never) ?? null, opts.category)
   );
-  const bell = await writeBells(
-    allowedBell.map((u) => u.id),
-    opts
-  );
+  const bell =
+    opts.bell === false
+      ? 0
+      : await writeBells(
+          allowedBell.map((u) => u.id),
+          opts
+        );
 
-  // Push rides the bell's decision (see the header note): no row, no push.
+  // Push rides the bell's decision (see the header note): no row, no push —
+  // except a caller that asked for no row (`bell: false`), where the bell's
+  // switch still decides.
   let push = 0;
   const allowedPush = allowedBell.filter((u) =>
     pushAllowed((u.notification_preferences as never) ?? null, opts.category)
   );
   // No slug means no org-scoped link, and an unscoped push ("New task") is
   // useless to a member who belongs to three communities. Skip push, keep bells.
-  const org = allowedPush.length ? await orgPushContext(opts.organizationId) : null;
-  if (allowedPush.length && org) {
+  const wantPush = opts.push !== false;
+  const pushOptions = typeof opts.push === "object" ? opts.push : undefined;
+  const org = wantPush && allowedPush.length ? await orgPushContext(opts.organizationId) : null;
+  if (wantPush && allowedPush.length && org) {
     const payload = buildPushPayload({
       title: opts.subject,
       body: opts.message,
@@ -151,7 +174,7 @@ export async function notifyUsers(
       item: opts.item,
     });
     const counts = await Promise.all(
-      allowedPush.map((u) => sendPushToUser(u.id, payload).catch(() => 0))
+      allowedPush.map((u) => sendPushToUser(u.id, payload, pushOptions).catch(() => 0))
     );
     push = counts.reduce((a, b) => a + b, 0);
   }
@@ -161,11 +184,13 @@ export async function notifyUsers(
   let email = 0;
   if (opts.email) {
     const allowedEmail = users.filter((u) =>
-      emailAllowed(
-        (u.notification_preferences as never) ?? null,
-        u.email_notifications ?? null,
-        opts.category
-      )
+      opts.essential
+        ? u.email_notifications !== false
+        : emailAllowed(
+            (u.notification_preferences as never) ?? null,
+            u.email_notifications ?? null,
+            opts.category
+          )
     );
     if (allowedEmail.length) {
       // sendBrandedTransactionalEmail re-scopes to the org and re-checks the
@@ -181,6 +206,8 @@ export async function notifyUsers(
         cta: opts.email.cta,
         emailType: opts.email.emailType || "notice",
         category: opts.category,
+        essential: opts.essential === true,
+        contentPartial: opts.email.contentPartial ?? null,
       }).catch((e) => console.warn("[notify] email twin failed", (e as Error).message));
       email = allowedEmail.length;
     }

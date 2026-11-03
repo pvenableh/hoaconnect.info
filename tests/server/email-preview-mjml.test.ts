@@ -121,6 +121,25 @@ describe("GET /api/email/preview-mjml", () => {
     expect(text).toContain("Harborview Lofts");
   });
 
+  it.each([
+    ["reminder-dues", "Total due", "https://app.test/demo/payments", "cannot be unsubscribed"],
+    ["reminder-meeting", "Monthly board meeting", "https://app.test/demo/meetings", "these notifications are on"],
+    ["reminder-violation", "Correct by", "https://app.test/demo/requests/r1", "cannot be unsubscribed"],
+    ["reminder-poll", "Should we repaint the fence green?", "https://app.test/demo/polls", "these notifications are on"],
+  ] as const)("%s (Phase 5a): the reminder partial in the org's brand, its button, its class footer", async (template, text, href, footer) => {
+    h.query = { org: "demo", template };
+    const html = await (await route())({});
+    expect(html).toMatch(/^<!doctype html>/i);
+    expect(h.headers["Content-Security-Policy"]).toBe("sandbox");
+    expect(html).toContain(text);
+    expect(html).toContain(href);
+    expect(html).toContain(footer);
+    expect(html.indexOf(footer)).toBeGreaterThan(html.indexOf("All rights reserved"));
+    expect(html).toContain("background-color:#1e3a8a");
+    h.query = { org: "demo", template, format: "mjml" };
+    expect(await (await route())({})).not.toMatch(/@CONTENT|\{\{/);
+  });
+
   it("rejects an unknown template, format or category", async () => {
     for (const q of [{ template: "invoice" }, { format: "pdf" }, { template: "notification", category: "gossip" }]) {
       h.query = { org: "demo", ...q };

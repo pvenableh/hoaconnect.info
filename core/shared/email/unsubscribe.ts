@@ -128,9 +128,11 @@ export interface ComplianceFooterInput {
   /**
    * `notifications`: a per-user notification (task assigned, approval decided),
    * which the member controls through their notification preferences rather
-   * than an unsubscribe. Defaults to `membership`.
+   * than an unsubscribe. `reminders`: an essential reminder (dues, a
+   * violation's correction date) that only the master email switch stops.
+   * Defaults to `membership`.
    */
-  reason?: "membership" | "notifications";
+  reason?: "membership" | "notifications" | "reminders";
 }
 
 /**
@@ -151,6 +153,8 @@ export function buildComplianceFooter(input: ComplianceFooterInput): ComplianceF
     if (unsub) links.push({ label: "Unsubscribe", url: unsub });
   } else if (input.reason === "notifications") {
     lead = `You receive this because you are a member of ${org} and these notifications are on.`;
+  } else if (input.reason === "reminders") {
+    lead = `You receive this because you are a member of ${org}. Reminders about dues and notices are essential and cannot be unsubscribed; turning off all email in Preferences stops them.`;
   } else {
     lead = `You receive this because you are a member of ${org}; it cannot be unsubscribed.`;
   }

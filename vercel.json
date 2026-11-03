@@ -11,6 +11,10 @@
     {
       "path": "/api/email/cron/continue-sends",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/reminders/run",
+      "schedule": "5 * * * *"
     }
   ]
 }

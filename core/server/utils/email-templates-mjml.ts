@@ -4,8 +4,8 @@ import type {
   BlockSetting,
   DirectusFile,
 } from "#core/types/directus";
-import { prefersLightText } from "#core/shared/color-contrast";
-import { composeEmail, fillPartial, PARTIALS } from "./email-partials";
+import { onColor, prefersLightText } from "#core/shared/color-contrast";
+import { composeEmail, fillPartial, PARTIALS, type PartialVars } from "./email-partials";
 import orgEmailMjml from "../emails/org-email.mjml";
 
 export type EmailType =
@@ -50,6 +50,14 @@ interface EmailTemplateOptions {
    * can't-be-unsubscribed line on essential. Rendered last in the bottom footer.
    */
   complianceFooter?: { html: string; text: string } | null;
+  /**
+   * A content partial in place of org-email (Phase 5a: the reminder-*.mjml
+   * templates). It gets org-email's slot vars (bodyPadding, greeting,
+   * greetingPadding) plus headingFont, accentColor, buttonBg and buttonColor,
+   * then its own `vars` (escaped by the caller). `content` stays the source of
+   * the plain-text part and the preheader.
+   */
+  contentPartial?: { name: string; source: string; vars: PartialVars } | null;
 }
 
 // Email type configurations with colors and styling.
@@ -772,6 +780,7 @@ export function buildEmailMjml(options: EmailTemplateOptions): string {
     homepageUrl,
     webViewUrl,
     complianceFooter,
+    contentPartial,
   } = options;
 
   const orgName = organization.name || "Organization";
@@ -853,16 +862,25 @@ export function buildEmailMjml(options: EmailTemplateOptions): string {
     },
     "_header"
   );
-  const contentSlot = fillPartial(
-    orgEmailMjml,
-    {
-      bodyPadding: isBasic ? "8px 0 0 0" : "32px 0 0 0",
-      greeting: processedGreeting,
-      greetingPadding: isBasic ? "8px 16px" : "0 32px 16px 32px",
-      body: contentMjml,
-    },
-    "org-email"
-  );
+  const slotVars = {
+    bodyPadding: isBasic ? "8px 0 0 0" : "32px 0 0 0",
+    greeting: processedGreeting,
+    greetingPadding: isBasic ? "8px 16px" : "0 32px 16px 32px",
+  };
+  const contentSlot = contentPartial
+    ? fillPartial(
+        contentPartial.source,
+        {
+          ...slotVars,
+          headingFont: fonts.heading,
+          accentColor: brand.accentColor,
+          buttonBg: brand.accentColor,
+          buttonColor: onColor(brand.accentColor),
+          ...contentPartial.vars,
+        },
+        contentPartial.name
+      )
+    : fillPartial(orgEmailMjml, { ...slotVars, body: contentMjml }, "org-email");
   const footer = fillPartial(
     PARTIALS.footer,
     {

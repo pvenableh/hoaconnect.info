@@ -126,9 +126,15 @@ export const useRequests = () => {
     label: string
   ) => {
     const stateMeta = getStateMeta(request.type, toState);
+    // `status_changed_at` is what the reminder engine's request rule keys the
+    // resident's "your request is now …" on (core/shared/reminders/rules.ts).
     await update(request.id, {
       status: stateMeta.status,
-      metadata: { ...(request.metadata || {}), workflow_state: toState },
+      metadata: {
+        ...(request.metadata || {}),
+        workflow_state: toState,
+        ...(stateMeta.status !== request.status ? { status_changed_at: new Date().toISOString() } : {}),
+      },
     } as Partial<RequestRow>);
 
     // System comment so the timeline records the change.

@@ -16,6 +16,7 @@ import {
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
 import { orgMailingAddress, recipientCompliance } from "#core/shared/email/unsubscribe";
+import type { PartialVars } from "./email-partials";
 
 /**
  * sendBrandedTransactionalEmail — one branded, per-org email to a set of
@@ -60,6 +61,19 @@ export interface BrandedTransactionalOptions {
    * + global mute are honored.
    */
   category?: NotificationCategory;
+  /**
+   * Essential mail (Phase 5a: dues and violation reminders). Only the master
+   * email switch can stop it — not the category opt-out, not the mute — and
+   * its footer says it can't be unsubscribed. Bounced addresses still get
+   * nothing.
+   */
+  essential?: boolean;
+  /**
+   * A content partial in place of the notification body (the reminder-*.mjml
+   * templates). Its vars gain `ctaHref` and `ctaLabel` from `cta`. `bodyHtml`
+   * still makes the plain-text part.
+   */
+  contentPartial?: { name: string; source: string; vars: PartialVars } | null;
 }
 
 type OrgRow = HoaOrganization & { settings?: BlockSetting | string | null };
@@ -90,11 +104,29 @@ export function transactionalContent(
   return `${headingHtml}${opts.bodyHtml}${ctaHtml}`;
 }
 
-export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOptions): Promise<void> {
+/** A content partial's vars plus the CTA button's absolute, escaped href and label. */
+export function partialWithCta(
+  partial: BrandedTransactionalOptions["contentPartial"],
+  cta: BrandedCta | undefined,
+  ctx: { appUrl: string; slug: string }
+): BrandedTransactionalOptions["contentPartial"] {
+  if (!partial) return null;
+  return {
+    ...partial,
+    vars: {
+      ctaHref: cta && ctx.appUrl && ctx.slug ? escapeHtml(`${ctx.appUrl}/${ctx.slug}${cta.path}`) : "",
+      ctaLabel: escapeHtml(cta?.label ?? ""),
+      ...partial.vars,
+    },
+  };
+}
+
+/** Returns how many emails SendGrid accepted. */
+export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOptions): Promise<number> {
   const asked = [...new Set((opts.recipientUserIds || []).filter(Boolean))].filter(
     (id) => id !== opts.excludeUserId
   );
-  if (!asked.length) return;
+  if (!asked.length) return 0;
 
   // Tenancy gate, same as `notifyUsers` and for a sharper reason: this channel
   // leaves the building. Everything below renders THIS org's branding — its
@@ -103,7 +135,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
   // recipient has nothing to do with. A stray bell row is noise in an app; this
   // is a message in someone's inbox that cannot be taken back.
   const recipients = await scopeRecipientsToOrg(opts.organizationId, asked, "transactional-email");
-  if (!recipients.length) return;
+  if (!recipients.length) return 0;
 
   const config = useRuntimeConfig();
   const appUrl = (config.public.appUrl as string) || "";
@@ -127,7 +159,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
   } catch (e) {
     console.warn("[transactional-email] failed to load org", e);
   }
-  if (!org) return;
+  if (!org) return 0;
 
   // Recipient emails + first names + notification prefs (for opt-out gating).
   let users: Array<{
@@ -147,7 +179,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     )) as typeof users;
   } catch (e) {
     console.warn("[transactional-email] failed to load recipients", e);
-    return;
+    return 0;
   }
 
   // Bounced addresses (Phase 3a's flag) get nothing — not even an essential
@@ -180,18 +212,21 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
   };
 
   const content = transactionalContent(opts, { appUrl, slug, settings: orgForEmail.settings });
+  const contentPartial = partialWithCta(opts.contentPartial, opts.cta, { appUrl, slug });
 
   // Essential class, notification wording: these are about the recipient's own
   // work (a task, an approval) and are switched off in their notification
   // preferences, not by an unsubscribe — so the footer says that and links there.
+  // An essential reminder (dues, a violation's date) says it can't be.
   const { footer: complianceFooter } = recipientCompliance({
     emailClass: "essential",
     org,
     mailingAddress: orgMailingAddress(org),
     appUrl,
-    reason: "notifications",
+    reason: opts.essential ? "reminders" : "notifications",
   });
 
+  let sent = 0;
   for (const u of users) {
     if (!u.email) continue;
     if (bounced.has(u.email.trim().toLowerCase())) {
@@ -201,9 +236,11 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     // Respect the member's notification preferences (revives the previously
     // ignored email_notifications field + honors per-category opt-out).
     const prefs = (u.notification_preferences as any) || null;
-    const allowed = opts.category
-      ? emailAllowed(prefs, u.email_notifications, opts.category)
-      : u.email_notifications !== false && !allMuted(prefs);
+    const allowed = opts.essential
+      ? u.email_notifications !== false
+      : opts.category
+        ? emailAllowed(prefs, u.email_notifications, opts.category)
+        : u.email_notifications !== false && !allMuted(prefs);
     if (!allowed) continue;
     try {
       const recipientFirstName = u.first_name || undefined;
@@ -219,6 +256,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         footerImage: branding.footerImage,
         homepageUrl: branding.homepageUrl,
         complianceFooter,
+        contentPartial,
       });
       const text = buildEmailText({
         organization: orgForEmail,
@@ -238,8 +276,10 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         ...sender,
         organizationId: opts.organizationId,
       });
+      sent++;
     } catch (e) {
       console.warn("[transactional-email] send failed for", u.id, e);
     }
   }
+  return sent;
 }

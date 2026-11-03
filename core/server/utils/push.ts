@@ -60,7 +60,17 @@ export function vapidPublicKey(): string {
  * Send to every subscription a user has registered. Returns how many were
  * delivered. Never throws.
  */
-export async function sendPushToUser(userId: string, payload: PushPayload): Promise<number> {
+/**
+ * Web Push delivery hints (RFC 8030): `urgency` lets a phone on battery saver
+ * hold a low one back; `ttlSeconds` drops a push the service couldn't deliver
+ * in time (a meeting-in-an-hour reminder is worthless once it starts).
+ */
+export interface PushDeliveryOptions {
+  urgency?: "very-low" | "low" | "normal" | "high";
+  ttlSeconds?: number;
+}
+
+export async function sendPushToUser(userId: string, payload: PushPayload, options?: PushDeliveryOptions): Promise<number> {
   if (!ensureVapid() || !userId) return 0;
   let subs: PushSubRow[] = [];
   try {
@@ -78,7 +88,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   }
   if (!subs.length) return 0;
 
-  const results = await Promise.all(subs.map((sub) => deliver(sub, payload)));
+  const results = await Promise.all(subs.map((sub) => deliver(sub, payload, options)));
   return results.filter(Boolean).length;
 }
 
@@ -122,12 +132,16 @@ export async function sendPushToUsers(
   return counts.reduce((a, b) => a + b, 0);
 }
 
-async function deliver(sub: PushSubRow, payload: PushPayload): Promise<boolean> {
+async function deliver(sub: PushSubRow, payload: PushPayload, options?: PushDeliveryOptions): Promise<boolean> {
   const admin = getTypedDirectus();
   try {
     await webpush.sendNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh ?? "", auth: sub.auth ?? "" } },
-      JSON.stringify(payload)
+      JSON.stringify(payload),
+      {
+        ...(options?.urgency ? { urgency: options.urgency } : {}),
+        ...(options?.ttlSeconds ? { TTL: Math.max(0, Math.floor(options.ttlSeconds)) } : {}),
+      }
     );
     await admin
       .request(updateItem("push_subscriptions", sub.id, { last_used_at: new Date().toISOString() }))

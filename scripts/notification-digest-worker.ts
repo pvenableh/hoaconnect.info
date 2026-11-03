@@ -9,14 +9,18 @@
  *   0 * * * * cd /path/to/hoaconnect && pnpm run digest:worker >> /var/log/hoa-digest.log 2>&1
  *
  * Idempotent-by-hour: each run emails only members whose cadence + local
- * send-hour (interpreted in DIGEST_TZ) match the current hour, so a member gets
- * at most one digest per day even though the cron fires 24×/day.
+ * send-hour match the current hour, so a member gets at most one digest per day
+ * even though the cron fires 24×/day. The hour is the COMMUNITY's
+ * (`hoa_organizations.timezone`, Phase 5a): a member of a Los Angeles HOA gets
+ * its digest at 8 am Pacific. DIGEST_TZ is only the fallback for an org with no
+ * zone, or before `pnpm create:reminder-log` adds the field.
  *
  *   pnpm run digest:worker              # send
  *   pnpm run digest:worker -- --dry-run # report who WOULD receive, send nothing
  *
  * Env: DIRECTUS_URL, DIRECTUS_STATIC_TOKEN, SENDGRID_API_KEY, FROM_EMAIL, APP_URL,
- *      DIGEST_TZ (default America/New_York), optional FROM_NAME, DEMO_ALLOW_EMAIL.
+ *      DIGEST_TZ (fallback zone, default America/New_York), optional FROM_NAME,
+ *      DEMO_ALLOW_EMAIL.
  */
 
 import { randomBytes } from "node:crypto";
@@ -41,6 +45,8 @@ import {
 import { resolveEmailBranding } from "../core/server/utils/email-branding";
 import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
 import { suppressionReason } from "../core/shared/email/email-class";
+import { validTimeZone } from "../core/shared/email/recurrence";
+import { localHourAndWeekday } from "../core/shared/org-timezone";
 import { checkSendCompliance, isUnsubscribeToken, recipientCompliance } from "../core/shared/email/unsubscribe";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
@@ -65,24 +71,6 @@ if (!DRY_RUN && !SENDGRID_API_KEY) {
 const directus = createDirectus(DIRECTUS_URL).with(staticToken(DIRECTUS_STATIC_TOKEN)).with(rest());
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function localParts(tz: string, now: Date): { hour: number; dow: number } {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      hour: "numeric",
-      hour12: false,
-      weekday: "short",
-    }).formatToParts(now);
-    let hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-    if (hour === 24) hour = 0;
-    const wd = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
-    const dow = WEEKDAYS.indexOf(wd);
-    return { hour, dow: dow < 0 ? 0 : dow };
-  } catch {
-    return { hour: now.getHours(), dow: now.getDay() };
-  }
-}
 
 function sinceForCadence(cadence: string, now: Date): string {
   const hours = cadence === "weekly" ? 8 * 24 : 25;
@@ -256,11 +244,28 @@ async function sendViaSendgrid(msg: {
   if (!res.ok) throw new Error(`SendGrid ${res.status}: ${await res.text()}`);
 }
 
+/** Each community's zone; DIGEST_TZ for one without (or before the field exists — that read 403s). */
+async function loadOrgZones(): Promise<Map<string, string>> {
+  const zones = new Map<string, string>();
+  const rows =
+    (await safe(() => items("hoa_organizations", { fields: ["id", "timezone"], limit: -1 }))) ??
+    (await safe(() => items("hoa_organizations", { fields: ["id"], limit: -1 }))) ??
+    [];
+  for (const o of rows) if (o?.id) zones.set(String(o.id), validTimeZone(o.timezone) ?? DEFAULT_TZ);
+  return zones;
+}
+
 async function main() {
   const now = new Date();
-  const lp = localParts(DEFAULT_TZ, now);
+  const zones = await loadOrgZones();
+  const zoneOf = (orgId: string) => zones.get(orgId) ?? DEFAULT_TZ;
+  // Every zone in use and its hour now: a member is a candidate when their
+  // digest hour is the hour in at least one of them (checked per org below).
+  const hours = [...new Set([DEFAULT_TZ, ...zones.values()])].map((tz) => ({ tz, ...localHourAndWeekday(tz, now) }));
   console.log(
-    `🔔 Digest worker — ${DRY_RUN ? "DRY RUN" : "send"} · ${DEFAULT_TZ} ${String(lp.hour).padStart(2, "0")}:00 (${WEEKDAYS[lp.dow]})`
+    `🔔 Digest worker — ${DRY_RUN ? "DRY RUN" : "send"} · ${hours
+      .map((h) => `${h.tz} ${String(h.hour).padStart(2, "0")}:00 (${WEEKDAYS[h.dow]})`)
+      .join(" · ")}`
   );
 
   // Candidate members: anyone with notification preferences set.
@@ -279,12 +284,16 @@ async function main() {
   }
 
   const eligible = candidates.filter(
-    (u) => u.email && u.email_notifications !== false && shouldSendDigest(u.notification_preferences, lp.hour, lp.dow)
+    (u) =>
+      u.email &&
+      u.email_notifications !== false &&
+      hours.some((h) => shouldSendDigest(u.notification_preferences, h.hour, h.dow))
   );
   console.log(`   candidates=${candidates.length} eligible=${eligible.length}`);
 
   if (DRY_RUN) {
-    for (const u of eligible) console.log(`   would send → ${u.email}`);
+    // Per member, not per community: the zone check per org happens in the send loop.
+    for (const u of eligible) console.log(`   would send (in at least one community's hour) → ${u.email}`);
     console.log(`\nℹ️  Dry run — nothing sent.`);
     return;
   }
@@ -322,6 +331,9 @@ async function main() {
     }
 
     for (const [orgId, orgMembers] of byOrg) {
+      // This community's hour, not the global one.
+      const lp = localHourAndWeekday(zoneOf(orgId), now);
+      if (!shouldSendDigest(prefs, lp.hour, lp.dow)) continue;
       const memberIds = orgMembers.map((m) => m.id as string);
       // The digest is community mail: a bounced address or an opt-out from this
       // org's community mail drops it, whatever the digest preference says.

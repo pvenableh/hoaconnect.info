@@ -7,7 +7,10 @@
  *   template  basic | alert | newsletter | announcement | reminder | notice
  *             (an organization email), or `notification` — the branded
  *             notification email (sendBrandedTransactionalEmail), with
- *             `category` = one of the notification categories (default task)
+ *             `category` = one of the notification categories (default task),
+ *             or a reminder (Phase 5a): reminder-dues | reminder-meeting |
+ *             reminder-violation | reminder-poll — a sample made by the real
+ *             rules (core/server/utils/reminder-email.ts `sampleReminders`)
  *   format    html (default; a whole document, for the Branding card's iframe),
  *             text (the plain-text part), mjml (the composed source)
  *   primary / secondary / accent   an unsaved palette from the form (hex);
@@ -31,9 +34,19 @@ import { NOTIFICATION_CATEGORIES, type NotificationCategory } from "#core/shared
 import { recipientCompliance, orgMailingAddress } from "#core/shared/email/unsubscribe";
 import { buildEmailHtml, buildEmailMjml, buildEmailText, type EmailType } from "../../utils/email-templates-mjml";
 import { resolveEmailBranding } from "../../utils/email-branding";
-import { transactionalContent } from "../../utils/transactional-email";
+import { partialWithCta, transactionalContent } from "../../utils/transactional-email";
+import { REMINDER_EMAIL_TEMPLATES, reminderEmail, sampleReminders } from "../../utils/reminder-email";
 
-export const PREVIEW_TEMPLATES = ["basic", "alert", "newsletter", "announcement", "reminder", "notice", "notification"] as const;
+export const PREVIEW_TEMPLATES = [
+  "basic",
+  "alert",
+  "newsletter",
+  "announcement",
+  "reminder",
+  "notice",
+  "notification",
+  ...REMINDER_EMAIL_TEMPLATES,
+] as const;
 export type PreviewTemplate = (typeof PREVIEW_TEMPLATES)[number];
 
 // The heading is load-bearing: MJML emits a web-font link only for a face it
@@ -114,22 +127,40 @@ export default defineEventHandler(async (event) => {
   const branding = resolveEmailBranding(organization, null, { appUrl });
   const sample = NOTIFICATION_SAMPLES[category];
   const isNotification = template === "notification";
-  const emailType: EmailType = isNotification ? "notice" : template;
-  const subject = isNotification ? sample.subject : "A sample message from your community";
-  const content = isNotification
-    ? transactionalContent(
-        { heading: sample.subject, bodyHtml: `<p>${sample.body}</p>`, cta: { label: sample.cta, path: sample.path } },
-        { appUrl, slug: organization.slug || "", settings: organization.settings }
-      )
-    : SAMPLE_CONTENT;
+  const slug = organization.slug || "";
+  // A reminder renders exactly as sendReminder → notifyUsers → the
+  // transactional email would: its partial, its CTA, its class footer.
+  const reminder = (REMINDER_EMAIL_TEMPLATES as readonly string[]).includes(template)
+    ? sampleReminders(organization.name || undefined)[template as (typeof REMINDER_EMAIL_TEMPLATES)[number]]
+    : null;
+  const reminderParts = reminder ? reminderEmail(reminder) : null;
+  const emailType: EmailType = reminderParts
+    ? reminderParts.emailType
+    : isNotification
+      ? "notice"
+      : (template as EmailType);
+  const subject = reminder ? reminder.subject : isNotification ? sample.subject : "A sample message from your community";
+  const content = reminderParts
+    ? transactionalContent(reminderParts, { appUrl, slug, settings: organization.settings })
+    : isNotification
+      ? transactionalContent(
+          { heading: sample.subject, bodyHtml: `<p>${sample.body}</p>`, cta: { label: sample.cta, path: sample.path } },
+          { appUrl, slug, settings: organization.settings }
+        )
+      : SAMPLE_CONTENT;
   // The class footer the real send would carry: notifications are essential
-  // (switched off in preferences); organization emails preview as community mail.
+  // (switched off in preferences); dues and violation reminders are essential
+  // and can't be unsubscribed; organization emails preview as community mail.
   const { footer: complianceFooter } = recipientCompliance({
-    emailClass: isNotification ? "essential" : "community",
+    emailClass: isNotification || reminder ? "essential" : "community",
     org: organization,
     mailingAddress: orgMailingAddress(organization),
     appUrl,
-    ...(isNotification ? { reason: "notifications" as const } : {}),
+    ...(reminder
+      ? { reason: reminder.essential ? ("reminders" as const) : ("notifications" as const) }
+      : isNotification
+        ? { reason: "notifications" as const }
+        : {}),
   });
 
   const options = {
@@ -144,6 +175,7 @@ export default defineEventHandler(async (event) => {
     footerImage: branding.footerImage,
     homepageUrl: branding.homepageUrl,
     complianceFooter,
+    contentPartial: reminderParts ? partialWithCta(reminderParts.contentPartial, reminderParts.cta, { appUrl, slug }) : null,
   };
 
   if (format === "mjml" || format === "text") {

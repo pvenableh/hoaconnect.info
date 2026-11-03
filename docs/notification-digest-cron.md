@@ -10,8 +10,9 @@ other HOA Connect notification.
 Script: `scripts/notification-digest-worker.ts` (`pnpm run digest:worker`).
 
 It is idempotent-by-hour: each run emails only the members whose cadence + local
-send-hour (interpreted in `DIGEST_TZ`, default `America/New_York`) match the
-current hour, so a member receives at most one digest per day even though the
+send-hour match the current hour in the community's own zone
+(`hoa_organizations.timezone`, Phase 5a; `DIGEST_TZ`, default `America/New_York`,
+only for an org without one), so a member receives at most one digest per day even though the
 schedule fires 24×/day. It also honors the master `email_notifications` switch
 and skips demo orgs (unless `DEMO_ALLOW_EMAIL`).
 
@@ -43,7 +44,7 @@ literal in the workflow file, where you can read it:
 The workflow pins the rest inline: `DIRECTUS_URL=https://admin.hoaconnect.info`,
 `APP_URL=https://app.hoaconnect.info`,
 `FROM_EMAIL=notifications@hoaconnect.info`, `FROM_NAME=HOA Connect`,
-`DIGEST_TZ=America/New_York`. `DEMO_ALLOW_EMAIL` is deliberately unset — demo
+`DIGEST_TZ=America/New_York` (the fallback zone). `DEMO_ALLOW_EMAIL` is deliberately unset — demo
 orgs do not send.
 
 That is the whole setup. There is nothing to install, nothing to `git pull`, and

@@ -328,6 +328,8 @@ export interface BlockSetting {
 	email_domain_verified?: boolean | null;
 	/** @description CNAME records the org must add to DNS */
 	email_domain_dns?: Record<string, any> | null;
+	/** @description Reminder settings (core/shared/reminders/settings.ts): send_hour, and per rule enabled / stages / days / tenants / approved_at. Every rule is off until turned on. */
+	reminders?: Record<string, any> | null;
 }
 
 export interface Coupon {
@@ -1428,6 +1430,8 @@ export interface HoaOrganization {
 	/** @description Max total late fees on one charge. Empty = uncapped. */
 	late_fee_cap?: number | null;
 	amenities?: HoaAmenity[] | string[];
+	/** @description The community's time zone (IANA). Reminders fire on its wall clock and the digest goes out at each member's hour in it. */
+	timezone?: string | null;
 }
 
 export interface HoaPet {
@@ -1612,6 +1616,28 @@ export interface HoaReaction {
 	user?: DirectusUser | string | null;
 	/** @required */
 	organization: HoaOrganization | string;
+	date_created?: string | null;
+}
+
+export interface HoaReminderLog {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string;
+	rule?: 'dues' | 'meeting' | 'request' | 'violation' | 'poll' | 'coverage';
+	/** @description The rule's stage: before, due, overdue, week, day, hour, status, stale, opened, closing, closed, expired. */
+	stage?: string | null;
+	/** @description <rule>:<entity>:<stage>@<anchor>:<user>. UNIQUE — written BEFORE the send, so a second tick's insert is refused (RECORD_NOT_UNIQUE) rather than sent. */
+	reminder_key?: string;
+	recipient?: DirectusUser | string | null;
+	entity_collection?: string | null;
+	entity_id?: string | null;
+	/** @description What the reminder asked for (bell,push,email); each member's preferences decide what they got. */
+	channels?: string | null;
+	result?: 'claimed' | 'sent' | 'failed';
+	/** @description The channel counts, or the error. */
+	detail?: string | null;
+	sent_at?: string | null;
+	/** @description The claim. */
 	date_created?: string | null;
 }
 
@@ -2605,6 +2631,7 @@ export interface Schema {
 	hoa_projects_users: HoaProjectsUser[];
 	hoa_projects_vendors: HoaProjectsVendor[];
 	hoa_reactions: HoaReaction[];
+	hoa_reminder_log: HoaReminderLog[];
 	hoa_requests: HoaRequest[];
 	hoa_tasks: HoaTask[];
 	hoa_tasks_users: HoaTasksUser[];
@@ -2717,6 +2744,7 @@ export enum CollectionNames {
 	hoa_projects_users = 'hoa_projects_users',
 	hoa_projects_vendors = 'hoa_projects_vendors',
 	hoa_reactions = 'hoa_reactions',
+	hoa_reminder_log = 'hoa_reminder_log',
 	hoa_requests = 'hoa_requests',
 	hoa_tasks = 'hoa_tasks',
 	hoa_tasks_users = 'hoa_tasks_users',

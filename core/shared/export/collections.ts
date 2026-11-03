@@ -290,6 +290,9 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   // ── Communications ────────────────────────────────────────────────────────
   direct("hoa_emails", "Sent email", BOTH),
   via("hoa_email_recipients", "Email recipients", "hoa_emails", "email", BOTH),
+  // Who was reminded of what, and when (Phase 5a) — the "Reminder sent" history
+  // on a charge, a meeting, a violation. Both tiers, as the recipients are.
+  direct("hoa_reminder_log", "Reminders sent", BOTH),
   via("hoa_emails_files", "Email attachments", "hoa_emails", "hoa_emails_id", BOTH),
   direct("hoa_email_templates", "Email templates", BOTH),
   via(

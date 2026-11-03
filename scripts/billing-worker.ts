@@ -61,6 +61,7 @@ import { resolveEmailBranding } from "../core/server/utils/email-branding";
 import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
 import { resolveSender } from "../core/server/utils/sendgrid";
 import { essentialEmailAllowed } from "../core/shared/email/email-class";
+import { resolveReminderSettings } from "../core/shared/reminders/settings";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -521,7 +522,19 @@ const SUBJECTS: Record<Stage, (org: string) => string> = {
   past_grace: (org) => `Past due: your ${org} balance`,
 };
 
-async function sendReminders(org: OrgRow, charges: ChargeRow[], members: Map<string, MemberRow>, counts: RunCounts): Promise<void> {
+/**
+ * `withoutAccountOnly`: the reminder engine owns this community's dues
+ * reminders (its dues rule is on), and it reaches people through their app
+ * account. A member with no account is still the worker's to remind, by email,
+ * or nobody would.
+ */
+async function sendReminders(
+  org: OrgRow,
+  charges: ChargeRow[],
+  members: Map<string, MemberRow>,
+  counts: RunCounts,
+  opts: { withoutAccountOnly?: boolean } = {}
+): Promise<void> {
   const grace = Math.max(0, Math.floor(org.payment_grace_period_days ?? 0));
   const isOpen = (c: ChargeRow) => ["active", "partially_paid", "overdue"].includes(c.status ?? "") && Number(c.amount_remaining ?? 0) > 0;
 
@@ -531,6 +544,7 @@ async function sendReminders(org: OrgRow, charges: ChargeRow[], members: Map<str
   const byMember = new Map<string, { charge: ChargeRow; stage: Stage }[]>();
   for (const c of charges) {
     if (!isOpen(c) || c.id.startsWith("dry:")) continue;
+    if (opts.withoutAccountOnly && members.get(c.member)?.user) continue;
     const stage = stageFor(c, grace);
     if (!stage) continue;
     const sent = (c.metadata && typeof c.metadata === "object" && c.metadata.reminders) || {};
@@ -700,7 +714,14 @@ async function runOrg(org: OrgRow): Promise<RunCounts> {
   const fees = await applyLateFees(org, charges, counts);
   charges.push(...fees);
   await runAutopay(org, charges, members, counts);
-  await sendReminders(org, charges, members, counts);
+  // Once a board turns on the reminder engine's dues rule (Phase 5a,
+  // core/shared/reminders/), it sends this community's dues reminders to
+  // everyone with an app account — hourly, on the community's clock — and
+  // stamps `metadata.reminders` the same way, so neither repeats a stage the
+  // other sent. Members without an account stay here: the engine can't reach them.
+  const engineOwnsDues = resolveReminderSettings(org.settings?.reminders).rules.dues.enabled;
+  if (engineOwnsDues) console.log("   reminders: members with an account → the reminder engine; without → here");
+  await sendReminders(org, charges, members, counts, { withoutAccountOnly: engineOwnsDues });
 
   const entry = buildBillingRunEntry({
     organizationId: org.id,

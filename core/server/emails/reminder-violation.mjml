@@ -1,0 +1,27 @@
+{{!--
+  A violation's correction date (Phase 5a): three days before it and on the
+  day, to the member the notice is about. Only the date is reminded — a
+  further notice (`notice_count`) stays a board decision on the AI-notices
+  path. Essential mail: _footer carries the class footer that says it can't
+  be unsubscribed. The content slot of _layout, beside org-email.
+
+  Variables (core/server/utils/reminder-email.ts, all escaped): bodyPadding,
+  greeting, greetingPadding, headingFont, heading, intro, factRows, ctaHref,
+  ctaLabel, buttonBg, buttonColor.
+--}}
+      <!-- Reminder: violation -->
+      <mj-section background-color="#ffffff" padding="{{bodyPadding}}">
+        <mj-column>
+          {{#if greeting}}
+          <mj-text padding="{{greetingPadding}}" color="#374151" font-size="16px" line-height="1.6">{{greeting}}</mj-text>
+          {{/if}}
+          <mj-text padding="0 32px 8px 32px" color="#111827" font-family="{{headingFont}}" font-size="20px" font-weight="600" line-height="1.3">{{heading}}</mj-text>
+          <mj-text padding="0 32px 16px 32px" color="#374151" font-size="16px" line-height="1.6">{{intro}}</mj-text>
+          <mj-table padding="0 32px 8px 32px" color="#374151" font-size="15px" line-height="1.5">
+            {{factRows}}
+          </mj-table>
+          {{#if ctaHref}}
+          <mj-button href="{{ctaHref}}" align="left" background-color="{{buttonBg}}" color="{{buttonColor}}" border-radius="9999px" font-size="15px" font-weight="600" inner-padding="12px 24px" padding="16px 32px 8px 32px">{{ctaLabel}}</mj-button>
+          {{/if}}
+        </mj-column>
+      </mj-section>
