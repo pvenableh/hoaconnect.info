@@ -700,8 +700,8 @@ Operator TODOs (Peter):
 ```
 Continue the Earnest Parity Round 3 programme for HOA Connect. Read
 docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
-table, the Session log (Session 1's cron-auth notes and Session 4 are the
-ones that bear on this phase), §Token budget, and the Phase 3 intro plus
+table, the Session log (Session 1's cron-auth notes, Session 4 and Session
+4b are the ones that bear on this phase), §Token budget, and the Phase 3 intro plus
 §3a. Do not read §3b onwards, do not re-survey Earnest beyond the files 3a
 names (`unsubscribe.ts`, `contact-unsubscribes.ts`, the SendGrid webhook's
 `eventAction()`, the `SENDER_ADDRESS_MISSING` refusal), and never open
@@ -715,14 +715,16 @@ worker, `email-branding.ts`, `email/activity.post.ts`, the 10-category
 notification matrix (`core/shared/notifications/preferences.ts`,
 `/api/user/notification-preferences`), the Phase 1 primitives (`useConfirm`,
 `AppBottomSheet`, `AppEmptyState`, glass) and Phase 2's `usePageTitle` /
-`AppPageHeader` for any new page. The public site (Org/Landing/*,
+`AppPageHeader` for any new page. A composable that reads during SSR goes
+through `useDirectusItems` (it forwards the request's session since
+`a1b8387`) — never a bare `$fetch` read in setup. The public site (Org/Landing/*,
 LandingBuilder/*, the public theme) is out of scope — the `/unsubscribe` page
 is a standalone glass page, not a landing block.
 
-Local session: work on main, ask before pushing (Phase 2's commits may still
-be unpushed — check `git log origin/main..main` and say so; never push them
-silently). Tool shells may have no node/pnpm: run
-`eval "$(/usr/local/bin/fnm env)"`.
+Local session: work on main, ask before pushing (Session 4b's commits,
+`a1b8387` onward, may still be unpushed: check `git log origin/main..main`
+and say so; never push them silently). Tool shells may have no node/pnpm:
+run `eval "$(/usr/local/bin/fnm env)"`.
 
 Schema: the new `hoa_members` fields (email_community_opt_out + _at +
 _source, email_bounced + _at + _reason, unsubscribe_token) and the
@@ -755,6 +757,12 @@ prefers-reduced-transparency: no-preference) covering the /unsubscribe page
 and the resident preferences in BOTH light and dark — with a real session
 on the demo org via `/api/demo/login` if the session run is permitted (the
 build must use the project's .env), and say so in the Session log if not.
+Model it on scripts/browser/verify-p2-nav.cjs (newPage, signIn, `push`,
+`visibleDialog`): signed-in hard loads work now (no boot workaround), and
+wait on the element you expect, never a fixed beat — pages here take up to
+~2s to resolve against Directus. Known and not yours: Members logs
+hydration mismatches on a cold load, and a navigation made before the
+current page has loaded cuts instead of sliding (Session 4b).
 NO real mail: the demo orgs' guardrails block sends; verify headers and
 footers from the assembler's output in tests, never by sending. Delete every
 row you create; `demo-classic` is a CONTROL — diff both orgs before and
