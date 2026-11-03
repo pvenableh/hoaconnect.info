@@ -16,8 +16,8 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 |---|---|---|---|
 | 1 | Phase 0 — Pre-flight and launch blockers | [x] | Code side shipped on the PR branch. The any-session hole was in FOUR cron routes, not one. `test.post.ts` is a real feature — gated, not retired. Ops items are operator TODOs below. |
 | 2–3 | Phase 1 — Glass shell completion: **1a** primitives (Opus), **1b** sweeps (Sonnet) | [x] | **1a [x]** (session 2): every primitive shipped + on `/ui-kit`; also fixed prod having no glass blur outside Safari. **1b [x]** (session 3): sweeps A–E, one local commit each on `main` (not pushed). Not done: Directus click-through on the demo org (needs a signed-in session) — see Session 3. |
-| 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: run `pnpm add:user-app-prefs` (blocked here) — until then dock prefs stay per-device. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
-| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [~] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` (blocked here) — until then sends go out unsuppressed and without the header. **3b-design [ ]**, **3b-build [ ]**. |
+| 4 | Phase 2 — Dock, navigation and page-title system | [x] | All seven items in `6ea771c` (pushed with `36bb528`); gates green, browser 72/72 ×3 on the demo org. Operator: `pnpm add:user-app-prefs` ran 2026-11-03; dock prefs are now per user. Follow-ups (Session 4b, local `main`, not pushed): `a1b8387` fixes the SSR auth gap (deviation 8); `5a2df08` fixes a blank-`<main>` race on navigating mid-load. |
+| 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [~] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [ ]**, **3b-build [ ]**. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [ ] | Auto-pause, recurrence, MJML partial composition. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [ ] | Dues / meetings / requests / violations / polls. |
 | 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
@@ -620,9 +620,9 @@ Gates (final tree, `6ea771c`): typecheck 0 · vitest 99 files / 1687 tests · bu
 Operator TODOs (Peter):
 
 - [x] **Push is yours**: one code commit + one docs commit on local `main`. *(Pushed 2026-11-02.)*
-- [ ] **Provision `app_prefs`**: `pnpm add:user-app-prefs`, then `pnpm generate:types` (expect a
-      no-op diff on `app_prefs` — the hand-added line matches the generator). Then, signed in on
-      two browsers, change the dock palette in one and reload the other.
+- [x] **Provision `app_prefs`**: `pnpm add:user-app-prefs`, then `pnpm generate:types`. *(Ran
+      2026-11-03; the only diff was the field's description note, committed with this update.)*
+      Still to do: signed in on two browsers, change the dock palette in one and reload the other.
 - [ ] On the preview deploy, eyeball a cold load of Members and Email: the title should not
       jump at hydration (Email's moves above its tabs, once — deviation 4).
 - [x] **SSR membership read (deviation 8)**: hard-refresh `/{slug}/admin/members` signed in on
@@ -935,10 +935,9 @@ Operator TODOs (Peter):
 
 - [ ] **Push is yours**: Session 4b's four commits, `8513eeb` and this docs commit, all on
       local `main`.
-- [ ] **Provision**: `pnpm add:email-compliance`, then `pnpm generate:types` (expect no diff on
-      the eight fields). Read the script's permission lines: it should report HOA Member,
-      HOA Admin and Property Manager "read narrowed". Until it runs, nothing is suppressed
-      and no community send carries `List-Unsubscribe`.
+- [x] **Provision**: `pnpm add:email-compliance`, then `pnpm generate:types`. *(Ran 2026-11-03:
+      all eight fields created, HOA Admin / HOA Member / Property Manager read narrowed to 28
+      fields; types regenerated with no diff on these fields.)*
 - [ ] **After provisioning, one real community test** from a non-demo org to your own
       address (demo orgs block mail):
       - Gmail shows "Unsubscribe" beside the sender;

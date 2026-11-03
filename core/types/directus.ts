@@ -2328,7 +2328,7 @@ export interface DirectusUser {
 	text_direction?: 'auto' | 'ltr' | 'rtl';
 	/** @description Per-category email/bell toggles + digest settings. Managed from the account preferences UI. */
 	notification_preferences?: Record<string, any> | null;
-	/** @description Per-user workspace preferences (dock appearance). See core/shared/nav/app-prefs.ts. */
+	/** @description Per-user workspace preferences (dock palette, position, labels, glass). Managed from the account menu's Dock appearance. */
 	app_prefs?: Record<string, any> | null;
 	/** @description Reverse of hoa_members.user. Required by permission filters that scope on $CURRENT_USER.hoa_members. */
 	hoa_members?: HoaMember[] | string[];
