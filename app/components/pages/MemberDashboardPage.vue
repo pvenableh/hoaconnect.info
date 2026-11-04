@@ -514,6 +514,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <AppTabPanels :value="activeTab" :items="tabItems" class="mt-8">
           <div v-if="activeTab === 'overview'" class="space-y-10">
+        <!-- Install (Phase 6): renders nothing unless this device can add the app and hasn't dismissed it on this build. -->
+        <AppInstallCard />
+
         <!-- Up next (Phase 5b): what the reminders are about, so the push lands on a page that knows. -->
         <HomeUpNext :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
 

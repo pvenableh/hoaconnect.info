@@ -10,6 +10,7 @@
  * replaces the subject and the intro; `{{amount}}`-style tokens are the vars.
  */
 import type { NotificationCategory } from "../notifications/preferences";
+import type { PushActionInput } from "../notifications/push";
 import type { ReminderCopy, ReminderRule, ReminderStage } from "./settings";
 import { formatMoney, type Reminder, type ReminderChannel, type ReminderLine, type ReminderTemplate, type ReminderUrgency } from "./rules";
 
@@ -250,4 +251,28 @@ export function composeReminder(group: Reminder[], copy?: ReminderCopy | null): 
     vars,
     ...(lines ? { lines } : {}),
   };
+}
+
+/** Where "Add to calendar" lands: the meeting's .ics file (a server route, not under `/{slug}`). */
+export const meetingCalendarPath = (meetingId: string) => `/api/meetings/${encodeURIComponent(meetingId)}/calendar`;
+
+/**
+ * The buttons on a reminder's push (Phase 6): dues → Pay, meeting → Add to
+ * calendar, request → Open. Other rules get none — a violation notice or a
+ * poll reads fine as a plain tap. The notification's own tap still goes to
+ * `c.path`; a button is a shortcut, not the only way in.
+ */
+export function reminderPushActions(c: Pick<ComposedReminder, "rule" | "path" | "entities">): PushActionInput[] {
+  switch (c.rule) {
+    case "dues":
+      return [{ action: "pay", title: "Pay", path: "/payments" }];
+    case "meeting": {
+      const id = c.entities.find((e) => e.collection === "hoa_meetings")?.id;
+      return id ? [{ action: "calendar", title: "Add to calendar", path: meetingCalendarPath(id), root: true }] : [];
+    }
+    case "request":
+      return [{ action: "open", title: "Open", path: c.path }];
+    default:
+      return [];
+  }
 }

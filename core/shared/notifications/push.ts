@@ -37,10 +37,39 @@ export interface PushPayload {
   url: string;
   /** Collapse key — a newer push for the same item replaces the older one. */
   tag?: string;
-  /** Authoritative unread count, when the caller knows it. */
-  badge?: number;
+  /**
+   * Authoritative unread count, when the caller knows it. (Named `badgeCount`
+   * because the Notification API's own `badge` is the monochrome ICON url — the
+   * worker reads this, never `badge`, for the app-icon number.)
+   */
+  badgeCount?: number;
+  /** Buttons on the notification. Each `url` is where tapping that button lands. */
+  actions?: PushAction[];
   org?: PushOrgContext;
 }
+
+/** A notification button as it travels in the payload (the worker maps `action` → `url`). */
+export interface PushAction {
+  action: string;
+  title: string;
+  url: string;
+}
+
+/**
+ * A button before its link is resolved. `path` is org-relative like the
+ * notification's own; `root` marks a path that is NOT under `/{slug}` (an API
+ * route such as the meeting's calendar file).
+ */
+export interface PushActionInput {
+  action: string;
+  title: string;
+  path: string;
+  root?: boolean;
+}
+
+/** Most platforms show two; the spec's `Notification.maxActions` is often 2 on Android. Keep the payload to that. */
+export const PUSH_ACTIONS_MAX = 2;
+export const PUSH_ACTION_TITLE_MAX = 24;
 
 /**
  * May we push this category to this member? Same answer as the bell, by design
@@ -86,7 +115,9 @@ export function buildPushPayload(input: {
   origin?: string | null;
   collection?: string | null;
   item?: string | null;
-  badge?: number;
+  /** Authoritative unread total for the app icon. */
+  badgeCount?: number;
+  actions?: PushActionInput[] | null;
 }): PushPayload {
   const path = input.path && input.path.startsWith("/") ? input.path : `/${input.path || ""}`;
   const rel = `/${input.org.slug}${path === "/" ? "" : path}`;
@@ -99,8 +130,37 @@ export function buildPushPayload(input: {
   };
   const tag = pushTag(input.collection, input.item);
   if (tag) payload.tag = tag;
-  if (typeof input.badge === "number" && Number.isFinite(input.badge)) {
-    payload.badge = Math.max(0, Math.floor(input.badge));
+  if (typeof input.badgeCount === "number" && Number.isFinite(input.badgeCount)) {
+    payload.badgeCount = Math.max(0, Math.floor(input.badgeCount));
   }
+  const actions = resolvePushActions(input.actions, input.org.slug, origin);
+  if (actions.length) payload.actions = actions;
   return payload;
+}
+
+/**
+ * Resolve the buttons' links the same way the body's is: org-scoped, absolute
+ * once an origin is known. Drops anything malformed rather than shipping a
+ * button that goes nowhere, and caps the count and title length.
+ */
+export function resolvePushActions(
+  inputs: PushActionInput[] | null | undefined,
+  slug: string,
+  origin: string
+): PushAction[] {
+  const out: PushAction[] = [];
+  const seen = new Set<string>();
+  for (const a of inputs || []) {
+    if (!a || !a.action || !a.title || !a.path || !a.path.startsWith("/")) continue;
+    if (seen.has(a.action)) continue;
+    seen.add(a.action);
+    const rel = a.root ? a.path : `/${slug}${a.path === "/" ? "" : a.path}`;
+    out.push({
+      action: a.action,
+      title: truncate(a.title, PUSH_ACTION_TITLE_MAX),
+      url: origin ? `${origin}${rel}` : rel,
+    });
+    if (out.length >= PUSH_ACTIONS_MAX) break;
+  }
+  return out;
 }

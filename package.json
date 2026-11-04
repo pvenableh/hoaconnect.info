@@ -192,7 +192,6 @@
     "@types/mjml-core": "4",
     "@types/node": "^24.10.1",
     "@types/web-push": "^3.6.4",
-    "@vite-pwa/nuxt": "^1.0.7",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.11",
     "archiver": "^7.0.1",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   PUSH_BODY_MAX,
   PUSH_TITLE_MAX,
+  PUSH_ACTIONS_MAX,
   buildPushPayload,
   pushAllowed,
   pushTag,
@@ -113,9 +114,68 @@ describe("buildPushPayload", () => {
   });
 
   it("normalizes the badge and drops a nonsense one", () => {
-    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badge: 3.7 }).badge).toBe(3);
-    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badge: -2 }).badge).toBe(0);
-    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badge: NaN }).badge).toBeUndefined();
+    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badgeCount: 3.7 }).badgeCount).toBe(3);
+    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badgeCount: -2 }).badgeCount).toBe(0);
+    expect(buildPushPayload({ title: "T", body: "B", org: ORG, badgeCount: NaN }).badgeCount).toBeUndefined();
     expect(buildPushPayload({ title: "T", body: "B", org: ORG }).badge).toBeUndefined();
+  });
+});
+
+describe("buildPushPayload — tag, url, badgeCount, actions (Phase 6)", () => {
+  it("carries tag (collection:item), the org-scoped url and the badge count together", () => {
+    const p = buildPushPayload({
+      title: "Due today: $450.00",
+      body: "$450.00 is due today.",
+      org: ORG,
+      path: "/payments",
+      origin: "https://605lincolnroad.com",
+      collection: "payment_requests",
+      item: "c1",
+      badgeCount: 4,
+    });
+    expect(p.tag).toBe("payment_requests:c1");
+    expect(p.url).toBe("https://605lincolnroad.com/605-lincoln/payments");
+    expect(p.badgeCount).toBe(4);
+    expect(p).not.toHaveProperty("badge");
+  });
+
+  it("no tag without an item, so unrelated notifications stack", () => {
+    expect(buildPushPayload({ title: "T", body: "B", org: ORG, collection: "hoa_meetings" }).tag).toBeUndefined();
+  });
+
+  it("resolves each action's link like the body's — org-scoped, or root for an API route", () => {
+    const p = buildPushPayload({
+      title: "T",
+      body: "B",
+      org: ORG,
+      origin: "https://x.test",
+      actions: [
+        { action: "pay", title: "Pay", path: "/payments" },
+        { action: "calendar", title: "Add to calendar", path: "/api/meetings/m1/calendar", root: true },
+      ],
+    });
+    expect(p.actions).toEqual([
+      { action: "pay", title: "Pay", url: "https://x.test/605-lincoln/payments" },
+      { action: "calendar", title: "Add to calendar", url: "https://x.test/api/meetings/m1/calendar" },
+    ]);
+  });
+
+  it("caps the buttons, drops malformed and duplicate ones, and omits the key when none survive", () => {
+    const many = buildPushPayload({
+      title: "T",
+      body: "B",
+      org: ORG,
+      actions: [
+        { action: "a", title: "A", path: "/a" },
+        { action: "a", title: "A again", path: "/a2" },
+        { action: "", title: "No id", path: "/x" },
+        { action: "b", title: "B", path: "nope" },
+        { action: "c", title: "C", path: "/c" },
+        { action: "d", title: "D", path: "/d" },
+      ],
+    });
+    expect(many.actions!.map((a) => a.action)).toEqual(["a", "c"]);
+    expect(many.actions!.length).toBeLessThanOrEqual(PUSH_ACTIONS_MAX);
+    expect(buildPushPayload({ title: "T", body: "B", org: ORG, actions: [] })).not.toHaveProperty("actions");
   });
 });

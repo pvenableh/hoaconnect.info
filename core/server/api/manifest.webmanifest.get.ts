@@ -16,13 +16,7 @@
 import { readItem, readItems } from "@directus/sdk";
 import { resolveOrgForHost } from "../utils/host-resolver";
 import { normalizeHost } from "#core/shared/domains/host";
-
-interface ManifestIcon {
-  src: string;
-  sizes: string;
-  type: string;
-  purpose?: string;
-}
+import { buildManifest, type ManifestIcon } from "#core/shared/pwa/manifest";
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
@@ -51,6 +45,7 @@ export default defineEventHandler(async (event) => {
   ];
 
   let orgBranding: {
+    slug?: string;
     name?: string;
     description?: string;
     themeColor?: string;
@@ -59,11 +54,13 @@ export default defineEventHandler(async (event) => {
 
   const BRANDING_FIELDS = [
     "name",
+    "slug",
     { settings: ["title", "description", "colors", { icon: ["id"] }] },
   ] as const;
 
   type BrandingRow = {
     name?: string | null;
+    slug?: string | null;
     settings?: { title?: string | null; description?: string | null; colors?: any; icon?: { id?: string } | null } | null;
   };
 
@@ -71,6 +68,7 @@ export default defineEventHandler(async (event) => {
     if (!org) return null;
     const settings = org.settings as any;
     return {
+      slug: org.slug || undefined,
       name: settings?.title || org.name || undefined,
       description: settings?.description,
       themeColor: settings?.colors?.[0]?.primary,
@@ -161,18 +159,16 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Build manifest
-  const manifest = {
+  // Build manifest — the shape (id, start_url, shortcuts) lives in shared/pwa/manifest.
+  const manifest = buildManifest({
     name: orgBranding?.name || defaults.name,
-    short_name: orgBranding?.name || defaults.shortName,
+    shortName: orgBranding?.name || defaults.shortName,
     description: orgBranding?.description || defaults.description,
-    start_url: "/",
-    display: "standalone",
-    orientation: "portrait",
-    background_color: defaults.backgroundColor,
-    theme_color: orgBranding?.themeColor || defaults.themeColor,
+    backgroundColor: defaults.backgroundColor,
+    themeColor: orgBranding?.themeColor || defaults.themeColor,
     icons,
-  };
+    slug: orgBranding?.slug ?? null,
+  });
 
   // Set proper content type
   setResponseHeader(event, "Content-Type", "application/manifest+json");

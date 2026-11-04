@@ -435,7 +435,8 @@ its own. As of 2026-08-19 none of the three vars exist in Vercel production.
 
       `enabled: false` with an empty `publicKey` means the env vars didn't reach
       the runtime — you skipped the redeploy.
-- [ ] **Verify delivery to a real device** — still unverified end to end. Subscribe
+- [ ] **Verify delivery to a real device** — the device matrix is `docs/push-verification.md`
+      (iOS 17+ Safari standalone, Android Chrome, desktop Chrome); tick it there. Still unverified end to end. Subscribe
       from a phone (account → Preferences → the bell toggle), then trigger a
       notification and confirm it arrives. Subscribe, upsert-by-endpoint,
       unsubscribe and dead-endpoint prune were all verified live against prod

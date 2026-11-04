@@ -295,6 +295,9 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
           description="Here's how your community is doing."
         />
 
+        <!-- Install (Phase 6): renders nothing unless this device can add the app and hasn't dismissed it on this build. -->
+        <AppInstallCard />
+
         <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Dashboard views" />
 
         <AppTabPanels :value="activeTab" :items="tabItems">

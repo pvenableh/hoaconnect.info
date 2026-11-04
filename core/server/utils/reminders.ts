@@ -52,7 +52,7 @@ import {
   type RequestInput,
   type VendorInput,
 } from "#core/shared/reminders/rules";
-import { composeReminder, type ComposedReminder } from "#core/shared/reminders/messages";
+import { composeReminder, reminderPushActions, type ComposedReminder } from "#core/shared/reminders/messages";
 import { isNotUnique } from "./email-send-queue";
 
 export const REMINDER_BUDGET_MS = 40_000;
@@ -460,6 +460,7 @@ export const sendReminder: ReminderSender = async (org, c) => {
     item: entity?.id ?? null,
     path: c.path,
     origin: (useRuntimeConfig().public.appUrl as string) || null,
+    pushActions: reminderPushActions(c),
     bell: c.channels.includes("bell"),
     push: c.channels.includes("push")
       ? { urgency: c.urgency, ...(c.ttlSeconds ? { ttlSeconds: c.ttlSeconds } : {}) }

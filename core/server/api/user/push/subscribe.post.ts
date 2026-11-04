@@ -11,7 +11,7 @@
  * An endpoint that already belongs to a DIFFERENT user is reassigned — that's a
  * shared device where someone else signed in, and the browser is now theirs.
  */
-import { createItem, readItems, updateItem } from "@directus/sdk";
+import { createItem, deleteItem, readItems, updateItem } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event);
@@ -43,6 +43,17 @@ export default defineEventHandler(async (event) => {
       limit: 1,
     })
   );
+
+  // A rotated subscription says which endpoint it replaces (the worker's
+  // `pushsubscriptionchange`): drop the member's OWN dead row instead of leaving
+  // it to fail on the next send. Never someone else's.
+  const previous = typeof body?.previous_endpoint === "string" ? body.previous_endpoint.trim() : "";
+  if (previous && previous !== endpoint && /^https:\/\//i.test(previous)) {
+    const old = await admin
+      .request(readItems("push_subscriptions", { filter: { _and: [{ endpoint: { _eq: previous } }, { user: { _eq: userId } }] }, fields: ["id"], limit: 1 }))
+      .catch(() => []);
+    if (old?.[0]) await admin.request(deleteItem("push_subscriptions", old[0].id)).catch(() => {});
+  }
 
   const payload = {
     user: userId,

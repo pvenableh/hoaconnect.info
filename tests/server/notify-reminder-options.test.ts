@@ -53,6 +53,23 @@ describe("notifyUsers — reminder options", () => {
     expect(sendPush.mock.calls[0]![2]).toEqual({ urgency: "high", ttlSeconds: 3300 });
   });
 
+  it("pushActions ride into the payload as resolved buttons (Phase 6)", async () => {
+    await notifyUsers({
+      ...base,
+      category: "meeting",
+      collection: "hoa_meetings",
+      item: "m1",
+      path: "/meetings",
+      origin: "https://app.test",
+      pushActions: [{ action: "calendar", title: "Add to calendar", path: "/api/meetings/m1/calendar", root: true }],
+    });
+    expect(sendPush.mock.calls[0]![1]).toMatchObject({
+      tag: "hoa_meetings:m1",
+      url: "https://app.test/oak/meetings",
+      actions: [{ action: "calendar", title: "Add to calendar", url: "https://app.test/api/meetings/m1/calendar" }],
+    });
+  });
+
   it("push: false sends no push; the default still does, with no options", async () => {
     expect((await notifyUsers({ ...base, category: "request", push: false })).push).toBe(0);
     expect(sendPush).not.toHaveBeenCalled();

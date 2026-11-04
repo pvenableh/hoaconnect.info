@@ -34,7 +34,7 @@ import {
   emailAllowed,
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
-import { buildPushPayload, pushAllowed, type PushOrgContext } from "#core/shared/notifications/push";
+import { buildPushPayload, pushAllowed, type PushActionInput, type PushOrgContext } from "#core/shared/notifications/push";
 import { sendPushToUser, type PushDeliveryOptions } from "./push";
 import { sendBrandedTransactionalEmail } from "./transactional-email";
 import { scopeRecipientsToOrg } from "./org-members";
@@ -83,6 +83,8 @@ export interface NotifyOptions {
   bell?: boolean;
   /** Push (default), or not; or push with a Web Push urgency and time-to-live. */
   push?: boolean | PushDeliveryOptions;
+  /** Buttons on the push (dues → Pay, meeting → Add to calendar, request → Open). */
+  pushActions?: PushActionInput[] | null;
   /**
    * Essential (dues and violation reminders): the email twin is stopped only by
    * the master email switch, not the category opt-out or the mute, and its
@@ -172,6 +174,7 @@ export async function notifyUsers(
       origin: opts.origin,
       collection: opts.collection,
       item: opts.item,
+      actions: opts.pushActions,
     });
     const counts = await Promise.all(
       allowedPush.map((u) => sendPushToUser(u.id, payload, pushOptions).catch(() => 0))
