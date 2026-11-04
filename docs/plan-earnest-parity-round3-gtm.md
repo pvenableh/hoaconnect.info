@@ -20,7 +20,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 5–7 | Phase 3 — Email: **3a** compliance (Opus), **3b-design** the queue's state machine (Fable, spec only), **3b-build** (Opus) | [x] | **3a [x]** (session 5, `8513eeb`, local `main`, not pushed): classes, unsubscribe page + RFC 8058 one-click, footer + address refusal, suppression from the webhook, Members chips, household Email section; gates green, browser 92/92 ×3. Operator: `pnpm add:email-compliance` ran 2026-11-03 (three policies read-narrowed); suppression and `List-Unsubscribe` are live. **3b-design [x]** (session 6, docs only): `docs/spec-email-send-queue.md` — per-email lease by unique insert (Directus filter-updates are not atomic), at-most-once chooses dropped over doubled with the webhook as the evidence that closes the gap, counts derived from rows, 64 named tests; five open questions for Peter (Vercel plan first). **3b-build [x]** (session 7, local `main`, not pushed): the queue as specified — lease, claim/settle, at-most-once, derived counts, the tick (`* * * * *`, `maxDuration: 60` via a per-route Vercel function), progress route + dialog + detail chips + dock badge, `resolveSender` + bounced guard on the direct senders; all 66 spec tests (kill matrix at 15 steps); runs synchronous until `pnpm add:email-send-queue`. Gates green (typecheck 0, vitest 115/1911, Vercel-preset build, browser 38/38 mocked); operator: run the script, then `--real`. |
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [x] | Session 8, local `main`, not pushed: auto-pause + Resume (under the send's lease, one notification, baseline), recurrence (daily … annual, nth / last weekday, on the sender's time zone, composer sentence), MJML partials (`_layout` / `_header` / `org-email` / `_footer`, byte-identical to the string builder on 19 fixtures), `brandVars` + WCAG `brandOnColor`, logo 50 px from file metadata, `GET /api/email/preview-mjml` + the Branding card's iframe. Q4 (resend unknown) and copy overrides not built. Operator: re-run `pnpm add:email-send-queue` (Phase 4 fields) — until then no auto-pause and repeats stay on UTC. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [x] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [x]** (session 10, local `main`, not pushed): Settings → Organization → Reminders (per-rule toggle = the board's approval, stamped server-side; stages, lead days, tenants, own wording, send hour, time zone; template preview, "send me a test", a 24-hour dry run), the resident home's **Up next** and "Reminder sent" on `/payments`, and the events — request status, poll opened / closed (same log keys as the tick, so one path sends), payment received, board decision shared; payment overdue and document published were already covered. Operator: turn the rules on per community. |
-| 11 | Phase 6 — PWA and push completion | [ ] | Always-on SW, install card, delivery verified on devices. |
+| 11 | Phase 6 — PWA and push completion | [x] | Session 11, local `main`, not pushed: the worker registers app-wide (`pwa.client.ts`) with the standalone plugin; `AppInstallCard` on the resident and admin homes (per-build dismissal, iOS steps); manifest `id` / `start_url` / four shortcuts; push `tag` / `badgeCount` / `url` / **actions** (Pay · Add to calendar · Open) from `sendReminder`; `.ics` route; subscription self-heal; `@vite-pwa/nuxt` removed. Gates green, browser 52/52. **Device delivery is Peter's** — `docs/push-verification.md`. Channels' push waits for Phase 7. |
 | 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
 | 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
 | 14 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
@@ -1908,6 +1908,108 @@ Operator TODOs (Peter):
       real payment gives the member one bell row.
 - [ ] Still open from Sessions 7–9 (unchanged).
 
+**Session 11 — Phase 6: PWA and push completion** (2026-11-04) — local, on `main`, Sonnet 5.5 at effort high.
+One Haiku 5.5 census (every `navigator.serviceWorker` caller, every `notifyUsers` push caller). One code commit,
+one docs commit. Earnest was read only at `public/sw.js`, `pwa.client.ts` and `pwa-standalone.client.ts`.
+
+Shipped (the device checklist is `docs/push-verification.md`):
+
+- **Service worker app-wide** — `core/app/plugins/pwa.client.ts`: registers `/sw.js` on every route with
+  `updateViaCache: 'none'`, `update()` on visibility, no fetch handler and no precache (unchanged). It also owns
+  the `push-navigate` listener (a notification tapped while the app is open routes in-app through `navigateTo`;
+  a cross-origin target uses `location.assign`) and captures `beforeinstallprompt` / `appinstalled`.
+  `pwa-standalone.client.ts`: `html[data-standalone]` + the same-origin link trap.
+- **Install** — `useInstallPrompt()` (`core/app/composables`, over the pure `core/shared/pwa/install.ts`: modes
+  `installed | prompt | ios | none`, iOS-Safari detection that excludes CriOS/FxiOS/in-app browsers, dismissal
+  keyed to `runtimeConfig.public.buildId`) and `AppInstallCard` (a glass `WidgetGlass` card) on the resident
+  home's Overview (above Up next) and the admin dashboard (above the tab bar). Android/desktop: an **Install app**
+  button fires the captured prompt. iOS Safari: the three Share → Add to Home Screen steps. The account page's
+  own iOS block is untouched (it is the push card's context).
+- **Manifest** — `core/shared/pwa/manifest.ts` (`buildManifest`) behind the existing per-host route: `id: "/"`,
+  `start_url: "/?source=pwa"`, `scope`, and four `shortcuts` — Pay dues, Requests, Documents, Channels — under
+  the resolved community's slug (`?source=shortcut`). A host that resolves to no community (the platform's own)
+  gets no shortcuts rather than 404 links. The route now also selects `slug`.
+- **Push semantics** — payload: `tag` (`collection:item`, with `renotify` in the worker), `url`, **`badgeCount`**
+  (renamed from `badge`, see deviation 1) and `actions`. `sw.js` now: reads `badgeCount` (a legacy numeric `badge`
+  still works), shows `actions` (capped at `Notification.maxActions`, each button's link carried in `data` and
+  looked up on the click), and on click focuses an open same-origin window and posts `push-navigate`, else
+  `openWindow`; API downloads (the `.ics`) always open in a new window. Added from Earnest: the
+  `pushsubscriptionchange` self-heal (HOA's routes: `/api/user/push/config` and `/subscribe`, which now deletes
+  the member's own replaced endpoint when given `previous_endpoint`).
+- **Reminder buttons** — `reminderPushActions` (`core/shared/reminders/messages.ts`): dues → **Pay**
+  (`/payments`), meeting → **Add to calendar**, request → **Open** (the request's own page); violation, poll and
+  vendor coverage get none. `sendReminder` → `notifyUsers({ pushActions })` → `buildPushPayload` resolves each
+  link (org-scoped, absolute with the origin, or a `root` path for an API route).
+- **`GET /api/meetings/:id/calendar`** — the `.ics` behind "Add to calendar" (deviation 3). Authenticated,
+  member of the meeting's community, 404 if unpublished or undated. Pure builder `core/shared/meetings/ics.ts`.
+- **`@vite-pwa/nuxt` removed** (configured nowhere). `pnpm remove` took it out of `package.json` and the root
+  importer; `pnpm install --frozen-lockfile` passes. See deviation 6 for what the lockfile still carries.
+- **Docs** — `docs/push-verification.md` (the matrix as a checklist for Peter, the test route, the reminder
+  buttons, a record table); `docs/go-live-checklist.md` §5 points at it.
+- **Tests** — `pwa-manifest` (4), `pwa-install` (8: iOS Safari, iPadOS, iOS Chrome, captured prompt, installed,
+  dismissed-this-build), `reminder-push-actions` (8), `meeting-ics` (3), `push.test.ts` (+4: tag, url,
+  badgeCount, actions), `send-reminder.test.ts` (3: the same notifications as before plus the buttons, TTL and
+  urgency unchanged, push off), `notify-reminder-options` (+1: actions reach the payload).
+
+Deviations, with reasons:
+
+1. **`badge` → `badgeCount`.** The payload's `badge` held the unread count, but on the Notification API `badge` is
+   the monochrome icon URL — the worker would have had two meanings. Earnest renamed it; so did this. Nothing
+   in HOA's senders set it (the one test did), and the worker still reads a numeric `badge`.
+2. **No sender computes a per-user `badgeCount` yet.** `notifyUsers` fans one payload to everyone; a per-user
+   unread total would be a read per recipient. Without it a push bumps the icon by one and an open page
+   corrects it to the truth — as before. The payload and worker support the count; this is the follow-up if the
+   drift is felt on devices (recorded in `docs/push-verification.md`).
+3. **An `.ics` route was needed.** "Meeting → Add to calendar" had nothing to land on: no calendar file existed
+   anywhere. The meeting row has a start and no end, so the event is an hour long (the title, place and the
+   community's name carry the rest). Meetings reminders only reach published meetings; so does the route.
+4. **The link trap is bubble-phase, not capture.** Earnest's `capture: true` handler runs before RouterLink's, so
+   `defaultPrevented` is still false and every NuxtLink tap would be a full reload in standalone mode. In the
+   bubble phase RouterLink's `preventDefault` is seen first. The browser script checks a router link keeps its
+   JS state.
+5. **iOS gets no action buttons.** WebKit ignores `actions`; the tap itself goes to the right page. The
+   verification doc says so. The card is Safari-only on iOS (iOS Chrome can install on 16.4+, but its steps
+   differ; it shows nothing rather than the wrong steps).
+6. **The lockfile keeps a stale `apps/app` importer** that still lists `@vite-pwa/nuxt` (and its tree); that
+   directory no longer exists. Pre-existing and harmless (`--frozen-lockfile` passes); `pnpm install` without the
+   flag would prune it — left for the next dependency change so this diff stays four lines.
+7. **The invitation page does not end on the card** (the plan's §6.3 has it; the kickoff prompt scoped it to the
+   two homes). Not built.
+8. **Headless Chromium crashes when a service worker calls the Badging API** (macOS; the signed-in page posts the
+   unread count to the worker on every load, now that a worker exists everywhere). Not a product bug —
+   real Chrome is fine — but it means the browser script drops the page's `badge` message and has no
+   `setAppBadge`. Said at the top of that script.
+
+Gates (final tree):
+- typecheck 0;
+- vitest **134 files / 2,231 tests** (from 129 / 2,200 at Session 10);
+- `pnpm build` (node-server) green;
+- `audit:hairline-surfaces` 0;
+- browser, `scripts/browser/verify-p6-pwa.cjs` on a local build (`:3418`), demo org, light and dark, a real
+  session: **52/52** — the worker registered on load (scope `/`, `updateViaCache: none`, activated) with no push
+  opt-in; the install card absent until `beforeinstallprompt`, then shown as a glass surface with an Install
+  button on the admin home and the resident view, dismissed, and still hidden after a reload; the iPhone-Safari
+  user agent shows the Share steps and no button; standalone sets `html[data-standalone]`, hides the card and
+  leaves a router link a client-side navigation; the manifest serves `id`, `start_url` and four shortcuts under
+  the slug on a community host and none on the platform host; `sw.js` is no-cache; the `.ics` route is auth-gated.
+  No page errors. Screenshots were not read.
+
+**Not verified, and not claimed:** any push **delivery** on a device, the notification buttons on Android or desktop
+Chrome, the badge on a Home Screen icon, and the OS "Install" dialog. Those are `docs/push-verification.md`.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours**: this session's two commits (code + docs) on local `main`.
+- [ ] **Go-live §5 first**, if not done: the production VAPID pair, then a redeploy — push stays inert without it.
+- [ ] **Run `docs/push-verification.md`** on an iPhone (installed, iOS 17+), an Android phone and desktop Chrome;
+      record the results in its table. That closes go-live §5.
+- [ ] With a reminder rule on, tap **Send me a test** on a phone and confirm the buttons (Pay / Add to calendar /
+      Open) where the device shows them.
+- [ ] The first deploy puts a service worker on every visitor's device (it was opt-in before). It caches
+      nothing and has no fetch handler, so there is nothing to go stale; if a device ever looks pinned to an old
+      build, `sw.js` is served no-cache and re-checked on every foreground.
+- [ ] Still open from Sessions 7–10 (unchanged).
+
 #### Phase 6 — kickoff prompt (Sonnet 5.5, effort high)
 
 ```
@@ -1982,6 +2084,88 @@ Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 11 to the Session log (shipped, deviations, operator TODOs),
 write the Phase 7 kickoff prompt (Sonnet 5.5, effort high), and stop. One phase
 per session.
+```
+
+#### Phase 7 — kickoff prompt (Sonnet 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 11 (Phase 6: shipped, deviations,
+operator TODOs), §Token budget, §7 and Decisions (1 and 6). Do not read §8
+onwards, the Session log before Session 11, or docs/spec-email-send-queue.md,
+and never open docs/plan-earnest-parity-round2.md. Do not re-survey Earnest
+beyond the files you name yourself from §7's own words, and only the lines you
+need (`sed -n`).
+
+This session = Phase 7 (Channels gap-close) ONLY, on Sonnet 5.5 at effort
+high. §7 extends code that exists on both sides; the one design point is the
+notify-on-message fan-out, and §7.2 fixes it.
+
+HOA side, already located (verify with a quick ls/grep, don't re-survey):
+app/components/channels/{ChannelThread,ChannelMessage,ChannelEditor,
+ChannelsList,ChannelsWorkspace,ChannelMembersPanel,CreateChannelModal}.vue;
+core/app/composables/{useChannelAccess,useChannelSearch,useChannelUnread,
+useChannelsPanel,useRealtimeSubscription,useWebSocketManager}.ts;
+core/server/api/hoa/channels/** (create, moderate, moderation-log, pin, report,
+unread, [channel]/mute…); core/server/api/websocket/token.get.ts;
+core/server/utils/channel-unread.ts; the per-member `notifications_enabled`
+(read it from the mute route). Push comes from Phase 6, and it is ready:
+`notifyUsers({ …, push, pushActions })` (core/server/utils/notify.ts) carries
+`tag` (collection:item, so "3 new in #board" REPLACES the older push and
+re-buzzes), `url`, `badgeCount` and buttons; the worker (core/public/sw.js)
+focuses an open window and posts `push-navigate`, which pwa.client.ts routes
+in-app. A channel message's push should be tagged per channel, link to the
+channel, and carry an "Open" button (see `reminderPushActions` for the shape).
+Per-user `badgeCount` is NOT computed anywhere yet (Session 11, deviation 2) —
+channel unread is the natural first place; decide whether it is worth a read
+per recipient, and say so in the log.
+
+Deliverables (§7, fitted to what exists):
+1. Message editing: own messages; 15-minute window for members, unlimited for
+   managers (Decision 6); `is_edited` + `edited_at`; realtime update; a
+   moderation-log entry on manager edits. Server-enforced window, not just UI.
+2. Notify on message: a collapsed bell row per member ("3 new in #board") and a
+   push, unless that member has `notifications_enabled` off or has the channel
+   open (presence, item 4); mentions keep their own row; email only via the
+   digest. Start from the existing unread/mention paths; do not notify the
+   author; scope recipients to the channel's roster.
+3. DMs as private channels (Decision 1): `is_private` + `is_dm`, a seeded
+   two-person roster, a "Direct" group in the roster, created from a member's
+   profile and from the Spotlight "Message …" verb. No new collection (if a
+   field is missing, write the `pnpm` script the earlier phases did and say
+   so — ask Peter first whether to run it).
+4. Presence (cheap): a 60 s heartbeat per open channel over the existing WS
+   manager → "who's here" avatars in the thread header and the suppression in
+   item 2. No typing indicators.
+5. Embed ChannelThread in the request and project slide-over panels with a
+   "Start a channel" verb when none is linked.
+6. Shell: ChannelsPanel and the composer on glass, `confirm()` → `useConfirm`,
+   CreateChannelModal on BottomSheet below md.
+
+Tests: the edit window (member inside/outside, manager always, not-your-message,
+the moderation entry), the notify fan-out (collapse into one row, the
+author/muted/channel-open exclusions, mention keeps its row, tag per channel),
+DMs (roster of two, no third party can join, listed under Direct), presence
+(heartbeat expiry). Use a Haiku 5.5 subagent for any census (every place a
+channel message is created; where unread rows are written; the slide-over
+panels). Gates in the background, tail only: `pnpm test | tail -6`; typecheck
+with NODE_OPTIONS=--max-old-space-size=6144 into a log, grep `error TS`; build
+into a log, grep exit; `pnpm audit:hairline-surfaces`. Browser verification is
+one headless Playwright script (scripts/browser/verify-p7-channels.cjs, demo
+org, light and dark). Reuse the harness note in verify-p6-pwa.cjs (headless
+Chromium crashes if a service worker calls the Badging API — drop the page's
+`badge` message and delete `setAppBadge`). playwright@1.63.0 lives in an
+earlier session's scratchpad: `find /private/tmp/claude-501 -type d -path
+'*pw/node_modules/playwright'`, use it with NODE_PATH; only if none is left, ask
+Peter before installing it. Screenshots are read only on failure. Real push
+delivery to a device is Peter's (docs/push-verification.md) — write the
+channel rows into that doc's matrix and do not claim a device passed.
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 12 to the Session log (shipped, deviations, operator
+TODOs), write the Phase 8 kickoff prompt (Sonnet 5.5, effort high), and stop.
+One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
