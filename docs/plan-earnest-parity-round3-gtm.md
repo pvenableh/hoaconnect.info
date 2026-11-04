@@ -21,7 +21,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 8 | Phase 4 — Email: health, scheduling, branding parity | [x] | Session 8, local `main`, not pushed: auto-pause + Resume (under the send's lease, one notification, baseline), recurrence (daily … annual, nth / last weekday, on the sender's time zone, composer sentence), MJML partials (`_layout` / `_header` / `org-email` / `_footer`, byte-identical to the string builder on 19 fixtures), `brandVars` + WCAG `brandOnColor`, logo 50 px from file metadata, `GET /api/email/preview-mjml` + the Branding card's iframe. Q4 (resend unknown) and copy overrides not built. Operator: re-run `pnpm add:email-send-queue` (Phase 4 fields) — until then no auto-pause and repeats stay on UTC. |
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [x] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [x]** (session 10, local `main`, not pushed): Settings → Organization → Reminders (per-rule toggle = the board's approval, stamped server-side; stages, lead days, tenants, own wording, send hour, time zone; template preview, "send me a test", a 24-hour dry run), the resident home's **Up next** and "Reminder sent" on `/payments`, and the events — request status, poll opened / closed (same log keys as the tick, so one path sends), payment received, board decision shared; payment overdue and document published were already covered. Operator: turn the rules on per community. |
 | 11 | Phase 6 — PWA and push completion | [x] | Session 11, local `main`, not pushed: the worker registers app-wide (`pwa.client.ts`) with the standalone plugin; `AppInstallCard` on the resident and admin homes (per-build dismissal, iOS steps); manifest `id` / `start_url` / four shortcuts; push `tag` / `badgeCount` / `url` / **actions** (Pay · Add to calendar · Open) from `sendReminder`; `.ics` route; subscription self-heal; `@vite-pwa/nuxt` removed. Gates green, browser 52/52. **Device delivery is Peter's** — `docs/push-verification.md`. Channels' push waits for Phase 7. |
-| 12 | Phase 7 — Channels gap-close | [ ] | Edit, DMs, notify-on-message, immersive in the shell. |
+| 12 | Phase 7 — Channels gap-close | [x] | Session 12, local `main`, not pushed: edit (server-enforced 15 min / managers unlimited / moderation log), notify-on-message (collapsed bell row + per-channel push; author, muted, channel-open, mentioned excluded), DMs as private `dm-…` channels under "Direct", presence heartbeat + "who's here", embedded thread on the request detail and a project Discussion tab. Gates green, browser 32/32. **Operator: run `pnpm add:channel-phase7` BEFORE deploy** (written, not run); push delivery is Peter's. |
 | 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
 | 14 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
 
@@ -2166,6 +2166,168 @@ Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 12 to the Session log (shipped, deviations, operator
 TODOs), write the Phase 8 kickoff prompt (Sonnet 5.5, effort high), and stop.
 One phase per session.
+```
+
+**Session 12 — Phase 7: Channels gap-close** (2026-11-04) — local, on `main`, Sonnet 5.5 at effort high.
+One Haiku 5.5 census (every message-create path, unread/mention writers, schema flags, panels, WS manager,
+Spotlight). One code commit (`34870ed`), one docs commit. Earnest was not read: §7 extends code that exists on both sides.
+
+The census changed the brief in three ways, so the session asked first (and Peter answered): channel messages are
+**created and edited straight from the browser** (no server moment exists); `edited_at`, `is_dm` and any presence
+field **do not exist**; and there is **no project slide-over** (only `request` and `task`). Answers: edit through a
+route AND narrow the Directus permission; notify through a client-called route; write the schema script but **don't
+run it**; embed on the request panel *and* the project pages.
+
+Shipped:
+
+- **Edit** — `POST /api/hoa/channels/:channel/edit` (`core/shared/channels/rules.ts` → `checkEditAllowed`): the author for
+  15 minutes (`EDIT_WINDOW_MS`), a manager (admin / board / channel admin) with no limit, and a manager may correct
+  **another member's** message — which writes a `hoa_channel_moderation_log` row (`action: "edit"`, the ORIGINAL text
+  as the snippet). Anyone else 403; a hidden message 409; empty text refused unless attachments. Sets `is_edited` +
+  `edited_at` (retries without `edited_at` if the column isn't there yet). UI: a pencil in `ChannelMessage` (same rule, a
+  30 s clock so it doesn't outlive its window) opening the inline `ChannelEditor`; the "edited" badge already existed.
+- **Notify on message** — `POST /channels/:channel/notify {messageId}` → `notifyChannelMessage`
+  (`core/server/utils/channel-fanout.ts`). Called by the thread after the message and its mentions are written (and by
+  replies). The caller names a message, not an audience: it must be **their own, published, ≤ 2 minutes old**, and is
+  fanned out **once** (per-instance replay guard; the age window is the real bound). Recipients = the channel's roster
+  minus the author, `notifications_enabled: false`, anyone present (`present_at` ≤ 90 s), and anyone @-mentioned in
+  that message (their mention keeps its own row + push). `notifyUsers` gained **`bellCollapse`**: one unread (inbox)
+  `directus_notifications` row per member per channel, updated in place to "N new in #board" / "N new from Ana"; a read
+  (archived) row starts a fresh "1 new". The push is `collection:item` = `hoa_channels:<id>` so the next one replaces the
+  last and re-buzzes, with an **Open** button. No email (digest only). New notification **category `channel`**
+  ("Channel messages", on by default, mutable in Account → Notifications; sample added to the email preview map). The bell
+  type for a channel row is `mention` (its `metadata.channelId` deep-links to the channel).
+- **DMs** — a private channel, slug `dm-<sorted pair>` (stable for the pair), `is_private` + `is_dm`, two roster rows
+  (plain `member`, so nobody can add or remove anyone). `POST /channels/dm {organization, userId}` finds or creates it;
+  both people must be able to use channels (org admins + active board — the `getOrgChannelEnrollees` set). `invite` and
+  `remove-member` refuse a DM (`refuseIfDirectMessage`). `GET /channels/dm-peers` tells each side who the OTHER person
+  is (members can't read each other's roster rows). The roster groups DMs under **Direct**, titled with the other
+  person; entry points: a **Message** button on member rows (people with a login, not yourself) and a **Message …**
+  group in Spotlight over the member hits (`SearchHit.userId`). The client recognises a DM **by its slug**, so the
+  roster/thread still render before `is_dm` is migrated.
+- **Presence** — `useChannelPresence`: a 60 s heartbeat while a channel is open and the tab visible →
+  `POST /channels/:channel/presence` stamps `hoa_channel_members.present_at` and answers who else is here (avatars in the
+  thread header); `{leaving:true}` on close/pagehide. A **timestamp on the roster row**, not server memory, so it holds
+  across serverless instances. No typing indicators.
+- **Embedded threads** — `ChannelThread` inline in `RequestDetail` (a Discussion toggle where there was a link out; "Start a
+  channel" replaces "Spawn channel") and a new **Discussion tab on the project page** via `EntityChannel` (looks up
+  `hoa_channels.project`, else "Start a channel"; `/channels/create` now accepts `project`). Mounted lazily so a record
+  nobody is discussing holds no subscription or heartbeat.
+- **Shell** — the thread's header/main go transparent inside the glass panel, the composer is a `glass-surface` card, the
+  hand-rolled delete-channel dialog became `useConfirm` (no native `confirm(` remained), and `CreateChannelModal` was
+  already on `AppBottomSheet`.
+- **`scripts/add-channel-phase7.ts` (`pnpm add:channel-phase7`)** — `hoa_channel_messages.edited_at`, `hoa_channels.is_dm`,
+  `hoa_channel_members.present_at`, the "Edit" choice on the moderation log, and it **removes the browser's `update`
+  permission on `hoa_channel_messages`** (HOA Admin + HOA Member) so the 15-minute window can't be skipped with a hand-made
+  API call. Nothing in the app updates a message from the browser; hide/remove already run on the admin token. **Written,
+  not run.**
+- **Docs** — `docs/push-verification.md` gained the channel rows (push, replace-not-stack, one bell row, suppressed while
+  open, muted, DM, mention, author).
+- **Tests** — `channel-rules` (+19: the window table, presence TTL, fan-out set, collapsed subject, DM slug/roster/title),
+  `channel-phase7` (+28: the edit route's 10 cases, the fan-out's 7, DM roster/guard, presence), `notify-bell-collapse`
+  (+6). Search/bell/preferences tests untouched and green.
+
+Deviations, with reasons:
+
+1. **Schema script written, not run** (Peter's call). Until it runs: DM creation answers 409 "run `pnpm add:channel-phase7`";
+   presence returns an empty room (so nothing is suppressed — fail-safe: a notification that could have been skipped,
+   never a lost one); edits still work, just without `edited_at`; the browser can still update messages directly.
+2. **Manager edits of others' messages.** §7.1 says "own messages … moderation log entry on manager edits". Read as: a
+   manager may also correct another member's message, and that is logged; a manager editing their *own* message is not.
+3. **`edited_at` is written, never read.** It is not in any field list, so an unmigrated database can't break the thread's
+   realtime read. The badge says "edited"; a "when" tooltip is a one-line follow-up once the script has run.
+4. **No per-user `badgeCount` for channel pushes** (Session 11, deviation 2). A per-recipient unread read per message in a
+   busy channel is not worth it: the push bumps the icon by one and the open page corrects it. Recorded in
+   `docs/push-verification.md`.
+5. **DMs are identified by slug on the client** (`dm-…`), by `is_dm` on the server's guards. Redundant on purpose: it keeps the
+   roster working across the migration. A user-made channel slugged `dm-…` would be listed under Direct — harmless, and
+   channel creation is admin/board only.
+6. **Spotlight "Message …" is a result group over member hits, not a `create-verbs` entry** — a verb has no way to pick a person.
+   Typing `message` alone does not surface it; typing a name does.
+7. **DMs are admin/board only.** Channels are an admin/board tool and `/channels/dm` refuses anyone else; a resident-to-
+   resident DM would be a separate decision (the channel read policy is membership-scoped, so it would work — the product
+   question is whether residents get Channels at all).
+8. **The bell groups a channel row under "Mentions"** (it has no channel type of its own); preference gating is by the new
+   `channel` category, not the bell type.
+9. **No HTML sanitizing was added** — channel bodies are stored as the editor sent them (create already did, and renders
+   with `v-html`). Edit keeps that trust model; the audience is admins and board members. Worth a look in Phase 9.
+10. **Replay guard is per-instance memory.** The 2-minute age window and "your own message" are the real bounds; the
+    guard only stops a double-click inflating "N new".
+
+Gates (final tree, before the docs commit):
+- typecheck 0 (`error TS`);
+- vitest **137 files / 2,284 tests** (from 134 / 2,231);
+- `pnpm build` green; `audit:hairline-surfaces` 0;
+- browser, `scripts/browser/verify-p7-channels.cjs` on a local build (`:3419`), demo org, light and dark, a real session:
+  **32/32** — the composer is a glass surface; a sent message gets a pencil; Save updates the text and badges it "edited";
+  the edit route 404s a foreign id; notify refuses a missing message; presence answers and no "here" avatars show when
+  alone; a DM to a non-member is 403; the throwaway channel is soft-deleted; no page errors. The demo org ships with **no
+  channels and no projects**, so the script creates (and soft-deletes) one channel per pass.
+
+**Not verified, and not claimed:** the project page's Discussion tab and the request panel's inline thread (no project in
+the demo org; the request toggle is a straight reuse of the same thread, unrendered here), a **DM end to end** (needs the
+script run and a second person), **"who's here" with two people**, the Spotlight "Message …" rows and the member-row
+button, the collapsed bell row on a real recipient (unit-tested against the notification calls, not seen), and any push
+on a device (`docs/push-verification.md`). Screenshots were not read.
+
+Operator TODOs (Peter):
+
+- [ ] **Run `pnpm add:channel-phase7`** (then `pnpm generate:types`) **before the next deploy** — DMs and presence need it, and
+      it closes the edit-window bypass. It is idempotent.
+- [ ] **Push is yours**: this session's two commits (code + docs) on local `main`.
+- [ ] After the script: open a DM from a member row between two admin/board logins, post, and confirm the other side's bell
+      reads "1 new from <name>" and the roster lists it under Direct; confirm "who's here" shows the other person.
+- [ ] Run the new channel rows in `docs/push-verification.md` on a device.
+- [ ] Still open from Sessions 7–11 (unchanged).
+
+#### Phase 8 — kickoff prompt (Sonnet 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 12 (Phase 7: shipped, deviations,
+operator TODOs), §Token budget, and §8. Do not read §9 onwards, the Session log
+before Session 12, or docs/spec-email-send-queue.md, and never open
+docs/plan-earnest-parity-round2.md. Re-survey Earnest only at its scripts/
+audit-*.ts, eslint.config.js, lint-staged.config.js and its ci.yml, and only the
+lines you need (`sed -n`).
+
+This session = Phase 8 (Audit gates and CI) ONLY, on Sonnet 5.5 at effort high.
+This is porting plus MEASURING: each audit's regex must be re-censused against
+this app's spelling before its baseline means anything (the round-2 lesson — the
+hairline regex matched nothing until rewritten for `t-border`). Report mode
+first, baseline second, gate third; an audit that finds 0 from day one is a gate
+at 0, one that finds a count is a ratchet at that count.
+
+Verified starting points: scripts/audit-hairline-surfaces.ts exists and is
+wired into the pre-commit hook (it just ran on Session 12's commit) — use it as
+the house style for the others; check package.json "audit:*" and .husky/ and
+.github/ for what is already in CI before adding anything. Phase 1 already
+removed native confirm()/alert() and raw date inputs in app code (Session 12
+confirmed no `confirm(` remains under app/components/channels), so
+`native-dialogs` and `raw-date-inputs` should measure 0 — gate them at 0, and
+say if they don't.
+
+Deliverables (§8): one script per row of the table (14), each with report mode,
+the recorded baseline in this plan file, and a `--check` that exits non-zero on
+regression; an ESLint flat config + lint-staged ported and trimmed to what this
+repo can pass; `pnpm lint` and the whole audit set in `.husky/pre-commit` and
+CI (`ci.yml`) so CI is red on any gate; `docs/ux-standards.md` (the one-page
+digest, adapted to HOA's class names, with the `allow-*:` markers). Do not fix
+the findings — record them; a ratchet only stops it getting worse.
+
+Tests: each audit's pure matcher gets a table test (a hit, a near miss, the
+allow marker). Use a Haiku 5.5 subagent for the census of how many hits each
+regex finds. Gates in the background, tail only: `pnpm test | tail -6`;
+typecheck with NODE_OPTIONS=--max-old-space-size=6144 into a log, grep
+`error TS`; build into a log, grep exit. No Playwright this phase — an audit is
+proved by its output on the real tree plus a deliberate violation that turns it
+red (add one, see it fail, remove it).
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 13 to the Session log (shipped, deviations, baselines,
+operator TODOs), write the Phase 9 kickoff prompt (Opus 5.5, effort high), and
+stop. One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
