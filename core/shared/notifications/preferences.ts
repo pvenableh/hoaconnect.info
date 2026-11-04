@@ -21,6 +21,7 @@ export const NOTIFICATION_CATEGORIES = [
   { key: "request", label: "Requests" },
   { key: "task", label: "Tasks" },
   { key: "mention", label: "Mentions" },
+  { key: "channel", label: "Channel messages" },
   { key: "comment", label: "Comments" },
   { key: "membership", label: "Membership" },
   // Proactive notices from the assistant (Parity Round 2, Phase 4). Added to

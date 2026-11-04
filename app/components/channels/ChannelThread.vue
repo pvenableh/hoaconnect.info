@@ -5,6 +5,7 @@
 // and inside the slide-over Channels panel. Driven by props, not the route.
 import type { HoaChannel, HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
+import { isDmSlug } from "#core/shared/channels/rules";
 
 const props = withDefaults(
   defineProps<{
@@ -25,10 +26,14 @@ const emit = defineEmits<{
 }>();
 
 const { buildOrgPath } = useOrgNavigation();
+const { confirm } = useConfirm();
 const { user: currentUser } = useDirectusAuth();
 const { create: createMessage } = useDirectusItems("hoa_channel_messages");
 const { create: createMention } = useDirectusItems("hoa_channel_mentions");
 const { announce } = useNotifyEvent();
+const { peerFor, refreshPeers } = useDirectMessages();
+const filesComposable = useDirectusFiles();
+const presenceAvatar = (id: string) => filesComposable.getUrl(id, { width: 56, height: 56, fit: "cover" });
 
 const orgId = computed(() => props.organizationId);
 const channelSlug = computed(() => props.channelSlug);
@@ -130,10 +135,18 @@ const setPinned = async (pinned: boolean) => {
 };
 
 // Soft-delete (admin + board) — preserves messages/comments, just hides it.
-const showDeleteConfirm = ref(false);
 const deleting = ref(false);
 const deleteChannel = async () => {
   if (!currentChannel.value?.id) return;
+  if (
+    !(await confirm({
+      title: `Delete #${currentChannel.value.name}?`,
+      body: "This hides it from everyone. Its messages and comments are preserved (not erased) and can be restored by an operator.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))
+  )
+    return;
   deleting.value = true;
   try {
     await $fetch("/api/hoa/channels/delete", {
@@ -141,7 +154,6 @@ const deleteChannel = async () => {
       body: { channel: currentChannel.value.id },
     });
     toast.success("Channel deleted");
-    showDeleteConfirm.value = false;
     emit("deleted");
   } catch (e: any) {
     toast.error(e?.data?.message || "Failed to delete channel");
@@ -402,6 +414,17 @@ const openChannel = async (channelId?: string | null) => {
 
 watch(() => currentChannel.value?.id, (id) => openChannel(id), { immediate: true });
 
+// A direct message is stored under a generic name; each side sees the OTHER
+// person. DMs are recognised by slug, so this works before `is_dm` is migrated.
+const isDm = computed(() => isDmSlug(currentChannel.value?.slug));
+const dmPeer = computed(() => (isDm.value ? peerFor(currentChannel.value?.id) : null));
+const channelTitle = computed(() => (isDm.value ? dmPeer.value?.name || "Direct message" : currentChannel.value?.name || ""));
+watch(isDm, (dm) => { if (dm && !dmPeer.value) void refreshPeers(orgId.value); }, { immediate: true });
+
+// Who's here: a 60 s heartbeat while this channel is open (also what keeps
+// notify-on-message from pinging someone who is reading it).
+const { here } = useChannelPresence(computed(() => currentChannel.value?.id));
+
 // Keep the open channel read as messages land in it, without touching the
 // divider — the line marks where you were when you arrived, not where you are.
 watch(newestMessageAt, (at) => {
@@ -447,6 +470,16 @@ const sendMessage = async () => {
           console.error("Error creating mention record:", error);
         }
       }
+    }
+
+    // Browser-written, so the server hears about it from here: one collapsed
+    // bell row + a push per member who isn't muted or reading (fire-and-forget;
+    // a failed fan-out must never fail a send).
+    if (createdMessage && (createdMessage as any).id) {
+      $fetch(`/api/hoa/channels/${currentChannel.value.id}/notify`, {
+        method: "POST",
+        body: { messageId: (createdMessage as any).id },
+      }).catch(() => {});
     }
 
     newMessage.value = "";
@@ -553,10 +586,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col min-h-0 t-bg-elevated">
+  <main class="flex-1 flex flex-col min-h-0" :class="embedded ? 'bg-transparent' : 't-bg-elevated'">
     <!-- Channel Header -->
     <header
-      class="flex items-center justify-between px-4 py-3 border-b t-border t-bg-elevated"
+      class="flex items-center justify-between px-4 py-3 border-b t-border"
+      :class="embedded ? '' : 't-bg-elevated'"
     >
       <div class="flex items-center gap-3 min-w-0">
         <!-- Back button (always in the panel; mobile-only on the full page) -->
@@ -576,10 +610,10 @@ onBeforeUnmount(() => {
 
         <div v-else-if="currentChannel" class="min-w-0">
           <div class="flex items-center gap-2">
-            <Icon :name="currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'" class="w-5 h-5 t-text-muted shrink-0" />
-            <h1 class="font-semibold text-lg truncate">{{ currentChannel.name }}</h1>
+            <Icon :name="isDm ? 'lucide:message-circle' : currentChannel.is_private ? 'lucide:lock' : 'lucide:hash'" class="w-5 h-5 t-text-muted shrink-0" />
+            <h1 class="font-semibold text-lg truncate">{{ channelTitle }}</h1>
             <span
-              v-if="currentChannel.is_private"
+              v-if="currentChannel.is_private && !isDm"
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium t-bg-subtle t-text-muted shrink-0"
             >
               <Icon name="lucide:lock" class="w-3 h-3" /> Private
@@ -649,6 +683,20 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- Who's here (heartbeat presence) -->
+        <div
+          v-if="here.length"
+          class="flex items-center -space-x-2"
+          data-testid="channel-presence"
+          :title="`Here now: ${here.map((p) => [p.first_name, p.last_name].filter(Boolean).join(' ')).join(', ')}`"
+        >
+          <Avatar v-for="p in here.slice(0, 4)" :key="p.id" class="w-7 h-7 ring-2 ring-background">
+            <AvatarImage v-if="p.avatar" :src="presenceAvatar(p.avatar)" />
+            <AvatarFallback class="text-[10px]">{{ (p.first_name?.[0] || '') + (p.last_name?.[0] || '') }}</AvatarFallback>
+          </Avatar>
+          <span v-if="here.length > 4" class="pl-3 text-xs t-text-muted">+{{ here.length - 4 }}</span>
+        </div>
+
         <button
           v-if="currentChannel"
           class="inline-flex items-center justify-center w-9 h-9 rounded-full t-bg-subtle hover:opacity-80"
@@ -678,7 +726,7 @@ onBeforeUnmount(() => {
             <DropdownMenuItem v-else :disabled="archiving" @click="setArchived(false)">
               <Icon name="lucide:archive-restore" class="w-4 h-4 mr-2" /> Unarchive channel
             </DropdownMenuItem>
-            <DropdownMenuItem class="text-red-600" @click="showDeleteConfirm = true">
+            <DropdownMenuItem class="text-red-600" @click="deleteChannel">
               <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" /> Delete channel
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -770,15 +818,15 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Message Input -->
-    <div v-if="currentChannel" class="border-t t-border p-4 t-bg-subtle">
-      <div class="max-w-4xl mx-auto">
+    <div v-if="currentChannel" class="p-3 sm:p-4">
+      <div class="max-w-4xl mx-auto glass-surface p-3" data-testid="channel-composer">
         <div class="flex gap-3">
           <div class="flex-1">
             <ChannelsChannelEditor
               ref="editorRef"
               v-model="newMessage"
               v-model:attachments="messageAttachments"
-              :placeholder="`Message #${currentChannel.name}`"
+              :placeholder="isDm ? `Message ${channelTitle}` : `Message #${currentChannel.name}`"
               :disabled="!currentChannel"
               :organization-id="orgId || undefined"
               :channel-id="currentChannel.id"
@@ -824,25 +872,6 @@ onBeforeUnmount(() => {
       :is-private="!!currentChannel.is_private"
       :can-manage="canManageMembers"
     />
-
-    <!-- Delete confirmation -->
-    <Dialog v-model:open="showDeleteConfirm">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Delete channel?</DialogTitle>
-          <DialogDescription>
-            This hides #{{ currentChannel?.name }} from everyone. Its messages and comments are
-            preserved (not erased) and can be restored by an operator.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter class="gap-2">
-          <Button variant="outline" :disabled="deleting" @click="showDeleteConfirm = false">Cancel</Button>
-          <Button variant="destructive" :disabled="deleting" @click="deleteChannel">
-            <Icon v-if="deleting" name="lucide:loader-2" class="w-4 h-4 mr-1 animate-spin" /> Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </main>
 </template>
 

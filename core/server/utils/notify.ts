@@ -28,7 +28,8 @@
 // "Payments" *emails* to keep an inbox quiet is not a request for a silent
 // phone; muting the payments *bell* is. Push is the bell's mobile twin, so a
 // push is never sent where no row was written.
-import { createNotification, readItem, readUsers } from "@directus/sdk";
+import { createNotification, readItem, readNotifications, readUsers, updateNotification } from "@directus/sdk";
+import { parseCollapsedCount } from "#core/shared/channels/rules";
 import {
   bellAllowed,
   emailAllowed,
@@ -91,6 +92,15 @@ export interface NotifyOptions {
    * footer says it can't be unsubscribed. Bell and push are unchanged.
    */
   essential?: boolean;
+  /**
+   * Fold repeats into ONE unread bell row per recipient (Phase 7: "3 new in
+   * #board"). Needs `collection` + `item`. If the recipient already has an
+   * unread (inbox) row for the same collection/item, that row's subject becomes
+   * `subjectFor(count + 1)` and its message the newest excerpt; once they read
+   * it (archived) the next event starts a fresh row. The push is unaffected —
+   * its `tag` (collection:item) already replaces the previous push.
+   */
+  bellCollapse?: { subjectFor: (count: number) => string } | null;
 }
 
 interface RecipientRow {
@@ -271,10 +281,38 @@ async function writeBells(userIds: string[], opts: NotifyOptions): Promise<numbe
   let written = 0;
   for (const uid of userIds) {
     try {
+      if (opts.bellCollapse && opts.collection && opts.item) {
+        const prior = (
+          (await admin.request(
+            readNotifications({
+              filter: {
+                recipient: { _eq: uid },
+                collection: { _eq: opts.collection },
+                item: { _eq: opts.item },
+                status: { _eq: "inbox" },
+              },
+              fields: ["id", "subject"],
+              sort: ["-timestamp"],
+              limit: 1,
+            })
+          )) as Array<{ id: string; subject: string | null }>
+        )[0];
+        if (prior) {
+          const count = Math.max(1, parseCollapsedCount(prior.subject)) + 1;
+          await admin.request(
+            updateNotification(prior.id, {
+              subject: opts.bellCollapse.subjectFor(count),
+              message: opts.message,
+            })
+          );
+          written++;
+          continue;
+        }
+      }
       await admin.request(
         createNotification({
           recipient: uid,
-          subject: opts.subject,
+          subject: opts.bellCollapse ? opts.bellCollapse.subjectFor(1) : opts.subject,
           message: opts.message,
           ...(opts.collection ? { collection: opts.collection } : {}),
           ...(opts.item ? { item: opts.item } : {}),

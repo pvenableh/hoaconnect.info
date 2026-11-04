@@ -125,6 +125,10 @@ onMounted(loadLinkedChannel);
 watch(() => props.request.id, loadLinkedChannel);
 
 const showSpawnDialog = ref(false);
+// The linked channel's thread, inline (Phase 7.5): the ticket and its
+// conversation on one surface. Mounted only while open, so a closed ticket
+// isn't holding a realtime subscription or a presence heartbeat.
+const showDiscussion = ref(false);
 const inviteAuthor = ref(true);
 const spawningChannel = ref(false);
 const spawningTask = ref(false);
@@ -271,25 +275,36 @@ const doPromote = async () => {
         v-if="isBoard && channelsEnabled"
         class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border"
       >
-        <NuxtLink
-          v-if="linkedChannel"
-          :to="buildOrgPath(`/admin/channels/${linkedChannel.slug}`)"
-        >
-          <Button size="sm" variant="outline" class="rounded-full">
+        <template v-if="linkedChannel">
+          <Button
+            size="sm"
+            variant="outline"
+            class="rounded-full"
+            data-testid="toggle-discussion"
+            :aria-expanded="showDiscussion"
+            @click="showDiscussion = !showDiscussion"
+          >
             <Icon name="lucide:messages-square" class="w-3.5 h-3.5 mr-1" />
-            Discussion
+            {{ showDiscussion ? "Hide discussion" : "Discussion" }}
           </Button>
-        </NuxtLink>
+          <NuxtLink :to="buildOrgPath(`/admin/channels/${linkedChannel.slug}`)">
+            <Button size="sm" variant="ghost" class="rounded-full t-text-muted" title="Open in Channels">
+              <Icon name="lucide:external-link" class="w-3.5 h-3.5" />
+              <span class="sr-only">Open in Channels</span>
+            </Button>
+          </NuxtLink>
+        </template>
         <Button
           v-else
           size="sm"
           variant="outline"
           class="rounded-full"
           :disabled="spawningChannel"
+          data-testid="start-channel"
           @click="showSpawnDialog = true"
         >
           <Icon name="lucide:message-square-plus" class="w-3.5 h-3.5 mr-1" />
-          Spawn channel
+          Start a channel
         </Button>
         <Button
           size="sm"
@@ -301,6 +316,26 @@ const doPromote = async () => {
           <Icon name="lucide:list-plus" class="w-3.5 h-3.5 mr-1" />
           Spawn task
         </Button>
+      </div>
+
+      <!-- The linked channel, inline -->
+      <div
+        v-if="isBoard && channelsEnabled && linkedChannel && showDiscussion && organizationId"
+        class="mt-4 h-[32rem] rounded-2xl overflow-hidden glass-surface flex flex-col"
+        data-testid="request-discussion"
+      >
+        <ClientOnly>
+          <ChannelsChannelThread
+            :organization-id="organizationId"
+            :channel-slug="linkedChannel.slug"
+            :is-admin="isBoard"
+            :can-manage="isBoard"
+            embedded
+            @back="showDiscussion = false"
+            @archived="showDiscussion = false"
+            @deleted="((showDiscussion = false), loadLinkedChannel())"
+          />
+        </ClientOnly>
       </div>
 
       <!-- Promote to / view linked project (board + admin, projects module on) -->
@@ -332,7 +367,7 @@ const doPromote = async () => {
     <Dialog v-model:open="showSpawnDialog">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Spawn discussion channel</DialogTitle>
+          <DialogTitle>Start a discussion channel</DialogTitle>
           <DialogDescription>
             Creates an internal channel linked to this ticket. Admins and active
             board members are added automatically.

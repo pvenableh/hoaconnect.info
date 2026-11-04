@@ -187,6 +187,23 @@ const onEnter = (e: KeyboardEvent) => {
   go(firstResultTo.value);
 };
 
+// "Message …" — a member hit with a login becomes a direct message (Phase 7.3).
+// Offered only where channels are on, and never for yourself; the server
+// refuses anyone who isn't an admin / board member.
+const { user: currentUser } = useDirectusAuth();
+const { startDirectMessage } = useDirectMessages();
+const messageHits = computed(() =>
+  isEnabled("channels")
+    ? (recordGroups.value.find((g) => g.key === "members")?.items ?? [])
+        .filter((h) => h.userId && h.userId !== currentUser.value?.id)
+        .slice(0, 3)
+    : [],
+);
+const messageMember = (userId: string) => {
+  close();
+  void startDirectMessage(userId);
+};
+
 const runVerb = (id: VerbId) => {
   close();
   createVerbs.run(id);
@@ -261,6 +278,20 @@ const placeholder = computed(() =>
         >
           <Icon :name="v.icon" class="size-4 shrink-0 text-muted-foreground" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ v.label }}</span>
+        </CommandItem>
+      </CommandGroup>
+
+      <CommandGroup v-if="messageHits.length" heading="Message" data-spotlight-group="message">
+        <CommandItem
+          v-for="hit in messageHits"
+          :key="`message:${hit.id}`"
+          :value="`message:${hit.id}`"
+          class="gap-3 rounded-lg px-2.5 py-2"
+          data-spotlight-message
+          @select="messageMember(hit.userId!)"
+        >
+          <Icon name="lucide:message-circle" class="size-4 shrink-0 text-muted-foreground" />
+          <span class="min-w-0 flex-1 truncate text-sm font-medium">Message {{ hit.name }}</span>
         </CommandItem>
       </CommandGroup>
 

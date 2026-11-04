@@ -37,6 +37,8 @@ export interface SearchHit {
   description: string;
   /** Org-relative path; the client prefixes the org slug. */
   to: string;
+  /** A member hit's login (Directus user id), when they have one — what "Message …" needs. */
+  userId?: string;
 }
 
 export interface SearchGroupResult {
@@ -90,13 +92,14 @@ export const SEARCH_GROUPS: SearchGroupDef[] = [
     collection: "hoa_members",
     module: "directory",
     requires: "directory:read",
-    fields: ["id", "first_name", "last_name", "email", "member_type", "company"],
+    fields: ["id", "first_name", "last_name", "email", "member_type", "company", "user"],
     searchFields: ["first_name", "last_name", "email", "company", "phone"],
     toHit: (r) => ({
       id: String(r.id),
       name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.email || "Member",
       description: join(r.email, r.member_type),
       to: `/admin/members?member=${encodeURIComponent(String(r.id))}`,
+      ...(r.user ? { userId: String(typeof r.user === "object" ? r.user.id : r.user) } : {}),
     }),
   },
   {

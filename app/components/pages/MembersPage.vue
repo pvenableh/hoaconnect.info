@@ -301,6 +301,14 @@ const pastBoardTerms = computed(() =>
 // Account column. An active member who has never logged in is normal and
 // correct: 58 of 1033 Lenox's 59 active members are exactly that. Never demote
 // someone's status because they have no account.
+// Direct message from the roster: only for a member who has a login, never for
+// yourself, and only where channels are on. The server still decides who may.
+const { startDirectMessage } = useDirectMessages();
+const { isEnabled: moduleEnabled } = useModules();
+const { user: me } = useDirectusAuth();
+const canMessage = (row: any) =>
+  moduleEnabled("channels") && !!row?.user?.id && row.user.id !== me.value?.id;
+
 const MEMBER_STATUSES = ["active", "inactive", "pending", "archived"] as const;
 
 // "Current" is the default because it is what this page showed before there was
@@ -1121,6 +1129,18 @@ useSeoMeta({
                   </template>
                   <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-2">
+                      <!-- A direct message (Phase 7.3): members with a login, not yourself. -->
+                      <Button
+                        v-if="canMessage(row)"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Message member"
+                        title="Message"
+                        data-testid="member-message"
+                        @click="startDirectMessage(row.user.id)"
+                      >
+                        <Icon name="lucide:message-circle" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon-sm"

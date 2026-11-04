@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
+import { canOfferEdit } from "#core/shared/channels/rules";
 
 const { confirm } = useConfirm();
 
@@ -104,13 +105,20 @@ const sendReply = async () => {
   if ((!content && !hasAttachments) || !props.channelId) return;
 
   try {
-    await createMessage({
+    const created = await createMessage({
       content: replyContent.value,
       channel: props.channelId,
       parent_message: props.message.id,
       attachments: hasAttachments ? [...replyAttachments.value] : [],
       status: "published",
     });
+    // Same server moment as a top-level message (collapsed bell row + push).
+    if ((created as any)?.id) {
+      $fetch(`/api/hoa/channels/${props.channelId}/notify`, {
+        method: "POST",
+        body: { messageId: (created as any).id },
+      }).catch(() => {});
+    }
 
     replyContent.value = "";
     replyAttachments.value = [];
@@ -135,6 +143,59 @@ const handleDelete = async () => {
     toast.error("Failed to delete message");
   } finally {
     isDeleting.value = false;
+  }
+};
+
+// ── Editing (Phase 7.1) ──────────────────────────────────────────────────────
+// The server is the fence (`POST /channels/:id/edit`: 15 minutes for the author,
+// no limit for a manager, a moderation-log row when a manager edits someone
+// else's). This is only whether to OFFER the button, on the same rule; the
+// clock tick keeps the pencil from outliving its window while the thread is open.
+const now = ref(Date.now());
+let tick: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  tick = setInterval(() => (now.value = Date.now()), 30_000);
+});
+onBeforeUnmount(() => tick && clearInterval(tick));
+
+const canEdit = computed(
+  () =>
+    props.message.status !== "deleted" &&
+    canOfferEdit({
+      isAuthor: isAuthor.value,
+      isManager: !!props.canModerate,
+      createdAt: props.message.date_created,
+      now: new Date(now.value),
+      status: props.message.status,
+    })
+);
+const editing = ref(false);
+const draft = ref("");
+const savingEdit = ref(false);
+const startEdit = () => {
+  draft.value = String(props.message.content || "");
+  editing.value = true;
+};
+const cancelEdit = () => {
+  editing.value = false;
+};
+const saveEdit = async () => {
+  const content = draft.value;
+  if (!content.replace(/<[^>]*>/g, "").trim() && !(props.message as any).attachments?.length) return;
+  savingEdit.value = true;
+  try {
+    await $fetch(`/api/hoa/channels/${channelRef.value}/edit`, {
+      method: "POST",
+      body: { messageId: props.message.id, content },
+    });
+    editing.value = false;
+    toast.success("Message updated");
+  } catch (e: any) {
+    toast.error(e?.data?.message || "Couldn't update the message");
+    // A closed window: the pencil was stale — drop it.
+    if (e?.statusCode === 403) editing.value = false;
+  } finally {
+    savingEdit.value = false;
   }
 };
 
@@ -271,7 +332,21 @@ const authorName = computed(() => {
         </div>
 
         <!-- Message Content -->
+        <div v-if="editing" class="mt-1" data-testid="channel-edit">
+          <ChannelsChannelEditor
+            v-model="draft"
+            :organization-id="organizationId"
+            :channel-id="channelRef"
+            @submit="saveEdit"
+          />
+          <div class="flex items-center gap-2 mt-2">
+            <Button size="sm" :disabled="savingEdit" @click="saveEdit">Save</Button>
+            <Button size="sm" variant="ghost" :disabled="savingEdit" @click="cancelEdit">Cancel</Button>
+            <span class="text-xs t-text-muted">Enter to save</span>
+          </div>
+        </div>
         <div
+          v-else
           class="prose prose-sm dark:prose-invert max-w-none t-text-secondary"
           v-html="message.content"
         />
@@ -319,6 +394,19 @@ const authorName = computed(() => {
           >
             <Icon name="lucide:corner-down-right" class="w-3.5 h-3.5 mr-1" />
             Reply
+          </Button>
+
+          <!-- Edit (author inside the window; managers any time) -->
+          <Button
+            v-if="canEdit && !editing"
+            variant="ghost"
+            size="sm"
+            class="h-7 px-2 text-xs t-text-muted"
+            title="Edit message"
+            data-testid="channel-edit-btn"
+            @click="startEdit"
+          >
+            <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
           </Button>
 
           <!-- Delete Button (only for author) -->
@@ -376,6 +464,16 @@ const authorName = computed(() => {
           v-else
           class="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
         >
+          <Button
+            v-if="canEdit && !editing"
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 text-xs t-text-muted"
+            title="Edit reply"
+            @click="startEdit"
+          >
+            <Icon name="lucide:pencil" class="w-3 h-3" />
+          </Button>
           <Button
             v-if="isAuthor"
             variant="ghost"

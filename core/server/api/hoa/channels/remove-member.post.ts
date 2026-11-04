@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
     typeof membership.channel === "string" ? membership.channel : membership.channel?.id;
 
   await requireChannelManager(event, directus, userId, channelId);
+  await refuseIfDirectMessage(directus, channelId);
 
   await directus.request(deleteItem("hoa_channel_members", id));
 

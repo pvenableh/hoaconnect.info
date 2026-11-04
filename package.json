@@ -39,6 +39,7 @@
     "add:invitation-member-type": "dotenv -- tsx scripts/add-invitation-member-type.ts",
     "add:unit-link-residency": "dotenv -- tsx scripts/add-unit-link-residency.ts",
     "fix:channel-writes": "dotenv -- tsx scripts/fix-channel-message-write.ts",
+    "add:channel-phase7": "dotenv -- tsx scripts/add-channel-phase7.ts",
     "widen:users-read": "dotenv -- tsx scripts/widen-users-read-to-org.ts",
     "create:ai-notice-history": "dotenv -- tsx scripts/create-ai-notice-history.ts",
     "create:boardroom": "dotenv -- tsx scripts/create-boardroom-collections.ts",

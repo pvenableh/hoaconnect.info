@@ -66,6 +66,7 @@ const NOTIFICATION_SAMPLES: Record<NotificationCategory, { subject: string; body
   request: { subject: "Your request was updated", body: "Your maintenance request is now in progress.", cta: "View request", path: "/requests" },
   task: { subject: "A task was assigned to you", body: "You were assigned “Get three bids for the roof”.", cta: "Open task", path: "/admin/projects" },
   mention: { subject: "Alex mentioned you", body: "Alex mentioned you in #landscaping.", cta: "Reply", path: "/channels" },
+  channel: { subject: "3 new in #board", body: "Alex and 2 others posted in #board.", cta: "Open channel", path: "/channels" },
   comment: { subject: "New comment on your post", body: "Someone replied to your post.", cta: "View comment", path: "/channels" },
   membership: { subject: "Welcome to the community", body: "Your membership was approved.", cta: "Open the portal", path: "/" },
   ai_insight: { subject: "Two invoices are past due", body: "The assistant noticed two vendor invoices past their due date.", cta: "Review", path: "/admin" },

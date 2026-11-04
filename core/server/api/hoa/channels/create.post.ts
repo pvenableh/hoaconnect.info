@@ -13,7 +13,7 @@ import { createItem, createItems } from "@directus/sdk";
  * Authorized for org admins OR active board members.
  *
  * Body: { organization, name, slug, description?, is_private?, is_default?,
- *         request?, invite_users?: string[] }
+ *         request?, project?, invite_users?: string[] }
  */
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
     is_private,
     is_default,
     request,
+    project,
     invite_users,
   } = body || {};
 
@@ -60,6 +61,7 @@ export default defineEventHandler(async (event) => {
       organization,
       status: "published",
       ...(request ? { request } : {}),
+      ...(project ? { project } : {}),
     })
   );
 

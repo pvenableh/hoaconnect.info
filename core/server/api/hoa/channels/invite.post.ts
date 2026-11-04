@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
   const directus = getTypedDirectus();
 
   await requireChannelManager(event, directus, userId, channel);
+  await refuseIfDirectMessage(directus, channel);
 
   // Already a member? Return it (idempotent).
   const existing = await directus.request(

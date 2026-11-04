@@ -69,6 +69,26 @@ the tap itself goes to the right page):
 - [ ] A second reminder for the *same* item replaces the first and buzzes again (the `tag` + `renotify`).
 - [ ] The meeting-in-an-hour reminder, left unread past the meeting, is **not** delivered late (TTL).
 
+## Channel messages
+
+Needs two people who are admins or active board members of the same community (one on the device under
+test), the **Channels** category on (Account → Notifications → *Channel messages*, on by default), and
+`pnpm add:channel-phase7` run. From the *other* person's browser, post in a channel the device-holder
+belongs to. Expect a push titled `#channel`, body `Name: the message…`, one **Open** button (not on iOS),
+tapping it lands in that channel (`/{slug}/admin/channels/{id}`).
+
+- [ ] A message pushes, with the channel in the title and the sender in the body.
+- [ ] A **second** message in the same channel *replaces* the first notification and buzzes again (the
+      `tag` is per channel, `hoa_channels:{id}`) — the shade never fills with one per message.
+- [ ] The bell shows **one** row, "2 new in #channel", not two; reading it and posting again starts "1 new".
+- [ ] With the channel **open and visible** on the device (a heartbeat in the last ~90 s), a new message
+      does *not* push. Close the tab/app, wait 90 s, post again — now it does.
+- [ ] A channel **muted** for that person (Channel members panel → mute) never pushes.
+- [ ] A direct message pushes as the sender's name (not `#…`) and the bell reads "N new from Name".
+- [ ] An @-mention still arrives as its own "mentioned you" push, and the mentioned person gets **no**
+      additional "new in #channel" for the same message.
+- [ ] The author never notifies themselves.
+
 ## Subscription rotation (spot check, optional)
 
 Chrome rotates a push endpoint from time to time; the worker re-subscribes and tells the server which
@@ -78,8 +98,8 @@ should still receive the test. A device that stops receiving is the signal.
 
 ## What is not covered by this document
 
-- Channel messages don't push yet — that arrives with Phase 7.
-- The per-user badge number: a push with no server-side count bumps the icon by one and the open page
+- The per-user badge number (channel pushes included — a per-recipient unread read was judged not worth it
+  for a chatty channel; see Session 12): a push with no server-side count bumps the icon by one and the open page
   corrects it to the true unread total. A server-supplied `badgeCount` is supported by the payload and
   worker but no sender computes one yet.
 

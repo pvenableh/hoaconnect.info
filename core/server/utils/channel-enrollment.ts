@@ -149,3 +149,30 @@ export async function isActiveBoardMember(
   );
   return (terms as any[]).some((t) => !t.term_end || t.term_end >= nowIso);
 }
+
+/**
+ * A direct message's roster is its two people, fixed when it is created
+ * (`/api/hoa/channels/dm`). Membership routes call this so nobody — including
+ * an org admin — can add a third party to, or strip a person from, a DM.
+ * Tolerates `is_dm` not being migrated yet (no DMs can exist then).
+ */
+export async function refuseIfDirectMessage(
+  directus: ReturnType<typeof getTypedDirectus>,
+  channelId: string
+): Promise<void> {
+  let isDm = false;
+  try {
+    const ch: any = await directus.request(
+      readItem("hoa_channels", channelId, { fields: ["id", "is_dm"] as any })
+    );
+    isDm = ch?.is_dm === true;
+  } catch {
+    return;
+  }
+  if (isDm) {
+    throw createError({
+      statusCode: 403,
+      message: "A direct message's members can't be changed",
+    });
+  }
+}

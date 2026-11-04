@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HoaChannel } from "#core/types/directus";
 import { toast } from "vue-sonner";
+import { isDmSlug } from "#core/shared/channels/rules";
 
 const props = defineProps<{
   organizationId: string;
@@ -157,28 +158,56 @@ const foldered = (list: HoaChannel[]): FolderRow[] => {
   ];
 };
 
+// ── Direct messages ──────────────────────────────────────────────────────────
+// A DM is a private two-person channel (slug `dm-…`). It lives under "Direct",
+// titled with the OTHER person, and never in Pinned/Public/Private.
+const { peerFor, refreshPeers } = useDirectMessages();
+onMounted(() => refreshPeers(props.organizationId));
+watch(() => props.organizationId, (id) => refreshPeers(id));
+const isDm = (c: HoaChannel) => isDmSlug(c.slug);
+const dmTitle = (c: HoaChannel) => peerFor(c.id)?.name || "Direct message";
+const directChannels = computed(() =>
+  ((channels.value?.filter((c) => isDm(c as HoaChannel)) || []) as HoaChannel[])
+    .slice()
+    .sort(byActivityDesc)
+);
+// A new DM arrives over the realtime list before we know who it is with.
+watch(
+  () => directChannels.value.map((c) => c.id).join(","),
+  () => {
+    if (directChannels.value.some((c) => !peerFor(c.id))) void refreshPeers(props.organizationId);
+  }
+);
+const ordinary = (c: any) => !isDmSlug(c.slug);
+
 // Pinned channels float to the top (sorted among themselves by latest activity,
 // deliberately unfoldered — a pin is a "keep this one in reach" override).
 const pinnedChannels = computed(() =>
-  ((channels.value?.filter((c) => (c as any).is_pinned) || []) as HoaChannel[])
+  ((channels.value?.filter((c) => (c as any).is_pinned && ordinary(c)) || []) as HoaChannel[])
     .slice()
     .sort(byActivityDesc)
 );
 
 const publicRows = computed(() =>
   foldered(
-    (channels.value?.filter((c) => !c.is_private && !(c as any).is_pinned) || []) as HoaChannel[]
+    (channels.value?.filter((c) => !c.is_private && !(c as any).is_pinned && ordinary(c)) || []) as HoaChannel[]
   )
 );
 
 const privateRows = computed(() =>
   foldered(
-    (channels.value?.filter((c) => c.is_private && !(c as any).is_pinned) || []) as HoaChannel[]
+    (channels.value?.filter((c) => c.is_private && !(c as any).is_pinned && ordinary(c)) || []) as HoaChannel[]
   )
 );
 
 const hasAnyChannel = computed(
-  () => !!(pinnedChannels.value.length || publicRows.value.length || privateRows.value.length)
+  () =>
+    !!(
+      pinnedChannels.value.length ||
+      publicRows.value.length ||
+      privateRows.value.length ||
+      directChannels.value.length
+    )
 );
 
 // ── Move to folder (admins) ──────────────────────────────────────────────────
@@ -406,6 +435,33 @@ const selectChannel = (channel: HoaChannel) => {
               </button>
             </div>
           </template>
+        </div>
+      </div>
+
+      <!-- Direct messages -->
+      <div v-if="directChannels.length" data-testid="channels-direct">
+        <div class="flex items-center gap-2 px-3 py-1 text-xs font-medium t-text-muted uppercase">
+          <Icon name="lucide:message-circle" class="w-3 h-3" />
+          Direct
+        </div>
+        <div class="space-y-0.5">
+          <div v-for="channel in directChannels" :key="channel.id" class="channel-row group">
+            <button
+              class="w-full flex items-center gap-2 px-3 py-1.5 text-left rounded-md transition-colors"
+              :class="[
+                selectedChannelSlug === channel.slug
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 't-text-secondary hover:t-bg-subtle',
+              ]"
+              @click="selectChannel(channel)"
+            >
+              <Icon name="lucide:at-sign" class="w-4 h-4 shrink-0 opacity-50" />
+              <span class="truncate text-sm" :class="unreadFor(channel) ? 'font-semibold t-text' : ''">
+                {{ dmTitle(channel) }}
+              </span>
+              <span v-if="unreadFor(channel)" class="channel-badge ml-auto">{{ unreadLabel(channel) }}</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -66,6 +66,8 @@ const COLLECTION_TYPES: Record<string, string> = {
   hoa_announcements: "announcement",
   hoa_channel_mentions: "mention",
   hoa_channel_messages: "mention",
+  // The collapsed "3 new in #board" row (Phase 7) — item is the CHANNEL.
+  hoa_channels: "mention",
   hoa_meetings: "meeting",
   payment_requests: "payment",
   hoa_documents: "document",
@@ -183,7 +185,8 @@ function metadataForRow(row: BellRow, type: string): Record<string, unknown> {
     case "membership":
       return { memberId: item };
     case "mention":
-      return { mentionId: item };
+      // A collapsed channel row points at the channel itself; a mention row at the mention.
+      return row.collection === "hoa_channels" ? { channelId: item } : { mentionId: item };
     case "comment":
       // A comment row points at the COMMENT, not at what was commented on, so
       // there is no target to route to. The Sheet falls back to no CTA rather

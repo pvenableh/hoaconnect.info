@@ -17,7 +17,7 @@ export interface ModerationEvent {
   organization: string | null;
   channel: string;
   moderator?: string | null;
-  action: "hide" | "remove" | "report";
+  action: "hide" | "remove" | "report" | "edit";
   reason?: string | null;
   messageId: string;
   messageAuthor?: string | null;

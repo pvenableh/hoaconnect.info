@@ -16,7 +16,7 @@ const { selectedOrgId } = await useSelectedOrg();
 const { getOne, setStatus, remove } = useProjects();
 
 const projectId = computed(() => route.params.id as string);
-const tab = ref<"overview" | "tasks" | "timeline" | "files">("overview");
+const tab = ref<"overview" | "tasks" | "timeline" | "files" | "discussion">("overview");
 // Set once the person picks a tab themselves, so a background refresh never
 // yanks them back to the default.
 const tabPicked = ref(false);
@@ -123,12 +123,19 @@ function onEdited(p: ProjectRow) {
   refresh();
 }
 
-const TABS = [
+// Discussion = the project's linked channel, inline (Phase 7.5); the tab only
+// exists where the Channels app is on.
+const { isEnabled } = useModules();
+type ProjectTab = "overview" | "tasks" | "timeline" | "files" | "discussion";
+const TABS = computed<Array<{ key: ProjectTab; label: string; icon: string }>>(() => [
   { key: "overview", label: "Overview", icon: "lucide:layout-panel-left" },
   { key: "tasks", label: "Tasks", icon: "lucide:check-circle" },
   { key: "timeline", label: "Timeline", icon: "lucide:milestone" },
   { key: "files", label: "Files", icon: "lucide:paperclip" },
-] as const;
+  ...(isEnabled("channels")
+    ? [{ key: "discussion" as const, label: "Discussion", icon: "lucide:messages-square" }]
+    : []),
+]);
 </script>
 
 <template>
@@ -297,6 +304,15 @@ const TABS = [
             </a>
           </div>
         </div>
+        <!-- Discussion -->
+        <ChannelsEntityChannel
+          v-else-if="tab === 'discussion' && selectedOrgId"
+          :organization-id="selectedOrgId"
+          link="project"
+          :entity-id="String(project.id)"
+          :entity-title="project.title || 'Project'"
+          can-manage
+        />
         <DirectorLayer
           entity-type="project"
           :entity-id="String(project.id)"
