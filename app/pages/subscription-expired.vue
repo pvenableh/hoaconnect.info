@@ -3,8 +3,12 @@ import { describeGrace } from "#core/shared/transition/grace";
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'default',
+  layout: 'auth-blank',
 });
+
+// Chromeless (auth-blank) but a WORKSPACE surface: pin `theme-app` in the
+// user's light/dark, as AuthShell does. (Was the deleted `default` layout's initTheme().)
+useWorkspaceAppearance();
 
 const { user } = useDirectusAuth();
 

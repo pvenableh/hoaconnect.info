@@ -36,6 +36,43 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "2.1",
+    date: "2026-11-05",
+    title: "Reminders that send themselves, email you can trust, and an app on your home screen",
+    highlights: [
+      {
+        icon: "i-lucide-bell-ring",
+        title: "Automatic reminders",
+        body: "Dues, meetings, requests, votes and vendor coverage remind the right people on your community's own clock — each rule off until your board turns it on, and never sent twice.",
+      },
+      {
+        icon: "i-lucide-mail-check",
+        title: "Email that respects inboxes",
+        body: "One-click unsubscribe, per-household email preferences, bounced addresses held back automatically, scheduled and repeating sends, and progress you can watch while a big send goes out.",
+      },
+      {
+        icon: "i-lucide-smartphone",
+        title: "Install HOA Connect",
+        body: "Add it to your home screen for push notifications with buttons — Pay, Add to calendar, Open — straight from the alert.",
+      },
+      {
+        icon: "i-lucide-messages-square",
+        title: "Channels grew up",
+        body: "Direct messages, editing a message you just sent, see who's here, and a discussion thread on every request and project.",
+      },
+      {
+        icon: "i-lucide-file-down",
+        title: "Financial reports as a PDF",
+        body: "Finances → Reports downloads a print-ready PDF of the same numbers on screen: the monthly summary, income and expenses by category, and delinquency aging.",
+      },
+      {
+        icon: "i-lucide-receipt",
+        title: "Refunds on the record",
+        body: "A refunded payment now appears in the Community Ledger and puts the charge back to owing — in part or in full, and exactly once.",
+      },
+    ],
+  },
+  {
     version: "2.0",
     date: "2026-08-22",
     title: "A calmer workspace that opens on your content",

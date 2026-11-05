@@ -453,12 +453,13 @@
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
-          <CardDescription> Customize your interface theme and style </CardDescription>
+          <CardDescription>Light or dark, language and time zone</CardDescription>
         </CardHeader>
         <CardContent>
           <div class="space-y-6">
-            <!-- Theme Selector Component -->
-            <ThemeSelector />
+            <!-- Light/dark only. The public style (Classic / Modern / Luxury) is
+                 the community's choice, made in the landing builder. -->
+            <ThemeSelector hide-styles />
 
             <Separator />
 

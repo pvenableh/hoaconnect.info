@@ -223,7 +223,7 @@ const goToDashboard = () => {
 
 // Set page meta
 definePageMeta({
-	layout: 'default',
+	layout: 'auth',
 	middleware: 'auth',
 });
 

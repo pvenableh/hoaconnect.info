@@ -41,8 +41,10 @@ const PRIMITIVES = [
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **318**. 318 outside `ui/button` and the 7 shell primitives.
+ *
+ * 2026-11-05 (Phase 9) — **313**: the subscription page's buttons are `<Button>` / `AppSegmentedControl` (−5).
  */
-const BASELINE = 318;
+const BASELINE = 313;
 
 runFileAudit({
   name: "raw-buttons",

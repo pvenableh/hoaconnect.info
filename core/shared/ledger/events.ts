@@ -135,6 +135,18 @@ const CATALOGUE = [
     note: "A payment was posted against one member's account. Names a household — board-only.",
   },
   {
+    key: "payment_refunded",
+    label: "Payment refunded",
+    icon: "undo-2",
+    category: "money",
+    // Board-only for the same reason as `payment_recorded`: it names one
+    // household. Its own type, not an edit of the original row — corrections
+    // are new entries, and a ledger that showed a payment but never its refund
+    // would overstate what the community actually holds.
+    defaultVisibility: "board",
+    note: "Money from a recorded payment went back to the payer (in full or in part). Names a household — board-only.",
+  },
+  {
     key: "expense_recorded",
     label: "Expense recorded",
     icon: "banknote",

@@ -1,0 +1,42 @@
+{
+  "id": "evt_1QfixtureSub2",
+  "object": "event",
+  "api_version": "2024-11-20.acacia",
+  "created": 1793800000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": null,
+    "idempotency_key": null
+  },
+  "type": "customer.subscription.updated",
+  "data": {
+    "object": {
+      "id": "sub_1Qfixture",
+      "object": "subscription",
+      "customer": "cus_Rorgfixture",
+      "status": "active",
+      "trial_end": null,
+      "metadata": {
+        "organization_id": "11111111-1111-4111-8111-111111111111",
+        "band_slug": "small",
+        "billing_interval": "monthly",
+        "onboarding": "standard"
+      },
+      "items": {
+        "object": "list",
+        "data": [
+          {
+            "id": "si_fixture",
+            "price": {
+              "id": "price_small_monthly",
+              "recurring": {
+                "interval": "month"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -25,8 +25,10 @@ const PUBLIC_SURFACE =
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **639**. 639 palette/white/black classes across the in-scope tree (public surfaces and ui/ excluded). Drain by family: red→`text-destructive`, green/emerald→`text-success`, amber→`text-warning`, blue/sky→`text-info`, grey→`t-text-*`.
+ *
+ * 2026-11-05 (Phase 9) — **609**: the subscription page rewritten on tokens (−30).
  */
-const BASELINE = 639;
+const BASELINE = 609;
 
 runFileAudit({
   name: "color-literals",

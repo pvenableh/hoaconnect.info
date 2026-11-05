@@ -1,8 +1,12 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: "guest", // Only accessible to non-logged-in users
-  layout: "default",
+  layout: "auth-blank",
 });
+
+// Chromeless (auth-blank) but a WORKSPACE surface: pin `theme-app` in the
+// user's light/dark, as AuthShell does. (Was the deleted `default` layout's initTheme().)
+useWorkspaceAppearance();
 
 useSeoMeta({
   title: "Set Up Your HOA",

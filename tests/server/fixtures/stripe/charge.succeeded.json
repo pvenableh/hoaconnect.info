@@ -1,0 +1,39 @@
+{
+  "id": "evt_3QfixtureCh",
+  "object": "event",
+  "api_version": "2024-11-20.acacia",
+  "created": 1793800000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": null,
+    "idempotency_key": null
+  },
+  "type": "charge.succeeded",
+  "data": {
+    "object": {
+      "id": "ch_3QfixtureDues",
+      "object": "charge",
+      "amount": 25000,
+      "amount_captured": 25000,
+      "amount_refunded": 0,
+      "application_fee_amount": 800,
+      "captured": true,
+      "currency": "usd",
+      "customer": "cus_Rfixture",
+      "paid": true,
+      "payment_intent": "pi_3QfixtureDues",
+      "payment_method_details": {
+        "type": "card",
+        "card": {
+          "brand": "visa",
+          "last4": "4242"
+        }
+      },
+      "receipt_url": "https://pay.stripe.com/receipts/fixture",
+      "refunded": false,
+      "status": "succeeded",
+      "livemode": false
+    }
+  }
+}

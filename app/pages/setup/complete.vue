@@ -419,8 +419,12 @@ const goToDashboard = () => {
 
 // No auth middleware - this page handles unauthenticated users completing setup
 definePageMeta({
-  layout: 'default',
+  layout: 'auth-blank',
 });
+
+// Chromeless (auth-blank) but a WORKSPACE surface: pin `theme-app` in the
+// user's light/dark, as AuthShell does. (Was the deleted `default` layout's initTheme().)
+useWorkspaceAppearance();
 
 useSeoMeta({
   title: 'Setup Complete',

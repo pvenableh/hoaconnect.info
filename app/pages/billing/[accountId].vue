@@ -4,7 +4,7 @@ import { toast } from "vue-sonner";
 // seat usage, payment method / invoices (Stripe Customer Portal), add-property,
 // detach, manual seat-sync, and the initial subscribe flow. Access is gated by
 // the overview endpoint (viewer+); manage actions require owner/billing_admin.
-definePageMeta({ middleware: ["auth"] });
+definePageMeta({ middleware: ["auth"], layout: "auth" });
 
 const route = useRoute();
 const accountId = computed(() => String(route.params.accountId));

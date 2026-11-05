@@ -92,7 +92,7 @@ const { data: orgBalance } = await useAsyncData(
   async () => {
     if (!selectedOrgId.value) return null;
     return (await getOrganization(selectedOrgId.value, {
-      fields: ["id", "opening_balance", "opening_balance_date"],
+      fields: ["id", "name", "opening_balance", "opening_balance_date"],
     })) as HoaOrganization;
   },
   { watch: [selectedOrgId], server: false }

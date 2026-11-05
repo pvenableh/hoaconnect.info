@@ -13,13 +13,15 @@ import {
   openingBalanceFromOrg,
   toCsv,
 } from "#core/shared/reporting/ledger";
+import { buildFinancialReportDoc } from "#core/shared/reporting/report-pdf";
+import { toast } from "vue-sonner";
 
 const props = defineProps<{
   requests: PaymentRequest[];
   expenses: PaymentExpense[];
   members: HoaMember[];
   /** Carries opening_balance + opening_balance_date (Settings → Payments). */
-  organization?: Pick<HoaOrganization, "opening_balance" | "opening_balance_date"> | null;
+  organization?: (Pick<HoaOrganization, "opening_balance" | "opening_balance_date"> & { name?: string | null }) | null;
 }>();
 
 // "as of" for aging — captured once on mount so the report is stable while open.
@@ -139,6 +141,35 @@ const exportDelinquency = () => {
   download("delinquency-aging.csv", csv);
 };
 
+// --- PDF export ---------------------------------------------------------
+// The same numbers as the screen and the CSVs, as one printable document.
+// jsPDF loads only on click (useReportPdf lazy-imports it).
+const { busy: pdfBusy, downloadReportPdf } = useReportPdf();
+const exportPdf = async () => {
+  try {
+    await downloadReportPdf(
+      buildFinancialReportDoc({
+        orgName: props.organization?.name,
+        rangeLabel: range.value === "all" ? "All time" : "Last 12 months",
+        generatedAt: new Date().toISOString(),
+        summary: summary.value,
+        hasOpening: hasOpening.value,
+        series: series.value,
+        incomeCats: incomeCats.value,
+        expenseCats: expenseCats.value,
+        aging: aging.value,
+        currency,
+        monthLabel,
+        catLabel,
+        fdate,
+      })
+    );
+  } catch (e: any) {
+    console.error("[reports] PDF export failed:", e);
+    toast.error("Couldn't build the PDF — try again, or export CSV.");
+  }
+};
+
 const AGING_COLS = [
   { key: "current", label: "Current" },
   { key: "d1_30", label: "1–30" },
@@ -150,6 +181,12 @@ const AGING_COLS = [
 
 <template>
   <div class="space-y-6">
+    <div class="flex justify-end">
+      <Button variant="outline" size="sm" class="rounded-full" :disabled="pdfBusy" data-testid="reports-export-pdf" @click="exportPdf">
+        <Icon :name="pdfBusy ? 'lucide:loader-2' : 'lucide:file-down'" class="w-3.5 h-3.5 mr-1" :class="pdfBusy && 'animate-spin'" />
+        PDF
+      </Button>
+    </div>
     <!-- Summary -->
     <div class="grid grid-cols-2 gap-4" :class="hasOpening ? 'md:grid-cols-5' : 'md:grid-cols-4'">
       <div class="ios-card p-5">

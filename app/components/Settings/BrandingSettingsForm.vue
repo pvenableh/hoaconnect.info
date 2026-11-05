@@ -104,36 +104,9 @@
       </CardContent>
     </Card>
 
-    <!-- Theme -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Theme</CardTitle>
-        <CardDescription>
-          Choose a theme for your organization's site
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <Label for="theme">Site Theme</Label>
-            <select
-              id="theme"
-              v-model="form.theme"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-              :disabled="isSaving"
-            >
-              <option value="classic">Classic</option>
-              <option value="modern">Modern</option>
-              <option value="luxury">Luxury (Premium)</option>
-            </select>
-            <p class="text-sm text-muted-foreground mt-2">
-              {{ themeDescriptions[form.theme] }}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
+    <!-- The public site's theme (Classic / Modern / Luxury) is chosen in ONE
+         place: the landing builder's Site settings. It used to be here too, and
+         saving this form wrote a stale theme over the builder's choice. -->
     <!-- Brand Palette -->
     <Card>
       <CardHeader>
@@ -519,7 +492,6 @@ const form = ref({
   bodyFont: props.settings?.body_font || "sans-serif",
   title: props.settings?.title || "",
   description: props.settings?.description || "",
-  theme: (props.settings?.theme as 'classic' | 'modern' | 'luxury') || "classic",
   headerText: props.settings?.header_text || "",
   homepageUrl: props.settings?.homepage_url || "",
   ccBccThreshold: props.settings?.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
@@ -598,13 +570,6 @@ const refreshPreviewDebounced = useDebounceFn(refreshPreview, 400);
 watch([previewType, previewCategory, effectivePalette, () => form.value.headerText], () => refreshPreviewDebounced(), { deep: true });
 onMounted(refreshPreview);
 
-// Theme descriptions for the settings form
-const themeDescriptions: Record<'classic' | 'modern' | 'luxury', string> = {
-  classic: 'Classic theme uses warm, elegant colors with serif fonts.',
-  modern: 'Modern theme uses clean lines with a contemporary feel.',
-  luxury: 'Luxury theme features gallery whites, aged brass accents, and refined typography.',
-};
-
 // Watch for prop changes
 watch(
   () => props.settings,
@@ -619,7 +584,6 @@ watch(
         bodyFont: newSettings.body_font || "sans-serif",
         title: newSettings.title || "",
         description: newSettings.description || "",
-        theme: (newSettings.theme as 'classic' | 'modern' | 'luxury') || "classic",
         headerText: newSettings.header_text || "",
         homepageUrl: newSettings.homepage_url || "",
         ccBccThreshold: newSettings.cc_bcc_threshold ?? DEFAULT_CC_BCC_THRESHOLD,
@@ -768,7 +732,6 @@ const saveChanges = async () => {
       description: form.value.description,
       heading_font: form.value.headingFont as "serif" | "sans-serif",
       body_font: form.value.bodyFont as "serif" | "sans-serif",
-      theme: form.value.theme as BlockSetting["theme"],
       logo: logoId,
       icon: iconId,
       header_text: form.value.headerText || null,

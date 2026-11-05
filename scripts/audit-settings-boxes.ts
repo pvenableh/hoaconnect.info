@@ -22,8 +22,10 @@ import { findBoxes } from "./lib/audit-matchers";
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **31**. 31 boxes beyond the first in the settings files (`settings/subscription.vue` alone has most).
+ *
+ * 2026-11-05 (Phase 9) — **24**: settings/subscription.vue is one surface (−7).
  */
-const BASELINE = 31;
+const BASELINE = 24;
 
 const SCOPE = [
   /^app\/components\/Settings\//,

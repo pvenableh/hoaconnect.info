@@ -1,205 +1,158 @@
 <script setup lang="ts">
+// Settings → Subscription. Pricing is FLAT PER BUILDING: the org's unit count
+// selects a band and the band's fee is the price (it never multiplies). The page
+// reads its quote from /api/org/billing/band and subscribes through
+// /api/stripe/subscribe-band — both run the same `planBandCheckout`, so the
+// number shown is the number charged. (Phase 9: this page used to list every
+// plan and subscribe through the per-plan route, which never saved the org's
+// Stripe customer — so a paid subscription never activated the org.)
 import { toast } from "vue-sonner";
 import { describeGrace } from "#core/shared/transition/grace";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 definePageMeta({
   middleware: ["auth"],
   layout: "auth",
 });
 
-const config = useRuntimeConfig();
 const { user } = useDirectusAuth();
 const { currentOrg, selectedOrgId } = await useSelectedOrg();
-const { list: listPlans } = useDirectusItems("subscription_plans");
 
-// Fetch subscription plans
-const { data: plans, pending: plansPending } = await useAsyncData(
-  "subscription-plans",
-  async () => {
-    try {
-      const result = await listPlans({
-        fields: [
-          "id",
-          "name",
-          "slug",
-          "description",
-          "price_monthly",
-          "price_yearly",
-          "stripe_price_id_monthly",
-          "stripe_price_id_yearly",
-          "features",
-          "max_members",
-          "max_storage_gb",
-          "max_documents",
-          "is_active",
-          "is_featured",
-          "trial_days",
-        ],
-        filter: {
-          is_active: { _eq: true },
-        },
-        sort: ["price_monthly"],
-      });
-      return result || [];
-    } catch (error) {
-      console.error("Error fetching plans:", error);
-      return [];
-    }
-  }
+interface Quote {
+  available: boolean;
+  periodAmount?: number;
+  onboardingAmount?: number;
+  firstInvoiceCents?: number;
+  reason?: "no_band" | "contact_only" | "no_price";
+  message?: string;
+}
+interface BandQuote {
+  units: number;
+  band: { slug: string | null; name: string | null; minUnits: number | null; maxUnits: number | null; contactOnly: boolean } | null;
+  monthly: Quote;
+  annual: Quote;
+  ladder: Array<{
+    slug: string | null;
+    name: string | null;
+    minUnits: number | null;
+    maxUnits: number | null;
+    priceMonthly: number | null;
+    priceYearly: number | null;
+    contactOnly: boolean;
+    current: boolean;
+  }>;
+}
+
+const { data: quote, pending: quotePending, error: quoteError } = await useAsyncData(
+  "org-billing-band",
+  () =>
+    selectedOrgId.value
+      ? $fetch<BandQuote>("/api/org/billing/band", { query: { organizationId: selectedOrgId.value } })
+      : Promise.resolve(null),
+  { watch: [selectedOrgId] }
 );
 
-const billingCycle = ref<"monthly" | "yearly">("monthly");
+const interval = ref<"monthly" | "annual">("monthly");
+const intervalItems = [
+  { value: "monthly", label: "Monthly" },
+  { value: "annual", label: "Annual" },
+];
+const activeQuote = computed<Quote | null>(() => (quote.value ? quote.value[interval.value] : null));
+
+/** Annual saving vs twelve months, from the band's own prices (not a slogan). */
+const annualSaving = computed(() => {
+  const m = quote.value?.monthly.periodAmount;
+  const y = quote.value?.annual.periodAmount;
+  if (!m || !y) return null;
+  const pct = Math.round((1 - y / (m * 12)) * 100);
+  return pct > 0 ? pct : null;
+});
+
 const isProcessing = ref(false);
-
-// When set, the Stripe checkout overlay is shown to confirm payment for a
-// just-created (incomplete) subscription.
-const checkout = ref<{
-  clientSecret: string;
-  email: string;
-  amountCents: number;
-  planName: string;
-} | null>(null);
-const returnUrl = computed(() =>
-  import.meta.client ? `${window.location.origin}/settings/subscription` : undefined
-);
+const checkout = ref<{ clientSecret: string; email: string; amountCents: number; planName: string } | null>(null);
+const checkoutOpen = computed({
+  get: () => !!checkout.value,
+  set: (v: boolean) => {
+    if (!v) checkout.value = null;
+  },
+});
+const returnUrl = computed(() => (import.meta.client ? `${window.location.origin}/settings/subscription` : undefined));
 
 // The grace window a management transition opens. This page is where the grace
-// banner's "Set up billing" sends a board, so it is the last place that should
-// greet them with a red "Subscription Not Active" — they arrived here BECAUSE
-// they were told everything still works. Status stays honest (it really is
-// expired); the grace notice explains what that means and by when.
-const grace = computed(() =>
-  describeGrace((currentOrg.value?.organization as any)?.grace_ends_at)
-);
+// banner's "Set up billing" sends a board, so it must not greet them with a red
+// "Subscription Not Active" — they arrived BECAUSE they were told everything
+// still works. Status stays honest; the grace notice explains it.
+const grace = computed(() => describeGrace((currentOrg.value?.organization as any)?.grace_ends_at));
 
-// Current subscription info
-const currentSubscription = computed(() => {
-  return {
-    status: currentOrg.value?.organization?.subscription_status,
-    trialEndsAt: currentOrg.value?.organization?.trial_ends_at,
-    plan: currentOrg.value?.organization?.subscription_plan,
-    isFreeAccount: currentOrg.value?.organization?.is_free_account === true,
-  };
-});
+const currentSubscription = computed(() => ({
+  status: currentOrg.value?.organization?.subscription_status,
+  trialEndsAt: currentOrg.value?.organization?.trial_ends_at,
+  isFreeAccount: currentOrg.value?.organization?.is_free_account === true,
+}));
 
-// Get days remaining in trial
 const trialDaysRemaining = computed(() => {
   if (!currentSubscription.value.trialEndsAt) return null;
-  const endDate = new Date(currentSubscription.value.trialEndsAt);
-  const now = new Date();
-  const diffTime = endDate.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays > 0 ? diffDays : 0;
+  const diff = new Date(currentSubscription.value.trialEndsAt).getTime() - Date.now();
+  const days = Math.ceil(diff / 86_400_000);
+  return days > 0 ? days : 0;
 });
 
-const formatDate = (dateString: string | null | undefined) => {
-  if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+const formatDate = (s: string | null | undefined) =>
+  s ? new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A";
+
+const formatPrice = (n: number | null | undefined) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(Number(n) || 0);
+
+const bandRange = (min: number | null, max: number | null) =>
+  max == null ? `${min ?? 0}+ units` : `${min ?? 0}–${max} units`;
+
+const STATUS: Record<string, { label: string; tone: string }> = {
+  free: { label: "Free account", tone: "bg-primary/15 text-primary" },
+  active: { label: "Active", tone: "bg-success/15 text-success" },
+  trial: { label: "Trial", tone: "bg-info/15 text-info" },
+  expired: { label: "Expired", tone: "bg-destructive/15 text-destructive" },
+  canceled: { label: "Canceled", tone: "t-bg-subtle t-text" },
 };
+const statusChip = computed(
+  () =>
+    STATUS[currentSubscription.value.isFreeAccount ? "free" : String(currentSubscription.value.status)] ?? {
+      label: "Unknown",
+      tone: "t-bg-subtle t-text-muted",
+    }
+);
 
-const formatPrice = (price: number | null | undefined) => {
-  if (!price) return "$0";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(price);
-};
+const canSubscribe = computed(
+  () => !currentSubscription.value.isFreeAccount && currentSubscription.value.status !== "active"
+);
 
-const getStatusColor = (status: string | null | undefined, isFree?: boolean) => {
-  // Free accounts get a special purple badge
-  if (isFree) return "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200";
-
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200";
-    case "trial":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200";
-    case "expired":
-      return "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200";
-    case "canceled":
-      return "t-bg-subtle t-text";
-    default:
-      return "t-bg-subtle t-text-muted";
-  }
-};
-
-const getStatusLabel = (status: string | null | undefined, isFree?: boolean) => {
-  // Free accounts show as "Free Account"
-  if (isFree) return "Free Account";
-
-  switch (status) {
-    case "active":
-      return "Active";
-    case "trial":
-      return "Trial";
-    case "expired":
-      return "Expired";
-    case "canceled":
-      return "Canceled";
-    default:
-      return "Unknown";
-  }
-};
-
-// Handle subscription upgrade/renewal
-const handleSubscribe = async (plan: any) => {
-  if (isProcessing.value) return;
-
+const handleSubscribe = async () => {
+  if (isProcessing.value || !selectedOrgId.value) return;
   isProcessing.value = true;
-
   try {
-    const priceId =
-      billingCycle.value === "yearly"
-        ? plan.stripe_price_id_yearly
-        : plan.stripe_price_id_monthly;
-
-    if (!priceId) {
-      toast.error("This plan is not available for the selected billing cycle");
+    const res = await $fetch<{ clientSecret: string | null; firstInvoiceCents: number; band: { name: string | null } }>(
+      "/api/stripe/subscribe-band",
+      { method: "POST", body: { organizationId: selectedOrgId.value, interval: interval.value, onboarding: "standard" } }
+    );
+    if (!res?.clientSecret) {
+      toast.error("Stripe didn't return a payment form — try again, or contact support.");
       return;
     }
-
-    // Create Stripe checkout session
-    const response = await $fetch("/api/stripe/subscription", {
-      method: "POST",
-      body: {
-        email: user.value?.email,
-        priceId,
-        organizationId: selectedOrgId.value,
-        trialDays: 0, // No trial for renewals
-      },
-    });
-
-    if (response?.clientSecret) {
-      // Open the Stripe Elements overlay to confirm payment for the newly
-      // created (incomplete) subscription.
-      const price = billingCycle.value === "yearly" ? plan.price_yearly : plan.price_monthly;
-      checkout.value = {
-        clientSecret: response.clientSecret,
-        email: user.value?.email || "",
-        amountCents: Math.round((Number(price) || 0) * 100),
-        planName: plan.name,
-      };
-    } else {
-      toast.error("Failed to create subscription");
-    }
+    checkout.value = {
+      clientSecret: res.clientSecret,
+      email: user.value?.email || "",
+      amountCents: res.firstInvoiceCents,
+      planName: `${res.band.name || "Your band"} · ${interval.value === "annual" ? "annual" : "monthly"}`,
+    };
   } catch (error: any) {
-    console.error("Subscription error:", error);
-    toast.error(error?.data?.message || error.message || "Failed to process subscription");
+    toast.error(error?.data?.message || error?.message || "Couldn't start the subscription");
   } finally {
     isProcessing.value = false;
   }
 };
 
-const onCheckoutError = (err: Error) => {
-  toast.error(err?.message || "Payment failed");
-};
+const onCheckoutError = (err: Error) => toast.error(err?.message || "Payment failed");
 
-// Open the Stripe-hosted billing portal (update payment method, invoices, cancel).
+// The Stripe-hosted billing portal (payment method, invoices, cancel).
 const handleManageBilling = async () => {
   try {
     const { url } = await $fetch<{ url: string }>("/api/stripe/portal", {
@@ -208,328 +161,163 @@ const handleManageBilling = async () => {
     });
     if (url && import.meta.client) window.location.href = url;
   } catch (error: any) {
-    console.error("Billing portal error:", error);
-    toast.error(error?.data?.message || "Failed to open billing portal");
+    toast.error(error?.data?.message || "Couldn't open the billing portal");
   }
 };
 </script>
 
 <template>
-  <div class="ui-kit accent-blue max-w-6xl mx-auto px-6 py-8">
-    <!-- Header -->
-    <WidgetGlass strong class="mb-8">
-      <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-semibold tracking-tight t-text">Subscription</h1>
-        <PaymentStripeModeBadge />
-      </div>
-      <p class="t-text-secondary mt-1">
-        Manage your organization's subscription and billing
-      </p>
-    </WidgetGlass>
+  <div class="max-w-3xl mx-auto px-6 py-8">
+    <AppPageHeader title="Subscription" description="One flat price per building, set by its number of units." />
 
-    <!-- Current Subscription Status -->
-    <div class="ios-card p-6 mb-8">
-      <h2 class="text-lg font-semibold t-text mb-4">
-        Current Subscription
-      </h2>
-
-      <div class="grid md:grid-cols-3 gap-6">
-        <!-- Status -->
-        <div>
-          <p class="text-sm t-text-muted mb-1">Status</p>
+    <!-- One surface: status, your band, the band ladder, help — grouped by dividers. -->
+    <section class="ios-card divide-y divide-[var(--theme-border-light)]" data-testid="subscription-surface">
+      <!-- Status -->
+      <div class="p-6 space-y-4">
+        <div class="flex flex-wrap items-center gap-3">
           <span
-            :class="[
-              'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
-              getStatusColor(currentSubscription.status, currentSubscription.isFreeAccount),
-            ]"
+            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+            :class="statusChip.tone"
+            data-testid="subscription-status"
           >
-            {{ getStatusLabel(currentSubscription.status, currentSubscription.isFreeAccount) }}
+            {{ statusChip.label }}
+          </span>
+          <PaymentStripeModeBadge />
+          <span v-if="currentSubscription.status === 'trial'" class="text-sm t-text-secondary">
+            Trial ends {{ formatDate(currentSubscription.trialEndsAt) }}
+            <template v-if="trialDaysRemaining !== null">({{ trialDaysRemaining }} days left)</template>
           </span>
         </div>
 
-        <!-- Plan -->
-        <div>
-          <p class="text-sm t-text-muted mb-1">Plan</p>
-          <p class="font-medium t-text">
-            {{ currentSubscription.plan?.name || "No plan selected" }}
+        <div v-if="currentSubscription.isFreeAccount" class="flex items-start gap-3">
+          <Icon name="i-lucide-gift" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          <p class="text-sm t-text-secondary">
+            Your community has a free account with full access. No subscription payment is required.
           </p>
         </div>
-
-        <!-- Trial/Expiry -->
-        <div v-if="currentSubscription.status === 'trial'">
-          <p class="text-sm t-text-muted mb-1">Trial Ends</p>
-          <p class="font-medium t-text">
-            {{ formatDate(currentSubscription.trialEndsAt) }}
-            <span
-              v-if="trialDaysRemaining !== null"
-              class="text-sm text-blue-600 ml-1"
-            >
-              ({{ trialDaysRemaining }} days left)
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <!-- Free account notice -->
-      <div
-        v-if="currentSubscription.isFreeAccount"
-        class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg"
-      >
-        <div class="flex items-start gap-3">
-          <Icon
-            name="i-lucide-gift"
-            class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5"
-          />
+        <div v-else-if="grace?.active" class="flex items-start gap-3">
+          <Icon name="i-lucide-life-buoy" class="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
           <div>
-            <p class="font-medium text-purple-800">Free Account</p>
-            <p class="text-sm text-purple-700 mt-1">
-              Your organization has a free account with full access to all features.
-              No subscription payment is required.
-            </p>
+            <p class="font-medium t-text">{{ grace.headline }}</p>
+            <p class="text-sm t-text-secondary mt-1">{{ grace.detail }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- Warning for expired/canceled -->
-      <div
-        v-else-if="grace?.active"
-        class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
-      >
-        <div class="flex items-start gap-3">
-          <Icon name="i-lucide-life-buoy" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p class="font-medium text-blue-900">{{ grace.headline }}</p>
-            <p class="text-sm text-blue-800 mt-1">{{ grace.detail }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div
-        v-else-if="
-          currentSubscription.status === 'expired' ||
-          currentSubscription.status === 'canceled'
-        "
-        class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg"
-      >
-        <div class="flex items-start gap-3">
-          <Icon
-            name="i-lucide-alert-circle"
-            class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
-          />
-          <div>
-            <p class="font-medium text-red-800">Subscription Not Active</p>
-            <p class="text-sm text-red-700 mt-1">
-              Your subscription is
-              {{ currentSubscription.status }}. Select a plan below to restore
-              full access to all features.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Manage Billing Button (for active subscriptions) -->
-      <div v-if="currentSubscription.status === 'active'" class="mt-4">
-        <button
-          @click="handleManageBilling"
-          class="text-sm text-blue-600 hover:text-blue-700 font-medium"
-        >
-          Manage Billing & Payment Methods
-        </button>
-      </div>
-    </div>
-
-    <!-- Billing Cycle Toggle (hidden for free accounts) -->
-    <div v-if="!currentSubscription.isFreeAccount" class="flex justify-center mb-8">
-      <div class="t-bg-subtle rounded-lg p-1 inline-flex">
-        <button
-          @click="billingCycle = 'monthly'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition',
-            billingCycle === 'monthly'
-              ? 'bg-white t-text shadow'
-              : 't-text-secondary hover:t-text',
-          ]"
-        >
-          Monthly
-        </button>
-        <button
-          @click="billingCycle = 'yearly'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition',
-            billingCycle === 'yearly'
-              ? 'bg-white t-text shadow'
-              : 't-text-secondary hover:t-text',
-          ]"
-        >
-          Yearly
-          <span class="ml-1 text-xs text-green-600">(Save 20%)</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Plans Loading (hidden for free accounts) -->
-    <div v-if="!currentSubscription.isFreeAccount && plansPending" class="flex justify-center py-12">
-      <span class="spinner-ios spinner-ios--lg" />
-    </div>
-
-    <!-- Plans Grid (hidden for free accounts) -->
-    <div
-      v-else-if="!currentSubscription.isFreeAccount && plans && plans.length > 0"
-      class="grid md:grid-cols-3 gap-6"
-    >
-      <div
-        v-for="plan in plans"
-        :key="plan.id"
-        :class="[
-          'ios-card border-2 p-6 relative',
-          plan.is_featured
-            ? 'border-blue-500 shadow-lg'
-            : 't-border hover:t-border',
-        ]"
-      >
-        <!-- Featured Badge -->
         <div
-          v-if="plan.is_featured"
-          class="absolute -top-3 left-1/2 -translate-x-1/2"
+          v-else-if="currentSubscription.status === 'expired' || currentSubscription.status === 'canceled'"
+          class="flex items-start gap-3"
         >
-          <span
-            class="bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full"
-          >
-            Most Popular
-          </span>
+          <Icon name="i-lucide-alert-circle" class="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <p class="text-sm t-text-secondary">
+            Your subscription is {{ currentSubscription.status }}. Subscribe below to restore full access.
+          </p>
         </div>
 
-        <!-- Plan Name -->
-        <h3 class="text-xl font-semibold t-text mb-2">
-          {{ plan.name }}
-        </h3>
-        <p class="t-text-secondary text-sm mb-4">{{ plan.description }}</p>
-
-        <!-- Price -->
-        <div class="mb-6">
-          <span class="text-3xl font-bold t-text">
-            {{
-              formatPrice(
-                billingCycle === "yearly"
-                  ? plan.price_yearly
-                  : plan.price_monthly
-              )
-            }}
-          </span>
-          <span class="t-text-muted">/{{ billingCycle === "yearly" ? "year" : "month" }}</span>
-        </div>
-
-        <!-- Features -->
-        <ul class="space-y-3 mb-6">
-          <li
-            v-if="plan.max_members"
-            class="flex items-center gap-2 text-sm t-text-secondary"
-          >
-            <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
-            Up to {{ plan.max_members }} members
-          </li>
-          <li
-            v-if="plan.max_documents"
-            class="flex items-center gap-2 text-sm t-text-secondary"
-          >
-            <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
-            {{ plan.max_documents }} documents
-          </li>
-          <li
-            v-if="plan.max_storage_gb"
-            class="flex items-center gap-2 text-sm t-text-secondary"
-          >
-            <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
-            {{ plan.max_storage_gb }}GB storage
-          </li>
-          <template v-if="plan.features && typeof plan.features === 'object'">
-            <li
-              v-for="(feature, index) in Object.values(plan.features)"
-              :key="index"
-              class="flex items-center gap-2 text-sm t-text-secondary"
-            >
-              <Icon name="i-lucide-check" class="w-4 h-4 text-green-500" />
-              {{ feature }}
-            </li>
-          </template>
-        </ul>
-
-        <!-- Subscribe Button -->
-        <button
-          @click="handleSubscribe(plan)"
-          :disabled="isProcessing"
-          :class="[
-            'w-full py-2.5 rounded-lg font-medium transition',
-            plan.is_featured
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 't-bg-subtle t-text hover:t-bg-subtle',
-            isProcessing && 'opacity-50 cursor-not-allowed',
-          ]"
-        >
-          {{
-            currentSubscription.status === "active"
-              ? "Switch to this plan"
-              : currentSubscription.status === "trial"
-              ? "Upgrade Now"
-              : "Subscribe"
-          }}
-        </button>
+        <Button v-if="currentSubscription.status === 'active'" variant="outline" size="sm" @click="handleManageBilling">
+          Manage billing and payment methods
+        </Button>
       </div>
-    </div>
 
-    <!-- No Plans Available (hidden for free accounts) -->
-    <div
-      v-else-if="!currentSubscription.isFreeAccount"
-      class="text-center py-12 ios-card"
-    >
-      <Icon
-        name="i-lucide-package"
-        class="w-12 h-12 mx-auto t-text-muted mb-4"
-      />
-      <h3 class="text-lg font-medium t-text mb-2">
-        No Plans Available
-      </h3>
-      <p class="t-text-secondary">
-        Please contact support for subscription options.
-      </p>
-    </div>
+      <!-- Your band -->
+      <div v-if="!currentSubscription.isFreeAccount" class="p-6 space-y-4" data-testid="subscription-quote">
+        <div v-if="quotePending" class="flex justify-center py-8"><span class="spinner-ios spinner-ios--lg" /></div>
 
-    <!-- Help Section -->
-    <div class="mt-8 p-6 t-bg-subtle rounded-xl">
-      <h3 class="font-medium t-text mb-2">Need Help?</h3>
-      <p class="text-sm t-text-secondary mb-3">
-        Have questions about billing or need to make changes to your
-        subscription?
-      </p>
-      <a
-        href="mailto:support@hoaconnect.com"
-        class="text-sm text-blue-600 hover:text-blue-700 font-medium"
-      >
-        Contact Support
-      </a>
-    </div>
+        <p v-else-if="quoteError || !quote" class="text-sm t-text-secondary">
+          We couldn't load your community's pricing. Refresh, or contact support below.
+        </p>
 
-    <!-- Stripe checkout overlay -->
-    <div
-      v-if="checkout"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      @click.self="checkout = null"
-    >
-      <div class="ios-card w-full max-w-lg p-6 bg-background max-h-[90vh] overflow-y-auto">
-        <div class="flex items-start justify-between mb-4">
-          <div>
-            <h2 class="text-lg font-semibold t-text">Complete your subscription</h2>
-            <p class="text-sm t-text-muted">{{ checkout.planName }}</p>
+        <template v-else>
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p class="type-micro t-text-muted">Your band</p>
+              <p class="text-xl font-semibold t-text" data-testid="subscription-band">
+                {{ quote.band?.name || "No band" }}
+              </p>
+              <p class="text-sm t-text-secondary">
+                {{ quote.units }} {{ quote.units === 1 ? "unit" : "units" }} on file
+                <template v-if="quote.band"> · {{ bandRange(quote.band.minUnits, quote.band.maxUnits) }}</template>
+              </p>
+            </div>
+            <AppSegmentedControl
+              v-if="canSubscribe && !quote.band?.contactOnly"
+              v-model="interval"
+              :items="intervalItems"
+              size="sm"
+              label="Billing interval"
+            />
           </div>
-          <button
-            @click="checkout = null"
-            class="inline-flex items-center justify-center w-8 h-8 rounded-full t-bg-subtle hover:opacity-80"
-            aria-label="Close"
+
+          <template v-if="activeQuote?.available">
+            <div>
+              <span class="text-3xl font-bold t-text" data-testid="subscription-price">
+                {{ formatPrice(activeQuote.periodAmount) }}
+              </span>
+              <span class="t-text-muted">/{{ interval === "annual" ? "year" : "month" }}</span>
+              <span v-if="interval === 'annual' && annualSaving" class="ml-2 text-sm text-success">
+                saves {{ annualSaving }}% over monthly
+              </span>
+            </div>
+            <p v-if="activeQuote.onboardingAmount" class="text-sm t-text-secondary">
+              Plus a one-time {{ formatPrice(activeQuote.onboardingAmount) }} onboarding fee on the first invoice —
+              {{ formatPrice((activeQuote.firstInvoiceCents ?? 0) / 100) }} today.
+            </p>
+            <Button v-if="canSubscribe" :disabled="isProcessing" data-testid="subscription-subscribe" @click="handleSubscribe">
+              {{ currentSubscription.status === "trial" ? "Subscribe now" : "Subscribe" }}
+            </Button>
+          </template>
+
+          <div v-else-if="activeQuote?.reason === 'contact_only'" class="space-y-3">
+            <p class="text-sm t-text-secondary">
+              Communities this size are priced with us directly — onboarding, migration and support are tailored.
+            </p>
+            <Button as="a" href="mailto:support@hoaconnect.com?subject=Subscription%20pricing" variant="outline">
+              Talk to us
+            </Button>
+          </div>
+
+          <p v-else class="text-sm t-text-secondary">
+            {{ activeQuote?.message || "Self-serve checkout isn't available for this band yet." }}
+            Contact support below and we'll set it up.
+          </p>
+        </template>
+      </div>
+
+      <!-- The band ladder -->
+      <div v-if="quote?.ladder?.length && !currentSubscription.isFreeAccount" class="p-6">
+        <p class="type-micro t-text-muted mb-3">All bands</p>
+        <ul class="divide-y divide-[var(--theme-border-light)]" data-testid="subscription-ladder">
+          <li
+            v-for="b in quote.ladder"
+            :key="b.slug || b.name || ''"
+            class="flex items-center justify-between gap-4 py-2.5 text-sm"
+            :class="b.current ? 't-text font-medium' : 't-text-secondary'"
           >
-            <Icon name="lucide:x" class="w-4 h-4" />
-          </button>
-        </div>
+            <span>
+              {{ b.name }}
+              <span class="t-text-muted font-normal"> · {{ bandRange(b.minUnits, b.maxUnits) }}</span>
+              <span v-if="b.current" class="ml-2 text-xs text-primary">yours</span>
+            </span>
+            <span class="tabular-nums">{{ b.contactOnly ? "Contact us" : `${formatPrice(b.priceMonthly)}/mo` }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Help -->
+      <div class="p-6">
+        <p class="font-medium t-text mb-1">Need help?</p>
+        <p class="text-sm t-text-secondary mb-3">Questions about billing, or a change to your subscription?</p>
+        <Button as="a" href="mailto:support@hoaconnect.com" variant="link" class="px-0">Contact support</Button>
+      </div>
+    </section>
+
+    <!-- Stripe checkout: the dialog is the card. -->
+    <Dialog v-model:open="checkoutOpen">
+      <DialogContent class="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Complete your subscription</DialogTitle>
+          <DialogDescription>{{ checkout?.planName }}</DialogDescription>
+        </DialogHeader>
         <PaymentStripeCard
+          v-if="checkout"
           :client-secret="checkout.clientSecret"
           :email="checkout.email"
           :amount="checkout.amountCents"
@@ -537,7 +325,7 @@ const handleManageBilling = async () => {
           :return-url="returnUrl"
           @error="onCheckoutError"
         />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

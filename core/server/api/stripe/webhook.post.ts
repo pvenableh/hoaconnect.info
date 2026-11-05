@@ -2,7 +2,9 @@ import Stripe from 'stripe';
 import { createItem, updateItem, readItems, readItem } from '@directus/sdk';
 import type { AcaciaInvoice } from '#core/server/utils/stripe';
 import type { PaymentTransaction } from '#core/types/directus';
-import { buildPaymentRecordedEntry } from '#core/shared/ledger/entries';
+import { buildPaymentRecordedEntry, buildPaymentRefundedEntry } from '#core/shared/ledger/entries';
+import { planChargeRefund, requestStatusAfter } from '#core/shared/billing/refund';
+import { orgStatusForStripeSubscription } from '#core/shared/billing/subscription-status';
 // Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
@@ -319,6 +321,10 @@ async function handleChargeSucceeded(directus: ReturnType<typeof getTypedDirectu
 
 		const transaction = transactions?.[0];
 		if (transaction) {
+			// Events arrive in any order. If a refund already landed it wrote the
+			// net the transaction still holds — never put the gross back over it,
+			// or a redelivered refund would reverse the money a second time.
+			const netAlreadySet = transaction.net_amount != null;
 			await directus.request(
 				updateItem('payment_transactions', transaction.id, {
 					stripe_charge_id: charge.id,
@@ -329,7 +335,7 @@ async function handleChargeSucceeded(directus: ReturnType<typeof getTypedDirectu
 						charge.payment_method_details?.us_bank_account?.last4 ||
 						null,
 					processing_fee: charge.application_fee_amount ? charge.application_fee_amount / 100 : null,
-					net_amount: charge.amount_captured / 100,
+					...(netAlreadySet ? {} : { net_amount: charge.amount_captured / 100 }),
 				})
 			);
 		}
@@ -342,27 +348,66 @@ async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus
 	console.log('Charge Refunded:', charge.id);
 
 	try {
-		const transactions = await directus.request(
-			readItems('payment_transactions', {
-				filter: {
-					stripe_charge_id: { _eq: charge.id },
-				},
+		// By charge id (set by charge.succeeded) — or by the PaymentIntent, because
+		// Stripe does not order events and a refund can be processed before
+		// charge.succeeded ever stamped the charge id on the row.
+		const paymentIntentId =
+			typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+		let transaction = (
+			(await directus.request(
+				readItems('payment_transactions', { filter: { stripe_charge_id: { _eq: charge.id } }, limit: 1 })
+			)) as any[]
+		)?.[0];
+		if (!transaction && paymentIntentId) {
+			transaction = (
+				(await directus.request(
+					readItems('payment_transactions', {
+						filter: {
+							stripe_payment_intent_id: { _eq: paymentIntentId },
+							status: { _in: ['succeeded', 'refunded'] },
+						},
+						limit: 1,
+					})
+				)) as any[]
+			)?.[0];
+		}
+		if (!transaction) {
+			console.log(`Refund for charge ${charge.id}: no booked transaction — nothing to reverse`);
+			return;
+		}
+
+		// A DELTA against what the row still holds: a replay is 0, a second
+		// partial refund is only the new part (core/shared/billing/refund.ts).
+		const plan = planChargeRefund(transaction, charge);
+		if (plan.delta <= 0) {
+			console.log(`Refund for charge ${charge.id} already applied — skipping duplicate`);
+			return;
+		}
+
+		await directus.request(
+			updateItem('payment_transactions', transaction.id, {
+				status: plan.status,
+				net_amount: plan.netAfter,
+				stripe_charge_id: charge.id,
 			})
 		);
 
-		const transaction = transactions?.[0];
-		if (transaction) {
-			await directus.request(
-				updateItem('payment_transactions', transaction.id, {
-					status: 'refunded',
-				})
-			);
-
-			// Update payment request if linked
-			if (transaction.payment_request) {
-				await updatePaymentRequest(directus, transaction.payment_request, -(transaction.amount ?? 0));
-			}
+		if (transaction.payment_request) {
+			const requestId =
+				typeof transaction.payment_request === 'string' ? transaction.payment_request : transaction.payment_request?.id;
+			if (requestId) await updatePaymentRequest(directus, requestId, -plan.delta);
 		}
+
+		await recordRefundInLedger(directus, {
+			organizationId: (typeof transaction.organization === 'string' ? transaction.organization : transaction.organization?.id) || null,
+			memberId: (typeof transaction.member === 'string' ? transaction.member : transaction.member?.id) || null,
+			transactionId: transaction.id ?? null,
+			amount: plan.delta,
+			currency: transaction.currency ?? charge.currency ?? null,
+			description: transaction.description || null,
+			reference: paymentIntentId ?? charge.id,
+			fullyRefunded: plan.fullyRefunded,
+		});
 	} catch (err) {
 		console.error('Error updating refunded transaction:', err);
 	}
@@ -412,29 +457,11 @@ async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirec
 		);
 
 		const org = organizations?.[0];
-		if (org) {
-			// Map Stripe subscription status to our subscription status
-			let orgStatus: 'active' | 'trial' | 'canceled' | 'expired' = 'active';
-			switch (subscription.status) {
-				case 'trialing':
-					orgStatus = 'trial';
-					break;
-				case 'active':
-					orgStatus = 'active';
-					break;
-				case 'canceled':
-				case 'unpaid':
-					orgStatus = 'canceled';
-					break;
-				case 'past_due':
-				case 'incomplete':
-				case 'incomplete_expired':
-					orgStatus = 'expired';
-					break;
-				default:
-					orgStatus = 'active';
-			}
-
+		// An unpaid checkout (incomplete / incomplete_expired) never moves the org.
+		const orgStatus = orgStatusForStripeSubscription(subscription.status, eventType);
+		if (org && orgStatus === null) {
+			console.log(`Subscription ${subscription.id} is ${subscription.status} — org ${org.id} left as is`);
+		} else if (org && orgStatus) {
 			const updateData: Record<string, any> = {
 				stripe_subscription_id: subscription.id,
 				subscription_status: orgStatus,
@@ -443,11 +470,6 @@ async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirec
 			// Update trial end date
 			if (subscription.trial_end) {
 				updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
-			}
-
-			// For canceled subscriptions, we might want to set a canceled_at date
-			if (eventType === 'customer.subscription.deleted') {
-				updateData.subscription_status = 'canceled';
 			}
 
 			// Get the price ID to determine billing cycle
@@ -743,21 +765,18 @@ async function updatePaymentRequest(directus: ReturnType<typeof getTypedDirectus
 
 		if (request) {
 			const currentPaid = request.amount_paid || 0;
-			const newPaid = currentPaid + amount;
+			// Cents, so a refund back to zero lands on 0 and not 1e-14.
+			const newPaid = Math.max(0, Math.round((currentPaid + amount) * 100) / 100);
 			const totalAmount = request.amount ?? 0;
 			const remaining = totalAmount - newPaid;
-
-			let newStatus: 'partially_paid' | 'paid' = 'partially_paid';
-			if (remaining <= 0) {
-				newStatus = 'paid';
-			}
+			const newStatus = requestStatusAfter(request, newPaid, new Date().toISOString());
 
 			await directus.request(
 				updateItem('payment_requests', paymentRequestId, {
 					amount_paid: newPaid,
 					amount_remaining: Math.max(0, remaining),
 					status: newStatus,
-					...(newStatus === 'paid' && { paid_at: new Date().toISOString() }),
+					...(newStatus === 'paid' ? { paid_at: new Date().toISOString() } : request.paid_at ? { paid_at: null } : {}),
 				})
 			);
 		}
@@ -796,41 +815,11 @@ async function recordPaymentInLedger(
 	if (!input.organizationId) return;
 
 	try {
-		let memberName: string | null = null;
-		let memberEmail: string | null = null;
-		let memberUser: string | null = null;
-
-		if (input.memberId) {
-			const rows = (await directus.request(
-				readItems('hoa_members', {
-					filter: { id: { _eq: input.memberId }, organization: { _eq: input.organizationId } },
-					// No unit: it hangs off hoa_member_units → hoa_units, and one bad
-					// nested path fails the WHOLE Directus query — which here would
-					// mean a payment silently missing from the record. The
-					// household's name is what a board reads anyway.
-					fields: ['first_name', 'last_name', 'email', 'user'],
-					limit: 1,
-				})
-			)) as any[];
-			const m = rows?.[0];
-			if (m) {
-				memberName = [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || null;
-				memberEmail = m.email ?? null;
-				memberUser = typeof m.user === 'string' ? m.user : (m.user?.id ?? null);
-			}
-		}
-
-		const orgs = (await directus.request(
-			readItems('hoa_organizations', {
-				filter: { id: { _eq: input.organizationId } },
-				fields: ['name'],
-				limit: 1,
-			})
-		)) as any[];
+		const { memberName, memberEmail, memberUser, organizationName } = await resolvePayer(directus, input.organizationId, input.memberId);
 
 		const entry = buildPaymentRecordedEntry({
 			organizationId: input.organizationId,
-			organizationName: orgs?.[0]?.name ?? null,
+			organizationName,
 			payment: {
 				transactionId: input.transactionId,
 				memberId: input.memberId,
@@ -854,5 +843,89 @@ async function recordPaymentInLedger(
 		if (entry) await writeAuditEntry(entry);
 	} catch (err) {
 		console.error('[stripe/webhook] ledger write failed for payment', input.reference, err);
+	}
+}
+
+/** Who paid (denormalized onto the ledger row) and the org's name. */
+async function resolvePayer(
+	directus: ReturnType<typeof getTypedDirectus>,
+	organizationId: string,
+	memberId: string | null
+) {
+	let memberName: string | null = null;
+	let memberEmail: string | null = null;
+	let memberUser: string | null = null;
+
+	if (memberId) {
+		const rows = (await directus.request(
+			readItems('hoa_members', {
+				filter: { id: { _eq: memberId }, organization: { _eq: organizationId } },
+				// No unit: it hangs off hoa_member_units → hoa_units, and one bad
+				// nested path fails the WHOLE Directus query — which here would
+				// mean a payment silently missing from the record. The
+				// household's name is what a board reads anyway.
+				fields: ['first_name', 'last_name', 'email', 'user'],
+				limit: 1,
+			})
+		)) as any[];
+		const m = rows?.[0];
+		if (m) {
+			memberName = [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || null;
+			memberEmail = m.email ?? null;
+			memberUser = typeof m.user === 'string' ? m.user : (m.user?.id ?? null);
+		}
+	}
+
+	const orgs = (await directus.request(
+		readItems('hoa_organizations', {
+			filter: { id: { _eq: organizationId } },
+			fields: ['name'],
+			limit: 1,
+		})
+	)) as any[];
+
+	return { memberName, memberEmail, memberUser, organizationName: (orgs?.[0]?.name as string | undefined) ?? null };
+}
+
+/**
+ * Write the ledger's copy of a refund — `amount` is this refund's delta. Never
+ * throws, for the same reason as recordPaymentInLedger. The actor is the
+ * platform: a refund is issued from the Stripe dashboard, not by the payer.
+ */
+async function recordRefundInLedger(
+	directus: ReturnType<typeof getTypedDirectus>,
+	input: {
+		organizationId: string | null;
+		memberId: string | null;
+		transactionId: string | null;
+		amount: number;
+		currency: string | null;
+		description: string | null;
+		reference: string | null;
+		fullyRefunded: boolean;
+	}
+) {
+	if (!input.organizationId) return;
+	try {
+		const { memberName, organizationName } = await resolvePayer(directus, input.organizationId, input.memberId);
+		const entry = buildPaymentRefundedEntry({
+			organizationId: input.organizationId,
+			organizationName,
+			payment: {
+				transactionId: input.transactionId,
+				memberId: input.memberId,
+				memberName,
+				amount: input.amount,
+				currency: input.currency,
+				description: input.description,
+				reference: input.reference,
+			},
+			fullyRefunded: input.fullyRefunded,
+			actor: { userId: null, name: 'Stripe refund', email: null },
+			occurredAt: new Date().toISOString(),
+		});
+		if (entry) await writeAuditEntry(entry);
+	} catch (err) {
+		console.error('[stripe/webhook] ledger write failed for refund', input.reference, err);
 	}
 }

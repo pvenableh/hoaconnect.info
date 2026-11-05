@@ -654,6 +654,65 @@ export function buildPaymentRecordedEntry(input: {
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
+ * payment_refunded
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The entry for money going BACK to a household — a Stripe refund, in full or
+ * in part, of a payment `payment_recorded` already wrote. Board-only, for the
+ * same reason. `amount` is THIS refund (the delta), not the cumulative total,
+ * so a ledger summed over a period reconciles; `fullyRefunded` says whether
+ * anything of the original payment is left.
+ *
+ * A zero or negative amount returns `null`: that is a replayed webhook, not an
+ * event.
+ */
+export function buildPaymentRefundedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly payment: PaymentSubject;
+  readonly fullyRefunded: boolean;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry | null {
+  const p = input.payment;
+  const amount = toLedgerAmount(p.amount);
+  if (amount <= 0) return null;
+
+  const money = formatMoney(amount, p.currency ?? "USD");
+  const who = p.memberName?.trim() || p.unitLabel?.trim() || "a household";
+  const description = p.description?.trim() || null;
+  const forWhat = description ? ` (${description})` : "";
+  const summary = input.fullyRefunded
+    ? `${money} was refunded to ${who}${forWhat} — the payment in full.`
+    : `${money} was refunded to ${who}${forWhat} — part of the payment.`;
+
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "payment_refunded",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("payment_refunded"),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      transaction_id: p.transactionId,
+      member_id: p.memberId,
+      member_name: p.memberName,
+      unit: p.unitLabel ?? null,
+      amount,
+      currency: (p.currency || "USD").toUpperCase(),
+      description,
+      fully_refunded: input.fullyRefunded,
+      reference: p.reference ?? null,
+    },
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
  * ai_action_executed / ai_action_undone
  * ────────────────────────────────────────────────────────────────────────── */
 

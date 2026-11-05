@@ -329,7 +329,7 @@ const handlePaymentError = (error: Error) => {
 
 // Set page meta
 definePageMeta({
-  layout: "default",
+  layout: "auth",
   middleware: ["auth", "subscription"],
 });
 
