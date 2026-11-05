@@ -483,6 +483,8 @@ export interface HoaChannelMember {
 	/** @description Whether to send notifications for this channel */
 	notifications_enabled?: boolean | null;
 	date_created?: string | null;
+	/** @description Presence heartbeat (≤90 s old = has the channel open). Server-written. */
+	present_at?: string | null;
 }
 
 export interface HoaChannelMention {
@@ -519,6 +521,8 @@ export interface HoaChannelMessage {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+	/** @description When the message was last edited. */
+	edited_at?: string | null;
 }
 
 export interface HoaChannelModerationLog {
@@ -528,7 +532,7 @@ export interface HoaChannelModerationLog {
 	channel?: HoaChannel | string | null;
 	/** @description Who took the action (or the reporter). */
 	moderator?: DirectusUser | string | null;
-	action?: 'hide' | 'remove' | 'report' | null;
+	action?: 'hide' | 'remove' | 'report' | 'edit' | null;
 	reason?: string | null;
 	/** @description Plain message uuid — survives a hard delete of the message. */
 	message_id?: string | null;
@@ -570,6 +574,8 @@ export interface HoaChannel {
 	vendor?: HoaVendor | string | null;
 	/** @description Optional folder name. Channels sharing a category group together in the roster sidebar; empty means ungrouped. */
 	category?: string | null;
+	/** @description A direct message: a private channel with exactly two members. */
+	is_dm?: boolean | null;
 	/** @description Members enrolled in / invited to this channel. */
 	channel_members?: HoaChannelMember[] | string[];
 }
