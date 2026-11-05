@@ -28,13 +28,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # `postinstall` runs `nuxt prepare`, which writes .nuxt/components.d.ts —
+      # the unresolved-components audit reads it.
+      - name: Lint
+        run: pnpm lint
+
+      # All sixteen audits as gates (scripts/audit-all.ts → each audit's
+      # `--check`). The husky pre-commit hook runs the same command, but a hook
+      # only guards machines that have hooks installed; CI is the gate that
+      # cannot be skipped. Red on ANY gate or any ratchet above its baseline.
+      - name: Audits
+        run: pnpm audit:all
+
       - name: Unit tests
         run: pnpm test
-
-      # The husky pre-commit hook runs this too, but a hook only guards machines
-      # that have hooks installed; CI is the gate that cannot be skipped.
-      - name: UI audits
-        run: pnpm audit:hairline-surfaces
 
       - name: Typecheck
         run: pnpm typecheck

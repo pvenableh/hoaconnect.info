@@ -25,4 +25,22 @@
 #
 # Deliberately NOT `npm test` (husky's default), which would put a 30-second
 # vitest run in front of every commit. CI already runs the suite.
-pnpm audit:hairline-surfaces
+
+# ── Phase 8: lint + the whole audit set ───────────────────────────────────────
+#
+# 1. ESLint on the STAGED files (errors block, warnings don't) — see
+#    lint-staged.config.cjs for why this is not prettier.
+npx lint-staged
+
+# 2. EVERY audit as a gate: `pnpm audit:all` runs scripts/audit-*.ts with
+#    --check, in parallel (~10 s). A gate at 0 fails on any finding; a ratchet
+#    fails when its count rises above the BASELINE recorded in its script and in
+#    docs/plan-earnest-parity-round3-gtm.md. The hairline rule above is one of
+#    the sixteen. ⚠️ Never raise a BASELINE to make a commit pass — fix the
+#    finding, or tag it with the audit's `allow-*:` marker and a reason
+#    (docs/ux-standards.md lists them all).
+#
+#    `unresolved-components` reads .nuxt/components.d.ts, written by `pnpm
+#    install` (postinstall: nuxt prepare); if it is missing the audit fails
+#    loudly rather than passing vacuously.
+pnpm audit:all

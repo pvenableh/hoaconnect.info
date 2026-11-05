@@ -51,7 +51,8 @@
  * from growing back.
  *
  * Usage:
- *   pnpm audit:hairline-surfaces           # report
+ *   pnpm audit:hairline-surfaces           # report (always exits 0)
+ *   pnpm audit:hairline-surfaces --check   # the gate — exits 1 above the baseline
  *   pnpm audit:hairline-surfaces --list    # every finding
  *   pnpm audit:hairline-surfaces --json
  */
@@ -267,6 +268,8 @@ interface Finding {
 const args = process.argv.slice(2);
 const wantList = args.includes("--list");
 const wantJson = args.includes("--json");
+// Report mode (the default) never fails; `--check` is the gate — see scripts/lib/audit-kit.ts.
+const wantCheck = args.includes("--check");
 
 // Both the app and the core layer: a component that moved down into `core`
 // carries its hairlines with it, and would otherwise leave the census.
@@ -330,7 +333,7 @@ if (wantJson) {
   console.log(
     JSON.stringify({ baseline: BASELINE, count: findings.length, allowed, skipped, findings }, null, 2),
   );
-  process.exitCode = findings.length > BASELINE || applyGlass.length > 0 ? 1 : 0;
+  if (wantCheck) process.exitCode = findings.length > BASELINE || applyGlass.length > 0 ? 1 : 0;
   process.exit();
 }
 
@@ -347,7 +350,7 @@ if (applyGlass.length) {
   console.error("    border: 0; box-shadow: var(--glass-edge-shadow);");
   for (const h of applyGlass) console.error(`    ${h}`);
   console.error("");
-  process.exitCode = 1;
+  if (wantCheck) process.exitCode = 1;
 }
 
 const n = findings.length;
@@ -360,7 +363,7 @@ if (n > BASELINE) {
   console.error("  It carries the refracted rim; a 1px `border t-border` line is the pre-glass idiom.");
   console.error("  If this box genuinely needs its own hairline, tag it `allow-hairline-surface`.");
   console.error("  Run with --list to see every finding.\n");
-  process.exitCode = 1;
+  if (wantCheck) process.exitCode = 1;
 }
 
 const suffix = n < BASELINE ? `\n  Nice — lower BASELINE in scripts/audit-hairline-surfaces.ts to ${n}.` : "";
