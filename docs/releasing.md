@@ -96,6 +96,15 @@ git push && git push origin v2.1
 1. The next Vercel build bakes the new base in → the app shows `2.1.0`, then `2.1.1`, `2.1.2`… as you keep pushing.
 2. [`.github/workflows/release.yml`](../.github/workflows/release.yml) fires on the tag push and creates a **GitHub Release** named `v2.1`, with notes auto-generated from the commits since the previous tag. That is the engineering changelog; `release-notes.ts` is the resident-facing one. They are different audiences on purpose.
 
+## Lines so far
+
+| Line | Cut | What it was |
+|---|---|---|
+| `2.1` | 2026-11-05 | Earnest Parity Round 3 — reminders, email compliance + the send queue, install/push, channels, Reports PDF, refunds in the ledger |
+| `2.0` | 2026-08-22 | The calmer workspace — content-first sections, liquid glass, charts |
+
+Add a row when you cut a line; the resident-facing words live in `release-notes.ts`.
+
 ## Rules of thumb
 
 | You want… | Do this |

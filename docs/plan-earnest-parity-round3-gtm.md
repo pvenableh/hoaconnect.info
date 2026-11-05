@@ -6,7 +6,7 @@
 > (this plan was written against Earnest `aa44b6b`, 2026-10-14, and HOA Connect
 > `1c96ab4`, 2026-09-11).
 
-**Status:** In progress · **Author:** Peter + Claude · **Date:** 2026-10-24 · **Decisions:** all six open decisions locked on their defaults 2026-10-24 (see §Decisions)
+**Status:** Complete — code shipped on local `main`; operator steps open (see §Round 3 wrap-up) · **Author:** Peter + Claude · **Date:** 2026-10-24 · **Decisions:** all six open decisions locked on their defaults 2026-10-24 (see §Decisions)
 
 ## Status
 
@@ -23,7 +23,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 11 | Phase 6 — PWA and push completion | [x] | Session 11, local `main`, not pushed: the worker registers app-wide (`pwa.client.ts`) with the standalone plugin; `AppInstallCard` on the resident and admin homes (per-build dismissal, iOS steps); manifest `id` / `start_url` / four shortcuts; push `tag` / `badgeCount` / `url` / **actions** (Pay · Add to calendar · Open) from `sendReminder`; `.ics` route; subscription self-heal; `@vite-pwa/nuxt` removed. Gates green, browser 52/52. **Device delivery is Peter's** — `docs/push-verification.md`. Channels' push waits for Phase 7. |
 | 12 | Phase 7 — Channels gap-close | [x] | Session 12, local `main`, not pushed: edit (server-enforced 15 min / managers unlimited / moderation log), notify-on-message (collapsed bell row + per-channel push; author, muted, channel-open, mentioned excluded), DMs as private `dm-…` channels under "Direct", presence heartbeat + "who's here", embedded thread on the request detail and a project Discussion tab. Gates green, browser 32/32. **Operator: run `pnpm add:channel-phase7` BEFORE deploy** (written, not run); push delivery is Peter's. |
 | 13 | Phase 8 — Audit gates and CI | [x] | Session 13, local `main`, not pushed: 16 audits (the existing hairline + 15 ported/re-censused) behind one `pnpm audit:all` (`--check` per audit; report mode otherwise), `pnpm lint` (ESLint 9 flat, 0 errors, warnings capped), lint-staged on staged files, all wired into `.husky/pre-commit` and `ci.yml`; `docs/ux-standards.md`; 120 matcher table tests. Baselines in the Session 13 log. **Surprises:** 4 broken component tags (render nothing), 5 undefined theme classes, 4 native `prompt()`s — so three of the planned gates-at-0 are ratchets. |
-| 14 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
+| 14 | Phase 9 — Launch polish and the GTM checklist | [x] | Session 14, local `main`, not pushed: Phase 8's four cheap ratchets cleared to gates at 0 (4 broken tags, 5 dead classes, the contrast pair, 7 detached promises); one public theme picker; the subscription page on band pricing — and the real bug under it (subscribing never saved `stripe_customer_id`, so the webhook could never activate the org); `default` layout deleted; Reports → PDF; Stripe replay fixtures that caught three refund bugs + an `incomplete`-expires-the-org bug; the reminder tick through its real Directus adapter; 2.1 release note; `docs/gtm-checklist.md`. Gates green, browser 24/24. |
 
 ### Session log
 
@@ -2475,6 +2475,98 @@ and stop — the programme ends here; write a short "Round 3 wrap-up" with what
 is open for Peter (push, deploy order, the schema scripts, device verification).
 One phase per session.
 ```
+
+**Session 14 — Phase 9: Launch polish and the GTM checklist** (2026-11-05) — local, on `main`, Opus 5.5 at effort high.
+No subagents (each piece was a handful of files). Two code commits (`ff4f489` the Phase 8 findings, `2a6e202` the rest) plus this docs commit.
+
+Shipped:
+
+- **Phase 8's findings, as bugs** (`ff4f489`). `unresolved-components` 4 → 0 (`<FeedItem>`, `<ModerationQueue>`, `<InvitationAcceptForm>`,
+  and `<LandingBuilderSiteSettingsPanel>` — so the landing builder's **Site settings dialog had never rendered**, which is where §9.1's
+  one theme picker lives); `dead-theme-classes` 5 → 0; `contrast-pairs` 1 → 0 (light button hover `#008fbb` → `#00668a`, 6.43:1 — hover
+  now darkens in light mode); `detached-promises` 7 → 0 (RAG reindex in the Directus proxy and documents/publish awaited via
+  `allSettled`, both change-request notifies and the AI comment's `announceEvent` awaited; the context-broker SWR refresh tagged). All
+  four are **gates at 0** now; `docs/ux-standards.md` lists them.
+- **§9.1** `BrandingSettingsForm` loses its Theme card **and stops writing `theme`** (saving branding used to overwrite the builder's
+  choice with the form's stale copy); `account.vue`'s `<ThemeSelector>` is `hide-styles` (light/dark only). `SiteSettingsPanel` is the
+  one place.
+- **§9.2** `settings/subscription.vue` rewritten on band pricing as ONE surface: status, the org's band by unit count, the price per
+  interval (saving computed from the band's own prices, not "Save 20%"), the onboarding line and first-invoice total, the band ladder,
+  contact-only → "Talk to us". Quote from new **`GET /api/org/billing/band`** (admin); charge through **`POST /api/stripe/subscribe-band`**,
+  now admin-gated, band resolved **server-side** from the org's units (the client used to send `units`/`slug`), demo-blocked, refuses
+  a second active subscription, and **persists `stripe_customer_id` before creating the subscription** — the subscription webhook finds
+  the org by that id, so before this a paid subscription never flipped the org to `active`. Both routes run one pure
+  `planBandCheckout` (`core/shared/billing/band-checkout.ts`), so the page cannot quote a price the route won't charge. **Legacy layout:**
+  `layouts/default.vue` deleted; `payments/index`, `payment/confirmation`, plus two pages that fell through to it implicitly
+  (`billing/[accountId]`, `organizations/index`) → `auth`; `setup`, `setup/complete`, `subscription-expired` → `auth-blank` with
+  `useWorkspaceAppearance()` (theme-app, as AuthShell does).
+- **Webhook money fixes** (found writing §9.4's fixtures): (1) `incomplete` / `incomplete_expired` subscriptions mapped to `expired`, so
+  **opening checkout expired a trial org** and an abandoned one did again 23 h later → `orgStatusForStripeSubscription` returns "leave
+  it" for both; (2) `charge.refunded` reversed the **full** payment on every delivery — a replay reversed it twice, a $50 partial refund
+  reversed $250 → `planChargeRefund` applies a **delta** against `net_amount` (cents; replay = 0); (3) a refund processed before
+  `charge.succeeded` was lost → fallback lookup by PaymentIntent, and a late `charge.succeeded` no longer resets `net_amount`;
+  (4) a refund to $0 left the charge `partially_paid` → `requestStatusAfter` (active, or overdue past due; `paid_at` cleared);
+  (5) refunds never reached the Community Ledger → new **`payment_refunded`** event (board-only, a correction entry; the payment row is
+  never rewritten).
+- **§9.3** Finances → Reports → **PDF**: `buildFinancialReportDoc` (pure, the same numbers as the screen/CSVs: KPIs, monthly with opening
+  balance + totals, categories with share, aging with totals) drawn by `useReportPdf` — jsPDF + jspdf-autotable **lazy-imported** on click,
+  vector text, letter, page numbers. New deps: `jspdf`, `jspdf-autotable`.
+- **§9.4 tests** (+58, vitest 142 files / 2,462): `tests/server/stripe-webhook-replay.test.ts` — 8 Stripe event fixtures
+  (`tests/server/fixtures/stripe/`) delivered as raw bytes to the real handler on **`MemoryDirectus`** (`tests/server/support/memory-directus.ts`:
+  stateful, filter operators, UNIQUE fields), asserting the transaction, the charge, the ledger rows and the receipt after every
+  replay; **6 of its 12 tests fail on the pre-Phase-9 webhook**. `tests/server/reminder-tick-directus.test.ts` — the tick through the
+  real `directusReminderStore` (claim before send, stamps, re-run, overlapping runs on the UNIQUE index, dry run, rule off). Pure:
+  `tests/shared/billing-phase9.test.ts`, `tests/shared/report-pdf.test.ts`. The send queue already had runtime tests on a fake
+  Directus (`email-continue-sends`, kill matrix) — not duplicated.
+- **§9.5** 2.1 release note ("What's new", six highlights for the round); `docs/releasing.md` gains a "Lines so far" table;
+  `package.json` → `2.1.0` and local tag `v2.1` (not pushed).
+- **§9.6** `docs/gtm-checklist.md` — one line per decision/action, where, and how to know it worked; `go-live-checklist.md` stays as
+  the deep-dive it links to.
+- **Ratchets lowered:** `color-literals` 639 → 609, `raw-buttons` 318 → 313, `settings-boxes` 31 → 24; ESLint `--max-warnings` 149 → 148.
+
+Deviations, with reasons:
+
+1. **The webhook got real fixes, not just tests.** §9.4 asked for fixtures; writing them found five money bugs (above), and a fixture
+   that asserts the wrong ledger is worse than none.
+2. **`/api/stripe/subscription` (per-plan) kept** — `Payment/SubscriptionForm.vue` (signup) still uses it and `setup-organization`
+   persists that customer. It is unauthenticated; retire it when signup moves to bands (in the GTM checklist §8).
+3. **Native `prompt()` ×4 and `heading-labels` ×3 not touched** — not in the kickoff's list; `useConfirm` has no input mode.
+4. **RAG reindex is now awaited** in the Directus proxy and document publish: correctness over latency (Vercel froze the detached embed,
+   so documents silently never reached the index). A slow Voyage now slows those saves; noted in the GTM checklist.
+5. **The quote UI was verified by API, not by eye** — the demo org is a free account, so the page correctly shows no quote. The quote
+   route was checked from the signed-in page (200, 4 units → Boutique, 5 bands; 403 with no session) and the money logic is unit-tested.
+6. **Multi-charge refunds** reverse against the transaction's first linked charge only (the `charge_ids` split is not unwound). Rare;
+   recorded.
+
+Gates (final tree): vitest **142 files / 2,462** (from 138 / 2,404); `pnpm audit:all` 16/16 green (8 gates at 0); `pnpm lint` 0 errors /
+148 warnings; typecheck 0 `error TS`; `pnpm build` exit 0; browser `scripts/browser/verify-p9-launch.cjs` **24/24** (light + dark:
+subscription surface, quote route + auth, `/payments` in `auth`, `/subscription-expired` chromeless in theme-app, Reports → a real
+4.3 KB PDF named `<org>-financial-report-<date>.pdf`, no page errors). `pdftotext` on it shows the KPI row and the aging table.
+
+Operator TODOs (Peter): all in `docs/gtm-checklist.md` and the wrap-up below.
+
+### Round 3 wrap-up (2026-11-05)
+
+Round 3 is **code-complete on local `main`** — Phases 0–9, 14 sessions. What is open is Peter's, in this order:
+
+1. **Push `main` and the tag** — `git push && git push origin v2.1`. CI runs lint + all 16 audits for the first time. Nothing from
+   Sessions 2–14 is on the remote yet.
+2. **Schema scripts against prod Directus BEFORE that deploy goes live** (each idempotent; each route degrades safely until it runs):
+   `pnpm add:email-send-queue` (Phase 3b + the Phase 4 fields) → `pnpm create:reminder-log` → `pnpm add:channel-phase7` →
+   `pnpm generate:types`. `add:user-app-prefs` and `add:email-compliance` already ran (2026-11-03).
+3. **Stripe**: `pnpm stripe:subscription-prices` in test and live; Connect activation per `connect-activation-runbook.md`; confirm the
+   webhook endpoint subscribes to `charge.refunded` and `customer.subscription.*`; one test-mode band subscription (`trial → active`)
+   and one refund round trip (`gtm-checklist.md` §3).
+4. **Email**: `SENDGRID_WEBHOOK_PUBLIC_KEY` set (signatures enforced), `OUTBOUND_EMAIL_ONLY_TO` absent from Production, one `--real`
+   queued send.
+5. **Devices**: VAPID in production, then every row of `docs/push-verification.md` (incl. channels) on an installed iPhone and Android,
+   and a DM between two logins.
+6. **Funding**: Anthropic credit and `VOYAGE_API_KEY` on Vercel.
+7. **Content and data**: one support inbox (`.com` vs `.info`), privacy policy → `/<slug>/profile#email`, status page, demo orgs
+   re-seeded on the new shell, reminders turned on per pilot community, the transition fixture deleted when done with it.
+
+Still open in code, recorded rather than built: Q4 "resend unknown" and copy overrides (Phase 4); prettier (no `.prettierrc`; Phase 8);
+four `prompt()`s; multi-charge refund unwinding; the unauthenticated per-plan subscription route.
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
 
