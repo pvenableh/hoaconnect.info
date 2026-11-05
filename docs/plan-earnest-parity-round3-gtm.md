@@ -22,7 +22,7 @@ Legend: `[ ]` not started · `[~]` in progress / partially shipped · `[x]` ship
 | 9–10 | Phase 5 — Reminders: **5a** engine (Opus), **5b** templates, settings, events (Sonnet) | [x] | **5a [x]** (session 9, local `main`, not pushed): `hoa_reminder_log` (`reminder_key` UNIQUE — the insert is the claim, before the send), `hoa_organizations.timezone` (default New York), `settings.reminders` (every rule off until a board turns it on); pure rules for dues / meetings / requests / violations / polls / vendor coverage on the org's clock; the hourly tick `/api/reminders/run` (40 s budget, `?dry=1`); 4 MJML reminder partials (+ preview); digest on the org's zone; the billing worker hands dues to the engine for members with an account. Operator: `pnpm create:reminder-log`. **5b [x]** (session 10, local `main`, not pushed): Settings → Organization → Reminders (per-rule toggle = the board's approval, stamped server-side; stages, lead days, tenants, own wording, send hour, time zone; template preview, "send me a test", a 24-hour dry run), the resident home's **Up next** and "Reminder sent" on `/payments`, and the events — request status, poll opened / closed (same log keys as the tick, so one path sends), payment received, board decision shared; payment overdue and document published were already covered. Operator: turn the rules on per community. |
 | 11 | Phase 6 — PWA and push completion | [x] | Session 11, local `main`, not pushed: the worker registers app-wide (`pwa.client.ts`) with the standalone plugin; `AppInstallCard` on the resident and admin homes (per-build dismissal, iOS steps); manifest `id` / `start_url` / four shortcuts; push `tag` / `badgeCount` / `url` / **actions** (Pay · Add to calendar · Open) from `sendReminder`; `.ics` route; subscription self-heal; `@vite-pwa/nuxt` removed. Gates green, browser 52/52. **Device delivery is Peter's** — `docs/push-verification.md`. Channels' push waits for Phase 7. |
 | 12 | Phase 7 — Channels gap-close | [x] | Session 12, local `main`, not pushed: edit (server-enforced 15 min / managers unlimited / moderation log), notify-on-message (collapsed bell row + per-channel push; author, muted, channel-open, mentioned excluded), DMs as private `dm-…` channels under "Direct", presence heartbeat + "who's here", embedded thread on the request detail and a project Discussion tab. Gates green, browser 32/32. **Operator: run `pnpm add:channel-phase7` BEFORE deploy** (written, not run); push delivery is Peter's. |
-| 13 | Phase 8 — Audit gates and CI | [ ] | Port Earnest's 14 audits in report mode → ratchet → gate. |
+| 13 | Phase 8 — Audit gates and CI | [x] | Session 13, local `main`, not pushed: 16 audits (the existing hairline + 15 ported/re-censused) behind one `pnpm audit:all` (`--check` per audit; report mode otherwise), `pnpm lint` (ESLint 9 flat, 0 errors, warnings capped), lint-staged on staged files, all wired into `.husky/pre-commit` and `ci.yml`; `docs/ux-standards.md`; 120 matcher table tests. Baselines in the Session 13 log. **Surprises:** 4 broken component tags (render nothing), 5 undefined theme classes, 4 native `prompt()`s — so three of the planned gates-at-0 are ratchets. |
 | 14 | Phase 9 — Launch polish and the GTM checklist | [ ] | Nav orphans, settings, tests on the money/send paths, docs. |
 
 ### Session log
@@ -2328,6 +2328,152 @@ Local session: work on main, ask before pushing. When done: update the Status
 row, append Session 13 to the Session log (shipped, deviations, baselines,
 operator TODOs), write the Phase 9 kickoff prompt (Opus 5.5, effort high), and
 stop. One phase per session.
+```
+
+**Session 13 — Phase 8: Audit gates and CI** (2026-11-05) — local, on `main`, Sonnet 5.5 at effort high.
+One Haiku 5.5 census (hit counts per regex, how `t-*` classes are defined, `components.d.ts` shape). Earnest read only at the
+names/regexes of its audit scripts, `eslint.config.js`, `lint-staged.config.js`. The audits were written fresh on a shared kit
+rather than copied: Earnest's scripts are 100–600 lines each, hard-coded to its spelling (`ECard`, `app/components/apps/…`).
+
+Shipped:
+
+- **`scripts/lib/audit-kit.ts`** — the one runtime every audit uses. Report mode (default, always exit 0) → `--list` / `--top` /
+  `--json` → **`--check`**, the gate (exit 1 above the baseline). `runFileAudit` is the common case: tracked files → a pure matcher →
+  count vs `BASELINE`. `blankComments` (line numbers kept), `hasMarker` (the `allow-*:` escape), `isVendoredUi`.
+- **`scripts/lib/audit-matchers.ts`** — every rule as a **pure function** (source in → `{line, text}[]` out), so it is table-tested
+  without git. **`scripts/lib/contrast.ts`** — hex/rgb/hsl/`var()`/`light-dark()` resolver + WCAG ratio.
+- **16 audits**, each `scripts/audit-<name>.ts` (a dozen lines) + `pnpm audit:<name>`: `hairline-surfaces` (existing; gained
+  `--check`), `native-dialogs`, `raw-date-inputs`, `color-literals`, `css-colors`, `dead-theme-classes`, `unresolved-components`,
+  `contrast-pairs`, `heading-labels`, `raw-buttons`, `type-scale`, `overlay-boxes`, `settings-boxes`, `empty-states`, `vue-global`,
+  `detached-promises`. **`pnpm audit:all`** (`scripts/audit-all.ts`) runs them in parallel with `--check`, ~10 s — the single command
+  the hook and CI call, so adding an audit is one line in `AUDITS`.
+- **ESLint 9 flat config** (`eslint.config.js`) + **lint-staged** (`lint-staged.config.cjs`) — see deviations 3–4. `pnpm lint` = 0 errors,
+  149 warnings, capped by `--max-warnings 149`. New devDeps: `eslint`, `@eslint/js`, `globals`, `typescript-eslint`,
+  `eslint-plugin-vue`, `vue-eslint-parser`, `eslint-config-prettier`, `eslint-plugin-prettier` (installed, unused — see 4), `lint-staged`.
+- **`.husky/pre-commit`**: `npx lint-staged` then `pnpm audit:all` (replacing the lone hairline line). **`ci.yml`**: Lint → Audits
+  (`pnpm audit:all`) → Unit tests → Typecheck → Build; `postinstall` (`nuxt prepare`) is what writes `.nuxt/components.d.ts` for
+  `unresolved-components`. CI is red on any gate or any ratchet above its baseline.
+- **`docs/ux-standards.md`** — the one-page digest: the rule per concern, the audit that enforces it, every `allow-*:` marker, scope
+  notes, how to add an audit.
+- **Tests** — `tests/scripts/audit-matchers.test.ts`, **120**: a hit, a near miss and the allow marker for each matcher, plus the
+  contrast maths. Writing them found three real matcher bugs before they shipped (a `\btype` that matched `input-type="date"`; a
+  lookbehind that hid every `hover:t-…` use from `dead-theme-classes`; a backtracking `\s*` that flagged `font-size: var(--x)`).
+
+**Baselines (measured 2026-11-05; each is the `BASELINE` in its script — a ratchet only goes down):**
+
+| Audit | Kind | Baseline | What the count is |
+|---|---|---|---|
+| `hairline-surfaces` | gate | **0** | unchanged; its `@apply glass-*` half is a gate too |
+| `raw-date-inputs` | gate | **0** | 0 from day one (`type="time"` ×1 deliberately out of scope — no shared time picker) |
+| `vue-global` | gate | **0** | 0 from day one |
+| `native-dialogs` | ratchet | **4** | four `prompt()`s — ChannelMessage (report reason), ProjectGantt ×2, approvals reject note. `confirm`/`alert` really are 0 |
+| `dead-theme-classes` | ratchet | **5** | `t-card-flat` ×3, `t-hover-bg` ×2 (MemberDocumentsPage, documents/[id]) — styled by nothing |
+| `unresolved-components` | ratchet | **4** | **real bugs**: `<FeedFeedItem>`, `<LandingBuilderSiteSettings>`, `<ModerationModerationQueue>`, `<HoaInvitationAcceptForm>` render as unknown elements |
+| `contrast-pairs` | ratchet | **1** | white on `--theme-button-hover-bg` (#008fbb) is 3.72:1 in light mode; 73 other pair×mode combinations pass |
+| `heading-labels` | ratchet | **3** | Footer `h4`, rules/index `h2`, vendors/index `h2` |
+| `detached-promises` | ratchet | **7** | items.post ×2, documents/publish, ai-actions, context-broker, change-requests decide + index |
+| `overlay-boxes` | ratchet | **27** | boxes inside overlays (StorageManagerPage, UsersPage the biggest) |
+| `settings-boxes` | ratchet | **31** | second-and-later boxes in settings files (`settings/subscription.vue` most) |
+| `empty-states` | ratchet | **55** | bare "No X yet" outside `AppEmptyState` |
+| `css-colors` | ratchet | **222** | literals in rules, token definitions excluded |
+| `type-scale` | ratchet | **300** | `text-[Npx]` / `leading-[Npx]` / `font-size: Npx` |
+| `raw-buttons` | ratchet | **318** | outside `ui/button` and 7 shell primitives |
+| `color-literals` | ratchet | **639** | palette classes + `bg-white/black`, public surfaces and `ui/` excluded |
+
+**Proved red:** for each of the 16 audits a deliberate violation was added to a clean tracked file, `--check` exited 1 with
+the count one over its baseline, and the file was restored (verified `git status`). `contrast-pairs` was proved by lightening
+`--theme-text-muted` (1 → 4 findings).
+
+Deviations, with reasons:
+
+1. **Three planned gates-at-0 are ratchets.** The plan said `native-dialogs`, `dead-theme-classes`, `unresolved-components` start at 0.
+   They don't (4, 5, 4) and the kickoff said to say so. Findings are recorded, not fixed (Phase 8's rule); each note in the script says
+   what clears it. The 4 broken component tags and 5 undefined classes are cheap, real bugs — a good first thing for Phase 9.
+2. **15 new audits, not 14.** The plan's table has 14 rows, but `overlay-boxes` / `settings-boxes` share one row and are two scripts
+   (as in Earnest), and `hairline-surfaces` already existed — so 16 total behind `audit:all`.
+3. **ESLint is trimmed hard.** No `prettier/prettier` rule and no `padding-line-between-statements` set: HOA has no committed prettier
+   config, so they would report formatting on nearly every file. Rules the tree violates are `warn`, and `vue/attributes-order`
+   (362 hits) is off. `vue/no-restricted-html-elements` for `<button>` was not ported — `audit:raw-buttons` is the measured version.
+   Two empty-`<template>` SFCs (`Announcement/Toast`, `Notification/Toast`, `vue/valid-template-root`) are warnings pending a look.
+4. **lint-staged runs ESLint, not prettier** (a prettier run with no config would reformat each touched file to defaults). The package
+   is `"type": "module"`, so the config is `lint-staged.config.cjs`. `eslint-plugin-prettier` was installed per the port but is not
+   referenced; remove it if you don't plan to add a prettier config. **Add `.prettierrc` first**, then prettier can come back.
+5. **`color-literals` excludes public surfaces by path** (`Marketing/`, `Org/Landing/`, `LandingBuilder/`, a few marketing pages) —
+   they carry their own palette; so does `ui/` everywhere. `bg-white`/`bg-black` count as palette classes.
+6. **`raw-buttons` exempts 7 shell primitives** (Dock, Nav, AppLibrary, SegmentedControl, BottomSheet, SlideOverShell, DataTable),
+   asserted to exist so a rename can't silently void it. No `App/*Button*` exists; the tier components are `ui/button` and
+   `ui/ActionButton`.
+7. **Component-aware box expansion was not ported.** Earnest's `overlay-boxes` follows imports two levels into mounted children; this
+   reads an overlay-named file whole, or the element of an overlay primitive inside any other file. It will under-count a card in a
+   component that is only ever mounted inside a sheet — a known gap, recorded rather than modelled.
+8. **`audit:hairline-surfaces` no longer fails without `--check`** (consistent with the other 15). Anything that called it directly
+   for its exit code must add the flag; the hook and CI call `audit:all`.
+9. **`heading-labels` is stricter than the census regex** (3 vs ~32): a heading must be BOTH uppercase/tracked AND at caption size.
+
+Gates (final tree):
+- vitest **138 files / 2,404 tests** (from 137 / 2,284 — +120);
+- `pnpm audit:all` 16/16 green; `pnpm lint` 0 errors / 149 warnings;
+- typecheck 0 (`error TS`); `pnpm build` exit 0.
+
+**Not verified:** `ci.yml` is edited, not run — it needs a push. The husky hook (lint-staged → `audit:all`) did run for real on this
+session's own code commit (`6ab3377`) and passed. No browser work this phase.
+
+Operator TODOs (Peter):
+
+- [ ] **Push is yours** (this session's code + docs commits on local `main`). CI will run `pnpm lint` and `pnpm audit:all` for the first time.
+- [ ] Still open from Sessions 11–12: **run `pnpm add:channel-phase7`** then `pnpm generate:types` (the schema script has since been run per your note — confirm `is_dm` / `present_at` are live), channel rows in `docs/push-verification.md`, a DM between two logins.
+- [ ] Decide whether to add a `.prettierrc` (and then prettier to lint-staged) — the repo's de-facto style is double quotes, 2 spaces, ~120 columns.
+- [ ] Still open from Sessions 7–11 (unchanged).
+
+#### Phase 9 — kickoff prompt (Opus 5.5, effort high)
+
+```
+Continue the Earnest Parity Round 3 programme for HOA Connect. Read
+docs/plan-earnest-parity-round3-gtm.md first — only these parts: the Status
+table, the Session log entry for Session 13 (Phase 8: shipped, baselines,
+deviations, operator TODOs), §Token budget, and §9. Do not read the Session log
+before Session 13, or docs/spec-email-send-queue.md, and never open
+docs/plan-earnest-parity-round2.md. Read docs/ux-standards.md (one page) — the
+audits it describes now run in the pre-commit hook and CI, so every change this
+session must leave `pnpm audit:all` and `pnpm lint` green WITHOUT raising a
+baseline; lower a baseline in the same commit when you fix findings.
+
+This session = Phase 9 (Launch polish and the GTM checklist) ONLY, on Opus 5.5
+at effort high. Deliverables are §9's six items. Start with the cheap, real
+findings Phase 8 recorded, because they are bugs and they lower baselines:
+  - 4 unresolved component tags (<FeedFeedItem>, <LandingBuilderSiteSettings>,
+    <ModerationModerationQueue>, <HoaInvitationAcceptForm>) → rename to what
+    .nuxt/components.d.ts actually exports; baseline 4 → 0, then make
+    audit-unresolved-components a gate at 0 (BASELINE = 0 already means that);
+  - 5 undefined theme classes (t-card-flat ×3, t-hover-bg ×2) → 5 → 0;
+  - the contrast failure (white on --theme-button-hover-bg, 3.72:1) → 1 → 0;
+  - the 7 detached promises in server routes (Vercel freezes the function) → await
+    or tag `allow-detached-promise: <why it wins its race>`.
+Phase 8's Session 13 log also records ESLint's 149 warnings (--max-warnings) —
+lower that cap if you touch those files.
+
+Items worth care: §9.2 (settings/subscription.vue reconciled with band pricing;
+legacy layouts/default.vue pages moved to auth/auth-blank, layout deleted — note
+settings/subscription.vue is also the worst offender for audit:settings-boxes,
+so expect that baseline to drop), §9.4 (Stripe webhook replay fixtures for
+payment_intent.succeeded, charge.refunded, account.updated and the ledger
+write; runtime tests for the send queue and the reminder tick against a fake
+Directus — the highest-risk gap in ROADMAP). §9.6 is a new docs/gtm-checklist.md.
+
+Tests: webhook replay fixtures are the point of §9.4 — assert the ledger row and
+the idempotency on a replayed event, not just the status code. Gates in the
+background, tail only: `pnpm test | tail -6`; `pnpm audit:all`; `pnpm lint`;
+typecheck with NODE_OPTIONS=--max-old-space-size=6144 into a log, grep
+`error TS`; build into a log, grep exit. Browser (Playwright) only for the
+reports PDF export and the subscription page, with
+`NODE_PATH`-resolved playwright (never install it without asking Peter);
+screenshots read only on failure.
+
+Local session: work on main, ask before pushing. When done: update the Status
+row, append Session 14 to the Session log (shipped, deviations, operator TODOs),
+and stop — the programme ends here; write a short "Round 3 wrap-up" with what
+is open for Peter (push, deploy order, the schema scripts, device verification).
+One phase per session.
 ```
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
