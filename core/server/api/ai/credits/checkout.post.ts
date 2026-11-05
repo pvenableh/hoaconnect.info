@@ -4,6 +4,7 @@
 // browser tab can't lose a paid top-up. Returns the hosted Checkout URL.
 
 import { packById } from "#core/shared/ai/credits";
+import { STRIPE_APP } from "#core/shared/billing/stripe-app";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -28,6 +29,7 @@ export default defineEventHandler(async (event) => {
   const base = (useRuntimeConfig().public.appUrl as string) || "http://localhost:3000";
 
   const meta = {
+    app: STRIPE_APP,
     kind: "ai_credits",
     org_id: orgId,
     pack_id: pack.id,

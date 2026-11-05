@@ -137,3 +137,32 @@ describe("payment_refunded ledger entry", () => {
     expect(buildPaymentRefundedEntry({ ...base, payment: { ...base.payment, amount: 0 }, fullyRefunded: true })).toBeNull();
   });
 });
+
+// HOA Connect runs on Hue's shared Stripe account: only our objects are booked.
+import { appCustomerSearchQuery, appMetadata, isHoaConnectObject, STRIPE_APP } from "#core/shared/billing/stripe-app";
+
+describe("stripe-app (Hue's shared account)", () => {
+  it("appMetadata tags, stringifies, drops nulls, and the tag can't be overridden", () => {
+    expect(appMetadata({ organization_id: "o1", units: 4, gone: null, app: "other" } as any)).toEqual({
+      app: STRIPE_APP,
+      organization_id: "o1",
+      units: "4",
+    });
+  });
+
+  it.each([
+    [{ app: "hoaconnect" }, true],
+    [{ organization_id: "o1" }, true],
+    [{ kind: "ai_credits", org_id: "o1" }, true],
+    [{ billing_account_id: "b1" }, true],
+    [{ band_slug: "boutique" }, true],
+    [{ organization_id: "" }, false],
+    [{ app: "hue-studio", order: "42" }, false],
+    [{}, false],
+    [null, false],
+  ])("%o → %s", (metadata, want) => expect(isHoaConnectObject(metadata as any)).toBe(want));
+
+  it("the customer search is scoped to the app and escapes quotes", () => {
+    expect(appCustomerSearchQuery("o'neil@example.com")).toBe("email:'o\\'neil@example.com' AND metadata['app']:'hoaconnect'");
+  });
+});

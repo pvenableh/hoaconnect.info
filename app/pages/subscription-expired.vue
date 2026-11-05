@@ -220,8 +220,8 @@ const statusMessage = computed(() => {
         <div class="px-8 py-4 t-bg-subtle border-t t-border">
           <p class="text-xs t-text-muted text-center">
             Need help? Contact us at
-            <a href="mailto:support@hoaconnect.com" class="text-blue-600 hover:text-blue-700">
-              support@hoaconnect.com
+            <a href="mailto:support@hoaconnect.info" class="text-blue-600 hover:text-blue-700">
+              support@hoaconnect.info
             </a>
           </p>
         </div>

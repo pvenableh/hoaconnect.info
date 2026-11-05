@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { STRIPE_APP } from '#core/shared/billing/stripe-app';
 import { z } from 'zod';
 import { readItem } from '@directus/sdk';
 // getTypedDirectus is auto-imported from server/utils/directus.ts
@@ -78,6 +79,7 @@ export default defineEventHandler(async (event) => {
 			receipt_email: validatedData.email,
 			statement_descriptor: config.public.companyName?.substring(0, 22) || 'HOA Connect',
 			metadata: {
+				app: STRIPE_APP, // the Stripe account is Hue's, shared — the webhook books only tagged/org intents
 				environment: process.env.NODE_ENV || 'development',
 				created_at: new Date().toISOString(),
 				organization_id: validatedData.organizationId || '',

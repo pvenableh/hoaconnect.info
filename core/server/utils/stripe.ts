@@ -3,6 +3,7 @@
 // /api/stripe/* routes use (test key off prod NODE_ENV, pinned apiVersion),
 // in one place so the agency billing-account routes don't duplicate it.
 import Stripe from "stripe";
+import { appCustomerSearchQuery, appMetadata } from "#core/shared/billing/stripe-app";
 
 // Keep in lockstep with the existing routes (subscription.post.ts,
 // webhook.post.ts) so a single account/customer graph is spoken to consistently.
@@ -60,5 +61,26 @@ export function getStripe(): Stripe {
   return new Stripe(getStripeSecretKey(), {
     apiVersion: STRIPE_API_VERSION,
     typescript: true,
+  });
+}
+
+/**
+ * Find-or-create a Stripe customer that is HOA Connect's. The account is Hue's
+ * and shared (see core/shared/billing/stripe-app.ts), so a plain
+ * `customers.list({ email })` could hand back a customer of another Hue
+ * product and hang an HOA subscription off it. Search is scoped by the app tag;
+ * Stripe Search is eventually consistent (~1 min), so the worst case is a
+ * second HOA Connect customer for the same email — never someone else's.
+ */
+export async function findOrCreateAppCustomer(
+  stripe: Stripe,
+  input: { email: string; name?: string | null; metadata?: Record<string, string | number | null | undefined> }
+): Promise<Stripe.Customer> {
+  const found = await stripe.customers.search({ query: appCustomerSearchQuery(input.email), limit: 1 });
+  if (found.data[0]) return found.data[0];
+  return stripe.customers.create({
+    email: input.email,
+    name: input.name || undefined,
+    metadata: appMetadata(input.metadata ?? {}),
   });
 }

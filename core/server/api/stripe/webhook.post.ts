@@ -5,6 +5,7 @@ import type { PaymentTransaction } from '#core/types/directus';
 import { buildPaymentRecordedEntry, buildPaymentRefundedEntry } from '#core/shared/ledger/entries';
 import { planChargeRefund, requestStatusAfter } from '#core/shared/billing/refund';
 import { orgStatusForStripeSubscription } from '#core/shared/billing/subscription-status';
+import { isHoaConnectObject } from '#core/shared/billing/stripe-app';
 // Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
@@ -74,6 +75,20 @@ export default defineEventHandler(async (event) => {
 
 		// Initialize Directus client with admin access (webhooks have no user session)
 		const directus = getTypedDirectus();
+
+		// The Stripe account is Hue's and shared with Hue's other products
+		// (core/shared/billing/stripe-app.ts). A PaymentIntent that isn't HOA
+		// Connect's — another product's sale, or this app's own subscription
+		// invoices (handled by the invoice/subscription events) — is acknowledged
+		// and never booked as a community's payment. Charges and refunds need no
+		// gate: they only ever touch transactions booked here.
+		if (stripeEvent.type.startsWith('payment_intent.')) {
+			const pi = stripeEvent.data.object as Stripe.PaymentIntent;
+			if (!isHoaConnectObject(pi.metadata)) {
+				console.log(`Ignoring ${stripeEvent.type} ${pi.id}: not an HOA Connect payment`);
+				return { received: true, ignored: 'not_hoaconnect' };
+			}
+		}
 
 		// Handle different event types
 		switch (stripeEvent.type) {

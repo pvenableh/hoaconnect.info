@@ -431,6 +431,7 @@ async function runAutopay(org: OrgRow, charges: ChargeRow[], members: Map<string
           description: `Autopay ${AS_OF} — ${org.name ?? org.slug}`,
           receipt_email: who?.email || undefined,
           metadata: {
+            app: "hoaconnect", // Hue's shared Stripe account — see core/shared/billing/stripe-app.ts
             organization_id: org.id,
             member_id: run.member,
             charge_ids: run.charges.join(","),

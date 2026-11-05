@@ -269,7 +269,7 @@ const handleManageBilling = async () => {
             <p class="text-sm t-text-secondary">
               Communities this size are priced with us directly — onboarding, migration and support are tailored.
             </p>
-            <Button as="a" href="mailto:support@hoaconnect.com?subject=Subscription%20pricing" variant="outline">
+            <Button as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
               Talk to us
             </Button>
           </div>
@@ -305,7 +305,7 @@ const handleManageBilling = async () => {
       <div class="p-6">
         <p class="font-medium t-text mb-1">Need help?</p>
         <p class="text-sm t-text-secondary mb-3">Questions about billing, or a change to your subscription?</p>
-        <Button as="a" href="mailto:support@hoaconnect.com" variant="link" class="px-0">Contact support</Button>
+        <Button as="a" href="mailto:support@hoaconnect.info" variant="link" class="px-0">Contact support</Button>
       </div>
     </section>
 

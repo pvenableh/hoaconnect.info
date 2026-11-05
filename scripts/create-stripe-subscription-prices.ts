@@ -15,12 +15,19 @@
  * (hoa_<slug>_<monthly|annual|onboarding>); existing ones are reused, and the
  * Directus row is updated only when the stored id differs.
  *
+ * The Stripe account is HUE's: Hue is the business and HOA Connect one of its
+ * products (2026-11-05). Every product and price is tagged `metadata.app =
+ * "hoaconnect"` and named "HOA Connect — <band>", and subscription charges read
+ * "HUE HOA CONNECT" on a card statement. The script prints which account it is
+ * writing to before it writes anything.
+ *
  * Mode: defaults to TEST. Pass `--mode=live` to use the live key (real catalog).
  *
  *   pnpm stripe:subscription-prices            # test mode
  *   pnpm stripe:subscription-prices --mode=live
  *
- * Env: DIRECTUS_URL, DIRECTUS_STATIC_TOKEN, STRIPE_SECRET_KEY_TEST / _LIVE.
+ * Env: DIRECTUS_URL, DIRECTUS_STATIC_TOKEN, STRIPE_SECRET_KEY_TEST / _LIVE (Hue's keys).
+ * Optional STRIPE_EXPECT_ACCOUNT=acct_… refuses to write to any other account.
  */
 
 import Stripe from "stripe";
@@ -72,16 +79,36 @@ interface BandRow {
   stripe_price_id_onboarding: string | null;
 }
 
-/** Find-or-create the product for a band (idempotent via metadata.band_slug). */
+const APP = "hoaconnect";
+/** Card-statement text for subscription charges (5–22 chars, no <>\\'"*). */
+const STATEMENT_DESCRIPTOR = "HUE HOA CONNECT";
+
+/**
+ * Find-or-create the product for a band (idempotent via metadata.band_slug).
+ * A product found from an earlier run without the app tag / name / descriptor
+ * is brought up to date rather than duplicated.
+ */
 async function ensureProduct(band: BandRow): Promise<Stripe.Product> {
   const found = await stripe.products.search({
     query: `metadata['band_slug']:'${band.slug}' AND active:'true'`,
     limit: 1,
   });
-  if (found.data[0]) return found.data[0];
+  const name = `HOA Connect — ${band.name}`;
+  const existing = found.data[0];
+  if (existing) {
+    if (existing.metadata?.app !== APP || existing.name !== name || existing.statement_descriptor !== STATEMENT_DESCRIPTOR) {
+      return stripe.products.update(existing.id, {
+        name,
+        statement_descriptor: STATEMENT_DESCRIPTOR,
+        metadata: { ...existing.metadata, app: APP, band_slug: band.slug },
+      });
+    }
+    return existing;
+  }
   return stripe.products.create({
-    name: `HOA Connect — ${band.name}`,
-    metadata: { band_slug: band.slug },
+    name,
+    statement_descriptor: STATEMENT_DESCRIPTOR,
+    metadata: { app: APP, band_slug: band.slug },
   });
 }
 
@@ -100,6 +127,23 @@ function toCents(usd: number): number {
 }
 
 async function main() {
+  // Say WHICH account before writing anything: the catalog belongs on Hue's.
+  let account: Stripe.Account;
+  try {
+    account = await stripe.accounts.retrieve();
+  } catch (err: any) {
+    const which = MODE === "live" ? "STRIPE_SECRET_KEY_LIVE" : "STRIPE_SECRET_KEY_TEST";
+    console.error(`❌ Stripe rejected ${which}: ${err?.message ?? err}`);
+    console.error(`   Put Hue's ${MODE}-mode secret key (Developers → API keys, ${MODE} mode) in .env as ${which}.`);
+    process.exit(1);
+  }
+  const accountName = account.settings?.dashboard?.display_name || account.business_profile?.name || "(unnamed)";
+  console.log(`🏦 Stripe account: ${accountName} (${account.id}) — ${MODE.toUpperCase()} mode`);
+  if (process.env.STRIPE_EXPECT_ACCOUNT && process.env.STRIPE_EXPECT_ACCOUNT !== account.id) {
+    console.error(`❌ Expected ${process.env.STRIPE_EXPECT_ACCOUNT} (STRIPE_EXPECT_ACCOUNT). Nothing written.`);
+    process.exit(1);
+  }
+
   console.log(`🚀 Creating Stripe ${MODE.toUpperCase()} prices for flat-per-building bands...\n`);
 
   const res = (await directusFetch(
@@ -121,7 +165,7 @@ async function main() {
       currency: "usd",
       unit_amount: toCents(Number(band.price_monthly)),
       recurring: { interval: "month" },
-      metadata: { band_slug: band.slug, kind: "subscription_monthly" },
+      metadata: { app: APP, band_slug: band.slug, kind: "subscription_monthly" },
     });
 
     const annual = await ensurePrice(`hoa_${band.slug}_annual`, {
@@ -129,7 +173,7 @@ async function main() {
       currency: "usd",
       unit_amount: toCents(Number(band.price_yearly ?? Number(band.price_monthly) * 10)),
       recurring: { interval: "year" },
-      metadata: { band_slug: band.slug, kind: "subscription_annual" },
+      metadata: { app: APP, band_slug: band.slug, kind: "subscription_annual" },
     });
 
     let onboardingId: string | null = band.stripe_price_id_onboarding;
@@ -138,7 +182,7 @@ async function main() {
         product: product.id,
         currency: "usd",
         unit_amount: toCents(Number(band.onboarding_fee)),
-        metadata: { band_slug: band.slug, kind: "onboarding" },
+        metadata: { app: APP, band_slug: band.slug, kind: "onboarding" },
       });
       onboardingId = onboarding.id;
       console.log(`   • onboarding  ${onboarding.id}`);

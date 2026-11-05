@@ -5,6 +5,7 @@
 // One trial per agency. Reuses the SetupIntent (trial) / PaymentIntent (no
 // trial) pattern from /api/stripe/subscription. Owner / billing_admin only.
 import { z } from "zod";
+import { appMetadata } from "#core/shared/billing/stripe-app";
 import Stripe from "stripe";
 import { updateItem } from "@directus/sdk";
 import type { AcaciaInvoice } from "#core/server/utils/stripe";
@@ -59,16 +60,10 @@ export default defineEventHandler(async (event) => {
         message: "Billing account has no owner email to create a Stripe customer",
       });
     }
-    const existing = await stripe.customers.list({ email: ownerEmail, limit: 1 });
-    customerId =
-      existing.data[0]?.id ||
-      (
-        await stripe.customers.create({
-          email: ownerEmail,
-          name: ownerName,
-          metadata: { billing_account_id: accountId },
-        })
-      ).id;
+    // Scoped to HOA Connect's customers — the Stripe account is Hue's, shared.
+    customerId = (
+      await findOrCreateAppCustomer(stripe, { email: ownerEmail, name: ownerName, metadata: { billing_account_id: accountId } })
+    ).id;
   }
 
   // 2. Seat quantity = explicit override, else active property count (min 1).
@@ -81,7 +76,7 @@ export default defineEventHandler(async (event) => {
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.payment_intent", "pending_setup_intent"],
-    metadata: { billing_account_id: accountId },
+    metadata: appMetadata({ billing_account_id: accountId }),
     proration_behavior: "create_prorations",
   };
   if (trialDays && trialDays > 0) params.trial_period_days = trialDays;

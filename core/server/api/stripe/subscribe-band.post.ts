@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { appMetadata } from "#core/shared/billing/stripe-app";
 import { z } from "zod";
 import { readItem, updateItem } from "@directus/sdk";
 import type { AcaciaInvoice } from "#core/server/utils/stripe";
@@ -77,7 +78,7 @@ export default defineEventHandler(async (event) => {
     const customer = await stripe.customers.create({
       email: (session.user as any)?.email || undefined,
       name: org.name || undefined,
-      metadata: { organization_id: organizationId },
+      metadata: appMetadata({ organization_id: organizationId }),
     });
     customerId = customer.id;
     await directus.request(updateItem("hoa_organizations", organizationId, { stripe_customer_id: customerId } as any));
@@ -89,13 +90,13 @@ export default defineEventHandler(async (event) => {
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.payment_intent", "pending_setup_intent"],
-    metadata: {
+    metadata: appMetadata({
       organization_id: organizationId,
       band_slug: band?.slug ?? "",
       units: String(units),
       billing_interval: interval,
       onboarding,
-    },
+    }),
   };
   if (plan.onboardingPriceId) subscriptionParams.add_invoice_items = [{ price: plan.onboardingPriceId }];
 

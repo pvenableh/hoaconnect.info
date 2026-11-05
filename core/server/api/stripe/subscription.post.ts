@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { appMetadata } from '#core/shared/billing/stripe-app';
 import { z } from 'zod';
 import type { AcaciaInvoice } from '#core/server/utils/stripe';
 
@@ -61,23 +62,8 @@ export default defineEventHandler(async (event) => {
 			}
 			customer = retrieved as Stripe.Customer;
 		} else {
-			// Check if customer already exists with this email
-			const existingCustomers = await stripe.customers.list({
-				email,
-				limit: 1,
-			});
-
-			const existingCustomer = existingCustomers.data[0];
-			if (existingCustomer) {
-				customer = existingCustomer;
-			} else {
-				// Create new customer
-				customer = await stripe.customers.create({
-					email,
-					name: name || undefined,
-					metadata: metadata || {},
-				});
-			}
+			// Scoped to HOA Connect's customers — the Stripe account is Hue's, shared.
+			customer = await findOrCreateAppCustomer(stripe, { email, name, metadata: metadata || {} });
 		}
 
 		// Build subscription create params
@@ -89,7 +75,7 @@ export default defineEventHandler(async (event) => {
 				save_default_payment_method: 'on_subscription',
 			},
 			expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
-			metadata: metadata || {},
+			metadata: appMetadata(metadata || {}),
 		};
 
 		// Add trial period if specified

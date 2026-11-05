@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { STRIPE_APP } from "#core/shared/billing/stripe-app";
 import { z } from 'zod';
 import { readItems, createItem, updateItem } from '@directus/sdk';
 // getTypedDirectus, requireMembership, isDemoOrg are auto-imported from server/utils
@@ -95,7 +96,7 @@ export default defineEventHandler(async (event) => {
         {
           email: member?.email || undefined,
           name: [member?.first_name, member?.last_name].filter(Boolean).join(' ') || undefined,
-          metadata: { organization_id: organizationId, member_id: memberId },
+          metadata: { app: STRIPE_APP, organization_id: organizationId, member_id: memberId },
         },
         connected
       );
@@ -109,7 +110,7 @@ export default defineEventHandler(async (event) => {
           customer: customerId,
           payment_method_types: ['card', 'us_bank_account'],
           usage: 'off_session',
-          metadata: { organization_id: organizationId, member_id: memberId },
+          metadata: { app: STRIPE_APP, organization_id: organizationId, member_id: memberId },
         },
         connected
       );

@@ -221,12 +221,22 @@ describe("payment_intent.succeeded", () => {
     });
   });
 
-  it("still records the transaction when the intent carries no org metadata", async () => {
-    await fire("payment_intent.succeeded", paymentIntent({ metadata: {} }));
+  it("records an HOA Connect intent (tagged) even when it carries no org", async () => {
+    await fire("payment_intent.succeeded", paymentIntent({ metadata: { app: "hoaconnect" } }));
 
     const [row] = writes("createItem", "payment_transactions");
     expect(row!.data).toMatchObject({ organization: null, member: null, payment_request: null });
     expect(writes("updateItem", "payment_requests")).toHaveLength(0);
+  });
+
+  it("ignores an intent that isn't HOA Connect's — the Stripe account is Hue's, shared", async () => {
+    for (const metadata of [{}, { app: "hue-studio" }, { organization_id: "" }]) {
+      const res = await fire("payment_intent.succeeded", paymentIntent({ metadata }));
+      expect(res).toEqual({ received: true, ignored: "not_hoaconnect" });
+    }
+    await fire("payment_intent.payment_failed", paymentIntent({ metadata: {} }));
+    expect(commands()).toEqual([]);
+    expect(notifyPaymentReceived).not.toHaveBeenCalled();
   });
 
   it("records a failed intent as a failed transaction (no request credit)", async () => {

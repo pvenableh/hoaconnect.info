@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { appMetadata } from '#core/shared/billing/stripe-app';
 import { z } from 'zod';
 
 // Validation schema for SetupIntent creation
@@ -58,30 +59,15 @@ export default defineEventHandler(async (event) => {
 			}
 			customer = retrieved as Stripe.Customer;
 		} else {
-			// Check if customer already exists with this email
-			const existingCustomers = await stripe.customers.list({
-				email,
-				limit: 1,
-			});
-
-			const existingCustomer = existingCustomers.data[0];
-			if (existingCustomer) {
-				customer = existingCustomer;
-			} else {
-				// Create new customer
-				customer = await stripe.customers.create({
-					email,
-					name: name || undefined,
-					metadata: metadata || {},
-				});
-			}
+			// Scoped to HOA Connect's customers — the Stripe account is Hue's, shared.
+			customer = await findOrCreateAppCustomer(stripe, { email, name, metadata: metadata || {} });
 		}
 
 		// Create SetupIntent for future payments
 		const setupIntent = await stripe.setupIntents.create({
 			customer: customer.id,
 			payment_method_types: ['card', 'us_bank_account'],
-			metadata: metadata || {},
+			metadata: appMetadata(metadata || {}),
 		});
 
 		return {
