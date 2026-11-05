@@ -94,6 +94,7 @@ export default defineEventHandler(async (event) => {
   const published: string[] = [];
   const summaries: string[] = [];
   let recordError: string | null = null;
+  const ragIngests: Promise<unknown>[] = [];
 
   for (const row of rows) {
     const occurredAt = new Date().toISOString();
@@ -126,8 +127,9 @@ export default defineEventHandler(async (event) => {
     // The generic Directus proxy reindexes RAG on every write, and `ingestItem`
     // only indexes PUBLISHED documents — so a document created as a draft and
     // published here would never reach the index if this call were missing.
-    // Best-effort and non-blocking, exactly as the proxy does it.
-    if (isRagConfigured()) void ingestItem("hoa_documents", String(row.id)).catch(() => {});
+    // Best-effort (allSettled below), but awaited before the response: Vercel
+    // freezes the function once it has answered, so a detached embed never ran.
+    if (isRagConfigured()) ragIngests.push(ingestItem("hoa_documents", String(row.id)));
 
     // The document is public now. If the entry fails, say so rather than
     // reporting a clean success on a history with a hole in it — and keep
@@ -141,6 +143,8 @@ export default defineEventHandler(async (event) => {
         e?.message || "The document was published but could not be recorded in the ledger.";
     }
   }
+
+  await Promise.allSettled(ragIngests);
 
   // The community learns its library grew. Batched into ONE notification: a
   // ten-document upload is one event to a member, not ten bell rows — and the

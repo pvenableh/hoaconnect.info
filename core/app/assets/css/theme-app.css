@@ -113,7 +113,7 @@ html.theme-app {
 	--theme-link-hover: light-dark(#008fbb, #6fe0fa);
 	--theme-button-bg: light-dark(#007aa3, #45cbf7);
 	--theme-button-text: light-dark(#ffffff, #061016);
-	--theme-button-hover-bg: light-dark(#008fbb, #6fe0fa);
+	--theme-button-hover-bg: light-dark(#00668a, #6fe0fa);
 	--theme-focus-ring: 0 0 0 2px light-dark(rgba(0, 118, 155, 0.32), rgba(56, 207, 240, 0.35));
 
 	/* --- Dividers ------------------------------------------------------------ */

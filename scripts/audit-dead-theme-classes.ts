@@ -28,8 +28,10 @@ import { definedClasses, findDeadThemeClasses, styleBlocks } from "./lib/audit-m
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **5**. `t-card-flat` ×3 and `t-hover-bg` ×2 (MemberDocumentsPage, documents/[id]) are used and defined nowhere — they render unstyled. Fix = define them or swap for `ios-card` / `hover:t-bg-subtle`; then this is a gate at 0.
+ *
+ * 2026-11-05 (Phase 9) — **0**: `t-card-flat` dropped (the `<Card>` styles itself), `t-hover-bg` → `hover:t-bg-subtle`. A gate at 0 from here.
  */
-const BASELINE = 5;
+const BASELINE = 0;
 
 const defined = new Set<string>();
 for (const f of trackedFiles(["app/**/*.css", "core/app/**/*.css"])) {

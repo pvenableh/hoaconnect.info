@@ -124,7 +124,8 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
     // browser path pings /api/org/notify-event; here we are already on the
     // server, so call the resolver directly. Best-effort: a missing bell row
     // must never fail an action that already wrote its row.
-    void announceEvent({
+    // Awaited — Vercel freezes the function once the action responds.
+    await announceEvent({
       collection: "hoa_comments",
       action: "create",
       itemId: created.id,

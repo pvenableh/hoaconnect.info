@@ -114,30 +114,31 @@ async function executeOperation(
 const RAG_SOURCE_COLLECTIONS = new Set(["hoa_governance", "hoa_documents"]);
 
 /**
- * Re-index a governing-document write into ai_doc_chunks, FIRE-AND-FORGET: the
- * Directus write + its response are already done, so embedding happens out of
- * band and a failure can never break (or slow) the save. No-op unless RAG is
+ * Re-index a governing-document write into ai_doc_chunks. Awaited by the caller
+ * (allSettled, so a failure can never break the save): on Vercel the function
+ * is frozen once the response is sent, so a fire-and-forget embed silently
+ * never finished and the document never reached the index. No-op unless RAG is
  * configured (VOYAGE_API_KEY present) and the collection is a RAG source.
  */
-function maybeReindexRag(
+async function maybeReindexRag(
   collection: string,
   operation: string,
   id: string | number | (string | number)[] | undefined,
   result: any
-): void {
+): Promise<void> {
   if (!isRagConfigured() || !RAG_SOURCE_COLLECTIONS.has(collection)) return;
   const source = collection as "hoa_governance" | "hoa_documents";
 
   if (operation === "delete") {
     const ids = Array.isArray(id) ? id : id != null ? [id] : [];
-    for (const one of ids) void removeItemChunks(source, String(one)).catch(() => {});
+    await Promise.allSettled(ids.map((one) => removeItemChunks(source, String(one))));
     return;
   }
 
   let ids: string[] = [];
   if (operation === "create") ids = result?.id != null ? [String(result.id)] : [];
   else if (operation === "update") ids = Array.isArray(id) ? id.map(String) : id != null ? [String(id)] : [];
-  for (const one of ids) void ingestItem(source, one).catch(() => {});
+  await Promise.allSettled(ids.map((one) => ingestItem(source, one)));
 }
 
 /**
@@ -179,7 +180,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const result = await executeOperation(event, collection, operation, id, data, query);
-    maybeReindexRag(collection, operation, id, result);
+    await maybeReindexRag(collection, operation, id, result);
     return result;
   } catch (error: any) {
     const directusDetail = describeDirectusError(error);

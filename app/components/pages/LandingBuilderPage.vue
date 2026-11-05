@@ -409,7 +409,7 @@ useSeoMeta({ title: "Design your site" });
 
     <!-- Dialogs -->
     <LandingBuilderPalette v-model:open="showPalette" @added="onAdded" />
-    <LandingBuilderSiteSettings v-model:open="showSettings" />
+    <LandingBuilderSiteSettingsPanel v-model:open="showSettings" />
     <LandingBuilderAiWizard
       v-model:open="showWizard"
       :org-id="orgId"

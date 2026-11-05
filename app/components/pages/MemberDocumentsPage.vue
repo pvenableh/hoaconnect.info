@@ -257,7 +257,7 @@ const documentsLoading = computed(
         <WidgetRowSkeleton :rows="6" avatar-shape="square" />
       </div>
 
-      <Card v-else-if="documentsByCategory.size > 0" class="t-card-flat">
+      <Card v-else-if="documentsByCategory.size > 0">
         <CardContent class="p-0">
           <Accordion type="multiple" :default-value="defaultOpenCategories" class="w-full">
             <AccordionItem
@@ -266,7 +266,7 @@ const documentsLoading = computed(
               :value="categoryId"
               class="border-b t-border last:border-b-0"
             >
-              <AccordionTrigger class="px-6 py-4 t-hover-bg">
+              <AccordionTrigger class="px-6 py-4 hover:t-bg-subtle">
                 <div class="flex items-center gap-3">
                   <div class="icon-tile shrink-0 rounded-lg t-bg-accent/10 flex items-center justify-center">
                     <Icon
@@ -300,7 +300,7 @@ const documentsLoading = computed(
                       v-for="doc in group.documents"
                       :key="doc.id"
                       @click="downloadDocument(doc)"
-                      class="w-full flex items-center gap-4 p-3 rounded-lg t-hover-bg transition-colors text-left group"
+                      class="w-full flex items-center gap-4 p-3 rounded-lg hover:t-bg-subtle transition-colors text-left group"
                     >
                       <!-- File icon -->
                       <div class="icon-tile rounded-lg t-bg-subtle flex items-center justify-center shrink-0 group-hover:t-bg-alt">
@@ -339,7 +339,7 @@ const documentsLoading = computed(
       </Card>
 
       <!-- Empty state -->
-      <Card v-else class="t-card-flat">
+      <Card v-else>
         <CardContent class="p-0">
           <AppEmptyState
             icon="lucide:file-text"

@@ -17,8 +17,10 @@ import { findDetachedPromises } from "./lib/audit-matchers";
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **7**. 7: items.post ×2, change-requests decide/index, documents/publish, ai-actions, context-broker. Each is a real fire-and-forget that Vercel can freeze.
+ *
+ * 2026-11-05 (Phase 9) — **0**: six awaited (RAG reindex via allSettled, both change-request notifies, the AI comment's announceEvent), the context-broker SWR refresh tagged. A gate at 0 from here.
  */
-const BASELINE = 7;
+const BASELINE = 0;
 
 runFileAudit({
   name: "detached-promises",

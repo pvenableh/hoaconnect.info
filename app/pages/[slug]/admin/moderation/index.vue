@@ -15,7 +15,7 @@ definePageMeta({
         </p>
       </div>
 
-      <ModerationModerationQueue />
+      <ModerationQueue />
     </PageContainer>
   </div>
 </template>

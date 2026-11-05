@@ -121,6 +121,7 @@ export async function getOrgContextCached(orgId: string): Promise<string> {
     _l1.set(orgId, { content: l2.content, expiresAt: now + L1_TTL_MS });
     if (l2.expiresAt <= now) {
       // Stale → serve now, refresh in the background (SWR).
+      // allow-detached-promise: SWR — the stale copy is already served; if Vercel freezes this rebuild, the next stale read starts another.
       void rebuild(orgId).catch(() => {});
     }
     return l2.content;

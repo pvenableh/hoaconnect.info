@@ -56,9 +56,13 @@ export default defineEventHandler(async (event) => {
     );
   }
 
-  notifyResidentOfDecision(orgId, { ...cr, status: decision === "approve" ? "approved" : "rejected" }).catch((e) =>
-    console.error("[change-requests] resident notify failed:", e)
-  );
+  // Awaited (Vercel freezes the function once it answers) but never fatal:
+  // the decision is already written.
+  try {
+    await notifyResidentOfDecision(orgId, { ...cr, status: decision === "approve" ? "approved" : "rejected" });
+  } catch (e) {
+    console.error("[change-requests] resident notify failed:", e);
+  }
 
   return { success: true, status: decision === "approve" ? "approved" : "rejected" };
 });

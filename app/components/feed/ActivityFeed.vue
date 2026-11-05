@@ -59,7 +59,7 @@ watch(
         :key="item.id"
         class="stagger-item"
       >
-        <FeedFeedItem
+        <FeedItem
           :item="item"
           :organization-id="organizationId"
           :is-board="isBoard"

@@ -22,6 +22,6 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen flex items-center justify-center p-4">
-    <HoaInvitationAcceptForm :token="token" redirect-to="/dashboard" />
+    <InvitationAcceptForm :token="token" redirect-to="/dashboard" />
   </div>
 </template>

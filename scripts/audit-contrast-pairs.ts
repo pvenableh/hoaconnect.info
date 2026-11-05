@@ -29,8 +29,10 @@ import { finish, flags, readRepoFile, type Finding } from "./lib/audit-kit";
  * value. Recorded, not fixed (Phase 8 records findings). Fix = darken the light
  * half of `--theme-button-hover-bg` to roughly #007aa3 or below, then set this
  * to 0 — the target is a GATE AT 0.
+ *
+ * 2026-11-05 (Phase 9) — **0**: light `--theme-button-hover-bg` #008fbb → #00668a (white on it 6.43:1; hover now darkens in light mode). A gate at 0 from here.
  */
-const BASELINE = 1;
+const BASELINE = 0;
 
 const THEME = "core/app/assets/css/theme-app.css";
 

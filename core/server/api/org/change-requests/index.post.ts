@@ -57,10 +57,13 @@ export default defineEventHandler(async (event) => {
     })
   );
 
-  // Fire-and-forget: tell reviewers a request is waiting (never block the submit).
-  notifyReviewersOfChangeRequest(orgId, created, memberId).catch((e) =>
-    console.error("[change-requests] reviewer notify failed:", e)
-  );
+  // Tell reviewers a request is waiting. Awaited (Vercel freezes the function
+  // once it answers, so a detached notify never arrived) but never fatal.
+  try {
+    await notifyReviewersOfChangeRequest(orgId, created, memberId);
+  } catch (e) {
+    console.error("[change-requests] reviewer notify failed:", e);
+  }
 
   return { success: true, request: created };
 });

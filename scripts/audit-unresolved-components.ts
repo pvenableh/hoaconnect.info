@@ -28,8 +28,10 @@ import { findUnresolvedComponents, parseComponentNames } from "./lib/audit-match
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **4**. 4 REAL broken tags (render as unknown elements): `<FeedFeedItem>` (ActivityFeed → `FeedItem`), `<LandingBuilderSiteSettings>` (LandingBuilderPage → `LandingBuilderSiteSettingsPanel`), `<ModerationModerationQueue>` (moderation/index → `ModerationQueue`), `<HoaInvitationAcceptForm>` (accept-invite → `InvitationAcceptForm`). Nuxt de-duplicates a folder prefix that repeats the file name. Fix = rename the four tags; then a gate at 0.
+ *
+ * 2026-11-05 (Phase 9) — **0**: the four tags renamed. A gate at 0 from here.
  */
-const BASELINE = 4;
+const BASELINE = 0;
 
 if (!existsSync(path.join(ROOT, ".nuxt/components.d.ts"))) {
   console.error("✗ unresolved-components audit: .nuxt/components.d.ts is missing — run `npx nuxt prepare` first.");

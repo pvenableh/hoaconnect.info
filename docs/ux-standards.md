@@ -34,7 +34,8 @@ pnpm audit:<name> --check          # the gate: exit 1 above the baseline
 pnpm lint                          # ESLint (errors fail; warnings are capped by --max-warnings)
 ```
 
-**Gate at 0** (`raw-date-inputs`, `vue-global`, `hairline-surfaces`): any finding fails.
+**Gate at 0** (`raw-date-inputs`, `vue-global`, `hairline-surfaces`, and since Phase 9 `unresolved-components`,
+`dead-theme-classes`, `contrast-pairs`, `detached-promises`): any finding fails.
 **Ratchet** (the rest): the count may go **down**, never up. The baseline lives in the script's
 `BASELINE` constant and in the Phase 8 table of `docs/plan-earnest-parity-round3-gtm.md`.
 When you fix findings the audit says _"lower BASELINE to N"_ — do it in the same commit.
