@@ -101,3 +101,43 @@ export function planBandCheckout(
 export function isCheckoutRefusal(p: CheckoutPlan | CheckoutRefusal): p is CheckoutRefusal {
   return p.ok === false;
 }
+
+// ── Prices by lookup key ────────────────────────────────────────────────────
+// A band's Stripe Prices are found by a deterministic `lookup_key`, which is the
+// SAME string in test and live mode — so the app always charges the price of
+// the mode it is running in. The ids stored on `subscription_plans` are a record
+// of the script's last run (one mode only) and are never read to charge.
+
+export type BandPriceKind = "monthly" | "annual" | "onboarding";
+export const BAND_PRICE_KINDS: readonly BandPriceKind[] = ["monthly", "annual", "onboarding"];
+
+/** `hoa_<slug>_<kind>` — written by scripts/create-stripe-subscription-prices.ts. */
+export function bandLookupKey(slug: string, kind: BandPriceKind): string {
+  return `hoa_${slug}_${kind}`;
+}
+
+export interface BandPriceIds {
+  monthly: string | null;
+  annual: string | null;
+  onboarding: string | null;
+}
+
+/** Pick a band's three price ids out of a `prices.list({ lookup_keys })` result. */
+export function bandPricesFromLookup(
+  slug: string,
+  prices: ReadonlyArray<{ id: string; lookup_key?: string | null; active?: boolean }>
+): BandPriceIds {
+  const pick = (kind: BandPriceKind) =>
+    prices.find((p) => p.lookup_key === bandLookupKey(slug, kind) && p.active !== false)?.id ?? null;
+  return { monthly: pick("monthly"), annual: pick("annual"), onboarding: pick("onboarding") };
+}
+
+/** The band with its price ids replaced by this mode's — the only ids checkout uses. */
+export function withBandPrices<T extends CheckoutBand>(band: T, ids: BandPriceIds): T {
+  return {
+    ...band,
+    stripe_price_id_monthly: ids.monthly,
+    stripe_price_id_yearly: ids.annual,
+    stripe_price_id_onboarding: ids.onboarding,
+  };
+}

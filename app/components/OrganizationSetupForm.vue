@@ -211,7 +211,11 @@ const planPrice = computed(() => {
     : parseFloat(String(selectedPlanObject.value.price_monthly || 0));
 });
 
-// Get the Stripe price ID based on billing cycle
+// The plan's slug: checkout resolves the price for the Stripe mode the server is
+// in (by lookup key), so the stored ids — one mode only — never decide it.
+const planSlug = computed(() => selectedPlanObject.value?.slug || null);
+
+// The stored Stripe price ID (a record only; setup-organization keeps it)
 const stripePriceId = computed(() => {
   if (!selectedPlanObject.value) return null;
   return billingCycle.value === "yearly"
@@ -998,10 +1002,10 @@ const finalStep = computed(() => {
         </div>
 
         <PaymentSubscriptionForm
-          v-if="stripePriceId"
+          v-if="planSlug"
           :email="paymentEmail"
           :name="paymentName"
-          :price-id="stripePriceId"
+          :plan-slug="planSlug"
           :trial-days="trialDays"
           :plan-name="selectedPlanObject?.name || 'Subscription'"
           :plan-price="planPrice"

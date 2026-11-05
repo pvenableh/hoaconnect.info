@@ -13,7 +13,16 @@ export default defineEventHandler(async (event) => {
   if (!organizationId) throw createError({ statusCode: 400, message: "organizationId is required" });
   await requireAdminAccess(event, organizationId);
 
-  const [{ units, band }, bands] = await Promise.all([resolveBandForOrg(organizationId), getActiveBands()]);
+  const [{ units, band: storedBand }, bands] = await Promise.all([resolveBandForOrg(organizationId), getActiveBands()]);
+  // Quote against this mode's prices (by lookup key), exactly as subscribe-band
+  // will charge. If Stripe can't be reached, quote with no prices: the page then
+  // says self-serve checkout is unavailable rather than failing to load.
+  const band = await bandWithModePrices(storedBand).catch((e) => {
+    console.error("[billing/band] price lookup failed:", e?.message ?? e);
+    return storedBand
+      ? { ...storedBand, stripe_price_id_monthly: null, stripe_price_id_yearly: null, stripe_price_id_onboarding: null }
+      : storedBand;
+  });
 
   const quote = (interval: "monthly" | "annual") => {
     const plan = planBandCheckout(band as any, interval, "standard");

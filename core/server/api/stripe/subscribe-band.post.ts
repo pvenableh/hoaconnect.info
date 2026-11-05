@@ -62,11 +62,13 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { units, band } = await resolveBandForOrg(organizationId);
+  const stripe = getStripe();
+  const { units, band: storedBand } = await resolveBandForOrg(organizationId);
+  // This mode's prices, by lookup key — never the ids stored in Directus, which
+  // hold whichever mode the prices script ran last.
+  const band = await bandWithModePrices(storedBand, stripe);
   const plan = planBandCheckout(band as any, interval, onboarding === "standard" ? "standard" : "none");
   if (isCheckoutRefusal(plan)) throw createError({ statusCode: plan.status, message: plan.message });
-
-  const stripe = getStripe();
 
   // The org's customer: reuse the one on file, else create and PERSIST it first.
   let customerId = org.stripe_customer_id || null;

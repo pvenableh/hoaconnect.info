@@ -7,7 +7,12 @@ import type { AcaciaInvoice } from '#core/server/utils/stripe';
 const subscriptionSchema = z.object({
 	email: z.string().email(),
 	name: z.string().optional(),
-	priceId: z.string().min(1, 'Price ID is required'),
+	// Preferred: the plan's slug + cycle; the server finds THIS mode's price by
+	// lookup key. A raw priceId is still accepted, but only an HOA Connect price
+	// (the Stripe account is Hue's, shared with other products).
+	planSlug: z.string().min(1).optional(),
+	billingCycle: z.enum(['monthly', 'yearly']).optional(),
+	priceId: z.string().min(1).optional(),
 	trialDays: z.number().int().min(0).max(365).optional(),
 	metadata: z.record(z.string()).optional(),
 	customerId: z.string().optional(), // Existing Stripe customer ID if available
@@ -44,7 +49,29 @@ export default defineEventHandler(async (event) => {
 			});
 		}
 
-		const { email, name, priceId, trialDays, metadata, customerId } = validation.data;
+		const { email, name, planSlug, billingCycle, trialDays, metadata, customerId } = validation.data;
+		let priceId = validation.data.priceId ?? null;
+		if (planSlug) {
+			const ids = await resolveBandPrices(planSlug, stripe);
+			priceId = billingCycle === 'yearly' ? ids.annual : ids.monthly;
+			if (!priceId) {
+				throw createError({
+					statusCode: 503,
+					message: `No Stripe ${isStripeLiveMode() ? 'live' : 'test'} price for the ${planSlug} plan. Run pnpm stripe:subscription-prices${isStripeLiveMode() ? ' --mode=live' : ''}.`,
+				});
+			}
+		} else if (priceId) {
+			const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+			const product = price.product as { metadata?: Record<string, string> } | string;
+			const ours =
+				price.metadata?.app === 'hoaconnect' ||
+				(typeof product === 'object' && product.metadata?.app === 'hoaconnect');
+			if (!ours) {
+				throw createError({ statusCode: 400, message: 'That price is not an HOA Connect plan.' });
+			}
+		} else {
+			throw createError({ statusCode: 400, message: 'A plan is required' });
+		}
 
 		// Get or create customer
 		let customer: Stripe.Customer;

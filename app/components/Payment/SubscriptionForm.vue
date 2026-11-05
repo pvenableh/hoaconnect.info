@@ -110,9 +110,15 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  /** The plan's slug: the server finds this Stripe mode's price by lookup key. */
+  planSlug: {
+    type: String,
+    default: null,
+  },
+  /** Legacy: an explicit Stripe price (must be an HOA Connect price). Prefer `planSlug`. */
   priceId: {
     type: String,
-    required: true,
+    default: null,
   },
   trialDays: {
     type: Number,
@@ -209,7 +215,9 @@ const createSubscription = async () => {
       body: {
         email: props.email,
         name: props.name,
-        priceId: props.priceId,
+        planSlug: props.planSlug || undefined,
+        billingCycle: props.billingCycle,
+        priceId: props.planSlug ? undefined : props.priceId || undefined,
         trialDays: props.trialDays,
         metadata: {
           ...props.metadata,

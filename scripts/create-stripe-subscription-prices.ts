@@ -12,8 +12,11 @@
  * fixed Price is created for them.
  *
  * Idempotent: prices are keyed by a deterministic `lookup_key`
- * (hoa_<slug>_<monthly|annual|onboarding>); existing ones are reused, and the
- * Directus row is updated only when the stored id differs.
+ * (hoa_<slug>_<monthly|annual|onboarding>), the SAME in test and live; existing
+ * ones are reused. **The app charges by lookup key in whichever mode it runs**
+ * (server/utils/subscription-band.ts → resolveBandPrices), so run this once per
+ * mode and neither run can break the other. The ids written back to Directus
+ * are a record of the LAST run only — nothing reads them to charge.
  *
  * The Stripe account is HUE's: Hue is the business and HOA Connect one of its
  * products (2026-11-05). Every product and price is tagged `metadata.app =
@@ -31,6 +34,7 @@
  */
 
 import Stripe from "stripe";
+import { bandLookupKey } from "../core/shared/billing/band-checkout";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -117,8 +121,22 @@ async function ensurePrice(
   lookupKey: string,
   params: Stripe.PriceCreateParams
 ): Promise<Stripe.Price> {
-  const found = await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 1 });
-  if (found.data[0]) return found.data[0];
+  // Stripe prices are immutable: when a band's amount (or interval) changed in
+  // Directus, a NEW price takes over the lookup key (`transfer_lookup_key`) and
+  // the old one is archived. Existing subscriptions keep the price they were
+  // created on; new checkouts get the new one.
+  const found = (await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 1 })).data[0];
+  if (found) {
+    const sameAmount = found.unit_amount === params.unit_amount;
+    const sameInterval = (found.recurring?.interval ?? null) === (params.recurring?.interval ?? null);
+    if (sameAmount && sameInterval) return found;
+    console.log(
+      `   ↻ ${lookupKey}: $${(found.unit_amount ?? 0) / 100} → $${(params.unit_amount ?? 0) / 100} — new price, old one archived`
+    );
+    const next = await stripe.prices.create({ ...params, lookup_key: lookupKey, transfer_lookup_key: true });
+    await stripe.prices.update(found.id, { active: false });
+    return next;
+  }
   return stripe.prices.create({ ...params, lookup_key: lookupKey });
 }
 
@@ -160,7 +178,7 @@ async function main() {
     console.log(`📦 ${band.name} (${band.slug})`);
     const product = await ensureProduct(band);
 
-    const monthly = await ensurePrice(`hoa_${band.slug}_monthly`, {
+    const monthly = await ensurePrice(bandLookupKey(band.slug, "monthly"), {
       product: product.id,
       currency: "usd",
       unit_amount: toCents(Number(band.price_monthly)),
@@ -168,7 +186,7 @@ async function main() {
       metadata: { app: APP, band_slug: band.slug, kind: "subscription_monthly" },
     });
 
-    const annual = await ensurePrice(`hoa_${band.slug}_annual`, {
+    const annual = await ensurePrice(bandLookupKey(band.slug, "annual"), {
       product: product.id,
       currency: "usd",
       unit_amount: toCents(Number(band.price_yearly ?? Number(band.price_monthly) * 10)),
@@ -178,7 +196,7 @@ async function main() {
 
     let onboardingId: string | null = band.stripe_price_id_onboarding;
     if (band.onboarding_fee != null) {
-      const onboarding = await ensurePrice(`hoa_${band.slug}_onboarding`, {
+      const onboarding = await ensurePrice(bandLookupKey(band.slug, "onboarding"), {
         product: product.id,
         currency: "usd",
         unit_amount: toCents(Number(band.onboarding_fee)),
@@ -210,21 +228,7 @@ async function main() {
     console.log();
   }
 
-  // Sanity: report AI credit packs presence (the credits/checkout flow uses them).
-  console.log("🔎 AI credit packs (small/medium/large) — checking existing prices...");
-  const packs = await stripe.prices.search({
-    query: `metadata['kind']:'ai_credits' AND active:'true'`,
-    limit: 10,
-  });
-  if (packs.data.length === 0) {
-    console.log(
-      "   ⚠️  No prices tagged metadata.kind=ai_credits found. The AI top-up flow may create" +
-        " ad-hoc prices at checkout — verify server/api/ai/credits/checkout.post.ts."
-    );
-  } else {
-    for (const p of packs.data) console.log(`   • ${p.id} (${p.nickname ?? p.lookup_key ?? ""})`);
-  }
-
+  // (AI credit packs need no fixed prices: their checkout builds price_data inline.)
   console.log(`\n✨ Done (${MODE} mode).`);
 }
 
