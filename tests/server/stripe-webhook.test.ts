@@ -105,7 +105,7 @@ beforeEach(() => {
   vi.stubGlobal("STRIPE_API_VERSION", "2024-11-20.acacia");
   vi.stubGlobal("getHeader", () => "t=1,v1=sig");
   vi.stubGlobal("readRawBody", async () => "{}");
-  vi.stubGlobal("getStripeWebhookSecret", () => "whsec_x");
+  vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_x"]);
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
   vi.stubGlobal("creditWallet", creditWallet);
   vi.stubGlobal("notifyPaymentReceived", notifyPaymentReceived);
@@ -124,6 +124,39 @@ describe("signature verification", () => {
   it("rejects a request with no stripe-signature header", async () => {
     vi.stubGlobal("getHeader", () => undefined);
     await expect(handler(event)).rejects.toMatchObject({ statusCode: 400 });
+    expect(constructEvent).not.toHaveBeenCalled();
+  });
+
+  it("accepts an event signed by the Connect endpoint's secret", async () => {
+    vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_account", "whsec_connect"]);
+    constructEvent.mockImplementation((_body: string, _sig: string, secret: string) => {
+      if (secret !== "whsec_connect") throw new Error("No signatures found matching the expected signature");
+      return { id: "evt_c", type: "payout.paid", data: { object: { id: "po_1", amount: 100 } }, account: "acct_hoa" };
+    });
+    await expect(handler(event)).resolves.toMatchObject({ received: true });
+    expect(constructEvent.mock.calls.map((c) => c[2])).toEqual(["whsec_account", "whsec_connect"]);
+  });
+
+  it("stops at the first secret that verifies", async () => {
+    vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_account", "whsec_connect"]);
+    constructEvent.mockReturnValue({ id: "evt_a", type: "payout.paid", data: { object: { id: "po_1", amount: 100 } } });
+    await handler(event);
+    expect(constructEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an event that neither secret verifies, before any write", async () => {
+    vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_account", "whsec_connect"]);
+    constructEvent.mockImplementation(() => {
+      throw new Error("No signatures found matching the expected signature");
+    });
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 400 });
+    expect(constructEvent).toHaveBeenCalledTimes(2);
+    expect(directusRequest).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when no secret is configured", async () => {
+    vi.stubGlobal("getStripeWebhookSecrets", () => []);
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 500 });
     expect(constructEvent).not.toHaveBeenCalled();
   });
 });

@@ -57,6 +57,24 @@ export function getStripeWebhookSecret(): string | undefined {
   return (perMode || config.stripeWebhookSecret) as string | undefined;
 }
 
+/**
+ * Every signing secret the webhook route accepts in the active mode: the
+ * endpoint for events on Hue's own account (`getStripeWebhookSecret`), then the
+ * Connect endpoint for events on connected accounts
+ * (`STRIPE_WEBHOOK_SECRET_CONNECT_TEST` / `_LIVE`). Stripe won't put both kinds
+ * on one endpoint, and each endpoint signs with its own secret.
+ */
+export function getStripeWebhookSecrets(): string[] {
+  const config = useRuntimeConfig();
+  const connect = isStripeLiveMode()
+    ? config.stripeWebhookSecretConnectLive
+    : config.stripeWebhookSecretConnectTest;
+  const all = [getStripeWebhookSecret(), connect].filter(
+    (s): s is string => typeof s === "string" && s.length > 0
+  );
+  return [...new Set(all)];
+}
+
 export function getStripe(): Stripe {
   return new Stripe(getStripeSecretKey(), {
     apiVersion: STRIPE_API_VERSION,

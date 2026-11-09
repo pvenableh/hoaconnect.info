@@ -47,23 +47,32 @@ export default defineEventHandler(async (event) => {
 			});
 		}
 
-		// Verify webhook signature
-		const webhookSecret = getStripeWebhookSecret();
-		if (!webhookSecret) {
+		// Verify webhook signature. Stripe makes events on Hue's own account and
+		// events on connected accounts (Connect) separate endpoints, each with its
+		// own signing secret, both pointed at this route. Accept either.
+		const webhookSecrets = getStripeWebhookSecrets();
+		if (webhookSecrets.length === 0) {
 			throw createError({
 				statusCode: 500,
 				message: 'Webhook secret not configured',
 			});
 		}
 
-		let stripeEvent: Stripe.Event;
-		try {
-			stripeEvent = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-		} catch (err: any) {
-			console.error('Webhook signature verification failed:', err.message);
+		let stripeEvent: Stripe.Event | null = null;
+		let verifyError = '';
+		for (const secret of webhookSecrets) {
+			try {
+				stripeEvent = stripe.webhooks.constructEvent(body, sig, secret);
+				break;
+			} catch (err: any) {
+				verifyError = err?.message ?? String(err);
+			}
+		}
+		if (!stripeEvent) {
+			console.error('Webhook signature verification failed:', verifyError);
 			throw createError({
 				statusCode: 400,
-				message: `Webhook signature verification failed: ${err.message}`,
+				message: `Webhook signature verification failed: ${verifyError}`,
 			});
 		}
 

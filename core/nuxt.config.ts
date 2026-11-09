@@ -258,6 +258,10 @@ export default defineNuxtConfig({
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     stripeWebhookSecretTest: process.env.STRIPE_WEBHOOK_SECRET_TEST,
     stripeWebhookSecretLive: process.env.STRIPE_WEBHOOK_SECRET_LIVE,
+    // The Connect endpoint's secret (events on connected accounts: account.updated,
+    // payout.*). Stripe keeps those on a separate endpoint with its own secret.
+    stripeWebhookSecretConnectTest: process.env.STRIPE_WEBHOOK_SECRET_CONNECT_TEST,
+    stripeWebhookSecretConnectLive: process.env.STRIPE_WEBHOOK_SECRET_CONNECT_LIVE,
     // Recurring Stripe Price ids for paid add-ons (see core/shared/billing/addons.ts).
     // Per-mode so test + live can coexist. Toggling an add-on adds/removes a
     // subscription item on the org's band subscription.

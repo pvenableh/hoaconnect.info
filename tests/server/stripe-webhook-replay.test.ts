@@ -84,7 +84,7 @@ beforeEach(() => {
   vi.stubGlobal("STRIPE_API_VERSION", "2024-11-20.acacia");
   vi.stubGlobal("getHeader", () => "t=1,v1=sig");
   vi.stubGlobal("readRawBody", async () => rawBody);
-  vi.stubGlobal("getStripeWebhookSecret", () => "whsec_x");
+  vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_x"]);
   vi.stubGlobal("getTypedDirectus", () => db);
   vi.stubGlobal("creditWallet", vi.fn());
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));

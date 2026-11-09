@@ -99,12 +99,14 @@ already handles subscriptions. Add:
 These fire on the **connected account**, so the endpoint must be listening to
 *events on connected accounts*, not only *events on your account*.
 
-> ⚠️ **One secret per mode.** `getStripeWebhookSecret()` resolves a single
-> `whsec_…` (`STRIPE_WEBHOOK_SECRET_TEST` / `_LIVE`, falling back to
-> `STRIPE_WEBHOOK_SECRET`). Keep platform + connected-account events on **one
-> endpoint**. If your account forces a second endpoint for Connect events, it
-> gets its own signing secret and the handler will 400 on it — that needs a
-> small code change (accept a list of secrets) before you rely on it.
+> **Two endpoints, two secrets (since 2026-11-09).** Stripe makes each endpoint
+> listen to either *your account* or *connected accounts*, never both, and each
+> signs with its own secret. Keep the existing "Your account" endpoint as it is
+> and add a second one at the **same URL** with *Events from: Connected accounts*,
+> Snapshot payloads, and only `account.updated`, `payout.paid`, `payout.failed`,
+> `payout.canceled`. Put its secret in `STRIPE_WEBHOOK_SECRET_CONNECT_LIVE` (or
+> `_TEST`) and redeploy. The route tries the account secret, then the Connect
+> one (`getStripeWebhookSecrets()`).
 
 ---
 
@@ -116,6 +118,7 @@ These fire on the **connected account**, so the endpoint must be listening to
 | `STRIPE_MODE` | `test` during the pilot | Overrides `NODE_ENV`, so the production deploy can run test mode. |
 | `STRIPE_SECRET_KEY_TEST` / `_LIVE`, `STRIPE_PUBLIC_KEY_TEST` / `_LIVE` | from Stripe | both pairs set. |
 | `STRIPE_WEBHOOK_SECRET_TEST` / `_LIVE` | from Stripe | so both endpoints coexist and flipping mode is the only change. |
+| `STRIPE_WEBHOOK_SECRET_CONNECT_TEST` / `_LIVE` | from Stripe | the Connected accounts endpoint's secret (see §3, webhook events). |
 
 Set these in Vercel (and `apps/app/.env` locally), then redeploy. Fee math is
 `round(amount_cents × percent / 100)`; `0` means no application fee is attached
