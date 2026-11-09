@@ -7,7 +7,7 @@
 //
 // getTypedDirectus (admin client) is auto-imported from server/utils/directus.ts.
 
-import { readItems, aggregate } from "@directus/sdk";
+import { readItem, readItems, readField, aggregate } from "@directus/sdk";
 import { selectBand, type PlanBand } from "#core/shared/billing/bands";
 import type { SubscriptionPlan } from "#core/types/directus";
 import type Stripe from "stripe";
@@ -75,12 +75,47 @@ export async function selectBandForUnits(units: number): Promise<SubscriptionPla
   return selectBand(units, bands as unknown as PlanBand[]) as SubscriptionPlan | null;
 }
 
-/** Resolve the band for an org by counting its units. */
+// Directus answers 403 — even to the admin token — for a field the schema doesn't
+// have. `declared_units` is added by scripts/add-declared-units-field.ts, so an
+// environment that hasn't run it yet has to be told apart from a real failure.
+const isForbidden = (e: any) => e?.response?.status === 403;
+
+/** Whether this environment's Directus has `hoa_organizations.declared_units`. */
+export async function hasDeclaredUnitsField(): Promise<boolean> {
+  try {
+    await getTypedDirectus().request(readField("hoa_organizations", "declared_units"));
+    return true;
+  } catch (e) {
+    if (isForbidden(e)) return false;
+    throw e;
+  }
+}
+
+/**
+ * The unit count the board declared at signup, or 0 if there is none or this
+ * environment doesn't have the field yet. Any other failure throws: this feeds a
+ * charge, and a new org has no real units to fall back on, so swallowing it would
+ * quietly bill a large building at the smallest band.
+ */
+export async function getDeclaredUnits(orgId: string): Promise<number> {
+  try {
+    const org = (await getTypedDirectus().request(
+      readItem("hoa_organizations", orgId, { fields: ["declared_units"] })
+    )) as { declared_units?: number | null } | null;
+    return Number(org?.declared_units) || 0;
+  } catch (e) {
+    if (isForbidden(e)) return 0;
+    throw e;
+  }
+}
+
+/** Resolve the band for an org from the larger of its real and declared unit counts. */
 export async function resolveBandForOrg(orgId: string): Promise<{
   units: number;
   band: SubscriptionPlan | null;
 }> {
-  const units = await countOrgUnits(orgId);
+  const [realUnits, declaredUnits] = await Promise.all([countOrgUnits(orgId), getDeclaredUnits(orgId)]);
+  const units = Math.max(realUnits, declaredUnits);
   const band = await selectBandForUnits(units);
   return { units, band };
 }

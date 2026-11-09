@@ -5,7 +5,7 @@
 import Stripe from "stripe";
 import { appCustomerSearchQuery, appMetadata } from "#core/shared/billing/stripe-app";
 
-// Keep in lockstep with the existing routes (subscription.post.ts,
+// Keep in lockstep with the existing routes (subscribe-band.post.ts,
 // webhook.post.ts) so a single account/customer graph is spoken to consistently.
 // stripe-node v20 types assume its own pinned version ("…clover"), but we
 // deliberately stay on the acacia wire format until the basil invoice migration

@@ -1386,6 +1386,8 @@ export interface HoaOrganization {
 	slug: string;
 	folder?: DirectusFolder | string | null;
 	subscription_plan?: SubscriptionPlan | string | null;
+	/** @description Unit count the board declared at signup. The subscription band uses the larger of this and the real unit count. Edit here to correct it. */
+	declared_units?: number | null;
 	default_monthly_dues?: number | null;
 	payment_grace_period_days?: number | null;
 	late_fee_amount?: number | null;

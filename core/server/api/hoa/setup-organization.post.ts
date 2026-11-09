@@ -12,7 +12,15 @@ import {
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
 import { sendWelcomeEmail } from "../../utils/sendgrid";
+import { isContactOnly } from "#core/shared/billing/bands";
 
+// Well past any real community, and inside a Postgres integer.
+const MAX_DECLARED_UNITS = 1_000_000;
+
+// A new org always starts in `trial` with no Stripe ids: the webhook moves it to
+// `active` once POST /api/stripe/subscribe-band has been paid. Nothing the client
+// sends can set its status, its plan or its Stripe ids. The plan comes from the
+// declared unit count, on the same band ladder the charge route uses.
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
@@ -26,14 +34,10 @@ export default defineEventHandler(async (event) => {
     org_phone,
     org_email,
     slug,
-    subscriptionPlanId, // Optional for BETA
 
-    // Subscription details (from Stripe)
+    // Subscription details
     billingCycle,
-    stripeSubscriptionId,
-    stripeCustomerId,
-    subscriptionStatus,
-    trialEndsAt,
+    declaredUnits,
 
     // Admin user details (not required if isLoggedIn)
     email,
@@ -83,6 +87,40 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const units = Number(declaredUnits);
+  if (!Number.isInteger(units) || units < 1 || units > MAX_DECLARED_UNITS) {
+    throw createError({
+      statusCode: 400,
+      message: "Enter how many units your community has",
+    });
+  }
+
+  // These refusals sit outside the try below, which turns everything into a 400.
+  const band = await selectBandForUnits(units);
+  if (!band) {
+    throw createError({
+      statusCode: 503,
+      message: "No subscription plans are available right now. Please try again later.",
+    });
+  }
+  if (isContactOnly(band)) {
+    throw createError({
+      statusCode: 409,
+      message: "Communities of this size are set up with our team. Talk to us and we'll get you started.",
+    });
+  }
+
+  // This can't be worked around: the charge is a separate request that learns the
+  // declared count only from this column, and a new org has no real units. Without
+  // it every new building would be billed at the smallest band, so refuse before
+  // anything is created.
+  if (!(await hasDeclaredUnitsField())) {
+    throw createError({
+      statusCode: 503,
+      message: "Signup is unavailable: hoa_organizations.declared_units is missing. Run pnpm add:declared-units.",
+    });
+  }
+
   try {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
@@ -105,10 +143,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Determine subscription status based on trial
-    const orgSubscriptionStatus = trialEndsAt ? "trial" : (subscriptionStatus === "active" ? "active" : "trial");
-
-    // 1. Create the organization with subscription details
+    // 1. Create the organization on its band
     const organization = await directus.request(
       createItem("hoa_organizations", {
         name: organizationName,
@@ -119,14 +154,11 @@ export default defineEventHandler(async (event) => {
         zip: zip,
         phone: org_phone,
         email: org_email,
-        subscription_plan: subscriptionPlanId || null,
+        subscription_plan: band.id,
+        declared_units: units,
         status: "active",
-        // Subscription details from Stripe
         billing_cycle: billingCycle || "monthly",
-        stripe_customer_id: stripeCustomerId || null,
-        stripe_subscription_id: stripeSubscriptionId || null,
-        subscription_status: orgSubscriptionStatus,
-        trial_ends_at: trialEndsAt || null,
+        subscription_status: "trial",
         // New orgs default to the paid/trial track. Mark an org is_free_account
         // manually (in Directus) to comp it — that also flips its AI metering to
         // at-cost ("Hue") pricing via marginForAccount() in chargeForCompletion.
@@ -354,8 +386,7 @@ export default defineEventHandler(async (event) => {
         id: organization.id,
         name: organization.name,
         slug: organization.slug,
-        subscriptionStatus: orgSubscriptionStatus,
-        trialEndsAt: trialEndsAt || null,
+        subscriptionStatus: "trial",
       },
       user: {
         id: userId,

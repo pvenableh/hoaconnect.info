@@ -92,6 +92,7 @@
     "create:billing-engine": "dotenv -- tsx scripts/create-billing-engine.ts",
     "create:governance": "dotenv -- tsx scripts/create-governance-collection.ts",
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
+    "add:declared-units": "dotenv -- tsx scripts/add-declared-units-field.ts",
     "add:user-app-prefs": "dotenv -- tsx scripts/add-user-app-prefs-field.ts",
     "add:email-compliance": "dotenv -- tsx scripts/add-email-compliance-fields.ts",
     "add:email-send-queue": "dotenv -- tsx scripts/add-email-send-queue.ts",

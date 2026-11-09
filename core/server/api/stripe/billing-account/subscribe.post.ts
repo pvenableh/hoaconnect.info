@@ -2,8 +2,8 @@
 // Agency billing P2 (docs/plan-agency-multi-property-billing.md §7): create the
 // ONE Stripe customer + ONE subscription for a billing account, with
 // `quantity` = the initial active-property count on a flat per-seat price.
-// One trial per agency. Reuses the SetupIntent (trial) / PaymentIntent (no
-// trial) pattern from /api/stripe/subscription. Owner / billing_admin only.
+// One trial per agency. Returns a SetupIntent (trial) or PaymentIntent (no trial)
+// client secret, as /api/stripe/subscribe-band does. Owner / billing_admin only.
 import { z } from "zod";
 import { appMetadata } from "#core/shared/billing/stripe-app";
 import Stripe from "stripe";
