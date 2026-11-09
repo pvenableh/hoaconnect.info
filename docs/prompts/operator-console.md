@@ -57,7 +57,10 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
 
 ## Where things stand (2026-11-09)
 
-- `docs/plan-operator-console.md` is committed locally (c6511a8) and NOT pushed. Its §9 decisions are open.
+- `docs/plan-operator-console.md` is committed locally and NOT pushed. Its §9 decisions were made 2026-11-09 (Session 0 done):
+  `/ops` in the app; **Platform Support role added**; **Phases 1+2 release together**; both support doors; residents report app
+  problems directly; all HOA Admins see platform requests; refunds need a reason, plus typed amount above $500; "view as" is a
+  later Phase 5.
 - **Roles** (plan §2): App Admin (Directus role id `config.public.directusRoleAppAdmin`); per-membership
   `hoa_members.role` (HOA Admin, Property Manager plus `manager_permissions`, Member); board office from current-term
   `hoa_board_members` (not a role); residency `member_type` owner/tenant with a per-unit override (`residencyFor()`);
@@ -92,7 +95,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
 | Test pattern: fake Stripe + MemoryDirectus | `tests/server/signup-band.test.ts`, `tests/server/support/memory-directus.ts` |
 | Scheduled jobs | `vercel.json` (`crons`) |
 
-## Session 0 — decisions (Sonnet 5.5, short)
+## Session 0 — decisions (DONE 2026-11-09; kept for the record)
 
 1. Read plan §2, §3 and §9 only.
 2. Ask Peter the 8 decisions in two `AskUserQuestion` calls, recommendation first, each question standing on its own.
@@ -102,15 +105,22 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
 
 ## Session A — read-only console (Opus 5.5)
 
-Build Phase 1 exactly as decided. No Stripe or Directus writes in this session.
+Build Phase 1 exactly as decided. No Stripe writes. The one Directus write, creating the Platform Support role, needs Peter's yes.
+Phases 1 and 2 release together: do not push after A.
 
-1. **`requireAppAdmin(event)`** in `admin-auth.ts`, with tests: an HOA Admin, a Property Manager, a member and a
-   billing_admin each get 403 before anything else runs. Align `useRoles().isAppAdmin` with the server's id-only check.
-2. **`/api/ops/*` read routes**
+1. **Guards** in `admin-auth.ts`, with tests:
+   - `requireAppAdmin(event)`: an HOA Admin, a Property Manager, a member, a billing_admin and Platform Support each get 403
+     before anything else runs.
+   - `requireOpsPermission(event, "billing.read" | "billing.write" | "support")`: App Admin passes all three; Platform Support
+     passes `billing.read` and `support`; everyone else gets 403.
+   - Add `directusRolePlatformSupport` to runtime config, plus a `scripts/` script to create the role with no collection access
+     (running it on the hosted Directus needs Peter's yes).
+   - Align `useRoles().isAppAdmin` with the server's id-only check, and add `isPlatformSupport`.
+2. **`/api/ops/*` read routes**, each behind `requireOpsPermission(event, "billing.read")`
    - Routes: overview, communities (paginated, filterable), community detail (people, billing, activity), billing
      accounts, payments feed.
    - Stripe reads are filtered by `metadata.app`, paginated, and cached for 60 s on the server.
-3. **Pages under `app/pages/ops/`:** behind `RoleGate`, mobile-first, built from the existing UI kit. Residents appear as
+3. **Pages under `app/pages/ops/`:** behind `RoleGate` (App Admin or Platform Support), mobile-first, built from the existing UI kit. Residents appear as
    counts only (plan §3).
 4. **Tests:** fake Stripe plus MemoryDirectus, covering MRR maths, status buckets and the people roles shown.
 5. **Verify:** in test mode on localhost. Compare the overview numbers with a scratchpad Stripe read, showing both side
@@ -119,6 +129,10 @@ Build Phase 1 exactly as decided. No Stripe or Directus writes in this session.
 Gates green. Commit and stop.
 
 ## Session B — actions (Opus 5.5)
+
+Every action route uses `requireOpsPermission(event, "billing.write")`. Refunds need a reason; above $500 the request must also
+carry the typed amount, checked on the server. Platform Support is refused every action before Stripe is called (test it).
+After B, ask Peter whether to push A+B together.
 
 1. `ops_audit_log`, append-only, written only through `writeOpsAuditEntry()`. The migration script goes in `scripts/` and
    grants no role access; running it on the hosted Directus needs Peter's yes.
@@ -140,7 +154,7 @@ Gates green. Commit and stop.
 ## Session C — support (Opus 5.5)
 
 Build Phase 3 as decided: the two doors by role, `support_requests` and `support_messages`, the community inbox, the
-platform inbox in `/ops`, replies by email, and the new Property Manager grants (`contact_platform`, `handle_requests`).
+platform inbox in `/ops` (gated by `requireOpsPermission(event, "support")`, so Platform Support can work it), replies by email, and the new Property Manager grants (`contact_platform`, `handle_requests`).
 Add the grants to the canonical list.
 
 - **Before starting:** needs launch-followups Session 2's notification email. If it isn't done, say so and stop.
@@ -150,9 +164,9 @@ Add the grants to the canonical list.
 
 Gates green. Commit and stop.
 
-## Session D — system health, and the Platform Support role if chosen (Sonnet 5.5)
+## Session D — system health (Sonnet 5.5)
 
-Build Phase 4 from existing collections and `vercel.json` crons. If Session 0 chose a Platform Support role, add the
-Directus role, `requireOpsPermission`, and tests that it can't reach any money action.
+Build Phase 4 from existing collections and `vercel.json` crons, behind `requireOpsPermission(event, "billing.read")`. The
+Platform Support role and guard already exist from Session A.
 
 Gates green. Commit and stop.

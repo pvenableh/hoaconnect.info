@@ -52,7 +52,7 @@ The console keeps these labels distinct.
 | Role | Operator console (`/ops`) | Support |
 |---|---|---|
 | App Admin | Everything (§5) | Works the platform inbox; sees every request |
-| Platform Support *(new, optional, §9.2)* | Read-only console, plus the inbox. No money actions. | Works the platform inbox |
+| Platform Support *(new, decided §9.2)* | Read-only console, plus the inbox. No money actions. | Works the platform inbox |
 | HOA Admin | — (keeps Settings → Subscription) | **Contact HOA Connect**: billing, bugs, questions, feature ideas. Sees every platform request from their community. |
 | Billing account owner / billing_admin | — (keeps `/billing/<id>`) | Contact HOA Connect about the billing account |
 | Property Manager | — | Contact HOA Connect on the community's behalf, if their grants allow (new grant `contact_platform`) |
@@ -98,7 +98,7 @@ Customer contacts are shown by name and email in the console: HOA Admins, board 
 
 ### Phase 2 — Act (each confirmed, with a reason, and logged)
 
-- Refund a subscription charge, full or partial. A typed confirmation is required above a set amount.
+- Refund a subscription charge, full or partial. A reason is required on every refund; above $500 the amount must also be typed to confirm.
 - Cancel immediately or at period end, and resume a subscription that's set to cancel at period end.
 - Extend a trial, or mark a community free (comp).
 - Move a community to another band now. This shares logic with Session 3; build that first.
@@ -132,11 +132,18 @@ Customer contacts are shown by name and email in the console: HOA Admins, board 
 - Push subscriptions by platform.
 - Webhook delivery (failed events in the last 7 days).
 
+### Phase 5 — View as a role (later; not scheduled)
+
+- See a community as a tenant, board officer, HOA Admin or Property Manager, to reproduce a problem.
+- Read-only. Every "view as" session is written to `ops_audit_log`, and the viewed person's residents' details follow §3.
+- Not built until Phases 1–4 have been in use.
+
 ## 6. Data and code changes
 
 - **Platform role checks**
   - `requireAppAdmin(event)` in `core/server/utils/admin-auth.ts`. It returns 403 unless `checkAdminAccess().isAppAdmin`.
-  - If a Support role is chosen, add a Directus role `Platform Support` and `requireOpsPermission(event, "billing.read" | "billing.write" | "support")` instead.
+  - Platform Support is chosen. Add a Directus role `Platform Support` (id in `config.public.directusRolePlatformSupport`, server-checked by id like App Admin) and `requireOpsPermission(event, "billing.read" | "billing.write" | "support")`. App Admin passes all three; Platform Support passes `billing.read` and `support` only. `requireAppAdmin` stays for anything an App Admin alone may do.
+  - Every read route uses `requireOpsPermission(event, "billing.read")`. Every money action uses `"billing.write"`.
   - Settle the client's legacy role names ("Administrator") to match the server's id-only check.
 - **Grants:** two new Property Manager grants, `contact_platform` and `handle_requests`. Add both to the canonical grant list, so revocation clears them too (`manager-access.ts` explains why).
 - **`ops_audit_log`:** append-only, written only through `writeOpsAuditEntry()`.
@@ -151,7 +158,7 @@ Customer contacts are shown by name and email in the console: HOA Admins, board 
 ## 7. Security and privacy
 
 - Server-side role check on every `/api/ops` route; the UI gate is only a convenience.
-- Refunds and cancellations need a reason and a confirmation, and refunds are capped per request. Stripe idempotency keys stop a double-click from refunding twice.
+- Refunds and cancellations need a reason and a confirmation, and refunds are capped per request, and above $500 need the amount typed to confirm. Platform Support can read and work the inbox but is refused every `billing.write` action before Stripe is called. Stripe idempotency keys stop a double-click from refunding twice.
 - Rate-limit `/api/ops` writes.
 - Never return secret keys, signing secrets or full card details. Stripe's last-4 digits are enough.
 - Show residents' details only for requests they opened (§3).
@@ -161,20 +168,28 @@ Customer contacts are shown by name and email in the console: HOA Admins, board 
 
 | Session | Scope | Suggested model | Notes |
 |---|---|---|---|
-| A | `requireAppAdmin`, `/ops` shell, Overview, Communities, Community page with People, Billing accounts (read-only) | Opus | No writes. Prove the numbers against Stripe in test mode. |
+| A | `requireAppAdmin`, `requireOpsPermission` and the Platform Support role, `/ops` shell, Overview, Communities, Community page with People, Billing accounts (read-only) | Opus | No Stripe or Directus writes except creating the role, which needs Peter's yes. Prove the numbers against Stripe in test mode. |
 | B | Payments feed and the Phase 2 actions, with `ops_audit_log` | Opus | Live Stripe writes: every action is tested in test mode first. Re-banding waits for launch-followups Session 3. |
 | C | Support: collections, both doors by role, community inbox, platform inbox, replies by email, new grants | Opus | Role routing is the hard part. Needs launch-followups Session 2's notification email. |
-| D | System health; Platform Support role if chosen | Sonnet | Mostly reads of existing collections. |
+| D | System health | Sonnet | Mostly reads of existing collections. Gate its routes with `requireOpsPermission(event, "billing.read")`. |
 
-Don't run B alongside launch-followups Sessions 2 or 4: all three touch Stripe billing paths.
+Phases 1 and 2 release together (§9.3): A and B are built as two sessions, but nothing is pushed until B is done and Peter says so. Don't run B alongside launch-followups Sessions 2 or 4: all three touch Stripe billing paths.
 
 ## 9. Decisions for Peter (recommendation first)
 
 1. **Where:** `/ops` in the app, or a Directus extension/Insights?
+   - Decided 2026-11-09: `/ops` in the app.
 2. **Platform roles:** App Admin only for now, or add a "Platform Support" role (read-only console plus inbox, no money actions)?
+   - Decided 2026-11-09: add a Platform Support role (read-only console plus inbox, no money actions). Built in Session A with `requireOpsPermission`, not Session D, so every route is gated by permission from the start.
 3. **First release:** read-only Phase 1, or Phases 1 and 2 together?
+   - Decided 2026-11-09: Phases 1 and 2 ship together. Built as Sessions A and B; nothing is pushed until B is done.
 4. **Support:** build the two doors (community and platform), or use an existing helpdesk (Help Scout, Crisp) for the platform side and keep only "Ask my community" in the app?
+   - Decided 2026-11-09: build both doors in the app (Session C as written).
 5. **Residents and the platform:** can owners and tenants report app problems straight to HOA Connect (HOA Admins copied), or must everything from residents go through their community first?
+   - Decided 2026-11-09: owners and tenants can report app problems straight to HOA Connect, with HOA Admins copied. "Ask my community" still goes to the HOA.
 6. **Who sees a community's platform requests:** all of its HOA Admins, or only the person who asked?
+   - Decided 2026-11-09: all of the community's HOA Admins see its platform requests.
 7. **Refund guard:** a reason for every refund plus a typed confirmation above $500, or a reason only?
+   - Decided 2026-11-09: a reason on every refund, plus the amount typed to confirm above $500.
 8. **"View as" a role** (see a community as a tenant, a board officer, etc., to reproduce a problem): not now, or later as read-only and logged?
+   - Decided 2026-11-09: later, as read-only and logged. Now Phase 5 (§5), not scheduled.
