@@ -3,6 +3,7 @@ import {
   createItem,
   readItems,
   readRoles,
+  readUsers,
   updateItem,
   rest,
   createFolder,
@@ -126,6 +127,19 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Directus stores emails in lower case.
+  if (!isLoggedIn) {
+    const existingUsers = await getTypedDirectus().request(
+      readUsers({ filter: { email: { _eq: String(email).toLowerCase() } }, fields: ["id"], limit: 1 })
+    );
+    if (existingUsers?.length) {
+      throw createError({
+        statusCode: 409,
+        message: "An account with this email already exists. Sign in, then create your community from there.",
+      });
+    }
+  }
+
   try {
     const config = useRuntimeConfig();
     const directus = getTypedDirectus();
@@ -147,6 +161,43 @@ export default defineEventHandler(async (event) => {
         message: "This slug is already taken. Please choose a different one.",
       });
     }
+
+    // Get the "HOA Admin" role UUID
+    const roles = await directus.request(
+      readRoles({
+        filter: {
+          name: { _eq: "HOA Admin" },
+        },
+        limit: 1,
+      })
+    );
+
+    const hoaAdminRole = roles?.[0];
+    if (!hoaAdminRole) {
+      throw createError({
+        statusCode: 500,
+        message:
+          "HOA Admin role not found. Please create it in Directus first.",
+      });
+    }
+
+    const hoaAdminRoleId = hoaAdminRole.id;
+
+    // A new user comes before the org: if Directus rejects them, nothing is left
+    // behind. An org created first would stay with no admin and hold its slug,
+    // so the retry would be refused as "slug taken".
+    const newUser = isLoggedIn
+      ? null
+      : await directus.request(
+          createUser({
+            email,
+            password,
+            first_name: firstName,
+            last_name: lastName,
+            role: hoaAdminRoleId,
+            status: "active",
+          })
+        );
 
     // 1. Create the organization on its band
     const organization = await directus.request(
@@ -186,27 +237,6 @@ export default defineEventHandler(async (event) => {
       })
     );
 
-    // 4. Get the "HOA Admin" role UUID
-    const roles = await directus.request(
-      readRoles({
-        filter: {
-          name: { _eq: "HOA Admin" },
-        },
-        limit: 1,
-      })
-    );
-
-    const hoaAdminRole = roles?.[0];
-    if (!hoaAdminRole) {
-      throw createError({
-        statusCode: 500,
-        message:
-          "HOA Admin role not found. Please create it in Directus first.",
-      });
-    }
-
-    const hoaAdminRoleId = hoaAdminRole.id;
-
     let userId: string;
     let userEmail: string;
     let userFirstName: string;
@@ -220,7 +250,7 @@ export default defineEventHandler(async (event) => {
       userFirstName = session.user.firstName || "";
       userLastName = session.user.lastName || "";
 
-      // 5. Create the hoa_member record linking existing user to new org
+      // 4. Create the hoa_member record linking existing user to new org
       hoaMember = await directus.request(
         createItem("hoa_members", {
           user: userId,
@@ -248,26 +278,13 @@ export default defineEventHandler(async (event) => {
       });
 
     } else {
-      // GUEST USER FLOW: Create new user and log them in
-
-      // 5. Create the Directus user (admin for this HOA)
-      const newUser = await directus.request(
-        createUser({
-          email,
-          password,
-          first_name: firstName,
-          last_name: lastName,
-          role: hoaAdminRoleId,
-          status: "active",
-        })
-      );
-
-      userId = newUser.id;
-      userEmail = newUser.email || email;
+      // GUEST USER FLOW: Link the new user and log them in
+      userId = newUser!.id;
+      userEmail = newUser!.email || email;
       userFirstName = firstName;
       userLastName = lastName;
 
-      // 6. Create the hoa_member record with personal info
+      // 4. Create the hoa_member record with personal info
       hoaMember = await directus.request(
         createItem("hoa_members", {
           user: userId,
@@ -282,7 +299,7 @@ export default defineEventHandler(async (event) => {
         })
       );
 
-      // 7. Automatically log the user in (using same pattern as login.post.ts)
+      // 5. Automatically log the user in (using same pattern as login.post.ts)
       console.log("User created successfully:", userId);
       console.log("Attempting login with email:", email);
       console.log("Directus URL:", config.directus.url);

@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   session: null as any,
   fieldMissing: false,
   declaredReadFails: false,
+  createUserFails: false,
   stripe: null as any,
   authRequest: (async () => ({})) as (op: any) => Promise<any>,
 }));
@@ -80,7 +81,10 @@ const directusRequest = async (op: any) => {
     case "createFolder":
       return db.request({ op: "createItem", collection: "directus_folders", data: op.data });
     case "createUser":
+      if (h.createUserFails) throw new Error("password rejected");
       return db.request({ op: "createItem", collection: "directus_users", data: op.data });
+    case "readUsers":
+      return db.all("directus_users", op.query.filter);
     case "readItem":
       if (op.query?.fields?.includes("declared_units")) {
         if (h.fieldMissing) throw forbidden();
@@ -127,6 +131,7 @@ beforeEach(() => {
   h.session = { user: { id: USER, email: "board@example.com", role: "role-member" } };
   h.fieldMissing = false;
   h.declaredReadFails = false;
+  h.createUserFails = false;
   customerOnOrgAtSubscribe = undefined;
   bandUtils._resetBandPriceCache();
 
@@ -217,6 +222,26 @@ describe("setup-organization", () => {
       message: expect.stringContaining("pnpm add:declared-units"),
     });
     expect(orgs()).toHaveLength(0);
+  });
+
+  const guest = { isLoggedIn: false, email: "New@Example.com", password: "pw", firstName: "Ada", lastName: "Lovelace" };
+
+  it("refuses an email that's already registered and creates nothing", async () => {
+    db.seed("directus_users", [{ email: "new@example.com" }]);
+    await expect(signup(guest)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("already exists"),
+    });
+    expect(orgs()).toHaveLength(0);
+    expect(db.table("directus_folders")).toHaveLength(0);
+    expect(db.table("directus_users")).toHaveLength(1);
+  });
+
+  it("leaves no org behind when Directus rejects the new user, so a retry isn't told the slug is taken", async () => {
+    h.createUserFails = true;
+    await expect(signup(guest)).rejects.toMatchObject({ statusCode: 400 });
+    expect(orgs()).toHaveLength(0);
+    expect(db.table("directus_folders")).toHaveLength(0);
   });
 
   it("a brand-new admin passes the charge route's admin check straight after signing up", async () => {
