@@ -167,6 +167,41 @@ After B, ask Peter whether to push A+B together.
 
 Gates green. Commit and stop.
 
+**Before starting:** check that launch-followups Sessions 2 and 4 aren't running (`git log`, and ask Peter if unsure). All three
+touch Stripe billing paths. Re-banding ("move to another band") is NOT in B: it waits for launch-followups Session 3. Re-sending
+email and changing the billing contact (plan §5) aren't in B either.
+
+**What Session A left for B (read these, not the whole tree):**
+- **Guard:** `requireOpsPermission(event, "billing.write")` is in `core/server/utils/admin-auth.ts` and returns
+  `{ userId, role }` (the audit actor). On the client, hide action buttons with `useRoles().canOps("billing.write")`.
+- **Tests:** extend `tests/server/ops-console.test.ts`. It already has a fake Stripe (`h.stripe`), a MemoryDirectus seed, an
+  `OUTSIDERS` list and `stripeCalls()`. For actions, add Platform Support to the refused list and assert `stripeCalls() === 0`.
+  For the double submit, the fake should key on `idempotencyKey` the way Stripe does.
+- **Cache:** `opsCached` in `core/server/utils/ops-data.ts` keeps Stripe reads for 60 s, so an action must drop the keys it
+  changes (add an exported invalidator; `_resetOpsCache` is for tests only). Otherwise the page shows the old state after a
+  refund.
+- **UI:** actions go on the existing pages. Refund goes on a charge in `app/pages/ops/communities/[id].vue` (billing card) and
+  on `payments.vue`. Cancel, resume and the portal go on that billing card; trial and comp go on the status line; codes go on
+  the overview's Discount codes card. Confirm with `useConfirm()` (the native-dialogs audit refuses `window.confirm`).
+- **Patterns:** the audit writer follows `core/server/utils/audit-log.ts` (no update or delete function exists, on purpose).
+  The migration follows the `org_audit_log` part of `scripts/create-transition-collections.ts`. Rate limiting is
+  `rateLimit(key, max, windowMs)` plus `clientIp(event)` from `rate-limit.ts`. The portal is
+  `core/server/api/stripe/portal.post.ts`. Codes are `promotion-code.ts`, and new ones are tagged with `appMetadata()`.
+- **Fix from A (verified 2026-11-09):** on localhost (test key, production Directus), 2 of 8 community pages show the generic
+  "Stripe couldn't be read" error. Their customer and subscription ids are live-mode objects (`resource_missing`, "a similar
+  object exists in live mode"). In `core/server/api/ops/communities/[id].get.ts`, read each Stripe call on its own, so one
+  failure doesn't blank the billing card. Say "this is a live-mode object; the server is in test mode" when that's the cause,
+  and disable actions on it.
+
+**Testing on localhost, carefully:**
+- Directus there is PRODUCTION. Extend-trial and mark-free write `hoa_organizations`, and every action writes an
+  `ops_audit_log` row that can never be deleted. Ask Peter before the first action that writes to Directus. Use only the
+  "Testing HOA" org, put "TEST" in every reason, and put the org back afterwards.
+- Stripe test objects for refund, cancel and resume: create them in test mode (a test customer plus a subscription on a test
+  price, tagged `app = hoaconnect`), and delete them or cancel them afterwards.
+- The webhook doesn't reach localhost unless you follow launch-followups' "A test-mode run" recipe; the Stripe CLI is paired
+  to a different account. Prove the Stripe side by reading the objects back, not by the org's status changing.
+
 ## Session C — support (Opus 5.5)
 
 Build Phase 3 as decided: the two doors by role, `support_requests` and `support_messages`, the community inbox, the
