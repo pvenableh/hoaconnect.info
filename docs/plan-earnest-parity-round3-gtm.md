@@ -2566,7 +2566,23 @@ Round 3 is **code-complete on local `main`** — Phases 0–9, 14 sessions. What
    re-seeded on the new shell, reminders turned on per pilot community, the transition fixture deleted when done with it.
 
 Still open in code, recorded rather than built: Q4 "resend unknown" and copy overrides (Phase 4); prettier (no `.prettierrc`; Phase 8);
-four `prompt()`s; multi-charge refund unwinding; the unauthenticated per-plan subscription route.
+four `prompt()`s; multi-charge refund unwinding; the unauthenticated per-plan subscription route (closed in Post-Round-3 Session 1).
+
+### Post-Round-3 Session 1 — signup on band pricing (2026-11-09)
+
+Local, on `main`, Opus 5.5. Built from docs/prompts/signup-bands-build.md in three commits.
+
+**Shipped.** The board declares a unit count and the server picks the band (`declared_units`; `resolveBandForOrg` uses the larger of real and declared). `setup-organization` always starts the org in `trial` and takes no status, Stripe ids or plan id from the client. The signup form quotes with `selectBand` and `bandAmounts`, creates the org once, then subscribes through `subscribe-band`. Removed: `/api/stripe/subscription`, `/api/stripe/setup-intent`, `Payment/SubscriptionForm.vue`, the three `/api/hoa/pending-setup` routes, `setup/complete.vue`.
+
+**Added at Peter's request.** New signups get `trial_ends_at` 14 days out (`SIGNUP_TRIAL_DAYS`), because a `trial` org with no end date is entitled forever. Paying makes it `active` and the date stops mattering.
+
+**Proved.** Test mode on localhost, card 4242, new org `zz-stripe-test`: Mid monthly, 45 units, $2,949 on 2 invoice lines, `trial → active` by webhook, 3 deliveries all 200, one subscription on the customer. Gates: 144 files / 2,508 tests, 16 audits, lint 0 errors and 139 warnings (limit still 148), typecheck 0, build exit 0.
+
+**Deviations.** `stripe login` paired with a different account also named "hue" (`acct_1TvM9jPOPxSJoMmo`), so the listener ran on the app's own test key via `STRIPE_API_KEY` to stay on `acct_1Fv2XpA7IKygGtBC`. Manage billing wasn't opened in the run. Peter entered the account details and card, since they go to the hosted Directus.
+
+**Deploy order.** Run `pnpm add:declared-units` on production Directus BEFORE the push goes live; until then new signups get a 503. It has been run on the Directus in `.env` only.
+
+**Open.** Nothing tells the operator when a subscription is created. On this Mac plain `pnpm dev` answers HTTP 426 because Vite's HMR socket lands on port 3000; `NUXT_PORT=3000 PORT=24678 pnpm dev` works around it.
 
 ### Decisions (locked 2026-10-24, all on the plan's defaults)
 

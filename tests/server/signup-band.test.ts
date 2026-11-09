@@ -185,7 +185,13 @@ describe("setup-organization", () => {
     expect(org).toMatchObject({ subscription_status: "trial", subscription_plan: "plan-mid" });
     expect(org!.stripe_customer_id).toBeUndefined();
     expect(org!.stripe_subscription_id).toBeUndefined();
-    expect(org!.trial_ends_at).toBeUndefined();
+  });
+
+  it("gives an unpaid signup 14 days, whatever end date the client sends", async () => {
+    await signup({ trialEndsAt: "2099-01-01T00:00:00.000Z" });
+    const days = (new Date(orgs()[0]!.trial_ends_at).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(13.9);
+    expect(days).toBeLessThanOrEqual(14);
   });
 
   it("picks the band from the declared count and stores that count", async () => {

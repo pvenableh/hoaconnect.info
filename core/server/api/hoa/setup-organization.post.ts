@@ -17,6 +17,11 @@ import { isContactOnly } from "#core/shared/billing/bands";
 // Well past any real community, and inside a Postgres integer.
 const MAX_DECLARED_UNITS = 1_000_000;
 
+// How long a new community keeps access if its card is never completed. Without
+// an end date a `trial` org is entitled forever. Once paid it is `active`, and
+// this date no longer matters.
+const SIGNUP_TRIAL_DAYS = 14;
+
 // A new org always starts in `trial` with no Stripe ids: the webhook moves it to
 // `active` once POST /api/stripe/subscribe-band has been paid. Nothing the client
 // sends can set its status, its plan or its Stripe ids. The plan comes from the
@@ -159,6 +164,7 @@ export default defineEventHandler(async (event) => {
         status: "active",
         billing_cycle: billingCycle || "monthly",
         subscription_status: "trial",
+        trial_ends_at: new Date(Date.now() + SIGNUP_TRIAL_DAYS * 86_400_000).toISOString(),
         // New orgs default to the paid/trial track. Mark an org is_free_account
         // manually (in Directus) to comp it — that also flips its AI metering to
         // at-cost ("Hue") pricing via marginForAccount() in chargeForCompletion.
