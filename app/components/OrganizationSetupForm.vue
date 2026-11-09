@@ -3,12 +3,13 @@ import { ref, computed, watch } from "vue";
 import { toast } from "vue-sonner";
 import { useDirectusItems } from "#imports";
 import type { SubscriptionPlan } from "#core/types/directus";
+import { isContactOnly, selectBand } from "#core/shared/billing/bands";
+import { bandAmounts, type BillingInterval, type CheckoutBand } from "#core/shared/billing/band-checkout";
 
 interface Props {
   title?: string;
   description?: string;
   redirectTo?: string;
-  betaMode?: boolean; // Skip subscription selection in BETA
   isLoggedIn?: boolean; // For existing users creating additional orgs
 }
 
@@ -16,39 +17,24 @@ const props = withDefaults(defineProps<Props>(), {
   title: "Set up your HOA",
   description: "Get started by creating your organization",
   redirectTo: "/dashboard",
-  betaMode: true, // Enable BETA mode by default
   isLoggedIn: false,
 });
 
-const emit = defineEmits<{
-  success: [data: any];
-  error: [error: Error];
-}>();
-
-const router = useRouter();
 const config = useRuntimeConfig();
 const session = useUserSession();
 const { list: listPlans } = useDirectusItems<SubscriptionPlan>("subscription_plans", { requireAuth: false });
 
-// Total steps: 4 (Org Info, Plan Selection, Account Details, Payment)
-// Beta mode: skips step 2 (Plan Selection), but still shows payment if plan costs money
-// Logged in mode: skips step 3 (Account Details)
-const TOTAL_STEPS = 4;
+// Steps: 1 Org Info, 2 Size and Price, 3 Account Details (guests only), 4 Payment
 
 // Form state
 const currentStep = ref(1);
 const loading = ref(false);
 
-// Subscription state
-const subscriptionId = ref<string | null>(null);
-const customerId = ref<string | null>(null);
-const subscriptionStatus = ref<string | null>(null);
-const trialEndDate = ref<string | null>(null);
-const paymentCompleted = ref(false);
-const pendingSetupToken = ref<string | null>(null);
-
-// Billing cycle selection
-const billingCycle = ref<"monthly" | "yearly">("monthly");
+// The org is created once, on the way into payment, and subscribed separately.
+// After that a retry or a Back press only re-subscribes it, so a second org can't
+// be made and the details already saved are locked.
+const createdOrgId = ref<string | null>(null);
+const checkout = ref<{ clientSecret: string; amountCents: number; planName: string } | null>(null);
 
 // Step 1: Organization Details
 const orgForm = ref({
@@ -143,9 +129,15 @@ const urlPreview = computed(() => {
   return "";
 });
 
-// Step 2: Subscription Selection (optional in BETA)
-const selectedPlan = ref<string | null>(null);
-const subscriptionPlans = ref<SubscriptionPlan[]>([]);
+// Step 2: Size and price. The board declares its unit count and the server picks
+// the band from it; the quote here runs the same selection on the same plans.
+const declaredUnits = ref<string | number>("");
+const interval = ref<BillingInterval>("monthly");
+const intervalItems = [
+  { value: "monthly", label: "Monthly" },
+  { value: "annual", label: "Annual" },
+];
+const plans = ref<SubscriptionPlan[]>([]);
 
 // Step 3: Admin Details
 const adminForm = ref({
@@ -157,7 +149,7 @@ const adminForm = ref({
   confirmPassword: "",
 });
 
-// Load subscription plans
+// Load the band ladder
 const loadPlans = async () => {
   const data = await listPlans({
     filter: {
@@ -167,72 +159,39 @@ const loadPlans = async () => {
     sort: ["sort"],
   });
 
-  if (data) {
-    subscriptionPlans.value = data as SubscriptionPlan[];
-
-    // Auto-select free plan in BETA mode
-    if (props.betaMode) {
-      const freePlan = data.find(
-        (p) => parseFloat(String(p.price_monthly || 0)) === 0
-      );
-      if (freePlan) {
-        selectedPlan.value = freePlan.id;
-      }
-    }
-  }
+  if (data) plans.value = data as SubscriptionPlan[];
 };
 
-// Always load plans to determine if payment is required
 onMounted(() => {
   loadPlans();
 });
 
-// Get the selected plan object
-const selectedPlanObject = computed(() => {
-  if (!selectedPlan.value) return null;
-  return subscriptionPlans.value.find((p) => p.id === selectedPlan.value);
+const units = computed(() => {
+  const n = Number(declaredUnits.value);
+  return Number.isInteger(n) && n >= 1 ? n : null;
 });
 
-// Check if payment is required based on selected plan price
-// A paid plan requires payment info even for trials (to charge after trial ends)
-const paymentRequired = computed(() => {
-  if (!selectedPlanObject.value) return false;
-  const price = billingCycle.value === "yearly"
-    ? parseFloat(String(selectedPlanObject.value.price_yearly || 0))
-    : parseFloat(String(selectedPlanObject.value.price_monthly || 0));
-  return price > 0;
+const band = computed(() =>
+  units.value === null ? null : selectBand(units.value, plans.value as unknown as CheckoutBand[])
+);
+
+const needsConversation = computed(() => isContactOnly(band.value));
+
+const quote = computed(() =>
+  band.value && !needsConversation.value ? bandAmounts(band.value, interval.value, true) : null
+);
+
+/** Annual saving vs twelve months, from the band's own prices. */
+const annualSaving = computed(() => {
+  const monthly = Number(band.value?.price_monthly);
+  const yearly = Number(band.value?.price_yearly);
+  if (!monthly || !yearly) return null;
+  const pct = Math.round((1 - yearly / (monthly * 12)) * 100);
+  return pct > 0 ? pct : null;
 });
 
-// Get the plan price for payment (in dollars)
-const planPrice = computed(() => {
-  if (!selectedPlanObject.value) return 0;
-  return billingCycle.value === "yearly"
-    ? parseFloat(String(selectedPlanObject.value.price_yearly || 0))
-    : parseFloat(String(selectedPlanObject.value.price_monthly || 0));
-});
-
-// The plan's slug: checkout resolves the price for the Stripe mode the server is
-// in (by lookup key), so the stored ids — one mode only — never decide it.
-const planSlug = computed(() => selectedPlanObject.value?.slug || null);
-
-// The stored Stripe price ID (a record only; setup-organization keeps it)
-const stripePriceId = computed(() => {
-  if (!selectedPlanObject.value) return null;
-  return billingCycle.value === "yearly"
-    ? selectedPlanObject.value.stripe_price_id_yearly
-    : selectedPlanObject.value.stripe_price_id_monthly;
-});
-
-// Get trial days from selected plan
-const trialDays = computed(() => {
-  if (!selectedPlanObject.value) return 0;
-  return selectedPlanObject.value.trial_days || 0;
-});
-
-// Check if this plan has a free trial
-const hasFreeTrial = computed(() => {
-  return trialDays.value > 0;
-});
+const formatPrice = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(n);
 
 // Validation
 const step1Valid = computed(() => {
@@ -243,9 +202,7 @@ const step1Valid = computed(() => {
   );
 });
 
-const step2Valid = computed(() => {
-  return props.betaMode || selectedPlan.value !== null;
-});
+const step2Valid = computed(() => quote.value !== null);
 
 const step3Valid = computed(() => {
   // If user is already logged in, skip admin details validation
@@ -270,192 +227,114 @@ const paymentEmail = computed(() => {
   return adminForm.value.email;
 });
 
-// Get name for payment
-const paymentName = computed(() => {
-  if (props.isLoggedIn && session.user.value) {
-    return `${session.user.value.firstName || ''} ${session.user.value.lastName || ''}`.trim();
-  }
-  return `${adminForm.value.firstName} ${adminForm.value.lastName}`.trim();
+// The card sends the browser here itself once the payment has gone through.
+const paymentReturnUrl = computed(() =>
+  import.meta.client ? `${window.location.origin}${props.redirectTo}` : undefined
+);
+
+const currentStepValid = computed(() => {
+  if (currentStep.value === 1) return step1Valid.value;
+  if (currentStep.value === 2) return step2Valid.value;
+  return step3Valid.value;
 });
 
-// Step 4 is valid when payment is completed (or not required)
-const step4Valid = computed(() => {
-  return !paymentRequired.value || paymentCompleted.value;
-});
+// Logged-in users have no account step, and neither does anyone whose org exists.
+const paymentIsNext = computed(
+  () => currentStep.value === 3 || (currentStep.value === 2 && (props.isLoggedIn || !!createdOrgId.value))
+);
 
-// Get the next step based on current mode
-const getNextStep = (current: number): number => {
-  if (current === 1) {
-    // After org info
-    if (props.betaMode) {
-      // Beta mode skips plan selection
-      return props.isLoggedIn ? 4 : 3; // Skip to payment or account details
-    }
-    return 2; // Go to plan selection
-  }
-  if (current === 2) {
-    // After plan selection
-    return props.isLoggedIn ? 4 : 3; // Skip to payment or account details
-  }
-  if (current === 3) {
-    // After account details - always go to payment if required
-    return 4;
-  }
-  return current + 1;
-};
-
-// Get the previous step based on current mode
-const getPrevStep = (current: number): number => {
-  if (current === 4) {
-    // Going back from payment
-    if (props.isLoggedIn) {
-      return props.betaMode ? 1 : 2; // Skip account details for logged in users
-    }
-    return 3; // Go to account details
-  }
-  if (current === 3) {
-    // Going back from account details
-    return props.betaMode ? 1 : 2;
-  }
-  if (current === 2) {
-    return 1;
-  }
-  return current - 1;
-};
+// Step 1 edits what has already been saved, so it closes once the org exists.
+const canGoBack = computed(() => currentStep.value > 1 && !(currentStep.value === 2 && createdOrgId.value));
 
 // Navigation
 const nextStep = async () => {
-  if (currentStep.value === 1 && !step1Valid.value) {
-    toast.error("Please complete all organization details");
+  if (!currentStepValid.value) return;
+  if (paymentIsNext.value) {
+    await startCheckout();
     return;
   }
-  if (currentStep.value === 2 && !step2Valid.value) {
-    toast.error("Please select a subscription plan");
-    return;
-  }
-  if (currentStep.value === 3 && !step3Valid.value) {
-    toast.error("Please complete all account details");
-    return;
-  }
-
-  const nextStepNumber = getNextStep(currentStep.value);
-
-  // If going to payment step
-  if (nextStepNumber === 4) {
-    if (paymentRequired.value) {
-      // Save setup data before going to payment step
-      loading.value = true;
-      try {
-        await saveSetupDataForPayment();
-        currentStep.value = 4;
-      } catch (err) {
-        toast.error("Failed to prepare payment. Please try again.");
-        console.error('Error saving setup data:', err);
-      } finally {
-        loading.value = false;
-      }
-    } else {
-      // No payment required, submit directly
-      handleSubmit();
-    }
-  } else {
-    currentStep.value = nextStepNumber;
-  }
+  currentStep.value += 1;
 };
 
 const prevStep = () => {
-  currentStep.value = getPrevStep(currentStep.value);
+  if (currentStep.value === 4) {
+    checkout.value = null;
+    currentStep.value = 2;
+    return;
+  }
+  currentStep.value -= 1;
 };
 
-// Save setup data to sessionStorage AND server before payment is initiated
-// This is needed because Stripe redirects to a new page after payment
-// Server-side storage provides a fallback if sessionStorage is cleared during redirect
-const saveSetupDataForPayment = async () => {
-  const setupData: Record<string, any> = {
-    // Organization
-    organizationName: orgForm.value.organizationName,
-    street_address: orgForm.value.street_address,
-    city: orgForm.value.city,
-    state: orgForm.value.state,
-    zip: orgForm.value.zip,
-    org_phone: orgForm.value.org_phone,
-    org_email: orgForm.value.org_email,
-    slug: orgForm.value.slug,
-    subscriptionPlanId: selectedPlan.value,
-
-    // Subscription details
-    billingCycle: billingCycle.value,
-    stripePriceId: stripePriceId.value,
-    trialDays: trialDays.value,
-
-    // Redirect destination after setup is complete
-    redirectTo: props.redirectTo,
-
-    // Flag for logged-in user flow
-    isLoggedIn: props.isLoggedIn,
-  };
-
-  // Only include admin details if not logged in
-  if (!props.isLoggedIn) {
-    setupData.firstName = adminForm.value.firstName;
-    setupData.lastName = adminForm.value.lastName;
-    setupData.email = adminForm.value.email;
-    setupData.phone = adminForm.value.phone;
-    setupData.password = adminForm.value.password;
-  }
-
-  // Save to sessionStorage as primary storage
-  sessionStorage.setItem('pendingSetupData', JSON.stringify(setupData));
-
-  // Also save to server as fallback (in case sessionStorage is cleared during Stripe redirect)
-  try {
-    const response = await $fetch<{ token: string }>('/api/hoa/pending-setup', {
-      method: 'POST',
-      body: setupData,
-    });
-    pendingSetupToken.value = response.token;
-  } catch (err) {
-    console.error('Failed to save pending setup data to server:', err);
-    // Continue anyway - sessionStorage might still work
-  }
-};
-
-// Computed return URL for Stripe payment - points to setup completion page
-// Includes the pending setup token as a query parameter for server-side fallback
-const setupPaymentReturnUrl = computed(() => {
-  if (typeof window !== 'undefined') {
-    const baseUrl = `${window.location.origin}/setup/complete`;
-    if (pendingSetupToken.value) {
-      return `${baseUrl}?setup_token=${pendingSetupToken.value}`;
-    }
-    return baseUrl;
-  }
-  return '/setup/complete';
+const organizationBody = () => ({
+  organizationName: orgForm.value.organizationName,
+  street_address: orgForm.value.street_address,
+  city: orgForm.value.city,
+  state: orgForm.value.state,
+  zip: orgForm.value.zip,
+  org_phone: orgForm.value.org_phone,
+  org_email: orgForm.value.org_email,
+  slug: orgForm.value.slug,
+  declaredUnits: units.value,
+  billingCycle: interval.value === "annual" ? "yearly" : "monthly",
+  isLoggedIn: props.isLoggedIn,
+  ...(props.isLoggedIn
+    ? {}
+    : {
+        firstName: adminForm.value.firstName,
+        lastName: adminForm.value.lastName,
+        email: adminForm.value.email,
+        phone: adminForm.value.phone,
+        password: adminForm.value.password,
+      }),
 });
 
-// Subscription payment handlers
-const handleSubscriptionSuccess = (data: {
-  subscriptionId: string;
-  customerId: string;
-  status: string;
-  trialEnd: string | null
-}) => {
-  subscriptionId.value = data.subscriptionId;
-  customerId.value = data.customerId;
-  subscriptionStatus.value = data.status;
-  trialEndDate.value = data.trialEnd;
-  paymentCompleted.value = true;
+/** Create the org the first time through. False if that failed. */
+const ensureOrganization = async (): Promise<boolean> => {
+  if (createdOrgId.value) return true;
+  try {
+    const created = await $fetch<{ organization: { id: string } }>("/api/hoa/setup-organization", {
+      method: "POST",
+      body: organizationBody(),
+    });
+    createdOrgId.value = created.organization.id;
+    return true;
+  } catch (err: any) {
+    toast.error("Setup failed", {
+      description: err?.data?.message || "Failed to set up organization. Please try again.",
+    });
+    return false;
+  }
+};
 
-  const message = data.trialEnd
-    ? `Your ${trialDays.value}-day free trial has started!`
-    : "Subscription created successfully!";
+const subscribeOrganization = async () => {
+  try {
+    const res = await $fetch<{ clientSecret: string | null; firstInvoiceCents: number; band: { name: string | null } }>(
+      "/api/stripe/subscribe-band",
+      { method: "POST", body: { organizationId: createdOrgId.value, interval: interval.value, onboarding: "standard" } }
+    );
+    if (!res?.clientSecret) throw new Error("Stripe didn't return a payment form. Please try again.");
+    checkout.value = {
+      clientSecret: res.clientSecret,
+      amountCents: res.firstInvoiceCents,
+      planName: `${res.band.name || "Your plan"} · ${interval.value === "annual" ? "annual" : "monthly"}`,
+    };
+    currentStep.value = 4;
+  } catch (err: any) {
+    // The org exists now. Retrying from the price step won't create another.
+    currentStep.value = 2;
+    toast.error("Your community is set up, but payment couldn't start", {
+      description: err?.data?.message || err?.message || "Please try again.",
+    });
+  }
+};
 
-  toast.success(message, {
-    description: "Processing your organization setup...",
-  });
-
-  // Automatically proceed to create the organization
-  handleSubmit();
+const startCheckout = async () => {
+  loading.value = true;
+  try {
+    if (await ensureOrganization()) await subscribeOrganization();
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handlePaymentError = (error: Error) => {
@@ -464,106 +343,7 @@ const handlePaymentError = (error: Error) => {
   });
 };
 
-// Submit
-const handleSubmit = async () => {
-  if (!step3Valid.value) {
-    toast.error("Please complete all admin details");
-    return;
-  }
-
-  // If payment is required but not completed, don't submit
-  if (paymentRequired.value && !paymentCompleted.value) {
-    toast.error("Please complete payment first");
-    return;
-  }
-
-  loading.value = true;
-
-  try {
-    const requestBody: Record<string, any> = {
-      // Organization
-      organizationName: orgForm.value.organizationName,
-      street_address: orgForm.value.street_address,
-      city: orgForm.value.city,
-      state: orgForm.value.state,
-      zip: orgForm.value.zip,
-      org_phone: orgForm.value.org_phone,
-      org_email: orgForm.value.org_email,
-      slug: orgForm.value.slug,
-      subscriptionPlanId: selectedPlan.value,
-
-      // Subscription details
-      billingCycle: billingCycle.value,
-      stripeSubscriptionId: subscriptionId.value,
-      stripeCustomerId: customerId.value,
-      subscriptionStatus: subscriptionStatus.value,
-      trialEndsAt: trialEndDate.value,
-
-      // Flag for logged-in user flow
-      isLoggedIn: props.isLoggedIn,
-    };
-
-    // Only include admin details if not logged in
-    if (!props.isLoggedIn) {
-      requestBody.firstName = adminForm.value.firstName;
-      requestBody.lastName = adminForm.value.lastName;
-      requestBody.email = adminForm.value.email;
-      requestBody.phone = adminForm.value.phone;
-      requestBody.password = adminForm.value.password;
-    }
-
-    const response = await $fetch("/api/hoa/setup-organization", {
-      method: "POST",
-      body: requestBody,
-    });
-
-    const message = trialEndDate.value
-      ? "Your free trial has started!"
-      : "Your organization has been set up successfully.";
-
-    toast.success("Welcome aboard!", {
-      description: message,
-    });
-
-    // Refresh the client-side session to reflect the server-side login
-    await session.fetch();
-
-    emit("success", response);
-    await router.push(props.redirectTo);
-  } catch (err: any) {
-    const errorMessage =
-      err.data?.message || "Failed to set up organization. Please try again.";
-
-    toast.error("Setup failed", {
-      description: errorMessage,
-    });
-
-    emit("error", err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Computed property for visible steps in progress indicator
-// Beta + logged in: 1 (Org Info), 4 (Payment - if required)
-// Beta + guest: 1 (Org Info), 3 (Account Details), 4 (Payment - if required)
-// Non-beta + logged in: 1, 2, 4
-// Non-beta + guest: 1, 2, 3, 4
-const visibleSteps = computed(() => {
-  let steps: number[];
-
-  if (props.betaMode) {
-    steps = props.isLoggedIn ? [1] : [1, 3];
-  } else {
-    steps = props.isLoggedIn ? [1, 2] : [1, 2, 3];
-  }
-
-  if (paymentRequired.value) {
-    steps.push(4);
-  }
-
-  return steps;
-});
+const visibleSteps = computed(() => (props.isLoggedIn ? [1, 2, 4] : [1, 2, 3, 4]));
 
 // Get display number for a step (for showing in the UI)
 const getStepDisplayNumber = (step: number) => {
@@ -576,11 +356,6 @@ const isLastVisibleStep = (step: number) => {
   const steps = visibleSteps.value;
   return step === steps[steps.length - 1];
 };
-
-// Get the final step number (for button logic)
-const finalStep = computed(() => {
-  return paymentRequired.value ? 4 : 3;
-});
 </script>
 
 <template>
@@ -777,100 +552,72 @@ const finalStep = computed(() => {
         </div>
       </div>
 
-      <!-- Step 2: Subscription Selection (skip in BETA) -->
-      <div v-if="currentStep === 2 && !betaMode" class="space-y-6">
-        <h3 class="text-lg font-semibold">Choose Your Plan</h3>
+      <!-- Step 2: Size and Price -->
+      <div v-if="currentStep === 2" class="space-y-6">
+        <h3 class="text-lg font-semibold">Your Community</h3>
 
-        <!-- Billing Cycle Toggle -->
-        <div class="flex justify-center">
-          <div class="inline-flex rounded-lg border p-1">
-            <button
-              type="button"
-              @click="billingCycle = 'monthly'"
-              class="px-4 py-2 rounded-md transition-colors"
-              :class="billingCycle === 'monthly'
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted'"
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              @click="billingCycle = 'yearly'"
-              class="px-4 py-2 rounded-md transition-colors relative"
-              :class="billingCycle === 'yearly'
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted'"
-            >
-              Yearly
-              <span class="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                Save 17%
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div
-            v-for="plan in subscriptionPlans"
-            :key="plan.id"
-            class="border rounded-lg p-4 cursor-pointer transition-all relative"
-            :class="[
-              selectedPlan === plan.id
-                ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                : 'hover:border-primary/50',
-              plan.is_featured ? 'border-primary' : '',
-            ]"
-            @click="selectedPlan = plan.id"
-          >
-            <!-- Featured Badge -->
-            <div
-              v-if="plan.is_featured"
-              class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold"
-            >
-              Most Popular
-            </div>
-
-            <div class="flex items-start justify-between mb-2">
-              <h4 class="font-semibold">{{ plan.name }}</h4>
-              <Checkbox
-                :checked="selectedPlan === plan.id"
-                @update:checked="() => (selectedPlan = plan.id)"
+        <FormField name="declaredUnits">
+          <FormItem>
+            <FormLabel>Number of Units *</FormLabel>
+            <FormControl>
+              <Input
+                v-model="declaredUnits"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                placeholder="48"
+                required
+                :disabled="!!createdOrgId"
               />
+            </FormControl>
+            <FormDescription>
+              <template v-if="createdOrgId">Your community has been set up with this count. Contact support to change it.</template>
+              <template v-else>Your price is one flat fee for the building, set by this number.</template>
+            </FormDescription>
+          </FormItem>
+        </FormField>
+
+        <div v-if="needsConversation" class="bg-muted/50 rounded-lg p-4 space-y-3" data-testid="signup-contact">
+          <p class="font-medium">{{ band?.name }}</p>
+          <p class="text-sm text-muted-foreground">
+            Communities this size are priced with us directly. Onboarding, migration and support are tailored.
+          </p>
+          <Button as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
+            Talk to us
+          </Button>
+        </div>
+
+        <div v-else-if="quote" class="space-y-4" data-testid="signup-quote">
+          <div class="flex justify-center">
+            <AppSegmentedControl v-model="interval" :items="intervalItems" size="sm" label="Billing interval" />
+          </div>
+
+          <div class="bg-muted/50 rounded-lg p-4 space-y-2">
+            <div class="flex justify-between items-baseline gap-4">
+              <p class="font-medium" data-testid="signup-band">{{ band?.name }}</p>
+              <p>
+                <span class="text-lg font-bold">{{ formatPrice(quote.periodAmount) }}</span>
+                <span class="text-sm text-muted-foreground">/{{ interval === "annual" ? "year" : "month" }}</span>
+              </p>
             </div>
-
-            <p class="text-2xl font-bold mb-2">
-              ${{ billingCycle === 'yearly' ? plan.price_yearly : plan.price_monthly }}
-              <span class="text-sm font-normal text-muted-foreground"
-                >/{{ billingCycle === 'yearly' ? 'year' : 'month' }}</span
-              >
+            <p v-if="interval === 'annual' && annualSaving" class="text-sm text-muted-foreground">
+              Saves {{ annualSaving }}% over monthly
             </p>
-
-            <!-- Trial Badge -->
-            <div
-              v-if="plan.trial_days && plan.trial_days > 0"
-              class="inline-flex items-center gap-1 text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded mb-2"
-            >
-              <Icon name="lucide:gift" class="w-3 h-3" />
-              {{ plan.trial_days }}-day free trial
+            <div v-if="quote.onboardingAmount" class="flex justify-between gap-4 text-sm">
+              <span class="text-muted-foreground">One-time onboarding</span>
+              <span>{{ formatPrice(quote.onboardingAmount) }}</span>
             </div>
-
-            <p class="text-sm text-muted-foreground mb-3">
-              {{ plan.description }}
-            </p>
-
-            <ul class="space-y-1">
-              <li
-                v-for="(feature, idx) in ((plan.features as unknown as string[]) || [])"
-                :key="idx"
-                class="text-sm flex items-center gap-2"
-              >
-                <Icon name="lucide:check" class="w-4 h-4 text-primary" />
-                {{ feature }}
-              </li>
-            </ul>
+            <div class="flex justify-between gap-4 pt-2 border-t font-medium">
+              <span>First invoice, charged today</span>
+              <span data-testid="signup-first-invoice">{{ formatPrice(quote.firstInvoiceCents / 100) }}</span>
+            </div>
           </div>
         </div>
+
+        <p v-else-if="units !== null" class="text-sm text-muted-foreground">
+          We couldn't load pricing. Refresh the page, or contact support@hoaconnect.info.
+        </p>
       </div>
 
       <!-- Step 3: Admin Details -->
@@ -962,73 +709,34 @@ const finalStep = computed(() => {
         </FormField>
       </div>
 
-      <!-- Step 4: Payment / Subscription -->
+      <!-- Step 4: Payment -->
       <div v-if="currentStep === 4" class="space-y-4">
-        <h3 class="text-lg font-semibold">
-          {{ hasFreeTrial ? 'Start Your Free Trial' : 'Complete Payment' }}
-        </h3>
-        <p class="text-sm text-muted-foreground mb-4">
-          <template v-if="hasFreeTrial">
-            Start your {{ trialDays }}-day free trial of {{ selectedPlanObject?.name }}.
-            Your card won't be charged until the trial ends.
-          </template>
-          <template v-else>
-            Complete your payment to activate your {{ selectedPlanObject?.name }} subscription.
-          </template>
+        <h3 class="text-lg font-semibold">Complete Payment</h3>
+        <p class="text-sm text-muted-foreground">
+          Your card is charged today and your subscription starts right away.
         </p>
 
-        <!-- Plan Summary -->
-        <div class="bg-muted/50 rounded-lg p-4 mb-4">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="font-medium">{{ selectedPlanObject?.name }}</p>
-              <p class="text-sm text-muted-foreground">
-                Billed {{ billingCycle === 'yearly' ? 'annually' : 'monthly' }}
-              </p>
-            </div>
-            <div class="text-right">
-              <p class="text-lg font-bold">${{ planPrice }}</p>
-              <p class="text-sm text-muted-foreground">
-                /{{ billingCycle === 'yearly' ? 'year' : 'month' }}
-              </p>
-            </div>
-          </div>
-          <div v-if="hasFreeTrial" class="mt-2 pt-2 border-t">
-            <p class="text-sm text-blue-600">
-              <Icon name="lucide:gift" class="w-3 h-3 inline mr-1" />
-              {{ trialDays }}-day free trial - You won't be charged today
-            </p>
-          </div>
+        <div class="bg-muted/50 rounded-lg p-4 flex justify-between items-center gap-4">
+          <p class="font-medium">{{ checkout?.planName }}</p>
+          <p class="text-lg font-bold">{{ formatPrice((checkout?.amountCents ?? 0) / 100) }}</p>
         </div>
 
-        <PaymentSubscriptionForm
-          v-if="planSlug"
+        <PaymentStripeCard
+          v-if="checkout"
+          :key="checkout.clientSecret"
+          :client-secret="checkout.clientSecret"
           :email="paymentEmail"
-          :name="paymentName"
-          :plan-slug="planSlug"
-          :trial-days="trialDays"
-          :plan-name="selectedPlanObject?.name || 'Subscription'"
-          :plan-price="planPrice"
-          :billing-cycle="billingCycle"
-          :metadata="{
-            organization_name: orgForm.organizationName,
-            subscription_plan_id: selectedPlan,
-            slug: orgForm.slug,
-          }"
-          :return-url="setupPaymentReturnUrl"
-          @success="handleSubscriptionSuccess"
+          :amount="checkout.amountCents"
+          payment-type="card"
+          :return-url="paymentReturnUrl"
           @error="handlePaymentError"
         />
-
-        <div v-else class="text-center text-red-500">
-          <p>Unable to load payment form. Please go back and select a plan.</p>
-        </div>
       </div>
     </CardContent>
 
     <CardFooter class="flex justify-between">
       <Button
-        v-if="currentStep > 1"
+        v-if="canGoBack"
         variant="outline"
         @click="prevStep"
         :disabled="loading"
@@ -1038,30 +746,14 @@ const finalStep = computed(() => {
 
       <div class="flex-1" />
 
-      <!-- Steps 1 and 2: Show Continue button -->
+      <!-- Step 4 has none: the card's own button pays. -->
       <Button
-        v-if="currentStep === 1 || currentStep === 2"
+        v-if="currentStep !== 4"
         @click="nextStep"
-        :disabled="loading || (currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid)"
+        :disabled="loading || !currentStepValid"
       >
-        {{ loading ? "Loading..." : "Continue" }}
+        {{ loading ? "Setting up..." : (paymentIsNext ? "Continue to Payment" : "Continue") }}
       </Button>
-
-      <!-- Step 3: Show "Continue to Payment" if payment required, otherwise "Complete Setup" -->
-      <Button
-        v-else-if="currentStep === 3 && !isLoggedIn"
-        @click="nextStep"
-        :disabled="loading || !step3Valid"
-      >
-        {{ loading ? "Setting up..." : (paymentRequired ? "Continue to Payment" : "Complete Setup") }}
-      </Button>
-
-      <!-- Step 4: No button needed - SubscriptionForm handles submission -->
-      <!-- Show a loading indicator if payment was successful and we're creating the org -->
-      <div v-else-if="currentStep === 4 && loading" class="flex items-center gap-2 text-muted-foreground">
-        <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-        <span>Creating your organization...</span>
-      </div>
     </CardFooter>
   </Card>
 </template>

@@ -9,12 +9,11 @@ export default defineNuxtRouteMiddleware((to, from) => {
     '/auth/forgot-password',
     '/auth/reset-password',
     '/auth/accept-invitation',
-    '/setup',
-    '/setup/complete'
+    '/setup'
   ]
 
   // Check if the current route requires authentication
-  const isPublicPage = publicPages.includes(to.path) || to.path.startsWith('/auth/') || to.path.startsWith('/setup/')
+  const isPublicPage = publicPages.includes(to.path) || to.path.startsWith('/auth/')
   const requiresAuth = !isPublicPage
   
   if (requiresAuth && !loggedIn.value) {

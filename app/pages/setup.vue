@@ -16,6 +16,6 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen flex items-center justify-center p-4">
-    <OrganizationSetupForm redirect-to="/dashboard" :beta-mode="false" />
+    <OrganizationSetupForm redirect-to="/dashboard" />
   </div>
 </template>

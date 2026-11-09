@@ -39,6 +39,16 @@ export interface CheckoutPlan {
 }
 
 /**
+ * What a band costs for an interval. The one calculation behind both the charge
+ * and the signup form's quote (which has no Stripe prices to plan a checkout with).
+ */
+export function bandAmounts(band: CheckoutBand, interval: BillingInterval, withOnboarding: boolean) {
+  const periodAmount = Number(interval === "annual" ? band.price_yearly : band.price_monthly) || 0;
+  const onboardingAmount = withOnboarding ? Number(band.onboarding_fee) || 0 : 0;
+  return { periodAmount, onboardingAmount, firstInvoiceCents: Math.round((periodAmount + onboardingAmount) * 100) };
+}
+
+/**
  * Decide what a checkout for `band` charges. A band with no self-serve price
  * (contact-only, or a Price not yet created in Stripe) is refused with the
  * status the route should answer — never silently charged on another band.
@@ -85,15 +95,11 @@ export function planBandCheckout(
     onboardingPriceId = band.stripe_price_id_onboarding;
   }
 
-  const periodAmount = Number(interval === "annual" ? band.price_yearly : band.price_monthly) || 0;
-  const onboardingAmount = onboardingPriceId ? fee : 0;
   return {
     ok: true,
     recurringPriceId,
     onboardingPriceId,
-    periodAmount,
-    onboardingAmount,
-    firstInvoiceCents: Math.round((periodAmount + onboardingAmount) * 100),
+    ...bandAmounts(band, interval, !!onboardingPriceId),
   };
 }
 

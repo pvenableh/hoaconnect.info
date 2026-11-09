@@ -24,7 +24,6 @@ const session = useUserSession();
         title="Create New Organization"
         description="Set up an additional organization"
         redirect-to="/dashboard"
-        :beta-mode="false"
         :is-logged-in="true"
       />
     </div>

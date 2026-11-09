@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  bandAmounts,
   bandLookupKey,
   bandPricesFromLookup,
   planBandCheckout,
@@ -81,6 +82,24 @@ describe("pure helpers", () => {
     const b = withBandPrices(STORED, { monthly: "price_test_m", annual: null, onboarding: "price_test_o" });
     expect(b).toMatchObject({ stripe_price_id_monthly: "price_test_m", stripe_price_id_yearly: null, stripe_price_id_onboarding: "price_test_o" });
     expect(planBandCheckout(b, "annual", "standard")).toMatchObject({ ok: false, reason: "no_price", status: 503 });
+  });
+});
+
+describe("bandAmounts", () => {
+  // Directus returns decimals as strings ("249.00").
+  const band = { ...STORED, price_monthly: "249.00", price_yearly: "2490.00", onboarding_fee: "1500.00" };
+
+  it("the signup quote matches what checkout charges, for both intervals", () => {
+    const priced = withBandPrices(band, { monthly: "m", annual: "a", onboarding: "o" });
+    for (const interval of ["monthly", "annual"] as const) {
+      const { recurringPriceId: _r, onboardingPriceId: _o, ok: _k, ...charged } = planBandCheckout(priced, interval, "standard") as any;
+      expect(bandAmounts(band, interval, true)).toEqual(charged);
+    }
+  });
+
+  it("adds onboarding once, and only when asked", () => {
+    expect(bandAmounts(band, "annual", true)).toEqual({ periodAmount: 2490, onboardingAmount: 1500, firstInvoiceCents: 399000 });
+    expect(bandAmounts(band, "monthly", false)).toEqual({ periodAmount: 249, onboardingAmount: 0, firstInvoiceCents: 24900 });
   });
 });
 

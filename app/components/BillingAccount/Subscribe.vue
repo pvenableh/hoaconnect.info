@@ -2,8 +2,7 @@
 // Agency billing — initial subscribe flow (docs/plan-agency-multi-property-billing.md
 // §7). Creates the ONE subscription for the account (quantity = active property
 // count) and confirms the SetupIntent (trial) / PaymentIntent (no trial) inline
-// with a Stripe Payment Element — mirrors Payment/SubscriptionForm.vue, but
-// targets /api/stripe/billing-account/subscribe.
+// with a Stripe Payment Element, against /api/stripe/billing-account/subscribe.
 import { loadStripe } from "@stripe/stripe-js";
 import type { Stripe, StripeElements } from "@stripe/stripe-js";
 
