@@ -101,6 +101,7 @@
     "add:project-phase3": "dotenv -- tsx scripts/add-project-phase3-fields.ts",
     "create:property-mgmt": "dotenv -- tsx scripts/create-property-management.ts",
     "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
+    "create:platform-support": "dotenv -- tsx scripts/create-platform-support-role.ts",
     "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
     "add:landing-config": "dotenv -- tsx scripts/add-landing-config-fields.ts",
     "recompute:member-counts": "dotenv -- tsx scripts/recompute-member-counts.ts",

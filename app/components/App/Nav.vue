@@ -22,6 +22,10 @@ const router = useRouter();
 const route = useRoute();
 const config = useRuntimeConfig();
 
+// HOA Connect staff (App Admin, Platform Support) get a way into /ops.
+const { isAppAdmin: isStaffAppAdmin, isPlatformSupport } = useRoles();
+const canOpenOps = computed(() => isStaffAppAdmin.value || isPlatformSupport.value);
+
 // Mobile sheet open state
 const mobileMenuOpen = ref(false);
 
@@ -605,6 +609,13 @@ watch(
                 </NuxtLink>
               </DropdownMenuItem>
 
+              <DropdownMenuItem v-if="canOpenOps && !isCustomDomain" as-child>
+                <NuxtLink to="/ops" class="cursor-pointer">
+                  <Icon name="i-lucide-gauge" class="size-4" />
+                  Operations
+                </NuxtLink>
+              </DropdownMenuItem>
+
               <!-- Resident self-service: edit your own contact, mailing address,
                    vehicles, and pets (submitted for review). Org-scoped. -->
               <DropdownMenuItem v-if="isOnOrgPage" as-child>
@@ -854,6 +865,15 @@ watch(
                 >
                   <Icon name="i-lucide-user" class="w-5 h-5 t-text-secondary" />
                   <span>My Profile</span>
+                </NuxtLink>
+                <NuxtLink
+                  v-if="canOpenOps && !isCustomDomain"
+                  to="/ops"
+                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
+                  @click="mobileMenuOpen = false"
+                >
+                  <Icon name="i-lucide-gauge" class="w-5 h-5 t-text-secondary" />
+                  <span>Operations</span>
                 </NuxtLink>
                 <a
                   v-if="isOnOrgPage"

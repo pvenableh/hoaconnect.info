@@ -69,6 +69,22 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
   - Discount codes at signup are Stripe promotion codes tagged `app = hoaconnect`.
   - The live webhook endpoint delivers 14 events. The route accepts a second, Connect secret
     (`STRIPE_WEBHOOK_SECRET_CONNECT_LIVE`); that endpoint isn't created yet.
+- **Session A done 2026-11-09, committed locally, NOT pushed** (releases with B):
+  - Guards `requireAppAdmin`, `requireOpsPermission`, `getPlatformActor` are in `admin-auth.ts`; the matrix is in
+    `core/shared/ops/permissions.ts`.
+  - **Platform Support role created on the hosted Directus** (Peter's yes). Role `85410c80-…` plus policy `2179dbbd-…`,
+    `app_access` true, 0 permissions. The id is the default in `nuxt.config` (`directusRolePlatformSupport`), so no env var is
+    needed, and nobody holds the role yet. `pnpm run create:platform-support` re-checks it read-only.
+  - Read routes live in `core/server/api/ops/` (overview, communities, `communities/[id]`, billing-accounts, payments). The
+    data layer is `core/server/utils/ops-data.ts` (60 s cache, paginated lists); the maths is in
+    `core/shared/ops/metrics.ts`. Pages are in `app/pages/ops/`, with `OpsShell` and `OpsStatusPill`, and Nav has an
+    "Operations" link for staff. **The payments feed is built** (plan §8 had it in B).
+  - Tests: `tests/server/ops-console.test.ts` and `ops-metrics.test.ts`. Session B should extend `ops-console.test.ts`'s
+    fake Stripe and `OUTSIDERS` list.
+  - Checked against Stripe on 2026-11-09, test mode. App and scratchpad agree: MRR $0, all HOA Connect subscriptions
+    canceled, 0 failed payments, 0 undelivered events, 6 codes, 5 redemptions. One difference: the app also counts one
+    untagged legacy subscription (`paused`) that `isHoaConnectObject` recognises by its keys, while a
+    `metadata.app`-only filter skips it.
 - **A canceled test org remains:** "Testing HOA", Boutique, 28 units, refunded and canceled. Delete it only with
   Peter's yes, after reading it.
 - **Gates at 70c2e68:** 145 files / 2,543 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0, build ok.
@@ -103,7 +119,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
    Support role means dropping `requireOpsPermission`).
 4. Commit locally (docs only) and stop. Ask whether to push the plan.
 
-## Session A — read-only console (Opus 5.5)
+## Session A — read-only console (Opus 5.5) — DONE 2026-11-09 (see "Where things stand")
 
 Build Phase 1 exactly as decided. No Stripe writes. The one Directus write, creating the Platform Support role, needs Peter's yes.
 Phases 1 and 2 release together: do not push after A.

@@ -8,6 +8,8 @@
  * const { currentRole, isAdmin, isHoaAdmin, hasRole, hasAnyRole } = useRoles()
  */
 
+import { opsCan, platformRoleFor, type OpsPermission } from '#core/shared/ops/permissions'
+
 // Define app-specific roles
 export const APP_ROLES = {
   APP_ADMIN: 'App Admin',
@@ -48,15 +50,32 @@ export function useRoles() {
   // Role Check Computed Properties
   // ============================================
 
+  // Platform roles, by Directus role id only: the same check the server makes
+  // (core/shared/ops/permissions.ts). A role NAME is editable in Data Studio, so
+  // the legacy "App Admin" / "Administrator" name matches are gone. The session
+  // stores the role as its id, so they never matched a real session anyway.
+  const platformRole = computed(() =>
+    platformRoleFor(currentRoleId.value, {
+      appAdmin: config.public.directusRoleAppAdmin as string | undefined,
+      platformSupport: config.public.directusRolePlatformSupport as string | undefined,
+    })
+  )
+
   /**
    * Check if user is App Admin
    */
-  const isAppAdmin = computed(() => {
-    const roleId = currentRoleId.value
-    return roleId === config.public.directusRoleAppAdmin ||
-           currentRole.value === APP_ROLES.APP_ADMIN ||
-           currentRole.value === APP_ROLES.ADMINISTRATOR
-  })
+  const isAppAdmin = computed(() => platformRole.value === 'app_admin')
+
+  /**
+   * HOA Connect staff with the read-only operator console and the support
+   * inbox. Not an admin of anything: no community, no money.
+   */
+  const isPlatformSupport = computed(() => platformRole.value === 'platform_support')
+
+  /** Whether the caller's platform role carries this operator-console permission. */
+  function canOps(permission: OpsPermission): boolean {
+    return opsCan(platformRole.value, permission)
+  }
 
   /**
    * Check if user is HOA Admin
@@ -193,7 +212,10 @@ export function useRoles() {
     currentRoleId,
 
     // Role checks (computed)
+    platformRole,
     isAppAdmin,
+    isPlatformSupport,
+    canOps,
     isHoaAdmin,
     isMember,
     isAdmin,

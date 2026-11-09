@@ -35,6 +35,8 @@ const props = defineProps<{
   roles?: string[]
   /** Require app admin role */
   requireAppAdmin?: boolean
+  /** HOA Connect staff: App Admin or Platform Support (the operator console). */
+  requireOps?: boolean
   /** Require HOA admin role (includes app admin) */
   requireHoaAdmin?: boolean
   /** Require any admin role */
@@ -49,7 +51,7 @@ const props = defineProps<{
   fallback?: boolean
 }>()
 
-const { isAppAdmin, isHoaAdmin, isAdmin, isMember, hasAnyRole } = useRoles()
+const { isAppAdmin, isPlatformSupport, isHoaAdmin, isAdmin, isMember, hasAnyRole } = useRoles()
 const { can, ready, load } = useCapabilities()
 
 const capSpecified = computed(
@@ -63,6 +65,7 @@ const roleOk = computed(() => {
   // No role constraint given → no role restriction.
   const roleSpecified =
     props.requireAppAdmin ||
+    props.requireOps ||
     props.requireHoaAdmin ||
     props.requireAdmin ||
     props.requireMember ||
@@ -71,6 +74,7 @@ const roleOk = computed(() => {
 
   if (isAppAdmin.value) return true
   if (props.requireAppAdmin) return isAppAdmin.value
+  if (props.requireOps) return isPlatformSupport.value
   if (props.requireHoaAdmin) return isHoaAdmin.value
   if (props.requireAdmin) return isAdmin.value
   if (props.requireMember) return isMember.value

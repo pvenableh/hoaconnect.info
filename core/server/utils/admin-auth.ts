@@ -7,6 +7,14 @@
 
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
+import {
+  OPS_PERMISSIONS,
+  opsCan,
+  platformRoleFor,
+  roleIdOf,
+  type OpsPermission,
+  type PlatformRole,
+} from "#core/shared/ops/permissions";
 
 interface AdminCheckResult {
   isAdmin: boolean;
@@ -99,6 +107,72 @@ export async function requireAdminAccess(
   }
 
   return result;
+}
+
+// ── Platform roles: the operator console (docs/plan-operator-console.md §6) ──
+//
+// These are deliberately NOT built on `checkAdminAccess`. That function answers
+// "may this person administer THIS community", and an HOA Admin passes it. The
+// console spans every community, so the only thing that opens it is the user's
+// own Directus role id: App Admin, or Platform Support. Nothing else — not an
+// HOA Admin seat, a Property Manager grant, a board office or a billing-account
+// role — is consulted, and no Directus or Stripe call is made before the answer.
+
+export interface PlatformActor {
+  userId: string;
+  role: PlatformRole;
+  permissions: readonly OpsPermission[];
+}
+
+/** The caller's platform role from the session alone, or null. */
+export async function getPlatformActor(event: H3Event): Promise<PlatformActor | null> {
+  const session = await getUserSession(event);
+  const user = session?.user;
+  const userId = user?.id;
+  if (!user || !userId) return null;
+  const config = useRuntimeConfig();
+  const role = platformRoleFor(roleIdOf(user.role), {
+    appAdmin: config.public.directusRoleAppAdmin as string | undefined,
+    platformSupport: config.public.directusRolePlatformSupport as string | undefined,
+  });
+  return role ? { userId, role, permissions: OPS_PERMISSIONS[role] } : null;
+}
+
+async function requirePlatformActor(event: H3Event): Promise<PlatformActor> {
+  const session = await getUserSession(event);
+  if (!session?.user?.id) {
+    throw createError({ statusCode: 401, message: "Authentication required" });
+  }
+  const actor = await getPlatformActor(event);
+  if (!actor) {
+    throw createError({ statusCode: 403, message: "HOA Connect staff only" });
+  }
+  return actor;
+}
+
+/** 403 unless the caller is the App Admin. For what Platform Support may never do. */
+export async function requireAppAdmin(event: H3Event): Promise<PlatformActor> {
+  const actor = await requirePlatformActor(event);
+  if (actor.role !== "app_admin") {
+    throw createError({ statusCode: 403, message: "App Admin only" });
+  }
+  return actor;
+}
+
+/**
+ * 403 unless the caller's platform role carries `permission`. App Admin holds
+ * all three; Platform Support holds `billing.read` and `support`, never
+ * `billing.write`. Every `/api/ops` route calls this first.
+ */
+export async function requireOpsPermission(
+  event: H3Event,
+  permission: OpsPermission
+): Promise<PlatformActor> {
+  const actor = await requirePlatformActor(event);
+  if (!opsCan(actor.role, permission)) {
+    throw createError({ statusCode: 403, message: "Your HOA Connect role can't do this" });
+  }
+  return actor;
 }
 
 /**

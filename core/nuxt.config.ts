@@ -286,6 +286,10 @@ export default defineNuxtConfig({
       directusRoleMember: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_MEMBER || "558b04ed-fdcc-48c2-9cd0-977cccf988b9",
       // Property Manager - external management staff with admin-granted, org-scoped access
       directusRolePropertyManager: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_PROPERTY_MANAGER || "b3c5a96f-ca24-41f1-8c1f-5683db384844",
+      // Platform Support - HOA Connect staff: reads the operator console (/ops) and works the
+      // support inbox, no money actions. Fixed id, created by scripts/create-platform-support-role.ts.
+      // Until that script has run nobody holds it, so the id matches no one.
+      directusRolePlatformSupport: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_PLATFORM_SUPPORT || "85410c80-18b7-40eb-b066-4393b969add4",
       // Legacy - keeping for backwards compatibility
       directusRoleAdmin: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_ADMIN,
       directusRoleUser: process.env.NUXT_PUBLIC_DIRECTUS_ROLE_USER,

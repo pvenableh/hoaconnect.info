@@ -1,6 +1,6 @@
 # Operator console — running HOA Connect from one place
 
-**Status:** proposal, 2026-11-09. Nothing here is built. Decisions are in §9; build only after they're answered.
+**Status:** 2026-11-09. Decisions are in §9. Phase 1 (Session A, read-only console plus the payments feed) is built and committed locally, not pushed; it releases with Phase 2 (Session B).
 
 **What it is:** a place in the app where the people who run HOA Connect can see:
 - which communities pay, and what's failing or ending;
