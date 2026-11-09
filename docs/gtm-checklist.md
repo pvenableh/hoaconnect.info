@@ -13,7 +13,7 @@ dashboard, a password, or a device).
 
 | | Item | Where | Verified when |
 |---|---|---|---|
-| [ ] 🔒👤 | **Push local `main`** — Rounds 3 Phases 2–9 are local commits. CI runs `pnpm lint` and `pnpm audit:all` for the first time on that push. | `git push` | GitHub Actions green on the push |
+| [x] | **`main` pushed** through Round 3 and the Stripe work; CI (lint + all 16 audits) passed on `b61c565`. | `git push` | GitHub Actions green on the push |
 | [ ] 🔒👤 | **Schema scripts, in this order, BEFORE the deploy that needs them** (each is idempotent; each route degrades safely until it runs): `pnpm add:email-send-queue` (re-run for Phase 4 fields) → `pnpm create:reminder-log` → `pnpm add:channel-phase7` → `pnpm generate:types` | local, against prod Directus | each script prints "ok"; `/api/reminders/run?dry=1` says `provisioned: true` |
 | [ ] 👤 | **Tag the release line** — `package.json` is `2.1.0` and the 2.1 "What's new" note is written; push the tag | `git push origin v2.1` | GitHub Release `v2.1` exists; Account → About shows `2.1.x` |
 
