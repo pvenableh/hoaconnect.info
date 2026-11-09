@@ -5,6 +5,7 @@ import { useDirectusItems } from "#imports";
 import type { SubscriptionPlan } from "#core/types/directus";
 import { isContactOnly, selectBand } from "#core/shared/billing/bands";
 import { bandAmounts, type BillingInterval, type CheckoutBand } from "#core/shared/billing/band-checkout";
+import { formatCents } from "#core/shared/billing/promotion";
 
 interface Props {
   title?: string;
@@ -193,6 +194,54 @@ const annualSaving = computed(() => {
 const formatPrice = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(n);
 
+// Discount code. A link like /setup?code=SPRING fills it in, and it applies once
+// there's a quote. The server checks it again when the subscription is created.
+const route = useRoute();
+const promoInput = ref(typeof route.query.code === "string" ? route.query.code : "");
+const promo = ref<{ code: string; label: string; discountCents: number; totalCents: number } | null>(null);
+const promoError = ref("");
+const promoChecking = ref(false);
+
+const applyPromo = async () => {
+  const code = promoInput.value.trim();
+  if (!code || units.value === null || !quote.value) return;
+  promoChecking.value = true;
+  try {
+    const res = await $fetch<
+      | { ok: true; code: string; label: string; discountCents: number; totalCents: number }
+      | { ok: false; message: string }
+    >("/api/stripe/promotion-preview", {
+      method: "POST",
+      body: { code, units: units.value, interval: interval.value },
+    });
+    if ("message" in res) {
+      promo.value = null;
+      promoError.value = res.message;
+    } else {
+      promo.value = { code: res.code, label: res.label, discountCents: res.discountCents, totalCents: res.totalCents };
+      promoError.value = "";
+    }
+  } catch (err: any) {
+    promo.value = null;
+    promoError.value = err?.data?.message || "We couldn't check that code. Please try again.";
+  } finally {
+    promoChecking.value = false;
+  }
+};
+
+const removePromo = () => {
+  promo.value = null;
+  promoInput.value = "";
+  promoError.value = "";
+};
+
+// A code's discount depends on the band and the interval, so re-check it when
+// either changes (and apply a code from the link once the quote exists).
+watch([() => band.value?.slug, interval], () => {
+  if (promoInput.value.trim() && quote.value) applyPromo();
+  else promo.value = null;
+});
+
 // Validation
 const step1Valid = computed(() => {
   return (
@@ -308,14 +357,24 @@ const ensureOrganization = async (): Promise<boolean> => {
 
 const subscribeOrganization = async () => {
   try {
-    const res = await $fetch<{ clientSecret: string | null; firstInvoiceCents: number; band: { name: string | null } }>(
-      "/api/stripe/subscribe-band",
-      { method: "POST", body: { organizationId: createdOrgId.value, interval: interval.value, onboarding: "standard" } }
-    );
+    const res = await $fetch<{
+      clientSecret: string | null;
+      firstInvoiceCents: number;
+      amountDueCents?: number;
+      band: { name: string | null };
+    }>("/api/stripe/subscribe-band", {
+      method: "POST",
+      body: {
+        organizationId: createdOrgId.value,
+        interval: interval.value,
+        onboarding: "standard",
+        promotionCode: promo.value?.code,
+      },
+    });
     if (!res?.clientSecret) throw new Error("Stripe didn't return a payment form. Please try again.");
     checkout.value = {
       clientSecret: res.clientSecret,
-      amountCents: res.firstInvoiceCents,
+      amountCents: res.amountDueCents ?? res.firstInvoiceCents,
       planName: `${res.band.name || "Your plan"} · ${interval.value === "annual" ? "annual" : "monthly"}`,
     };
     currentStep.value = 4;
@@ -608,10 +667,37 @@ const isLastVisibleStep = (step: number) => {
               <span class="text-muted-foreground">One-time onboarding</span>
               <span>{{ formatPrice(quote.onboardingAmount) }}</span>
             </div>
+            <div v-if="promo" class="flex justify-between gap-4 text-sm" data-testid="signup-discount">
+              <span class="text-muted-foreground">{{ promo.code }} · {{ promo.label }}</span>
+              <span>−{{ formatCents(promo.discountCents) }}</span>
+            </div>
             <div class="flex justify-between gap-4 pt-2 border-t font-medium">
               <span>First invoice, charged today</span>
-              <span data-testid="signup-first-invoice">{{ formatPrice(quote.firstInvoiceCents / 100) }}</span>
+              <span data-testid="signup-first-invoice">{{
+                formatCents(promo ? promo.totalCents : quote.firstInvoiceCents)
+              }}</span>
             </div>
+          </div>
+
+          <div class="space-y-2" data-testid="signup-promo">
+            <div v-if="promo" class="flex items-center justify-between gap-4 text-sm">
+              <span>Code {{ promo.code }} applied</span>
+              <Button variant="ghost" size="sm" @click="removePromo">Remove</Button>
+            </div>
+            <div v-else class="flex gap-2">
+              <Input
+                v-model="promoInput"
+                placeholder="Discount code"
+                aria-label="Discount code"
+                autocomplete="off"
+                class="flex-1"
+                @keydown.enter.prevent="applyPromo"
+              />
+              <Button variant="outline" :disabled="!promoInput.trim() || promoChecking" @click="applyPromo">
+                {{ promoChecking ? "Checking..." : "Apply" }}
+              </Button>
+            </div>
+            <p v-if="promoError" class="text-sm text-destructive" data-testid="signup-promo-error">{{ promoError }}</p>
           </div>
         </div>
 
@@ -718,7 +804,7 @@ const isLastVisibleStep = (step: number) => {
 
         <div class="bg-muted/50 rounded-lg p-4 flex justify-between items-center gap-4">
           <p class="font-medium">{{ checkout?.planName }}</p>
-          <p class="text-lg font-bold">{{ formatPrice((checkout?.amountCents ?? 0) / 100) }}</p>
+          <p class="text-lg font-bold">{{ formatCents(checkout?.amountCents ?? 0) }}</p>
         </div>
 
         <PaymentStripeCard

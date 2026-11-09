@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   declaredReadFails: false,
   createUserFails: false,
   stripe: null as any,
+  rateOk: true,
   authRequest: (async () => ({})) as (op: any) => Promise<any>,
 }));
 
@@ -51,6 +52,7 @@ const adminAuth = await import("#core/server/utils/admin-auth");
 type Handler = (event: H3Event) => Promise<any>;
 const setupOrganization = (await import("#core/server/api/hoa/setup-organization.post")).default as Handler;
 const subscribeBand = (await import("#core/server/api/stripe/subscribe-band.post")).default as Handler;
+const promotionPreview = (await import("#core/server/api/stripe/promotion-preview.post")).default as Handler;
 
 const event = {} as H3Event;
 const ROLE_HOA_ADMIN = "role-hoa-admin";
@@ -132,6 +134,7 @@ beforeEach(() => {
   h.fieldMissing = false;
   h.declaredReadFails = false;
   h.createUserFails = false;
+  h.rateOk = true;
   customerOnOrgAtSubscribe = undefined;
   bandUtils._resetBandPriceCache();
 
@@ -155,6 +158,7 @@ beforeEach(() => {
         };
       }),
     },
+    promotionCodes: { list: vi.fn(async () => ({ data: [] })) },
   };
 
   vi.stubGlobal("readBody", async () => h.body);
@@ -173,6 +177,22 @@ beforeEach(() => {
   vi.stubGlobal("resolveBandForOrg", bandUtils.resolveBandForOrg);
   vi.stubGlobal("bandWithModePrices", bandUtils.bandWithModePrices);
   vi.stubGlobal("requireAdminAccess", adminAuth.requireAdminAccess);
+  vi.stubGlobal("rateLimit", () => h.rateOk);
+  vi.stubGlobal("clientIp", () => "203.0.113.7");
+});
+
+/** An HOA Connect promotion code, as Stripe lists it at the acacia API version. */
+const springCode = (coupon: Record<string, any> = {}) => ({
+  id: "promo_spring",
+  code: "SPRING",
+  active: true,
+  metadata: { app: "hoaconnect" },
+  expires_at: null,
+  max_redemptions: null,
+  times_redeemed: 0,
+  customer: null,
+  restrictions: { minimum_amount: null },
+  coupon: { valid: true, percent_off: 50, amount_off: null, duration: "once", duration_in_months: null, metadata: {}, applies_to: null, ...coupon },
 });
 
 describe("setup-organization", () => {
@@ -338,5 +358,87 @@ describe("subscribe-band", () => {
     h.session = null;
     await expect(subscribe()).rejects.toMatchObject({ statusCode: 403 });
     expect(h.stripe.subscriptions.create).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing about discounts when there's no code", async () => {
+    seedOrg({ declared_units: 60 });
+    const res = await subscribe();
+    const params = h.stripe.subscriptions.create.mock.calls[0]![0];
+    expect(params.discounts).toBeUndefined();
+    expect(params.metadata.promotion_code).toBeUndefined();
+    expect(h.stripe.promotionCodes.list).not.toHaveBeenCalled();
+    expect(res.amountDueCents).toBe((499 + 2500) * 100);
+    expect(res.promotion).toBeNull();
+  });
+
+  it("applies a valid code and charges Stripe's own amount due", async () => {
+    seedOrg({ declared_units: 60 });
+    h.stripe.promotionCodes.list.mockResolvedValue({ data: [springCode()] });
+    h.stripe.subscriptions.create.mockResolvedValueOnce({
+      id: "sub_new",
+      status: "incomplete",
+      latest_invoice: { amount_due: 149950, payment_intent: { client_secret: "pi_secret" } },
+    });
+
+    const res = await subscribe({ promotionCode: "spring" });
+
+    const params = h.stripe.subscriptions.create.mock.calls[0]![0];
+    expect(params.discounts).toEqual([{ promotion_code: "promo_spring" }]);
+    expect(params.metadata.promotion_code).toBe("SPRING");
+    expect(res.amountDueCents).toBe(149950);
+    expect(res.promotion).toEqual({ code: "SPRING", label: "50% off the first invoice", discountCents: 149950 });
+  });
+
+  it("refuses a bad code before creating a customer or a subscription", async () => {
+    seedOrg({ declared_units: 60 });
+    await expect(subscribe({ promotionCode: "NOPE" })).rejects.toMatchObject({
+      statusCode: 400,
+      message: "That code isn't valid.",
+    });
+    expect(h.stripe.customers.create).not.toHaveBeenCalled();
+    expect(h.stripe.subscriptions.create).not.toHaveBeenCalled();
+    expect(db.one("hoa_organizations", ORG)!.stripe_customer_id).toBeUndefined();
+  });
+
+  it("turns Stripe's own refusal of a code into a message the board can act on", async () => {
+    seedOrg({ declared_units: 60 });
+    h.stripe.promotionCodes.list.mockResolvedValue({ data: [springCode()] });
+    h.stripe.subscriptions.create.mockRejectedValueOnce(
+      Object.assign(new Error("This promotion code can only be used by first-time customers."), {
+        type: "StripeInvalidRequestError",
+      })
+    );
+    await expect(subscribe({ promotionCode: "SPRING" })).rejects.toMatchObject({
+      statusCode: 400,
+      message: "That code can't be used: This promotion code can only be used by first-time customers.",
+    });
+  });
+});
+
+describe("promotion-preview", () => {
+  const preview = (body: Record<string, any>) => {
+    h.body = body;
+    return promotionPreview(event);
+  };
+
+  it("prices the first invoice on the band the units fall into", async () => {
+    h.stripe.promotionCodes.list.mockResolvedValue({ data: [springCode()] });
+    const res = await preview({ code: "spring", units: 20, interval: "monthly" });
+    expect(res).toMatchObject({ ok: true, code: "SPRING", subtotalCents: 174900, totalCents: 87450 });
+  });
+
+  it("answers an unknown code without an error status, so the form can show the message", async () => {
+    expect(await preview({ code: "NOPE", units: 20 })).toEqual({ ok: false, message: "That code isn't valid." });
+  });
+
+  it("refuses a contact-only band like checkout does", async () => {
+    await expect(preview({ code: "SPRING", units: 500 })).rejects.toMatchObject({ statusCode: 409 });
+    expect(h.stripe.promotionCodes.list).not.toHaveBeenCalled();
+  });
+
+  it("stops a caller who has tried too many codes, before asking Stripe", async () => {
+    h.rateOk = false;
+    await expect(preview({ code: "SPRING", units: 20 })).rejects.toMatchObject({ statusCode: 429 });
+    expect(h.stripe.promotionCodes.list).not.toHaveBeenCalled();
   });
 });
