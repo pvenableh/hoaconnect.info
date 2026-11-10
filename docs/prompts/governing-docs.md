@@ -79,6 +79,27 @@ From this repo:
     as in plan §3): 7 documents, 209 provisions, 2 links, 34 references, 43 flags, 60 + 44 junction rows, 5 org
     fields. A second `--apply` run: create 0, update 0, all unchanged, and no provision text differs from the seed.
   - **Session 1A is done.** Unchecked: whether 1033 has rows in the old `hoa_governance`.
+- **Session 1B done 2026-11-10, committed locally, NOT pushed.**
+  - Pure logic in `core/shared/governing/`: `types.ts` (the row shapes pages get), `visibility.ts`
+    (`visibleSnapshot`, the one place member visibility is decided), `search.ts` (`searchProvisions`, ranking),
+    `citation.ts` (`formatCitation`), `flags.ts` (labels from spec §5, `sortFlags`, `FLAG_NOTICE`).
+  - Guards: `core/server/utils/governing-access.ts` — `requireGoverningAccess` → `{ canManage }`,
+    `requireGoverningManage`. Capabilities `governing:read` / `governing:manage` are in `core/shared/permissions.ts`;
+    the PM `documents` grant is layered on in the guard.
+  - Data: `core/server/utils/governing-data.ts` — `loadGoverning(orgId, canManage)` and one function per route.
+    It loads the whole org each call (fine at 209 provisions; add a cache or narrower reads if an org gets large).
+  - Routes (`core/server/api/governing/`): `documents.get`, `documents/[id].get`, `provisions/[id].get`,
+    `search.get` (`q`, `document`, `kind`, `hasFlags`, `relationship`, `severity`; 50 results), `overview.get`.
+    Org comes from the session or `?orgId=`. A hidden row is a 404.
+  - Tests: `tests/shared/governing-search.test.ts`, `tests/server/governing-read.test.ts` (real seed on
+    MemoryDirectus; criteria 2–7), `tests/server/governing-text-guard.test.ts` (criterion 8: a source scan; **3B
+    must add the audited edit route to its `WRITERS` list**).
+  - **Data export:** the new collections are in `core/shared/export/collections.ts`. Shareable tier = what a member
+    sees; sources, page scans and the audit log are full-tier only; `hoa_statute_references` is excluded as a shared
+    library and listed on `app/pages/your-data.vue`. Any new collection must be classified there or
+    `export-collections.test.ts` fails.
+  - Not done: nothing has been exercised against the hosted Directus through these routes yet (no page calls
+    them). 1C does that in the browser.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

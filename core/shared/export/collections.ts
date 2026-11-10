@@ -136,6 +136,8 @@ function via(
  * to exclude" apart from "forgot".
  */
 export const PLATFORM_COLLECTIONS: Readonly<Record<string, string>> = {
+  hoa_statute_references:
+    "The shared statute library: the same rows for every community, with no org column. A community's flags travel with the citation they were curated against (statute_citation).",
   hoa_data_exports:
     "Operational metadata about the export mechanism itself. Every archive already carries its own manifest, and a list of past jobs points at archives that have since been purged — including it would also mean every archive contains its own in-progress row.",
   billing_accounts:
@@ -237,6 +239,41 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
 
   // ── Governance and the record of decisions ────────────────────────────────
   direct("hoa_governance", "Governance documents", BOTH),
+  // Governing documents (docs/plan-governing-docs.md). The shareable copy is
+  // what a member sees in the app: published documents, and through `via` only
+  // their provisions and links; confirmed statute flags. Drafts, uploaded scans,
+  // unconfirmed suggestions and the edit history stay in the board's full copy.
+  direct("hoa_governing_documents", "Governing documents", BOTH, {
+    shareableRows: {
+      field: "status",
+      keep: ["published", "superseded"],
+      note: "Drafts and documents in review are not yet the community's published text.",
+    },
+  }),
+  {
+    collection: "hoa_governing_provisions",
+    label: "Governing document provisions",
+    scope: { kind: "via", parent: "hoa_governing_documents", field: "document" },
+    tiers: BOTH,
+    shareableRows: {
+      field: "review_state",
+      keep: ["reviewed", "verified"],
+      note: "OCR drafts have not been checked against the recorded page.",
+    },
+  },
+  via("hoa_governing_provision_links", "Provision links", "hoa_governing_provisions", "from_provision", BOTH),
+  via("hoa_governing_sources", "Governing document source files", "hoa_governing_documents", "document", FULL_ONLY),
+  via("hoa_governing_pages", "Governing document page scans", "hoa_governing_sources", "source", FULL_ONLY),
+  direct("hoa_statute_flags", "Statute flags", BOTH, {
+    shareableRows: {
+      field: "status",
+      keep: ["confirmed", "counsel_confirmed"],
+      note: "Suggested and dismissed flags were never shown to members.",
+    },
+  }),
+  via("hoa_statute_flags_provisions", "Statute flag provisions", "hoa_statute_flags", "flag", BOTH),
+  via("hoa_statute_flags_references", "Statute flag references", "hoa_statute_flags", "flag", BOTH),
+  direct("hoa_governing_audit_log", "Governing document edit history", FULL_ONLY),
   direct("hoa_meetings", "Meetings", BOTH),
   via("hoa_meeting_attendees", "Meeting attendance", "hoa_meetings", "meeting", BOTH),
   via("hoa_meetings_files", "Meeting attachments", "hoa_meetings", "hoa_meetings_id", BOTH),

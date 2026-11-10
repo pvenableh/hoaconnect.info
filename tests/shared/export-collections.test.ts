@@ -236,9 +236,33 @@ describe("tiers", () => {
     expect(keepsRow(entry, "full", { visibility: "board" })).toBe(true);
   });
 
+  // Governing documents: the shareable copy is what a member sees in the app.
+  const GOVERNING_FILTERED = ["hoa_governing_documents", "hoa_governing_provisions", "hoa_statute_flags"];
+
+  it("keeps drafts, OCR drafts and unconfirmed statute flags out of the shareable copy", () => {
+    const documents = entryFor("hoa_governing_documents")!;
+    expect(keepsRow(documents, "shareable", { status: "published" })).toBe(true);
+    for (const status of ["draft", "in_review"]) expect(keepsRow(documents, "shareable", { status })).toBe(false);
+    expect(keepsRow(documents, "full", { status: "draft" })).toBe(true);
+
+    const provisions = entryFor("hoa_governing_provisions")!;
+    // Reached only through an exported document, so a draft's provisions never travel.
+    expect(provisions.scope).toEqual({ kind: "via", parent: "hoa_governing_documents", field: "document" });
+    expect(keepsRow(provisions, "shareable", { review_state: "ocr_draft" })).toBe(false);
+    expect(keepsRow(provisions, "shareable", { review_state: "reviewed" })).toBe(true);
+
+    const flags = entryFor("hoa_statute_flags")!;
+    for (const status of ["confirmed", "counsel_confirmed"]) expect(keepsRow(flags, "shareable", { status })).toBe(true);
+    for (const status of ["suggested", "dismissed"]) expect(keepsRow(flags, "shareable", { status })).toBe(false);
+
+    for (const c of ["hoa_governing_sources", "hoa_governing_pages", "hoa_governing_audit_log"]) {
+      expect(entryFor(c)!.tiers, c).toEqual(["full"]);
+    }
+  });
+
   it("filters no other collection by row, so an unfiltered entry stays unfiltered", () => {
     for (const entry of EXPORT_MAP) {
-      if (entry.collection === "org_audit_log") continue;
+      if (entry.collection === "org_audit_log" || GOVERNING_FILTERED.includes(entry.collection)) continue;
       expect(rowFilterFor(entry, "shareable"), `${entry.collection}`).toBeNull();
       expect(keepsRow(entry, "shareable", { anything: "at all" })).toBe(true);
     }

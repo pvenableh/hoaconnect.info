@@ -42,6 +42,8 @@ export type Capability =
   | "money:write"
   | "directory:read"
   | "documents:read"
+  | "governing:read"
+  | "governing:manage"
   | "communications:send"
   | "violations:manage"
   | "members:manage"
@@ -93,6 +95,28 @@ export const CAPABILITY_MATRIX: Record<Capability, Actor[]> = {
     "board_member",
     "property_manager",
     "team_lead",
+  ],
+
+  // Governing documents (docs/plan-governing-docs.md §7). Everyone with a seat
+  // reads what is published; the board manages (upload, review, publish, edit
+  // text, confirm flags). A PM manages only with the `documents` grant, which
+  // governing-access.ts layers on (grant-specific), so the actor is not listed.
+  "governing:read": [
+    "board_president",
+    "board_vp",
+    "board_treasurer",
+    "board_secretary",
+    "board_member",
+    "property_manager",
+    "team_lead",
+    "member",
+  ],
+  "governing:manage": [
+    "board_president",
+    "board_vp",
+    "board_treasurer",
+    "board_secretary",
+    "board_member",
   ],
 
   // Project writes: team leads own their team's projects. PM-with-`projects`

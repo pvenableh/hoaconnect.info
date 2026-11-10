@@ -789,9 +789,11 @@ const excludedBuckets = [
       "ops_job_heartbeats",
       "support_requests",
       "support_messages",
+      "hoa_statute_references",
     ],
     items: [
       "Pricing catalog",
+      "Shared statute reference library",
       "Discount catalog",
       "Marketing page content",
       "Signup waitlist",

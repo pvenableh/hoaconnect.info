@@ -26,6 +26,8 @@ const CAPABILITY_LABEL: Record<Capability, string> = {
   "money:write": "Record expenses and payments",
   "directory:read": "See the member directory",
   "documents:read": "Read the community's documents",
+  "governing:read": "Read the governing documents",
+  "governing:manage": "Manage governing documents and statute flags",
   "communications:send": "Send emails to members",
   "violations:manage": "Manage violations",
   "members:manage": "Manage members",
