@@ -324,11 +324,37 @@ if a field is missing, add a new `add:*` script (dry run, Peter's yes).
 
 ### Session 3A — upload and extraction · strong model
 
-- Starts with one question to Peter if Session 0 left it open: OCR approach and where extraction runs (the app deploys
-  on Vercel; check function limits and the existing workers before proposing). Any dependency is named with a reason.
+- **Ask first (one batch), before any code:** OCR approach and where extraction runs. Plan §6 lists the candidates
+  (Claude vision through the existing Anthropic integration, tesseract.js, an external OCR API) and the page-image
+  options (render in the browser with pdf.js and upload, or a server canvas dependency). The app deploys on Vercel:
+  check function size and time limits and the existing workers before recommending. Any dependency is named with a
+  reason.
+- **Size against the real inputs.** The seven Lenox originals are already attached as sources: scans with almost no
+  text layer, 2 to 57 pages, up to 13.5 MB. The text-layer path alone yields nearly nothing for them.
 - Upload PDF/images → draft document + source rows, per-page text (text layer first, OCR fallback), page images stored
   the way the repo stores files. Proposed provisions land as `ocr_draft`.
 - Test criterion 9: upload creates a draft with per-page text and images; member search returns nothing from it.
+- **Reuse, don't rebuild:**
+  - The attach path in `core/server/utils/governing-sources.ts` (storage, page count via `unpdf`, audit row).
+  - `core/server/utils/governing-audit.ts` (`governingActor`, `writeGoverningAudit`) for every write.
+  - `visibleSnapshot` (`core/shared/governing/visibility.ts`) is the one place member visibility is decided. Pages
+    and page images go through it or an equally central check, and the asset proxy must refuse a member a draft's
+    page image, as it already does for a draft's source file (`mayOpenGoverningSourceFile`).
+  - `hoa_governing_pages` exists and is empty. Deleting a source does not delete its page rows yet: handle that here.
+  - Any new collection must be classified in `core/shared/export/collections.ts` or `export-collections.test.ts` fails.
+  - `tests/server/governing-text-guard.test.ts` scans for writers of the provisions collection. This session adds a
+    legitimate one (creating `ocr_draft` provisions): add that file to `WRITERS` and keep the create-only guarantee.
+    An upload never updates the text of an existing provision.
+- **Known traps:**
+  - Pages that fetch with `server: false` must wait on `status`, not `pending`, or the server and client render
+    different things. See `waiting` in `app/pages/[slug]/governing/[document].vue`.
+  - The dev server comes up on port 3002, and the first navigate after `preview_start` often fails until it has had
+    about ten seconds.
+  - The preview shows a "what's new" sheet that covers screenshots. Prove UI work with page text.
+  - The Browser pane cannot upload a local file. For a browser check of the upload, serve the folder from a tiny
+    local server with a CORS header for `http://localhost:3002`, fetch the file in the page, and POST it to the route.
+  - A production delete run from the shell may be refused by the permission classifier. Give Peter the exact
+    command to run instead of working around it.
 
 ### Session 3B — review, publish, audit · strong model
 
