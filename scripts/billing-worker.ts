@@ -62,6 +62,7 @@ import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templ
 import { resolveSender } from "../core/server/utils/sendgrid";
 import { essentialEmailAllowed } from "../core/shared/email/email-class";
 import { resolveReminderSettings } from "../core/shared/reminders/settings";
+import { runWithHeartbeat } from "./lib/job-heartbeat";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -775,7 +776,8 @@ async function main() {
   console.log(`\n✅ Done${DRY_RUN ? " (dry run — nothing written)" : ""}. orgs=${orgs.length} charges=${totals.charges} (${money(totals.chargesAmount)}) lateFees=${totals.lateFees} autopay=${totals.autopaySucceeded}/${totals.autopayAttempted} reminders=${totals.reminders}`);
 }
 
-main().catch((err) => {
+// Records the run in ops_job_heartbeats (the console's health page); dry runs aren't.
+runWithHeartbeat("billing-worker", DRY_RUN, main).catch((err) => {
   console.error("❌ Billing worker failed:", err);
   process.exit(1);
 });

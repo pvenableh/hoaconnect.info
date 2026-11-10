@@ -18,9 +18,20 @@
  * The work is core/server/utils/reminders.ts; the rules core/shared/reminders/.
  */
 import { requireCronOrAppAdmin } from "../../utils/cron-auth";
+import { cronJobHandler } from "../../utils/job-heartbeat";
 import { directusReminderStore, reminderSchema, runReminderTick, sendReminder } from "../../utils/reminders";
 
-export default defineEventHandler(async (event) => {
+// Records each real run in ops_job_heartbeats (the console's health page); dry runs aren't.
+export default cronJobHandler(
+  "reminders",
+  {
+    isDry: (event) => {
+      const q = getQuery(event);
+      return q.dry === "1" || q.dry === "true";
+    },
+    summarize: (r: any) => (r?.provisioned === false ? { provisioned: false } : { ...(r?.totals ?? {}), continued: !!r?.continued }),
+  },
+  async (event) => {
   const via = await requireCronOrAppAdmin(event);
   const q = getQuery(event);
   const dry = q.dry === "1" || q.dry === "true";
@@ -48,4 +59,5 @@ export default defineEventHandler(async (event) => {
     );
   }
   return { success: true, provisioned, via, ...result };
-});
+  }
+);

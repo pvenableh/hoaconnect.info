@@ -72,6 +72,7 @@ import {
 } from "../core/shared/export/manifest";
 import { redactRows, redactedFields } from "../core/shared/export/redaction";
 import { csvCell, readPath, toCsv } from "../core/shared/export/csv";
+import { runWithHeartbeat } from "./lib/job-heartbeat";
 import {
   entriesSinceOpening,
   expenseEntriesFromExpenses,
@@ -1023,7 +1024,8 @@ async function runQueue() {
   console.log(`\n✅ Done. built=${built}`);
 }
 
-main().catch((err) => {
+// Records the run in ops_job_heartbeats (the console's health page); dry runs aren't.
+runWithHeartbeat("data-export", DRY_RUN, main).catch((err) => {
   console.error("\n❌ Worker failed:", err);
   process.exit(1);
 });

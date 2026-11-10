@@ -20,8 +20,18 @@
 import { requireCronOrAppAdmin } from "../../../utils/cron-auth";
 import { emailQueueSchema } from "../../../utils/email-send-queue";
 import { runEmailTick } from "../../../utils/email-send-tick";
+import { cronJobHandler } from "../../../utils/job-heartbeat";
 
-export default defineEventHandler(async (event) => {
+// Records each run in ops_job_heartbeats (the console's health page).
+export default cronJobHandler(
+  "email-continue-sends",
+  {
+    summarize: (r: any) =>
+      r?.provisioned === false
+        ? { provisioned: false }
+        : { enqueued: r?.enqueued ?? 0, runs: r?.runs?.length ?? 0, closed: r?.closed ?? 0, completed: r?.completed ?? 0 },
+  },
+  async (event) => {
   const via = await requireCronOrAppAdmin(event);
   const directus = getTypedDirectus();
   if (!(await emailQueueSchema(directus))) {
@@ -36,4 +46,5 @@ export default defineEventHandler(async (event) => {
     );
   }
   return { success: true, ...result };
-});
+  }
+);

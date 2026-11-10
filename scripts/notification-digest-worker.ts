@@ -48,6 +48,7 @@ import { suppressionReason } from "../core/shared/email/email-class";
 import { validTimeZone } from "../core/shared/email/recurrence";
 import { localHourAndWeekday } from "../core/shared/org-timezone";
 import { checkSendCompliance, isUnsubscribeToken, recipientCompliance } from "../core/shared/email/unsubscribe";
+import { runWithHeartbeat } from "./lib/job-heartbeat";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -464,7 +465,8 @@ async function main() {
   console.log(`\n✅ Done. sent=${sent} skipped(empty/demo)=${emptyOrDemo}`);
 }
 
-main().catch((err) => {
+// Records the run in ops_job_heartbeats (the console's health page); dry runs aren't.
+runWithHeartbeat("notification-digest", DRY_RUN, main).catch((err) => {
   console.error("\n❌ Worker failed:", err);
   process.exit(1);
 });

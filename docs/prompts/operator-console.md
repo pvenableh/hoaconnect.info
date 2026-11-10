@@ -121,10 +121,24 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
       the test customer is left in test mode.
 - **A canceled test org remains:** "Testing HOA", Boutique, 28 units, refunded and canceled. Delete it only with
   Peter's yes, after reading it.
-- **Gates after Session B:** 147 files / 2,658 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
-  `pnpm build` not run yet; run it before the push.
-- **launch-followups.md Sessions 2–5 are still open.** Don't run Session B here alongside its Sessions 2 or 4; all three
-  touch Stripe billing paths. Session B's re-banding action waits for its Session 3.
+- **A and B pushed 2026-11-10** (Peter's yes), live as build `3885984a`. The `/api/ops` routes answer 401 without a session.
+- **Peter's calls on 2026-11-10:** finish the whole plan in one session. The order is D, then launch-followups Session 2
+  (the notify email: `BILLING_NOTIFY_EMAIL`, default support@hoaconnect.info), then C, then re-banding (ask the five
+  Session 3 questions first), then three extras: re-send welcome or receipt, change the billing contact, and Phase 5
+  "view as".
+- **Session D done 2026-11-10, committed locally, not pushed.**
+  - `GET /api/ops/health` and `/ops/health` cover scheduled jobs, email, AI spend, storage, push and Stripe webhooks.
+    Each section is read on its own, and counts only where people are involved.
+  - **Job heartbeats:** each job upserts one `ops_job_heartbeats` row per real run (dry runs aren't recorded).
+    - Vercel crons go through `cronJobHandler` in `core/server/utils/job-heartbeat.ts`. It authenticates first, so a
+      stray request writes nothing.
+    - `expire-stale` records cron runs only, so its board-member path is unchanged.
+    - The GitHub workers use `runWithHeartbeat` from `scripts/lib/job-heartbeat.ts`.
+    - The job list is `core/shared/ops/jobs.ts`.
+  - **The heartbeat collection isn't created yet.** `pnpm run create:ops-job-heartbeats -- --apply` needs Peter's
+    yes. Until it exists, the page shows each job's last sign of work instead, and says so.
+- **Gates after Session D:** 148 files / 2,680 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
+- **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
 
 ## Files worth knowing (read only what your session needs)
 
@@ -250,7 +264,7 @@ Add the grants to the canonical list.
 
 Gates green. Commit and stop.
 
-## Session D — system health (Sonnet 5.5)
+## Session D — system health (Sonnet 5.5) — DONE 2026-11-10 (see "Where things stand")
 
 Build Phase 4 from existing collections and `vercel.json` crons, behind `requireOpsPermission(event, "billing.read")`. The
 Platform Support role and guard already exist from Session A.

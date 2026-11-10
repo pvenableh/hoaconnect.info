@@ -39,6 +39,7 @@
 
 import { createHash } from "node:crypto";
 import { requireCronOrAppAdmin } from "../../../utils/cron-auth";
+import { cronJobHandler, dryRunInBody } from "../../../utils/job-heartbeat";
 import { createItem, readItems } from "@directus/sdk";
 import { collectOrgNotices, type AINotice } from "#core/server/utils/ai-notices";
 
@@ -73,7 +74,11 @@ export function noticeHash(notice: AINotice, period: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export default defineEventHandler(async (event) => {
+// Records each real run in ops_job_heartbeats (the console's health page); dry runs aren't.
+export default cronJobHandler(
+  "ai-notices",
+  { isDry: dryRunInBody, summarize: (r: any) => ({ organizations: r?.organizations ?? 0, dedup: r?.dedup ?? null }) },
+  async (event) => {
   await requireCronOrAppAdmin(event);
 
   const body = (await readBody(event).catch(() => ({}))) as {
@@ -236,4 +241,5 @@ export default defineEventHandler(async (event) => {
     organizations: summary.length,
     results: summary,
   };
-});
+  }
+);

@@ -103,6 +103,7 @@
     "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
     "create:platform-support": "dotenv -- tsx scripts/create-platform-support-role.ts",
     "create:ops-audit-log": "dotenv -- tsx scripts/create-ops-audit-log.ts",
+    "create:ops-job-heartbeats": "dotenv -- tsx scripts/create-ops-job-heartbeats.ts",
     "extend:landing-theme": "dotenv -- tsx scripts/extend-landing-theme.ts",
     "add:landing-config": "dotenv -- tsx scripts/add-landing-config-fields.ts",
     "recompute:member-counts": "dotenv -- tsx scripts/recompute-member-counts.ts",

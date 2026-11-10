@@ -40,6 +40,8 @@
 
 import { readItems, updateItems } from "@directus/sdk";
 import { AUTO_EXPIRED_PREFIX } from "#core/shared/ai/actions";
+import { cronSecretMatches } from "#core/server/utils/cron-auth";
+import { cronJobHandler, dryRunInBody } from "#core/server/utils/job-heartbeat";
 
 /** How long a proposal may sit unanswered. Override with AI_ACTION_EXPIRY_DAYS. */
 export const DEFAULT_EXPIRY_DAYS = 14;
@@ -52,7 +54,16 @@ export function expiryDays(): number {
   return Number.isFinite(raw) && raw >= 1 ? Math.trunc(raw) : DEFAULT_EXPIRY_DAYS;
 }
 
-export default defineEventHandler(async (event) => {
+// Records each real run in ops_job_heartbeats (the console's health page); dry runs aren't.
+export default cronJobHandler(
+  "ai-actions-expire",
+  {
+    // Only the cron counts as a run; a board member sweeping one community goes unrecorded.
+    recordWhen: (event) => (cronSecretMatches(event) ? "cron" : null),
+    isDry: dryRunInBody,
+    summarize: (r: any) => ({ expired: r?.expired ?? 0, windowDays: r?.windowDays ?? null }),
+  },
+  async (event) => {
   const body = ((await readBody(event).catch(() => ({}))) || {}) as {
     orgId?: string;
     dryRun?: boolean;
@@ -129,4 +140,5 @@ export default defineEventHandler(async (event) => {
   }
 
   return { expired, windowDays: days, dryRun, scope: orgId || "all" };
-});
+  }
+);

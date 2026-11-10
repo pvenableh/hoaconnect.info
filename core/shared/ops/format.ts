@@ -50,6 +50,11 @@ export const STATUS_LABEL: Record<string, string> = {
   void: "Void",
   uncollectible: "Uncollectible",
   draft: "Draft",
+  // Scheduled jobs (health page)
+  ok: "OK",
+  error: "Error",
+  overdue: "Overdue",
+  never: "No run yet",
 };
 
 export const STATUS_TONE: Record<string, Tone> = {
@@ -73,7 +78,24 @@ export const STATUS_TONE: Record<string, Tone> = {
   incomplete_expired: "muted",
   void: "muted",
   draft: "muted",
+  ok: "success",
+  error: "destructive",
+  overdue: "warning",
+  never: "muted",
 };
+
+/** Bytes as a person reads them: "0 B", "512 KB", "1.4 GB". */
+export function bytes(n: number | null | undefined): string {
+  if (n == null) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = Math.max(0, n);
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${i === 0 ? v : v.toFixed(v >= 10 ? 0 : 1)} ${units[i]}`;
+}
 
 export const BOARD_TITLE: Record<string, string> = {
   president: "President",
