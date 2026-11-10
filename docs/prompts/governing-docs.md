@@ -200,9 +200,12 @@ From this repo:
       the client rendered the spinner. Both now wait on `status` (`waiting`), and a refresh keeps the page up.
       The 404 in the console is `/_nuxt/vue-sonner/style.css` from `core/nuxt.config.ts:169`, app-wide and older
       than this feature; left alone.
-    - **Still not exercised against the hosted Directus:** the flag status buttons (the click was refused by the
-      permission classifier). Proven by `governing-flags.test.ts` only. No screenshot: the "what's new" sheet
-      covers the page in the preview.
+    - **Flag status buttons exercised on the hosted Directus 2026-11-10 (Peter's ask):** on By-Law 6.5's
+      "Fidelity bond" flag, Dismiss (with its confirm dialog) then Restore. The card and the overview followed
+      (statute_controls 8 → 7 → 8, the flag listed under Dismissed in between), and the audit log holds the two
+      `flag_status` rows with before/after, the actor and the flag. The flag is back to confirmed, now with
+      Peter as `confirmed_by`. "Mark Confirmed by Counsel" was not clicked: it would record a lawyer's sign-off
+      that has not happened. No screenshot: the "what's new" sheet covers the page in the preview.
   - Deferred: a reason/counsel-name field in the UI when marking counsel_confirmed (the route takes `reason`); an
     audit-log viewer; editing a reference's edition or checked date (stale view is read-only); flags on the reading
     view beyond the existing count.
