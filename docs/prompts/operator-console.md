@@ -300,7 +300,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - **Other 6 users flipped after the deploy, with Peter's yes:** counted 6 at true and 1 (Peter) at false, wrote
       the 6 in one bulk update, and re-counted 7 at false. Every production user now has `email_notifications`
       false.
-  - **Found and fixed, committed locally (not pushed): the billing and digest workers couldn't start under `tsx`.**
+  - **Found and fixed, pushed and live: the billing and digest workers couldn't start under `tsx`.**
     - Both import `core/server/utils/email-templates-mjml.ts`. Since c1c6397 (2026-11-03) that file has used the
       `#core` alias and raw `.mjml` imports, which only Nuxt and vitest provide.
     - **GitHub Actions confirms it** (public API): the digest last succeeded 2026-11-03 17:41 UTC and has failed on
@@ -317,7 +317,12 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
         No late fees, no autopay, no reminders (the demo's 4 are suppressed). The 5 real communities get nothing.
       - **Digest:** 1 member has digest settings; nobody is due this hour.
     - The export worker never needed the loader: it asks the app to send its email.
-- **Session F done 2026-11-10, committed locally, not pushed.** Support messages can carry attachments.
+    - **Pushed with Peter's yes:** 3 commits, `289e74f..020a264` (4769721 docs, a59d2ba Session F, 020a264 this fix).
+      `pnpm build` passed first. Build `e57daff4-…` went live about 3 minutes later. CI passed on `020a264`,
+      including the worker test on GitHub's Linux runner.
+    - **First scheduled digest run since the push succeeded** (2026-11-10 23:08 UTC), its first success since
+      2026-11-03. Billing's first run is the next 10:15 UTC schedule; expect the 10 demo-community charges above.
+- **Session F done 2026-11-10, pushed with Peter's yes in `289e74f..020a264`.** Support messages can carry attachments.
   - **Peter's calls:**
     - Up to 5 per message.
     - Images, PDF, plain text, and Word or Excel (`.docx`, `.xlsx`).
