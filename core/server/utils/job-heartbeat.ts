@@ -19,18 +19,21 @@ export function _resetJobHeartbeat(): void {
   restingUntil = 0;
 }
 
-/** Upsert through any client: update the job's row, create it if there is none. */
+/**
+ * Upsert through any client: update the job's row, create it if there is none.
+ *
+ * Directus does not refuse an admin token's update of a missing item: it
+ * answers 204, which the SDK returns as null. So "no row" is an empty answer,
+ * not a throw (a throw still falls through to create, for other clients).
+ */
 export async function upsertHeartbeat(
   write: { update: (id: string, data: object) => Promise<unknown>; create: (data: object) => Promise<unknown> },
   row: ReturnType<typeof heartbeatRow>
 ): Promise<void> {
   const { id, last_ok_at, ...rest } = row;
   const data = last_ok_at ? { ...rest, last_ok_at } : rest;
-  try {
-    await write.update(id, data);
-  } catch {
-    await write.create({ id, ...data });
-  }
+  const updated = await write.update(id, data).catch(() => null);
+  if (!updated) await write.create({ id, ...data });
 }
 
 export async function recordJobRun(

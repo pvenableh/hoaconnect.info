@@ -79,6 +79,12 @@ const directusRequest = async (op: any) => {
       if (typeof q.limit === "number" && q.limit >= 0) rows = rows.slice(0, q.limit);
       return rows;
     }
+    // The real Directus answers an admin token's PATCH of a missing item with
+    // 204 (it updates nothing and can't read the item back), and the SDK turns
+    // that into null. It does NOT throw, which MemoryDirectus does; the heartbeat
+    // shipped relying on the throw and wrote no rows in production (2026-11-10).
+    case "updateItem":
+      if (!db.all(op.collection, { id: { _eq: op.id } }).length) return null;
   }
   return db.request(op);
 };

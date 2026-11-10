@@ -23,8 +23,10 @@ async function write(job: OpsJobKey, run: Parameters<typeof heartbeatRow>[1]): P
       body: JSON.stringify(body),
     });
   try {
+    // A missing row answers 204, not an error: Directus updates nothing and
+    // can't read the item back. Only a 200 means the row was there.
     const updated = await send("PATCH", `/items/ops_job_heartbeats/${id}`, data);
-    if (updated.ok) return;
+    if (updated.status === 200) return;
     const created = await send("POST", "/items/ops_job_heartbeats", { id, ...data });
     if (!created.ok) console.warn(`[job-heartbeat] ${job} not recorded: HTTP ${created.status}`);
   } catch (e: any) {
