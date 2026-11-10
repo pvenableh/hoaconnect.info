@@ -100,8 +100,11 @@ From this repo:
     `export-collections.test.ts` fails.
   - Not done: nothing has been exercised against the hosted Directus through these routes yet (no page calls
     them). 1C does that in the browser.
-- **Session 1C code done 2026-11-10, committed locally, NOT pushed. Browser check against 1033 Lenox NOT done yet**
-  (the dev server needs Peter signed in; criteria 1, 2, 3, 6 are still to be shown on screen).
+- **Session 1C done 2026-11-10, committed locally, NOT pushed. Phase 1 stop.** Checked in the browser against
+  1033 Lenox on the hosted Directus: 7 documents / 209 provisions (1); "proxies" → By-Law 3.5 first, "fidelity"
+  and "By-Law 6.5" → By-Law 6.5 (2); By-Law 3.5 reads with "Poxies" (3); Decl. 11 shows "Amended by 1978 Amend.
+  ¶7" and 1978 ¶6 shows "Conflicts with 1994 Amend. ¶1" (6). Known: transcriber's notes show their own markdown
+  ("## Transcriber's notes", "- ") as stored, since nothing renders markdown.
   - Pages (`app/pages/[slug]/governing/`): `index.vue` (list), `[document].vue` (reading view: contents,
     recorded-page markers, transcriber's notes; provisions anchor as `#p-<id>`), `provisions/[id].vue` (verbatim
     text, citation + Copy Citation, book and page, amendment chain, previous/next), `search.vue` (query and the

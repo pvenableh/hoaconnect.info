@@ -51,14 +51,15 @@ const runSearch = async () => {
         <Button type="submit" variant="outline">Search</Button>
       </form>
 
-      <div v-if="pending" class="py-16 flex justify-center"><div class="spinner-ios" /></div>
-
       <AppEmptyState
-        v-else-if="error"
+        v-if="error"
         icon="lucide:triangle-alert"
         title="The governing documents could not be loaded"
         description="Reload the page to try again."
       />
+
+      <!-- No answer yet (still loading, or the org is not resolved): never "empty". -->
+      <div v-else-if="pending || !data" class="py-16 flex justify-center"><div class="spinner-ios" /></div>
 
       <AppEmptyState
         v-else-if="!documents.length"
