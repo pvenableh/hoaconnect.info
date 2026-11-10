@@ -8,6 +8,7 @@ import {
   kindLabel,
   linkLabel,
   provisionDepths,
+  sourceLabels,
   splitHighlight,
 } from "../../core/shared/governing/labels";
 
@@ -36,6 +37,11 @@ describe("splitHighlight", () => {
 });
 
 describe("labels", () => {
+  it("labels an original as recorded or unrecorded, and marks the copy the text came from", () => {
+    expect(sourceLabels({ is_recorded_copy: true, is_authoritative: true })).toEqual(["Recorded copy", "Source of the text"]);
+    expect(sourceLabels({ is_recorded_copy: false, is_authoritative: false })).toEqual(["Unrecorded copy"]);
+  });
+
   it("formats a stored date without shifting the day", () => {
     expect(formatRecordDate("1977-03-01")).toBe("March 1, 1977");
     expect(formatRecordDate(null)).toBe("");

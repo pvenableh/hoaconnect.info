@@ -74,4 +74,27 @@ export type GovFlag = {
   references: GovReference[];
 };
 
-export type GovSnapshot = { documents: GovDocument[]; provisions: GovProvision[]; links: GovLink[]; flags: GovFlag[] };
+/** An original file behind a document's transcription: the recorded scan, or another copy. */
+export type GovSource = {
+  id: string;
+  document: string;
+  /** Directus file id. Open it through the asset proxy, which checks the caller again. */
+  file: string;
+  filename: string | null;
+  type: string | null;
+  filesize: number | null;
+  is_recorded_copy: boolean;
+  /** The copy the published text was taken from. */
+  is_authoritative: boolean;
+  notes: string | null;
+  page_count: number | null;
+  date_created: string | null;
+};
+
+export type GovSnapshot = {
+  documents: GovDocument[];
+  provisions: GovProvision[];
+  links: GovLink[];
+  flags: GovFlag[];
+  sources: GovSource[];
+};

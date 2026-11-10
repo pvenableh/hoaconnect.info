@@ -90,6 +90,18 @@ async function seed() {
   db.seed(C.flagReferences, [{ flag: "flag-suggested", reference, sort: 1 }]);
   db.seed(C.links, [{ id: "link-draft", organization: ORG, from_provision: "prov-draft", to_provision: bylaw65, type: "amends", note: null }]);
 
+  // Original files: one on a published document, one on a draft, one in another community.
+  db.seed("hoa_governing_sources", [
+    { id: "src-bylaws", organization: ORG, document: idOf(C.documents, "bylaws"), file: "file-bylaws", is_recorded_copy: true, is_authoritative: true, notes: null, page_count: 12 },
+    { id: "src-draft", organization: ORG, document: "doc-draft", file: "file-draftscan", is_recorded_copy: false, is_authoritative: false, notes: "DRAFT scan", page_count: 3 },
+    { id: "src-other", organization: OTHER_ORG, document: "doc-other", file: "file-otherscan", is_recorded_copy: true, is_authoritative: true, notes: null, page_count: 1 },
+  ]);
+  db.seed("directus_files", [
+    { id: "file-bylaws", filename_download: "bylaws-recorded.pdf", type: "application/pdf", filesize: 2048 },
+    { id: "file-draftscan", filename_download: "DRAFT-upload.pdf", type: "application/pdf", filesize: 1024 },
+    { id: "file-otherscan", filename_download: "OTHERORG.pdf", type: "application/pdf", filesize: 1024 },
+  ]);
+
   db.seed("hoa_members", [
     { id: "m-admin", user: "u-admin", organization: ORG, role: ROLE.hoaAdmin, status: "active" },
     { id: "m-board", user: "u-board", organization: ORG, role: ROLE.member, status: "active" },
@@ -124,7 +136,9 @@ beforeEach(async () => {
   vi.stubGlobal("getUserSession", async () => h.session ?? {});
   vi.stubGlobal("getQuery", () => h.query);
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
-  vi.stubGlobal("getTypedDirectus", () => ({ request: (op: any) => db.request(op) }));
+  vi.stubGlobal("getTypedDirectus", () => ({
+    request: async (op: any) => (op.op === "readFiles" ? db.all("directus_files", op.query?.filter) : db.request(op)),
+  }));
   vi.stubGlobal("useRuntimeConfig", () => ({
     public: {
       directusRoleAppAdmin: ROLE.appAdmin,
@@ -190,7 +204,7 @@ describe("governing routes — who gets in", () => {
 // ── Criterion 7 ──────────────────────────────────────────────────────────────
 
 describe("governing routes — members never see drafts or unconfirmed suggestions (criterion 7)", () => {
-  const HIDDEN = /DRAFT|INREVIEW|OTHERORG|Draftonly|Reviewonly|Ocronly|Otherorg|zebracorn|SUGGESTED|DISMISSED|CONFIRMED but on a draft|unconfirmed|prov-draft|prov-review|prov-ocr|doc-draft|doc-review|flag-suggested|flag-dismissed|flag-on-draft|link-draft/;
+  const HIDDEN = /DRAFT|INREVIEW|OTHERORG|Draftonly|Reviewonly|Ocronly|Otherorg|zebracorn|SUGGESTED|DISMISSED|CONFIRMED but on a draft|unconfirmed|prov-draft|prov-review|prov-ocr|doc-draft|doc-review|flag-suggested|flag-dismissed|flag-on-draft|link-draft|src-draft|src-other|file-draftscan|file-otherscan/;
 
   for (const [who, become] of READERS) {
     it(`${who}: no route's answer contains any of it`, async () => {
@@ -210,6 +224,12 @@ describe("governing routes — members never see drafts or unconfirmed suggestio
       // A search answer echoes the query, so only its results are checked.
       for (const answer of answers) expect(JSON.stringify(answer.results ?? answer)).not.toMatch(HIDDEN);
       expect(answers[4].results).toEqual([]);
+      // The original of a published document does reach them, from both routes that carry it.
+      for (const answer of [answers[1], answers[2]]) {
+        expect(answer.sources).toEqual([
+          expect.objectContaining({ id: "src-bylaws", file: "file-bylaws", filename: "bylaws-recorded.pdf", page_count: 12, is_recorded_copy: true, is_authoritative: true }),
+        ]);
+      }
     });
 
     it(`${who}: asking for a hidden document or provision by id is a 404`, async () => {
@@ -242,6 +262,7 @@ describe("governing routes — members never see drafts or unconfirmed suggestio
       const { documents } = await call(routes.documents);
       expect(documents.map((d: any) => d.id)).toEqual(expect.arrayContaining(["doc-draft", "doc-review"]));
       expect(documents).toHaveLength(9);
+      expect((await call(routes.document, { params: { id: "doc-draft" } })).sources.map((s: any) => s.id)).toEqual(["src-draft"]);
       const found = await call(routes.provision, { params: { id: idOf(C.provisions, "bylaws:6.5") } });
       expect(found.flags.map((f: any) => f.id)).toEqual(expect.arrayContaining(["flag-suggested", "flag-dismissed"]));
       expect((await call(routes.search, { query: { q: "zebracorn" } })).results.map((r: any) => r.provision.id).sort()).toEqual(["prov-draft", "prov-ocr", "prov-review"]);

@@ -16,7 +16,7 @@ const { getDocument } = useGoverningDocs(selectedOrgId);
 
 const documentId = computed(() => String(route.params.document ?? ""));
 
-const { data, pending } = await useAsyncData(
+const { data, pending, refresh } = await useAsyncData(
   () => `governing-document-${documentId.value}`,
   async () => {
     if (!selectedOrgId.value || !documentId.value) return null;
@@ -120,6 +120,14 @@ onMounted(scrollToHash);
             </ul>
           </div>
         </div>
+
+        <GoverningOriginalDocuments
+          :sources="data?.sources ?? []"
+          :org-id="selectedOrgId"
+          :can-manage="data?.can_manage"
+          :document-id="doc.id"
+          @changed="refresh()"
+        />
 
         <AppEmptyState
           v-if="!provisions.length"

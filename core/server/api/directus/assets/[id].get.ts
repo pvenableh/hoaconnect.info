@@ -28,6 +28,7 @@
 
 import { readFile } from "@directus/sdk";
 import { isSupportFileMarker } from "#core/shared/support/attachments";
+import { mayOpenGoverningSourceFile } from "#core/server/utils/governing-sources";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -64,7 +65,14 @@ export default defineEventHandler(async (event) => {
 
   const isImage = (file.type || "").startsWith("image/");
 
-  if (!isImage) {
+  // An original governing document, image or not: belonging to the community
+  // is not enough, because a member may not open the scan of a draft.
+  const governing = await mayOpenGoverningSourceFile(event, id);
+  if (governing === false) {
+    throw createError({ statusCode: 403, statusMessage: "Not authorized to read this file." });
+  }
+
+  if (!isImage && governing !== true) {
     // Export archives have their own route, which also enforces expiry.
     if (await isDataExportArchive(id)) {
       throw createError({

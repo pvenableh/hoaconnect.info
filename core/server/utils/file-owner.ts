@@ -31,6 +31,10 @@ const DIRECT_OWNERS: Array<{ collection: string; field: string }> = [
   { collection: "hoa_pets", field: "image" },
   { collection: "hoa_vehicles", field: "image" },
   { collection: "hoa_newsletter_blocks", field: "thumbnail" },
+  // Listed so the file resolves to its community. The asset proxy does not stop
+  // there for these: `mayOpenGoverningSourceFile` also checks the document's
+  // status, so a member cannot open the scan of a draft.
+  { collection: "hoa_governing_sources", field: "file" },
 ];
 
 /** Many-to-many junctions, whose organization lives one hop up on the parent. */

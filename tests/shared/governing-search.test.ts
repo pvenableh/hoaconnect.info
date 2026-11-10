@@ -18,6 +18,7 @@ const snapshot: GovSnapshot = {
   documents: plan.documents.map((d) => ({ ...(d.data as any), id: d.key, amends: d.amendsKey }) as GovDocument),
   provisions: plan.provisions.map((p) => ({ ...(p.data as any), id: p.key, document: p.documentKey, parent: p.parentKey }) as GovProvision),
   links: [],
+  sources: [],
   flags: plan.flags.map((f) => ({ ...(f.data as any), id: f.key, provisions: f.provisionKeys, references: [] }) as GovFlag),
 };
 const ids = (q: string, filters = {}) => searchProvisions(snapshot, q, filters).map((h) => h.provision.id);
@@ -128,6 +129,10 @@ describe("governing visibility (criterion 7, the rule itself)", () => {
       status,
       provisions: ["p-pub", "p-draft"],
     })),
+    sources: ["pub", "draft", "review"].map((document) => ({
+      id: `s-${document}`, document, file: `file-${document}`, filename: "scan.pdf", type: "application/pdf", filesize: 1,
+      is_recorded_copy: document !== "pub", is_authoritative: false, notes: null, page_count: 1, date_created: null,
+    })),
   };
 
   it("a member gets published documents, reviewed provisions and confirmed flags only", () => {
@@ -137,6 +142,8 @@ describe("governing visibility (criterion 7, the rule itself)", () => {
     expect(seen.links.map((l) => l.id)).toEqual(["l2"]);
     expect(seen.flags.map((f) => f.id)).toEqual(["f-confirmed", "f-counsel_confirmed"]);
     expect(seen.flags.every((f) => f.provisions.join() === "p-pub")).toBe(true);
+    // Every original of a published document, recorded copy or not; none of a draft's.
+    expect(seen.sources.map((s) => s.id)).toEqual(["s-pub"]);
   });
 
   it("drops a confirmed flag whose provisions are all hidden", () => {

@@ -114,6 +114,8 @@ const copyCitation = async () => {
           </dl>
         </div>
 
+        <GoverningOriginalDocuments :sources="data.sources" :org-id="selectedOrgId" />
+
         <section v-if="data.links.length || data.document_amends" class="space-y-2">
           <h2 class="type-section t-text">Amendment chain</h2>
           <ul class="ios-card divide-y t-border">

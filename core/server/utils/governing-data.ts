@@ -7,11 +7,11 @@
 //
 // Nothing in this file writes. Provision text is read and handed on as stored.
 
-import { readItems } from "@directus/sdk";
+import { readFiles, readItems } from "@directus/sdk";
 import { formatCitation } from "#core/shared/governing/citation";
 import { countByRelationship, sortFlags } from "#core/shared/governing/flags";
 import { searchProvisions, type SearchFilters } from "#core/shared/governing/search";
-import type { GovDocument, GovFlag, GovLink, GovProvision, GovReference, GovSnapshot } from "#core/shared/governing/types";
+import type { GovDocument, GovFlag, GovLink, GovProvision, GovReference, GovSnapshot, GovSource } from "#core/shared/governing/types";
 import { visibleSnapshot } from "#core/shared/governing/visibility";
 
 const DOCUMENT_FIELDS = [
@@ -26,9 +26,16 @@ const LINK_FIELDS = ["id", "from_provision", "to_provision", "type", "note"] as 
 const FLAG_FIELDS = [
   "id", "topic", "document_rule", "statute_rule", "statute_citation", "relationship", "severity", "note", "status", "origin",
 ] as const;
+const SOURCE_FIELDS = ["id", "document", "file", "is_recorded_copy", "is_authoritative", "notes", "page_count", "date_created"] as const;
 const REFERENCE_FIELDS = ["id", "jurisdiction", "code", "title", "summary", "url", "edition", "checked_on"] as const;
 
 const pick = <K extends string>(row: any, fields: readonly K[]) => Object.fromEntries(fields.map((f) => [f, row[f] ?? null])) as Record<K, any>;
+const idOf = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
+/** The copy the text was taken from first, then recorded copies, then oldest first. */
+const sourceOrder = (a: GovSource, b: GovSource) =>
+  Number(b.is_authoritative) - Number(a.is_authoritative) ||
+  Number(b.is_recorded_copy) - Number(a.is_recorded_copy) ||
+  String(a.date_created ?? "").localeCompare(String(b.date_created ?? ""));
 const bySort = (a: { sort: number | null }, b: { sort: number | null }) => (a.sort ?? 0) - (b.sort ?? 0);
 
 async function read(collection: string, filter: Record<string, unknown>, fields: readonly string[]): Promise<any[]> {
@@ -39,12 +46,41 @@ async function read(collection: string, filter: Record<string, unknown>, fields:
 /** Everything the caller may see of an organization's governing documents. */
 export async function loadGoverning(organizationId: string, canManage: boolean): Promise<GovSnapshot> {
   const org = { organization: { _eq: organizationId } };
-  const [documentRows, provisionRows, linkRows, flagRows] = await Promise.all([
+  const [documentRows, provisionRows, linkRows, flagRows, sourceRows] = await Promise.all([
     read("hoa_governing_documents", org, DOCUMENT_FIELDS),
     read("hoa_governing_provisions", org, PROVISION_FIELDS),
     read("hoa_governing_provision_links", org, LINK_FIELDS),
     read("hoa_statute_flags", org, FLAG_FIELDS),
+    read("hoa_governing_sources", org, SOURCE_FIELDS),
   ]);
+
+  // The file's name, type and size live on the file, not on the source row.
+  const fileIds = sourceRows.map((s) => idOf(s.file)).filter((id): id is string => !!id);
+  const fileRows = fileIds.length
+    ? (((await getTypedDirectus().request(
+        readFiles({ filter: { id: { _in: fileIds } }, fields: ["id", "filename_download", "type", "filesize"], limit: -1 } as any)
+      )) ?? []) as any[])
+    : [];
+  const files = new Map<string, any>(fileRows.map((f) => [f.id, f]));
+  const sources: GovSource[] = sourceRows
+    .filter((s) => idOf(s.file) && idOf(s.document))
+    .map((s) => {
+      const file = files.get(idOf(s.file)!);
+      return {
+        id: s.id,
+        document: idOf(s.document)!,
+        file: idOf(s.file)!,
+        filename: file?.filename_download ?? null,
+        type: file?.type ?? null,
+        filesize: file?.filesize != null ? Number(file.filesize) : null,
+        is_recorded_copy: s.is_recorded_copy === true,
+        is_authoritative: s.is_authoritative === true,
+        notes: s.notes ?? null,
+        page_count: s.page_count ?? null,
+        date_created: s.date_created ?? null,
+      };
+    })
+    .sort(sourceOrder);
 
   const flagIds = flagRows.map((f) => f.id);
   const [flagProvisions, flagReferences] = flagIds.length
@@ -72,6 +108,7 @@ export async function loadGoverning(organizationId: string, canManage: boolean):
       provisions: provisionRows.map((p) => pick(p, PROVISION_FIELDS) as GovProvision).sort(bySort),
       links: linkRows.map((l) => pick(l, LINK_FIELDS) as GovLink),
       flags,
+      sources,
     },
     canManage
   );
@@ -90,7 +127,7 @@ export async function listGoverningDocuments(organizationId: string, canManage: 
 
 /** A document with its provisions in reading order. Null when the caller may not see it. */
 export async function getGoverningDocument(organizationId: string, id: string, canManage: boolean) {
-  const { documents, provisions, flags } = await loadGoverning(organizationId, canManage);
+  const { documents, provisions, flags, sources } = await loadGoverning(organizationId, canManage);
   const document = documents.find((d) => d.id === id);
   if (!document) return null;
   const title = (d: GovDocument) => ({ id: d.id, title: d.title, kind: d.kind, recorded_on: d.recorded_on });
@@ -102,12 +139,14 @@ export async function getGoverningDocument(organizationId: string, id: string, c
     amends: amends ? title(amends) : null,
     amended_by: documents.filter((d) => d.amends === document.id).map(title),
     provisions: provisions.filter((p) => p.document === id).map((p) => ({ ...p, flag_count: flagCount.get(p.id) ?? 0 })),
+    /** The original files behind this transcription. */
+    sources: sources.filter((s) => s.document === id),
   };
 }
 
 /** A provision with its document, amendment chain and flags. Null when the caller may not see it. */
 export async function getGoverningProvision(organizationId: string, id: string, canManage: boolean) {
-  const { documents, provisions, links, flags } = await loadGoverning(organizationId, canManage);
+  const { documents, provisions, links, flags, sources } = await loadGoverning(organizationId, canManage);
   const provision = provisions.find((p) => p.id === id);
   if (!provision) return null;
   const document = documents.find((d) => d.id === provision.document)!;
@@ -135,6 +174,8 @@ export async function getGoverningProvision(organizationId: string, id: string, 
         return { id: l.id, type: l.type, note: l.note, direction: outgoing ? ("from" as const) : ("to" as const), other: brief(other), other_document_title: documents.find((d) => d.id === other.document)?.title ?? null };
       }),
     flags: sortFlags(flags.filter((f) => f.provisions.includes(id))),
+    /** The original files behind this provision's document. */
+    sources: sources.filter((s) => s.document === document.id),
   };
 }
 

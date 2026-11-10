@@ -118,7 +118,37 @@ From this repo:
   - **Left for Session 2:** flags on the provision page (search results show relationship labels plus
     `FLAG_NOTICE` only), the overview page (`overview.get` has no page yet). Left for Phase 3: page-image link,
     admin pages.
-- **Next: Session 1D (original documents), added 2026-11-10.** Not started. It runs before Session 2.
+- **Session 1D done 2026-11-10, committed locally, NOT pushed.** Peter's answers: members see every source of a
+  published document, labelled recorded / unrecorded (not only `is_recorded_copy`); one PDF may be attached to a
+  Lenox document for the check. No schema change.
+  - Write side: `core/server/utils/governing-sources.ts` (`attachGoverningSource`, `deleteGoverningSource`,
+    `pdfPageCount` via `unpdf`, `mayOpenGoverningSourceFile`). Routes `documents/[id]/sources.post.ts` (multipart:
+    `file`, `is_recorded_copy`, `is_authoritative`, `notes`; PDF or image only) and
+    `documents/[id]/sources/[sourceId].delete.ts`, both `requireGoverningManage`. The file is stored unmodified in
+    the org's Documents folder with the admin token; each attach and delete writes an `hoa_governing_audit_log` row
+    (`source_attach` / `source_delete`). Session 2 and 3B can lift `writeAudit` out of this file.
+  - Read side: `GovSnapshot.sources` (`GovSource`: file id, filename, type, size, labels, page count), filtered in
+    `visibleSnapshot`; returned as `sources` by `documents/[id].get` and `provisions/[id].get`.
+  - File access: the asset proxy (`api/directus/assets/[id].get.ts`) asks `mayOpenGoverningSourceFile` first, for
+    images too. A member gets the file only when its document is published; a manager always. Sources are also in
+    `file-owner.ts` `DIRECT_OWNERS`.
+  - Pages: `app/components/Governing/OriginalDocuments.vue` (labels, page count, Open / Download through
+    `getAuthUrl`; attach form and remove for managers) on the reading view and, read-only, the provision page.
+    `useGoverningDocs` has `attachSource` / `removeSource`; `sourceLabels` is in `labels.ts`.
+  - Tests: `tests/server/governing-sources.test.ts` (403 for non-managers, audit rows, no provision write, member
+    gets published originals only from every route, member refused a draft's file by id, image included);
+    criterion 7 in `governing-read.test.ts` now also seeds a draft's and another community's source.
+  - Export unchanged: sources stay full-tier only (`export-collections.test.ts` passes). Members now see these
+    files in the app but not in a shareable export; ask Peter before changing that.
+  - **Not done:** no PDF has been attached on the hosted Directus. The built-in browser cannot hand a file from
+    disk to the page, so the attach is Peter's to do on a reading view ("Attach Original"); then open it as a
+    member. Browser check so far: the block and the control render for a manager on the 1995 Amendment.
+  - **Known:** (1) an image source is still readable straight from Directus by anyone who has its file id, because
+    the public policy serves `image/*`; the app never gives a member the id of a draft's file, and the proxy
+    refuses it. PDFs are private. (2) The file sits in the org's Documents storage folder, so people who may browse
+    the storage library can see a draft's filename there (not open it). (3) Deleting a source does not delete
+    `hoa_governing_pages` rows; none exist until 3A, which must handle that.
+- **Next: Session 2 (flags and overview).**
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

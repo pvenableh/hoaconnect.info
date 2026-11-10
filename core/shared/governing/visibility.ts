@@ -1,8 +1,9 @@
 /**
  * Who sees what (spec §7; acceptance criterion 7).
  *
- * A member sees published documents, their reviewed provisions, and flags an
- * admin has confirmed. Drafts, documents in review, OCR drafts, and suggested
+ * A member sees published documents, their reviewed provisions, every original
+ * file attached to a published document (Peter, 2026-11-10: all of them, each
+ * labelled recorded or not), and flags an admin has confirmed. Drafts, documents in review, OCR drafts, and suggested
  * or dismissed flags are for people who manage governing documents.
  *
  * `visibleSnapshot` is the one place this is decided. Every read route builds
@@ -28,5 +29,7 @@ export function visibleSnapshot(all: GovSnapshot, canManage: boolean): GovSnapsh
     .map((f) => ({ ...f, provisions: f.provisions.filter((id) => provisionIds.has(id)) }))
     .filter((f) => f.provisions.length > 0);
 
-  return { documents, provisions, links, flags };
+  const sources = all.sources.filter((s) => documentIds.has(s.document));
+
+  return { documents, provisions, links, flags, sources };
 }

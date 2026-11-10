@@ -50,5 +50,24 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
       },
     });
 
-  return { listDocuments, getDocument, getProvision, search };
+  // Managers only; the server refuses anyone else. The file goes up as it is.
+  const attachSource = (documentId: string, file: File, options: { is_recorded_copy: boolean; is_authoritative: boolean; notes?: string }) => {
+    const form = new FormData();
+    form.append("is_recorded_copy", String(options.is_recorded_copy));
+    form.append("is_authoritative", String(options.is_authoritative));
+    if (options.notes) form.append("notes", options.notes);
+    form.append("file", file, file.name);
+    return $fetch<{ id: string; file: string; page_count: number | null }>(
+      `/api/governing/documents/${encodeURIComponent(documentId)}/sources`,
+      { method: "POST", query: base(), body: form }
+    );
+  };
+
+  const removeSource = (documentId: string, sourceId: string) =>
+    $fetch<{ ok: boolean }>(`/api/governing/documents/${encodeURIComponent(documentId)}/sources/${encodeURIComponent(sourceId)}`, {
+      method: "DELETE",
+      query: base(),
+    });
+
+  return { listDocuments, getDocument, getProvision, search, attachSource, removeSource };
 }

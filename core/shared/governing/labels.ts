@@ -3,7 +3,7 @@
  * provision text except `splitHighlight`, which only cuts a string into
  * pieces that join back to exactly the same string.
  */
-import type { GovDocument, GovProvision, LinkType } from "./types";
+import type { GovDocument, GovProvision, GovSource, LinkType } from "./types";
 
 const KIND_LABELS: Record<string, string> = {
   declaration: "Declaration",
@@ -35,6 +35,11 @@ export function statusLabel(status: GovDocument["status"]): string {
  * How a link reads from the provision being viewed. `from` means this
  * provision is the one doing the amending.
  */
+/** What a member is told about an original file: recorded or not, and whether the text came from it. */
+export function sourceLabels(source: Pick<GovSource, "is_recorded_copy" | "is_authoritative">): string[] {
+  return [source.is_recorded_copy ? "Recorded copy" : "Unrecorded copy", ...(source.is_authoritative ? ["Source of the text"] : [])];
+}
+
 export function linkLabel(type: LinkType, direction: "from" | "to"): string {
   const outgoing = direction === "from";
   switch (type) {
