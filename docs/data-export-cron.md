@@ -45,8 +45,8 @@ and this worker is what makes that true.
    killed process is marked `failed`. Without this one crash wedges an org
    forever: the queue route refuses a new export while one is in flight.
 3. **Builds** up to `--max` (default 3) queued jobs, oldest first, then writes
-   the manifest onto the row and drops a bell notification for the admin who
-   asked.
+   the manifest onto the row, then drops a bell notification and sends an email
+   to the admin who asked.
 
 ## How it is triggered
 
@@ -129,6 +129,7 @@ The workflow pins the rest inline:
 | `DIRECTUS_URL` | `https://admin.hoaconnect.info` |
 | `APP_URL` | `https://app.hoaconnect.info` — the deep link in the "your export is ready" notification |
 | `EXPORT_FOLDER_NAME` | `Data exports` |
+| `CRON_SECRET` | `secrets.CRON_SECRET` (the AI crons' secret) — authenticates the "your export is ready" email request to the app; unset, the bell still lands |
 | `EXPORT_WORK_DIR` | `${{ runner.temp }}/hoa-export` — the runner's work volume (~14 GB), not the smaller root filesystem the system temp dir sits on |
 | `NUXT_PUBLIC_BUILD_ID` | `${{ github.sha }}`, recorded on the manifest as the build that produced the archive |
 
@@ -183,8 +184,14 @@ open them.
 - A "your export is ready" **bell notification** goes to the requester. It is
   written directly rather than through `notifyUsers` (Nitro-only) and
   deliberately ignores the per-category preferences: it is the receipt for
-  something that person just asked for by hand. ⚠️ Writing a
-  `directus_notifications` row **emails that person**, from inside Directus —
-  one archive built is one mail sent, and no flag in this script suppresses it.
+  something that person just asked for by hand.
+- An **email twin** follows. The worker can't load the email templates (they
+  import `.mjml` files and Nuxt aliases), so it POSTs
+  `/api/org/export/:id/ready-email` on the app with `x-cron-secret`, and the app
+  sends it through `sendBrandedTransactionalEmail` with no category. A category
+  opt-out doesn't stop it; the app's master switch (`_email`), the mute, or a
+  bounced address does. `core/shared/export/ready-notice.ts` holds the wording
+  for both. Directus no longer emails the bell row: every user's
+  `email_notifications` is false (operator console, Session H).
 - `pnpm install` on the runner is deliberately **not** `--prod`: the worker runs
   through `tsx` and uses `archiver`, both devDependencies.

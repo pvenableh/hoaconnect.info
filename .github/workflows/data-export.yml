@@ -60,6 +60,9 @@ jobs:
       DIRECTUS_STATIC_TOKEN: ${{ secrets.DIRECTUS_STATIC_TOKEN }}
       APP_URL: https://app.hoaconnect.info
       EXPORT_FOLDER_NAME: Data exports
+      # Authenticates the worker's "your export is ready" email request to the app
+      # (POST /api/org/export/:id/ready-email). Directus no longer emails bell rows (Session H).
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       # Recorded on the manifest as the build that produced the archive.
       NUXT_PUBLIC_BUILD_ID: ${{ github.sha }}
     steps:

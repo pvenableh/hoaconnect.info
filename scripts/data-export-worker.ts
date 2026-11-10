@@ -73,6 +73,7 @@ import {
 import { redactRows, redactedFields } from "../core/shared/export/redaction";
 import { csvCell, readPath, toCsv } from "../core/shared/export/csv";
 import { runWithHeartbeat } from "./lib/job-heartbeat";
+import { exportReadyNotice } from "../core/shared/export/ready-notice";
 import {
   entriesSinceOpening,
   expenseEntriesFromExpenses,
@@ -86,6 +87,8 @@ const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
 const WORK_ROOT = process.env.EXPORT_WORK_DIR || tmpdir();
 const EXPORT_FOLDER_NAME = process.env.EXPORT_FOLDER_NAME || "Data exports";
 const APP_URL = process.env.APP_URL || "";
+/** Authenticates the "export ready" email request to the app (see `requestReadyEmail`). */
+const CRON_SECRET = process.env.CRON_SECRET || "";
 const BUILD_ID = process.env.NUXT_PUBLIC_BUILD_ID || null;
 
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -791,27 +794,34 @@ async function runJob(job: ExportJob): Promise<void> {
 }
 
 /**
- * Tell the admin the archive is waiting.
+ * Tell the admin the archive is waiting: a bell row, then the email twin.
  *
  * The Settings tab says "you can close this page — we'll keep going", and this
  * is the half that makes that true. It writes the bell row directly rather than
  * going through `notifyUsers`, which is a Nitro-only module; and it deliberately
  * does not consult the per-category preferences, because this is the receipt for
  * something the recipient just asked for by hand.
+ *
+ * The email used to come only from Directus, which emailed every bell row. That
+ * is off app-wide now (operator console, Session H), so the app sends its own.
+ * Each half fails alone: the archive is built either way.
  */
 async function notifyRequester(job: ExportJob, org: OrgRow, expiresAt: string): Promise<void> {
   if (!job.requested_by) return;
-  const days = EXPORT_TTL_DAYS;
+  const notice = exportReadyNotice({
+    orgName: org.name || org.slug,
+    slug: org.slug || null,
+    tier: job.tier,
+    days: EXPORT_TTL_DAYS,
+    expiresAt,
+    appUrl: APP_URL,
+  });
   try {
     await directus.request(
       createNotification({
         recipient: job.requested_by,
-        subject: `Your ${org.name || org.slug} data export is ready`,
-        message: [
-          `The ${job.tier === "full" ? "full" : "shareable"} export you requested has finished.`,
-          `Download it from Settings → Your data${APP_URL && org.slug ? ` (${APP_URL}/${org.slug}/admin/settings/data)` : ""}.`,
-          `It stays available for ${days} days, until ${expiresAt.slice(0, 10)}.`,
-        ].join(" "),
+        subject: notice.subject,
+        message: notice.message,
         collection: "hoa_data_exports",
         item: job.id,
       })
@@ -819,6 +829,29 @@ async function notifyRequester(job: ExportJob, org: OrgRow, expiresAt: string): 
   } catch (err) {
     console.warn(`   ⚠️  could not notify the requester: ${(err as Error).message}`);
   }
+  await requestReadyEmail(job.id).catch((err) =>
+    console.warn(`   ⚠️  could not email the requester: ${(err as Error).message}`)
+  );
+}
+
+/**
+ * Ask the app to send the email twin. The email templates import `.mjml` files
+ * and Nuxt aliases, which only load inside Nuxt, so this script can't build the
+ * email itself. The app re-reads the export row, so this only names it.
+ */
+async function requestReadyEmail(exportId: string): Promise<void> {
+  if (!APP_URL || !CRON_SECRET) {
+    console.log("   (no APP_URL or CRON_SECRET: export email not requested)");
+    return;
+  }
+  const res = await fetch(`${APP_URL}/api/org/export/${exportId}/ready-email`, {
+    method: "POST",
+    headers: { "x-cron-secret": CRON_SECRET },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`app answered ${res.status}`);
+  const { sent } = (await res.json()) as { sent?: number };
+  console.log(sent ? "   ✉️  emailed the requester" : "   export email not sent (switched off, bounced, or not a member)");
 }
 
 // ---------------------------------------------------------------------------

@@ -288,12 +288,22 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     update landed 0.2 s before the bell row.
   - **Live check passed:** one console reply to Peter's TEST request, sent from the local dev server, wrote one bell
     row. Peter got exactly one email, from notifications@hoaconnect.info, and nothing from Directus's sender.
-  - **Left:**
-    - After Peter pushes and the deploy lands, set `email_notifications` false for the other 6 users. Peter said yes on
-      2026-11-10; count first and confirm. Until then the deployed old code still uses the field as the app's switch,
-      and `notifyUsers` flips each user on their next bell anyway.
-    - The data-export "ready" bell (`scripts/data-export-worker.ts`) was only ever emailed by Directus. It's now
-      bell-only. Give it an app email if that matters.
+  - **Follow-up, same day (Peter asked for both items left):**
+    - **Export-ready email:** the data-export worker still writes the bell row, then POSTs
+      `/api/org/export/:id/ready-email` on the app with `x-cron-secret`. The app sends the email through
+      `sendBrandedTransactionalEmail` with no category: a category opt-out doesn't stop it; `_email`, the mute or a
+      bounce does. The workflow now passes `CRON_SECRET`, the secret the AI crons already use. The wording is shared in
+      `core/shared/export/ready-notice.ts`. Not checked live: no export was run.
+    - **Other 6 users:** see the push and flip record below.
+  - **Found, not fixed: the billing and digest workers can't start under `tsx`.**
+    - `scripts/billing-worker.ts` and `scripts/notification-digest-worker.ts` import
+      `core/server/utils/email-templates-mjml.ts`. Since Phase 4 (c1c6397, 2026-11-03) that file has imported
+      `#core/shared/color-contrast` (a Nuxt alias) and `../emails/org-email.mjml` (a raw `.mjml` file).
+    - Locally both workers die on import (`ERR_PACKAGE_IMPORT_NOT_DEFINED`, then `ERR_UNKNOWN_FILE_EXTENSION`). The
+      workflows run the same `tsx` command, so their scheduled runs are very likely failing.
+    - Neither has a row in `ops_job_heartbeats`, which fits but doesn't prove it. The GitHub Actions run history wasn't
+      checked; `gh` isn't installed here.
+    - The export worker avoids this by asking the app to send its email.
 
 ## Files worth knowing (read only what your session needs)
 
