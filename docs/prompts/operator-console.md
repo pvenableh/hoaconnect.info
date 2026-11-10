@@ -85,9 +85,44 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     canceled, 0 failed payments, 0 undelivered events, 6 codes, 5 redemptions. One difference: the app also counts one
     untagged legacy subscription (`paused`) that `isHoaConnectObject` recognises by its keys, while a
     `metadata.app`-only filter skips it.
+- **Session B done 2026-11-09, committed locally, NOT pushed.** A and B release together, on Peter's word.
+  - **`ops_audit_log` was created on the hosted Directus** (Peter's yes). It has 0 role permissions, a unique
+    `idempotency_key`, and SET NULL links to the community, account and user. `pnpm run create:ops-audit-log`
+    re-checks it read-only. The trigger SQL is in go-live-checklist §3c, not installed. It already holds 11 permanent
+    test-mode rows from B's localhost run, each with "TEST" in the reason.
+  - **The action routes:**
+    - `POST /api/ops/charges/:id/refund`.
+    - `communities/:id/{cancel,resume,trial,comp,portal}`.
+    - `POST /api/ops/codes` and `codes/:id/deactivate`.
+  - **The shared path:** every action route goes through `beginOpsAction` then `runOpsAction` in
+    `core/server/utils/ops-actions.ts`.
+    - `beginOpsAction` checks the guard (`billing.write`), then the rate limit (20 per 10 minutes per user), then the
+      body (`confirmed`, reason, `requestId`).
+    - `runOpsAction` builds the Stripe key `ops:<action>:<target>:<requestId>`. It joins a submit that's already in
+      flight, answers a submit already logged from the log, and writes the row through `writeOpsAuditEntry`
+      (`ops-audit.ts`).
+    - The rules (reason, typed amount above $500, 90-day trial cap) are in `core/shared/ops/actions.ts`.
+    - **Session C:** `beginOpsAction` hard-codes `billing.write`. Give it a permission parameter before using it
+      for `support` actions.
+  - **What each action is allowed to do:**
+    - Cancel, resume and refund touch Stripe only, and the webhook moves the org.
+    - Trial and comp write `hoa_organizations` and refuse agency-billed communities.
+    - Trial also moves a `trialing` Stripe subscription's `trial_end`, and refuses one that Stripe shows paying.
+  - **Fixed from A:** the community page reads each Stripe call on its own. An object from the other mode says so
+    (`billing.otherMode`), and the page then turns its actions off.
+  - **UI:** `Ops/ActionDialog` (reason, then `useConfirm`) and `Ops/RefundDialog`.
+  - **Checked in test mode on localhost, 2026-11-09:** each action was tried once on Testing HOA, pointed for the run
+    at a test customer and subscription.
+    - Read back from Stripe: two tagged refunds of $100 and $149 on the $249 charge, cancel at period end, resume,
+      cancel now, a portal session, and OPSTESTB created and deactivated.
+    - Trial, mark free and remove free were also tried. A trial while Stripe showed the subscription paying was
+      refused, and no row was written for it.
+    - Testing HOA was restored to its saved fields, with its live Stripe ids back. The test subscription is canceled;
+      the test customer is left in test mode.
 - **A canceled test org remains:** "Testing HOA", Boutique, 28 units, refunded and canceled. Delete it only with
   Peter's yes, after reading it.
-- **Gates at 70c2e68:** 145 files / 2,543 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0, build ok.
+- **Gates after Session B:** 147 files / 2,658 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
+  `pnpm build` not run yet; run it before the push.
 - **launch-followups.md Sessions 2–5 are still open.** Don't run Session B here alongside its Sessions 2 or 4; all three
   touch Stripe billing paths. Session B's re-banding action waits for its Session 3.
 
@@ -144,7 +179,7 @@ Phases 1 and 2 release together: do not push after A.
 
 Gates green. Commit and stop.
 
-## Session B — actions (Opus 5.5)
+## Session B — actions (Opus 5.5) — DONE 2026-11-09 (see "Where things stand")
 
 Every action route uses `requireOpsPermission(event, "billing.write")`. Refunds need a reason; above $500 the request must also
 carry the typed amount, checked on the server. Platform Support is refused every action before Stripe is called (test it).

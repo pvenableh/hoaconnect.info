@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Operator console: payments feed (plan §5, Phase 1). HOA Connect's own
 // charges, refunds and failures, newest first; residents' dues on their own tab,
-// by community and amount only.
+// by community and amount only. App Admins can refund a platform charge here
+// (Phase 2); dues are the community's to refund.
 import { money, shortDate } from "#core/shared/ops/format";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
@@ -12,7 +13,7 @@ const router = useRouter();
 const kind = computed(() => (route.query.kind === "dues" ? "dues" : "platform"));
 const days = computed(() => String(route.query.days ?? "30"));
 
-const { data, pending, error } = await useFetch<any>("/api/ops/payments", {
+const { data, pending, error, refresh } = await useFetch<any>("/api/ops/payments", {
   query: computed(() => ({ kind: kind.value, days: days.value })),
 });
 
@@ -27,6 +28,15 @@ const windows = [
 ];
 function set(next: Record<string, string>) {
   void router.replace({ query: { ...route.query, ...next } });
+}
+
+const { canOps } = useRoles();
+const canRefund = computed(() => canOps("billing.write") && kind.value === "platform");
+const refundOpen = ref(false);
+const refundRow = ref<any>(null);
+function startRefund(row: any) {
+  refundRow.value = row;
+  refundOpen.value = true;
 }
 
 const columns = computed(() => [
@@ -79,10 +89,12 @@ const columns = computed(() => [
           <template #cell-status="{ row }">
             <OpsStatusPill :status="row.status" />
             <span v-if="row.failureMessage" class="block type-micro text-destructive">{{ row.failureMessage }}</span>
+            <Button v-if="canRefund && row.refundable" variant="ghost" size="sm" class="mt-1 h-7 px-2" @click.stop="startRefund(row)">Refund</Button>
           </template>
           <template #cell-description="{ row }"><span class="type-meta t-text-muted">{{ row.description || "—" }}</span></template>
         </AppDataTable>
       </div>
+      <OpsRefundDialog v-model:open="refundOpen" :charge="refundRow" :payer="refundRow?.community?.name ?? refundRow?.billingAccount?.name" @done="refresh()" />
     </template>
   </OpsShell>
 </template>

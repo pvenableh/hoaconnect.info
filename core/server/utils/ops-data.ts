@@ -33,9 +33,43 @@ export function opsCached<T>(key: string, load: () => Promise<T>): Promise<T> {
   return value;
 }
 
+/**
+ * Drop cached reads an action just made stale, by key prefix (e.g. "charges:",
+ * "sub:sub_123"), in both Stripe modes. Without this the page shows the old
+ * state for up to a minute after a refund or a cancel.
+ */
+export function invalidateOpsCache(...prefixes: string[]): void {
+  for (const k of [...opsCache.keys()]) {
+    const key = k.slice(k.indexOf(":") + 1);
+    if (prefixes.some((p) => key.startsWith(p))) opsCache.delete(k);
+  }
+}
+
 /** Tests only. */
 export function _resetOpsCache(): void {
   opsCache.clear();
+}
+
+/**
+ * What a failed Stripe read means for the operator. A key in one mode can't see
+ * the other mode's objects: Stripe answers `resource_missing` and says "a
+ * similar object exists in live mode". On localhost (test key) that is every
+ * real customer, and it is not an outage.
+ */
+export function stripeReadProblem(e: unknown): { message: string; otherMode: "live" | "test" | null } {
+  const err = e as { code?: string; message?: string; raw?: { code?: string; message?: string } };
+  const code = err?.code ?? err?.raw?.code;
+  const text = `${err?.message ?? ""} ${err?.raw?.message ?? ""}`;
+  if (code === "resource_missing") {
+    if (/exists in live mode/i.test(text)) {
+      return { message: "This is a live-mode object; the server is in test mode.", otherMode: "live" };
+    }
+    if (/exists in test mode/i.test(text)) {
+      return { message: "This is a test-mode object; the server is in live mode.", otherMode: "test" };
+    }
+    return { message: "Stripe has no such object.", otherMode: null };
+  }
+  return { message: "Stripe couldn't be read just now.", otherMode: null };
 }
 
 // ── Paginated Stripe lists ──────────────────────────────────────────────────

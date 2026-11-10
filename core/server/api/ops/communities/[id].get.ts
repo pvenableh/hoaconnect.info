@@ -13,12 +13,13 @@ import {
   opsUsers,
   personName,
   stripeDashboardUrl,
+  stripeReadProblem,
 } from "#core/server/utils/ops-data";
 import { getStripe } from "#core/server/utils/stripe";
 import { countOrgUnits, getActiveBands } from "#core/server/utils/subscription-band";
 import { selectBand, type PlanBand } from "#core/shared/billing/bands";
 import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
-import { communityStatus, monthlyValue } from "#core/shared/ops/metrics";
+import { communityStatus, isDuesCharge, monthlyValue } from "#core/shared/ops/metrics";
 import { MANAGER_GRANT_KEYS, normalizeGrants } from "#core/shared/transition/grants";
 
 const idOf = (v: unknown): string | null =>
@@ -182,73 +183,83 @@ export default defineEventHandler(async (event) => {
 
   const customerId: string | null = (accountId ? account?.stripe_customer_id : org.stripe_customer_id) ?? null;
   const subscriptionId: string | null = (accountId ? account?.stripe_subscription_id : org.stripe_subscription_id) ?? null;
-  let stripeError: string | null = null;
-  let subscription: any = null;
-  let invoices: any[] = [];
-  let charges: any[] = [];
-  try {
-    const stripe = getStripe();
-    const [sub, inv, ch] = await Promise.all([
-      subscriptionId ? opsCached(`sub:${subscriptionId}`, () => stripe.subscriptions.retrieve(subscriptionId)) : null,
-      customerId ? opsCached(`invoices:${customerId}`, () => stripe.invoices.list({ customer: customerId, limit: 12 })) : null,
-      customerId ? opsCached(`charges-of:${customerId}`, () => stripe.charges.list({ customer: customerId, limit: 12 })) : null,
-    ]);
-    const s = sub as any;
-    if (s) {
-      const d = s.discount && typeof s.discount === "object" ? s.discount : null;
-      subscription = {
-        id: s.id,
-        status: s.status,
-        cancelAtPeriodEnd: !!s.cancel_at_period_end,
-        currentPeriodEnd: s.current_period_end ? new Date(s.current_period_end * 1000).toISOString() : null,
-        trialEnd: s.trial_end ? new Date(s.trial_end * 1000).toISOString() : null,
-        quantity: (s.items?.data ?? []).reduce((n: number, i: any) => n + (i.quantity ?? 1), 0),
-        items: (s.items?.data ?? []).map((i: any) => ({
-          nickname: i.price?.nickname ?? i.price?.lookup_key ?? null,
-          unitAmount: i.price?.unit_amount ?? null,
-          currency: i.price?.currency ?? null,
-          interval: i.price?.recurring?.interval ?? null,
-          quantity: i.quantity ?? 1,
-        })),
-        monthlyValueCents: monthlyValue(s, now).cents,
-        bandSlug: s.metadata?.band_slug || null,
-        discount: d
-          ? {
-              name: d.coupon?.name ?? null,
-              percentOff: d.coupon?.percent_off ?? null,
-              amountOff: d.coupon?.amount_off ?? null,
-              duration: d.coupon?.duration ?? null,
-              end: d.end ? new Date(d.end * 1000).toISOString() : null,
-              promotionCode: s.metadata?.promotion_code || null,
-            }
-          : null,
-      };
+  // Each read on its own, so one failure doesn't blank the card. On localhost
+  // (test key) a live customer answers resource_missing: say that, and the page
+  // disables actions on it.
+  const problems: string[] = [];
+  const mode: { other: "live" | "test" | null } = { other: null };
+  const read = async <T>(label: string, run: (stripe: ReturnType<typeof getStripe>) => Promise<T>): Promise<T | null> => {
+    try {
+      return await run(getStripe());
+    } catch (e: any) {
+      const p = stripeReadProblem(e);
+      if (p.otherMode) mode.other = p.otherMode;
+      else console.error(`[ops/community] Stripe ${label} read failed:`, e?.message ?? e);
+      if (!problems.includes(p.message)) problems.push(p.message);
+      return null;
     }
-    invoices = ((inv as any)?.data ?? []).map((i: any) => ({
-      id: i.id,
-      number: i.number ?? null,
-      created: new Date(i.created * 1000).toISOString(),
-      total: i.total,
-      amountPaid: i.amount_paid,
-      currency: i.currency,
-      status: i.status,
-      url: i.hosted_invoice_url ?? null,
-    }));
-    charges = ((ch as any)?.data ?? []).map((c: any) => ({
-      id: c.id,
-      created: new Date(c.created * 1000).toISOString(),
-      amount: c.amount,
-      amountRefunded: c.amount_refunded ?? 0,
-      currency: c.currency,
-      status: c.status,
-      refunded: !!c.refunded,
-      failureMessage: c.failure_message ?? null,
-      last4: c.payment_method_details?.card?.last4 ?? null,
-    }));
-  } catch (e: any) {
-    console.error("[ops/community] Stripe read failed:", e?.message ?? e);
-    stripeError = "Stripe couldn't be read just now.";
+  };
+  const [sub, inv, ch] = await Promise.all([
+    subscriptionId ? read("subscription", (stripe) => opsCached(`sub:${subscriptionId}`, () => stripe.subscriptions.retrieve(subscriptionId))) : null,
+    customerId ? read("invoices", (stripe) => opsCached(`invoices:${customerId}`, () => stripe.invoices.list({ customer: customerId, limit: 12 }))) : null,
+    customerId ? read("charges", (stripe) => opsCached(`charges-of:${customerId}`, () => stripe.charges.list({ customer: customerId, limit: 12 }))) : null,
+  ]);
+
+  let subscription: any = null;
+  const s = sub as any;
+  if (s) {
+    const d = s.discount && typeof s.discount === "object" ? s.discount : null;
+    subscription = {
+      id: s.id,
+      status: s.status,
+      cancelAtPeriodEnd: !!s.cancel_at_period_end,
+      currentPeriodEnd: s.current_period_end ? new Date(s.current_period_end * 1000).toISOString() : null,
+      trialEnd: s.trial_end ? new Date(s.trial_end * 1000).toISOString() : null,
+      quantity: (s.items?.data ?? []).reduce((n: number, i: any) => n + (i.quantity ?? 1), 0),
+      items: (s.items?.data ?? []).map((i: any) => ({
+        nickname: i.price?.nickname ?? i.price?.lookup_key ?? null,
+        unitAmount: i.price?.unit_amount ?? null,
+        currency: i.price?.currency ?? null,
+        interval: i.price?.recurring?.interval ?? null,
+        quantity: i.quantity ?? 1,
+      })),
+      monthlyValueCents: monthlyValue(s, now).cents,
+      bandSlug: s.metadata?.band_slug || null,
+      discount: d
+        ? {
+            name: d.coupon?.name ?? null,
+            percentOff: d.coupon?.percent_off ?? null,
+            amountOff: d.coupon?.amount_off ?? null,
+            duration: d.coupon?.duration ?? null,
+            end: d.end ? new Date(d.end * 1000).toISOString() : null,
+            promotionCode: s.metadata?.promotion_code || null,
+          }
+        : null,
+    };
   }
+  const invoices = ((inv as any)?.data ?? []).map((i: any) => ({
+    id: i.id,
+    number: i.number ?? null,
+    created: new Date(i.created * 1000).toISOString(),
+    total: i.total,
+    amountPaid: i.amount_paid,
+    currency: i.currency,
+    status: i.status,
+    url: i.hosted_invoice_url ?? null,
+  }));
+  const charges = ((ch as any)?.data ?? []).map((c: any) => ({
+    id: c.id,
+    created: new Date(c.created * 1000).toISOString(),
+    amount: c.amount,
+    amountRefunded: c.amount_refunded ?? 0,
+    currency: c.currency,
+    status: c.status,
+    refunded: !!c.refunded,
+    refundable: c.status === "succeeded" && c.amount > (c.amount_refunded ?? 0) && !isDuesCharge(c),
+    failureMessage: c.failure_message ?? null,
+    last4: c.payment_method_details?.card?.last4 ?? null,
+  }));
+  const stripeError = problems.length ? problems.join(" ") : null;
 
   // ── Activity ──────────────────────────────────────────────────────────────
   const wallet = ((await optional("AI wallet", () =>
@@ -296,6 +307,8 @@ export default defineEventHandler(async (event) => {
       invoices,
       charges,
       error: stripeError,
+      /** Set when the community's Stripe objects belong to the other mode: no actions on them. */
+      otherMode: mode.other,
     },
     activity: {
       lastAdminSignInAt: adminSignIns.at(-1) ?? null,

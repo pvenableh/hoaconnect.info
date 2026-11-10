@@ -77,6 +77,8 @@ export default defineEventHandler(async (event) => {
         currency: c.currency,
         status,
         failureMessage: c.status === "failed" ? c.failure_message ?? null : null,
+        // Dues are the community's to refund, never the console's.
+        refundable: kind === "platform" && c.status === "succeeded" && c.amount > (c.amount_refunded ?? 0),
         description: kind === "platform" ? c.description ?? null : null,
         community,
         billingAccount: kind === "platform" && customer ? accountByCustomer.get(customer) ?? null : null,

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-// Operator console: overview (docs/plan-operator-console.md §5, Phase 1).
+// Operator console: overview (docs/plan-operator-console.md §5, Phases 1 and 2).
+// App Admins create and deactivate discount codes on the Discount codes card.
+import { toast } from "vue-sonner";
+import { CODE_PATTERN, signupLinkFor } from "#core/shared/ops/actions";
 import { money, relativeDays } from "#core/shared/ops/format";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
@@ -25,6 +28,90 @@ const buckets = computed(() => {
     { key: "no_units", label: "No units yet", value: o.value?.noUnits ?? 0, filter: "no_units", tone: "t-text-muted" },
   ];
 });
+
+// ── Discount codes ──────────────────────────────────────────────────────────
+const { canOps } = useRoles();
+const canWrite = computed(() => canOps("billing.write"));
+const codeAction = ref<null | "create" | "deactivate">(null);
+const codeOpen = computed({
+  get: () => !!codeAction.value,
+  set: (v: boolean) => {
+    if (!v) codeAction.value = null;
+  },
+});
+const target = ref<any>(null);
+const form = reactive({
+  code: "",
+  kind: "percent" as "percent" | "amount",
+  value: "",
+  duration: "once" as "once" | "repeating" | "forever",
+  months: "3",
+  maxRedemptions: "",
+  expiresOn: "",
+});
+function newCode() {
+  Object.assign(form, { code: "", kind: "percent", value: "", duration: "once", months: "3", maxRedemptions: "", expiresOn: "" });
+  codeAction.value = "create";
+}
+function deactivate(code: any) {
+  target.value = code;
+  codeAction.value = "deactivate";
+}
+const codeBody = () => {
+  const n = Number(form.value);
+  return {
+    code: form.code.trim().toUpperCase(),
+    ...(form.kind === "percent" ? { percentOff: n } : { amountOffCents: Math.round(n * 100) }),
+    duration: form.duration,
+    ...(form.duration === "repeating" ? { durationInMonths: Number(form.months) } : {}),
+    ...(form.maxRedemptions ? { maxRedemptions: Number(form.maxRedemptions) } : {}),
+    ...(form.expiresOn ? { expiresOn: form.expiresOn } : {}),
+  };
+};
+const terms = () => {
+  const off = form.kind === "percent" ? `${form.value}%` : `$${form.value}`;
+  const span = form.duration === "once" ? "the first invoice" : form.duration === "forever" ? "every invoice" : `${form.months} months`;
+  return `${off} off ${span}`;
+};
+const codeProps = computed(() =>
+  codeAction.value === "create"
+    ? {
+        title: "New discount code",
+        description: "For signup. Tagged as HOA Connect's in Stripe.",
+        endpoint: "/api/ops/codes",
+        submitLabel: "Create code",
+        body: codeBody,
+        problem: () => {
+          if (!CODE_PATTERN.test(form.code.trim().toUpperCase())) return "Use 3 to 30 letters, digits, dashes or underscores for the code.";
+          const n = Number(form.value);
+          if (!form.value || !Number.isFinite(n) || n <= 0) return "Enter how much it takes off.";
+          if (form.kind === "percent" && n > 100) return "A percentage is at most 100.";
+          return null;
+        },
+        confirmation: () => ({ title: `Create ${form.code.trim().toUpperCase()}?`, body: `${terms()}. Anyone with the code can use it at signup.` }),
+        doneMessage: (res: any) => `Created ${res?.result?.code ?? "the code"}.`,
+      }
+    : codeAction.value === "deactivate"
+      ? {
+          title: `Deactivate ${target.value?.code}`,
+          description: "New signups can't use it. Communities that already redeemed it keep their discount.",
+          endpoint: `/api/ops/codes/${target.value?.id}/deactivate`,
+          submitLabel: "Deactivate",
+          destructive: true,
+          confirmation: () => ({ title: `Deactivate ${target.value?.code}?`, body: "Signup stops accepting it straight away.", confirmLabel: "Deactivate" }),
+          doneMessage: () => `${target.value?.code} is deactivated.`,
+        }
+      : null
+);
+async function copyLink(code: string) {
+  const link = signupLinkFor(window.location.origin, code);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast.success("Signup link copied", { description: link });
+  } catch {
+    toast.info(link);
+  }
+}
 
 const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? {}).sort((a, b) => (b[1] as number) - (a[1] as number)));
 </script>
@@ -92,14 +179,23 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
 
         <!-- Discount codes -->
         <section class="ios-card p-4">
-          <h2 class="type-card t-text">Discount codes</h2>
+          <div class="flex items-start justify-between gap-2">
+            <h2 class="type-card t-text">Discount codes</h2>
+            <Button v-if="canWrite && o?.discounts" variant="outline" size="sm" @click="newCode">New code</Button>
+          </div>
           <p class="type-meta t-text-muted">{{ o?.discounts?.redemptions ?? "—" }} redemptions</p>
-          <ul v-if="o?.discounts?.codes?.length" class="mt-2 space-y-1.5">
-            <li v-for="code in o.discounts.codes" :key="code.id" class="flex items-center justify-between gap-2">
-              <span class="min-w-0 truncate font-mono type-meta t-text" :class="{ 'line-through opacity-60': !code.active }">{{ code.code }}</span>
-              <span class="type-micro t-text-muted whitespace-nowrap">
-                {{ code.percentOff ? `${code.percentOff}%` : money(code.amountOff) }} {{ code.duration }} ·
-                {{ code.timesRedeemed }}<template v-if="code.maxRedemptions">/{{ code.maxRedemptions }}</template> used
+          <ul v-if="o?.discounts?.codes?.length" class="mt-2 divide-y divide-[var(--theme-border-light)]">
+            <li v-for="code in o.discounts.codes" :key="code.id" class="py-1.5">
+              <span class="flex items-center justify-between gap-2">
+                <span class="min-w-0 truncate font-mono type-meta t-text" :class="{ 'line-through opacity-60': !code.active }">{{ code.code }}</span>
+                <span class="type-micro t-text-muted whitespace-nowrap">
+                  {{ code.percentOff ? `${code.percentOff}%` : money(code.amountOff) }} {{ code.duration }} ·
+                  {{ code.timesRedeemed }}<template v-if="code.maxRedemptions">/{{ code.maxRedemptions }}</template> used
+                </span>
+              </span>
+              <span v-if="code.active" class="mt-0.5 flex gap-1">
+                <Button variant="ghost" size="sm" class="h-7 px-2" @click="copyLink(code.code)">Copy signup link</Button>
+                <Button v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="deactivate(code)">Deactivate</Button>
               </span>
             </li>
           </ul>
@@ -130,6 +226,48 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
         <p class="type-micro t-text-muted">Stripe figures are cached for a minute. {{ o?.generatedAt ? `Updated ${new Date(o.generatedAt).toLocaleTimeString()}` : "" }}</p>
         <Button variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</Button>
       </div>
+
+      <OpsActionDialog v-if="codeProps" v-model:open="codeOpen" v-bind="codeProps" @done="refresh()">
+        <template v-if="codeAction === 'create'">
+          <div class="space-y-1.5">
+            <Label for="ops-code">Code</Label>
+            <Input id="ops-code" v-model="form.code" autocomplete="off" autocapitalize="characters" class="font-mono uppercase" placeholder="SPRING25" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Takes off</Label>
+              <AppSegmentedControl v-model="form.kind" :items="[{ value: 'percent', label: '%' }, { value: 'amount', label: '$' }]" size="sm" label="Percent or amount" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="ops-code-value">{{ form.kind === "percent" ? "Percent" : "Dollars" }}</Label>
+              <Input id="ops-code-value" v-model="form.value" inputmode="decimal" autocomplete="off" />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>For</Label>
+            <AppSegmentedControl
+              v-model="form.duration"
+              :items="[{ value: 'once', label: 'First invoice' }, { value: 'repeating', label: 'Months' }, { value: 'forever', label: 'Forever' }]"
+              size="sm"
+              label="How long it applies"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div v-if="form.duration === 'repeating'" class="space-y-1.5">
+              <Label for="ops-code-months">Months</Label>
+              <Input id="ops-code-months" v-model="form.months" type="number" min="1" max="36" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="ops-code-max">Uses (optional)</Label>
+              <Input id="ops-code-max" v-model="form.maxRedemptions" type="number" min="1" placeholder="Unlimited" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="ops-code-expires">Expires (optional)</Label>
+              <DateInput id="ops-code-expires" v-model="form.expiresOn" />
+            </div>
+          </div>
+        </template>
+      </OpsActionDialog>
     </template>
   </OpsShell>
 </template>

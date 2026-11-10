@@ -286,6 +286,48 @@ running it again costs nothing and is the honest way to answer "is it installed
 yet" without SSH. Six writers now feed this table; the trigger is the only thing
 that would make their output tamper-evident rather than merely tamper-free.
 
+### `ops_audit_log` (operator console, added 2026-11-09)
+
+The console's record of what HOA Connect staff did (refunds, cancels, trials,
+comps, codes, portal sessions). Same rules: `writeOpsAuditEntry` is the only
+writer, the migration (`pnpm run create:ops-audit-log`) grants no role access,
+and until this trigger is installed that is a property of the code.
+
+One difference. Its links to `hoa_organizations`, `billing_accounts` and
+`directus_users` are `ON DELETE SET NULL`, not CASCADE, because a refund must stay
+on record after the community is deleted (the row keeps `organization_name` and
+`actor_name`). SET NULL is an UPDATE, so the trigger allows exactly that one
+change and refuses everything else:
+
+```sql
+CREATE OR REPLACE FUNCTION ops_audit_log_append_only() RETURNS trigger AS $$
+DECLARE links text[] := ARRAY['organization', 'billing_account', 'actor_user'];
+BEGIN
+  -- A deleted community, account or user nulls its link. Nothing else may change.
+  IF TG_OP = 'UPDATE'
+     AND (to_jsonb(NEW) - links) = (to_jsonb(OLD) - links)
+     AND (NEW.organization IS NULL OR NEW.organization = OLD.organization)
+     AND (NEW.billing_account IS NULL OR NEW.billing_account = OLD.billing_account)
+     AND (NEW.actor_user IS NULL OR NEW.actor_user = OLD.actor_user) THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'ops_audit_log is append-only: % is not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ops_audit_log_no_mutation
+  BEFORE UPDATE OR DELETE ON ops_audit_log
+  FOR EACH ROW EXECUTE FUNCTION ops_audit_log_append_only();
+```
+
+- [ ] Trigger installed
+- [ ] `UPDATE ops_audit_log SET reason = 'tampered' …` and a `DELETE` both fail
+- [ ] A console action still writes its row afterwards (test mode, "TEST" in the reason)
+
+Created on admin.hoaconnect.info 2026-11-09 (Peter's yes), 0 role permissions,
+`idempotency_key` unique. It holds 11 test-mode rows from Session B's localhost
+run, each with "TEST" in the reason. They are permanent by design.
+
 ---
 
 ## 3d. The transition test fixture lives on prod — on purpose
