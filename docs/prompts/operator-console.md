@@ -352,3 +352,41 @@ Build Phase 4 from existing collections and `vercel.json` crons, behind `require
 Platform Support role and guard already exist from Session A.
 
 Gates green. Commit and stop.
+
+## Session E — verify live, prove re-banding end to end, and tidy up (Sonnet 5.5)
+
+Everything in the plan is built and pushed (C, D, the extras, and launch-followups Sessions 2 and 3: see "Where
+things stand"). This session proves it in production and tidies up. It builds nothing new unless Peter says so in
+step 5. Read only "Where things stand" and this section, plus the files a step names.
+
+1. **The deploy** (skip what "Where things stand" already records as checked).
+   - The live build id differs from `3885984a`.
+   - `pnpm run create:ops-job-heartbeats` (read-only) lists rows, and `email-continue-sends` is among them.
+   - `/ops/health` says "ran …" for the email queue.
+   - Peter confirms the Vercel Cron Jobs tab shows `/api/billing/reband/run` at `30 9 * * *`.
+2. **Re-banding, read-only on live data.** As App Admin, run `GET /api/billing/reband/run?dry=1` in the browser.
+   Report the counts: checked, what would move, units updates and Enterprise. Write nothing.
+3. **Re-banding end to end, in test mode** (needs Peter's yes first, because it writes `hoa_organizations` on the
+   production Directus).
+   - Point "Testing HOA" at a test customer and a Boutique subscription, using launch-followups' "A test-mode run"
+     recipe. Use a Stripe test clock so the renewal can be advanced.
+   - Give it units past Boutique, then run the reband job with `?dry=1` and then for real.
+   - Advance the clock past renewal. Prove from Stripe that the renewal invoice bills Mid with no proration line, and
+     from Directus that `subscription_plan` is Mid.
+   - Restore Testing HOA's saved fields, then cancel and delete the test objects.
+4. **Peter's checks** (ask, don't assume):
+   - Did "TEST: platform notice from Session 2" reach support@hoaconnect.info?
+   - Did the bell and email for the TEST support request's reply reach him?
+   - Who should get the Platform Support role? Nobody holds it yet.
+5. **Ask Peter which of these to build.** Each is a separate yes:
+   - Support attachments: `support_messages.attachments` exists, but there's no upload UI.
+   - SendGrid Inbound Parse, so emailed replies land in a request's thread (optional in the plan).
+   - `pnpm generate:types`, then drop the `as any` casts on `ops_audit_log`, `ops_job_heartbeats` and `support_*`.
+6. **Tidy-ups that need Peter's yes, one by one:**
+   - Delete the test-mode Stripe customers from Session B and the reband check (test mode; read each one first).
+   - Delete the canceled "Testing HOA" org (read it first; abort unless it matches).
+   - Whether to mark launch-followups Sessions 2 and 3 done in that file, which is uncommitted on purpose.
+7. **Not this session's:** the append-only triggers in go-live-checklist §3c (droplet SSH, Peter), and
+   launch-followups Sessions 4 and 5.
+
+Gates green if code changed. Commit, record what was checked in "Where things stand", and stop.
