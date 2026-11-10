@@ -147,7 +147,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
   - Old trials: 0 open-ended trials on 2026-11-10. `add-property` can't create one, because its orgs have a null
     status and take it from their billing account. Closed.
   - **Not done:** a real email checked in an inbox. Only the tests prove the send.
-- **Gates after Session D:** 148 files / 2,680 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
+- **Gates after Session E:** 151 files / 2,748 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
 - **`ops_job_heartbeats` was created on the hosted Directus 2026-11-10** (Peter's yes), with 0 role permissions. Rows
   appear once a build with D is live.
 - **Session C done 2026-11-10, committed locally, not pushed.**
@@ -220,7 +220,52 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - Real people are counted, not named.
   - **Checked on localhost:** the buttons and the View-as dialog render. Nothing was submitted, because a preview
     writes a permanent audit row.
-- **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
+- **launch-followups.md:** Sessions 2 and 3 are marked DONE there (2026-11-10, Peter's yes; the file is still
+  uncommitted on purpose). Sessions 4 and 5 are open.
+- **Session E done 2026-11-10.** Everything below was checked in production unless it says otherwise.
+  - **Bug found and fixed (pushed, build `d110917c`):** job heartbeats never saved. Directus answers an admin
+    token's PATCH of a missing item with 204 (the SDK returns null), not an error, so `upsertHeartbeat` never
+    reached its create: an "update" was logged every minute, with 0 rows. Both writers now create on an empty
+    answer, and `ops-health.test.ts`'s fake answers a missing-row update the way Directus does. After the deploy, the
+    `email-continue-sends` row appeared within 30 s and `/ops/health` shows "ran today · ok".
+  - **Step 1:** the live build moved past `3885984a`. Peter confirmed that Vercel's Cron Jobs tab lists
+    `/api/billing/reband/run` at `30 9 * * *`.
+  - **Step 2, live dry run as App Admin:** checked 0, would move 0, 0 units updates, 0 Enterprise, 0 errors. No
+    community pays for itself yet.
+  - **Step 3, test mode with a test clock (Peter's yes):**
+    - Testing HOA was pointed at a test customer and a Boutique subscription, and its declared units set 28 → 45.
+    - Through localhost and the cron secret, the dry run said Boutique → Mid. The real run moved the item to
+      `hoa_mid_monthly`, with the period unchanged and the only invoice still $249. It wrote `subscription_plan` =
+      Mid and one `ops_audit_log` row (actor `system`).
+    - The clock was advanced past Dec 10. The `subscription_cycle` invoice billed Mid $449 on one line, with no
+      proration, and was paid.
+    - Testing HOA was then restored (only `date_updated` differed), and the test subscription, customer and clock
+      were deleted.
+    - Side effect: the "rebanding" heartbeat row is from this localhost run until the 09:30 cron overwrites it.
+  - **Peter's checks:**
+    - The support@ inbox isn't set up yet, so neither the Session 2 notice nor the band-change email was checked.
+    - The console's reply to the TEST support request reached Peter by email.
+    - The bell wasn't checked, and push isn't set up (no VAPID keys).
+    - **Nobody holds Platform Support,** by Peter's choice.
+  - **Found, not fixed: every bell notification is also emailed by Directus itself.**
+    - Peter got the reply twice: once from the app (notifications@hoaconnect.info) and once from Directus's own
+      sender (contact@huestudios.company), with the same subject.
+    - `notifyUsers()` writes `directus_notifications`, and Directus core emails each new notification to a user
+      whose `email_notifications` is true. The app also uses that field as its own email master switch, so turning
+      it off isn't a fix.
+    - It applies app-wide, not only to support. It's a launch blocker in all but name; it needs its own session.
+  - **Tidy-ups (each Peter's yes):**
+    - Test customers `cus_VbHN5TUMyhDk2T` (Session B) and `cus_VbUzdniIccdeeS` (reband check) were deleted.
+      `cus_VbAKi9cdOXyoGi` (Nov 9, another org) was left.
+    - Testing HOA and its one membership row were deleted from Directus. Its 10 audit rows remain, with the org
+      link blanked and the name kept. Its live Stripe objects were left alone.
+  - **Types:** `pnpm generate:types` added `OpsAuditLog`, `OpsJobHeartbeat`, `SupportRequest` and `SupportMessage`.
+    The `as any` casts on those collections are gone. The ones left in `support.ts` are other collections'
+    nested-field reads.
+  - **The new types tripped the export guards:** all four collections are now excluded from community exports
+    as "The platform's" (Peter's call for the support pair), and `/your-data` lists them.
+  - **Peter said yes to building support attachments and Inbound Parse.** They're written up as Sessions F and G
+    below rather than built here, per the long-session rule.
 
 ## Files worth knowing (read only what your session needs)
 
@@ -353,7 +398,7 @@ Platform Support role and guard already exist from Session A.
 
 Gates green. Commit and stop.
 
-## Session E — verify live, prove re-banding end to end, and tidy up (Sonnet 5.5)
+## Session E — verify live, prove re-banding end to end, and tidy up (Sonnet 5.5) — DONE 2026-11-10 (see "Where things stand")
 
 Everything in the plan is built and pushed (C, D, the extras, and launch-followups Sessions 2 and 3: see "Where
 things stand"). This session proves it in production and tidies up. It builds nothing new unless Peter says so in
@@ -390,3 +435,67 @@ step 5. Read only "Where things stand" and this section, plus the files a step n
    launch-followups Sessions 4 and 5.
 
 Gates green if code changed. Commit, record what was checked in "Where things stand", and stop.
+
+## Session F — support attachments (Opus 5.5)
+
+Peter said yes on 2026-11-10. `support_messages.attachments` (JSON) exists and nothing writes it. Read "Where
+things stand" (Session C), then `core/server/utils/support.ts` (`addSupportMessage`, `createSupportRequest`,
+`supportViewerFor`), `core/shared/support/access.ts` (`supportAccess`), and the routes under
+`core/server/api/support/` and `core/server/api/ops/support/`.
+
+1. **Ask Peter first, in one batch:** the size and count limits (recommend 10 MB each and 5 per message), the types
+   (recommend images, PDF and plain text), whether residents may attach (recommend yes), and whether internal
+   notes may (recommend yes, staff only).
+2. **Storage stays private.** Don't reuse `/api/directus/files/upload`: it uses the member's own Directus
+   permissions. Upload with the admin token, into a "Support attachments" folder. The folder is made by a script
+   that is read-only by default, and `--apply` needs Peter's yes. Record the uploader so a message can only attach
+   that person's own fresh, unattached files.
+3. **Downloads go through a route** that serves a file only if it sits on a message the viewer may see. Internal
+   notes' files are staff only. Never use a public asset URL.
+4. **UI:** a file picker on `/support/new` and on both reply boxes (`/support/[id]`, `/ops/support/[id]`), and
+   links on each message. Emails say "1 attachment" and link to the request; they don't attach the file.
+5. **Tests:** who can download what (requester, HOA Admin, staff, an outsider, an internal note), the limits, and
+   reusing someone else's file id.
+6. **Browser check on localhost:** one TEST request with an image, and a staff reply with a PDF.
+
+Gates green. Commit and stop.
+
+## Session G — SendGrid Inbound Parse: emailed replies land in the thread (Opus 5.5)
+
+Peter said yes on 2026-11-10 (it was optional in the plan). Do Session F first: both change the same support files.
+
+1. **Ask Peter first:**
+   - The reply domain. Recommend `reply.hoaconnect.info`, with its MX at `mx.sendgrid.net`. Peter adds the DNS
+     record and the SendGrid Inbound Parse setting; the agent doesn't.
+   - Whether a resident's emailed reply is accepted. Recommend: only from the address on their account.
+2. **Outbound:** every support email to a person (`notifyRequester`, and the HOA Admin copies) sets `Reply-To` to
+   `support+<requestId>.<signature>@<reply domain>`. The signature is an HMAC of the request id and the
+   recipient's user id, keyed by a new `SUPPORT_REPLY_SECRET`.
+3. **Inbound:** a `POST /api/support/inbound/<token>` route reads SendGrid's multipart post, with the path token
+   from env, because Inbound Parse doesn't sign requests.
+   - It checks the HMAC and that the sender matches that user, strips the quoted history, and calls
+     `addSupportMessage`, so the notifications and status changes are the same as a reply in the app.
+   - It answers 200 to anything it rejects, so SendGrid doesn't retry, and logs a count.
+   - Session F's limits apply to attachments.
+4. **Tests:** a good reply, a bad HMAC, the wrong sender, a closed request reopening (as an in-app reply does),
+   quote stripping, and a duplicate post (SendGrid retries).
+5. **Live check (Peter):** after DNS, he replies to a TEST request's email and the reply appears in the thread.
+
+Gates green. Commit and stop.
+
+## Session H — stop Directus emailing every bell notification (Opus 5.5)
+
+Found in Session E. `notifyUsers()` (`core/server/utils/notify.ts`) writes `directus_notifications`. Directus core
+then emails each one, from its own sender, to any user whose `email_notifications` is true. The app also emails the
+user, so people get two emails per notification. The app reuses `email_notifications` as its own master switch
+(§ the "Channel independence" note in `notify.ts`).
+
+- **Decide with Peter:** move the app's email master switch to a field of its own (for example in
+  `notification_preferences`), then set `email_notifications` false for every user, with Peter's yes. Or find a
+  Directus-side switch, if this Directus version has one (check its docs; don't guess).
+- **The migration is a production Directus write.** Count first, then apply with Peter's yes. New users must
+  default to false: check where users are created.
+- **Tests:** the app's email preference still controls the app's email, and no path re-enables Directus's.
+- **Live check:** one bell notification to Peter's account, and exactly one email arrives.
+
+Gates green. Commit and stop.

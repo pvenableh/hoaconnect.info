@@ -776,7 +776,7 @@ const excludedBuckets = [
   },
   {
     title: "The platform's",
-    why: "Catalogs and marketing content that are identical for every customer, plus the bookkeeping of the export and email-sending machinery itself. There is nothing of yours in them: every archive already carries its own manifest, and every email you sent travels with its recipients.",
+    why: "Catalogs and marketing content that are identical for every customer, the bookkeeping of the export and email-sending machinery itself, and HOA Connect's own operations records. Your conversations with our support desk stay with us too: they share their tables with our staff's internal notes. Everything else of yours is already in the archive: it carries its own manifest, and every email you sent travels with its recipients.",
     collections: [
       "subscription_plans",
       "coupons",
@@ -785,6 +785,10 @@ const excludedBuckets = [
       "waitlist_signups",
       "hoa_data_exports",
       "hoa_email_send_leases",
+      "ops_audit_log",
+      "ops_job_heartbeats",
+      "support_requests",
+      "support_messages",
     ],
     items: [
       "Pricing catalog",
@@ -793,6 +797,9 @@ const excludedBuckets = [
       "Signup waitlist",
       "Export job history",
       "Email send locks",
+      "HOA Connect's staff action log",
+      "Scheduled job status",
+      "Support conversations with HOA Connect",
     ],
   },
   {
