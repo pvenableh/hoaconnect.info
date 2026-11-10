@@ -12,13 +12,13 @@ import type { H3Event } from "h3";
 import { MEMBER_DOCUMENT_STATUSES } from "#core/shared/governing/visibility";
 import { hasCapability } from "#core/shared/permissions";
 import { resolveActors } from "./board-access";
+import { governingActor, writeGoverningAudit } from "./governing-audit";
 import { getManagerGrants } from "./manager-access";
 import { ensureOrgStorage } from "./org-storage";
 import { addOrgStorageUsage, enforceStorageLimit } from "./storage-enforcement";
 
 const SOURCES = "hoa_governing_sources";
 const DOCUMENTS = "hoa_governing_documents";
-const AUDIT = "hoa_governing_audit_log";
 
 const asId = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
 const rows = async (collection: string, query: Record<string, unknown>) =>
@@ -37,34 +37,6 @@ export async function pdfPageCount(bytes: Uint8Array, type: string): Promise<num
   } catch {
     return null;
   }
-}
-
-type Actor = { id: string; name: string | null; email: string | null };
-
-async function actorOf(event: H3Event): Promise<Actor> {
-  const user = ((await getUserSession(event))?.user ?? {}) as Record<string, any>;
-  const name = [user.firstName ?? user.first_name, user.lastName ?? user.last_name].filter(Boolean).join(" ");
-  return { id: String(user.id), name: name || null, email: user.email ?? null };
-}
-
-async function writeAudit(
-  actor: Actor,
-  entry: { action: string; organization: string; document: string; summary: string; before?: unknown; after?: unknown }
-) {
-  await getTypedDirectus().request(
-    createItem(AUDIT as never, {
-      occurred_at: new Date().toISOString(),
-      action: entry.action,
-      organization: entry.organization,
-      actor_user: actor.id,
-      actor_name: actor.name,
-      actor_email: actor.email,
-      document: entry.document,
-      summary: entry.summary,
-      before: entry.before ?? null,
-      after: entry.after ?? null,
-    } as never)
-  );
 }
 
 /** The document, if it is this organization's. Otherwise a 404. */
@@ -137,7 +109,7 @@ export async function attachGoverningSource(event: H3Event, organizationId: stri
     is_authoritative: input.is_authoritative,
     notes: input.notes,
   };
-  await writeAudit(await actorOf(event), {
+  await writeGoverningAudit(await governingActor(event), {
     action: "source_attach",
     organization: organizationId,
     document: document.id,
@@ -170,7 +142,7 @@ export async function deleteGoverningSource(event: H3Event, organizationId: stri
     await addOrgStorageUsage(organizationId, -(Number(file?.filesize) || 0));
   }
 
-  await writeAudit(await actorOf(event), {
+  await writeGoverningAudit(await governingActor(event), {
     action: "source_delete",
     organization: organizationId,
     document: document.id,

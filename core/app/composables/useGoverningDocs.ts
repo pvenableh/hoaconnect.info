@@ -6,15 +6,19 @@
 import type {
   getGoverningDocument,
   getGoverningProvision,
+  governingOverview,
   listGoverningDocuments,
   searchGoverning,
 } from "#core/server/utils/governing-data";
+import type { SettableFlagStatus } from "#core/shared/governing/flags";
 import type { Relationship, Severity } from "#core/shared/governing/types";
 
 export type GoverningDocumentRow = Awaited<ReturnType<typeof listGoverningDocuments>>[number];
 export type GoverningDocumentView = NonNullable<Awaited<ReturnType<typeof getGoverningDocument>>> & { can_manage: boolean };
 export type GoverningProvisionView = NonNullable<Awaited<ReturnType<typeof getGoverningProvision>>> & { can_manage: boolean };
 export type GoverningSearchResult = Awaited<ReturnType<typeof searchGoverning>>[number];
+
+export type GoverningOverview = Awaited<ReturnType<typeof governingOverview>>;
 
 export type GoverningSearchParams = {
   q?: string;
@@ -69,5 +73,15 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
       query: base(),
     });
 
-  return { listDocuments, getDocument, getProvision, search, attachSource, removeSource };
+  const getOverview = () => $fetch<GoverningOverview>("/api/governing/overview", { query: base() });
+
+  // Managers only; the server refuses anyone else and writes the audit row.
+  const setFlagStatus = (flagId: string, status: SettableFlagStatus) =>
+    $fetch<{ id: string; status: SettableFlagStatus; changed: boolean }>(`/api/governing/flags/${encodeURIComponent(flagId)}/status`, {
+      method: "POST",
+      query: base(),
+      body: { status },
+    });
+
+  return { getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource };
 }

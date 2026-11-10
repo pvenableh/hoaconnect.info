@@ -9,7 +9,7 @@
 
 import { readFiles, readItems } from "@directus/sdk";
 import { formatCitation } from "#core/shared/governing/citation";
-import { countByRelationship, sortFlags } from "#core/shared/governing/flags";
+import { STALE_AFTER_DAYS, countByRelationship, sortFlags, staleReferences } from "#core/shared/governing/flags";
 import { searchProvisions, type SearchFilters } from "#core/shared/governing/search";
 import type { GovDocument, GovFlag, GovLink, GovProvision, GovReference, GovSnapshot, GovSource } from "#core/shared/governing/types";
 import { visibleSnapshot } from "#core/shared/governing/visibility";
@@ -198,19 +198,26 @@ export async function searchGoverning(organizationId: string, query: unknown, fi
   });
 }
 
-export async function governingOverview(organizationId: string, canManage: boolean) {
+export async function governingOverview(organizationId: string, canManage: boolean, staleAfterDays: number = STALE_AFTER_DAYS) {
   const { documents, provisions, flags } = await loadGoverning(organizationId, canManage);
   const byId = new Map(provisions.map((p) => [p.id, p]));
   const live = flags.filter((f) => f.status !== "dismissed");
+  const withProvisions = (f: GovFlag) => ({
+    ...f,
+    provisions: f.provisions.flatMap((p) => (byId.has(p) ? [brief(byId.get(p)!)] : [])),
+  });
   return {
     document_count: documents.length,
     provision_count: provisions.length,
     flag_count: live.length,
     by_relationship: countByRelationship(live),
-    open_questions: sortFlags(live.filter((f) => f.relationship === "counsel_review")).map((f) => ({
-      ...f,
-      provisions: f.provisions.flatMap((p) => (byId.has(p) ? [brief(byId.get(p)!)] : [])),
-    })),
+    open_questions: sortFlags(live.filter((f) => f.relationship === "counsel_review")).map(withProvisions),
+    /** Managers only: flags waiting for a decision, and dismissed ones (so a dismissal can be undone). */
+    suggested: canManage ? sortFlags(flags.filter((f) => f.status === "suggested" && f.relationship !== "counsel_review")).map(withProvisions) : [],
+    dismissed: canManage ? sortFlags(flags.filter((f) => f.status === "dismissed")).map(withProvisions) : [],
+    /** Managers only: statute references that should be read again (spec §5, freshness). */
+    stale_references: canManage ? staleReferences(live, new Date(), staleAfterDays) : [],
+    stale_after_days: staleAfterDays,
     can_manage: canManage,
   };
 }

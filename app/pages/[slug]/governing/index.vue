@@ -51,6 +51,15 @@ const runSearch = async () => {
         <Button type="submit" variant="outline">Search</Button>
       </form>
 
+      <NuxtLink :to="buildOrgPath('/governing/overview')" class="ios-card flex items-center gap-3 px-4 py-3">
+        <Icon name="lucide:scale" class="w-4 h-4 t-text-accent shrink-0" />
+        <span class="flex-1 min-w-0">
+          <span class="type-body t-text block">State law overview</span>
+          <span class="type-meta t-text-muted block">Where state law and these documents meet, and the open questions for counsel.</span>
+        </span>
+        <Icon name="lucide:chevron-right" class="w-4 h-4 t-text-muted shrink-0" />
+      </NuxtLink>
+
       <AppEmptyState
         v-if="error"
         icon="lucide:triangle-alert"

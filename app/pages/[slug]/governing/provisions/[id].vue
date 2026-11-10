@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Governing documents: one provision. Verbatim text, citation, recorded book
 // and page, source document, amendment chain and copy-citation (spec §6).
-// Statute flags are added to this page in Session 2.
+// Statute flags (spec §5) sit under the text, "Ask counsel." first, always
+// with the not-legal-advice notice.
 import { toast } from "vue-sonner";
+import { FLAG_NOTICE } from "#core/shared/governing/flags";
 import { formatBookAndPage, formatRecordDate, kindLabel, linkLabel } from "#core/shared/governing/labels";
 
 definePageMeta({
@@ -17,7 +19,7 @@ const { getProvision } = useGoverningDocs(selectedOrgId);
 
 const provisionId = computed(() => String(route.params.id ?? ""));
 
-const { data, pending } = await useAsyncData(
+const { data, pending, refresh } = await useAsyncData(
   () => `governing-provision-${provisionId.value}`,
   async () => {
     if (!selectedOrgId.value || !provisionId.value) return null;
@@ -113,6 +115,24 @@ const copyCitation = async () => {
             </div>
           </dl>
         </div>
+
+        <section v-if="data.flags.length" class="space-y-2" data-testid="governing-flags">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="type-section t-text">State law</h2>
+            <NuxtLink :to="buildOrgPath('/governing/overview')" class="type-meta t-text-accent underline">Overview</NuxtLink>
+          </div>
+          <p class="type-meta t-text-secondary" data-testid="governing-flag-notice">{{ FLAG_NOTICE }}</p>
+          <div class="space-y-3">
+            <GoverningStatuteFlag
+              v-for="flag in data.flags"
+              :key="flag.id"
+              :flag="flag"
+              :org-id="selectedOrgId"
+              :can-manage="data.can_manage"
+              @changed="refresh()"
+            />
+          </div>
+        </section>
 
         <GoverningOriginalDocuments :sources="data.sources" :org-id="selectedOrgId" />
 

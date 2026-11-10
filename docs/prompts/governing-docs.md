@@ -152,7 +152,37 @@ From this repo:
     refuses it. PDFs are private. (2) The file sits in the org's Documents storage folder, so people who may browse
     the storage library can see a draft's filename there (not open it). (3) Deleting a source does not delete
     `hoa_governing_pages` rows; none exist until 3A, which must handle that.
-- **Next: Session 2 (flags and overview).**
+- **Session 2 done 2026-11-10, committed locally, NOT pushed. Phase 2 stop.** No schema change, no Directus write.
+  - Status changes: `core/server/api/governing/flags/[id]/status.post.ts` (`requireGoverningManage`; body
+    `{ status, reason? }`) → `core/server/utils/governing-flags.ts` `setGoverningFlagStatus`. Writes only `status`,
+    `confirmed_by`, `confirmed_at`, then one `flag_status` audit row with before/after. Allowed moves are
+    `FLAG_STATUS_ACTIONS` in `core/shared/governing/flags.ts`: suggested → confirmed | dismissed; confirmed →
+    counsel_confirmed | dismissed; counsel_confirmed → dismissed; dismissed → confirmed (restore). Anything else 409.
+  - Audit helper lifted to `core/server/utils/governing-audit.ts` (`governingActor`, `writeGoverningAudit`; takes
+    `document` / `provision` / `flag` / `reason`). 3B uses it for the text edit.
+  - Overview: `governingOverview` now also returns, for managers only, `suggested` (non-counsel flags waiting),
+    `dismissed`, and `stale_references` (`staleReferences` in `flags.ts`: no checked date, "recheck" written in the
+    edition, or checked more than `?staleAfterDays=` ago, default 365).
+  - Pages: `app/components/Governing/StatuteFlag.vue` (label, severity, both rule lines as curated, citation, link,
+    edition, checked date; `counsel_review` gets the accent border, `consistent` is quiet; status buttons for
+    managers, hidden in the member preview). On the provision page under the text with `FLAG_NOTICE`; new
+    `app/pages/[slug]/governing/overview.vue`, linked from the list and the provision page. `useGoverningDocs` has
+    `getOverview` / `setFlagStatus`.
+  - Tests: `tests/server/governing-flags.test.ts` (who may change status, audit rows, allowed moves, only status
+    fields written, member visibility follows status, stale list managers-only). Criterion 4 was already in
+    `governing-read.test.ts`.
+  - **Checked in the browser against 1033 Lenox (reads only):** overview counts 10 / 8 / 15 / 4 / 6 and 10 open
+    questions (criterion 5); By-Law 6.5 shows "State law now governs this point.", 718.111(11)(h), the flsenate
+    link, edition 2026 (criterion 4); 5 stale references, all "recheck" editions. **No status button was clicked:**
+    that is a production write and needs Peter's yes.
+  - **Found, not fixed (needs Peter's yes, a production write):** the 1A import split the citation
+    `760.29(4) (fair housing; not ch. 718)` on its semicolon, so the library holds two junk references,
+    `760.29(4) (fair housing` and `not ch. 718)`. The flag's verbatim citation line is right; the reference rows
+    under it are not. Fix = split rule in `scripts/lib/governing-import.ts` plus removing/renaming those two rows.
+  - Deferred: a reason/counsel-name field in the UI when marking counsel_confirmed (the route takes `reason`); an
+    audit-log viewer; editing a reference's edition or checked date (stale view is read-only); flags on the reading
+    view beyond the existing count.
+- **Next: Session 3A (upload and extraction).** Starts with the OCR question to Peter.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in
