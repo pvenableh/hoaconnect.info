@@ -22,8 +22,8 @@ export default defineEventHandler(async (event) => {
   if (!scopes.length) return { view, requests: [] };
 
   const directus = getTypedDirectus() as any;
-  const rows = (await directus.request(
-    readAny("support_requests", {
+  const rows = (await getTypedDirectus().request(
+    readItems("support_requests", {
       filter: scopes.length === 1 ? scopes[0] : { _or: scopes },
       fields: ["id", "organization", "billing_account", "requester", "requester_name", "category", "status", "subject", "last_message_at", "last_message_by", "date_created"],
       sort: ["-last_message_at"],

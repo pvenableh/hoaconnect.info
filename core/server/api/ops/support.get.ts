@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
   const search = typeof q.q === "string" ? q.q.trim().slice(0, 100) : "";
 
   const directus = getTypedDirectus() as any;
-  const all = (await directus.request(
-    readAny("support_requests", {
+  const all = (await getTypedDirectus().request(
+    readItems("support_requests", {
       fields: ["id", "organization", "billing_account", "requester_name", "category", "status", "priority", "subject", "source", "last_message_at", "last_message_by", "date_created"],
       sort: ["-last_message_at"],
       limit: 1000,

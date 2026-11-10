@@ -1386,8 +1386,6 @@ export interface HoaOrganization {
 	slug: string;
 	folder?: DirectusFolder | string | null;
 	subscription_plan?: SubscriptionPlan | string | null;
-	/** @description Unit count the board declared at signup. The subscription band uses the larger of this and the real unit count. Edit here to correct it. */
-	declared_units?: number | null;
 	default_monthly_dues?: number | null;
 	payment_grace_period_days?: number | null;
 	late_fee_amount?: number | null;
@@ -1439,6 +1437,8 @@ export interface HoaOrganization {
 	late_fee_cap?: number | null;
 	/** @description The community's time zone (IANA). Reminders fire on its wall clock and the digest goes out at each member's hour in it. */
 	timezone?: `America/New_York` | `America/Chicago` | `America/Denver` | `America/Phoenix` | `America/Los_Angeles` | `America/Anchorage` | `Pacific/Honolulu` | `America/Puerto_Rico` | null;
+	/** @description Unit count the board declared at signup. The subscription band uses the larger of this and the real unit count. Edit here to correct it. */
+	declared_units?: number | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1654,7 +1654,7 @@ export interface HoaRequest {
 	id: string;
 	status?: 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed' | null;
 	/** @required */
-	type: 'maintenance' | 'arc' | 'violation' | 'complaint' | 'task';
+	type: 'maintenance' | 'arc' | 'violation' | 'complaint' | 'task' | 'question';
 	/** @required */
 	title: string;
 	description?: string | null;
@@ -1852,6 +1852,52 @@ export interface HoaVendor {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+}
+
+export interface OpsAuditLog {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	occurred_at: string;
+	/** @description A string, not an enum: later phases add values. @required */
+	action: string;
+	/** @description SET NULL on delete: the row outlives the account. */
+	actor_user?: DirectusUser | string | null;
+	/** @description app_admin or platform_support, as checked when it ran. */
+	actor_role?: string;
+	/** @description Denormalized on purpose. */
+	actor_name?: string | null;
+	actor_email?: string | null;
+	/** @required */
+	reason: string;
+	/** @required */
+	summary: string;
+	/** @description SET NULL: a refund stays on record after the community is gone. */
+	organization?: HoaOrganization | string | null;
+	organization_name?: string | null;
+	billing_account?: BillingAccount | string | null;
+	stripe_mode?: string;
+	stripe_ids?: Record<string, any> | null;
+	amount_cents?: number | null;
+	currency?: string | null;
+	before?: Record<string, any> | null;
+	after?: Record<string, any> | null;
+	/** @description Unique: one submit is one row. */
+	idempotency_key?: string;
+	schema_version?: number;
+	date_created?: string | null;
+}
+
+export interface OpsJobHeartbeat {
+	/** @description The job key (core/shared/ops/jobs.ts). @primaryKey */
+	id: string;
+	last_started_at?: string | null;
+	last_finished_at?: string | null;
+	last_status?: string | null;
+	last_via?: string | null;
+	last_ok_at?: string | null;
+	last_error?: string | null;
+	last_summary?: Record<string, any> | null;
 }
 
 export interface OrgAuditLog {
@@ -2092,6 +2138,49 @@ export interface SubscriptionPlan {
 	billing_unit?: string;
 	/** @description Hide price, show 'Contact us' (Enterprise / Signature). */
 	is_contact_only?: boolean;
+}
+
+export interface SupportMessage {
+	/** @primaryKey */
+	id: string;
+	/** @description The request (CASCADE). */
+	request?: SupportRequest | string;
+	/** @description Who wrote it. SET NULL: author_name is kept. */
+	author?: DirectusUser | string | null;
+	author_name?: string | null;
+	author_kind?: string;
+	body?: string;
+	internal?: boolean;
+	attachments?: Record<string, any> | null;
+	date_created?: string | null;
+}
+
+export interface SupportRequest {
+	/** @primaryKey */
+	id: string;
+	/** @description The community it's about. SET NULL: the request outlives it. */
+	organization?: HoaOrganization | string | null;
+	/** @description The agency billing account it's about, if any. */
+	billing_account?: BillingAccount | string | null;
+	/** @description Who asked. SET NULL: the name and email below are kept. */
+	requester?: DirectusUser | string | null;
+	requester_name?: string | null;
+	requester_email?: string | null;
+	requester_roles?: Record<string, any> | null;
+	category?: string;
+	status?: string;
+	priority?: string;
+	subject?: string;
+	page?: string | null;
+	app_version?: string | null;
+	source?: string;
+	/** @description Unique: one automatic entry per cause. */
+	auto_key?: string | null;
+	last_message_at?: string | null;
+	last_message_by?: string | null;
+	closed_at?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
 }
 
 export interface WaitlistSignup {
@@ -2649,6 +2738,8 @@ export interface Schema {
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
 	hoa_vendors: HoaVendor[];
+	ops_audit_log: OpsAuditLog[];
+	ops_job_heartbeats: OpsJobHeartbeat[];
 	org_audit_log: OrgAuditLog[];
 	payment_expenses: PaymentExpense[];
 	payment_methods: PaymentMethod[];
@@ -2657,6 +2748,8 @@ export interface Schema {
 	payment_transactions: PaymentTransaction[];
 	push_subscriptions: PushSubscription[];
 	subscription_plans: SubscriptionPlan[];
+	support_messages: SupportMessage[];
+	support_requests: SupportRequest[];
 	waitlist_signups: WaitlistSignup[];
 	directus_access: DirectusAccess[];
 	directus_activity: DirectusActivity[];
@@ -2762,6 +2855,8 @@ export enum CollectionNames {
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
 	hoa_vendors = 'hoa_vendors',
+	ops_audit_log = 'ops_audit_log',
+	ops_job_heartbeats = 'ops_job_heartbeats',
 	org_audit_log = 'org_audit_log',
 	payment_expenses = 'payment_expenses',
 	payment_methods = 'payment_methods',
@@ -2770,6 +2865,8 @@ export enum CollectionNames {
 	payment_transactions = 'payment_transactions',
 	push_subscriptions = 'push_subscriptions',
 	subscription_plans = 'subscription_plans',
+	support_messages = 'support_messages',
+	support_requests = 'support_requests',
 	waitlist_signups = 'waitlist_signups',
 	directus_access = 'directus_access',
 	directus_activity = 'directus_activity',

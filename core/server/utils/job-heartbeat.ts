@@ -9,6 +9,7 @@
 import { createItem, updateItem } from "@directus/sdk";
 import type { H3Event } from "h3";
 import { heartbeatRow, type OpsJobKey } from "#core/shared/ops/jobs";
+import type { OpsJobHeartbeat } from "#core/types/directus";
 import { requireCronOrAppAdmin } from "./cron-auth";
 
 const REST_MS = 10 * 60_000;
@@ -42,11 +43,11 @@ export async function recordJobRun(
 ): Promise<void> {
   if (Date.now() < restingUntil) return;
   try {
-    const directus = getTypedDirectus() as any;
+    const directus = getTypedDirectus();
     await upsertHeartbeat(
       {
-        update: (id, data) => directus.request((updateItem as any)("ops_job_heartbeats", id, data)),
-        create: (data) => directus.request((createItem as any)("ops_job_heartbeats", data)),
+        update: (id, data) => directus.request(updateItem("ops_job_heartbeats", id, data)),
+        create: (data) => directus.request(createItem("ops_job_heartbeats", data as OpsJobHeartbeat)),
       },
       heartbeatRow(job, { ...run, finishedAt: new Date() })
     );

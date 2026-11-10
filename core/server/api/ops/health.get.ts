@@ -64,8 +64,8 @@ export default defineEventHandler(async (event) => {
   // ── Scheduled jobs ─────────────────────────────────────────────────────────
   let heartbeats: Map<string, any> | null = null;
   try {
-    const rows = (await directus.request(readAny("ops_job_heartbeats" as any, { limit: -1 } as any))) as any[];
-    heartbeats = new Map(rows.map((r) => [r.id as string, r]));
+    const rows = await getTypedDirectus().request(readItems("ops_job_heartbeats", { limit: -1 }));
+    heartbeats = new Map(rows.map((r) => [r.id, r]));
   } catch (e: any) {
     console.warn("[ops/health] heartbeats unavailable:", e?.message ?? e);
     notes.push("Jobs record their runs once `pnpm run create:ops-job-heartbeats` has created the collection.");

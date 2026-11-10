@@ -29,6 +29,6 @@ export default defineEventHandler(async (event) => {
     ...(status ? { status, closed_at: status === "closed" ? new Date().toISOString() : null } : {}),
     ...(priority ? { priority } : {}),
   };
-  await (getTypedDirectus() as any).request((updateItem as any)("support_requests", req.id, data));
+  await getTypedDirectus().request(updateItem("support_requests", req.id, data));
   return { ok: true, status: status ?? req.status, priority: priority ?? req.priority };
 });

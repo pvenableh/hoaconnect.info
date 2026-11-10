@@ -55,11 +55,11 @@ function isNotUnique(e: unknown): boolean {
 /** The row already written for this key, if any. */
 export async function findOpsAuditEntry(idempotencyKey: string): Promise<{ id: string } | null> {
   const rows = (await getTypedDirectus().request(
-    readItems("ops_audit_log" as any, {
+    readItems("ops_audit_log", {
       filter: { idempotency_key: { _eq: idempotencyKey } },
       fields: ["id"],
       limit: 1,
-    } as any)
+    })
   )) as Array<{ id: string }> | null;
   return rows?.[0] ?? null;
 }
@@ -74,9 +74,8 @@ export async function writeOpsAuditEntry(entry: OpsAuditEntry): Promise<{ id: st
   const who = actor ? (await opsUsers([actor.userId]).catch(() => null))?.get(actor.userId) : null;
   const stripeIds = Object.fromEntries(Object.entries(entry.stripe ?? {}).filter(([, v]) => !!v));
   try {
-    // Not in the generated schema types yet (`pnpm generate:types` after the migration).
     const row = (await getTypedDirectus().request(
-      (createItem as any)("ops_audit_log", {
+      createItem("ops_audit_log", {
         occurred_at: new Date().toISOString(),
         action: entry.action,
         actor_user: actor?.userId ?? null,
@@ -96,7 +95,7 @@ export async function writeOpsAuditEntry(entry: OpsAuditEntry): Promise<{ id: st
         after: entry.after ?? null,
         idempotency_key: entry.idempotencyKey,
         schema_version: OPS_AUDIT_SCHEMA_VERSION,
-      } as any)
+      })
     )) as { id: string };
     return { id: row.id, replayed: false };
   } catch (e) {

@@ -23,10 +23,9 @@ import { notifyUsers } from "./notify";
 import { opsUsers } from "./ops-data";
 import { notifyPlatform } from "./platform-notify";
 
-// Newer than the generated schema types.
+// For collections whose nested-field reads the SDK types too narrowly. The
+// support_* collections themselves go through the typed client.
 const readAny = readItems as any;
-const createAny = createItem as any;
-const updateAny = updateItem as any;
 const directus = () => getTypedDirectus() as any;
 
 const idOf = (v: unknown): string | null =>
@@ -154,18 +153,18 @@ export const SUPPORT_REQUEST_FIELDS = [
   "last_message_by",
   "closed_at",
   "date_created",
-];
+] as const;
 
 export async function readSupportRequest(id: string): Promise<any | null> {
-  const rows = (await directus().request(
-    readAny("support_requests", { filter: { id: { _eq: id } }, fields: SUPPORT_REQUEST_FIELDS, limit: 1 })
+  const rows = (await getTypedDirectus().request(
+    readItems("support_requests", { filter: { id: { _eq: id } }, fields: SUPPORT_REQUEST_FIELDS, limit: 1 })
   )) as any[];
   return rows?.[0] ?? null;
 }
 
 export async function readSupportMessages(requestId: string, opts: { internal: boolean }): Promise<any[]> {
-  const rows = (await directus().request(
-    readAny("support_messages", {
+  const rows = (await getTypedDirectus().request(
+    readItems("support_messages", {
       filter: { request: { _eq: requestId }, ...(opts.internal ? {} : { internal: { _neq: true } }) },
       fields: ["id", "author", "author_name", "author_kind", "body", "internal", "date_created"],
       sort: ["date_created"],
@@ -211,8 +210,8 @@ export async function createSupportRequest(input: {
 }): Promise<{ id: string }> {
   const now = new Date().toISOString();
   const who = input.requester ? (await opsUsers([input.requester.id]).catch(() => null))?.get(input.requester.id) : null;
-  const row = (await directus().request(
-    createAny("support_requests", {
+  const row = (await getTypedDirectus().request(
+    createItem("support_requests", {
       organization: input.organizationId,
       billing_account: input.billingAccountId,
       requester: input.requester?.id ?? null,
@@ -231,8 +230,8 @@ export async function createSupportRequest(input: {
       last_message_by: input.requester ? "requester" : "system",
     })
   )) as { id: string };
-  await directus().request(
-    createAny("support_messages", {
+  await getTypedDirectus().request(
+    createItem("support_messages", {
       request: row.id,
       author: input.requester?.id ?? null,
       author_name: who?.name ?? (input.requester ? null : "HOA Connect"),
@@ -316,8 +315,8 @@ export async function addSupportMessage(input: {
   const who = input.author ? (await opsUsers([input.author.id]).catch(() => null))?.get(input.author.id) : null;
   const staff = input.kind === "staff";
   const internal = staff && input.internal === true;
-  const row = (await directus().request(
-    createAny("support_messages", {
+  const row = (await getTypedDirectus().request(
+    createItem("support_messages", {
       request: req.id,
       author: input.author?.id ?? null,
       author_name: staff ? `${who?.name ?? "HOA Connect"} (HOA Connect)` : (who?.name ?? null),
@@ -329,8 +328,8 @@ export async function addSupportMessage(input: {
   if (internal) return row;
 
   const now = new Date().toISOString();
-  await directus().request(
-    updateAny("support_requests", req.id, {
+  await getTypedDirectus().request(
+    updateItem("support_requests", req.id, {
       last_message_at: now,
       last_message_by: staff ? "staff" : "requester",
       status: staff ? "waiting" : "open",
@@ -403,8 +402,8 @@ export async function openAutoSupportRequest(input: {
   billingAccountId?: string | null;
 }): Promise<{ id: string; created: boolean } | null> {
   try {
-    const existing = (await directus().request(
-      readAny("support_requests", { filter: { auto_key: { _eq: input.autoKey } }, fields: ["id"], limit: 1 })
+    const existing = (await getTypedDirectus().request(
+      readItems("support_requests", { filter: { auto_key: { _eq: input.autoKey } }, fields: ["id"], limit: 1 })
     )) as any[];
     if (existing?.[0]) return { id: existing[0].id, created: false };
     const row = await createSupportRequest({
