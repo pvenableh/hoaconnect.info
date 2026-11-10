@@ -118,6 +118,7 @@ From this repo:
   - **Left for Session 2:** flags on the provision page (search results show relationship labels plus
     `FLAG_NOTICE` only), the overview page (`overview.get` has no page yet). Left for Phase 3: page-image link,
     admin pages.
+- **Next: Session 1D (original documents), added 2026-11-10.** Not started. It runs before Session 2.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in
@@ -187,6 +188,31 @@ Output: `docs/plan-governing-docs.md` (≤250 lines) and Peter's answers recorde
 - Document list, reading view (table of contents, page markers, transcriber's notes), provision page (citation, book and
   page, amendment chain, copy-citation), search page with filters. Existing components and empty states; pass `audit:all`.
 - Check in the browser against 1033 Lenox. **Phase 1 stop:** show Peter criteria 1, 2, 3, 6.
+
+### Session 1D — original documents (source files) · mid model
+
+Added 2026-11-10 at Peter's request: members should be able to open the recorded scan behind the transcription.
+`hoa_governing_sources` exists and is empty (the seed has transcriptions only, no PDFs). No schema change expected;
+if a field is missing, add a new `add:*` script (dry run, Peter's yes).
+
+- **Ask first (one batch):** do members see every attached source with its label, or only those marked
+  `is_recorded_copy`? (Recommended: all, labelled recorded / unrecorded, authoritative or not.) Where are the seven
+  Lenox PDFs, and may they be uploaded (a production write, Peter's yes)?
+- `core/server/api/governing/documents/[id]/sources.post.ts`: manage-only (`requireGoverningManage`). Stores the PDF or
+  image through the repo's org storage path (`org-storage.ts`; grep `upload.post.ts` for the pattern), creates the
+  source row (`is_recorded_copy`, `is_authoritative`, `notes`, `page_count` via `unpdf` when it is a PDF) and writes
+  an `hoa_governing_audit_log` row. A manage-only delete, also audited. Neither touches provision `text`.
+- Sources in the read path: add them to `GovSnapshot` and filter in `visibleSnapshot` (published documents only for
+  members, plus whatever the answer above decides). Return them from `documents/[id].get` and `provisions/[id].get`.
+- File access: teach `core/server/utils/file-owner.ts` that a governing source file belongs to its organization, and
+  make sure the asset proxy refuses a member the file of a draft document. A member must not reach it by file id.
+- Pages: an "Original document" block on the reading view and the provision page (label, page count, open/download
+  through `getAuthUrl`); an attach control on the reading view for managers. No per-page deep link yet: that needs
+  `hoa_governing_pages`, which Session 3A fills, reusing this attach path.
+- Tests: member gets sources of published documents only, from every route; member is refused the file of a draft;
+  non-manager gets 403 on attach and delete; attach and delete each write an audit row; extend the criterion 7 test.
+  Check `export-collections.test.ts` still classifies sources as full-tier, or change it with Peter's yes.
+- Browser: attach one PDF to a Lenox document (Peter's yes), open it as a member.
 
 ## Phase 2 — statute flags in the interface
 
