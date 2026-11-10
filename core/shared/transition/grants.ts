@@ -44,6 +44,8 @@ export const MANAGER_GRANT_KEYS = [
   "feedback",
   "projects",
   "activity",
+  // Phase 3 support: may open "Contact HOA Connect" requests for the community.
+  "contact_platform",
 ] as const;
 
 export type ManagerGrantKey = (typeof MANAGER_GRANT_KEYS)[number];
@@ -68,6 +70,7 @@ export const MANAGER_GRANT_LABELS: Readonly<Record<ManagerGrantKey, string>> = {
   feedback: "Community feedback",
   projects: "Projects",
   activity: "Activity",
+  contact_platform: "Contact HOA Connect",
 };
 
 export function grantLabel(key: string): string {

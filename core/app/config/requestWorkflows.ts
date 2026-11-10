@@ -11,7 +11,8 @@
  * that still map onto a stored status value.
  */
 
-export type RequestType = "maintenance" | "arc" | "violation" | "complaint" | "task";
+// `question` is "Ask my community" (operator console Phase 3): a member asks the HOA.
+export type RequestType = "maintenance" | "arc" | "violation" | "complaint" | "task" | "question";
 
 /** Who may perform a transition. */
 export type TransitionRole = "submitter" | "assignee" | "board" | "any";
@@ -185,6 +186,27 @@ export const requestWorkflows: Record<RequestType, RequestWorkflow> = {
     metadata: [
       { key: "meeting_id", label: "From meeting", type: "text", internal: true },
     ],
+  },
+
+  // "Ask my community": a member's question to the HOA, answered in the thread.
+  question: {
+    type: "question",
+    label: "Question for the community",
+    icon: "lucide:message-circle-question",
+    accent: "sky",
+    initiatedBy: "member",
+    initialState: "asked",
+    states: [
+      { value: "asked", label: "Asked", status: "open" },
+      { value: "answered", label: "Answered", status: "resolved" },
+      { value: "closed", label: "Closed", status: "closed", terminal: true },
+    ],
+    transitions: [
+      { from: "asked", to: "answered", label: "Mark answered", by: "board" },
+      { from: "answered", to: "asked", label: "Ask again", by: "submitter" },
+      { from: "answered", to: "closed", label: "Close", by: "any" },
+    ],
+    metadata: [],
   },
 };
 

@@ -616,6 +616,14 @@ watch(
                 </NuxtLink>
               </DropdownMenuItem>
 
+              <!-- Both support doors: ask your community, or contact HOA Connect. -->
+              <DropdownMenuItem v-if="!isCustomDomain" as-child>
+                <NuxtLink :to="{ path: '/support', query: isOnOrgPage ? { from: route.fullPath } : {} }" class="cursor-pointer">
+                  <Icon name="i-lucide-life-buoy" class="size-4" />
+                  Help &amp; support
+                </NuxtLink>
+              </DropdownMenuItem>
+
               <!-- Resident self-service: edit your own contact, mailing address,
                    vehicles, and pets (submitted for review). Org-scoped. -->
               <DropdownMenuItem v-if="isOnOrgPage" as-child>

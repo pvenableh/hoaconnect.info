@@ -22,6 +22,7 @@ const sections = [
   { value: "/ops/communities", label: "Communities", icon: "lucide:building-2" },
   { value: "/ops/billing-accounts", label: "Agencies", icon: "lucide:briefcase" },
   { value: "/ops/payments", label: "Payments", icon: "lucide:receipt" },
+  { value: "/ops/support", label: "Support", icon: "lucide:life-buoy" },
   { value: "/ops/health", label: "Health", icon: "lucide:heart-pulse" },
 ];
 const current = computed(() => {

@@ -46,7 +46,7 @@ const ACTION_INPUTS: Record<string, { properties: Props; required?: string[] }> 
   create_request: {
     properties: {
       title: { type: "string" },
-      type: { type: "string", enum: ["maintenance", "arc", "violation", "complaint", "task"] },
+      type: { type: "string", enum: ["maintenance", "arc", "violation", "complaint", "task", "question"] },
       description: { type: "string" },
       priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
       member_id: { type: "string", description: "Subject member (only if the id is in context)." },

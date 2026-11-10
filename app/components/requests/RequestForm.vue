@@ -11,7 +11,7 @@ const props = withDefaults(
     /** restrict the type picker (members can't file violations) */
     allowedTypes?: RequestType[];
   }>(),
-  { allowedTypes: () => ["maintenance", "arc", "complaint", "task", "violation"] }
+  { allowedTypes: () => ["maintenance", "arc", "complaint", "question", "task", "violation"] }
 );
 
 const emit = defineEmits<{ (e: "created", id: string): void; (e: "cancel"): void }>();

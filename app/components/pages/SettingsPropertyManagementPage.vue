@@ -91,6 +91,7 @@ const GRANTS = [
   { key: "feedback", label: "Community feedback", desc: "See polls and their results, and close a poll when the vote is done. Closing is recorded in the community's ledger." },
   { key: "projects", label: "Manage projects", desc: "Create and manage projects, milestones, and tasks." },
   { key: "activity", label: "View activity", desc: "See resident activity (page views, downloads) across the community." },
+  { key: "contact_platform", label: "Contact HOA Connect", desc: "Raise billing questions, app problems and ideas with HOA Connect on the community's behalf." },
 ] as const;
 
 const categoryLabel = (v: HoaVendor) =>

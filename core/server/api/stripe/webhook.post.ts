@@ -11,6 +11,8 @@ import { isHoaConnectObject } from '#core/shared/billing/stripe-app';
 export default defineEventHandler(async (event) => {
 	const config = useRuntimeConfig();
 	let stripe: Stripe;
+	// The verified event, for the support entry if handling it throws (Phase 3).
+	let verified: { id: string; type: string } | null = null;
 
 	try {
 		// Initialize Stripe
@@ -63,6 +65,7 @@ export default defineEventHandler(async (event) => {
 		for (const secret of webhookSecrets) {
 			try {
 				stripeEvent = stripe.webhooks.constructEvent(body, sig, secret);
+				verified = { id: stripeEvent.id, type: stripeEvent.type };
 				break;
 			} catch (err: any) {
 				verifyError = err?.message ?? String(err);
@@ -172,6 +175,18 @@ export default defineEventHandler(async (event) => {
 			stack: error.stack,
 			timestamp: new Date().toISOString(),
 		});
+
+		// A verified event we failed to handle: HOA Connect's support inbox gets
+		// one entry per event (Stripe retries it under the same id). Bad signatures
+		// and missing bodies are strangers' requests, not failures, and get none.
+		if (verified) {
+			await openAutoSupportRequest({
+				autoKey: `webhook_error:${verified.id}`,
+				category: 'bug',
+				subject: `Stripe webhook failed: ${verified.type}`,
+				body: `Handling Stripe event ${verified.id} (${verified.type}) threw: ${String(error?.message ?? error).slice(0, 500)}. Stripe will retry it.`,
+			});
+		}
 
 		throw error;
 	}
@@ -485,6 +500,16 @@ async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirec
 		const orgStatus = orgStatusForStripeSubscription(subscription.status, eventType);
 		if (org && orgStatus === null) {
 			console.log(`Subscription ${subscription.id} is ${subscription.status} — org ${org.id} left as is`);
+			// A signup whose first payment never completed (Stripe gives up after 23 h).
+			if (subscription.status === 'incomplete_expired') {
+				await openAutoSupportRequest({
+					autoKey: `signup_incomplete:${subscription.id}`,
+					category: 'billing',
+					subject: `A signup didn't complete: ${org.name || org.slug || org.id}`,
+					body: `Subscription ${subscription.id} expired before its first payment went through. The community is still on its signup trial; it may need a hand.`,
+					organizationId: org.id,
+				});
+			}
 		} else if (org && orgStatus) {
 			const updateData: Record<string, any> = {
 				stripe_subscription_id: subscription.id,
@@ -580,7 +605,14 @@ async function handleInvoiceEvent(directus: ReturnType<typeof getTypedDirectus>,
 			} else if (eventType === 'invoice.payment_failed') {
 				// Payment failed - might need to handle grace period
 				console.log(`Payment failed for organization ${org.id}`);
-				// Could notify the user here via email
+				// One support entry per failed invoice, however many retries (Phase 3).
+				await openAutoSupportRequest({
+					autoKey: `payment_failed:${invoice.id}`,
+					category: 'billing',
+					subject: `Payment failed: ${org.name || org.slug || org.id}`,
+					body: `Invoice ${invoice.id} for ${(invoice.amount_due ?? 0) / 100} ${String(invoice.currency ?? 'usd').toUpperCase()} failed (attempt ${invoice.attempt_count ?? 1}). Stripe retries on its schedule; the community's admins see it in Settings → Subscription.`,
+					organizationId: org.id,
+				});
 			}
 		}
 	} catch (err) {
@@ -743,6 +775,13 @@ async function routeBillingAccountInvoice(
 				})
 			);
 			console.log(`Billing account ${account.id} payment failed → past_due`);
+			await openAutoSupportRequest({
+				autoKey: `payment_failed:${invoice.id}`,
+				category: 'billing',
+				subject: `Payment failed: ${account.name || 'an agency billing account'}`,
+				body: `Invoice ${invoice.id} for ${(invoice.amount_due ?? 0) / 100} ${String(invoice.currency ?? 'usd').toUpperCase()} failed (attempt ${invoice.attempt_count ?? 1}). The account is past due.`,
+				billingAccountId: account.id,
+			});
 		}
 		return true;
 	} catch (err) {

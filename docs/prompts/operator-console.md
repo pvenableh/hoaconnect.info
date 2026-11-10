@@ -148,6 +148,37 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     status and take it from their billing account. Closed.
   - **Not done:** a real email checked in an inbox. Only the tests prove the send.
 - **Gates after Session D:** 148 files / 2,680 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
+- **`ops_job_heartbeats` was created on the hosted Directus 2026-11-10** (Peter's yes), with 0 role permissions. Rows
+  appear once a build with D is live.
+- **Session C done 2026-11-10, committed locally, not pushed.**
+  - **"Ask my community" reuses `hoa_requests`** (Peter's call, 2026-11-10: no second inbox). It's a new
+    `question` type, with a workflow of asked, then answered, then closed.
+    - `/[slug]/requests?ask=1` opens the form on it. The community inbox, the `inquiries` grant and the reminders
+      already cover it.
+    - No `handle_requests` grant was added.
+  - **"Contact HOA Connect"** uses `support_requests` and `support_messages`, platform requests only.
+    - The rules are in `core/shared/support/access.ts`. HOA Admins, board officers, billing account owners and
+      billing_admins can raise anything. Property Managers need the new `contact_platform` grant, which is in the
+      canonical list. Owners and tenants can only report app problems, and their HOA Admins are copied.
+    - Who sees a request: the requester, every HOA Admin of that community, the billing account's admins, and staff
+      (in the console only).
+    - The asker's roles at that moment are stored on the request.
+  - **Notifications:**
+    - A new request or a requester's reply emails `notifyPlatform`.
+    - A staff reply reaches the requester by bell and email (by email alone when the request has no community), and
+      sets the request to "waiting".
+    - Internal notes stay in the console.
+  - **Automatic entries**, one per cause via a unique `auto_key`: a failed invoice (community or agency), a signup
+    that expired as `incomplete_expired`, and a verified webhook event that threw.
+  - **Pages:** `/support`, `/support/new`, `/support/[id]` (with `/[slug]/support/...` redirects for notification
+    links), `/ops/support` and `/ops/support/[id]`. Nav has "Help & support".
+  - **Schema:** `pnpm run create:support-schema -- --apply` was run on the hosted Directus with Peter's yes. It created
+    both collections with 0 role permissions, the `question` choice, and "question" in the member policy's create
+    rule. Re-running it read-only shows everything present.
+  - **Checked on localhost:** one TEST request from Peter's account in 1033 Lenox, then a reply from the console, then
+    closed. Its rows stay, marked TEST. "Ask my community" opens on a question.
+  - **Not built:** attachments (the field exists, but there's no upload UI) and SendGrid Inbound Parse (optional in
+    the plan).
 - **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
 
 ## Files worth knowing (read only what your session needs)
@@ -261,7 +292,7 @@ email and changing the billing contact (plan §5) aren't in B either.
 - The webhook doesn't reach localhost unless you follow launch-followups' "A test-mode run" recipe; the Stripe CLI is paired
   to a different account. Prove the Stripe side by reading the objects back, not by the org's status changing.
 
-## Session C — support (Opus 5.5)
+## Session C — support (Opus 5.5) — DONE 2026-11-10 (see "Where things stand")
 
 Build Phase 3 as decided: the two doors by role, `support_requests` and `support_messages`, the community inbox, the
 platform inbox in `/ops` (gated by `requireOpsPermission(event, "support")`, so Platform Support can work it), replies by email, and the new Property Manager grants (`contact_platform`, `handle_requests`).

@@ -39,6 +39,7 @@ const TYPE_TO_DOMAIN: Record<RequestType, TeamDomain> = {
   maintenance: "maintenance",
   complaint: "general",
   task: "general",
+  question: "general",
 };
 
 export const DOMAIN_LABELS: Record<TeamDomain, string> = {

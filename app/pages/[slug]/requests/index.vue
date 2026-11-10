@@ -10,7 +10,10 @@ const { selectedOrgId } = await useSelectedOrg();
 const { list } = useRequests();
 
 const basePath = computed(() => buildOrgPath("/requests"));
-const showNew = ref(false);
+// `?ask=1` is "Ask my community" (from /support): the form opens on a question.
+const route = useRoute();
+const askOnly = computed(() => route.query.ask === "1");
+const showNew = ref(askOnly.value);
 
 // Members see only their own requests (the API enforces this too).
 const { data: requests, pending, refresh } = await useAsyncData(
@@ -42,7 +45,7 @@ const onCreated = async (id: string) => {
         <div>
           <h1 class="text-2xl font-semibold t-text">My Requests</h1>
           <p class="text-sm t-text-muted mt-0.5">
-            Maintenance, architectural review, and complaints.
+            Questions for your community, maintenance, architectural review and complaints.
           </p>
         </div>
         <Button class="rounded-full" @click="showNew = !showNew">
@@ -54,7 +57,7 @@ const onCreated = async (id: string) => {
       <AppBottomSheet v-model:open="showNew" title="New request">
         <RequestsRequestForm
           :organization-id="selectedOrgId"
-          :allowed-types="['maintenance','arc','complaint']"
+          :allowed-types="askOnly ? ['question'] : ['question', 'maintenance', 'arc', 'complaint']"
           @created="onCreated"
           @cancel="showNew = false"
         />

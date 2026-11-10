@@ -59,6 +59,7 @@ let directusRequest: ReturnType<typeof vi.fn>;
 let creditWallet: ReturnType<typeof vi.fn>;
 let notifyPaymentReceived: ReturnType<typeof vi.fn>;
 let notifySubscriptionActivated: ReturnType<typeof vi.fn>;
+let openAutoSupportRequest: ReturnType<typeof vi.fn>;
 
 /** Every command the handler sent to Directus, in order. */
 const commands = () => directusRequest.mock.calls.map((c) => c[0] as Cmd);
@@ -91,6 +92,7 @@ beforeEach(() => {
   creditWallet = vi.fn(async () => ({ credited: true, balanceCredits: 1000 }));
   notifyPaymentReceived = vi.fn(async () => true);
   notifySubscriptionActivated = vi.fn(async () => true);
+  openAutoSupportRequest = vi.fn(async () => ({ id: "sr-1", created: true }));
 
   directusRequest = vi.fn(async (cmd: Cmd) => {
     if (cmd.cmd === "readItems") return reads[cmd.collection] ?? [];
@@ -112,6 +114,7 @@ beforeEach(() => {
   vi.stubGlobal("creditWallet", creditWallet);
   vi.stubGlobal("notifyPaymentReceived", notifyPaymentReceived);
   vi.stubGlobal("notifySubscriptionActivated", notifySubscriptionActivated);
+  vi.stubGlobal("openAutoSupportRequest", openAutoSupportRequest);
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
 });
 
@@ -562,5 +565,60 @@ describe("telling HOA Connect when a community subscribes", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(fire("customer.subscription.updated", sub())).resolves.toEqual({ received: true });
     expect(writes("updateItem", "hoa_organizations")).toHaveLength(1);
+  });
+});
+
+// Operator console Phase 3: entries HOA Connect raises in its own support inbox.
+describe("automatic support entries", () => {
+  const org = { id: ORG, name: "Harbor Court", slug: "harbor", subscription_status: "active", stripe_customer_id: "cus_org" };
+
+  it("one per failed invoice, with the community", async () => {
+    reads.hoa_organizations = [org];
+    await fire("invoice.payment_failed", {
+      id: "in_9",
+      object: "invoice",
+      customer: "cus_org",
+      amount_due: 24900,
+      currency: "usd",
+      attempt_count: 2,
+      subscription_details: { metadata: { app: "hoaconnect" } },
+    });
+    expect(openAutoSupportRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ autoKey: "payment_failed:in_9", category: "billing", subject: "Payment failed: Harbor Court", organizationId: ORG })
+    );
+  });
+
+  it("one per agency invoice that fails, with the billing account", async () => {
+    reads.billing_accounts = [{ id: "acc-1", name: "Acme Management", stripe_customer_id: "cus_acc" }];
+    await fire("invoice.payment_failed", { id: "in_8", object: "invoice", customer: "cus_acc", subscription_details: { metadata: { app: "hoaconnect" } } });
+    expect(openAutoSupportRequest).toHaveBeenCalledWith(expect.objectContaining({ autoKey: "payment_failed:in_8", billingAccountId: "acc-1" }));
+  });
+
+  it("one per signup whose first payment never completed", async () => {
+    reads.hoa_organizations = [{ ...org, subscription_status: "trial" }];
+    await fire("customer.subscription.updated", {
+      id: "sub_x",
+      object: "subscription",
+      status: "incomplete_expired",
+      customer: "cus_org",
+      metadata: { app: "hoaconnect" },
+      items: { data: [] },
+    });
+    expect(openAutoSupportRequest).toHaveBeenCalledWith(expect.objectContaining({ autoKey: "signup_incomplete:sub_x", organizationId: ORG }));
+  });
+
+  it("one per verified event the handler failed on, and none for a bad signature", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("getTypedDirectus", () => {
+      throw new Error("Directus down");
+    });
+    await expect(fire("payment_intent.succeeded", paymentIntent())).rejects.toThrow("Directus down");
+    expect(openAutoSupportRequest).toHaveBeenCalledWith(expect.objectContaining({ autoKey: "webhook_error:evt_1", subject: "Stripe webhook failed: payment_intent.succeeded" }));
+    openAutoSupportRequest.mockClear();
+    constructEvent.mockImplementation(() => {
+      throw new Error("No signatures found");
+    });
+    await expect(handler(event)).rejects.toBeTruthy();
+    expect(openAutoSupportRequest).not.toHaveBeenCalled();
   });
 });

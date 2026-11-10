@@ -69,7 +69,7 @@ export interface UpNextOptions {
 
 const DAY_MS = 86_400_000;
 const OPEN_CHARGE = new Set(["active", "partially_paid", "overdue"]);
-const RESIDENT_REQUEST_TYPES = new Set(["maintenance", "arc", "complaint"]);
+const RESIDENT_REQUEST_TYPES = new Set(["maintenance", "arc", "complaint", "question"]);
 const STATUS_LABEL: Record<string, string> = { in_progress: "In progress", waiting: "Waiting", resolved: "Resolved", closed: "Closed" };
 /** How far ahead each kind looks. */
 export const UP_NEXT_DUES_DAYS = 14;

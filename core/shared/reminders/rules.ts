@@ -284,7 +284,7 @@ export const WORKER_STAGE: Record<"before" | "due" | "overdue", string> = {
 const OPEN_REQUEST = new Set(["open", "in_progress", "waiting"]);
 const CLOSED_REQUEST = new Set(["resolved", "closed"]);
 /** The request types a resident files and follows. Violations have their own rule; tasks are the board's. */
-const RESIDENT_REQUEST_TYPES = new Set(["maintenance", "arc", "complaint"]);
+const RESIDENT_REQUEST_TYPES = new Set(["maintenance", "arc", "complaint", "question"]);
 const STATUS_LABELS: Record<string, string> = {
   in_progress: "In progress",
   waiting: "Waiting",
