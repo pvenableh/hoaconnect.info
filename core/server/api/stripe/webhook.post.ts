@@ -508,6 +508,20 @@ async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirec
 
 			await directus.request(updateItem('hoa_organizations', org.id, updateData));
 			console.log(`Updated organization ${org.id} subscription status to ${orgStatus}`);
+
+			// Tell HOA Connect when a community starts paying (launch-followups
+			// Session 2). Only on the move into active: a replay or a renewal finds
+			// it active already. After the write, and never able to fail the event.
+			if (orgStatus === 'active' && org.subscription_status !== 'active') {
+				await notifySubscriptionActivated({
+					orgId: org.id,
+					orgName: org.name || org.slug || org.id,
+					previousStatus: org.subscription_status ?? null,
+					band: subscription.metadata?.band_slug || null,
+					units: subscription.metadata?.units || null,
+					interval: priceItem?.price?.recurring?.interval ?? null,
+				}).catch((e: any) => console.error('Subscription notice failed:', e?.message ?? e));
+			}
 		} else {
 			console.log(`No organization found for customer ${customerId}`);
 		}
@@ -548,6 +562,21 @@ async function handleInvoiceEvent(directus: ReturnType<typeof getTypedDirectus>,
 					})
 				);
 				console.log(`Organization ${org.id} subscription renewed successfully`);
+
+				// The first payment can arrive before customer.subscription.updated
+				// does, so this is the other place a community becomes active. A
+				// renewal finds it active already and sends nothing.
+				if (org.subscription_status !== 'active') {
+					const meta = (invoice as any).subscription_details?.metadata ?? {};
+					await notifySubscriptionActivated({
+						orgId: org.id,
+						orgName: org.name || org.slug || org.id,
+						previousStatus: org.subscription_status ?? null,
+						band: meta.band_slug || null,
+						units: meta.units || null,
+						interval: (invoice as any).lines?.data?.[0]?.price?.recurring?.interval ?? null,
+					}).catch((e: any) => console.error('Subscription notice failed:', e?.message ?? e));
+				}
 			} else if (eventType === 'invoice.payment_failed') {
 				// Payment failed - might need to handle grace period
 				console.log(`Payment failed for organization ${org.id}`);

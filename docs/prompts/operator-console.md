@@ -137,6 +137,16 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - The job list is `core/shared/ops/jobs.ts`.
   - **The heartbeat collection isn't created yet.** `pnpm run create:ops-job-heartbeats -- --apply` needs Peter's
     yes. Until it exists, the page shows each job's last sign of work instead, and says so.
+- **launch-followups Session 2 done 2026-11-10, committed locally, not pushed.** Its own file is left uncommitted as
+  instructed, so it still lists Session 2 as open.
+  - `core/server/utils/platform-notify.ts`: `notifyPlatform()` emails `BILLING_NOTIFY_EMAIL`, or
+    support@hoaconnect.info when that's unset. It honours `OUTBOUND_EMAIL_ONLY_TO` and never throws.
+  - `notifySubscriptionActivated()` is called from both places a community becomes active: the subscription event
+    and `invoice.paid`, since the first payment can arrive first. Each call comes after the Directus write and only
+    on the move into active, so a replay or a renewal sends nothing. "Was" names a lapsed community's return.
+  - Old trials: 0 open-ended trials on 2026-11-10. `add-property` can't create one, because its orgs have a null
+    status and take it from their billing account. Closed.
+  - **Not done:** a real email checked in an inbox. Only the tests prove the send.
 - **Gates after Session D:** 148 files / 2,680 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
 - **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
 

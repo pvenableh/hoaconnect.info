@@ -87,6 +87,7 @@ beforeEach(() => {
   vi.stubGlobal("getStripeWebhookSecrets", () => ["whsec_x"]);
   vi.stubGlobal("getTypedDirectus", () => db);
   vi.stubGlobal("creditWallet", vi.fn());
+  vi.stubGlobal("notifySubscriptionActivated", vi.fn(async () => true));
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
   vi.stubGlobal("notifyPaymentReceived", async (_d: unknown, r: any) => {
     receipts.push(r);

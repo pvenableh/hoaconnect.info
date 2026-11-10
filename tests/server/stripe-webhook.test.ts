@@ -58,6 +58,7 @@ let reads: Record<string, any[]>;
 let directusRequest: ReturnType<typeof vi.fn>;
 let creditWallet: ReturnType<typeof vi.fn>;
 let notifyPaymentReceived: ReturnType<typeof vi.fn>;
+let notifySubscriptionActivated: ReturnType<typeof vi.fn>;
 
 /** Every command the handler sent to Directus, in order. */
 const commands = () => directusRequest.mock.calls.map((c) => c[0] as Cmd);
@@ -89,6 +90,7 @@ beforeEach(() => {
   reads = { payment_transactions: [], hoa_organizations: [], billing_accounts: [] };
   creditWallet = vi.fn(async () => ({ credited: true, balanceCredits: 1000 }));
   notifyPaymentReceived = vi.fn(async () => true);
+  notifySubscriptionActivated = vi.fn(async () => true);
 
   directusRequest = vi.fn(async (cmd: Cmd) => {
     if (cmd.cmd === "readItems") return reads[cmd.collection] ?? [];
@@ -109,6 +111,7 @@ beforeEach(() => {
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
   vi.stubGlobal("creditWallet", creditWallet);
   vi.stubGlobal("notifyPaymentReceived", notifyPaymentReceived);
+  vi.stubGlobal("notifySubscriptionActivated", notifySubscriptionActivated);
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
 });
 
@@ -479,5 +482,85 @@ describe("payout events", () => {
 
     expect(res).toEqual({ received: true });
     expect(directusRequest).not.toHaveBeenCalled();
+  });
+});
+
+// launch-followups Session 2: one email to HOA Connect when a community starts paying.
+describe("telling HOA Connect when a community subscribes", () => {
+  const meta = { app: "hoaconnect", organization_id: ORG, band_slug: "boutique", units: "28" };
+  const sub = (status = "active") => ({
+    id: "sub_1",
+    object: "subscription",
+    status,
+    customer: "cus_org",
+    metadata: meta,
+    items: { data: [{ price: { id: "price_x", recurring: { interval: "month" } } }] },
+  });
+  const paidInvoice = () => ({
+    id: "in_1",
+    object: "invoice",
+    customer: "cus_org",
+    subscription: "sub_1",
+    subscription_details: { metadata: meta },
+    lines: { data: [{ price: { recurring: { interval: "year" } } }] },
+  });
+  const org = (subscription_status: string | null) => ({
+    id: ORG,
+    name: "Harbor Court",
+    slug: "harbor",
+    subscription_status,
+    stripe_customer_id: "cus_org",
+  });
+
+  it("sends once when a community's subscription first becomes active, after the write", async () => {
+    reads.hoa_organizations = [org("trial")];
+    await fire("customer.subscription.updated", sub());
+    expect(notifySubscriptionActivated).toHaveBeenCalledTimes(1);
+    expect(notifySubscriptionActivated).toHaveBeenCalledWith({
+      orgId: ORG,
+      orgName: "Harbor Court",
+      previousStatus: "trial",
+      band: "boutique",
+      units: "28",
+      interval: "month",
+    });
+    const write = directusRequest.mock.calls.findIndex((c) => c[0].cmd === "updateItem" && c[0].collection === "hoa_organizations");
+    expect(write).toBeGreaterThanOrEqual(0);
+    expect(directusRequest.mock.invocationCallOrder[write]).toBeLessThan(notifySubscriptionActivated.mock.invocationCallOrder[0]!);
+  });
+
+  it("sends nothing on a replay or a renewal", async () => {
+    reads.hoa_organizations = [org("active")];
+    await fire("customer.subscription.updated", sub());
+    await fire("invoice.paid", paidInvoice());
+    expect(notifySubscriptionActivated).not.toHaveBeenCalled();
+  });
+
+  it("sends when the first payment arrives before the subscription update", async () => {
+    reads.hoa_organizations = [org("trial")];
+    await fire("invoice.paid", paidInvoice());
+    expect(notifySubscriptionActivated).toHaveBeenCalledWith(
+      expect.objectContaining({ orgId: ORG, previousStatus: "trial", band: "boutique", units: "28", interval: "year" })
+    );
+  });
+
+  it("says when a lapsed community pays again", async () => {
+    reads.hoa_organizations = [org("past_due")];
+    await fire("customer.subscription.updated", sub());
+    expect(notifySubscriptionActivated).toHaveBeenCalledWith(expect.objectContaining({ previousStatus: "past_due" }));
+  });
+
+  it("sends nothing for an unpaid checkout", async () => {
+    reads.hoa_organizations = [org("trial")];
+    await fire("customer.subscription.created", sub("incomplete"));
+    expect(notifySubscriptionActivated).not.toHaveBeenCalled();
+  });
+
+  it("still answers 200 when the email can't be sent", async () => {
+    reads.hoa_organizations = [org("trial")];
+    notifySubscriptionActivated.mockRejectedValueOnce(new Error("SendGrid down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fire("customer.subscription.updated", sub())).resolves.toEqual({ received: true });
+    expect(writes("updateItem", "hoa_organizations")).toHaveLength(1);
   });
 });
