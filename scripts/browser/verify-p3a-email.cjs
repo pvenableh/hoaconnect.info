@@ -282,8 +282,8 @@ async function runPreferences(browser, mode) {
     await master.click();
     await page.waitForTimeout(400);
     check(
-      `[prefs ${mode}] master off PATCHes email_notifications:false and greys the email column`,
-      prefPatches.some((p) => p.email_notifications === false) && (await meetingsEmail.isDisabled())
+      `[prefs ${mode}] master off PATCHes email_enabled:false and greys the email column`,
+      prefPatches.some((p) => p.email_enabled === false) && (await meetingsEmail.isDisabled())
     );
   } else {
     check(`[prefs ${mode}] master is off for the demo user — email column greyed`, await meetingsEmail.isDisabled());

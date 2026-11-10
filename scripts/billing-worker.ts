@@ -56,7 +56,7 @@ import {
   type MethodLike,
 } from "../core/shared/billing/engine";
 import { buildBillingRunEntry } from "../core/shared/ledger/entries";
-import { bellAllowed } from "../core/shared/notifications/preferences";
+import { bellAllowed, emailMasterOn } from "../core/shared/notifications/preferences";
 import { resolveEmailBranding } from "../core/server/utils/email-branding";
 import { buildEmailHtml, buildEmailText } from "../core/server/utils/email-templates-mjml";
 import { resolveSender } from "../core/server/utils/sendgrid";
@@ -561,7 +561,7 @@ async function sendReminders(
   const userIds = [...new Set([...byMember.keys()].map((m) => members.get(m)?.user).filter(Boolean))] as string[];
   if (userIds.length) {
     const rows = (await directus.request(
-      readUsers({ filter: { id: { _in: userIds } } as any, fields: ["id", "email", "first_name", "email_notifications", "notification_preferences"] as any, limit: -1 }),
+      readUsers({ filter: { id: { _in: userIds } } as any, fields: ["id", "email", "first_name", "notification_preferences"] as any, limit: -1 }),
     )) as any[];
     for (const u of rows) users.set(u.id, u);
   }
@@ -622,7 +622,8 @@ async function sendReminders(
     const base = { organization: orgForEmail as any, subject, content, emailType: "notice", recipientFirstName: member?.first_name || undefined, directusUrl: DIRECTUS_URL } as any;
 
     let delivered = false;
-    if (email && SENDGRID_API_KEY && user?.email_notifications !== false && emailAllowed) {
+    // The app's master switch (`_email`), not Directus's `email_notifications` (Session H).
+    if (email && SENDGRID_API_KEY && emailMasterOn(user?.notification_preferences) && emailAllowed) {
       try {
         await sendViaSendgrid({
           to: email,

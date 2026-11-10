@@ -14,6 +14,7 @@ import {
 import { createDirectus } from "@directus/sdk";
 import { sendWelcomeEmail } from "../../utils/sendgrid";
 import { isContactOnly } from "#core/shared/billing/bands";
+import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
 
 // Well past any real community, and inside a Postgres integer.
 const MAX_DECLARED_UNITS = 1_000_000;
@@ -196,6 +197,7 @@ export default defineEventHandler(async (event) => {
             last_name: lastName,
             role: hoaAdminRoleId,
             status: "active",
+            ...DIRECTUS_EMAIL_OFF,
           })
         );
 

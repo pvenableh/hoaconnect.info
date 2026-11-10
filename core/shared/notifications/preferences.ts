@@ -2,10 +2,17 @@
  * Unified notification preferences — ONE model for both immediate notifications
  * (per-category email + in-app "bell") AND the daily/weekly digest email.
  *
- * Stored as a single JSON field `directus_users.notification_preferences`; the
- * master email kill-switch is the existing `directus_users.email_notifications`
- * boolean. This deliberately unifies what would otherwise scatter across
- * collections — everything a member controls about notifications lives here.
+ * Stored as a single JSON field `directus_users.notification_preferences`,
+ * including the master email switch (`_email`). This deliberately unifies what
+ * would otherwise scatter across collections — everything a member controls
+ * about notifications lives here.
+ *
+ * NOT `directus_users.email_notifications`. That stock field is Directus's own
+ * switch: Directus emails every new `directus_notifications` row, from its own
+ * sender, to a user whose `email_notifications` is true — a second, unbranded
+ * copy of everything the app already emails (Operator console, Session H). So
+ * the app keeps that field false for everyone (`DIRECTUS_EMAIL_OFF` below) and
+ * its own switch lives here instead.
  *
  * Semantics are OPT-IN: a missing key means the channel is ON. `_all: false`
  * mutes every channel and category. All logic here is pure + timezone-agnostic
@@ -35,6 +42,13 @@ export const NOTIFICATION_CATEGORIES = [
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]["key"];
 
+/**
+ * Spread into every `createUser`, and written on every preferences save, so
+ * Directus's own per-notification email stays off (see the header). Never write
+ * `email_notifications` true; `notifyUsers` also turns it off for a straggler.
+ */
+export const DIRECTUS_EMAIL_OFF = { email_notifications: false } as const;
+
 const CATEGORY_KEYS = NOTIFICATION_CATEGORIES.map((c) => c.key) as NotificationCategory[];
 
 export type DigestCadence = "daily" | "weekdays" | "weekly" | "off";
@@ -59,6 +73,8 @@ const SECTION_KEYS = DIGEST_SECTIONS.map((s) => s.key) as DigestSection[];
 export interface NotificationPreferences {
   /** Master mute across every channel + category (false = muted). */
   _all?: boolean;
+  /** The app's master EMAIL switch (false = no app email). Missing = on. */
+  _email?: boolean;
   digest_enabled?: boolean;
   digest_cadence?: DigestCadence;
   /** Local send hour, 0–23. */
@@ -83,16 +99,23 @@ export function allMuted(prefs?: NotificationPreferences | null): boolean {
 }
 
 /**
- * May we send an EMAIL for this category? Respects the master email kill-switch
- * (`email_notifications`), the master mute (`_all`), and the per-category opt-out
+ * Is the app's master email switch on (`_email`, missing = on)? This alone stops
+ * an essential email (dues, violations); everything else also checks the rest.
+ */
+export function emailMasterOn(prefs?: NotificationPreferences | null): boolean {
+  return prefs?._email !== false;
+}
+
+/**
+ * May we send an EMAIL for this category? Respects the master email switch
+ * (`_email`), the master mute (`_all`), and the per-category opt-out
  * (default on).
  */
 export function emailAllowed(
   prefs: NotificationPreferences | null | undefined,
-  emailNotifications: boolean | null | undefined,
   category: NotificationCategory
 ): boolean {
-  if (emailNotifications === false) return false;
+  if (!emailMasterOn(prefs)) return false;
   if (allMuted(prefs)) return false;
   return prefs?.[category] !== false;
 }
@@ -163,6 +186,7 @@ export function sanitizePreferences(input: unknown): NotificationPreferences {
   const out: NotificationPreferences = {};
 
   if (typeof src._all === "boolean") out._all = src._all;
+  if (typeof src._email === "boolean") out._email = src._email;
 
   for (const cat of CATEGORY_KEYS) {
     if (typeof src[cat] === "boolean") out[cat] = src[cat] as boolean;

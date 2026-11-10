@@ -38,6 +38,7 @@ import {
 // only runtime dep they pull in is `mjml` (resolved from the core package).
 import {
   shouldSendDigest,
+  emailMasterOn,
   digestCadence,
   digestSections,
   type DigestSection,
@@ -274,7 +275,7 @@ async function main() {
     directus.request(
       readUsers({
         filter: { notification_preferences: { _nnull: true } } as any,
-        fields: ["id", "email", "first_name", "email_notifications", "notification_preferences"] as any,
+        fields: ["id", "email", "first_name", "notification_preferences"] as any,
         limit: -1,
       })
     )
@@ -287,7 +288,7 @@ async function main() {
   const eligible = candidates.filter(
     (u) =>
       u.email &&
-      u.email_notifications !== false &&
+      emailMasterOn(u.notification_preferences) &&
       hours.some((h) => shouldSendDigest(u.notification_preferences, h.hour, h.dow))
   );
   console.log(`   candidates=${candidates.length} eligible=${eligible.length}`);

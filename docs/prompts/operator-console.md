@@ -247,7 +247,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - The console's reply to the TEST support request reached Peter by email.
     - The bell wasn't checked, and push isn't set up (no VAPID keys).
     - **Nobody holds Platform Support,** by Peter's choice.
-  - **Found, not fixed: every bell notification is also emailed by Directus itself.**
+  - **Found here, fixed in Session H: every bell notification was also emailed by Directus itself.**
     - Peter got the reply twice: once from the app (notifications@hoaconnect.info) and once from Directus's own
       sender (contact@huestudios.company), with the same subject.
     - `notifyUsers()` writes `directus_notifications`, and Directus core emails each new notification to a user
@@ -266,6 +266,34 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     as "The platform's" (Peter's call for the support pair), and `/your-data` lists them.
   - **Peter said yes to building support attachments and Inbound Parse.** They're written up as Sessions F and G
     below rather than built here, per the long-session rule.
+- **Session H done 2026-11-10, committed locally, not pushed.** Directus no longer emails bell notifications.
+  - Directus 11.13.4 has no setting for this. Its docs and `NotificationsService` source agree that it emails every new
+    `directus_notifications` row when `email_notifications === true`. The only other off-switch is an `email.send`
+    hook extension.
+  - **Peter's choice:** the app's email switch moved to `_email` in `notification_preferences` (missing = on, no
+    schema change), and `email_notifications` stays false for everyone. `DIRECTUS_EMAIL_OFF` is in
+    `core/shared/notifications/preferences.ts`.
+  - **Keeping it false:**
+    - The three `createUser` routes spread `DIRECTUS_EMAIL_OFF`.
+    - Every preferences PATCH writes it false, and `/api/directus/users/me` drops the field.
+    - `notifyUsers` flips any bell recipient still at true, in one write, before writing their row. That covers
+      Studio, invites and SSO.
+  - **App-side readers moved to `_email`:** `notify.ts`, `transactional-email.ts`, the billing and digest workers.
+    The preferences API's wire field is now `email_enabled`, used by the account page and
+    `useNotificationPreferences`.
+  - **Tests:** `tests/server/notify-directus-email.test.ts`. It includes a source scan that fails if a `createUser`
+    lacks `DIRECTUS_EMAIL_OFF` or any server code writes `email_notifications: true`.
+  - **Production (counts only):** 7 users, all at `email_notifications` true, none opted out, so there was nothing to
+    copy. Per Peter, only his account was flipped this session. The backstop did it during the live check: the user
+    update landed 0.2 s before the bell row.
+  - **Live check passed:** one console reply to Peter's TEST request, sent from the local dev server, wrote one bell
+    row. Peter got exactly one email, from notifications@hoaconnect.info, and nothing from Directus's sender.
+  - **Left:**
+    - After Peter pushes and the deploy lands, set `email_notifications` false for the other 6 users. Peter said yes on
+      2026-11-10; count first and confirm. Until then the deployed old code still uses the field as the app's switch,
+      and `notifyUsers` flips each user on their next bell anyway.
+    - The data-export "ready" bell (`scripts/data-export-worker.ts`) was only ever emailed by Directus. It's now
+      bell-only. Give it an app email if that matters.
 
 ## Files worth knowing (read only what your session needs)
 
@@ -483,7 +511,7 @@ Peter said yes on 2026-11-10 (it was optional in the plan). Do Session F first: 
 
 Gates green. Commit and stop.
 
-## Session H — stop Directus emailing every bell notification (Opus 5.5)
+## Session H — stop Directus emailing every bell notification (Opus 5.5) — DONE 2026-11-10 (see "Where things stand")
 
 Found in Session E. `notifyUsers()` (`core/server/utils/notify.ts`) writes `directus_notifications`. Directus core
 then emails each one, from its own sender, to any user whose `email_notifications` is true. The app also emails the

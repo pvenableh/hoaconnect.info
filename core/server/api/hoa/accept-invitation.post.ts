@@ -10,6 +10,7 @@ import {
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
 import type { User } from "#auth-utils";
+import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
 import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
 import { normalizeResidency, residencyOnAccept } from "#core/shared/members/residency";
 import { invitableMembers } from "#core/shared/members/invitability";
@@ -144,6 +145,7 @@ export default defineEventHandler(async (event) => {
         role: { id: invitation.role as string },
         status: "active",
         provider: "local",
+        ...DIRECTUS_EMAIL_OFF,
       })
     );
 

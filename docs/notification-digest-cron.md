@@ -13,7 +13,7 @@ It is idempotent-by-hour: each run emails only the members whose cadence + local
 send-hour match the current hour in the community's own zone
 (`hoa_organizations.timezone`, Phase 5a; `DIGEST_TZ`, default `America/New_York`,
 only for an org without one), so a member receives at most one digest per day even though the
-schedule fires 24×/day. It also honors the master `email_notifications` switch
+schedule fires 24×/day. It also honors the app's master email switch (`_email` in `notification_preferences`)
 and skips demo orgs (unless `DEMO_ALLOW_EMAIL`).
 
 > **This used to say "droplet worker". That machine does not exist.**

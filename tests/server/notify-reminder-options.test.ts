@@ -21,7 +21,8 @@ const ORG_ROW = { id: "org-1", slug: "oak", name: "Oak Court" };
 const USERS = [
   { id: "u1", email_notifications: true, notification_preferences: null },
   { id: "u2", email_notifications: true, notification_preferences: { meeting_bell: false, payment: false } },
-  { id: "u3", email_notifications: false, notification_preferences: null },
+  // The app's master email switch is `_email` (Session H), not `email_notifications`.
+  { id: "u3", email_notifications: false, notification_preferences: { _email: false } },
 ];
 
 /** membership → users → (bell writes) → org: by call order, as notify.test.ts does. */

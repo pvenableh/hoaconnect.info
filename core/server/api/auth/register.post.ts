@@ -6,6 +6,7 @@ import {
   login,
   readMe,
 } from "@directus/sdk";
+import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -41,6 +42,7 @@ export default defineEventHandler(async (event) => {
       phone: phone || null,
       role: DEFAULT_MEMBER_ROLE_ID,
       status: "active" as const,
+      ...DIRECTUS_EMAIL_OFF,
     };
     const newUser = await adminClient.request(createUser(newUserPayload));
 

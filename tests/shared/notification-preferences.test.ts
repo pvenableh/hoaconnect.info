@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   emailAllowed,
+  emailMasterOn,
   bellAllowed,
   allMuted,
   digestEnabled,
@@ -14,25 +15,33 @@ import {
 
 describe("notification preferences — immediate gating (opt-in defaults)", () => {
   it("emails by default when nothing is set", () => {
-    expect(emailAllowed(null, null, "announcement")).toBe(true);
-    expect(emailAllowed({}, true, "meeting")).toBe(true);
+    expect(emailAllowed(null, "announcement")).toBe(true);
+    expect(emailAllowed({}, "meeting")).toBe(true);
+    expect(emailMasterOn(null)).toBe(true);
   });
 
-  it("honors the master email kill-switch", () => {
-    expect(emailAllowed({}, false, "announcement")).toBe(false);
+  it("honors the app's master email switch (`_email`)", () => {
+    expect(emailAllowed({ _email: false }, "announcement")).toBe(false);
+    expect(emailMasterOn({ _email: false })).toBe(false);
+    expect(emailAllowed({ _email: true }, "announcement")).toBe(true);
   });
 
   it("honors _all mute for both channels", () => {
     expect(allMuted({ _all: false })).toBe(true);
-    expect(emailAllowed({ _all: false }, true, "announcement")).toBe(false);
+    expect(emailAllowed({ _all: false }, "announcement")).toBe(false);
     expect(bellAllowed({ _all: false }, "announcement")).toBe(false);
   });
 
   it("honors per-category opt-out (default on)", () => {
-    expect(emailAllowed({ announcement: false }, true, "announcement")).toBe(false);
-    expect(emailAllowed({ announcement: false }, true, "meeting")).toBe(true);
+    expect(emailAllowed({ announcement: false }, "announcement")).toBe(false);
+    expect(emailAllowed({ announcement: false }, "meeting")).toBe(true);
     expect(bellAllowed({ meeting_bell: false }, "meeting")).toBe(false);
     expect(bellAllowed({ meeting_bell: false }, "announcement")).toBe(true);
+  });
+
+  it("keeps `_email` through sanitizing and drops a non-boolean", () => {
+    expect(sanitizePreferences({ _email: false })._email).toBe(false);
+    expect(sanitizePreferences({ _email: "no" })._email).toBeUndefined();
   });
 });
 

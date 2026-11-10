@@ -33,7 +33,7 @@ const ORG = {
 const USERS = [
   { id: "u-plain", email: "plain@example.com", first_name: "Pat", email_notifications: true, notification_preferences: null },
   { id: "u-no-payment", email: "nopay@example.com", first_name: "Nia", email_notifications: true, notification_preferences: { payment: false, meeting: false, request: false, announcement: false } },
-  { id: "u-no-email", email: "noemail@example.com", first_name: "Ned", email_notifications: false, notification_preferences: null },
+  { id: "u-no-email", email: "noemail@example.com", first_name: "Ned", email_notifications: false, notification_preferences: { _email: false } },
   { id: "u-bounced", email: "gone@example.com", first_name: "Gil", email_notifications: true, notification_preferences: null },
 ];
 

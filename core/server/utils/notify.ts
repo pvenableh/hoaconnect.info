@@ -20,7 +20,7 @@
 // Three switches, three answers, deliberately not chained:
 //
 //   bell   ← `<category>_bell`            (default on)
-//   email  ← `email_notifications` master AND `_all` AND `<category>` (opt-out)
+//   email  ← `_email` master AND `_all` AND `<category>` (opt-out)
 //   push   ← the BELL's switch, never the email master
 //
 // Push mirroring the bell rather than the email is HOA-specific and load-bearing
@@ -28,11 +28,30 @@
 // "Payments" *emails* to keep an inbox quiet is not a request for a silent
 // phone; muting the payments *bell* is. Push is the bell's mobile twin, so a
 // push is never sent where no row was written.
-import { createNotification, readItem, readNotifications, readUsers, updateNotification } from "@directus/sdk";
+//
+// ── Directus's own email (Operator console, Session H) ───────────────────────
+// Directus core emails every new `directus_notifications` row, from its own
+// sender and with no setting to stop it (checked against 11.13.4's docs and
+// source), to any recipient whose stock `email_notifications` is true. That was
+// a second, unbranded copy of every email twin above, and the only email for
+// bell-only events. So that field is false for everyone and the app's switch is
+// `_email` in `notification_preferences`. Users are created with it false, but
+// Studio, invites and SSO can still make one at true, so `writeBells` turns it
+// off for any recipient still at true before writing their row.
+import {
+  createNotification,
+  readItem,
+  readNotifications,
+  readUsers,
+  updateNotification,
+  updateUsers,
+} from "@directus/sdk";
 import { parseCollapsedCount } from "#core/shared/channels/rules";
 import {
   bellAllowed,
   emailAllowed,
+  emailMasterOn,
+  DIRECTUS_EMAIL_OFF,
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
 import { buildPushPayload, pushAllowed, type PushActionInput, type PushOrgContext } from "#core/shared/notifications/push";
@@ -155,13 +174,14 @@ export async function notifyUsers(
   const allowedBell = users.filter((u) =>
     bellAllowed((u.notification_preferences as never) ?? null, opts.category)
   );
-  const bell =
-    opts.bell === false
-      ? 0
-      : await writeBells(
-          allowedBell.map((u) => u.id),
-          opts
-        );
+  let bell = 0;
+  if (opts.bell !== false && allowedBell.length) {
+    await silenceDirectusEmail(allowedBell);
+    bell = await writeBells(
+      allowedBell.map((u) => u.id),
+      opts
+    );
+  }
 
   // Push rides the bell's decision (see the header note): no row, no push —
   // except a caller that asked for no row (`bell: false`), where the bell's
@@ -198,12 +218,8 @@ export async function notifyUsers(
   if (opts.email) {
     const allowedEmail = users.filter((u) =>
       opts.essential
-        ? u.email_notifications !== false
-        : emailAllowed(
-            (u.notification_preferences as never) ?? null,
-            u.email_notifications ?? null,
-            opts.category
-          )
+        ? emailMasterOn((u.notification_preferences as never) ?? null)
+        : emailAllowed((u.notification_preferences as never) ?? null, opts.category)
     );
     if (allowedEmail.length) {
       // sendBrandedTransactionalEmail re-scopes to the org and re-checks the
@@ -272,6 +288,22 @@ async function readRecipients(recipientIds: string[]): Promise<RecipientRow[] | 
   } catch (e) {
     console.warn("[notify] preferences unreadable; bell-only fallback", (e as Error).message);
     return null;
+  }
+}
+
+/**
+ * Turn Directus's own notification email off for any recipient still at true,
+ * BEFORE their bell row is written (Directus decides at insert time). One write
+ * for the lot, and only when someone needs it. A failure is logged and the rows
+ * are written anyway: a duplicate email is a smaller loss than a missing bell.
+ */
+async function silenceDirectusEmail(rows: RecipientRow[]): Promise<void> {
+  const ids = rows.filter((u) => u.email_notifications === true).map((u) => u.id);
+  if (!ids.length) return;
+  try {
+    await getTypedDirectus().request(updateUsers(ids, { ...DIRECTUS_EMAIL_OFF }));
+  } catch (e) {
+    console.warn("[notify] could not turn off Directus's own email for", ids.length, (e as Error).message);
   }
 }
 

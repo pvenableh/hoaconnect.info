@@ -11,7 +11,7 @@
  * made here is visible on the account page on its next load, and vice versa.
  *
  * The bell dropdown uses only the BELL half (`<category>_bell`). The EMAIL half
- * (`<category>`, plus the master `email_notifications` switch) is here for the
+ * (`<category>`, plus the master `email_enabled` switch) is here for the
  * Email section of the household page (Phase 3a), which shows the whole picture
  * — community mail, what is always sent, and this matrix — in one place. The
  * digest settings stay on the account page.
@@ -39,11 +39,11 @@ export function useNotificationPreferences() {
     _loading.value = true;
     try {
       const r = await $fetch<{
-        email_notifications?: boolean;
+        email_enabled?: boolean;
         notification_preferences?: Record<string, unknown>;
       }>("/api/user/notification-preferences");
       _prefs.value = r?.notification_preferences || {};
-      _emailMaster.value = r?.email_notifications !== false;
+      _emailMaster.value = r?.email_enabled !== false;
       _loaded.value = true;
     } catch {
       // Absent preferences mean every category is on, which is also the
@@ -104,14 +104,14 @@ export function useNotificationPreferences() {
     }
   }
 
-  /** The master email switch (`email_notifications`). Returns false when rolled back. */
+  /** The app's master email switch (`email_enabled`). Returns false when rolled back. */
   async function setEmailMaster(enabled: boolean): Promise<boolean> {
     const previous = _emailMaster.value;
     _emailMaster.value = enabled;
     try {
       await $fetch("/api/user/notification-preferences", {
         method: "PATCH",
-        body: { email_notifications: enabled },
+        body: { email_enabled: enabled },
       });
       return true;
     } catch {

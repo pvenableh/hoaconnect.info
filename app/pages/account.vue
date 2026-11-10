@@ -613,7 +613,6 @@ const profileForm = ref({
 
 // Preferences form
 const preferencesForm = ref({
-  email_notifications: true,
   newsletter_subscribed: false,
   locale: "en",
   timezone: "America/New_York",
@@ -710,10 +709,10 @@ const formatHour = (h: number) => {
 const loadNotificationPreferences = async () => {
   try {
     const r = await $fetch<{
-      email_notifications: boolean;
+      email_enabled: boolean;
       notification_preferences: Record<string, any>;
     }>("/api/user/notification-preferences");
-    emailMaster.value = r.email_notifications !== false;
+    emailMaster.value = r.email_enabled !== false;
     notifPrefs.value = r.notification_preferences || {};
   } catch {
     /* keep defaults */
@@ -854,7 +853,7 @@ const updatePreferences = async () => {
     await $fetch("/api/user/notification-preferences", {
       method: "PATCH",
       body: {
-        email_notifications: emailMaster.value,
+        email_enabled: emailMaster.value,
         notification_preferences: notifPrefs.value,
       },
     });

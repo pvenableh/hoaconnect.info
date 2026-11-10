@@ -243,7 +243,8 @@ describe("the three channels gate independently", () => {
 
   it("the EMAIL master toggle silences email and nothing else", async () => {
     // "Stop emailing me" is not "stop notifying me".
-    directusRequest = sequencedDirectus([{ id: "u1", email_notifications: false }]);
+    // The app's switch is `_email`; Directus's `email_notifications` is not it (Session H).
+    directusRequest = sequencedDirectus([{ id: "u1", notification_preferences: { _email: false } }]);
     const res = await notifyUsers({ ...base, recipientUserIds: ["u1"], email: EMAIL });
     expect(res).toEqual({ bell: 1, push: 1, email: 0 });
     expect(sendEmail).not.toHaveBeenCalled();

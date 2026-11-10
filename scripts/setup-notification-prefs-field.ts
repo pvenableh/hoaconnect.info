@@ -1,8 +1,9 @@
 /**
  * Add `notification_preferences` (JSON) to `directus_users` — the single home for
- * a member's per-category email/bell toggles AND their digest settings. The
- * master email switch is the stock `directus_users.email_notifications` boolean
- * (already present), so this adds just the one field.
+ * a member's per-category email/bell toggles, the app's master email switch
+ * (`_email`), AND their digest settings. The stock `email_notifications` boolean is
+ * Directus's own email switch and stays false (see `DIRECTUS_EMAIL_OFF` in
+ * core/shared/notifications/preferences.ts).
  *
  * Additive + idempotent against prod Directus.
  *

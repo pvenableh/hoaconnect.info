@@ -25,7 +25,9 @@ export default defineEventHandler(async (event) => {
     }
 
     if (method === "PATCH") {
-      const updates = await readBody(event);
+      // Never let a profile save switch Directus's own per-notification email
+      // back on (Session H) — the app's switch is `_email` in its preferences.
+      const { email_notifications: _ignored, ...updates } = (await readBody(event)) || {};
 
       const user = await directus.request(updateMe(updates));
 

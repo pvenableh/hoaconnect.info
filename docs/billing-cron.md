@@ -73,7 +73,8 @@ Three stages per charge — `due_soon` (7 days before), `due` (on the due date),
 `past_grace` (after `payment_grace_period_days`) — each sent once. A member gets
 one email and one push per run covering every charge at its latest stage; a
 charge that is generated already past due skips the earlier stages rather than
-sending three messages. Email honours the user's `email_notifications` switch;
+sending three messages. Email honours the app's master email switch (`_email` in
+`notification_preferences`; not Directus's `email_notifications`, which stays false);
 push honours the `payment` category. Demo orgs are suppressed unless
 `DEMO_ALLOW_EMAIL`.
 

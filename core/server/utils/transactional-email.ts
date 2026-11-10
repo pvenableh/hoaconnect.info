@@ -12,6 +12,7 @@ import { emailComplianceSchema } from "./email-compliance";
 import { scopeRecipientsToOrg } from "./org-members";
 import {
   emailAllowed,
+  emailMasterOn,
   allMuted,
   type NotificationCategory,
 } from "#core/shared/notifications/preferences";
@@ -166,14 +167,13 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
     id: string;
     email?: string | null;
     first_name?: string | null;
-    email_notifications?: boolean | null;
     notification_preferences?: Record<string, unknown> | null;
   }> = [];
   try {
     users = (await admin.request(
       readUsers({
         filter: { id: { _in: recipients } },
-        fields: ["id", "email", "first_name", "email_notifications", "notification_preferences"],
+        fields: ["id", "email", "first_name", "notification_preferences"],
         limit: -1,
       })
     )) as typeof users;
@@ -233,14 +233,14 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
       console.info(`[transactional-email] skipped ${u.id}: address bounced`);
       continue;
     }
-    // Respect the member's notification preferences (revives the previously
-    // ignored email_notifications field + honors per-category opt-out).
+    // Respect the member's notification preferences: the app's master email
+    // switch (`_email`, not Directus's `email_notifications`) + per-category opt-out.
     const prefs = (u.notification_preferences as any) || null;
     const allowed = opts.essential
-      ? u.email_notifications !== false
+      ? emailMasterOn(prefs)
       : opts.category
-        ? emailAllowed(prefs, u.email_notifications, opts.category)
-        : u.email_notifications !== false && !allMuted(prefs);
+        ? emailAllowed(prefs, opts.category)
+        : emailMasterOn(prefs) && !allMuted(prefs);
     if (!allowed) continue;
     try {
       const recipientFirstName = u.first_name || undefined;
