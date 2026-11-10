@@ -105,9 +105,18 @@ describe("governing-documents seed plan", () => {
     expect(ref.data.summary).toBeNull();
   });
 
-  it("invents no statute reference: every code is a piece of a seed statute_ref", () => {
-    const seedPieces = new Set(flagsFile.flags.flatMap((f) => (f.statute_ref ?? "").split(";").map((s) => s.trim())).filter(Boolean));
-    for (const r of plan().references) expect(seedPieces.has(r.code)).toBe(true);
+  it("invents no statute reference: every code is text taken from a seed statute_ref, and none is a broken fragment", () => {
+    const refs = flagsFile.flags.map((f) => f.statute_ref ?? "").filter(Boolean);
+    const codes = plan().references.map((r) => r.code);
+    expect(codes).toHaveLength(33);
+    for (const code of codes) {
+      expect(refs.some((ref) => ref.includes(code)), code).toBe(true);
+      // Balanced parentheses: "760.29(4) (fair housing" and "not ch. 718)" must never come back.
+      expect((code.match(/\(/g) ?? []).length, code).toBe((code.match(/\)/g) ?? []).length);
+    }
+    expect(codes).toContain("760.29(4)");
+    const children = plan().flags.find((f) => f.data.statute_citation === "760.29(4) (fair housing; not ch. 718)")!;
+    expect(children.referenceCodes).toEqual(["760.29(4)"]);
   });
 
   it("links amendments to the Declaration and the two named provision pairs (criterion 6)", () => {
@@ -127,6 +136,11 @@ describe("governing-documents seed helpers", () => {
   it("splits a compound statute_ref and leaves the pieces alone", () => {
     expect(splitStatuteRef("718.112(2)(k); 718.111(14)")).toEqual(["718.112(2)(k)", "718.111(14)"]);
     expect(splitStatuteRef(null)).toEqual([]);
+    // A semicolon inside a parenthetical remark does not split, and the remark is not part of the code.
+    expect(splitStatuteRef("760.29(4) (fair housing; not ch. 718)")).toEqual(["760.29(4)"]);
+    expect(splitStatuteRef("718.303(3); 718.112(2)(c)")).toEqual(["718.303(3)", "718.112(2)(c)"]);
+    expect(splitStatuteRef("718.110(1), (3), (4)")).toEqual(["718.110(1), (3), (4)"]);
+    expect(splitStatuteRef("Tropicana Condo. Ass'n v. Tropical Condo., LLC (Fla. 3d DCA 2016)")).toEqual(["Tropicana Condo. Ass'n v. Tropical Condo., LLC (Fla. 3d DCA 2016)"]);
   });
 
   it("finds a source by section or by name, and nothing otherwise", () => {

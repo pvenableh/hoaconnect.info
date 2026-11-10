@@ -21,7 +21,7 @@ const { selectedOrgId } = await useSelectedOrg();
 const { getOverview } = useGoverningDocs(selectedOrgId);
 const { isPreviewingMember } = useViewAs();
 
-const { data, pending, error, refresh } = await useAsyncData(
+const { data, error, refresh } = await useAsyncData(
   "governing-overview",
   async () => (selectedOrgId.value ? await getOverview() : null),
   { watch: [selectedOrgId], server: false }

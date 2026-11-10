@@ -131,12 +131,32 @@ export function flagKey(topic: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** "718.112(2)(k); 718.111(14)" is two references. Null is none. The pieces are not altered beyond the split. */
+/**
+ * "718.112(2)(k); 718.111(14)" is two references. Null is none.
+ *
+ * A semicolon inside parentheses is not a separator, and a remark in
+ * parentheses after a statute code is not part of the code:
+ * "760.29(4) (fair housing; not ch. 718)" is the one reference "760.29(4)".
+ * The flag keeps the whole string, verbatim, in `statute_citation`. Nothing
+ * else is altered: "718.110(1), (3), (4)" and a case citation stay whole.
+ */
 export function splitStatuteRef(ref: string | null): string[] {
   if (!ref) return [];
-  return ref
-    .split(";")
+  const pieces: string[] = [];
+  let depth = 0;
+  let piece = "";
+  for (const ch of ref) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === ";" && depth === 0) {
+      pieces.push(piece);
+      piece = "";
+    } else piece += ch;
+  }
+  pieces.push(piece);
+  return pieces
     .map((s) => s.trim())
+    .map((s) => /^(\d+\.\d+(?:\([0-9a-z]+\))*)\s+\([^()]*\)$/i.exec(s)?.[1] ?? s)
     .filter(Boolean);
 }
 

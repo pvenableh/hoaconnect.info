@@ -175,10 +175,29 @@ From this repo:
     questions (criterion 5); By-Law 6.5 shows "State law now governs this point.", 718.111(11)(h), the flsenate
     link, edition 2026 (criterion 4); 5 stale references, all "recheck" editions. **No status button was clicked:**
     that is a production write and needs Peter's yes.
-  - **Found, not fixed (needs Peter's yes, a production write):** the 1A import split the citation
-    `760.29(4) (fair housing; not ch. 718)` on its semicolon, so the library holds two junk references,
-    `760.29(4) (fair housing` and `not ch. 718)`. The flag's verbatim citation line is right; the reference rows
-    under it are not. Fix = split rule in `scripts/lib/governing-import.ts` plus removing/renaming those two rows.
+  - **Follow-up 2026-11-10 (Peter: fix the import split, finish the checks, attach the other originals):**
+    - Split rule fixed in `scripts/lib/governing-import.ts` (`splitStatuteRef`: a semicolon inside parentheses does
+      not split; a remark in parentheses after a statute code is not part of the code). The seed now yields 33
+      references, not 34. Re-import applied on the hosted Directus: 1 reference (`760.29(4)`) and 1 flag link
+      created, everything else unchanged.
+    - **STILL TO RUN (was refused by the permission classifier in that session):**
+      `pnpm exec dotenv -- tsx scripts/fix-governing-reference-split.ts --apply`. Its dry run names exactly the
+      two junk references (`760.29(4) (fair housing`, `not ch. 718)`) and their 2 flag links. Until it runs, the
+      "Children under 18" flag lists three references instead of one.
+    - Originals attached through the attach route to every document (all recorded copy + source of the text, as
+      Peter set the 1995 one), each checked byte for byte through the proxy: Declaration Part I (24 pages) and
+      Part II (6); the O.R. 9640 pp. 287 to 310 file (24 pages) on both the Articles and the By-Laws, with a note
+      saying which pages are which; Prospectus (15); 1978 (4); 1994 (3). Matched by filename and page count, the
+      scans were not read. Declaration Part I has 24 pages for O.R. pages 258 to 280 (23), so one page is extra.
+      Not attached from `~/Projects/1033/documents`: `1977-Lenox Plaza CORPORATION-CERTIFICATE.pdf` (57 pages,
+      no matching document), the clean-transcription PDF, and `ALTERED/`.
+    - Hydration mismatch fixed on the reading view and the provision page: the server rendered "not found" while
+      the client rendered the spinner. Both now wait on `status` (`waiting`), and a refresh keeps the page up.
+      The 404 in the console is `/_nuxt/vue-sonner/style.css` from `core/nuxt.config.ts:169`, app-wide and older
+      than this feature; left alone.
+    - **Still not exercised against the hosted Directus:** the flag status buttons (the click was refused by the
+      permission classifier). Proven by `governing-flags.test.ts` only. No screenshot: the "what's new" sheet
+      covers the page in the preview.
   - Deferred: a reason/counsel-name field in the UI when marking counsel_confirmed (the route takes `reason`); an
     audit-log viewer; editing a reference's edition or checked date (stale view is read-only); flags on the reading
     view beyond the existing count.

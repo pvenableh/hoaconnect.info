@@ -16,7 +16,7 @@ const { getDocument } = useGoverningDocs(selectedOrgId);
 
 const documentId = computed(() => String(route.params.document ?? ""));
 
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   () => `governing-document-${documentId.value}`,
   async () => {
     if (!selectedOrgId.value || !documentId.value) return null;
@@ -29,6 +29,9 @@ const { data, pending, refresh } = await useAsyncData(
   },
   { watch: [documentId, selectedOrgId], server: false }
 );
+// No answer yet: before the first fetch (the server renders this, so the
+// client must too) or during it. A refresh keeps the page on screen.
+const waiting = computed(() => status.value === "idle" || (status.value === "pending" && !data.value));
 
 const doc = computed(() => data.value?.document ?? null);
 const provisions = computed(() => data.value?.provisions ?? []);
@@ -74,7 +77,7 @@ onMounted(scrollToHash);
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
-      <div v-if="pending" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
+      <div v-if="waiting" class="py-24 flex justify-center"><div class="spinner-ios" /></div>
 
       <template v-else-if="!doc">
         <BackLink :to="buildOrgPath('/governing')" label="Governing documents" />
