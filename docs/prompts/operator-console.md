@@ -300,15 +300,23 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - **Other 6 users flipped after the deploy, with Peter's yes:** counted 6 at true and 1 (Peter) at false, wrote
       the 6 in one bulk update, and re-counted 7 at false. Every production user now has `email_notifications`
       false.
-  - **Found, not fixed: the billing and digest workers can't start under `tsx`.**
-    - `scripts/billing-worker.ts` and `scripts/notification-digest-worker.ts` import
-      `core/server/utils/email-templates-mjml.ts`. Since Phase 4 (c1c6397, 2026-11-03) that file has imported
-      `#core/shared/color-contrast` (a Nuxt alias) and `../emails/org-email.mjml` (a raw `.mjml` file).
-    - Locally both workers die on import (`ERR_PACKAGE_IMPORT_NOT_DEFINED`, then `ERR_UNKNOWN_FILE_EXTENSION`). The
-      workflows run the same `tsx` command, so their scheduled runs are very likely failing.
-    - Neither has a row in `ops_job_heartbeats`, which fits but doesn't prove it. The GitHub Actions run history wasn't
-      checked; `gh` isn't installed here.
-    - The export worker avoids this by asking the app to send its email.
+  - **Found and fixed, committed locally (not pushed): the billing and digest workers couldn't start under `tsx`.**
+    - Both import `core/server/utils/email-templates-mjml.ts`. Since c1c6397 (2026-11-03) that file has used the
+      `#core` alias and raw `.mjml` imports, which only Nuxt and vitest provide.
+    - **GitHub Actions confirms it** (public API): the digest last succeeded 2026-11-03 17:41 UTC and has failed on
+      every run since 23:11 that day. The billing worker failed all 8 of its runs, so it has never run.
+    - **Fix:** `scripts/lib/worker-loader.mjs` registers Node hooks: `#core/…` → `core/…`, and `.mjml` → the file text,
+      matching `core/build/raw-mjml.ts`. The worker scripts in `package.json` (`billing:worker`, `digest:worker`,
+      `export:worker`, `create:email-templates`) run as `tsx --import ./scripts/lib/worker-loader.mjs …`. The
+      workflows call those scripts, so they pick it up.
+    - **Guard:** `tests/server/worker-imports.test.ts` spawns each worker through the real tsx CLI against a dead
+      Directus and fails on any module-load error. It also renders a branded email through the loader and checks
+      every worker script carries the flag. Without the loader the same spawn shows the load errors.
+    - **What the first working runs will do** (dry runs against production with the loader, counts only):
+      - **Billing:** inserts 10 charges, all in one demo community: October and November monthly dues, catching up.
+        No late fees, no autopay, no reminders (the demo's 4 are suppressed). The 5 real communities get nothing.
+      - **Digest:** 1 member has digest settings; nobody is due this hour.
+    - The export worker never needed the loader: it asks the app to send its email.
 - **Session F done 2026-11-10, committed locally, not pushed.** Support messages can carry attachments.
   - **Peter's calls:**
     - Up to 5 per message.
