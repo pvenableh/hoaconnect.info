@@ -75,9 +75,10 @@ From this repo:
   - **Schema created on the hosted Directus 2026-11-10** (Peter's yes): 10 collections, 5 org fields, 0 role
     permissions; a read-only re-run reports nothing to create. Types regenerated (`HoaGoverning*`, `HoaStatute*`
     in `core/types/directus.ts`, additions only).
-  - **Still owed in 1A, on Peter's yes:** `seed:governing-docs-1033 -- --apply` (he has not yet confirmed flags as
-    `confirmed` vs `--flags=suggested`, or the link choices in plan §3), then run it again to show "create 0".
-    Also unchecked: whether 1033 has rows in the old `hoa_governance`.
+  - **Seed imported into 1033 Lenox on the hosted Directus 2026-11-10** (Peter's yes; flags as `confirmed`, links
+    as in plan §3): 7 documents, 209 provisions, 2 links, 34 references, 43 flags, 60 + 44 junction rows, 5 org
+    fields. A second `--apply` run: create 0, update 0, all unchanged, and no provision text differs from the seed.
+  - **Session 1A is done.** Unchecked: whether 1033 has rows in the old `hoa_governance`.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in
