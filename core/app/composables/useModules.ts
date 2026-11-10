@@ -19,6 +19,7 @@ export type ModuleKey =
   | "moderation"
   | "documents"
   | "rules"
+  | "governing"
   | "directory"
   | "pets"
   | "vehicles"
@@ -72,6 +73,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
       { key: "documents", label: "Documents", description: "Shared files and document library." },
       { key: "files", label: "Storage", description: "Dropbox-style file manager for the org's raw folders and files (Documents is the curated, published library)." },
       { key: "rules", label: "Rules", description: "By-laws, CC&Rs, and searchable governance." },
+      { key: "governing", label: "Governing Documents", description: "The recorded declaration, by-laws and amendments, word for word, with search." },
       { key: "directory", label: "Directory", description: "Members, units, and teams." },
       { key: "vendors", label: "Vendors", description: "Service-provider directory (management, attorney, elevator, …), member-visible per vendor." },
       { key: "pets", label: "Pets", description: "Pet registration records." },

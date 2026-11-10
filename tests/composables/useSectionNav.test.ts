@@ -35,7 +35,7 @@ describe("sectionHomeFor", () => {
     );
     // Ledger is deliberately ungated (Pillar B) — Records survives the same way.
     expect(
-      sectionHomeFor("records", off("meetings", "documents", "files", "rules"))
+      sectionHomeFor("records", off("meetings", "documents", "files", "rules", "governing"))
     ).toBe("/admin/ledger");
   });
 

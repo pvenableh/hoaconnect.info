@@ -115,10 +115,13 @@ export async function getGoverningProvision(organizationId: string, id: string, 
   const siblings = provisions.filter((p) => p.document === provision.document);
   const at = siblings.findIndex((p) => p.id === id);
   const parent = provision.parent ? byId.get(provision.parent) : undefined;
+  const amended = documents.find((d) => d.id === document.amends);
 
   return {
     provision,
     document,
+    /** The document this provision's document amends, when the caller may see it. */
+    document_amends: amended ? { id: amended.id, title: amended.title } : null,
     citation: formatCitation(provision, document),
     parent: parent ? brief(parent) : null,
     children: siblings.filter((p) => p.parent === id).map(brief),

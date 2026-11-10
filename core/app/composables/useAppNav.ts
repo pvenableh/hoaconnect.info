@@ -185,8 +185,8 @@ export const ADMIN_APPS: readonly AppDef[] = [
   },
   {
     key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
-    match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/admin/ledger"],
-    children: ["meetings", "documents", "rules", "files"],
+    match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/governing", "/admin/ledger"],
+    children: ["meetings", "documents", "rules", "governing", "files"],
   },
   {
     key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments",
@@ -208,6 +208,9 @@ export const MEMBER_APPS: readonly AppDef[] = [
   { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
   { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
   { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
+  // The recorded declaration, by-laws and amendments as verbatim provisions.
+  // Not the same thing as Rules (house rules and policies the board writes).
+  { key: "governing", label: "Governing Documents", shortName: "Gov Docs", icon: "scroll-text", path: "/governing", match: ["/governing"] },
   { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
   // Ungated, like the admin link: Pillar B's promise is that an owner can see
   // what their board decided WITHOUT asking permission, and a ledger an org

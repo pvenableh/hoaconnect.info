@@ -56,6 +56,9 @@ export const ADMIN_SECTION_LINKS: Readonly<Record<string, SectionLink[]>> = {
     { label: "Documents", path: "/admin/documents", icon: "file-text", description: "The curated, published document library.", module: "documents" },
     { label: "Storage", path: "/admin/files", icon: "folder", description: "Dropbox-style manager for raw folders and files.", module: "files" },
     { label: "Rules", path: "/rules", icon: "scale", description: "By-laws, CC&Rs, and searchable governance.", module: "rules" },
+    // No /admin page yet: the member route serves managers too (drafts are
+    // filtered by the server). Upload and review arrive with Phase 3.
+    { label: "Governing Documents", path: "/governing", icon: "scroll-text", description: "The recorded declaration, by-laws and amendments, word for word.", module: "governing" },
     // No module gate: a community's permanent record of itself is not an
     // optional app, and an org that could switch its own audit trail off in
     // Settings would make "append-only" a setting rather than a guarantee.

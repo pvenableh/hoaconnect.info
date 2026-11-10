@@ -100,6 +100,21 @@ From this repo:
     `export-collections.test.ts` fails.
   - Not done: nothing has been exercised against the hosted Directus through these routes yet (no page calls
     them). 1C does that in the browser.
+- **Session 1C code done 2026-11-10, committed locally, NOT pushed. Browser check against 1033 Lenox NOT done yet**
+  (the dev server needs Peter signed in; criteria 1, 2, 3, 6 are still to be shown on screen).
+  - Pages (`app/pages/[slug]/governing/`): `index.vue` (list), `[document].vue` (reading view: contents,
+    recorded-page markers, transcriber's notes; provisions anchor as `#p-<id>`), `provisions/[id].vue` (verbatim
+    text, citation + Copy Citation, book and page, amendment chain, previous/next), `search.vue` (query and the
+    §6 filters held in the URL). Text renders as plain text with `white-space: pre-wrap`; no `v-html` anywhere.
+  - `core/app/composables/useGoverningDocs.ts` (takes the org id ref; response types come from
+    `governing-data.ts`). Display helpers in `core/shared/governing/labels.ts` (`splitHighlight` only cuts, never
+    changes text); tests in `tests/shared/governing-labels.test.ts`.
+  - `getGoverningProvision` now also returns `document_amends` ({id, title} or null).
+  - Nav: member dock entry and Records entry at `/governing`, gated by a new `governing` module key
+    (`useModules`, `module.global.ts`). Missing keys default to ON, so every org gets the entry once pushed.
+  - **Left for Session 2:** flags on the provision page (search results show relationship labels plus
+    `FLAG_NOTICE` only), the overview page (`overview.get` has no page yet). Left for Phase 3: page-image link,
+    admin pages.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

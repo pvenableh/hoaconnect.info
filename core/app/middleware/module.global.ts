@@ -23,6 +23,7 @@ const MODULE_PREFIXES: { module: string; prefixes: string[] }[] = [
   { module: "polls", prefixes: ["/polls", "/admin/polls"] },
   { module: "documents", prefixes: ["/documents", "/admin/documents"] },
   { module: "rules", prefixes: ["/rules"] },
+  { module: "governing", prefixes: ["/governing"] },
   { module: "board", prefixes: ["/board"] },
   { module: "payments", prefixes: ["/payments", "/admin/payments"] },
   { module: "expenses", prefixes: ["/admin/expenses"] },
