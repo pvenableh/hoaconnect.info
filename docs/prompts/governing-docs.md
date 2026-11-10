@@ -180,17 +180,21 @@ From this repo:
       not split; a remark in parentheses after a statute code is not part of the code). The seed now yields 33
       references, not 34. Re-import applied on the hosted Directus: 1 reference (`760.29(4)`) and 1 flag link
       created, everything else unchanged.
-    - **STILL TO RUN (was refused by the permission classifier in that session):**
-      `pnpm exec dotenv -- tsx scripts/fix-governing-reference-split.ts --apply`. Its dry run names exactly the
-      two junk references (`760.29(4) (fair housing`, `not ch. 718)`) and their 2 flag links. Until it runs, the
-      "Children under 18" flag lists three references instead of one.
+    - Cleanup run by Peter 2026-11-10 (`scripts/fix-governing-reference-split.ts --apply`): the two junk
+      references (`760.29(4) (fair housing`, `not ch. 718)`) and their 2 flag links are deleted. Read-only
+      re-runs: 33 references, none with unbalanced parentheses; the import reports create 0, update 0, with 43
+      flag links. The "Children under 18" flag now has the one reference `760.29(4)`.
     - Originals attached through the attach route to every document (all recorded copy + source of the text, as
       Peter set the 1995 one), each checked byte for byte through the proxy: Declaration Part I (24 pages) and
       Part II (6); the O.R. 9640 pp. 287 to 310 file (24 pages) on both the Articles and the By-Laws, with a note
       saying which pages are which; Prospectus (15); 1978 (4); 1994 (3). Matched by filename and page count, the
       scans were not read. Declaration Part I has 24 pages for O.R. pages 258 to 280 (23), so one page is extra.
-      Not attached from `~/Projects/1033/documents`: `1977-Lenox Plaza CORPORATION-CERTIFICATE.pdf` (57 pages,
-      no matching document), the clean-transcription PDF, and `ALTERED/`.
+      Not attached from `~/Projects/1033/documents`: the clean-transcription PDF, `ALTERED/`, and
+      `1977-Lenox Plaza CORPORATION-CERTIFICATE.pdf`. The 1977 file is the unrecorded, state-certified copy
+      (57 pages: state certificate 1, Articles 2 to 11, By-Laws 12 to 24, Declaration 25 to 47, exhibits 48 to
+      57). Its text is already transcribed from the recorded pages; file 01's notes list six places where it
+      differs. **Waiting on Peter:** attach it as an unrecorded copy, not the source of the text (Declaration
+      only, or all three), or leave it out.
     - Hydration mismatch fixed on the reading view and the provision page: the server rendered "not found" while
       the client rendered the spinner. Both now wait on `status` (`waiting`), and a refresh keeps the page up.
       The 404 in the console is `/_nuxt/vue-sonner/style.css` from `core/nuxt.config.ts:169`, app-wide and older
