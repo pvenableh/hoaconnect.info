@@ -363,8 +363,91 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - The request is closed, and its rows and three files stay, marked TEST.
     - Not checked: the emails this sent, and another account being refused (only the tests prove that).
   - **Not done:**
-    - Nothing sweeps uploads that were never attached; they stay in the folder marked pending. Session I has this.
+    - ~~Nothing sweeps uploads that were never attached.~~ Built after Session G (below): a daily sweep.
     - HEIC isn't shrunk: the browser can't redraw it, so a HEIC over 4 MB is refused.
+- **Session G done 2026-11-10, committed locally, not pushed.** Emailed replies land in the request's thread.
+  - **Peter's calls:** the reply domain is `reply.hoaconnect.info` (MX at `mx.sendgrid.net`). A reply is accepted
+    only from the email address on the person's account.
+  - **Outbound:** each support email to a person carries its own Reply-To,
+    `support+<requestId>.<sig>@reply.hoaconnect.info`. That covers `notifyRequester` (bell+email, and the direct
+    email for agency requests) and the HOA Admin copies of a resident's report.
+    - `sig` is 16 hex characters of HMAC-SHA256 over the request id and the recipient's user id, keyed by
+      `SUPPORT_REPLY_SECRET`. The code is in `core/server/utils/support-reply.ts`.
+    - `NotifyEmail.replyToFor` and `BrandedTransactionalOptions.replyToFor` set it per recipient. `sendEmail` takes
+      `replyTo`.
+    - **`SUPPORT_REPLY_SECRET` is the on switch.** While it's unset, nothing changes: the emails keep the
+      community's Reply-To, so a reply to "HOA Connect replied" still goes to the HOA's address (that was already
+      true). Set it only after DNS and SendGrid, or replies bounce.
+  - **Inbound:** `POST /api/support/inbound/<SUPPORT_INBOUND_TOKEN>`. The work is in
+    `core/server/utils/support-inbound.ts`, and the pure parts are in `core/shared/support/inbound.ts`.
+    - **The checks, in order:**
+      1. The address must be on our domain.
+      2. The email must not be an auto-reply (RFC 3834 headers, `Precedence: bulk`).
+      3. The request must exist.
+      4. The HMAC must match one of the people who could have received the email (requester, active HOA Admins,
+         billing owner/billing_admin).
+      5. From must be that person's account email.
+      6. `supportAccess` must allow the reply.
+      7. The in-app rate limit must not be hit.
+    - **The body:** the quoted history is stripped: Gmail/Apple "On … wrote:" (also wrapped over two lines), Outlook's
+      header block and rules, `>` lines, `-- ` signatures, and "Sent from my …". The body is then capped at 5000
+      characters and goes through `addSupportMessage`. A closed request reopens, exactly as with an in-app reply.
+    - **Attachments:** they pass Session F's checks first (type, 4 MB, bytes, 5 per message), then go through
+      `storeSupportAttachment` and `claimSupportAttachments`.
+      - A file that fails is named on the message ("Not attached from the email: …"); it doesn't refuse the reply.
+      - Inline images under 16 KB (signature logos) are skipped.
+    - **Answers:** every refusal is 200 and logged with a per-instance count (`[support-inbound] <outcome>`). A
+      wrong or missing token is 404 (not SendGrid, or a misconfiguration). A Directus failure is 500, so SendGrid
+      retries.
+    - **Duplicates:** a retry is dropped when the same author posted the same words and file names on that request
+      within 3 days (SendGrid's retry window). This needs no schema change. The cost: someone who sends the
+      identical reply twice inside 3 days gets one message.
+    - **Limit:** Vercel refuses a body over 4.5 MB, so an email with more than about 4 MB of attachments gets a
+      413. SendGrid retries it for 3 days, then drops it, and the sender isn't told.
+  - **Tests:** 7 in `tests/server/support.test.ts` ("replies by email"):
+    - the signed Reply-To, per recipient, and off without the secret;
+    - a good reply (quote stripped, closed request reopened);
+    - an HOA Admin's reply, and losing access;
+    - a bad HMAC, another user's signature, the wrong sender, an auto-reply, another domain, an unknown request, an
+      empty reply, and a wrong token;
+    - a duplicate post;
+    - attachments;
+    - quote stripping.
+  - **Waiting on Peter (in order):**
+    1. DNS: MX `reply.hoaconnect.info` → `mx.sendgrid.net`, priority 10.
+    2. SendGrid → Settings → Inbound Parse: host `reply.hoaconnect.info`, URL
+       `https://app.hoaconnect.info/api/support/inbound/<token>`, with "POST the raw, full MIME message" OFF.
+    3. Vercel production env: `SUPPORT_INBOUND_TOKEN` (random, 16+ characters, the same as in the URL) and
+       `SUPPORT_REPLY_SECRET` (random). Then deploy.
+    4. **Live check:** a console reply to a TEST request. Reply to that email from the account's address; it should
+       appear in the thread, move the request to "open", and send the "Re:" notice. A reply from another address
+       should post nothing.
+- **Unattached-upload sweep done 2026-11-10, committed locally, not pushed.**
+  - **The job:** `GET /api/support/attachments/sweep` (Vercel Cron `50 9 * * *`), through `cronJobHandler`, with
+    job `support-uploads-sweep` in `core/shared/ops/jobs.ts` and `?dry=1`. The work is
+    `sweepUnattachedSupportUploads()` in `support-attachments.ts`.
+  - **What it deletes:** only files in the "Support attachments" folder still marked `support-upload:` and uploaded
+    over 7 days ago (`UNATTACHED_SWEEP_DAYS`). The Directus filter says so, and each row is checked again in code.
+    It does nothing when the folder doesn't exist.
+  - **Tests:** 3 ("the unattached-upload sweep"):
+    - only stale pending files go, never `support-message:` files or files outside the folder, even when the
+      filter is bypassed;
+    - a dry run deletes and records nothing;
+    - a stray caller is refused.
+    - A guard also checks that every Vercel job in `OPS_JOBS` matches `vercel.json`'s crons.
+  - **Production dry count, 2026-11-10 (read-only script, counts only):** the folder holds 3 files, all attached
+    (Session F's TEST files). None are pending, so the first real run would delete 0.
+  - **The first real run is Peter's yes:** it's the 09:50 UTC cron after the push that carries this. Before that,
+    `?dry=1` as App Admin shows the count.
+- **Peter's open checks from Session E, asked 2026-11-10:**
+  - The support@hoaconnect.info inbox **isn't set up yet**, so the Session 2 notice and the Testing HOA band-change
+    notice are still unchecked.
+  - Re-banding on `/ops/health` is **not checked yet**. Today's 09:30 UTC cron ran before the heartbeat fix
+    (`d110917c`). Read-only, the row's last run is 16:56 UTC, which is Session E's localhost run.
+    - That run used the cron secret, so its `last_via` is also `cron`. Tell the runs apart by the time.
+    - The first row written by Vercel is due 2026-11-11 at about 09:30 UTC.
+- **Gates after Session G and the sweep:** 155 files / 2,791 tests, 16 audits, lint 0 errors and 139 warnings,
+  typecheck 0.
 
 ## Files worth knowing (read only what your session needs)
 
@@ -559,7 +642,7 @@ things stand" (Session C), then `core/server/utils/support.ts` (`addSupportMessa
 
 Gates green. Commit and stop.
 
-## Session G — SendGrid Inbound Parse: emailed replies land in the thread (Opus 5.5)
+## Session G — SendGrid Inbound Parse: emailed replies land in the thread (Opus 5.5) — DONE 2026-11-10 (see "Where things stand"; DNS and the live check wait on Peter)
 
 Peter said yes on 2026-11-10 (it was optional in the plan). Do Session F first: both change the same support files.
 

@@ -400,11 +400,13 @@ export const sendEmail = async ({
   subject,
   text,
   html,
+  replyTo,
 }: {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  replyTo?: { email: string; name?: string } | null;
 }) => {
   const config = useRuntimeConfig();
   const sg = initSendGrid();
@@ -415,6 +417,7 @@ export const sendEmail = async ({
     subject,
     text,
     html: html || text,
+    ...(replyTo?.email ? { replyTo } : {}),
   };
 
   try {

@@ -382,4 +382,5 @@ export const sdkDescriptors = {
   readFolders: (query: any) => ({ op: "readFolders", collection: "directus_folders", query }),
   readAssetArrayBuffer: (id: string) => ({ op: "readAsset", collection: "directus_files", id }),
   readUsers: (query: any) => ({ op: "readUsers", collection: "directus_users", query }),
+  deleteFiles: (keys: string[]) => ({ op: "deleteFiles", collection: "directus_files", keys }),
 };

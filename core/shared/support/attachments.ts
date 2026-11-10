@@ -120,8 +120,11 @@ export function attachmentsNote(count: number): string {
 }
 
 /** A file's marker in directus_files.description while it waits to be attached, and after. */
-export const pendingMarker = (userId: string) => `support-upload:${userId}`;
+export const PENDING_MARKER_PREFIX = "support-upload:";
+export const pendingMarker = (userId: string) => `${PENDING_MARKER_PREFIX}${userId}`;
 export const attachedMarker = (messageId: string) => `support-message:${messageId}`;
+/** An upload no message claimed is deleted after this many days (the daily sweep). */
+export const UNATTACHED_SWEEP_DAYS = 7;
 export const isSupportFileMarker = (description: unknown) => typeof description === "string" && description.startsWith("support-");
 
 /** `Content-Disposition` with a plain-ASCII fallback and the UTF-8 name. */

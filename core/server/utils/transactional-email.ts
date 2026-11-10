@@ -75,9 +75,14 @@ export interface BrandedTransactionalOptions {
    * still makes the plain-text part.
    */
   contentPartial?: { name: string; source: string; vars: PartialVars } | null;
+  /** A Reply-To per recipient, in place of the community's (support's signed reply address). */
+  replyToFor?: ((userId: string) => { email: string; name?: string } | null) | null;
 }
 
 type OrgRow = HoaOrganization & { settings?: BlockSetting | string | null };
+
+/** A per-recipient Reply-To overrides the sender's; none leaves it as it was. */
+const withReplyTo = (replyTo: { email: string; name?: string } | null | undefined) => (replyTo?.email ? { replyTo } : {});
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -274,6 +279,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         html,
         text,
         ...sender,
+        ...withReplyTo(opts.replyToFor?.(u.id)),
         organizationId: opts.organizationId,
       });
       sent++;

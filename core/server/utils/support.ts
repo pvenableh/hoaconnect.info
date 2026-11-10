@@ -23,6 +23,7 @@ import { notifyUsers } from "./notify";
 import { opsUsers } from "./ops-data";
 import { notifyPlatform } from "./platform-notify";
 import { claimSupportAttachments, markAttached } from "./support-attachments";
+import { supportReplyTo } from "./support-reply";
 import { attachmentsNote } from "#core/shared/support/attachments";
 
 // For collections whose nested-field reads the SDK types too narrowly. The
@@ -107,6 +108,11 @@ export async function supportViewerFor(event: H3Event): Promise<SupportViewer> {
   const userId = session?.user?.id;
   if (!userId) throw createError({ statusCode: 401, message: "Authentication required" });
   const actor = await getPlatformActor(event);
+  return supportViewerForUser(userId, opsCan(actor?.role, "support"));
+}
+
+/** The same, for a person known by id: an emailed reply (support-inbound.ts) passes `staff: false`. */
+export async function supportViewerForUser(userId: string, staff: boolean): Promise<SupportViewer> {
   const config = useRuntimeConfig();
   const [admins, accounts] = await Promise.all([
     directus().request(
@@ -128,7 +134,7 @@ export async function supportViewerFor(event: H3Event): Promise<SupportViewer> {
   ]);
   return {
     userId,
-    staff: opsCan(actor?.role, "support"),
+    staff,
     adminOf: new Set((admins ?? []).map((a) => idOf(a.organization)).filter((x): x is string => !!x)),
     accountAdminOf: new Set((accounts ?? []).map((a) => idOf(a.billing_account)).filter((x): x is string => !!x)),
   };
@@ -300,7 +306,11 @@ async function notifyCommunityAdmins(
     item: requestId,
     path: `/support/${requestId}`,
     excludeUserId: msg.excludeUserId ?? null,
-    email: { bodyHtml: `<p>${escapeHtml(msg.message)}</p>`, cta: { label: "View the request", path: `/support/${requestId}` } },
+    email: {
+      bodyHtml: `<p>${escapeHtml(msg.message)}</p>`,
+      cta: { label: "View the request", path: `/support/${requestId}` },
+      replyToFor: (userId) => supportReplyTo(requestId, userId),
+    },
   }).catch((e: any) => console.error("[support] admins not notified:", e?.message ?? e));
 }
 
@@ -389,6 +399,7 @@ async function notifyRequester(req: any, body: string, attachmentCount = 0): Pro
         heading: "HOA Connect replied to your request",
         bodyHtml: `<p><strong>${escapeHtml(req.subject)}</strong></p><p style="white-space:pre-wrap">${escapeHtml(withAttachmentsNote(body, attachmentCount))}</p>`,
         cta: { label: "Reply or view the request", path: `/support/${req.id}` },
+        replyToFor: (userId) => supportReplyTo(req.id, userId),
       },
     }).catch((e: any) => console.error("[support] requester not notified:", e?.message ?? e));
     return;
@@ -400,6 +411,7 @@ async function notifyRequester(req: any, body: string, attachmentCount = 0): Pro
       to: req.requester_email,
       subject: `HOA Connect replied: ${req.subject}`,
       text: `${withAttachmentsNote(body, attachmentCount)}\n\nReply or view the request: ${appUrl()}/support/${req.id}`,
+      replyTo: supportReplyTo(req.id, requester),
     }).catch((e: any) => console.error("[support] requester not emailed:", e?.message ?? e));
   }
 }

@@ -1,7 +1,7 @@
 // HOA Connect's scheduled jobs, as the operator console's health page knows
 // them (docs/plan-operator-console.md §5, Phase 4).
 //
-// Two systems run them (docs/go-live-checklist.md §3): Vercel Cron calls four
+// Two systems run them (docs/go-live-checklist.md §3): Vercel Cron calls six
 // routes; GitHub Actions runs three worker scripts that need the repo. Each
 // records a heartbeat (`ops_job_heartbeats`, one row per job) when it runs, so
 // "when did it last run" has an answer even when a run found nothing to do.
@@ -14,7 +14,8 @@ export type OpsJobKey =
   | "notification-digest"
   | "data-export"
   | "billing-worker"
-  | "rebanding";
+  | "rebanding"
+  | "support-uploads-sweep";
 
 export interface OpsJob {
   key: OpsJobKey;
@@ -33,6 +34,7 @@ export const OPS_JOBS: readonly OpsJob[] = [
   { key: "reminders", label: "Reminders", runner: "vercel", schedule: "5 * * * *", everyMinutes: 60, source: "/api/reminders/run" },
   { key: "ai-notices", label: "AI notices sweep", runner: "vercel", schedule: "10 7 * * *", everyMinutes: 1440, source: "/api/ai/notices/check" },
   { key: "rebanding", label: "Re-banding", runner: "vercel", schedule: "30 9 * * *", everyMinutes: 1440, source: "/api/billing/reband/run" },
+  { key: "support-uploads-sweep", label: "Unattached support uploads", runner: "vercel", schedule: "50 9 * * *", everyMinutes: 1440, source: "/api/support/attachments/sweep" },
   { key: "ai-actions-expire", label: "Stale AI proposals", runner: "vercel", schedule: "40 7 * * 0", everyMinutes: 10080, source: "/api/ai/actions/expire-stale" },
   { key: "notification-digest", label: "Notification digests", runner: "github", schedule: "7 * * * *", everyMinutes: 60, source: ".github/workflows/notification-digest.yml" },
   { key: "data-export", label: "Data exports", runner: "github", schedule: "23 * * * *", everyMinutes: 60, source: ".github/workflows/data-export.yml" },

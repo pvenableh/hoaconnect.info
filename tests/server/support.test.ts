@@ -4,7 +4,7 @@
  * email, internal notes, and the entries HOA Connect raises itself. The real
  * routes on a MemoryDirectus; notifications are spies.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { H3Event } from "h3";
 import { MemoryDirectus } from "./support/memory-directus";
 
@@ -47,6 +47,7 @@ const r = {
   upload: (await import("#core/server/api/support/attachments.post")).default as Handler,
   download: (await import("#core/server/api/support/attachments/[messageId]/[fileId].get")).default as Handler,
   assetProxy: (await import("#core/server/api/directus/assets/[id].get")).default as Handler,
+  inbound: (await import("#core/server/api/support/inbound/[token].post")).default as Handler,
 };
 const attachments = await import("#core/server/utils/support-attachments");
 
@@ -89,6 +90,11 @@ async function fileOp(op: any) {
       return null;
     case "readFolders":
       return db.all("directus_folders", op.query?.filter);
+    case "deleteFiles": {
+      const keep = files.filter((row) => !op.keys.includes(row.id));
+      files.splice(0, files.length, ...keep);
+      return null;
+    }
     case "readAsset": {
       const bytes = h.assets.get(op.id);
       if (!bytes) throw new Error("no asset");
@@ -99,7 +105,7 @@ async function fileOp(op: any) {
 }
 
 const directusRequest = async (op: any) => {
-  if (["uploadFiles", "readFiles", "readFile", "updateFiles", "readFolders", "readAsset"].includes(op.op)) return fileOp(op);
+  if (["uploadFiles", "readFiles", "readFile", "updateFiles", "readFolders", "readAsset", "deleteFiles"].includes(op.op)) return fileOp(op);
   if (op.op === "readUsers") return db.all("directus_users", op.query.filter);
   if (op.op === "readItems") {
     const q = op.query ?? {};
@@ -119,6 +125,8 @@ const directusRequest = async (op: any) => {
     }
     return rows;
   }
+  // Requests have uuid keys in Directus; the emailed-reply address relies on it.
+  if (op.op === "createItem" && op.collection === "support_requests" && !op.data.id) op.data = { ...op.data, id: crypto.randomUUID() };
   if (op.op === "createItem" && !op.data.date_created) op.data = { ...op.data, date_created: new Date(Date.now() + db.table(op.collection).length).toISOString() };
   return db.request(op);
 };
@@ -533,5 +541,242 @@ describe("attachments", () => {
     const a = await upload("owner", "blank-page.png");
     as("admin", ROLE.hoaAdmin);
     await expect(call(r.assetProxy, { params: { id: a.id } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+// ── Replies by email (Session G) ────────────────────────────────────────────
+
+const inbound = await import("#core/server/utils/support-inbound");
+const shared = await import("#core/shared/support/inbound");
+const supportReply = await import("#core/server/utils/support-reply");
+
+describe("replies by email", () => {
+  const TOKEN = "inbound-token-0123456789abcdef";
+  const enc = new TextEncoder();
+  let id: string;
+
+  type Mail = { to: string; from: string; text?: string; html?: string; headers?: string; files?: Array<{ name: string; data: Uint8Array; cid?: boolean }> };
+  const parts = (m: Mail) => {
+    const files = m.files ?? [];
+    const info = Object.fromEntries(files.map((f, i) => [`attachment${i + 1}`, { filename: f.name, type: "application/octet-stream", ...(f.cid ? { "content-id": `ii_${i}` } : {}) }]));
+    return [
+      { name: "headers", data: Buffer.from(m.headers ?? "Message-ID: <a1@mail.test>\nFrom: x\n") },
+      { name: "from", data: Buffer.from(m.from) },
+      { name: "to", data: Buffer.from(m.to) },
+      { name: "envelope", data: Buffer.from(JSON.stringify({ to: [m.to.replace(/^.*<|>.*$/g, "")], from: "bounce@mail.test" })) },
+      { name: "subject", data: Buffer.from("Re: HOA Connect replied") },
+      { name: "text", data: Buffer.from(m.text ?? "") },
+      ...(m.html ? [{ name: "html", data: Buffer.from(m.html) }] : []),
+      { name: "charsets", data: Buffer.from(JSON.stringify({ to: "UTF-8", from: "UTF-8", text: "utf-8", html: "utf-8" })) },
+      { name: "attachments", data: Buffer.from(String(files.length)) },
+      { name: "attachment-info", data: Buffer.from(JSON.stringify(info)) },
+      ...files.map((f, i) => ({ name: `attachment${i + 1}`, filename: f.name, type: "application/octet-stream", data: Buffer.from(f.data) })),
+    ];
+  };
+  const post = (m: Mail, token = TOKEN) => {
+    h.multipart = parts(m);
+    return call(r.inbound, { params: { token } });
+  };
+  const receive = (m: Mail) => inbound.receiveSupportEmail(inbound.parseSendGridInbound(parts(m) as any));
+  /** The Reply-To the last support email gave this person. */
+  const replyAddressFor = (userId: string) => h.notifyUsers.mock.calls.at(-1)![0].email.replyToFor(userId)?.email as string;
+  const messages = () => db.all("support_messages", { request: { _eq: id } });
+  const GMAIL = (reply: string) =>
+    `${reply}\n\nOn Tue, Nov 10, 2026 at 3:04 PM HOA Connect <notifications@hoaconnect.info>\nwrote:\n\n> Fixed: try again now.\n>\n`;
+
+  beforeEach(async () => {
+    process.env.SUPPORT_REPLY_SECRET = "test-reply-secret";
+    process.env.SUPPORT_INBOUND_TOKEN = TOKEN;
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    ({ id } = await open("owner"));
+    as("staff", ROLE.support);
+    await call(r.opsReply, { params: { id }, body: { body: "Fixed: try again now." } });
+    h.notifyPlatform.mockClear();
+  });
+  afterEach(() => {
+    delete process.env.SUPPORT_REPLY_SECRET;
+    delete process.env.SUPPORT_INBOUND_TOKEN;
+  });
+
+  it("support emails carry a Reply-To signed for each recipient, and none while the secret is unset", async () => {
+    const owner = replyAddressFor("u-owner");
+    expect(owner).toMatch(new RegExp(`^support\\+${id}\\.[0-9a-f]{16}@reply\\.hoaconnect\\.info$`));
+    expect(owner.split("@")[0]!.length).toBeLessThanOrEqual(64);
+    expect(replyAddressFor("u-tenant")).not.toBe(owner);
+
+    // The HOA Admins copied on a resident's report get their own.
+    await open("tenant", { subject: "Can't upload" });
+    const copy = h.notifyUsers.mock.calls.at(-1)![0];
+    expect(copy.subject).toBe("A resident reported a problem with the app");
+    expect(copy.email.replyToFor("u-admin").email).toMatch(/^support\+[0-9a-f-]{36}\.[0-9a-f]{16}@reply\.hoaconnect\.info$/);
+
+    // An agency's request is emailed directly, with the same address.
+    as("agent");
+    const { id: acct } = await call(r.create, { body: ask({ organizationId: undefined, billingAccountId: "acc-1", category: "billing" }) });
+    as("staff", ROLE.appAdmin);
+    await call(r.opsReply, { params: { id: acct }, body: { body: "Your card was updated." } });
+    expect(h.sendEmail.mock.calls.at(-1)![0].replyTo).toEqual({ email: expect.stringContaining(`support+${acct}.`), name: "HOA Connect Support" });
+
+    delete process.env.SUPPORT_REPLY_SECRET;
+    expect(replyAddressFor("u-owner")).toBeUndefined();
+    expect(await receive({ to: owner, from: "owner@example.test", text: "hi" })).toEqual({ outcome: "not-configured" });
+  });
+
+  it("a good reply lands in the thread without the quoted email, and reopens a closed request", async () => {
+    const to = replyAddressFor("u-owner");
+    await call(r.opsUpdate, { params: { id }, body: { status: "closed" } });
+    expect(db.one("support_requests", id)!.status).toBe("closed");
+
+    await expect(post({ to: `HOA Connect Support <${to.toUpperCase()}>`, from: '"Owner Person" <Owner@Example.test>', text: GMAIL("Still blank for me.\n\nSent from my iPhone") })).resolves.toEqual({ ok: true });
+    expect(messages().at(-1)).toMatchObject({ author: "u-owner", author_kind: "requester", body: "Still blank for me.", internal: false });
+    expect(db.one("support_requests", id)).toMatchObject({ status: "open", closed_at: null, last_message_by: "requester" });
+    expect(h.notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({ subject: "Re: The dues page is blank", body: "Still blank for me." }));
+  });
+
+  it("an HOA Admin copied on the request replies as the HOA Admin", async () => {
+    const to = replyAddressFor("u-admin");
+    expect(await receive({ to, from: "admin@example.test", text: "Same here on my phone." })).toMatchObject({ outcome: "posted" });
+    expect(messages().at(-1)).toMatchObject({ author: "u-admin", author_kind: "admin" });
+    // Once they're no longer its admin, their old address does nothing.
+    db.table("hoa_members").find((m) => m.id === "m-admin")!.status = "inactive";
+    expect(await receive({ to, from: "admin@example.test", text: "Again" })).toEqual({ outcome: "bad-signature" });
+  });
+
+  it("refuses a bad signature, another sender, an auto-reply and a stranger's request, answering 200 to each", async () => {
+    const to = replyAddressFor("u-owner");
+    const before = messages().length;
+    const forged = to.replace(/\.([0-9a-f]{16})@/, (_m, s: string) => `.${s.slice(0, 15)}${s.endsWith("0") ? "1" : "0"}@`);
+    expect(await receive({ to: forged, from: "owner@example.test", text: "x" })).toEqual({ outcome: "bad-signature" });
+    // The tenant's own address can't be pointed at the owner's request.
+    expect(await receive({ to: to.replace(/\.[0-9a-f]{16}@/, `.${supportReply.supportReplySignature(id, "u-tenant")}@`), from: "tenant@example.test", text: "x" })).toEqual({ outcome: "bad-signature" });
+    expect(await receive({ to, from: "someone-else@example.test", text: "x" })).toEqual({ outcome: "wrong-sender" });
+    expect(await receive({ to, from: "owner@example.test", text: "I'm away", headers: "Auto-Submitted: auto-replied\n" })).toEqual({ outcome: "auto-reply" });
+    expect(await receive({ to: to.replace("reply.hoaconnect.info", "elsewhere.test"), from: "owner@example.test", text: "x" })).toEqual({ outcome: "no-address" });
+    expect(await receive({ to: to.replace(id, crypto.randomUUID()), from: "owner@example.test", text: "x" })).toEqual({ outcome: "unknown-request" });
+    expect(await receive({ to, from: "owner@example.test", text: GMAIL("") })).toEqual({ outcome: "empty" });
+    await expect(post({ to, from: "someone-else@example.test", text: "x" })).resolves.toEqual({ ok: true });
+    expect(messages().length).toBe(before);
+
+    // Not SendGrid (or a misconfiguration): a wrong token is 404, not 200.
+    await expect(post({ to, from: "owner@example.test", text: "x" }, "wrong-token-0123456789abcd")).rejects.toMatchObject({ statusCode: 404 });
+    delete process.env.SUPPORT_INBOUND_TOKEN;
+    await expect(post({ to, from: "owner@example.test", text: "x" }, "")).rejects.toMatchObject({ statusCode: 404 });
+    expect(messages().length).toBe(before);
+  });
+
+  it("SendGrid posting the same email twice adds one message", async () => {
+    const to = replyAddressFor("u-owner");
+    const mail = { to, from: "owner@example.test", text: GMAIL("It works now, thanks."), files: [{ name: "proof.png", data: PNG }] };
+    await post(mail);
+    await post(mail);
+    expect(messages().filter((m) => m.body === "It works now, thanks.")).toHaveLength(1);
+    expect(h.notifyPlatform).toHaveBeenCalledTimes(1);
+    // Nothing stored for the repeat either.
+    expect(db.all("directus_files", { title: { _eq: "proof.png" } })).toHaveLength(1);
+  });
+
+  it("emailed attachments follow Session F's rules; what's left off is named on the message", async () => {
+    db.seed("directus_folders", [{ id: "fold-support", name: "Support attachments", parent: null }]);
+    const to = replyAddressFor("u-owner");
+    const files = [
+      { name: "logo.png", data: PNG, cid: true }, // a signature logo: skipped quietly
+      { name: "screen.png", data: PNG },
+      { name: "steps.pdf", data: PDF },
+      { name: "tool.zip", data: new Uint8Array([0x50, 0x4b, 3, 4]) },
+      { name: "fake.png", data: enc.encode("<html>") },
+      ...Array.from({ length: 4 }, (_, i) => ({ name: `more-${i}.png`, data: PNG })),
+    ];
+    expect(await receive({ to, from: "owner@example.test", text: "Screens attached.", files })).toMatchObject({ outcome: "posted" });
+    const last = messages().at(-1)!;
+    expect(last.attachments.map((a: any) => a.name)).toEqual(["screen.png", "steps.pdf", "more-0.png", "more-1.png", "more-2.png"]);
+    expect(last.body).toMatch(/^Screens attached\.\n\n\(Not attached from the email: tool\.zip: only images.*fake\.png isn't the kind of file its name says\. more-3\.png: only 5 files fit on one message\.\)$/s);
+    for (const a of last.attachments) expect(db.one("directus_files", a.id)).toMatchObject({ description: `support-message:${last.id}`, folder: "fold-support" });
+    expect(db.all("directus_files", { title: { _eq: "logo.png" } })).toHaveLength(0);
+    // A file alone is a reply.
+    expect(await receive({ to, from: "owner@example.test", text: GMAIL(""), files: [{ name: "again.pdf", data: PDF }] })).toMatchObject({ outcome: "posted" });
+  });
+
+  it("cuts the quoted history the common mail apps add", () => {
+    const strip = shared.stripQuotedReply;
+    expect(strip("Thanks!\n\nOn Tue, Nov 10, 2026, 3:04 PM HOA Connect <n@hoaconnect.info> wrote:\n> old")).toBe("Thanks!");
+    expect(strip(GMAIL("Two lines\nof reply"))).toBe("Two lines\nof reply");
+    expect(strip("Done.\r\n\r\nFrom: HOA Connect <n@hoaconnect.info>\r\nSent: Tuesday, November 10, 2026 3:04 PM\r\nTo: Owner\r\nSubject: x")).toBe("Done.");
+    expect(strip("Done.\n\n-----Original Message-----\nFrom: x")).toBe("Done.");
+    expect(strip("Done.\n________________________________\nFrom: x")).toBe("Done.");
+    expect(strip("Yes.\n> quoted\nNo.")).toBe("Yes.\nNo.");
+    expect(strip("Body\n-- \nJane Owner\n555-0100")).toBe("Body");
+    expect(strip("Body\n\nGet Outlook for iOS")).toBe("Body");
+    expect(shared.stripQuotedReply(shared.htmlToText('<div>Hi &amp; thanks<br>Jane</div><div class="gmail_quote">On … wrote:<blockquote>old</blockquote></div>'))).toBe("Hi & thanks\nJane");
+    expect(shared.emailAddressOf('"Jane, Owner" <Jane@Example.test>')).toBe("jane@example.test");
+    expect(shared.isAutoReply("Auto-Submitted: no\n")).toBe(false);
+    expect(shared.isAutoReply("Precedence: bulk\n")).toBe(true);
+  });
+});
+
+// ── Sweeping uploads no message claimed ─────────────────────────────────────
+
+const sweep = (await import("#core/server/api/support/attachments/sweep")).default as Handler;
+const { _resetJobHeartbeat } = await import("#core/server/utils/job-heartbeat");
+const { OPS_JOBS } = await import("#core/shared/ops/jobs");
+const vercelCrons = (await import("../../vercel.json")).default.crons as Array<{ path: string; schedule: string }>;
+
+describe("the unattached-upload sweep", () => {
+  const days = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+  const file = (id: string, description: string, folder: string | null, age: number) => ({ id, title: `${id}.png`, description, folder, uploaded_on: days(age) });
+  const left = () => db.table("directus_files").map((f) => f.id).sort();
+
+  beforeEach(() => {
+    _resetJobHeartbeat();
+    db.seed("directus_folders", [{ id: "fold-support", name: "Support attachments", parent: null }]);
+    db.seed("directus_files", [
+      file("stale", "support-upload:u-owner", "fold-support", 8),
+      file("stale-2", "support-upload:u-staff", "fold-support", 30),
+      file("fresh", "support-upload:u-owner", "fold-support", 6),
+      file("attached-old", "support-message:msg-1", "fold-support", 90),
+      file("outside", "support-upload:u-owner", null, 30),
+      file("other-folder", "support-upload:u-owner", "fold-photos", 30),
+      file("community-photo", "Pool opening", "fold-support", 30),
+      file("no-description", null as any, "fold-support", 30),
+    ]);
+  });
+
+  it("deletes only the folder's uploads still waiting after 7 days; a dry run deletes nothing", async () => {
+    const all = left();
+    as("staff", ROLE.appAdmin);
+    expect(await call(sweep, { query: { dry: "1" } })).toMatchObject({ dry: true, folder: true, found: 2, deleted: 0 });
+    expect(left()).toEqual(all);
+    expect(db.all("ops_job_heartbeats", { id: { _eq: "support-uploads-sweep" } })).toHaveLength(0);
+
+    expect(await call(sweep)).toMatchObject({ dry: false, found: 2, deleted: 2 });
+    expect(left()).toEqual(["attached-old", "community-photo", "fresh", "no-description", "other-folder", "outside"]);
+    expect(db.one("ops_job_heartbeats", "support-uploads-sweep")).toMatchObject({ last_status: "ok", last_summary: { found: 2, deleted: 2, folder: true } });
+    expect(await call(sweep)).toMatchObject({ found: 0, deleted: 0 });
+  });
+
+  it("never touches attached files, even if a filter let one through, and does nothing without the folder", async () => {
+    // A Directus that ignored the filter: the row checks still hold.
+    vi.stubGlobal("getTypedDirectus", () => ({
+      request: async (op: any) => (op.op === "readFiles" ? db.table("directus_files").map((f) => ({ ...f })) : directusRequest(op)),
+    }));
+    expect(await attachments.sweepUnattachedSupportUploads({ dry: false })).toMatchObject({ found: 2, deleted: 2 });
+    expect(left()).toContain("attached-old");
+    expect(left()).toContain("outside");
+
+    seed();
+    attachments._resetSupportFolderCache();
+    db.seed("directus_files", [file("stale", "support-upload:u-owner", null, 30)]);
+    expect(await attachments.sweepUnattachedSupportUploads({ dry: false })).toMatchObject({ folder: false, found: 0, deleted: 0 });
+    expect(left()).toEqual(["stale"]);
+  });
+
+  it("refuses a stray caller, and is a scheduled job the health page knows", async () => {
+    as("admin", ROLE.hoaAdmin);
+    await expect(call(sweep)).rejects.toMatchObject({ statusCode: 403 });
+    as(null);
+    await expect(call(sweep)).rejects.toMatchObject({ statusCode: 401 });
+    expect(db.table("directus_files")).toHaveLength(8);
+
+    for (const job of OPS_JOBS.filter((j) => j.runner === "vercel")) expect(vercelCrons).toContainEqual({ path: job.source, schedule: job.schedule });
+    expect(vercelCrons).toHaveLength(OPS_JOBS.filter((j) => j.runner === "vercel").length);
   });
 });

@@ -74,6 +74,8 @@ export interface NotifyEmail {
   subject?: string;
   /** A content partial for the body (the reminder templates); `bodyHtml` then makes the text part. */
   contentPartial?: { name: string; source: string; vars: PartialVars } | null;
+  /** A Reply-To per recipient, in place of the community's (support's signed reply address). */
+  replyToFor?: ((userId: string) => { email: string; name?: string } | null) | null;
 }
 
 export interface NotifyOptions {
@@ -237,6 +239,7 @@ export async function notifyUsers(
         category: opts.category,
         essential: opts.essential === true,
         contentPartial: opts.email.contentPartial ?? null,
+        replyToFor: opts.email.replyToFor ?? null,
       }).catch((e) => console.warn("[notify] email twin failed", (e as Error).message));
       email = allowedEmail.length;
     }

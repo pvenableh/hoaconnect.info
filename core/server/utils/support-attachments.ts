@@ -11,7 +11,7 @@
 // Downloads go through GET /api/support/attachments/:messageId/:fileId, which
 // checks the viewer may see that message. The general asset proxy refuses these
 // files outright (`isSupportFileMarker`).
-import { readAssetArrayBuffer, readFiles, readFolders, updateFiles, uploadFiles } from "@directus/sdk";
+import { deleteFiles, readAssetArrayBuffer, readFiles, readFolders, updateFiles, uploadFiles } from "@directus/sdk";
 import {
   ATTACHMENT_CLAIM_HOURS,
   ATTACHMENT_MAX_BYTES,
@@ -20,7 +20,9 @@ import {
   attachmentProblem,
   attachmentType,
   bytesMatchType,
+  PENDING_MARKER_PREFIX,
   pendingMarker,
+  UNATTACHED_SWEEP_DAYS,
   type SupportAttachment,
 } from "#core/shared/support/attachments";
 
@@ -137,4 +139,55 @@ export function attachmentLinks(messageId: string, m: { attachments?: unknown })
 export async function readSupportAttachmentBytes(fileId: string): Promise<Uint8Array> {
   const buf = (await getTypedDirectus().request((readAssetArrayBuffer as any)(fileId))) as ArrayBuffer;
   return new Uint8Array(buf);
+}
+
+export interface SupportUploadSweep {
+  dry: boolean;
+  /** Uploads older than this, never attached, are deleted. */
+  cutoff: string;
+  /** False before the folder exists: nothing is swept then. */
+  folder: boolean;
+  found: number;
+  deleted: number;
+}
+
+/**
+ * Delete uploads no message ever claimed, once they're over a week old (the
+ * daily `support-uploads-sweep` job). Only files in the "Support attachments"
+ * folder whose description is still `support-upload:<user>`: an attached file
+ * (`support-message:<message>`) and anything outside the folder are never
+ * touched. Each row is checked again here, not just by the filter.
+ */
+export async function sweepUnattachedSupportUploads(opts: { dry: boolean; now?: Date }): Promise<SupportUploadSweep> {
+  const now = opts.now ?? new Date();
+  const cutoff = new Date(now.getTime() - UNATTACHED_SWEEP_DAYS * 86_400_000).toISOString();
+  const folder = await supportFolderId();
+  if (!folder) return { dry: opts.dry, cutoff, folder: false, found: 0, deleted: 0 };
+  const rows = (await getTypedDirectus().request(
+    (readFiles as any)({
+      filter: { folder: { _eq: folder }, description: { _starts_with: PENDING_MARKER_PREFIX }, uploaded_on: { _lt: cutoff } },
+      fields: ["id", "folder", "description", "uploaded_on"],
+      limit: 1000,
+    })
+  )) as Array<{ id: string; folder?: unknown; description?: unknown; uploaded_on?: string | null }>;
+  const folderOf = (f: unknown) => (f && typeof f === "object" ? (f as { id?: string }).id : f);
+  const ids = (rows ?? [])
+    .filter(
+      (r) =>
+        folderOf(r.folder) === folder &&
+        typeof r.description === "string" &&
+        r.description.startsWith(PENDING_MARKER_PREFIX) &&
+        !!r.uploaded_on &&
+        Date.parse(r.uploaded_on) < Date.parse(cutoff)
+    )
+    .map((r) => r.id);
+  let deleted = 0;
+  if (!opts.dry) {
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      await getTypedDirectus().request((deleteFiles as any)(batch));
+      deleted += batch.length;
+    }
+  }
+  return { dry: opts.dry, cutoff, folder: true, found: ids.length, deleted };
 }

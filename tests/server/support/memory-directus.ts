@@ -42,6 +42,8 @@ function matchOp(value: any, op: string, arg: any): boolean {
       return v != null && v <= arg;
     case "_null":
       return arg ? v == null : v != null;
+    case "_starts_with":
+      return typeof v === "string" && v.startsWith(String(arg));
     case "_nnull":
       return arg ? v != null : v == null;
     case "_empty":
