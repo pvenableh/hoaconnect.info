@@ -25,6 +25,7 @@ const h = vi.hoisted(() => ({
   rateCalls: [] as unknown[][],
   /** Break ops_audit_log: reads fail, writes fail, or reads see nothing (another instance's row). */
   auditFault: null as null | "read" | "write" | "hide-reads",
+  sendWelcome: null as any,
 }));
 
 vi.mock("@directus/sdk", async () => (await import("./support/email-queue-memory")).sdkDescriptors);
@@ -32,6 +33,7 @@ vi.mock("#core/server/utils/stripe", () => ({
   getStripe: () => h.stripe,
   isStripeLiveMode: () => false,
 }));
+vi.mock("#core/server/utils/sendgrid", () => ({ sendWelcomeEmail: (...a: unknown[]) => h.sendWelcome(...a) }));
 // The real limiter keeps its buckets for the life of the process; here each test starts fresh.
 vi.mock("#core/server/utils/rate-limit", () => ({
   rateLimit: (...args: unknown[]) => {
@@ -63,6 +65,10 @@ const actions = {
   portal: (await import("#core/server/api/ops/communities/[id]/portal.post")).default as Handler,
   codeCreate: (await import("#core/server/api/ops/codes.post")).default as Handler,
   codeDeactivate: (await import("#core/server/api/ops/codes/[id]/deactivate.post")).default as Handler,
+  resendWelcome: (await import("#core/server/api/ops/communities/[id]/resend-welcome.post")).default as Handler,
+  receipt: (await import("#core/server/api/ops/charges/[id]/receipt.post")).default as Handler,
+  contact: (await import("#core/server/api/ops/communities/[id]/billing-contact.post")).default as Handler,
+  viewAs: (await import("#core/server/api/ops/communities/[id]/view-as.post")).default as Handler,
 };
 
 const event = {} as H3Event;
@@ -134,6 +140,7 @@ let EVENTS: any[];
 let CHARGES: any[];
 let PROMOS: any[];
 let COUPONS: any[];
+let CUSTOMERS: any[];
 
 function seed() {
   db = new MemoryDirectus({ ops_audit_log: ["idempotency_key"] });
@@ -260,6 +267,8 @@ function seed() {
   ];
 
   COUPONS = [];
+  CUSTOMERS = [{ id: "cus_sub_a", object: "customer", email: "billing@harbor.test", name: "Harbor Court" }];
+  h.sendWelcome = vi.fn(async () => undefined);
   // Writes: the same idempotencyKey gets the first answer back, as Stripe does.
   const answered = new Map<string, any>();
   let seq = 0;
@@ -320,6 +329,11 @@ function seed() {
     charges: {
       list: pager(() => CHARGES, (c, p) => !p.customer || c.customer === p.customer),
       retrieve: vi.fn(find(() => CHARGES, "charge")),
+      update: keyed((id: string, params: any) => Object.assign(CHARGES.find((c) => c.id === id)!, params)),
+    },
+    customers: {
+      retrieve: vi.fn(find(() => CUSTOMERS, "customer")),
+      update: keyed((id: string, params: any) => Object.assign(CUSTOMERS.find((c) => c.id === id)!, params)),
     },
     invoices: { list: vi.fn(async () => ({ data: [{ id: "in_a", number: "A-1", created: unix(-1), total: 24900, amount_paid: 24900, currency: "usd", status: "paid", hosted_invoice_url: "https://invoice.test/a" }], has_more: false })) },
     promotionCodes: {
@@ -353,6 +367,8 @@ const stripeWrites = () =>
     h.stripe.promotionCodes.create,
     h.stripe.promotionCodes.update,
     h.stripe.billingPortal.sessions.create,
+    h.stripe.charges.update,
+    h.stripe.customers.update,
   ].reduce((n, fn) => n + fn.mock.calls.length, 0);
 
 function stripeError(code: string, message: string) {
@@ -724,6 +740,9 @@ const ACTION_CALLS: Array<[string, Handler, Record<string, string>, () => Record
   ["open the portal", actions.portal, { id: "harbor" }, () => submit()],
   ["create a code", actions.codeCreate, {}, () => submit({ code: "FALL25", percentOff: 25, duration: "once" })],
   ["deactivate a code", actions.codeDeactivate, { id: "promo_spring" }, () => submit()],
+  ["re-send the welcome email", actions.resendWelcome, { id: "harbor" }, () => submit({ memberId: "m-alice" })],
+  ["email a receipt", actions.receipt, { id: "ch_sub" }, () => submit()],
+  ["change the billing contact", actions.contact, { id: "harbor" }, () => submit({ email: "treasurer@harbor.test" })],
 ];
 
 /** Platform Support may read the console but never move money. */
@@ -1148,5 +1167,85 @@ describe("live-mode objects on a test-mode server", () => {
     });
     expect(stripeWrites()).toBe(0);
     expect(auditRows()).toEqual([]);
+  });
+});
+
+describe("re-send welcome, email a receipt, change the billing contact", () => {
+  it("re-sends the welcome email to one of the community's HOA Admins only", async () => {
+    await call(actions.resendWelcome, { id: "harbor" }, submit({ memberId: "m-alice" }));
+    expect(h.sendWelcome).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "alice@harbor.test", firstName: "Alice", organizationName: "Harbor Court", loginUrl: "https://app.test/dashboard" })
+    );
+    await expect(call(actions.resendWelcome, { id: "harbor" }, submit({ memberId: "m-rita" }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call(actions.resendWelcome, { id: "agency1" }, submit({ memberId: "m-alice" }))).rejects.toMatchObject({ statusCode: 404 });
+    expect(h.sendWelcome).toHaveBeenCalledTimes(1);
+  });
+
+  it("has Stripe email a receipt to the billing contact, or to an address given", async () => {
+    const body = submit();
+    const res = await call(actions.receipt, { id: "ch_sub" }, body);
+    expect(h.stripe.charges.update).toHaveBeenCalledWith("ch_sub", { receipt_email: "billing@harbor.test" }, { idempotencyKey: `ops:send_receipt:ch_sub:${body.requestId}` });
+    expect(res.result).toEqual({ sentTo: "billing@harbor.test" });
+    await call(actions.receipt, { id: "ch_sub" }, submit({ email: "Treasurer@Harbor.test" }));
+    expect(h.stripe.charges.update).toHaveBeenLastCalledWith("ch_sub", { receipt_email: "treasurer@harbor.test" }, expect.anything());
+    await expect(call(actions.receipt, { id: "ch_dues" }, submit())).rejects.toMatchObject({ statusCode: 409 });
+    await expect(call(actions.receipt, { id: "ch_fail" }, submit())).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("changes the Stripe customer's email, records before and after, and changes nothing when it's the same", async () => {
+    await call(actions.contact, { id: "harbor" }, submit({ email: "treasurer@harbor.test", name: "Harbor Treasurer" }));
+    expect(CUSTOMERS[0]).toMatchObject({ email: "treasurer@harbor.test", name: "Harbor Treasurer" });
+    expect(auditRows()[0]).toMatchObject({
+      action: "billing_contact",
+      before: { email: "billing@harbor.test", name: "Harbor Court" },
+      after: { email: "treasurer@harbor.test", name: "Harbor Treasurer" },
+    });
+    expect(await call(actions.contact, { id: "harbor" }, submit({ email: "treasurer@harbor.test" }))).toMatchObject({ unchanged: true });
+    await expect(call(actions.contact, { id: "harbor" }, submit({ email: "not-an-email" }))).rejects.toMatchObject({ statusCode: 400 });
+    await expect(call(actions.contact, { id: "soon" }, submit({ email: "a@b.test" }))).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("shows the billing contact on the community page", async () => {
+    h.params = { id: "harbor" };
+    expect((await routes.community(event)).billing.customer).toEqual({ email: "billing@harbor.test", name: "Harbor Court" });
+  });
+});
+
+describe("POST /api/ops/communities/:id/view-as", () => {
+  it("is for staff who work support, Platform Support included, and is logged", async () => {
+    for (const role of [ROLE.appAdmin, ROLE.support]) {
+      as(role);
+      await expect(call(actions.viewAs, { id: "harbor" }, submit({ role: "tenant" }))).resolves.toMatchObject({ ok: true });
+    }
+    expect(auditRows().map((r) => [r.action, r.actor_role, r.summary])).toEqual([
+      ["view_as", "app_admin", "Previewed Harbor Court as a tenant."],
+      ["view_as", "platform_support", "Previewed Harbor Court as a tenant."],
+    ]);
+    for (const [who, setup] of OUTSIDERS) {
+      setup();
+      await expect(call(actions.viewAs, { id: "harbor" }, submit({ role: "tenant" })), who).rejects.toMatchObject({ statusCode: 403 });
+    }
+    expect(stripeCalls()).toBe(0);
+  });
+
+  it("previews what each role reaches, from the app's own rules, without naming anyone", async () => {
+    const tenant = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "tenant" }))).result;
+    const can = (p: any, key: string) => p.preview.capabilities.find((c: any) => c.key === key).allowed;
+    expect(can(tenant, "communications:send")).toBe(false);
+    expect(can(tenant, "documents:read")).toBe(true);
+    expect(tenant.preview.support).toEqual({ askCommunity: true, contactHoaConnect: ["bug"] });
+    expect(tenant.preview.requests).toEqual({ ownOnly: true, communityInbox: false });
+    expect(tenant.holders).toBe(0); // no seat is marked tenant in the seed; Tom's tenancy is per unit
+
+    const admin = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "hoa_admin" }))).result;
+    expect(admin.preview.capabilities.every((c: any) => c.allowed)).toBe(true);
+    expect(admin.holders).toBe(1);
+
+    const pm = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "property_manager", grants: ["inquiries"] }))).result;
+    expect(pm.preview.capabilities.find((c: any) => c.key === "communications:send")).toMatchObject({ allowed: false });
+    expect(pm.preview.requests.communityInbox).toBe(true);
+    expect(pm.preview.support.contactHoaConnect).toEqual([]);
+
+    expect(JSON.stringify([tenant, admin, pm])).not.toMatch(/Alice|Rita|Tom|@harbor\.test/);
   });
 });

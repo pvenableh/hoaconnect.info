@@ -5,8 +5,9 @@
 // charge, cancel/resume/portal on the billing card, trial and free on the
 // status line. Each asks for a reason and a confirmation, and is logged.
 import { TRIAL_MAX_DAYS } from "#core/shared/ops/actions";
+import { PREVIEW_ROLES } from "#core/shared/ops/view-as";
 import { BILLING_ROLE, BOARD_TITLE, money, relativeDays, shortDate } from "#core/shared/ops/format";
-import { grantLabel } from "#core/shared/transition/grants";
+import { MANAGER_GRANT_KEYS, grantLabel } from "#core/shared/transition/grants";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
 
@@ -39,7 +40,7 @@ const canTrial = computed(
 /** Whose bill an action touches: the agency's, for an agency-billed community. */
 const whose = computed(() => (c.value?.billingAccount ? `${c.value.billingAccount.name}'s` : `${c.value?.name}'s`));
 
-type Action = "cancel" | "resume" | "trial" | "comp" | "portal" | "reband";
+type Action = "cancel" | "resume" | "trial" | "comp" | "portal" | "reband" | "contact" | "welcome" | "receipt" | "viewas";
 const action = ref<Action | null>(null);
 const actionOpen = computed({
   get: () => !!action.value,
@@ -49,6 +50,17 @@ const actionOpen = computed({
 });
 const cancelWhen = ref<"period_end" | "now">("period_end");
 const bandSlug = ref("");
+// Billing contact, welcome email, receipt, and "view as" (plan §5).
+const canSupport = computed(() => canOps("support"));
+const contactEmail = ref("");
+const contactName = ref("");
+const welcomeTo = ref<any>(null);
+const receiptCharge = ref<any>(null);
+const receiptEmail = ref("");
+const viewRole = ref("tenant");
+const viewTitle = ref("president");
+const viewGrants = ref<string[]>(["inquiries"]);
+const preview = ref<any>(null);
 const bandChoices = computed(() => (billing.value?.bands ?? []).filter((b: any) => !b.contactOnly));
 const currentBand = computed(() => sub.value?.bandSlug ?? billing.value?.band?.slug ?? null);
 const trialEndsOn = ref("");
@@ -58,6 +70,11 @@ const trialMax = computed(() => dayAfter(new Date().toISOString(), TRIAL_MAX_DAY
 
 function start(next: Action) {
   if (next === "cancel") cancelWhen.value = "period_end";
+  if (next === "contact") {
+    contactEmail.value = billing.value?.customer?.email ?? "";
+    contactName.value = billing.value?.customer?.name ?? "";
+  }
+  if (next === "receipt") receiptEmail.value = billing.value?.customer?.email ?? "";
   if (next === "reband") bandSlug.value = billing.value?.bandForUnits?.slug && billing.value.bandForUnits.slug !== currentBand.value ? billing.value.bandForUnits.slug : "";
   if (next === "trial") {
     const from = c.value?.trialEndsAt && c.value.trialEndsAt > new Date().toISOString() ? c.value.trialEndsAt : new Date().toISOString();
@@ -65,6 +82,15 @@ function start(next: Action) {
     trialEndsOn.value = proposed > trialMax.value ? trialMax.value : proposed;
   }
   action.value = next;
+}
+
+function startWelcome(p: any) {
+  welcomeTo.value = p;
+  start("welcome");
+}
+function startReceipt(ch: any) {
+  receiptCharge.value = ch;
+  start("receipt");
 }
 
 const refundOpen = ref(false);
@@ -157,6 +183,53 @@ const actionProps = computed(() => {
         }),
         doneMessage: () => "Band changed from the next renewal.",
       };
+    case "contact":
+      return {
+        title: "Change the billing contact",
+        description: c.value?.billingAccount
+          ? `This is ${c.value.billingAccount.name}'s Stripe customer; it covers every community on that account.`
+          : "Stripe sends invoices and receipts here.",
+        endpoint: `/api/ops/communities/${id.value}/billing-contact`,
+        submitLabel: "Save contact",
+        body: () => ({ email: contactEmail.value.trim(), ...(contactName.value.trim() ? { name: contactName.value.trim() } : {}) }),
+        problem: () => (/^\S+@\S+\.\S+$/.test(contactEmail.value.trim()) ? null : "Enter an email address."),
+        confirmation: () => ({ title: `Send ${whose.value} invoices to ${contactEmail.value.trim()}?`, body: "From the next invoice on." }),
+        doneMessage: () => "Billing contact changed.",
+      };
+    case "welcome":
+      return {
+        title: "Re-send the welcome email",
+        description: `To ${welcomeTo.value?.name || "this HOA Admin"}${welcomeTo.value?.email ? ` (${welcomeTo.value.email})` : ""}.`,
+        endpoint: `/api/ops/communities/${id.value}/resend-welcome`,
+        submitLabel: "Send",
+        body: () => ({ memberId: welcomeTo.value?.id }),
+        confirmation: () => ({ title: `Email ${welcomeTo.value?.name || "them"} the welcome again?` }),
+        doneMessage: (res: any) => `Sent to ${res?.result?.sentTo ?? "them"}.`,
+      };
+    case "receipt":
+      return {
+        title: "Email a receipt",
+        description: receiptCharge.value ? `For the ${money(receiptCharge.value.amount, receiptCharge.value.currency)} charge on ${shortDate(receiptCharge.value.created)}. Stripe sends it (live mode only).` : undefined,
+        endpoint: `/api/ops/charges/${receiptCharge.value?.id}/receipt`,
+        submitLabel: "Send receipt",
+        body: () => (receiptEmail.value.trim() ? { email: receiptEmail.value.trim() } : {}),
+        confirmation: () => ({ title: `Email the receipt to ${receiptEmail.value.trim() || "the billing contact"}?` }),
+        doneMessage: (res: any) => `Receipt sent to ${res?.result?.sentTo ?? "them"}.`,
+      };
+    case "viewas":
+      return {
+        title: "View as a role",
+        description: "A preview of what that role can reach here, from the rules the app enforces. Nothing is changed; the preview is logged.",
+        endpoint: `/api/ops/communities/${id.value}/view-as`,
+        submitLabel: "Preview",
+        body: () => ({
+          role: viewRole.value,
+          ...(viewRole.value === "board" ? { boardTitle: viewTitle.value } : {}),
+          ...(viewRole.value === "property_manager" ? { grants: viewGrants.value } : {}),
+        }),
+        confirmation: () => ({ title: `Preview ${name} as a ${PREVIEW_ROLES.find((r) => r.value === viewRole.value)?.label.toLowerCase()}?`, confirmLabel: "Preview" }),
+        doneMessage: () => "Preview ready.",
+      };
     case "portal":
       return {
         title: "Open the billing portal",
@@ -173,6 +246,10 @@ const actionProps = computed(() => {
 
 // The dialog has closed (so `action` is already null) by the time this runs.
 async function onDone(res: any) {
+  if (res?.action === "view_as") {
+    preview.value = res.result ?? null;
+    return;
+  }
   if (res?.action === "portal_open") {
     if (res.result?.url) await navigateTo(res.result.url, { external: true });
     else useConfirm().alert({ title: "That portal session was already opened", body: "Open the portal again for a new link." });
@@ -202,7 +279,8 @@ async function onDone(res: any) {
         <span v-if="c.inGrace" class="type-meta text-info">Transition grace until {{ shortDate(c.graceEndsAt) }}</span>
         <span v-if="c.billingAccount" class="type-meta t-text-muted">Billed through {{ c.billingAccount.name }}</span>
         <span class="type-meta t-text-muted">Signed up {{ shortDate(c.signupAt) }}</span>
-        <span v-if="canAct && !c.billingAccount" class="ml-auto flex flex-wrap gap-2">
+        <Button v-if="canSupport" variant="ghost" size="sm" class="ml-auto" @click="start('viewas')">View as…</Button>
+        <span v-if="canAct && !c.billingAccount" class="flex flex-wrap gap-2">
           <Button v-if="canTrial" variant="outline" size="sm" @click="start('trial')">Extend trial</Button>
           <Button variant="outline" size="sm" @click="start('comp')">{{ isFree ? "Remove free" : "Mark free" }}</Button>
         </span>
@@ -237,7 +315,10 @@ async function onDone(res: any) {
                 <span class="block truncate type-body t-text">{{ p.name || "—" }}<span v-if="p.status === 'pending'" class="ml-1 type-micro text-warning">invited</span></span>
                 <a v-if="p.email" :href="`mailto:${p.email}`" class="block truncate type-micro t-text-muted hover:underline">{{ p.email }}</a>
               </span>
-              <span class="shrink-0 type-micro t-text-muted">signed in {{ relativeDays(p.lastSignInAt) }}</span>
+              <span class="flex shrink-0 items-center gap-2">
+                <span class="type-micro t-text-muted">signed in {{ relativeDays(p.lastSignInAt) }}</span>
+                <Button v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="startWelcome(p)">Re-send welcome</Button>
+              </span>
             </li>
             <li v-if="!people.hoaAdmins.length" class="py-2 type-meta text-warning">This community has no HOA Admin.</li>
           </ul>
@@ -322,6 +403,7 @@ async function onDone(res: any) {
             </template>
           </dl>
           <p v-if="!billing.subscription && !billing.error" class="mt-2 type-meta t-text-muted">No Stripe subscription on record.</p>
+          <p v-if="billing.customer?.email" class="mt-2 type-micro t-text-muted">Invoices go to {{ billing.customer.email }}</p>
           <p v-if="bandMismatch" class="mt-2 type-micro text-warning">
             Its units now fall into a different band than the one it pays for.
           </p>
@@ -330,6 +412,7 @@ async function onDone(res: any) {
             <Button v-if="sub?.cancelAtPeriodEnd && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('resume')">Resume</Button>
             <Button v-if="sub && sub.status !== 'canceled' && !c.billingAccount && bandChoices.length" variant="outline" size="sm" @click="start('reband')">Change band…</Button>
             <Button v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('portal')">Billing portal</Button>
+            <Button v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('contact')">Billing contact…</Button>
           </div>
           <p v-else-if="canWrite && billing.otherMode" class="mt-2 type-micro t-text-muted">Actions are off for objects in the other Stripe mode.</p>
 
@@ -352,6 +435,7 @@ async function onDone(res: any) {
                 <span class="tabular-nums t-text-secondary">{{ money(ch.amount, ch.currency) }}</span>
                 <OpsStatusPill :status="ch.refunded ? 'refunded' : ch.amountRefunded ? 'partially_refunded' : ch.status" />
                 <Button v-if="canAct && ch.refundable" variant="ghost" size="sm" class="h-7 px-2" @click="startRefund(ch)">Refund</Button>
+                <Button v-if="canAct && ch.status === 'succeeded'" variant="ghost" size="sm" class="h-7 px-2" @click="startReceipt(ch)">Receipt</Button>
               </span>
               <span v-if="ch.amountRefunded" class="block type-micro text-warning">{{ money(ch.amountRefunded, ch.currency) }} refunded</span>
               <span v-if="ch.failureMessage" class="block type-micro text-destructive">{{ ch.failureMessage }}</span>
@@ -383,6 +467,40 @@ async function onDone(res: any) {
         <p v-else class="mt-1 type-micro t-text-muted">Nothing logged.</p>
       </section>
 
+      <section v-if="preview" class="ios-card mt-4 p-4" data-ops-preview>
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <h2 class="type-card t-text">Viewing as {{ PREVIEW_ROLES.find((r) => r.value === preview.preview.role)?.label.toLowerCase() }}</h2>
+            <p class="type-micro t-text-muted">
+              What this role can reach in {{ preview.community.name }}, from the app's rules.
+              <template v-if="preview.holders != null"> {{ preview.holders }} {{ preview.holders === 1 ? "person holds" : "people hold" }} it here.</template>
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" @click="preview = null">Close</Button>
+        </div>
+        <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ul class="space-y-1">
+            <li v-for="cap in preview.preview.capabilities" :key="cap.key" class="flex items-center gap-2 type-meta">
+              <Icon :name="cap.allowed ? 'lucide:check' : 'lucide:x'" :class="['size-4 shrink-0', cap.allowed ? 'text-success' : 't-text-muted']" />
+              <span :class="cap.allowed ? 't-text' : 't-text-muted'">{{ cap.label }}</span>
+              <span v-if="cap.note" class="type-micro t-text-muted">({{ cap.note }})</span>
+            </li>
+          </ul>
+          <dl class="grid grid-cols-2 gap-x-3 gap-y-1.5 type-meta">
+            <dt class="t-text-muted">Polls</dt>
+            <dd class="t-text">{{ preview.preview.polls.manage ? "Run them" : preview.preview.polls.vote ? "Read and vote" : preview.preview.polls.read ? "Read" : "None" }}</dd>
+            <dt class="t-text-muted">Community ledger</dt>
+            <dd class="t-text">{{ preview.preview.ledger.read ? preview.preview.ledger.tiers.join(", ") : "None" }}</dd>
+            <dt class="t-text-muted">Requests</dt>
+            <dd class="t-text">{{ preview.preview.requests.communityInbox ? "The community inbox" : "Their own only" }}</dd>
+            <dt class="t-text-muted">Ask my community</dt>
+            <dd class="t-text">{{ preview.preview.support.askCommunity ? "Yes" : "No" }}</dd>
+            <dt class="t-text-muted">Contact HOA Connect</dt>
+            <dd class="t-text">{{ preview.preview.support.contactHoaConnect.length ? preview.preview.support.contactHoaConnect.join(", ") : "No" }}</dd>
+          </dl>
+        </div>
+      </section>
+
       <OpsActionDialog v-if="actionProps" v-model:open="actionOpen" v-bind="actionProps" @done="onDone">
         <div v-if="action === 'cancel'" class="space-y-2">
           <AppSegmentedControl
@@ -404,6 +522,41 @@ async function onDone(res: any) {
             </option>
           </select>
           <p v-if="billing.bandForUnits" class="type-micro t-text-muted">Its units ({{ billing.bandForUnits.units }}) fit {{ billing.bandForUnits.name }}.</p>
+        </div>
+        <div v-else-if="action === 'contact'" class="space-y-3">
+          <div class="space-y-1.5">
+            <Label for="ops-contact-email">Email</Label>
+            <Input id="ops-contact-email" v-model="contactEmail" type="email" autocomplete="off" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="ops-contact-name">Name (optional)</Label>
+            <Input id="ops-contact-name" v-model="contactName" autocomplete="off" />
+          </div>
+        </div>
+        <div v-else-if="action === 'receipt'" class="space-y-1.5">
+          <Label for="ops-receipt-email">Send to</Label>
+          <Input id="ops-receipt-email" v-model="receiptEmail" type="email" autocomplete="off" placeholder="The billing contact" />
+        </div>
+        <div v-else-if="action === 'viewas'" class="space-y-3">
+          <div class="space-y-1.5">
+            <Label for="ops-view-role">Role</Label>
+            <select id="ops-view-role" v-model="viewRole" class="w-full rounded-lg border border-[var(--theme-border-primary)] bg-transparent px-3 py-2 type-body t-text">
+              <option v-for="r in PREVIEW_ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
+          </div>
+          <div v-if="viewRole === 'board'" class="space-y-1.5">
+            <Label for="ops-view-title">Office</Label>
+            <select id="ops-view-title" v-model="viewTitle" class="w-full rounded-lg border border-[var(--theme-border-primary)] bg-transparent px-3 py-2 type-body t-text">
+              <option v-for="(label, key) in BOARD_TITLE" :key="key" :value="key">{{ label }}</option>
+            </select>
+          </div>
+          <fieldset v-if="viewRole === 'property_manager'" class="space-y-1">
+            <legend class="type-label t-text-muted">Grants</legend>
+            <label v-for="g in MANAGER_GRANT_KEYS" :key="g" class="flex items-center gap-2 type-meta t-text-secondary">
+              <input v-model="viewGrants" type="checkbox" :value="g" />
+              {{ grantLabel(g) }}
+            </label>
+          </fieldset>
         </div>
         <div v-else-if="action === 'trial'" class="space-y-1.5">
           <Label for="ops-trial-ends">Trial ends on</Label>

@@ -193,3 +193,13 @@ Phases 1 and 2 release together (§9.3): A and B are built as two sessions, but 
    - Decided 2026-11-09: a reason on every refund, plus the amount typed to confirm above $500.
 8. **"View as" a role** (see a community as a tenant, a board officer, etc., to reproduce a problem): not now, or later as read-only and logged?
    - Decided 2026-11-09: later, as read-only and logged. Now Phase 5 (§5), not scheduled.
+   - Decided 2026-11-10: built now, as a role preview in `/ops` (what a role can reach, from the app's own rules), not a
+     session swap. Every preview is logged.
+9. **"Ask my community":** a second community inbox in `support_requests`, or the existing one?
+   - Decided 2026-11-10: reuse the existing community request inbox (`hoa_requests`, a new `question` type).
+     `support_requests` holds only "Contact HOA Connect". No `handle_requests` grant: the existing `inquiries` grant
+     covers it.
+10. **Re-banding** (launch-followups Session 3):
+   - Decided 2026-11-10: a higher band applies at the next renewal with no proration. A band never goes down on its
+     own (only on request, from the console). The board and HOA Connect are emailed first. No onboarding fee is charged
+     again. Crossing into Enterprise notifies HOA Connect and leaves Stripe alone.

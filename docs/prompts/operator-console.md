@@ -204,6 +204,22 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - The upcoming invoice is $449 at renewal, with 0 proration lines.
     - The test subscription was canceled.
   - **Not done:** no run on a real renewal (or a test clock) with the Directus side together.
+- **Plan §5 extras done 2026-11-10, committed locally, not pushed.** Each goes through `beginOpsAction` and
+  `runOpsAction` and is audited.
+  - **Re-send welcome** (`communities/:id/resend-welcome`): to one of the community's HOA Admins. App Admin only.
+  - **Email a receipt** (`charges/:id/receipt`): sets the charge's `receipt_email`, so Stripe sends it (live mode only).
+    Not for dues.
+  - **Change billing contact** (`communities/:id/billing-contact`): the Stripe customer's email and name, with before
+    and after recorded. The billing card shows "Invoices go to …".
+  - **Phase 5 "view as"** (`communities/:id/view-as`), as a role preview (Peter's call):
+    - It answers "what can a tenant, owner, board officer, HOA Admin or Property Manager (with chosen grants) reach",
+      using `rolePreview()` in `core/shared/ops/view-as.ts`.
+    - That reuses the app's capability matrix, poll access, ledger tiers and support doors, so it can't drift from
+      what's enforced.
+    - It needs `support`, so Platform Support can use it. Every preview leaves an `ops_audit_log` row.
+    - Real people are counted, not named.
+  - **Checked on localhost:** the buttons and the View-as dialog render. Nothing was submitted, because a preview
+    writes a permanent audit row.
 - **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
 
 ## Files worth knowing (read only what your session needs)
