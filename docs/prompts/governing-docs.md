@@ -193,8 +193,9 @@ From this repo:
       `1977-Lenox Plaza CORPORATION-CERTIFICATE.pdf`. The 1977 file is the unrecorded, state-certified copy
       (57 pages: state certificate 1, Articles 2 to 11, By-Laws 12 to 24, Declaration 25 to 47, exhibits 48 to
       57). Its text is already transcribed from the recorded pages; file 01's notes list six places where it
-      differs. **Waiting on Peter:** attach it as an unrecorded copy, not the source of the text (Declaration
-      only, or all three), or leave it out.
+      differs. **Attached 2026-11-10 (Peter's yes) to the Declaration only**, as an unrecorded copy that is
+      not the source of the text, with a note saying so; it lists third, after the two recorded parts, and the
+      proxy serves it byte for byte.
     - Hydration mismatch fixed on the reading view and the provision page: the server rendered "not found" while
       the client rendered the spinner. Both now wait on `status` (`waiting`), and a refresh keeps the page up.
       The 404 in the console is `/_nuxt/vue-sonner/style.css` from `core/nuxt.config.ts:169`, app-wide and older
