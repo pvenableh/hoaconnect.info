@@ -103,6 +103,8 @@
     "create:billing-accounts": "dotenv -- tsx scripts/create-billing-accounts.ts",
     "create:platform-support": "dotenv -- tsx scripts/create-platform-support-role.ts",
     "create:ops-audit-log": "dotenv -- tsx scripts/create-ops-audit-log.ts",
+    "create:governing-docs": "dotenv -- tsx scripts/create-governing-docs.ts",
+    "seed:governing-docs-1033": "dotenv -- tsx scripts/seed-governing-docs-1033.ts",
     "create:ops-job-heartbeats": "dotenv -- tsx scripts/create-ops-job-heartbeats.ts",
     "create:support-attachments-folder": "dotenv -- tsx scripts/create-support-attachments-folder.ts",
     "create:support-schema": "dotenv -- tsx scripts/create-support-schema.ts",
