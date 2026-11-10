@@ -351,10 +351,19 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - attachments-only replies, and the email note;
     - who may download, including internal notes;
     - the asset proxy refusing support files.
+  - **Checked live on production, 2026-11-10 (Peter's account, in 1033 Lenox):**
+    - A TEST request ("TEST: Session F attachments check", `3cdabdf8-…`) was sent with a 600 px screenshot and a
+      23 MB 2600 px PNG. The picker redrew the PNG as a 2560 px, 3.8 MB JPEG.
+    - As the requester, both images came back 200, inline, with `nosniff`, at their stored sizes. Both thumbnails
+      rendered.
+    - The 4.0 MB download passed through Vercel without trouble.
+    - A console reply carried a PDF. The requester saw it from HOA Connect, the request moved to "waiting", and the
+      PDF downloaded as an attachment with the sandbox CSP.
+    - `/api/directus/assets/:id` answered 403 for all three files.
+    - The request is closed, and its rows and three files stay, marked TEST.
+    - Not checked: the emails this sent, and another account being refused (only the tests prove that).
   - **Not done:**
-    - The localhost browser check (a TEST request with an image, and a staff PDF reply): Peter stopped the prompt
-      that asked to write those rows.
-    - Nothing sweeps uploads that were never attached; they stay in the folder marked pending.
+    - Nothing sweeps uploads that were never attached; they stay in the folder marked pending. Session I has this.
     - HEIC isn't shrunk: the browser can't redraw it, so a HEIC over 4 MB is refused.
 
 ## Files worth knowing (read only what your session needs)
