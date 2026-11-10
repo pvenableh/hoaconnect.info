@@ -21,7 +21,9 @@ const { formatFileSize } = useStorageFormat();
 const { confirm } = useConfirm();
 const { attachSource, removeSource } = useGoverningDocs(toRef(props, "orgId"));
 
-const manages = computed(() => !!props.canManage && !!props.documentId);
+// An admin previewing the member view sees the block as a member does.
+const { isPreviewingMember } = useViewAs();
+const manages = computed(() => !!props.canManage && !!props.documentId && !isPreviewingMember.value);
 
 const detail = (source: GovSource) =>
   [

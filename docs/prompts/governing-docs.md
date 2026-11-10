@@ -140,9 +140,13 @@ From this repo:
     criterion 7 in `governing-read.test.ts` now also seeds a draft's and another community's source.
   - Export unchanged: sources stay full-tier only (`export-collections.test.ts` passes). Members now see these
     files in the app but not in a shareable export; ask Peter before changing that.
-  - **Not done:** no PDF has been attached on the hosted Directus. The built-in browser cannot hand a file from
-    disk to the page, so the attach is Peter's to do on a reading view ("Attach Original"); then open it as a
-    member. Browser check so far: the block and the control render for a manager on the 1995 Amendment.
+  - **Attached and checked 2026-11-10:** Peter attached the recorded scan to the 1995 Amendment on the hosted
+    Directus. It is the right document (the scan reads O.R. Book 16986, Pages 3006 and 3007, 95R460629, recorded
+    1995 Nov 09), and the proxy serves it byte for byte (SHA-256 equals the file on disk). In the admin's
+    "member view" preview the block shows the file, labels, Open and Download, and no attach or remove control
+    (the component reads `useViewAs`). **Not checked with a real member login:** the preview is client-side and
+    the server still sees an admin; the member rules are proven by `governing-sources.test.ts`. The other six
+    documents have no original yet.
   - **Known:** (1) an image source is still readable straight from Directus by anyone who has its file id, because
     the public policy serves `image/*`; the app never gives a member the id of a draft's file, and the proxy
     refuses it. PDFs are private. (2) The file sits in the org's Documents storage folder, so people who may browse
