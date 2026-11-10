@@ -5,6 +5,7 @@
 import { toast } from "vue-sonner";
 import { BODY_MAX, SUPPORT_CATEGORIES, SUPPORT_STATUS_LABEL } from "#core/shared/support/access";
 import { shortDate } from "#core/shared/ops/format";
+import type { SupportAttachment } from "#core/shared/support/attachments";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
 
@@ -14,13 +15,20 @@ const { data, error, refresh } = await useFetch<any>(() => `/api/support/request
 useHead({ title: () => data.value?.request?.subject ?? "Support request" });
 
 const reply = ref("");
+const files = ref<SupportAttachment[]>([]);
+const uploading = ref(false);
 const busy = ref(false);
+const canSend = computed(() => !busy.value && !uploading.value && (!!reply.value.trim() || files.value.length > 0));
 async function send() {
-  if (!reply.value.trim()) return;
+  if (!canSend.value) return;
   busy.value = true;
   try {
-    await $fetch(`/api/support/requests/${id.value}/messages`, { method: "POST", body: { body: reply.value.trim() } });
+    await $fetch(`/api/support/requests/${id.value}/messages`, {
+      method: "POST",
+      body: { body: reply.value.trim(), attachmentIds: files.value.length ? files.value.map((f) => f.id) : undefined },
+    });
     reply.value = "";
+    files.value = [];
     toast.success("Sent to HOA Connect.");
     await refresh();
   } catch (e: any) {
@@ -54,15 +62,17 @@ const categoryLabel = (v: string) => SUPPORT_CATEGORIES.find((c) => c.value === 
           :class="['ios-card p-4', m.fromHoaConnect ? 'bg-info/10' : '']"
         >
           <p class="type-micro t-text-muted">{{ m.author ?? "Someone" }} · {{ shortDate(m.at) }}</p>
-          <p class="mt-1 whitespace-pre-wrap type-body t-text">{{ m.body }}</p>
+          <p v-if="m.body" class="mt-1 whitespace-pre-wrap type-body t-text">{{ m.body }}</p>
+          <SupportAttachmentList :attachments="m.attachments" />
         </li>
       </ol>
 
       <form class="ios-card space-y-3 p-4" @submit.prevent="send">
         <Label for="support-reply">{{ data.request.status === "closed" ? "Reply to reopen it" : "Reply" }}</Label>
         <Textarea id="support-reply" v-model="reply" rows="4" :maxlength="BODY_MAX" />
-        <div class="flex justify-end">
-          <Button type="submit" :disabled="busy || !reply.trim()">{{ busy ? "Sending…" : "Send" }}</Button>
+        <div class="flex flex-wrap items-end justify-between gap-2">
+          <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
+          <Button type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</Button>
         </div>
       </form>
     </template>

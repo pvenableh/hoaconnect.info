@@ -22,6 +22,8 @@ import { getPlatformActor } from "./admin-auth";
 import { notifyUsers } from "./notify";
 import { opsUsers } from "./ops-data";
 import { notifyPlatform } from "./platform-notify";
+import { claimSupportAttachments, markAttached } from "./support-attachments";
+import { attachmentsNote } from "#core/shared/support/attachments";
 
 // For collections whose nested-field reads the SDK types too narrowly. The
 // support_* collections themselves go through the typed client.
@@ -166,7 +168,7 @@ export async function readSupportMessages(requestId: string, opts: { internal: b
   const rows = (await getTypedDirectus().request(
     readItems("support_messages", {
       filter: { request: { _eq: requestId }, ...(opts.internal ? {} : { internal: { _neq: true } }) },
-      fields: ["id", "author", "author_name", "author_kind", "body", "internal", "date_created"],
+      fields: ["id", "author", "author_name", "author_kind", "body", "internal", "attachments", "date_created"],
       sort: ["date_created"],
       limit: -1,
     })
@@ -207,7 +209,11 @@ export async function createSupportRequest(input: {
   appVersion?: string | null;
   source?: "app" | "auto";
   autoKey?: string | null;
+  /** Upload ids from POST /api/support/attachments: the requester's own, fresh, unattached. */
+  attachmentIds?: string[];
 }): Promise<{ id: string }> {
+  // Checked before anything is written: a bad id refuses the whole request.
+  const files = input.requester ? await claimSupportAttachments(input.requester.id, input.attachmentIds) : [];
   const now = new Date().toISOString();
   const who = input.requester ? (await opsUsers([input.requester.id]).catch(() => null))?.get(input.requester.id) : null;
   const row = (await getTypedDirectus().request(
@@ -230,7 +236,7 @@ export async function createSupportRequest(input: {
       last_message_by: input.requester ? "requester" : "system",
     })
   )) as { id: string };
-  await getTypedDirectus().request(
+  const first = (await getTypedDirectus().request(
     createItem("support_messages", {
       request: row.id,
       author: input.requester?.id ?? null,
@@ -238,8 +244,10 @@ export async function createSupportRequest(input: {
       author_kind: input.requester ? "requester" : "system",
       body: input.body,
       internal: false,
+      attachments: files.length ? (files as any) : null,
     })
-  );
+  )) as { id: string };
+  await markAttached(files, first.id);
 
   // Tell HOA Connect. And when a resident reports an app problem, their HOA
   // Admins are copied (§9.5): it's their community's app.
@@ -252,7 +260,7 @@ export async function createSupportRequest(input: {
       ["Their roles", describeSupportRoles(input.roles)],
       ["Page", input.page],
     ],
-    body: input.body,
+    body: withAttachmentsNote(input.body, files.length),
     link: { label: "Open in the support inbox", url: `${appUrl()}/ops/support/${row.id}` },
   });
   if (org && input.roles?.membership === "member" && !input.roles.boardTitles.length && input.requester) {
@@ -310,8 +318,12 @@ export async function addSupportMessage(input: {
   kind: "requester" | "community_admin" | "account_admin" | "staff";
   body: string;
   internal?: boolean;
+  /** Upload ids from POST /api/support/attachments: the author's own, fresh, unattached. */
+  attachmentIds?: string[];
 }): Promise<{ id: string }> {
   const req = input.request;
+  // Checked before anything is written: a bad id refuses the whole message.
+  const files = input.author ? await claimSupportAttachments(input.author.id, input.attachmentIds) : [];
   const who = input.author ? (await opsUsers([input.author.id]).catch(() => null))?.get(input.author.id) : null;
   const staff = input.kind === "staff";
   const internal = staff && input.internal === true;
@@ -323,8 +335,10 @@ export async function addSupportMessage(input: {
       author_kind: staff ? "staff" : input.kind === "requester" ? "requester" : "admin",
       body: input.body,
       internal,
+      attachments: files.length ? (files as any) : null,
     })
   )) as { id: string };
+  await markAttached(files, row.id);
   if (internal) return row;
 
   const now = new Date().toISOString();
@@ -338,7 +352,7 @@ export async function addSupportMessage(input: {
   );
 
   if (staff) {
-    await notifyRequester(req, input.body);
+    await notifyRequester(req, input.body, files.length);
   } else {
     const org = await orgRef(idOf(req.organization));
     await notifyPlatform({
@@ -347,14 +361,17 @@ export async function addSupportMessage(input: {
         ["Community", org?.name],
         ["From", `${who?.name ?? "Someone"}${input.kind === "community_admin" ? " (HOA Admin)" : ""}`],
       ],
-      body: input.body,
+      body: withAttachmentsNote(input.body, files.length),
       link: { label: "Open in the support inbox", url: `${appUrl()}/ops/support/${req.id}` },
     });
   }
   return row;
 }
 
-async function notifyRequester(req: any, body: string): Promise<void> {
+/** Emails carry a line about attachments, never the files: they stay behind the app's checks. */
+const withAttachmentsNote = (body: string, count: number) => (count ? `${body}\n\n${attachmentsNote(count)}` : body);
+
+async function notifyRequester(req: any, body: string, attachmentCount = 0): Promise<void> {
   const orgId = idOf(req.organization);
   const requester = idOf(req.requester);
   const excerpt = body.length > 280 ? `${body.slice(0, 277)}…` : body;
@@ -370,7 +387,7 @@ async function notifyRequester(req: any, body: string): Promise<void> {
       path: `/support/${req.id}`,
       email: {
         heading: "HOA Connect replied to your request",
-        bodyHtml: `<p><strong>${escapeHtml(req.subject)}</strong></p><p style="white-space:pre-wrap">${escapeHtml(body)}</p>`,
+        bodyHtml: `<p><strong>${escapeHtml(req.subject)}</strong></p><p style="white-space:pre-wrap">${escapeHtml(withAttachmentsNote(body, attachmentCount))}</p>`,
         cta: { label: "Reply or view the request", path: `/support/${req.id}` },
       },
     }).catch((e: any) => console.error("[support] requester not notified:", e?.message ?? e));
@@ -382,7 +399,7 @@ async function notifyRequester(req: any, body: string): Promise<void> {
     await sendEmail({
       to: req.requester_email,
       subject: `HOA Connect replied: ${req.subject}`,
-      text: `${body}\n\nReply or view the request: ${appUrl()}/support/${req.id}`,
+      text: `${withAttachmentsNote(body, attachmentCount)}\n\nReply or view the request: ${appUrl()}/support/${req.id}`,
     }).catch((e: any) => console.error("[support] requester not emailed:", e?.message ?? e));
   }
 }

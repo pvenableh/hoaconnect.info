@@ -147,7 +147,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
   - Old trials: 0 open-ended trials on 2026-11-10. `add-property` can't create one, because its orgs have a null
     status and take it from their billing account. Closed.
   - **Not done:** a real email checked in an inbox. Only the tests prove the send.
-- **Gates after Session E:** 151 files / 2,748 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
+- **Gates after Session F:** 154 files / 2,776 tests, 16 audits, lint 0 errors and 139 warnings, typecheck 0.
 - **`ops_job_heartbeats` was created on the hosted Directus 2026-11-10** (Peter's yes), with 0 role permissions. Rows
   appear once a build with D is live.
 - **Session C done 2026-11-10, committed locally, not pushed.**
@@ -309,6 +309,45 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     - Neither has a row in `ops_job_heartbeats`, which fits but doesn't prove it. The GitHub Actions run history wasn't
       checked; `gh` isn't installed here.
     - The export worker avoids this by asking the app to send its email.
+- **Session F done 2026-11-10, committed locally, not pushed.** Support messages can carry attachments.
+  - **Peter's calls:**
+    - Up to 5 per message.
+    - Images, PDF, plain text, and Word or Excel (`.docx`, `.xlsx`).
+    - Everyone who may post may attach, staff on internal notes too. Internal notes' files are staff only.
+    - **The cap is 4 MB, not the 10 MB first chosen.** Vercel refuses a function request or response body over
+      4.5 MB, and both the upload and the download pass through one.
+    - A photo over the cap is redrawn smaller in the browser: JPEG at 2560, then 1920, then 1600 px.
+  - **The rules** are in `core/shared/support/attachments.ts`. The work is in `core/server/utils/support-attachments.ts`.
+  - **Upload:** `POST /api/support/attachments` takes one file per request and stores it with the admin token in the
+    "Support attachments" folder.
+    - The type is checked by extension and first bytes.
+    - The file's `description` marks it `support-upload:<user>` until a message claims it, then
+      `support-message:<message>`.
+    - A message may claim only its author's own uploads, unattached and under 24 hours old. That's checked before
+      anything is written.
+    - Replies may be attachments alone; a new request still needs its message.
+  - **Download:** `GET /api/support/attachments/:messageId/:fileId`. It serves only a file that's on that message,
+    to someone `supportAccess` lets see it; an internal note's file goes to staff only.
+    - Raster images show inline; everything else downloads.
+    - It sends `nosniff`, a sandbox CSP, and `private` caching.
+  - **Fixed in passing:** the general asset proxy (`/api/directus/assets/:id`) served any image to anyone signed in.
+    It now refuses support files outright.
+  - **Emails** say "N attachments: open the request to see them" and never carry the files.
+  - **UI:** `Support/AttachmentPicker` sits on `/support/new` and both reply boxes. `Support/AttachmentList` shows
+    each message's files, with thumbnails for images.
+  - **Hosted Directus (Peter's yes):** `pnpm run create:support-attachments-folder -- --apply` created the folder.
+    Read-only, it reports 4 non-admin read rules on `directus_files`, all filtered.
+  - **Tests:** 5 in `tests/server/support.test.ts`:
+    - type, size and bytes;
+    - only your own fresh, unattached uploads;
+    - attachments-only replies, and the email note;
+    - who may download, including internal notes;
+    - the asset proxy refusing support files.
+  - **Not done:**
+    - The localhost browser check (a TEST request with an image, and a staff PDF reply): Peter stopped the prompt
+      that asked to write those rows.
+    - Nothing sweeps uploads that were never attached; they stay in the folder marked pending.
+    - HEIC isn't shrunk: the browser can't redraw it, so a HEIC over 4 MB is refused.
 
 ## Files worth knowing (read only what your session needs)
 
@@ -479,7 +518,7 @@ step 5. Read only "Where things stand" and this section, plus the files a step n
 
 Gates green if code changed. Commit, record what was checked in "Where things stand", and stop.
 
-## Session F — support attachments (Opus 5.5)
+## Session F — support attachments (Opus 5.5) — DONE 2026-11-10 (see "Where things stand")
 
 Peter said yes on 2026-11-10. `support_messages.attachments` (JSON) exists and nothing writes it. Read "Where
 things stand" (Session C), then `core/server/utils/support.ts` (`addSupportMessage`, `createSupportRequest`,
@@ -519,7 +558,8 @@ Peter said yes on 2026-11-10 (it was optional in the plan). Do Session F first: 
    - It checks the HMAC and that the sender matches that user, strips the quoted history, and calls
      `addSupportMessage`, so the notifications and status changes are the same as a reply in the app.
    - It answers 200 to anything it rejects, so SendGrid doesn't retry, and logs a count.
-   - Session F's limits apply to attachments.
+   - Attachments in an emailed reply go through `storeSupportAttachment` and `claimSupportAttachments`
+     (`core/server/utils/support-attachments.ts`), so Session F's 4 MB cap, types and limit of 5 apply.
 4. **Tests:** a good reply, a bad HMAC, the wrong sender, a closed request reopening (as an in-app reply does),
    quote stripping, and a duplicate post (SendGrid retries).
 5. **Live check (Peter):** after DNS, he replies to a TEST request's email and the reply appears in the thread.

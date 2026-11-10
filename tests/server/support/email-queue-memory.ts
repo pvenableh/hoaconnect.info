@@ -376,5 +376,10 @@ export const sdkDescriptors = {
   aggregate: (collection: string, options: any) => ({ op: "aggregate", collection, options }),
   readFieldsByCollection: (collection: string) => ({ op: "readFields", collection }),
   readFiles: (query: any) => ({ op: "readFiles", collection: "directus_files", query }),
+  readFile: (id: string, query: any) => ({ op: "readFile", collection: "directus_files", id, query }),
+  uploadFiles: (data: FormData, query?: any) => ({ op: "uploadFiles", collection: "directus_files", data, query }),
+  updateFiles: (keys: string[], data: any) => ({ op: "updateFiles", collection: "directus_files", keys, data }),
+  readFolders: (query: any) => ({ op: "readFolders", collection: "directus_folders", query }),
+  readAssetArrayBuffer: (id: string) => ({ op: "readAsset", collection: "directus_files", id }),
   readUsers: (query: any) => ({ op: "readUsers", collection: "directus_users", query }),
 };

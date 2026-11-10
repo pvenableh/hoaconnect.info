@@ -3,6 +3,7 @@
 // Internal notes (HOA Connect's own) never leave the console. Anyone else: 404.
 import { supportAccess } from "#core/shared/support/access";
 import { readSupportMessages, readSupportRequest, supportViewerFor } from "#core/server/utils/support";
+import { attachmentLinks } from "#core/server/utils/support-attachments";
 
 const idOf = (v: unknown): string | null =>
   v && typeof v === "object" ? ((v as { id?: string }).id ?? null) : typeof v === "string" && v ? v : null;
@@ -38,6 +39,7 @@ export default defineEventHandler(async (event) => {
             : (m.author_name ?? null),
       fromHoaConnect: m.author_kind === "staff" || m.author_kind === "system",
       body: m.body,
+      attachments: attachmentLinks(m.id, m),
       at: m.date_created ?? null,
     })),
     canReply: true,

@@ -27,6 +27,7 @@
  */
 
 import { readFile } from "@directus/sdk";
+import { isSupportFileMarker } from "#core/shared/support/attachments";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,13 +44,22 @@ export default defineEventHandler(async (event) => {
 
   const directus = getTypedDirectus();
 
-  let file: { id: string; type?: string | null; filename_download?: string | null };
+  let file: { id: string; type?: string | null; filename_download?: string | null; description?: string | null };
   try {
     file = (await directus.request(
-      readFile(id, { fields: ["id", "type", "filename_download"] })
+      readFile(id, { fields: ["id", "type", "filename_download", "description"] })
     )) as typeof file;
   } catch {
     throw createError({ statusCode: 404, statusMessage: "File not found" });
+  }
+
+  // Support attachments are checked against the message they're on, images
+  // included; this proxy would hand any image to anyone signed in.
+  if (isSupportFileMarker(file.description)) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: "Support attachments download from /api/support/attachments/:messageId/:fileId.",
+    });
   }
 
   const isImage = (file.type || "").startsWith("image/");

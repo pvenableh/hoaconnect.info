@@ -5,6 +5,7 @@
 import { toast } from "vue-sonner";
 import { BODY_MAX, SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUS_LABEL_STAFF } from "#core/shared/support/access";
 import { shortDate } from "#core/shared/ops/format";
+import type { SupportAttachment } from "#core/shared/support/attachments";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
 
@@ -16,14 +17,21 @@ useHead({ title: () => `${r.value?.subject ?? "Request"} · Support` });
 
 const body = ref("");
 const internal = ref(false);
+const files = ref<SupportAttachment[]>([]);
+const uploading = ref(false);
 const busy = ref(false);
+const canSend = computed(() => !busy.value && !uploading.value && (!!body.value.trim() || files.value.length > 0));
 async function send() {
-  if (!body.value.trim()) return;
+  if (!canSend.value) return;
   busy.value = true;
   try {
-    await $fetch(`/api/ops/support/${id.value}/messages`, { method: "POST", body: { body: body.value.trim(), internal: internal.value } });
+    await $fetch(`/api/ops/support/${id.value}/messages`, {
+      method: "POST",
+      body: { body: body.value.trim(), internal: internal.value, attachmentIds: files.value.length ? files.value.map((f) => f.id) : undefined },
+    });
     toast.success(internal.value ? "Note added." : "Reply sent.");
     body.value = "";
+    files.value = [];
     await refresh();
   } catch (e: any) {
     toast.error(e?.data?.message || e?.message || "That didn't send.");
@@ -56,18 +64,20 @@ const statusItems = Object.entries(SUPPORT_STATUS_LABEL_STAFF).map(([value, labe
             <p class="type-micro t-text-muted">
               {{ m.author ?? "Someone" }} · {{ shortDate(m.at) }}<template v-if="m.internal"> · internal note</template>
             </p>
-            <p class="mt-1 whitespace-pre-wrap type-body t-text">{{ m.body }}</p>
+            <p v-if="m.body" class="mt-1 whitespace-pre-wrap type-body t-text">{{ m.body }}</p>
+            <SupportAttachmentList :attachments="m.attachments" />
           </li>
         </ol>
 
         <form class="ios-card space-y-3 p-4" @submit.prevent="send">
           <Textarea v-model="body" rows="5" :maxlength="BODY_MAX" :placeholder="internal ? 'A note for HOA Connect only.' : 'Your reply. It goes to them by email too.'" />
+          <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
           <div class="flex flex-wrap items-center justify-between gap-2">
             <label class="flex items-center gap-2 type-meta t-text-secondary">
               <input v-model="internal" type="checkbox" />
               Internal note
             </label>
-            <Button type="submit" :disabled="busy || !body.trim()">{{ busy ? "Sending…" : internal ? "Add note" : "Send reply" }}</Button>
+            <Button type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : internal ? "Add note" : "Send reply" }}</Button>
           </div>
         </form>
       </div>

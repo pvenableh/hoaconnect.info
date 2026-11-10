@@ -16,6 +16,9 @@ const h = vi.hoisted(() => ({
   notifyUsers: vi.fn(),
   notifyPlatform: vi.fn(),
   sendEmail: vi.fn(),
+  multipart: null as any,
+  headers: {} as Record<string, string>,
+  assets: new Map<string, Uint8Array>(),
 }));
 
 vi.mock("@directus/sdk", async () => (await import("./support/email-queue-memory")).sdkDescriptors);
@@ -41,14 +44,62 @@ const r = {
   opsOne: (await import("#core/server/api/ops/support/[id].get")).default as Handler,
   opsUpdate: (await import("#core/server/api/ops/support/[id].post")).default as Handler,
   opsReply: (await import("#core/server/api/ops/support/[id]/messages.post")).default as Handler,
+  upload: (await import("#core/server/api/support/attachments.post")).default as Handler,
+  download: (await import("#core/server/api/support/attachments/[messageId]/[fileId].get")).default as Handler,
+  assetProxy: (await import("#core/server/api/directus/assets/[id].get")).default as Handler,
 };
+const attachments = await import("#core/server/utils/support-attachments");
 
 const event = {} as H3Event;
 const ROLE = { appAdmin: "role-app", support: "role-support", hoaAdmin: "role-admin", pm: "role-pm", member: "role-member" };
 let db: MemoryDirectus;
 const RELATED: Record<string, string> = { organization: "hoa_organizations", billing_account: "billing_accounts" };
 
+// directus_files as Directus keeps them: an upload is a row plus its bytes.
+async function fileOp(op: any) {
+  const files = db.table("directus_files");
+  switch (op.op) {
+    case "uploadFiles": {
+      const form = op.data as FormData;
+      const blob = form.get("file") as File;
+      const id = crypto.randomUUID();
+      h.assets.set(id, new Uint8Array(await blob.arrayBuffer()));
+      const row = {
+        id,
+        title: form.get("title"),
+        description: form.get("description"),
+        folder: form.get("folder") ?? null,
+        type: blob.type,
+        filesize: blob.size,
+        filename_download: blob.name,
+        uploaded_on: new Date().toISOString(),
+      };
+      files.push(row);
+      return row;
+    }
+    case "readFiles":
+      return db.all("directus_files", op.query?.filter);
+    case "readFile": {
+      const row = db.one("directus_files", op.id);
+      if (!row) throw Object.assign(new Error("forbidden"), { response: { status: 403 } });
+      return row;
+    }
+    case "updateFiles":
+      for (const row of files) if (op.keys.includes(row.id)) Object.assign(row, op.data);
+      return null;
+    case "readFolders":
+      return db.all("directus_folders", op.query?.filter);
+    case "readAsset": {
+      const bytes = h.assets.get(op.id);
+      if (!bytes) throw new Error("no asset");
+      return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    }
+  }
+  return undefined;
+}
+
 const directusRequest = async (op: any) => {
+  if (["uploadFiles", "readFiles", "readFile", "updateFiles", "readFolders", "readAsset"].includes(op.op)) return fileOp(op);
   if (op.op === "readUsers") return db.all("directus_users", op.query.filter);
   if (op.op === "readItems") {
     const q = op.query ?? {};
@@ -115,6 +166,10 @@ const open = async (who: string, over: Record<string, any> = {}, role = ROLE.mem
 
 beforeEach(() => {
   seed();
+  h.assets.clear();
+  h.headers = {};
+  h.multipart = null;
+  attachments._resetSupportFolderCache();
   for (const f of [h.notifyUsers, h.notifyPlatform, h.sendEmail]) {
     f.mockReset();
     f.mockResolvedValue(true);
@@ -124,6 +179,12 @@ beforeEach(() => {
   vi.stubGlobal("readBody", async () => h.body);
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
   vi.stubGlobal("getQuery", () => h.query);
+  vi.stubGlobal("readMultipartFormData", async () => h.multipart);
+  vi.stubGlobal("setResponseHeaders", (_e: unknown, headers: Record<string, string>) => Object.assign(h.headers, headers));
+  vi.stubGlobal("requireUserSession", async () => {
+    if (!h.session?.user) throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
+    return h.session;
+  });
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
   vi.stubGlobal("useRuntimeConfig", () => ({
     public: {
@@ -364,5 +425,113 @@ describe("the support inbox", () => {
     expect(h.notifyPlatform).toHaveBeenCalledTimes(1);
     vi.stubGlobal("getTypedDirectus", () => ({ request: async () => Promise.reject(new Error("no collection")) }));
     await expect(support.openAutoSupportRequest({ autoKey: "x", category: "bug", subject: "s", body: "b" })).resolves.toBeNull();
+  });
+});
+
+// ── Attachments (Session F) ─────────────────────────────────────────────────
+
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+const PDF = new TextEncoder().encode("%PDF-1.7\n1 0 obj\n");
+const upload = async (who: string, filename: string, data: Uint8Array = PNG, role = ROLE.member) => {
+  as(who, role);
+  h.multipart = [{ name: "file", filename, type: "application/octet-stream", data: Buffer.from(data) }];
+  return call(r.upload);
+};
+
+describe("attachments", () => {
+  it("stores an upload as the uploader's, in the support folder, after checking its type and size", async () => {
+    db.seed("directus_folders", [{ id: "fold-support", name: "Support attachments", parent: null }]);
+    const a = await upload("owner", "blank-page.png");
+    expect(a).toMatchObject({ name: "blank-page.png", type: "image/png", size: PNG.byteLength });
+    expect(db.one("directus_files", a.id)).toMatchObject({ description: "support-upload:u-owner", folder: "fold-support" });
+
+    await expect(upload("owner", "page.png", new TextEncoder().encode("<html><script>"))).rejects.toMatchObject({ statusCode: 400 });
+    await expect(upload("owner", "tool.exe", PNG)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(upload("owner", "huge.png", new Uint8Array(4 * 1024 * 1024 + 1))).rejects.toMatchObject({ statusCode: 413 });
+    expect(await upload("owner", "report.docx", new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0]))).toMatchObject({ type: expect.stringContaining("wordprocessingml") });
+    as(null);
+    h.multipart = [{ name: "file", filename: "a.png", data: Buffer.from(PNG) }];
+    await expect(call(r.upload)).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it("a message carries only its author's own fresh, unattached uploads, and says so in the email", async () => {
+    const a = await upload("owner", "blank-page.png");
+    const { id } = await open("owner", { attachmentIds: [a.id] });
+    const [first] = db.all("support_messages", { request: { _eq: id } });
+    expect(first!.attachments).toEqual([{ id: a.id, name: "blank-page.png", type: "image/png", size: PNG.byteLength }]);
+    expect(db.one("directus_files", a.id)!.description).toBe(`support-message:${first!.id}`);
+    expect(h.notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("1 attachment: open the request to see it.") }));
+
+    // Already on a message: not again.
+    await expect(call(r.reply, { params: { id }, body: { body: "Again", attachmentIds: [a.id] } })).rejects.toMatchObject({ statusCode: 400 });
+    // Someone else's upload: refused, and nothing written.
+    const b = await upload("tenant", "mine.png");
+    const before = db.table("support_messages").length;
+    as("owner");
+    await expect(call(r.reply, { params: { id }, body: { body: "Theirs", attachmentIds: [b.id] } })).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.table("support_messages").length).toBe(before);
+    // Stale: uploaded more than a day ago.
+    const c = await upload("owner", "old.png");
+    db.one("directus_files", c.id)!.uploaded_on = new Date(Date.now() - 25 * 3_600_000).toISOString();
+    await expect(call(r.reply, { params: { id }, body: { body: "Old", attachmentIds: [c.id] } })).rejects.toMatchObject({ statusCode: 400 });
+    // Six at once.
+    const six = Array.from({ length: 6 }, () => crypto.randomUUID());
+    await expect(call(r.reply, { params: { id }, body: { body: "Lots", attachmentIds: six } })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("a reply may be attachments alone; the requester's email names them, not the files", async () => {
+    const { id } = await open("owner");
+    const pdf = await upload("staff", "steps.pdf", PDF, ROLE.support);
+    await call(r.opsReply, { params: { id }, body: { attachmentIds: [pdf.id] } });
+    expect(h.notifyUsers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: expect.objectContaining({ bodyHtml: expect.stringContaining("1 attachment: open the request to see it.") }) })
+    );
+    as("owner");
+    await expect(call(r.reply, { params: { id }, body: { body: "  " } })).rejects.toMatchObject({ statusCode: 400 });
+    const thread = await call(r.one, { params: { id } });
+    const last = thread.messages.at(-1);
+    expect(last.attachments).toEqual([expect.objectContaining({ id: pdf.id, name: "steps.pdf", url: `/api/support/attachments/${last.id}/${pdf.id}` })]);
+  });
+
+  it("downloads only for those who may see the message; internal notes' files are staff only", async () => {
+    const a = await upload("owner", "blank-page.png");
+    const { id } = await open("owner", { attachmentIds: [a.id] });
+    const msg = db.all("support_messages", { request: { _eq: id } })[0]!.id;
+    const get = (who: string, role = ROLE.member, fileId = a.id, messageId = msg) => {
+      as(who, role);
+      return call(r.download, { params: { messageId, fileId } });
+    };
+
+    const bytes = await get("owner");
+    expect([...bytes]).toEqual([...PNG]);
+    expect(h.headers).toMatchObject({
+      "Content-Type": "image/png",
+      "Content-Disposition": expect.stringMatching(/^inline; filename="blank-page.png"/),
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "private, max-age=300",
+    });
+    await expect(get("admin", ROLE.hoaAdmin)).resolves.toBeTruthy();
+    await expect(get("staff", ROLE.support)).resolves.toBeTruthy();
+    for (const [who, role] of [["tenant", ROLE.member], ["officer", ROLE.member], ["pm-grant", ROLE.pm], ["admin-oak", ROLE.hoaAdmin]] as const) {
+      await expect(get(who, role)).rejects.toMatchObject({ statusCode: 404 });
+    }
+    // A file that isn't on this message, even one the viewer may see elsewhere.
+    const other = await upload("owner", "other.png");
+    await expect(get("owner", ROLE.member, other.id)).rejects.toMatchObject({ statusCode: 404 });
+
+    // An internal note's file: staff only, even for the requester.
+    const note = await upload("staff", "trace.txt", new TextEncoder().encode("stack trace"), ROLE.appAdmin);
+    const { id: noteId } = await call(r.opsReply, { params: { id }, body: { body: "Same as Oak Row.", internal: true, attachmentIds: [note.id] } });
+    await expect(get("owner", ROLE.member, note.id, noteId)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(get("admin", ROLE.hoaAdmin, note.id, noteId)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(get("support", ROLE.support, note.id, noteId)).resolves.toBeTruthy();
+    expect(h.headers["Content-Disposition"]).toMatch(/^attachment; filename="trace.txt"/);
+    expect(h.headers["Content-Type"]).toBe("text/plain; charset=utf-8");
+  });
+
+  it("the general asset proxy refuses support files, images included", async () => {
+    const a = await upload("owner", "blank-page.png");
+    as("admin", ROLE.hoaAdmin);
+    await expect(call(r.assetProxy, { params: { id: a.id } })).rejects.toMatchObject({ statusCode: 403 });
   });
 });

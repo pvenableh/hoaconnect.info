@@ -1,12 +1,13 @@
 // POST /api/support/requests — "Contact HOA Connect".
 //
 // Body: organizationId or billingAccountId (the context), category, subject,
-// body, and optionally page and appVersion. The person's roles there decide
+// body, and optionally page, appVersion and attachmentIds (POST /api/support/attachments). The person's roles there decide
 // which categories they may use (core/shared/support/access.ts); a resident may
 // only report an app problem, and a Property Manager needs `contact_platform`.
 // The roles at this moment are stored on the request.
 import { z } from "zod";
 import { BODY_MAX, SUBJECT_MAX, supportCategoriesFor } from "#core/shared/support/access";
+import { ATTACHMENTS_PER_MESSAGE } from "#core/shared/support/attachments";
 import { rateLimit } from "#core/server/utils/rate-limit";
 import { createSupportRequest, supportRolesFor } from "#core/server/utils/support";
 
@@ -19,6 +20,7 @@ const schema = z
     body: z.string().trim().min(10, "Say a little more, so we can help.").max(BODY_MAX),
     page: z.string().max(500).optional(),
     appVersion: z.string().max(64).optional(),
+    attachmentIds: z.array(z.string().uuid()).max(ATTACHMENTS_PER_MESSAGE, "Attach up to 5 files to one message.").optional(),
   })
   .refine((b) => !!b.organizationId !== !!b.billingAccountId, "Choose a community or a billing account.");
 
@@ -54,5 +56,6 @@ export default defineEventHandler(async (event) => {
     body: b.body,
     page: b.page ?? null,
     appVersion: b.appVersion ?? null,
+    attachmentIds: b.attachmentIds,
   });
 });

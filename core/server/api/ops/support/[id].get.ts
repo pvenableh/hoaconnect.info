@@ -5,6 +5,7 @@
 import { readItems } from "@directus/sdk";
 import { requireOpsPermission } from "#core/server/utils/admin-auth";
 import { describeSupportRoles, readSupportMessages, readSupportRequest } from "#core/server/utils/support";
+import { attachmentLinks } from "#core/server/utils/support-attachments";
 
 const readAny = readItems as any;
 const idOf = (v: unknown): string | null =>
@@ -46,6 +47,7 @@ export default defineEventHandler(async (event) => {
       kind: m.author_kind,
       internal: !!m.internal,
       body: m.body,
+      attachments: attachmentLinks(m.id, m),
       at: m.date_created ?? null,
     })),
   };

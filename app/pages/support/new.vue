@@ -4,6 +4,7 @@
 // server checks the same rules (core/shared/support/access.ts).
 import { toast } from "vue-sonner";
 import { BODY_MAX, SUBJECT_MAX, SUPPORT_CATEGORIES } from "#core/shared/support/access";
+import type { SupportAttachment } from "#core/shared/support/attachments";
 
 definePageMeta({ middleware: ["auth"], layout: "auth" });
 useHead({ title: "Contact HOA Connect" });
@@ -32,6 +33,8 @@ watch(categories, (c) => {
 
 const subject = ref("");
 const body = ref("");
+const files = ref<SupportAttachment[]>([]);
+const uploading = ref(false);
 const busy = ref(false);
 const from = typeof route.query.from === "string" ? route.query.from.slice(0, 500) : undefined;
 
@@ -51,6 +54,7 @@ async function send() {
         body: body.value.trim(),
         page: from,
         appVersion: String((config.public as any).buildId ?? "").slice(0, 64) || undefined,
+        attachmentIds: files.value.length ? files.value.map((f) => f.id) : undefined,
       },
     });
     toast.success("Sent to HOA Connect. We'll reply here and by email.");
@@ -107,9 +111,10 @@ async function send() {
         <Label for="support-body">Message</Label>
         <Textarea id="support-body" v-model="body" rows="6" :maxlength="BODY_MAX" placeholder="What happened, and what you expected. Which page, if it's a problem." />
       </div>
+      <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
       <div class="flex justify-end gap-2">
         <Button type="button" variant="ghost" as="a" href="/support">Cancel</Button>
-        <Button type="submit" :disabled="busy || !category">{{ busy ? "Sending…" : "Send" }}</Button>
+        <Button type="submit" :disabled="busy || uploading || !category">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</Button>
       </div>
     </form>
   </PageContainer>
