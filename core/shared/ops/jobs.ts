@@ -13,7 +13,8 @@ export type OpsJobKey =
   | "reminders"
   | "notification-digest"
   | "data-export"
-  | "billing-worker";
+  | "billing-worker"
+  | "rebanding";
 
 export interface OpsJob {
   key: OpsJobKey;
@@ -31,6 +32,7 @@ export const OPS_JOBS: readonly OpsJob[] = [
   { key: "email-continue-sends", label: "Email send queue", runner: "vercel", schedule: "* * * * *", everyMinutes: 1, source: "/api/email/cron/continue-sends" },
   { key: "reminders", label: "Reminders", runner: "vercel", schedule: "5 * * * *", everyMinutes: 60, source: "/api/reminders/run" },
   { key: "ai-notices", label: "AI notices sweep", runner: "vercel", schedule: "10 7 * * *", everyMinutes: 1440, source: "/api/ai/notices/check" },
+  { key: "rebanding", label: "Re-banding", runner: "vercel", schedule: "30 9 * * *", everyMinutes: 1440, source: "/api/billing/reband/run" },
   { key: "ai-actions-expire", label: "Stale AI proposals", runner: "vercel", schedule: "40 7 * * 0", everyMinutes: 10080, source: "/api/ai/actions/expire-stale" },
   { key: "notification-digest", label: "Notification digests", runner: "github", schedule: "7 * * * *", everyMinutes: 60, source: ".github/workflows/notification-digest.yml" },
   { key: "data-export", label: "Data exports", runner: "github", schedule: "23 * * * *", everyMinutes: 60, source: ".github/workflows/data-export.yml" },

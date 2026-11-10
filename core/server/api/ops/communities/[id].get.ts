@@ -17,7 +17,7 @@ import {
 } from "#core/server/utils/ops-data";
 import { getStripe } from "#core/server/utils/stripe";
 import { countOrgUnits, getActiveBands } from "#core/server/utils/subscription-band";
-import { selectBand, type PlanBand } from "#core/shared/billing/bands";
+import { isContactOnly, selectBand, type PlanBand } from "#core/shared/billing/bands";
 import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
 import { communityStatus, isDuesCharge, monthlyValue } from "#core/shared/ops/metrics";
 import { MANAGER_GRANT_KEYS, normalizeGrants } from "#core/shared/transition/grants";
@@ -199,10 +199,11 @@ export default defineEventHandler(async (event) => {
       return null;
     }
   };
-  const [sub, inv, ch] = await Promise.all([
+  const [sub, inv, ch, cust] = await Promise.all([
     subscriptionId ? read("subscription", (stripe) => opsCached(`sub:${subscriptionId}`, () => stripe.subscriptions.retrieve(subscriptionId))) : null,
     customerId ? read("invoices", (stripe) => opsCached(`invoices:${customerId}`, () => stripe.invoices.list({ customer: customerId, limit: 12 }))) : null,
     customerId ? read("charges", (stripe) => opsCached(`charges-of:${customerId}`, () => stripe.charges.list({ customer: customerId, limit: 12 }))) : null,
+    customerId ? read("customer", (stripe) => opsCached(`customer:${customerId}`, () => stripe.customers.retrieve(customerId))) : null,
   ]);
 
   let subscription: any = null;
@@ -309,6 +310,10 @@ export default defineEventHandler(async (event) => {
       error: stripeError,
       /** Set when the community's Stripe objects belong to the other mode: no actions on them. */
       otherMode: mode.other,
+      /** Who Stripe sends invoices and receipts to. */
+      customer: cust && !(cust as any).deleted ? { email: (cust as any).email ?? null, name: (cust as any).name ?? null } : null,
+      /** The bands it could be moved to (the console's "Change band"). */
+      bands: bands.map((b: any) => ({ slug: b.slug, name: b.name ?? b.slug, contactOnly: isContactOnly(b), priceMonthly: b.price_monthly ?? null })),
     },
     activity: {
       lastAdminSignInAt: adminSignIns.at(-1) ?? null,

@@ -14,7 +14,12 @@ export type OpsAction =
   | "comp_off"
   | "code_create"
   | "code_deactivate"
-  | "portal_open";
+  | "portal_open"
+  | "reband"
+  | "resend_welcome"
+  | "send_receipt"
+  | "billing_contact"
+  | "view_as";
 
 export const OPS_ACTION_LABEL: Readonly<Record<OpsAction, string>> = {
   refund: "Refund",
@@ -27,6 +32,11 @@ export const OPS_ACTION_LABEL: Readonly<Record<OpsAction, string>> = {
   code_create: "Create discount code",
   code_deactivate: "Deactivate discount code",
   portal_open: "Open billing portal",
+  reband: "Change band",
+  resend_welcome: "Re-send welcome email",
+  send_receipt: "Email a receipt",
+  billing_contact: "Change billing contact",
+  view_as: "View as a role",
 };
 
 export const REASON_MIN = 5;

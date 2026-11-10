@@ -39,7 +39,7 @@ const canTrial = computed(
 /** Whose bill an action touches: the agency's, for an agency-billed community. */
 const whose = computed(() => (c.value?.billingAccount ? `${c.value.billingAccount.name}'s` : `${c.value?.name}'s`));
 
-type Action = "cancel" | "resume" | "trial" | "comp" | "portal";
+type Action = "cancel" | "resume" | "trial" | "comp" | "portal" | "reband";
 const action = ref<Action | null>(null);
 const actionOpen = computed({
   get: () => !!action.value,
@@ -48,6 +48,9 @@ const actionOpen = computed({
   },
 });
 const cancelWhen = ref<"period_end" | "now">("period_end");
+const bandSlug = ref("");
+const bandChoices = computed(() => (billing.value?.bands ?? []).filter((b: any) => !b.contactOnly));
+const currentBand = computed(() => sub.value?.bandSlug ?? billing.value?.band?.slug ?? null);
 const trialEndsOn = ref("");
 const dayAfter = (iso: string, days: number) => new Date(new Date(iso).getTime() + days * 86_400_000).toISOString().slice(0, 10);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -55,6 +58,7 @@ const trialMax = computed(() => dayAfter(new Date().toISOString(), TRIAL_MAX_DAY
 
 function start(next: Action) {
   if (next === "cancel") cancelWhen.value = "period_end";
+  if (next === "reband") bandSlug.value = billing.value?.bandForUnits?.slug && billing.value.bandForUnits.slug !== currentBand.value ? billing.value.bandForUnits.slug : "";
   if (next === "trial") {
     const from = c.value?.trialEndsAt && c.value.trialEndsAt > new Date().toISOString() ? c.value.trialEndsAt : new Date().toISOString();
     const proposed = dayAfter(from, 14);
@@ -139,6 +143,20 @@ const actionProps = computed(() => {
             }),
             doneMessage: (res: any) => (res?.result?.stillBilled ? "Marked free. Its Stripe subscription is still running." : "Marked free."),
           };
+    case "reband":
+      return {
+        title: "Change band",
+        description: `It pays for ${billing.value?.band?.name ?? currentBand.value ?? "an unknown band"} now. The new band applies from the next renewal (${shortDate(sub.value?.currentPeriodEnd)}), with no proration and no onboarding fee. Its HOA Admins are emailed.`,
+        endpoint: `/api/ops/communities/${id.value}/reband`,
+        submitLabel: "Change band",
+        body: () => ({ bandSlug: bandSlug.value }),
+        problem: () => (!bandSlug.value ? "Choose a band." : bandSlug.value === currentBand.value ? "That's the band it's on." : null),
+        confirmation: () => ({
+          title: `Move ${name} to ${bandChoices.value.find((b: any) => b.slug === bandSlug.value)?.name ?? bandSlug.value}?`,
+          body: `From ${shortDate(sub.value?.currentPeriodEnd)}. Nothing is charged before then.`,
+        }),
+        doneMessage: () => "Band changed from the next renewal.",
+      };
     case "portal":
       return {
         title: "Open the billing portal",
@@ -310,6 +328,7 @@ async function onDone(res: any) {
           <div v-if="canAct && (sub || links?.stripeCustomer)" class="mt-3 flex flex-wrap gap-2">
             <Button v-if="sub && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('cancel')">Cancel…</Button>
             <Button v-if="sub?.cancelAtPeriodEnd && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('resume')">Resume</Button>
+            <Button v-if="sub && sub.status !== 'canceled' && !c.billingAccount && bandChoices.length" variant="outline" size="sm" @click="start('reband')">Change band…</Button>
             <Button v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('portal')">Billing portal</Button>
           </div>
           <p v-else-if="canWrite && billing.otherMode" class="mt-2 type-micro t-text-muted">Actions are off for objects in the other Stripe mode.</p>
@@ -375,6 +394,16 @@ async function onDone(res: any) {
           <p class="type-micro t-text-muted">
             {{ cancelWhen === "now" ? "Ends today. Nothing is refunded." : `Keeps working until ${shortDate(sub?.currentPeriodEnd)}.` }}
           </p>
+        </div>
+        <div v-else-if="action === 'reband'" class="space-y-1.5">
+          <Label for="ops-band">Band</Label>
+          <select id="ops-band" v-model="bandSlug" class="w-full rounded-lg border border-[var(--theme-border-primary)] bg-transparent px-3 py-2 type-body t-text">
+            <option value="" disabled>Choose a band</option>
+            <option v-for="b in bandChoices" :key="b.slug" :value="b.slug" :disabled="b.slug === currentBand">
+              {{ b.name }}<template v-if="b.priceMonthly != null"> · {{ money(Math.round(b.priceMonthly * 100)) }}/month</template><template v-if="b.slug === currentBand"> (now)</template>
+            </option>
+          </select>
+          <p v-if="billing.bandForUnits" class="type-micro t-text-muted">Its units ({{ billing.bandForUnits.units }}) fit {{ billing.bandForUnits.name }}.</p>
         </div>
         <div v-else-if="action === 'trial'" class="space-y-1.5">
           <Label for="ops-trial-ends">Trial ends on</Label>

@@ -179,6 +179,31 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     closed. Its rows stay, marked TEST. "Ask my community" opens on a question.
   - **Not built:** attachments (the field exists, but there's no upload UI) and SendGrid Inbound Parse (optional in
     the plan).
+- **Re-banding (launch-followups Session 3) done 2026-11-10, committed locally, not pushed.**
+  - **Peter's answers:**
+    - A higher band applies at the next renewal, with no proration.
+    - A band never goes down automatically; it moves only on request.
+    - The board's HOA Admins and HOA Connect are emailed first.
+    - No onboarding fee is charged on moving up.
+    - Crossing into Enterprise notifies HOA Connect and leaves Stripe alone.
+  - **The rules** are `planReband()` in `core/shared/billing/reband.ts`. The work is in `core/server/utils/reband.ts`.
+    - `changeBand()` swaps only the band item (identified by lookup key; add-ons are kept) with
+      `proration_behavior: "none"`, and keeps the item's interval.
+    - It updates `metadata.band_slug` and `metadata.units`, and the org's `subscription_plan`.
+    - The idempotency key is `reband:<sub>:<band>`, so a second run changes nothing.
+  - **The daily run:** `/api/billing/reband/run`, Vercel Cron at `30 9 * * *`, with a heartbeat (job `rebanding`) and
+    `?dry=1`.
+    - It covers communities that pay for themselves and are active or past due. Free, demo and agency-billed
+      communities are skipped.
+    - Automatic moves are logged in `ops_audit_log` with `actor_role` "system".
+    - Enterprise opens one support entry (`enterprise:<org>`).
+  - **Console:** `POST /api/ops/communities/:id/reband` ("Change band…" on the billing card), up or down, the same
+    path.
+  - **Stripe checked in test mode, 2026-11-10:** a Boutique subscription moved to Mid with no proration.
+    - The period was unchanged, and the only invoice was still the original $249.
+    - The upcoming invoice is $449 at renewal, with 0 proration lines.
+    - The test subscription was canceled.
+  - **Not done:** no run on a real renewal (or a test clock) with the Directus side together.
 - **launch-followups.md Sessions 2–5 are still open.** Re-banding waits for its Session 3.
 
 ## Files worth knowing (read only what your session needs)

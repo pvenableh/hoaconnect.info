@@ -17,6 +17,7 @@ import { readItem, readItems } from "@directus/sdk";
 import type { H3Event } from "h3";
 import type { z } from "zod";
 import { opsIdempotencyKey, reasonProblem, type OpsAction } from "#core/shared/ops/actions";
+import type { OpsPermission } from "#core/shared/ops/permissions";
 import { requireOpsPermission, type PlatformActor } from "./admin-auth";
 import { findOpsAuditEntry, writeOpsAuditEntry, type OpsAuditDetails } from "./ops-audit";
 import { invalidateOpsCache, stripeReadProblem } from "./ops-data";
@@ -33,12 +34,16 @@ export interface OpsActionBody {
   requestId: string;
 }
 
-/** Guard, rate limit, body: in that order. */
+/**
+ * Guard, rate limit, body: in that order. Money and customer-facing actions
+ * need `billing.write` (the default); "view as" needs `support`.
+ */
 export async function beginOpsAction<S extends z.ZodTypeAny>(
   event: H3Event,
-  extra: S
+  extra: S,
+  permission: OpsPermission = "billing.write"
 ): Promise<{ actor: PlatformActor; body: OpsActionBody & z.infer<S> }> {
-  const actor = await requireOpsPermission(event, "billing.write");
+  const actor = await requireOpsPermission(event, permission);
   if (!rateLimit(`ops-write:${actor.userId}`, OPS_WRITE_LIMIT, OPS_WRITE_WINDOW_MS)) {
     throw createError({ statusCode: 429, message: "Too many console actions in a short time. Wait a few minutes." });
   }

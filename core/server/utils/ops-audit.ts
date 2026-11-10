@@ -40,7 +40,8 @@ export interface OpsAuditDetails {
 
 export interface OpsAuditEntry extends OpsAuditDetails {
   action: OpsAction;
-  actor: PlatformActor;
+  /** Null for what HOA Connect does on its own schedule (automatic re-banding). */
+  actor: PlatformActor | null;
   reason: string;
   idempotencyKey: string;
 }
@@ -69,7 +70,8 @@ export async function findOpsAuditEntry(idempotencyKey: string): Promise<{ id: s
  * swallowed: the caller decides how to tell the operator.
  */
 export async function writeOpsAuditEntry(entry: OpsAuditEntry): Promise<{ id: string; replayed: boolean }> {
-  const who = (await opsUsers([entry.actor.userId]).catch(() => null))?.get(entry.actor.userId);
+  const actor = entry.actor;
+  const who = actor ? (await opsUsers([actor.userId]).catch(() => null))?.get(actor.userId) : null;
   const stripeIds = Object.fromEntries(Object.entries(entry.stripe ?? {}).filter(([, v]) => !!v));
   try {
     // Not in the generated schema types yet (`pnpm generate:types` after the migration).
@@ -77,9 +79,9 @@ export async function writeOpsAuditEntry(entry: OpsAuditEntry): Promise<{ id: st
       (createItem as any)("ops_audit_log", {
         occurred_at: new Date().toISOString(),
         action: entry.action,
-        actor_user: entry.actor.userId,
-        actor_role: entry.actor.role,
-        actor_name: who?.name ?? null,
+        actor_user: actor?.userId ?? null,
+        actor_role: actor?.role ?? "system",
+        actor_name: actor ? (who?.name ?? null) : "HOA Connect (automatic)",
         actor_email: who?.email ?? null,
         reason: entry.reason,
         summary: entry.summary,
