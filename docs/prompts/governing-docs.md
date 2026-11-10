@@ -209,6 +209,9 @@ From this repo:
   - Deferred: a reason/counsel-name field in the UI when marking counsel_confirmed (the route takes `reason`); an
     audit-log viewer; editing a reference's edition or checked date (stale view is read-only); flags on the reading
     view beyond the existing count.
+- **Pushed 2026-11-10 (Peter's word):** everything through Session 2 and its follow-ups is on `origin/main`
+  (15 commits, up to `a199ee1`). The "NOT pushed" notes above are history. Missing module keys default to ON, so
+  every org now has the Governing Documents entry.
 - **Next: Session 3A (upload and extraction).** Starts with the OCR question to Peter.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
