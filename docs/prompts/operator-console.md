@@ -266,7 +266,7 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
     as "The platform's" (Peter's call for the support pair), and `/your-data` lists them.
   - **Peter said yes to building support attachments and Inbound Parse.** They're written up as Sessions F and G
     below rather than built here, per the long-session rule.
-- **Session H done 2026-11-10, committed locally, not pushed.** Directus no longer emails bell notifications.
+- **Session H done 2026-11-10, pushed and live.** Directus no longer emails bell notifications.
   - Directus 11.13.4 has no setting for this. Its docs and `NotificationsService` source agree that it emails every new
     `directus_notifications` row when `email_notifications === true`. The only other off-switch is an `email.send`
     hook extension.
@@ -294,7 +294,12 @@ This repo is large, and most of the cost of a session is reading. Spend tokens o
       `sendBrandedTransactionalEmail` with no category: a category opt-out doesn't stop it; `_email`, the mute or a
       bounce does. The workflow now passes `CRON_SECRET`, the secret the AI crons already use. The wording is shared in
       `core/shared/export/ready-notice.ts`. Not checked live: no export was run.
-    - **Other 6 users:** see the push and flip record below.
+    - **Pushed with Peter's yes:** 4 commits, `dec333f..289e74f` (Session E docs and types, Session H, the export
+      email). `pnpm build` passed first. Build `a4642190-…` went live about 4 minutes later, and the new route
+      answers 401 without the secret.
+    - **Other 6 users flipped after the deploy, with Peter's yes:** counted 6 at true and 1 (Peter) at false, wrote
+      the 6 in one bulk update, and re-counted 7 at false. Every production user now has `email_notifications`
+      false.
   - **Found, not fixed: the billing and digest workers can't start under `tsx`.**
     - `scripts/billing-worker.ts` and `scripts/notification-digest-worker.ts` import
       `core/server/utils/email-templates-mjml.ts`. Since Phase 4 (c1c6397, 2026-11-03) that file has imported
