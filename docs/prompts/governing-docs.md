@@ -72,9 +72,12 @@ From this repo:
   - Mapping and write order: `scripts/lib/governing-import.ts` (collection names in its `C`). Provision `text`,
     `review_state` and document/flag `status` are create-only: a re-run never overwrites them.
   - Tests: `tests/scripts/governing-import.test.ts` (criteria 1, 3, part of 4, 6 and 8, on the real seed).
-  - **Still owed in 1A, each on Peter's yes:** `create:governing-docs -- --apply`, then
-    `seed:governing-docs-1033 -- --apply`, then run the seed again to show "create 0", then `pnpm generate:types`
-    and commit `core/types/directus.ts`. Also unchecked: whether 1033 has rows in the old `hoa_governance`.
+  - **Schema created on the hosted Directus 2026-11-10** (Peter's yes): 10 collections, 5 org fields, 0 role
+    permissions; a read-only re-run reports nothing to create. Types regenerated (`HoaGoverning*`, `HoaStatute*`
+    in `core/types/directus.ts`, additions only).
+  - **Still owed in 1A, on Peter's yes:** `seed:governing-docs-1033 -- --apply` (he has not yet confirmed flags as
+    `confirmed` vs `--flags=suggested`, or the link choices in plan §3), then run it again to show "create 0".
+    Also unchecked: whether 1033 has rows in the old `hoa_governance`.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

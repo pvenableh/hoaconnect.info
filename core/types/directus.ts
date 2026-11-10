@@ -1063,6 +1063,122 @@ export interface HoaGovernance {
 	user_updated?: DirectusUser | string | null;
 }
 
+export interface HoaGoverningAuditLog {
+	/** @primaryKey */
+	id: string;
+	occurred_at?: string | null;
+	/** @description text_edit | flag_status | publish | review_state | … A string: later phases add values. */
+	action?: string | null;
+	organization?: HoaOrganization | string | null;
+	/** @description SET NULL on delete: the row outlives the account. */
+	actor_user?: DirectusUser | string | null;
+	/** @description Denormalized on purpose. */
+	actor_name?: string | null;
+	actor_email?: string | null;
+	document?: HoaGoverningDocument | string | null;
+	provision?: HoaGoverningProvision | string | null;
+	flag?: HoaStatuteFlag | string | null;
+	summary?: string | null;
+	reason?: string | null;
+	before?: Record<string, any> | null;
+	after?: Record<string, any> | null;
+}
+
+export interface HoaGoverningDocument {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	/** @description Stable key from an import (e.g. bylaws:3.5). Matched on re-import so nothing is duplicated. */
+	source_key?: string | null;
+	sort?: number | null;
+	title?: string | null;
+	kind?: 'declaration' | 'articles' | 'bylaws' | 'amendment' | 'rules' | 'prospectus' | 'other';
+	/** @description e.g. "By-Law", "Decl.", "Art." */
+	citation_prefix?: string | null;
+	executed_on?: string | null;
+	recorded_on?: string | null;
+	/** @description Official Records book */
+	or_book?: string | null;
+	or_page_start?: number | null;
+	or_page_end?: number | null;
+	clerk_file_no?: string | null;
+	county?: string | null;
+	/** @description The document this one amends, if any. */
+	amends?: HoaGoverningDocument | string | null;
+	status?: 'draft' | 'in_review' | 'published' | 'superseded';
+	/** @description Markdown. Lets a reader tell an original error from an import error. */
+	transcriber_notes?: string | null;
+	/** @description The full transcription as imported, verbatim. Never searched; provisions are. */
+	transcription?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaGoverningPage {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	source?: HoaGoverningSource | string | null;
+	page_number?: number | null;
+	image?: DirectusFile | string | null;
+	text?: string | null;
+	/** @description text_layer or ocr */
+	extraction?: string | null;
+}
+
+export interface HoaGoverningProvisionLink {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	from_provision?: HoaGoverningProvision | string | null;
+	to_provision?: HoaGoverningProvision | string | null;
+	type?: 'amends' | 'replaces' | 'adds_to' | 'conflicts_with';
+	note?: string | null;
+}
+
+export interface HoaGoverningProvision {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	document?: HoaGoverningDocument | string | null;
+	parent?: HoaGoverningProvision | string | null;
+	/** @description Stable key from an import (e.g. bylaws:3.5). Matched on re-import so nothing is duplicated. */
+	source_key?: string | null;
+	sort?: number | null;
+	/** @description Normalized, e.g. "By-Law 3.5". */
+	citation?: string | null;
+	/** @description As printed, e.g. ".5". */
+	original_label?: string | null;
+	heading?: string | null;
+	/** @description VERBATIM. Never corrected, reflowed or summarized. Original typos stay. */
+	text?: string | null;
+	text_format?: 'markdown';
+	or_page_start?: number | null;
+	or_page_end?: number | null;
+	review_state?: 'ocr_draft' | 'reviewed' | 'verified';
+	reviewed_by?: DirectusUser | string | null;
+	reviewed_at?: string | null;
+	block_type?: 'text' | 'execution' | 'exhibit' | 'drawing';
+	/** @description A handwritten or doubtful reading. */
+	uncertain?: boolean | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaGoverningSource {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	document?: HoaGoverningDocument | string | null;
+	file?: DirectusFile | string | null;
+	is_recorded_copy?: boolean | null;
+	/** @description The copy the published text was taken from. */
+	is_authoritative?: boolean | null;
+	notes?: string | null;
+	page_count?: number | null;
+	date_created?: string | null;
+}
+
 export interface HoaInvitation {
 	/** @primaryKey */
 	id: string;
@@ -1439,6 +1555,14 @@ export interface HoaOrganization {
 	timezone?: `America/New_York` | `America/Chicago` | `America/Denver` | `America/Phoenix` | `America/Los_Angeles` | `America/Anchorage` | `Pacific/Honolulu` | `America/Puerto_Rico` | null;
 	/** @description Unit count the board declared at signup. The subscription band uses the larger of this and the real unit count. Edit here to correct it. */
 	declared_units?: number | null;
+	regime?: 'condominium' | 'hoa' | 'coop' | null;
+	/** @description e.g. "Fla. Stat. ch. 718" */
+	governing_statute?: string | null;
+	/** @description The statute the declaration itself names. */
+	original_statute_cited?: string | null;
+	/** @description Does the declaration adopt the statute "as amended from time to time"? Null = not yet answered. */
+	incorporates_future_amendments?: boolean | null;
+	incorporates_future_amendments_note?: string | null;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1685,6 +1809,63 @@ export interface HoaRequest {
 	/** @description Project this request is attached to */
 	project?: HoaProject | string | null;
 	tasks?: HoaTask[] | string[];
+}
+
+export interface HoaStatuteFlag {
+	/** @primaryKey */
+	id: string;
+	organization?: HoaOrganization | string | null;
+	/** @description Stable key from an import (e.g. bylaws:3.5). Matched on re-import so nothing is duplicated. */
+	source_key?: string | null;
+	topic?: string | null;
+	document_rule?: string | null;
+	statute_rule?: string | null;
+	/** @description The citation as curated, verbatim. May be empty, compound, or a case. */
+	statute_citation?: string | null;
+	relationship?: 'statute_controls' | 'statute_supplements' | 'document_controls' | 'consistent' | 'counsel_review' | null;
+	severity?: 'info' | 'low' | 'medium' | 'high';
+	note?: string | null;
+	status?: 'suggested' | 'confirmed' | 'dismissed' | 'counsel_confirmed';
+	confirmed_by?: DirectusUser | string | null;
+	confirmed_at?: string | null;
+	origin?: 'curated' | 'ai_suggested';
+	/** @description For ai_suggested flags: the provision text the suggestion relied on. */
+	quoted_text?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaStatuteFlagsProvision {
+	/** @primaryKey */
+	id: string;
+	flag?: HoaStatuteFlag | string | null;
+	provision?: HoaGoverningProvision | string | null;
+	sort?: number | null;
+}
+
+export interface HoaStatuteFlagsReference {
+	/** @primaryKey */
+	id: string;
+	flag?: HoaStatuteFlag | string | null;
+	reference?: HoaStatuteReference | string | null;
+	sort?: number | null;
+}
+
+export interface HoaStatuteReference {
+	/** @primaryKey */
+	id: string;
+	/** @description e.g. "FL" */
+	jurisdiction?: string | null;
+	/** @description e.g. "718.112(2)(b)" */
+	code?: string | null;
+	title?: string | null;
+	summary?: string | null;
+	url?: string | null;
+	/** @description The edition of the statute that was read. */
+	edition?: string | null;
+	checked_on?: string | null;
+	date_created?: string | null;
+	date_updated?: string | null;
 }
 
 export interface HoaTask {
@@ -2705,6 +2886,12 @@ export interface Schema {
 	hoa_emails_files: HoaEmailsFile[];
 	hoa_email_templates: HoaEmailTemplate[];
 	hoa_governance: HoaGovernance[];
+	hoa_governing_audit_log: HoaGoverningAuditLog[];
+	hoa_governing_documents: HoaGoverningDocument[];
+	hoa_governing_pages: HoaGoverningPage[];
+	hoa_governing_provision_links: HoaGoverningProvisionLink[];
+	hoa_governing_provisions: HoaGoverningProvision[];
+	hoa_governing_sources: HoaGoverningSource[];
 	hoa_invitations: HoaInvitation[];
 	hoa_join_requests: HoaJoinRequest[];
 	hoa_leases: HoaLease[];
@@ -2730,6 +2917,10 @@ export interface Schema {
 	hoa_reactions: HoaReaction[];
 	hoa_reminder_log: HoaReminderLog[];
 	hoa_requests: HoaRequest[];
+	hoa_statute_flags: HoaStatuteFlag[];
+	hoa_statute_flags_provisions: HoaStatuteFlagsProvision[];
+	hoa_statute_flags_references: HoaStatuteFlagsReference[];
+	hoa_statute_references: HoaStatuteReference[];
 	hoa_tasks: HoaTask[];
 	hoa_tasks_users: HoaTasksUser[];
 	hoa_team_members: HoaTeamMember[];
@@ -2822,6 +3013,12 @@ export enum CollectionNames {
 	hoa_emails_files = 'hoa_emails_files',
 	hoa_email_templates = 'hoa_email_templates',
 	hoa_governance = 'hoa_governance',
+	hoa_governing_audit_log = 'hoa_governing_audit_log',
+	hoa_governing_documents = 'hoa_governing_documents',
+	hoa_governing_pages = 'hoa_governing_pages',
+	hoa_governing_provision_links = 'hoa_governing_provision_links',
+	hoa_governing_provisions = 'hoa_governing_provisions',
+	hoa_governing_sources = 'hoa_governing_sources',
 	hoa_invitations = 'hoa_invitations',
 	hoa_join_requests = 'hoa_join_requests',
 	hoa_leases = 'hoa_leases',
@@ -2847,6 +3044,10 @@ export enum CollectionNames {
 	hoa_reactions = 'hoa_reactions',
 	hoa_reminder_log = 'hoa_reminder_log',
 	hoa_requests = 'hoa_requests',
+	hoa_statute_flags = 'hoa_statute_flags',
+	hoa_statute_flags_provisions = 'hoa_statute_flags_provisions',
+	hoa_statute_flags_references = 'hoa_statute_flags_references',
+	hoa_statute_references = 'hoa_statute_references',
 	hoa_tasks = 'hoa_tasks',
 	hoa_tasks_users = 'hoa_tasks_users',
 	hoa_team_members = 'hoa_team_members',
