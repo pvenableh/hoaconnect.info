@@ -435,14 +435,18 @@ From this repo:
     `public/pdfjs/wasm/`); a garbled text layer no longer beats reading the image (`textLayerNoise`).
   - **Pushed 2026-11-11 (Peter's word):** `origin/main` at `2b1a868`, live (the decoder answers 200 on
     www.hoaconnect.info). Gates there: 169 files / 3,044 tests, lint 0 errors and 139 warnings, 16 audits, typecheck 0.
-  - **Session 3, committed locally, NOT pushed.** Governing files are out of Directus's public image read (marked
+  - **Session 3** (pushed with the follow-ups, see below). Governing files are out of Directus's public image read (marked
     `governing-file`; filter in `scripts/lib/public-files.ts`; applied to production with Peter's yes, 11 files
     marked). A provision still cannot cross a page: merge, then add the break by an edit (Peter's choice). `amends`
-    is editable in Document details, audited, never itself or a circle. After the push, re-run
-    `pnpm run scope:public-files --apply` to mark anything uploaded meanwhile.
-  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide; support
-    attachment images are still public; anonymous `/files` lists every public image's fields; the storage library
-    can rename, move or delete governing files with no governing audit row.
+    is editable in Document details, audited, never itself or a circle.
+  - **Follow-ups, same day (Peter: finish it all):** the storage library and the general files route keep off
+    governing files; the public read also leaves out support files and gives anonymous callers only `id`; the HOA
+    Member policy no longer lets a member update or delete any file in Directus (own uploads, and for update their
+    community's library; never governing or support files). Drag-to-reorder seen working. Details and the push in
+    `docs/prompts/governing-loose-ends.md`.
+  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide; nested
+    file reads with a member's token answer 500 on production (Documents page empty for managers; not caused by
+    these changes, see the loose-ends file).
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /

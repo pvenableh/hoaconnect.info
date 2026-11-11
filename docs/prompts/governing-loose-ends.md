@@ -154,6 +154,43 @@ Each session appends its own "Session N done" bullet here.
     lists governing files in Documents to anyone who may browse it, and its rename, move and delete reach them with
     no governing audit row (a delete leaves the source row pointing at nothing). From Session 1: change-history
     paging and drag-to-reorder not seen working.
+- **Session 3 follow-ups done (2026-11-11, Peter: "finish it all here and push what you need").** Each Directus write
+  had its own yes after a dry run.
+  - **Storage library and the general files route keep off governing files** (code; `NOT_GOVERNING_FILE` in
+    `core/shared/governing/files.ts`). The library's lists, the general files route's list, and the Documents page
+    no longer show them; rename, move, delete and optimize answer 409; the optimize sweep skips them (it re-encoded
+    every image in place, page scans included); a folder delete with contents refuses while one is inside; the files
+    route's get answers 404 and its update and delete 409. Tests: `tests/server/storage-governing-files.test.ts`.
+    Seen on the dev server: Lenox's Documents folder (only the 11 governing files) now lists none.
+  - **Public read narrowed again (applied):** support files (`support-…`) are left out too, and the grant's fields are
+    only `id` (`PUBLIC_FILES_FIELDS`; the audit now checks fields as well). Anonymously after: `/files` lists 30 ids and
+    nothing else, asking for a title is refused, a plain image 200 (resized 200), a support image, a governing image
+    and a PDF 403. Before, each anonymous row carried 26 fields, among them `location`, `metadata` and `uploaded_by`.
+    The script now fetches a public image anonymously after writing and puts the grant back if it is not 200.
+  - **HOA Member file policy (applied; found here, not governing).** Its update and delete on `directus_files` were
+    `{}`: any file. The policy has app access, and `/api/websocket/token` gives every signed-in user their own
+    Directus token, so any member could delete or replace any community's files or strip a governing mark. Now
+    (`scripts/lib/member-files.ts`, `scripts/scope-member-file-writes.ts`): update is own uploads or the community's
+    library (root and three levels down), delete is own uploads only, and neither reaches a governing or support file.
+    The app's only member-token file change, moving a file on the Documents page, still works. Checked with Oscar's
+    token through `GET /permissions/me/directus_files/<id>`: another community's file, a governing original and a
+    support file went from update/delete true to false; a Lenox library file update true, delete false; his own
+    upload true and true.
+  - **Drag-to-reorder seen working:** the 1995 Amendment was unpublished (reason given), its execution block dragged
+    above the text and back, and republished; four audit rows, order and status as before. The pane cannot start
+    a native drag, so the drag events were fired on the real handle and card; the page's own handlers saved each move.
+  - **Change-history paging:** the cursor works on real data (rows older than the 20th are exactly the other 20); the
+    "more" button needs over 50 rows (there are 44), so it is still not seen on screen.
+  - Gates: 172 files / 3,062 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0.
+  - Deploy and the re-run of `scope:public-files` after the push: see the next bullet.
+  - **Open:** the 12 AI flag suggestions (Peter's). **Nested file reads with a member's token answer 500** on
+    production: `/users/me?fields=avatar.id`, and the Documents page's `hoa_documents` list with `file.*` (so that page
+    lists nothing for managers). Not caused by the member policy (still 500 with it set back to `{}` and the cache
+    cleared; it was put back after) and not by the public grant (it does not apply to signed-in users: Oscar sees 1
+    file at the top level, not 30). The org logo's nested read works. It looks like the `$CURRENT_USER.hoa_members`
+    path trouble of commit `0776dba`; not investigated further. A folder (`f0b2cfd6…`) is its own parent. A member may
+    still move a file into another community's folder (update has no validation on the new folder). Other HOA Member
+    permissions with `{}` on write actions were not reviewed.
 
 ---
 

@@ -19,6 +19,7 @@ import {
   assertFolderInOrg,
   getDescendantFolderIds,
 } from "#core/server/utils/org-storage";
+import { NOT_GOVERNING_FILE } from "#core/shared/governing/files";
 
 const FILE_FIELDS = [
   "id",
@@ -50,8 +51,7 @@ export default defineEventHandler(async (event) => {
     const files = (await admin.request(
       readFiles({
         filter: {
-          folder: { _in: folderIds },
-          uploaded_by: { _eq: ctx.userId },
+          _and: [{ folder: { _in: folderIds } }, { uploaded_by: { _eq: ctx.userId } }, NOT_GOVERNING_FILE],
         },
         fields: FILE_FIELDS,
         sort: ["-uploaded_on"],
@@ -84,7 +84,8 @@ export default defineEventHandler(async (event) => {
     ),
     admin.request(
       readFiles({
-        filter: { folder: { _eq: folderId } },
+        // Governing originals and page images live on the governing pages.
+        filter: { _and: [{ folder: { _eq: folderId } }, NOT_GOVERNING_FILE] },
         fields: FILE_FIELDS,
         sort: ["-uploaded_on"],
         limit,

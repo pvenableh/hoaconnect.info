@@ -125,7 +125,9 @@ export const pendingMarker = (userId: string) => `${PENDING_MARKER_PREFIX}${user
 export const attachedMarker = (messageId: string) => `support-message:${messageId}`;
 /** An upload no message claimed is deleted after this many days (the daily sweep). */
 export const UNATTACHED_SWEEP_DAYS = 7;
-export const isSupportFileMarker = (description: unknown) => typeof description === "string" && description.startsWith("support-");
+/** Every support file's description starts with this; the Directus public read leaves such files out. */
+export const SUPPORT_FILE_PREFIX = "support-";
+export const isSupportFileMarker = (description: unknown) => typeof description === "string" && description.startsWith(SUPPORT_FILE_PREFIX);
 
 /** `Content-Disposition` with a plain-ASCII fallback and the UTF-8 name. */
 export function contentDisposition(name: string, inline: boolean): string {

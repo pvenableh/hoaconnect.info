@@ -44,6 +44,9 @@ function matchOp(value: any, op: string, arg: any): boolean {
       return arg ? v == null : v != null;
     case "_starts_with":
       return typeof v === "string" && v.startsWith(String(arg));
+    case "_nstarts_with":
+      // As in Directus (SQL NOT LIKE): a null is left out, not kept.
+      return typeof v === "string" && !v.startsWith(String(arg));
     case "_nnull":
       return arg ? v != null : v == null;
     case "_empty":

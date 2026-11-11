@@ -15,6 +15,7 @@ import {
   assertFolderInOrg,
 } from "#core/server/utils/org-storage";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
+import { GOVERNING_FILE_ELSEWHERE, isGoverningFileMarker } from "#core/shared/governing/files";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -27,9 +28,13 @@ export default defineEventHandler(async (event) => {
   const root = ctx.storage.rootId;
 
   const file = (await admin.request(
-    readFile(fileId, { fields: ["id", "folder", "uploaded_by", "filesize"] })
+    readFile(fileId, { fields: ["id", "folder", "uploaded_by", "filesize", "description"] })
   )) as any;
   await assertFileInOrg(root, file);
+  // A governing file changes only through the governing pages, which audit it.
+  if (isGoverningFileMarker(file?.description)) {
+    throw createError({ statusCode: 409, statusMessage: GOVERNING_FILE_ELSEWHERE });
+  }
 
   const ownerId =
     file?.uploaded_by == null

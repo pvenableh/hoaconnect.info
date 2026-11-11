@@ -21,6 +21,7 @@ import {
   type OptimizeFormat,
 } from "#core/server/utils/image-optimize";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
+import { GOVERNING_FILE_ELSEWHERE, isGoverningFileMarker } from "#core/shared/governing/files";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -36,10 +37,14 @@ export default defineEventHandler(async (event) => {
 
   const file = (await admin.request(
     readFile(fileId, {
-      fields: ["id", "folder", "uploaded_by", "type", "filesize", "filename_download"],
+      fields: ["id", "folder", "uploaded_by", "type", "filesize", "filename_download", "description"],
     })
   )) as any;
   await assertFileInOrg(root, file);
+  // A governing page image is the record as scanned: never re-encoded.
+  if (isGoverningFileMarker(file?.description)) {
+    throw createError({ statusCode: 409, statusMessage: GOVERNING_FILE_ELSEWHERE });
+  }
 
   const ownerId =
     file?.uploaded_by == null

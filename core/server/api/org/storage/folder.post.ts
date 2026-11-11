@@ -30,6 +30,7 @@ import {
   invalidateOrgStorage,
 } from "#core/server/utils/org-storage";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
+import { isGoverningFileMarker } from "#core/shared/governing/files";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -165,8 +166,16 @@ export default defineEventHandler(async (event) => {
       for (let i = 0; i < folderIds.length; i += 50) {
         const chunk = folderIds.slice(i, i + 50);
         const files = (await admin.request(
-          readFiles({ filter: { folder: { _in: chunk } }, fields: ["id", "filesize"], limit: -1 })
+          readFiles({ filter: { folder: { _in: chunk } }, fields: ["id", "filesize", "description"], limit: -1 })
         )) as any[];
+        // Governing files leave only through the governing pages, which audit it:
+        // refuse before anything is deleted.
+        if ((files || []).some((f) => isGoverningFileMarker(f.description))) {
+          throw createError({
+            statusCode: 409,
+            statusMessage: "This folder holds governing document files. Remove them on the Governing Documents pages first.",
+          });
+        }
         for (const f of files || []) {
           fileIds.push(f.id);
           freedBytes += Number(f.filesize) || 0;

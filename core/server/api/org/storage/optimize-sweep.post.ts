@@ -20,6 +20,7 @@ import {
 } from "#core/server/utils/org-storage";
 import { optimizeImageBuffer } from "#core/server/utils/image-optimize";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
+import { NOT_GOVERNING_FILE } from "#core/shared/governing/files";
 
 const OPTIMIZABLE_TYPES = [
   "image/jpeg",
@@ -46,7 +47,8 @@ export default defineEventHandler(async (event) => {
 
   const batch = (await admin.request(
     readFiles({
-      filter: { _and: [{ folder: { _in: subtree } }, { type: { _in: OPTIMIZABLE_TYPES } }] },
+      // Governing page images are the record as scanned: never re-encoded.
+      filter: { _and: [{ folder: { _in: subtree } }, { type: { _in: OPTIMIZABLE_TYPES } }, NOT_GOVERNING_FILE] },
       fields: ["id", "type", "filesize", "filename_download"],
       sort: ["id"], // stable ordering so offset paginates every file exactly once
       limit,

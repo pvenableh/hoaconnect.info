@@ -18,3 +18,14 @@ export const GOVERNING_FILE_MARKER = `${GOVERNING_FILE_PREFIX}file`;
 
 export const isGoverningFileMarker = (description: unknown): boolean =>
   typeof description === "string" && description.startsWith(GOVERNING_FILE_PREFIX);
+
+/**
+ * A Directus filter for every file that is not a governing file. The storage
+ * library and the general files route list with it: governing files are shown,
+ * renamed and removed only on the governing pages, which audit each change.
+ */
+export const NOT_GOVERNING_FILE = {
+  _or: [{ description: { _null: true } }, { description: { _nstarts_with: GOVERNING_FILE_PREFIX } }],
+};
+
+export const GOVERNING_FILE_ELSEWHERE = "This is a governing document file. Manage it on the Governing Documents pages.";

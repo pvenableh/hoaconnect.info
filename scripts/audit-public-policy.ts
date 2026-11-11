@@ -21,7 +21,7 @@
  * cross-tenant, unauthenticated read — do that deliberately, not by accident.
  */
 
-import { PUBLIC_FILES_FILTER } from "./lib/public-files";
+import { PUBLIC_FILES_FIELDS, PUBLIC_FILES_FILTER } from "./lib/public-files";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -38,7 +38,7 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
  * collection would. That is the whole point for `directus_files` — the grant
  * must keep existing, and must keep being narrow.
  */
-const ALLOWED: Record<string, { action: string; why: string; filter?: unknown }> = {
+const ALLOWED: Record<string, { action: string; why: string; filter?: unknown; fields?: string[] }> = {
   directus_files: {
     action: "read",
     // Images only, and the restriction is load-bearing. Unfiltered, this grant
@@ -52,7 +52,8 @@ const ALLOWED: Record<string, { action: string; why: string; filter?: unknown }>
     // images that are not public: they carry a `governing-` description and
     // the filter leaves them out (scripts/lib/public-files.ts).
     filter: PUBLIC_FILES_FILTER,
-    why: "landing + already-sent-email images are fetched with no session (images only, governing files excepted)",
+    fields: PUBLIC_FILES_FIELDS,
+    why: "landing + already-sent-email images are fetched with no session (images only, no governing or support files, id only)",
   },
   subscription_plans: {
     action: "read",
@@ -108,9 +109,8 @@ async function main() {
     // A grant whose filter has drifted is still "expected", so it is reported on
     // its own line rather than as an unknown collection — the fix differs.
     const scoped =
-      ok && allowed.filter !== undefined
-        ? JSON.stringify(p.permissions) === JSON.stringify(allowed.filter)
-        : true;
+      (ok && allowed.filter !== undefined ? JSON.stringify(p.permissions) === JSON.stringify(allowed.filter) : true) &&
+      (ok && allowed.fields !== undefined ? JSON.stringify(p.fields) === JSON.stringify(allowed.fields) : true);
     console.log(
       `  ${ok && scoped ? "✓" : "✗"} ${p.collection.padEnd(22)} ${p.action.padEnd(7)} ${scope.padEnd(
         11
@@ -118,7 +118,11 @@ async function main() {
     );
     if (!ok) unexpected.push(p);
     else if (!scoped)
-      widened.push({ collection: p.collection, expected: allowed.filter, actual: p.permissions });
+      widened.push({
+        collection: p.collection,
+        expected: { filter: allowed.filter, fields: allowed.fields },
+        actual: { filter: p.permissions, fields: p.fields },
+      });
   }
 
   const missing = Object.keys(ALLOWED).filter(
@@ -147,8 +151,8 @@ async function main() {
     for (const w of widened) {
       console.error(
         `❌ ${w.collection}: public read is WIDER than the contract\n` +
-          `   expected filter: ${JSON.stringify(w.expected)}\n` +
-          `   actual filter:   ${JSON.stringify(w.actual)}`
+          `   expected: ${JSON.stringify(w.expected)}\n` +
+          `   actual:   ${JSON.stringify(w.actual)}`
       );
     }
     console.error("   Re-run: pnpm run scope:public-files --apply");

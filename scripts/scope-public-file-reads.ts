@@ -48,11 +48,19 @@
  * points at whose description is empty; one with other text is listed and left
  * alone. Marking comes first, so no moment widens anything.
  *
+ * SUPPORT FILES AND FIELDS (2026-11-11, later)
+ * --------------------------------------------
+ * Support attachments (`support-…`) are left out the same way, and the grant's
+ * fields are only `id`: anonymous `/files` had been listing every public image
+ * of every community with its title, file name, folder and uploader. After
+ * writing, an anonymous request for a public image (plain and resized) must
+ * still answer 200, or the grant is put back as it was.
+ *
  * Idempotent: a second run reports "already scoped" and writes nothing.
  */
 
 import { GOVERNING_FILE_MARKER, isGoverningFileMarker } from "../core/shared/governing/files";
-import { isPublicFile, PUBLIC_FILES_FILTER } from "./lib/public-files";
+import { isPublicFile, PUBLIC_FILES_FIELDS, PUBLIC_FILES_FILTER } from "./lib/public-files";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -61,7 +69,7 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   process.exit(1);
 }
 
-const TARGET = PUBLIC_FILES_FILTER;
+const TARGET = { permissions: PUBLIC_FILES_FILTER, fields: PUBLIC_FILES_FIELDS };
 
 const APPLY = process.argv.includes("--apply");
 
@@ -91,9 +99,9 @@ async function main() {
 
   const perms = (
     await df(
-      `/permissions?filter%5Bpolicy%5D%5B_eq%5D=${pub.id}&fields=id,collection,action,permissions&limit=200`
+      `/permissions?filter%5Bpolicy%5D%5B_eq%5D=${pub.id}&fields=id,collection,action,permissions,fields&limit=200`
     )
-  ).data as { id: number; collection: string; action: string; permissions: unknown }[];
+  ).data as { id: number; collection: string; action: string; permissions: unknown; fields: unknown }[];
 
   const grant = perms.find((p) => p.collection === "directus_files" && p.action === "read");
   if (!grant) {
@@ -106,7 +114,8 @@ async function main() {
 
   const governing = await markGoverningFiles();
 
-  const current = JSON.stringify(grant.permissions);
+  const previous = { permissions: grant.permissions, fields: grant.fields };
+  const current = JSON.stringify(previous);
   const target = JSON.stringify(TARGET);
   console.log(`\npublic.directus_files.read (permission ${grant.id})`);
   console.log(`  current: ${current}`);
@@ -124,20 +133,44 @@ async function main() {
     return;
   }
 
-  await df(`/permissions/${grant.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ permissions: TARGET }),
-  });
+  // An image every sent email may point at, to prove it still serves afterwards.
+  const witness = await publicWitness(governing);
+  await df(`/permissions/${grant.id}`, { method: "PATCH", body: JSON.stringify(TARGET) });
 
   // Verify against the running server rather than trusting the 200, and verify
   // through /assets — the endpoint that actually matters — not just /files.
-  const check = (await df(`/permissions/${grant.id}?fields=permissions`)).data;
-  if (JSON.stringify(check.permissions) !== target) {
-    console.error("❌ Wrote, but the read-back does not match:", JSON.stringify(check.permissions));
+  const check = (await df(`/permissions/${grant.id}?fields=permissions,fields`)).data;
+  if (JSON.stringify({ permissions: check.permissions, fields: check.fields }) !== target) {
+    console.error("❌ Wrote, but the read-back does not match:", JSON.stringify(check));
     process.exit(1);
   }
-  console.log("\n✅ Scoped.");
+  if (witness) {
+    const plain = await anonymousStatus(witness);
+    const resized = await anonymousStatus(witness, "?width=64");
+    if (plain !== 200 || resized !== 200) {
+      // Logos in sent emails depend on this: put the grant back as it was.
+      await df(`/permissions/${grant.id}`, { method: "PATCH", body: JSON.stringify(previous) });
+      console.error(`❌ A public image stopped serving (${plain}, resized ${resized}); the grant is back as it was.`);
+      process.exit(1);
+    }
+    console.log(`\n✅ Scoped. A public image still serves anonymously: ${plain}, resized ${resized}.`);
+  } else {
+    console.log("\n✅ Scoped. (No public image to check against.)");
+  }
   await checkAnonymously(governing);
+}
+
+async function anonymousStatus(id: string, query = "") {
+  const r = await fetch(`${DIRECTUS_URL}/assets/${id}${query}`);
+  await r.body?.cancel();
+  return r.status;
+}
+
+/** A public image that is not governing and not a support file, if there is one. */
+async function publicWitness(governing: string[]): Promise<string | null> {
+  const filter = encodeURIComponent(JSON.stringify({ type: { _starts_with: "image/" } }));
+  const images = (await df(`/files?limit=-1&fields=id,type,description&filter=${filter}`)).data as FileRow[];
+  return images.find((f) => !governing.includes(f.id) && isPublicFile(f))?.id ?? null;
 }
 
 type FileRow = { id: string; type: string | null; description: string | null; title?: string | null };
@@ -175,7 +208,10 @@ async function markGoverningFiles(): Promise<string[]> {
     .data as FileRow[];
   const toMark = new Set(blank.map((f) => f.id));
   const publicAfter = images.filter((f) => isPublicFile(toMark.has(f.id) ? { ...f, description: GOVERNING_FILE_MARKER } : f));
-  console.log(`  images: ${images.length}; public once marked and scoped: ${publicAfter.length}, governing among them: ${publicAfter.filter((f) => ids.includes(f.id)).length}`);
+  console.log(
+    `  images: ${images.length}; public once marked and scoped: ${publicAfter.length}, governing among them: ${publicAfter.filter((f) => ids.includes(f.id)).length}, ` +
+      `support files left out: ${images.filter((f) => (f.description ?? "").startsWith("support-")).length}`
+  );
 
   if (!APPLY || !blank.length) return ids;
   await df("/files", { method: "PATCH", body: JSON.stringify({ keys: [...toMark], data: { description: GOVERNING_FILE_MARKER } }) });
@@ -192,9 +228,15 @@ async function markGoverningFiles(): Promise<string[]> {
 /** What someone with no session gets, from the endpoints that matter. Reads only. */
 async function checkAnonymously(governing: string[]) {
   const filter = encodeURIComponent(JSON.stringify({ type: { _starts_with: "image/" } }));
-  const res = await fetch(`${DIRECTUS_URL}/files?limit=-1&fields=id&filter=${filter}`);
-  const listed = res.ok ? (((await res.json()) as { data: { id: string }[] }).data ?? []).map((f) => f.id) : [];
-  console.log(`\nAnonymous: /files lists ${listed.length} image(s), governing among them: ${listed.filter((id) => governing.includes(id)).length}`);
+  // No filter of our own: once the grant is id-only, filtering on `type` is refused.
+  const res = await fetch(`${DIRECTUS_URL}/files?limit=-1&fields=*`);
+  const rows = res.ok ? ((((await res.json()) as { data: Record<string, unknown>[] }).data ?? []) as Record<string, unknown>[]) : [];
+  const listed = rows.map((f) => String(f.id));
+  const support = (await df(`/files?limit=-1&fields=id&filter=${encodeURIComponent(JSON.stringify({ description: { _starts_with: "support-" } }))}`)).data as FileRow[];
+  console.log(
+    `\nAnonymous: /files lists ${listed.length} file(s) (${res.status}); governing among them: ${listed.filter((id) => governing.includes(id)).length}, ` +
+      `support files: ${listed.filter((id) => support.some((f) => f.id === id)).length}; fields on a row: ${rows[0] ? Object.keys(rows[0]).join(",") : "none"}`
+  );
   const status = async (id: string) => {
     const r = await fetch(`${DIRECTUS_URL}/assets/${id}`);
     await r.body?.cancel();
