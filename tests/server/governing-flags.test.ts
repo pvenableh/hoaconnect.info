@@ -28,6 +28,7 @@ vi.stubGlobal("getManagerGrants", managerAccess.getManagerGrants);
 type Handler = (event: H3Event) => Promise<any>;
 const routes = {
   status: (await import("#core/server/api/governing/flags/[id]/status.post")).default as Handler,
+  edit: (await import("#core/server/api/governing/flags/[id].patch")).default as Handler,
   provision: (await import("#core/server/api/governing/provisions/[id].get")).default as Handler,
   overview: (await import("#core/server/api/governing/overview.get")).default as Handler,
 };
@@ -170,8 +171,14 @@ describe("statute flags — status changes", () => {
 
   it("walks confirmed → counsel_confirmed → dismissed → confirmed, an audit row each time", async () => {
     as("u-admin");
-    await setStatus("flag-confirmed", "counsel_confirmed");
+    // A lawyer's sign-off is not recorded without saying whose it is.
+    await expect(setStatus("flag-confirmed", "counsel_confirmed")).rejects.toMatchObject({ statusCode: 400 });
+    await expect(setStatus("flag-confirmed", "counsel_confirmed", "   ")).rejects.toMatchObject({ statusCode: 400 });
+    expect(flagRow("flag-confirmed").status).toBe("confirmed");
+    expect(audit()).toHaveLength(0);
+    await setStatus("flag-confirmed", "counsel_confirmed", "J. Smith, Esq., letter of 2026-11-02");
     expect(flagRow("flag-confirmed").status).toBe("counsel_confirmed");
+    expect(audit().at(-1)).toMatchObject({ action: "flag_status", reason: "J. Smith, Esq., letter of 2026-11-02" });
     await setStatus("flag-confirmed", "dismissed");
     expect(flagRow("flag-confirmed")).toMatchObject({ status: "dismissed", confirmed_by: null, confirmed_at: null });
     await setStatus("flag-confirmed", "confirmed");
@@ -237,7 +244,7 @@ describe("statute flags — what a member sees follows the status", () => {
 
   it("a counsel-confirmed flag stays visible to a member", async () => {
     as("u-admin");
-    await setStatus("flag-confirmed", "counsel_confirmed");
+    await setStatus("flag-confirmed", "counsel_confirmed", "J. Smith, Esq.");
     as("u-member");
     const flags = (await read(routes.provision)).flags as any[];
     expect(flags.map((f) => [f.id, f.status])).toEqual([["flag-confirmed", "counsel_confirmed"]]);
@@ -288,5 +295,82 @@ describe("statute flags — overview and freshness", () => {
     expect(referenceStaleness({ edition: "2026", checked_on: null }, today)).toBe("never_checked");
     expect(referenceStaleness({ edition: "2019; recheck", checked_on: "2026-11-10" }, today)).toBe("recheck_noted");
     expect(staleReferences([], today)).toEqual([]);
+  });
+});
+
+describe("editing a suggestion", () => {
+  const edit = (id: string, body: Record<string, unknown>) => {
+    h.query = { orgId: ORG };
+    h.params = { id };
+    h.body = body;
+    return routes.edit(event);
+  };
+
+  it("only managers may, and only in their own community", async () => {
+    for (const [user, role, status] of [[null, ROLE.member, 401], ["u-member", ROLE.member, 403], ["u-pm-plain", ROLE.pm, 403], ["u-elsewhere", ROLE.hoaAdmin, 403]] as const) {
+      as(user, role);
+      await expect(edit("flag-suggested", { severity: "low" })).rejects.toMatchObject({ statusCode: status });
+    }
+    as("u-admin");
+    await expect(edit("flag-other", { severity: "low" })).rejects.toMatchObject({ statusCode: 404 });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("changes the relationship, severity and rule lines, with one audit row of before and after", async () => {
+    as("u-board");
+    const result = await edit("flag-suggested", {
+      relationship: "statute_supplements", severity: "medium", statute_rule: "  The statute also requires notice.  ", note: "Compared by the secretary.",
+    });
+    expect(result).toEqual({ id: "flag-suggested", changed: true });
+    expect(flagRow("flag-suggested")).toMatchObject({
+      relationship: "statute_supplements", severity: "medium", statute_rule: "The statute also requires notice.", note: "Compared by the secretary.",
+      // Untouched: the status, the citation, the document's side.
+      status: "suggested", statute_citation: "718.112(2)(b)", document_rule: "Document rule.",
+    });
+    expect(audit()).toHaveLength(1);
+    expect(audit()[0]).toMatchObject({
+      action: "flag_edit",
+      flag: "flag-suggested",
+      actor_user: "u-board",
+      before: { relationship: "statute_controls", severity: "high", statute_rule: RULE, note: null },
+      after: { relationship: "statute_supplements", severity: "medium", statute_rule: "The statute also requires notice.", note: "Compared by the secretary." },
+    });
+    // Only the flag was written.
+    expect(writes.filter((w) => w.op !== "createItem").map((w) => w.collection)).toEqual(["hoa_statute_flags"]);
+
+    expect(await edit("flag-suggested", { severity: "medium" })).toEqual({ id: "flag-suggested", changed: false });
+    expect(audit()).toHaveLength(1);
+  });
+
+  it("cannot change the status, the citation, the quoted words or the organization", async () => {
+    as("u-admin");
+    expect(await edit("flag-suggested", { status: "confirmed", statute_citation: "1.1", quoted_text: "x", organization: OTHER_ORG, origin: "curated" })).toEqual({
+      id: "flag-suggested", changed: false,
+    });
+    expect(flagRow("flag-suggested")).toMatchObject({ status: "suggested", statute_citation: "718.112(2)(b)", organization: ORG, origin: "ai_suggested" });
+    for (const body of [{ relationship: "illegal" }, { severity: "extreme" }, { statute_rule: 5 }]) {
+      await expect(edit("flag-suggested", body)).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a flag that is confirmed or dismissed: what members read does not change under them", async () => {
+    as("u-admin");
+    await expect(edit("flag-confirmed", { statute_rule: "New wording." })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(edit("flag-dismissed", { severity: "low" })).rejects.toMatchObject({ statusCode: 409 });
+    expect(flagRow("flag-confirmed").statute_rule).toBe(RULE);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("a member still sees nothing of an edited suggestion until it is confirmed", async () => {
+    as("u-admin");
+    await edit("flag-suggested", { relationship: "statute_supplements", statute_rule: "The statute also requires notice." });
+    as("u-member");
+    expect(((await read(routes.provision)).flags as any[]).map((f) => f.id)).toEqual(["flag-confirmed"]);
+    as("u-admin");
+    await setStatus("flag-suggested", "confirmed");
+    as("u-member");
+    const flags = (await read(routes.provision)).flags as any[];
+    expect(flags.find((f) => f.id === "flag-suggested")).toMatchObject({ relationship: "statute_supplements", statute_rule: "The statute also requires notice." });
   });
 });

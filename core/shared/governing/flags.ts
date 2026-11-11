@@ -57,6 +57,10 @@ export const FLAG_STATUS_ACTIONS: Record<FlagStatus, SettableFlagStatus[]> = {
   dismissed: ["confirmed"],
 };
 
+/** What a manager may change on a flag while it is still a suggestion. Not its citation, not its quoted words. */
+export const FLAG_TEXT_FIELDS = ["document_rule", "statute_rule", "note"] as const;
+export type FlagEdit = Partial<{ relationship: Relationship; severity: Severity } & Record<(typeof FLAG_TEXT_FIELDS)[number], string | null>>;
+
 // ── Freshness (spec §5): references not checked within a set age ────────────
 
 /** Default age, in days, after which a statute reference should be read again. */

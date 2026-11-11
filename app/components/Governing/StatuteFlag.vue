@@ -9,9 +9,12 @@ import {
   FLAG_STATUS_ACTIONS,
   FLAG_STATUS_LABELS,
   RELATIONSHIP_LABELS,
+  RELATIONSHIP_ORDER,
+  SEVERITY_ORDER,
   SEVERITY_LABELS,
   STALE_REASON_LABELS,
   referenceStaleness,
+  type FlagEdit,
   type SettableFlagStatus,
 } from "#core/shared/governing/flags";
 import { formatRecordDate } from "#core/shared/governing/labels";
@@ -31,7 +34,7 @@ const emit = defineEmits<{ changed: [] }>();
 
 const { buildOrgPath } = useOrgNavigation();
 const { confirm } = useConfirm();
-const { setFlagStatus } = useGoverningDocs(toRef(props, "orgId"));
+const { setFlagStatus, editFlag } = useGoverningDocs(toRef(props, "orgId"));
 
 // An admin previewing the member view sees the flag as a member does.
 const { isPreviewingMember } = useViewAs();
@@ -78,20 +81,59 @@ const setStatus = async (status: SettableFlagStatus) => {
     if (!ok) return;
   }
   if (status === "counsel_confirmed") {
-    const ok = await confirm({
-      title: "Has association counsel signed off on this comparison?",
-      body: "Mark it only after a lawyer has reviewed it. The change is recorded with your name.",
-      confirmLabel: "Mark Confirmed",
-    });
-    if (!ok) return;
+    // Asked for on the card itself: who signed off is part of the record.
+    counselOpen.value = true;
+    return;
   }
+  await apply(status);
+};
+
+const apply = async (status: SettableFlagStatus, reason?: string) => {
+  if (saving.value) return;
   saving.value = true;
   try {
-    await setFlagStatus(props.flag.id, status);
+    await setFlagStatus(props.flag.id, status, reason);
     toast.success("Flag updated");
+    counselOpen.value = false;
+    counselNote.value = "";
     emit("changed");
   } catch (error: any) {
     toast.error(error?.data?.message || "Could not update the flag.");
+  } finally {
+    saving.value = false;
+  }
+};
+
+// Marking a flag confirmed by counsel records who gave the sign-off.
+const counselOpen = ref(false);
+const counselNote = ref("");
+const confirmCounsel = () => apply("counsel_confirmed", counselNote.value.trim());
+
+// A suggestion can be worked on before anyone confirms it. A confirmed flag cannot.
+const canEdit = computed(() => manages.value && props.flag.status === "suggested");
+const editing = ref(false);
+const blankEdit = () => ({
+  relationship: props.flag.relationship as string,
+  severity: props.flag.severity as string,
+  document_rule: props.flag.document_rule ?? "",
+  statute_rule: props.flag.statute_rule ?? "",
+  note: props.flag.note ?? "",
+});
+const form = reactive(blankEdit());
+const startEdit = () => {
+  Object.assign(form, blankEdit());
+  editing.value = true;
+};
+const saveEdit = async () => {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    const result = await editFlag(props.flag.id, { ...form } as FlagEdit);
+    toast.success(result.changed ? "Suggestion saved" : "Nothing changed");
+    editing.value = false;
+    emit("changed");
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Could not save the suggestion.");
   } finally {
     saving.value = false;
   }
@@ -126,8 +168,8 @@ const setStatus = async (status: SettableFlagStatus) => {
         <dd class="type-body t-text whitespace-pre-wrap border-l-2 t-border pl-3">{{ flag.quoted_text }}</dd>
       </div>
       <p v-if="manages && flag.origin === 'ai_suggested' && flag.status === 'suggested'" class="type-meta t-text-muted">
-        Software matched this provision to a statute in the library. It has not compared what each says. Read both before confirming; confirming shows
-        members a question for counsel.
+        Software matched this provision to a statute in the library. It has not compared what each says. Read both before confirming. Left as it is,
+        confirming shows members a question for counsel; Edit lets you record what you found instead.
       </p>
       <div v-if="flag.document_rule">
         <dt class="type-micro t-text-muted">Your documents</dt>
@@ -169,7 +211,60 @@ const setStatus = async (status: SettableFlagStatus) => {
       </div>
     </dl>
 
-    <div v-if="manages && actions.length" class="flex flex-wrap items-center justify-end gap-2 border-t t-border pt-3">
+    <form v-if="canEdit && editing" class="space-y-3 border-t t-border pt-3" data-testid="governing-flag-edit" @submit.prevent="saveEdit">
+      <p class="type-meta t-text-muted">
+        Write each side in your own words after reading both. Members see this once the flag is confirmed, and it cannot be edited after that.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <Label :for="`flag-rel-${flag.id}`">Relationship</Label>
+          <Select v-model="form.relationship">
+            <SelectTrigger :id="`flag-rel-${flag.id}`"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="r in RELATIONSHIP_ORDER" :key="r" :value="r">{{ RELATIONSHIP_LABELS[r] }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div class="space-y-1">
+          <Label :for="`flag-sev-${flag.id}`">Severity</Label>
+          <Select v-model="form.severity">
+            <SelectTrigger :id="`flag-sev-${flag.id}`"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="s in SEVERITY_ORDER" :key="s" :value="s">{{ SEVERITY_LABELS[s] }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <Label :for="`flag-doc-${flag.id}`">Your documents</Label>
+        <Textarea :id="`flag-doc-${flag.id}`" v-model="form.document_rule" rows="2" />
+      </div>
+      <div class="space-y-1">
+        <Label :for="`flag-law-${flag.id}`">State law</Label>
+        <Textarea :id="`flag-law-${flag.id}`" v-model="form.statute_rule" rows="2" />
+      </div>
+      <div class="space-y-1">
+        <Label :for="`flag-note-${flag.id}`">Note</Label>
+        <Textarea :id="`flag-note-${flag.id}`" v-model="form.note" rows="2" />
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="editing = false">Cancel</Button>
+        <Button type="submit" size="sm" :disabled="saving">Save Suggestion</Button>
+      </div>
+    </form>
+
+    <form v-else-if="manages && counselOpen" class="space-y-2 border-t t-border pt-3" data-testid="governing-flag-counsel" @submit.prevent="confirmCounsel">
+      <Label :for="`flag-counsel-${flag.id}`">Who at counsel signed off, and when</Label>
+      <Input :id="`flag-counsel-${flag.id}`" v-model="counselNote" placeholder="Name of the lawyer or firm, and the date" />
+      <p class="type-meta t-text-muted">Mark it only after a lawyer has reviewed this comparison. This is recorded with your name.</p>
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="counselOpen = false">Cancel</Button>
+        <Button type="submit" size="sm" :disabled="saving || !counselNote.trim()">Mark Confirmed by Counsel</Button>
+      </div>
+    </form>
+
+    <div v-else-if="manages && (actions.length || canEdit)" class="flex flex-wrap items-center justify-end gap-2 border-t t-border pt-3">
+      <Button v-if="canEdit" variant="ghost" size="sm" :disabled="saving" @click="startEdit">Edit</Button>
       <Button
         v-for="action in actions"
         :key="action.status"

@@ -13,7 +13,7 @@ import type {
 import type { GoverningAuditEntry } from "#core/server/utils/governing-audit";
 import type { listSourcePages } from "#core/server/utils/governing-pages";
 import type { ProvisionEdit, getGoverningReview } from "#core/server/utils/governing-review";
-import type { SettableFlagStatus } from "#core/shared/governing/flags";
+import type { FlagEdit, SettableFlagStatus } from "#core/shared/governing/flags";
 import { UPLOAD_PART_BYTES, partCount } from "#core/shared/governing/upload";
 import type { DocumentEdit } from "#core/shared/governing/review";
 import type { Relationship, ReviewState, Severity } from "#core/shared/governing/types";
@@ -144,12 +144,15 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
   const getOverview = () => $fetch<GoverningOverview>("/api/governing/overview", { query: base() });
 
   // Managers only; the server refuses anyone else and writes the audit row.
-  const setFlagStatus = (flagId: string, status: SettableFlagStatus) =>
+  const setFlagStatus = (flagId: string, status: SettableFlagStatus, reason?: string) =>
     $fetch<{ id: string; status: SettableFlagStatus; changed: boolean }>(`/api/governing/flags/${encodeURIComponent(flagId)}/status`, {
       method: "POST",
       query: base(),
-      body: { status },
+      body: { status, reason },
     });
+  /** Only while the flag is still a suggestion. */
+  const editFlag = (flagId: string, edit: FlagEdit) =>
+    $fetch<{ id: string; changed: boolean }>(`/api/governing/flags/${encodeURIComponent(flagId)}`, { method: "PATCH", query: base(), body: edit });
 
   // Review (managers only). Each of these writes an audit row on the server.
   const provisionUrl = (id: string, action = "") => `/api/governing/provisions/${encodeURIComponent(id)}${action}`;
@@ -187,7 +190,7 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
     });
 
   return {
-    getAudit, editDocument, unpublishDocument,
+    getAudit, editFlag, editDocument, unpublishDocument,
     suggestFlags,
     getReview, editProvision, setReviewState, splitProvision, mergeProvision, reorderProvisions, publishDocument, deleteDraft,
     getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource,
