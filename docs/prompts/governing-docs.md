@@ -212,7 +212,55 @@ From this repo:
 - **Pushed 2026-11-10 (Peter's word):** everything through Session 2 and its follow-ups is on `origin/main`
   (15 commits, up to `a199ee1`). The "NOT pushed" notes above are history. Missing module keys default to ON, so
   every org now has the Governing Documents entry.
-- **Next: Session 3A (upload and extraction).** Starts with the OCR question to Peter.
+- **Session 3A done 2026-11-10, committed locally, NOT pushed. No schema change, no Directus write.** Peter's
+  answers: OCR by Claude vision through the existing integration; page images rendered in the browser; provisions
+  proposed by a plain heading rule; large files sent in parts.
+  - **Files of any size.** Vercel refuses a body over 4.5 MB, so the browser sends a file in 3 MB parts
+    (`uploads/parts.post.ts`; each part is a private, folderless Directus file marked
+    `governing-upload:<org>:<upload id>` in `description`). The call that uses the upload joins the parts, checks
+    the browser's SHA-256, deletes the parts and hands the one unmodified file to `attachGoverningSource`
+    (`core/server/utils/governing-upload.ts`). Limit 64 MB. Parts older than a day are cleared on the next upload.
+    The 1D attach form now goes this way too (`documents/[id]/sources/upload.post.ts`); the one-request multipart
+    route is still there and unchanged.
+  - **Draft from an upload:** `documents.post.ts` → `createDraftFromUpload`: a `draft` document plus its source
+    (marked source of the text), audit rows `source_attach` and `document_upload`.
+  - **Pages:** `core/server/utils/governing-pages.ts`. `sources/[id]/pages.post.ts` stores one page per request
+    (image as sent, in the org's Documents folder; the PDF's text layer as sent, `extraction: text_layer`);
+    sending a page again replaces the image and keeps its text. `sources/[id]/pages.get.ts` returns pages with
+    text, managers only. `pages/[id]/ocr.post.ts` reads one page image with `MODEL_TIERS.standard`, stores the
+    reply as given (`extraction: ocr`; `[blank page]` becomes empty text), charges the wallet as the new
+    `AiFeature` `"ocr"`, 402 at zero balance, and stores nothing when the reply was cut off (422).
+  - **Proposals:** `documents/[id]/propose.post.ts` → `core/server/utils/governing-propose.ts`, the only app
+    file that creates provisions. It refuses a document that already has one (409), has no update call, and
+    saves `ocr_draft` rows with `source_key` `upload:<source>:<page>:<n>` (that is how 3B finds the page image
+    of a provision) and `original_label` as printed; `citation` and `heading` are left empty for review. The
+    rule is `proposeProvisions` in `core/shared/governing/upload.ts`: cut at heading lines, never across a
+    page, so a page's pieces joined are that page's text exactly. One `provisions_propose` audit row.
+  - **Visibility:** `GovSnapshot.pages` (`GovPage`: no text, ever) is filtered in `visibleSnapshot` like sources;
+    `documents/[id].get` returns `pages`. `mayOpenGoverningSourceFile` now also answers for page images, and
+    pages are in `file-owner.ts`. Deleting a source deletes its page rows and images first.
+  - **Pages in the app:** `app/pages/[slug]/governing/upload.vue` (linked from the list for managers);
+    `app/components/Governing/PageExtraction.vue` on the reading view (Prepare Pages → Read Scanned Pages →
+    Propose Provisions, each resumable and stoppable); `core/app/composables/useGoverningPageRender.ts`
+    (pdf.js from `unpdf`, 1600 px JPEG; renders with `intent: "print"` because the default waits on animation
+    frames, which a background tab does not get). No new dependency.
+  - Tests: `tests/server/governing-upload.test.ts` (criterion 9 and who may do what),
+    `tests/shared/governing-upload.test.ts` (the rule), `governing-text-guard.test.ts` (the proposer is in
+    `WRITERS` and is held to create-only).
+  - **Checked in the browser, reads only:** the list shows Upload Document; the 1995 Amendment shows "Pages and
+    text / Pages not prepared yet / Prepare Pages"; the renderer turned its two scanned pages into JPEGs of 375
+    and 471 KB in about 2 s each, with no text layer found. **Nothing was uploaded, stored, read by OCR or
+    proposed on the hosted Directus:** each is a production write, and OCR spends 1033's AI credits. So the OCR
+    prompt has never met a real page; its accuracy and cost per page are unmeasured.
+  - **Known / deferred:** (1) page images are `image/*`, so the Known (1) note under 1D applies to them as well.
+    (2) No audit row per page stored or read (57 pages would be 114 rows); the wallet ledger has each OCR charge
+    and `provisions_propose` records the counts. (3) Proposing uses every source of the document that has pages
+    unless `source` is given. (4) The heading rule also cuts at numbered list lines and `(a)` lines; merging is
+    3B's job. (5) A provision does not cross a page, so a section that runs over is two drafts. (6) Deleting a
+    draft document has no route yet. (7) The text layer is read in the browser, so it is as trustworthy as the
+    manager's own typing; it is a draft either way.
+- **Next: Session 3B (review, publish, audit).** Before it, Peter may want one real run of 3A on a Lenox
+  original (his yes: it writes pages to production and spends AI credits).
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

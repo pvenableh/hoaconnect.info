@@ -35,6 +35,8 @@ const DIRECT_OWNERS: Array<{ collection: string; field: string }> = [
   // there for these: `mayOpenGoverningSourceFile` also checks the document's
   // status, so a member cannot open the scan of a draft.
   { collection: "hoa_governing_sources", field: "file" },
+  // A page image of such a file. The same check covers it.
+  { collection: "hoa_governing_pages", field: "image" },
 ];
 
 /** Many-to-many junctions, whose organization lives one hop up on the parent. */

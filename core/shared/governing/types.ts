@@ -91,10 +91,27 @@ export type GovSource = {
   date_created: string | null;
 };
 
+/**
+ * One page of an original: its image, and whether text has been taken from it.
+ * The extracted text itself is an unreviewed draft and is not in the snapshot;
+ * managers read it through the pages route.
+ */
+export type GovPage = {
+  id: string;
+  source: string;
+  document: string;
+  page_number: number;
+  /** Directus file id of the page image. Open it through the asset proxy. */
+  image: string | null;
+  /** How the page's text was obtained, or null while it has none. */
+  extraction: "text_layer" | "ocr" | null;
+};
+
 export type GovSnapshot = {
   documents: GovDocument[];
   provisions: GovProvision[];
   links: GovLink[];
   flags: GovFlag[];
   sources: GovSource[];
+  pages: GovPage[];
 };

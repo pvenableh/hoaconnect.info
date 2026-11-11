@@ -11,7 +11,7 @@ import { readFiles, readItems } from "@directus/sdk";
 import { formatCitation } from "#core/shared/governing/citation";
 import { STALE_AFTER_DAYS, countByRelationship, sortFlags, staleReferences } from "#core/shared/governing/flags";
 import { searchProvisions, type SearchFilters } from "#core/shared/governing/search";
-import type { GovDocument, GovFlag, GovLink, GovProvision, GovReference, GovSnapshot, GovSource } from "#core/shared/governing/types";
+import type { GovDocument, GovFlag, GovLink, GovPage, GovProvision, GovReference, GovSnapshot, GovSource } from "#core/shared/governing/types";
 import { visibleSnapshot } from "#core/shared/governing/visibility";
 
 const DOCUMENT_FIELDS = [
@@ -27,6 +27,8 @@ const FLAG_FIELDS = [
   "id", "topic", "document_rule", "statute_rule", "statute_citation", "relationship", "severity", "note", "status", "origin",
 ] as const;
 const SOURCE_FIELDS = ["id", "document", "file", "is_recorded_copy", "is_authoritative", "notes", "page_count", "date_created"] as const;
+// Never `text`: a page's extracted text is a draft, read only by the manage-only pages route.
+const PAGE_FIELDS = ["id", "source", "page_number", "image", "extraction"] as const;
 const REFERENCE_FIELDS = ["id", "jurisdiction", "code", "title", "summary", "url", "edition", "checked_on"] as const;
 
 const pick = <K extends string>(row: any, fields: readonly K[]) => Object.fromEntries(fields.map((f) => [f, row[f] ?? null])) as Record<K, any>;
@@ -46,12 +48,13 @@ async function read(collection: string, filter: Record<string, unknown>, fields:
 /** Everything the caller may see of an organization's governing documents. */
 export async function loadGoverning(organizationId: string, canManage: boolean): Promise<GovSnapshot> {
   const org = { organization: { _eq: organizationId } };
-  const [documentRows, provisionRows, linkRows, flagRows, sourceRows] = await Promise.all([
+  const [documentRows, provisionRows, linkRows, flagRows, sourceRows, pageRows] = await Promise.all([
     read("hoa_governing_documents", org, DOCUMENT_FIELDS),
     read("hoa_governing_provisions", org, PROVISION_FIELDS),
     read("hoa_governing_provision_links", org, LINK_FIELDS),
     read("hoa_statute_flags", org, FLAG_FIELDS),
     read("hoa_governing_sources", org, SOURCE_FIELDS),
+    read("hoa_governing_pages", org, PAGE_FIELDS),
   ]);
 
   // The file's name, type and size live on the file, not on the source row.
@@ -82,6 +85,19 @@ export async function loadGoverning(organizationId: string, canManage: boolean):
     })
     .sort(sourceOrder);
 
+  const sourceDocument = new Map(sources.map((s) => [s.id, s.document]));
+  const pages: GovPage[] = pageRows
+    .filter((p) => sourceDocument.has(idOf(p.source) ?? ""))
+    .map((p) => ({
+      id: p.id,
+      source: idOf(p.source)!,
+      document: sourceDocument.get(idOf(p.source)!)!,
+      page_number: Number(p.page_number),
+      image: idOf(p.image),
+      extraction: p.extraction === "text_layer" || p.extraction === "ocr" ? p.extraction : null,
+    }))
+    .sort((a, b) => a.page_number - b.page_number);
+
   const flagIds = flagRows.map((f) => f.id);
   const [flagProvisions, flagReferences] = flagIds.length
     ? await Promise.all([
@@ -109,6 +125,7 @@ export async function loadGoverning(organizationId: string, canManage: boolean):
       links: linkRows.map((l) => pick(l, LINK_FIELDS) as GovLink),
       flags,
       sources,
+      pages,
     },
     canManage
   );
@@ -127,7 +144,7 @@ export async function listGoverningDocuments(organizationId: string, canManage: 
 
 /** A document with its provisions in reading order. Null when the caller may not see it. */
 export async function getGoverningDocument(organizationId: string, id: string, canManage: boolean) {
-  const { documents, provisions, flags, sources } = await loadGoverning(organizationId, canManage);
+  const { documents, provisions, flags, sources, pages } = await loadGoverning(organizationId, canManage);
   const document = documents.find((d) => d.id === id);
   if (!document) return null;
   const title = (d: GovDocument) => ({ id: d.id, title: d.title, kind: d.kind, recorded_on: d.recorded_on });
@@ -141,6 +158,8 @@ export async function getGoverningDocument(organizationId: string, id: string, c
     provisions: provisions.filter((p) => p.document === id).map((p) => ({ ...p, flag_count: flagCount.get(p.id) ?? 0 })),
     /** The original files behind this transcription. */
     sources: sources.filter((s) => s.document === id),
+    /** Page images of those files, where they have been prepared. No extracted text. */
+    pages: pages.filter((p) => p.document === id),
   };
 }
 

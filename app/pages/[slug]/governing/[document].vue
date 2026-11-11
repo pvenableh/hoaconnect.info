@@ -132,6 +132,16 @@ onMounted(scrollToHash);
           @changed="refresh()"
         />
 
+        <GoverningPageExtraction
+          :document-id="doc.id"
+          :sources="data?.sources ?? []"
+          :pages="data?.pages ?? []"
+          :provision-count="provisions.length"
+          :org-id="selectedOrgId"
+          :can-manage="data?.can_manage"
+          @changed="refresh()"
+        />
+
         <AppEmptyState
           v-if="!provisions.length"
           icon="lucide:scroll-text"
@@ -146,7 +156,7 @@ onMounted(scrollToHash);
             <ol class="governing-toc space-y-1 max-h-64 lg:max-h-[70vh] overflow-y-auto pr-2">
               <li v-for="p in provisions" :key="p.id" :style="{ paddingLeft: `${(depths.get(p.id) ?? 0) * 0.75}rem` }">
                 <a :href="`#p-${p.id}`" class="type-meta t-text-secondary hover:t-text block">
-                  <span class="t-text">{{ p.citation }}</span>
+                  <span class="t-text">{{ p.citation ?? p.original_label ?? "Draft" }}</span>
                   <span v-if="p.heading"> · {{ p.heading }}</span>
                 </a>
               </li>
@@ -162,7 +172,7 @@ onMounted(scrollToHash);
                 <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <h2 class="type-card t-text">
                     <NuxtLink :to="buildOrgPath(`/governing/provisions/${p.id}`)" class="hover:underline">
-                      {{ p.citation }}<template v-if="p.heading"> · {{ p.heading }}</template>
+                      {{ p.citation ?? p.original_label ?? "Draft provision" }}<template v-if="p.heading"> · {{ p.heading }}</template>
                     </NuxtLink>
                   </h2>
                   <Badge v-if="p.review_state === 'ocr_draft'" variant="secondary">Not yet reviewed</Badge>

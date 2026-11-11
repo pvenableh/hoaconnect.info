@@ -12,7 +12,7 @@
  *  - the schema script grants no permissions;
  *  - nothing that handles provision text passes it through a transforming call.
  *
- * Session 3B adds the audited edit route to WRITERS, with a route test proving
+ * Session 3A added the proposer (create only). Session 3B adds the audited edit route to WRITERS, with a route test proving
  * it writes an audit row.
  */
 import { describe, it, expect } from "vitest";
@@ -22,8 +22,12 @@ import { join, relative, resolve } from "node:path";
 const ROOT = resolve(__dirname, "../..");
 const COLLECTION = "hoa_governing_provisions";
 
-/** Files allowed to write provisions. The import lib creates rows and never updates `text` (CREATE_ONLY). */
-const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts"];
+/**
+ * Files allowed to write provisions. The import lib creates rows and never updates `text` (CREATE_ONLY).
+ * The upload flow's proposer creates `ocr_draft` rows for a document that has none, and has no update call.
+ */
+const PROPOSER = "core/server/utils/governing-propose.ts";
+const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts", PROPOSER];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -62,6 +66,17 @@ describe("provision text has one way in (criterion 8)", () => {
   it("the import writes text on create only", () => {
     const lib = source("scripts/lib/governing-import.ts");
     expect(lib).toMatch(/\[C\.provisions\]: \["text", "review_state"\]/);
+  });
+
+  it("the upload flow only creates provisions: no update, no delete, and only as ocr_draft", () => {
+    const proposer = source(PROPOSER);
+    expect(proposer).not.toMatch(/\b(updateItems?|updateItemsBatch|deleteItems?|upsert)\b/);
+    expect(proposer).toMatch(/review_state: "ocr_draft"/);
+    expect(proposer).not.toMatch(/review_state: "(reviewed|verified)"/);
+    // The rest of the upload flow never names the provisions collection.
+    for (const f of ["core/server/utils/governing-upload.ts", "core/server/utils/governing-pages.ts", "core/server/utils/governing-sources.ts"]) {
+      expect(source(f).includes(COLLECTION), f).toBe(false);
+    }
   });
 
   it("the schema script creates no role permissions", () => {

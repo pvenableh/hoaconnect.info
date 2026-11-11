@@ -12,6 +12,7 @@ const KIND_LABELS: Record<string, string> = {
   rules: "Rules",
   prospectus: "Prospectus",
   amendment: "Amendment",
+  other: "Other",
 };
 
 /** A kind the list does not know is shown as stored. */

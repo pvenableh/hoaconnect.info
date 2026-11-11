@@ -13,11 +13,13 @@ import { MEMBER_DOCUMENT_STATUSES } from "#core/shared/governing/visibility";
 import { hasCapability } from "#core/shared/permissions";
 import { resolveActors } from "./board-access";
 import { governingActor, writeGoverningAudit } from "./governing-audit";
+import { deleteSourcePages } from "./governing-pages";
 import { getManagerGrants } from "./manager-access";
 import { ensureOrgStorage } from "./org-storage";
 import { addOrgStorageUsage, enforceStorageLimit } from "./storage-enforcement";
 
 const SOURCES = "hoa_governing_sources";
+const PAGES = "hoa_governing_pages";
 const DOCUMENTS = "hoa_governing_documents";
 
 const asId = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
@@ -136,6 +138,8 @@ export async function deleteGoverningSource(event: H3Event, organizationId: stri
       )) ?? []) as any[])
     : [];
 
+  // Its page images first: once the source row is gone nothing would point at them.
+  const pagesRemoved = await deleteSourcePages(organizationId, source.id);
   await getTypedDirectus().request(deleteItem(SOURCES as never, source.id));
   if (fileId) {
     await getTypedDirectus().request((deleteFiles as any)([fileId]));
@@ -157,13 +161,15 @@ export async function deleteGoverningSource(event: H3Event, organizationId: stri
       is_recorded_copy: source.is_recorded_copy === true,
       is_authoritative: source.is_authoritative === true,
       notes: source.notes ?? null,
+      pages_removed: pagesRemoved,
     },
   });
   return { ok: true };
 }
 
 /**
- * For the asset proxy. Null when the file is not a governing source, so the
+ * For the asset proxy. Null when the file is neither a governing source nor
+ * the image of one of its pages, so the
  * proxy's ordinary rules apply. Otherwise this decides alone: the caller needs
  * a seat in the organization, and either manages governing documents or the
  * document is one members may see. A draft's scan is refused to a member even
@@ -173,6 +179,14 @@ export async function mayOpenGoverningSourceFile(event: H3Event, fileId: string)
   let claims: any[];
   try {
     claims = await rows(SOURCES, { filter: { file: { _eq: fileId } }, fields: ["organization", "document"], limit: -1 });
+    // A page image answers to the document of the source it was rendered from.
+    const pages = await rows(PAGES, { filter: { image: { _eq: fileId } }, fields: ["source"], limit: -1 });
+    const sourceIds = pages.map((p) => asId(p.source)).filter((id): id is string => !!id);
+    if (sourceIds.length) {
+      claims = claims.concat(await rows(SOURCES, { filter: { id: { _in: sourceIds } }, fields: ["organization", "document"], limit: -1 }));
+    } else if (pages.length) {
+      return false; // A page whose source is gone: nobody's to open.
+    }
   } catch {
     return null; // The collection is not in this deployment.
   }

@@ -21,6 +21,9 @@ const { data, pending, error } = await useAsyncData(
 );
 
 const documents = computed(() => data.value?.documents ?? []);
+// An admin previewing the member view sees the list as a member does.
+const { isPreviewingMember } = useViewAs();
+const canUpload = computed(() => data.value?.can_manage === true && !isPreviewingMember.value);
 const provisionTotal = computed(() => documents.value.reduce((sum, d) => sum + d.provision_count, 0));
 
 const query = ref("");
@@ -59,6 +62,14 @@ const runSearch = async () => {
         </span>
         <Icon name="lucide:chevron-right" class="w-4 h-4 t-text-muted shrink-0" />
       </NuxtLink>
+
+      <div v-if="canUpload" class="flex justify-end">
+        <Button as-child variant="outline" size="sm">
+          <NuxtLink :to="buildOrgPath('/governing/upload')">
+            <Icon name="lucide:upload" class="w-4 h-4 mr-1.5" /> Upload Document
+          </NuxtLink>
+        </Button>
+      </div>
 
       <AppEmptyState
         v-if="error"

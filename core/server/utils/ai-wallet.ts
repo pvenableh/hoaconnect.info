@@ -156,7 +156,8 @@ export type AiFeature =
   | "ask"
   | "chat"
   | "embed"
-  | "plan";
+  | "plan"
+  | "ocr";
 
 /**
  * Meter a completion's real token usage: compute credits (cost × margin),

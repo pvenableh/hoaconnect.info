@@ -3,7 +3,7 @@
  *
  * A member sees published documents, their reviewed provisions, every original
  * file attached to a published document (Peter, 2026-11-10: all of them, each
- * labelled recorded or not), and flags an admin has confirmed. Drafts, documents in review, OCR drafts, and suggested
+ * labelled recorded or not) with its page images, and flags an admin has confirmed. Drafts, documents in review, OCR drafts, and suggested
  * or dismissed flags are for people who manage governing documents.
  *
  * `visibleSnapshot` is the one place this is decided. Every read route builds
@@ -31,5 +31,9 @@ export function visibleSnapshot(all: GovSnapshot, canManage: boolean): GovSnapsh
 
   const sources = all.sources.filter((s) => documentIds.has(s.document));
 
-  return { documents, provisions, links, flags, sources };
+  // A page image shows what the original already shows. The text taken from a
+  // page is never in the snapshot at all: it is a draft until it is a reviewed provision.
+  const pages = all.pages.filter((p) => documentIds.has(p.document));
+
+  return { documents, provisions, links, flags, sources, pages };
 }
