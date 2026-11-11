@@ -446,9 +446,10 @@ From this repo:
     `docs/prompts/governing-loose-ends.md`.
   - **Pushed 2026-11-11 (Peter's word):** `origin/main` at `c7bbbc3` (Session 3 and the follow-ups), live; the
     scope re-run after the deploy had nothing left to mark.
-  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide; nested
-    file reads with a member's token answer 500 on production (Documents page empty for managers; not caused by
-    these changes, see the loose-ends file).
+  - **Nested-read 500 fixed the same day:** file and folder permissions no longer use
+    `$CURRENT_USER.hoa_members.organization.folder` (mixed with the org path every other rule uses, it broke every
+    nested file, folder or user read with a member's token). See the loose-ends file.
+  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide.
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /

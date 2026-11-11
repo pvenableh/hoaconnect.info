@@ -186,14 +186,29 @@ Each session appends its own "Session N done" bullet here.
     live about 4 minutes later (`/_nuxt/builds/latest.json` changed). The re-run of `pnpm run scope:public-files`
     after it found nothing to mark (11 of 11 governing files marked; no write), `audit:public-policy` is green, and
     `scope-member-file-writes.ts` reports already scoped.
-  - **Open:** the 12 AI flag suggestions (Peter's). **Nested file reads with a member's token answer 500** on
-    production: `/users/me?fields=avatar.id`, and the Documents page's `hoa_documents` list with `file.*` (so that page
-    lists nothing for managers). Not caused by the member policy (still 500 with it set back to `{}` and the cache
-    cleared; it was put back after) and not by the public grant (it does not apply to signed-in users: Oscar sees 1
-    file at the top level, not 30). The org logo's nested read works. It looks like the `$CURRENT_USER.hoa_members`
-    path trouble of commit `0776dba`; not investigated further. A folder (`f0b2cfd6…`) is its own parent. A member may
-    still move a file into another community's folder (update has no validation on the new folder). Other HOA Member
-    permissions with `{}` on write actions were not reviewed.
+  - **Open:** the 12 AI flag suggestions (Peter's). A folder (`f0b2cfd6…`) is its own parent. A member may still move a
+    file into another community's folder (update has no validation on the new folder). Other HOA Member permissions
+    with `{}` on write actions were not reviewed.
+- **Nested-read 500 fixed (2026-11-11, Peter: "look into it and fix"; written with his yes after a dry run).** With a
+  member's own token, every nested read of a file, folder or user answered a bare 500 on production:
+  `/users/me?fields=avatar.id`, the Documents page's `hoa_documents` list with `file.*` (that page showed managers
+  nothing), `files.uploaded_by.*`, an organization's `folder.*`. Not caused by this session's changes (still 500 with
+  the member policy set back to `{}` and the cache cleared). **Cause:** 263 permission rows scope with
+  `$CURRENT_USER.hoa_members.organization`, and the 11 file and folder rows used
+  `$CURRENT_USER.hoa_members.organization.folder`; a request that needs both gets `organization` back as an object, so
+  the plain path stops yielding ids. Each failing read needed both paths and each working read only one.
+  **Fix** (`scripts/lib/folder-org-filters.ts`, `scripts/fix-folder-org-filters.ts`): a hidden alias
+  `directus_folders.hoa_organizations` (reverse of `hoa_organizations.folder`; metadata only, as `0776dba` did for
+  `directus_users.hoa_members`), and the 11 rows rewritten to reach the organization through the folder
+  (`{ folder: { hoa_organizations: { id: { _in: <org path> } } } }`), with the same rows visible. Two HOA Admin
+  validations that pinned new files to the root folder were dropped (a validation cannot follow a relation; members
+  never had one). The rows were backed up before writing and the cache cleared after. `setup-directus-permissions.ts`
+  and `scripts/lib/member-files.ts` now write the same form, so a re-run does not bring the 500 back.
+  **Checked with Oscar's token:** all of the reads above answer 200; top-level files and folders still show 1 each,
+  as before; the five-file update/delete check is unchanged; the Documents page's list calls answer 200 (two 500s
+  before). The three scripts (`scope:public-files`, `scope-member-file-writes`, `fix-folder-org-filters`) each report
+  nothing to do. Tests: `tests/scripts/folder-org-filters.test.ts`. Gates: 173 files / 3,067 tests, lint 0 errors
+  and 139 warnings, 16 audits green, typecheck 0. Pushed with Peter's word.
 
 ---
 

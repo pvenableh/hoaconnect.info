@@ -19,6 +19,8 @@
  *   npm run setup:permissions:audit
  */
 
+import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -1177,11 +1179,11 @@ async function setupFilePermissions(
   let stats = { created: 0, updated: 0 };
 
   // File permissions - users can access files in their organization's folder
-  const fileFilter = {
-    folder: {
-      _in: "$CURRENT_USER.hoa_members.organization.folder",
-    },
-  };
+  // Through the folder's organization, never $CURRENT_USER.hoa_members.organization.folder:
+  // mixed with the org path every other rule uses, that path made nested reads
+  // answer 500 (scripts/lib/folder-org-filters.ts). A payload validation cannot
+  // follow a relation, so create and update carry none.
+  const fileFilter = { folder: FOLDER_OF_MY_ORG };
 
   const isAdmin = roleName === "HOA Admin";
 
@@ -1204,7 +1206,7 @@ async function setupFilePermissions(
         collection: "directus_files",
         action: "create",
         permissions: {},
-        validation: fileFilter,
+        validation: null,
         fields: ["*"],
       },
       {
@@ -1212,7 +1214,7 @@ async function setupFilePermissions(
         collection: "directus_files",
         action: "update",
         permissions: fileFilter,
-        validation: fileFilter,
+        validation: null,
         fields: ["*"],
       },
       {
@@ -1237,11 +1239,7 @@ async function setupFilePermissions(
   }
 
   // Folder permissions
-  const folderFilter = {
-    id: {
-      _in: "$CURRENT_USER.hoa_members.organization.folder",
-    },
-  };
+  const folderFilter = FOLDER_OF_MY_ORG;
 
   const folderPermissions: Permission[] = [
     {

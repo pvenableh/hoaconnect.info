@@ -19,9 +19,8 @@
  *           support file;
  *   delete: the member's own uploads only, never a governing or support file.
  */
+import { FOLDER_OF_MY_ORG } from "./folder-org-filters";
 import { PRIVATE_FILE_PREFIXES } from "./public-files";
-
-const COMMUNITY_ROOTS = "$CURRENT_USER.hoa_members.organization.folder";
 
 /** Not a governing file and not a support file. A null description is neither. */
 const NOT_PRIVATE = {
@@ -31,11 +30,14 @@ const NOT_PRIVATE = {
   ],
 };
 const OWN_UPLOAD = { uploaded_by: { _eq: "$CURRENT_USER" } };
+// A folder is in the library when it, its parent, or a folder up to three levels
+// above it is a community root. Reached through the folder's organization, never
+// `$CURRENT_USER.hoa_members.organization.folder` (see folder-org-filters.ts).
 const IN_COMMUNITY_LIBRARY = [
-  { folder: { _in: COMMUNITY_ROOTS } },
-  { folder: { parent: { _in: COMMUNITY_ROOTS } } },
-  { folder: { parent: { parent: { _in: COMMUNITY_ROOTS } } } },
-  { folder: { parent: { parent: { parent: { _in: COMMUNITY_ROOTS } } } } },
+  { folder: FOLDER_OF_MY_ORG },
+  { folder: { parent: FOLDER_OF_MY_ORG } },
+  { folder: { parent: { parent: FOLDER_OF_MY_ORG } } },
+  { folder: { parent: { parent: { parent: FOLDER_OF_MY_ORG } } } },
 ];
 
 export const MEMBER_FILE_UPDATE_FILTER = { _and: [NOT_PRIVATE, { _or: [OWN_UPLOAD, ...IN_COMMUNITY_LIBRARY] }] };

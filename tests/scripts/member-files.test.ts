@@ -10,7 +10,7 @@ const NOT_PRIVATE = {
     { _and: [{ description: { _nstarts_with: "governing-" } }, { description: { _nstarts_with: "support-" } }] },
   ],
 };
-const ROOTS = "$CURRENT_USER.hoa_members.organization.folder";
+const MINE = { hoa_organizations: { id: { _in: "$CURRENT_USER.hoa_members.organization" } } };
 
 describe("HOA Member file writes", () => {
   it("update: own uploads or the community's library, never a governing or support file", () => {
@@ -20,10 +20,10 @@ describe("HOA Member file writes", () => {
         {
           _or: [
             { uploaded_by: { _eq: "$CURRENT_USER" } },
-            { folder: { _in: ROOTS } },
-            { folder: { parent: { _in: ROOTS } } },
-            { folder: { parent: { parent: { _in: ROOTS } } } },
-            { folder: { parent: { parent: { parent: { _in: ROOTS } } } } },
+            { folder: MINE },
+            { folder: { parent: MINE } },
+            { folder: { parent: { parent: MINE } } },
+            { folder: { parent: { parent: { parent: MINE } } } },
           ],
         },
       ],
@@ -33,5 +33,9 @@ describe("HOA Member file writes", () => {
   it("delete: own uploads only, never a governing or support file", () => {
     expect(MEMBER_FILE_DELETE_FILTER).toEqual({ _and: [NOT_PRIVATE, { uploaded_by: { _eq: "$CURRENT_USER" } }] });
     expect(JSON.stringify(MEMBER_FILE_DELETE_FILTER)).not.toContain("folder");
+  });
+
+  it("never needs $CURRENT_USER.hoa_members.organization.folder (see folder-org-filters.ts)", () => {
+    expect(JSON.stringify([MEMBER_FILE_UPDATE_FILTER, MEMBER_FILE_DELETE_FILTER])).not.toContain("organization.folder");
   });
 });
