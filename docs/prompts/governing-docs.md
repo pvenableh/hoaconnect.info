@@ -385,6 +385,38 @@ From this repo:
   notes above are history. Seen live about four minutes later on `www.hoaconnect.info`: the new routes stopped
   answering 404, and all sixteen governing routes refuse a signed-out caller with 401. **Not checked signed in on
   production:** the browser pane has no session there and the agent does not type passwords.
+- **Deferred features built 2026-11-11, committed locally, NOT pushed. No schema change, no Directus write.**
+  Peter's answers: build all four groups; a provision needs a citation before its document can be published.
+  - **Change history:** `listGoverningAudit` in `governing-audit.ts`, `audit.get.ts` (`requireGoverningManage`;
+    `document`, `action`, `before` cursor; 50 a page, newest first), `app/pages/[slug]/governing/audit.vue`
+    (linked from the list and the review screen), labels and the before/after diff in
+    `core/shared/governing/audit.ts`. **A new audit action must be added to `AUDIT_ACTION_LABELS`** or it shows
+    its raw name.
+  - **Citation rule:** `publishBlockers` now counts `uncited` (empty or only spaces) and `canPublish` needs it at
+    zero. Marking reviewed is unaffected. It applies to every provision, including signature blocks and
+    drawings, so those need a citation too (for example "Execution", "Exhibit A"). The 209 imported provisions
+    are published already and all have citations; an unpublished document must pass the rule to be published again.
+  - **Document details and unpublish:** `editGoverningDocument` (title, kind, citation prefix, signed and
+    recorded dates, book, pages, clerk's file number, county; `document_edit`) and `unpublishGoverningDocument`
+    (published → draft, reason required, nothing deleted; `unpublish`), both in `governing-review.ts` with
+    routes `documents/[id].patch` and `documents/[id]/unpublish.post`. A published document's details need a
+    reason. `amends`, the transcriber's notes and the transcription have no edit screen.
+    `app/components/Governing/DocumentDetails.vue` sits on the review screen.
+  - **Flags:** `editGoverningFlag` (`flags/[id].patch`, `flag_edit`): relationship, severity, the two rule lines
+    and the note, **only while the flag is `suggested`**; a confirmed flag's wording stays fixed. **My call:**
+    `counsel_confirmed` is now refused (400) without a `reason` saying who signed off; the card asks for it.
+  - **Review screen:** the page image turns and zooms in place (display only); provisions reorder by dragging
+    the handle (within the page shown; the arrows remain); a merge keeps the first piece's label, citation and
+    heading and takes from the second what the first lacks; transcriber's notes are laid out by `noteBlocks`
+    in `labels.ts` (headings, lists, bold, code as text nodes, no `v-html`).
+  - Tests: `governing-audit.test.ts` (server and shared), additions to `governing-review.test.ts`,
+    `governing-flags.test.ts`, `governing-labels.test.ts`; the text guard lists the two new writers and holds
+    them to never naming provisions.
+  - **Not checked in the browser:** the dev server had no signed-in session and the agent does not type
+    passwords. None of the new screens has been seen rendered.
+  - **Still open:** a provision cannot cross a page; image sources and page images are readable straight from
+    Directus by file id; no real member login check; OCR accuracy on the 1977 typescript and Suggest Flags on
+    the By-Laws are unmeasured; the AI suggestion on the 1995 Amendment is still undecided.
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /
