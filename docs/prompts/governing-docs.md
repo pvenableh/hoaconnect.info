@@ -284,8 +284,9 @@ From this repo:
     between runs. Neither was checked against the image. One document, two pages: not a measure of accuracy
     on the 1977 typescript.
 - **Session 3B done 2026-11-10, committed locally, NOT pushed. Phase 3 stop. No schema change.** Peter's answers:
-  any manager marks a provision reviewed and then verified (verified is a second pass, the same person may do
-  both); one edit route for drafts and published documents, a reason required on a published one; an audited
+  any manager marks a provision reviewed; verified is a second check by a different person (**changed
+  2026-11-10 after the push, Peter's word:** `setGoverningReviewState` refuses the recorded reviewer with a
+  409; a provision with no recorded reviewer, as in the 1033 import, may be verified by anyone who manages); one edit route for drafts and published documents, a reason required on a published one; an audited
   route to delete a draft; `[illegible]` blocks "reviewed" (so it blocks publish), `[signature]`, `[seal]` and
   `[drawing]` may stay in published text.
   - **Rules:** `core/shared/governing/review.ts` (pure): markers (`findMarkers`, `countMarkers`,

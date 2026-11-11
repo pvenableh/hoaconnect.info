@@ -209,6 +209,11 @@ export async function setGoverningReviewState(event: H3Event, organizationId: st
   }
 
   const actor = await governingActor(event);
+  // Verified is a second pair of eyes (Peter, 2026-11-10): not the person who marked it reviewed.
+  // A provision with no recorded reviewer (the 1033 import) may be verified by any manager.
+  if (state === "verified" && asId(provision.reviewed_by) === actor.id) {
+    throw createError({ statusCode: 409, message: "Verifying is a second check. Someone other than the person who reviewed this provision must do it." });
+  }
   const after =
     state === "ocr_draft"
       ? { review_state: state, reviewed_by: null, reviewed_at: null }

@@ -279,11 +279,13 @@ describe("the audited edit (criterion 8)", () => {
 });
 
 describe("review states", () => {
-  it("the same manager marks reviewed, then verified, then reopens; an audit row each time", async () => {
+  it("one manager marks reviewed, another verifies, either reopens; an audit row each time", async () => {
     as("u-board");
     expect(await call(routes.state, "a", { state: "reviewed" })).toMatchObject({ review_state: "reviewed", changed: true });
     expect(prov("a")).toMatchObject({ review_state: "reviewed", reviewed_by: "u-board" });
+    as("u-admin");
     await call(routes.state, "a", { state: "verified" });
+    expect(prov("a")).toMatchObject({ review_state: "verified", reviewed_by: "u-admin" });
     await call(routes.state, "a", { state: "ocr_draft" });
     expect(prov("a")).toMatchObject({ review_state: "ocr_draft", reviewed_by: null, reviewed_at: null, text: A });
     expect(audit().map((r: any) => [r.action, r.before.review_state, r.after.review_state])).toEqual([
@@ -291,6 +293,14 @@ describe("review states", () => {
       ["review_state", "reviewed", "verified"],
       ["review_state", "verified", "ocr_draft"],
     ]);
+  });
+
+  it("the person who reviewed a provision cannot also verify it, and nothing is written", async () => {
+    as("u-board");
+    await call(routes.state, "a", { state: "reviewed" });
+    const before = JSON.stringify([prov("a"), audit()]);
+    await expect(call(routes.state, "a", { state: "verified" })).rejects.toMatchObject({ statusCode: 409 });
+    expect(JSON.stringify([prov("a"), audit()])).toBe(before);
   });
 
   it("refuses a skipped step, an unknown state, and reopening a published provision", async () => {
@@ -438,7 +448,9 @@ describe("the publish gate", () => {
     as("u-admin");
     await call(routes.edit, "c", { text: "Signed J. Smith President [signature] [seal]\n" });
     for (const id of ["a", "b", "c"]) await call(routes.state, id, { state: "reviewed" });
+    as("u-board");
     await call(routes.state, "a", { state: "verified" });
+    as("u-admin");
     expect((await call(routes.review, "draft")).can_publish).toBe(true);
 
     expect(await call(routes.publish, "draft")).toEqual({ id: "draft", status: "published", provisions: 3 });
