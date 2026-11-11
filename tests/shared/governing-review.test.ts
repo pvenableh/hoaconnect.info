@@ -75,10 +75,12 @@ describe("where a draft provision came from", () => {
 });
 
 describe("the publish gate", () => {
-  it("needs at least one provision, all reviewed, none with [illegible]", () => {
+  it("needs at least one provision, all reviewed, all cited, none with [illegible]", () => {
     expect(canPublish(publishBlockers([]))).toBe(false);
-    expect(canPublish(publishBlockers([{ text: "a", review_state: "reviewed" }, { text: "b", review_state: "ocr_draft" }]))).toBe(false);
-    expect(canPublish(publishBlockers([{ text: "a [illegible]", review_state: "reviewed" }]))).toBe(false);
-    expect(canPublish(publishBlockers([{ text: "a [seal]", review_state: "reviewed" }, { text: "b", review_state: "verified" }]))).toBe(true);
+    expect(canPublish(publishBlockers([{ text: "a", review_state: "reviewed", citation: "1" }, { text: "b", review_state: "ocr_draft", citation: "2" }]))).toBe(false);
+    expect(canPublish(publishBlockers([{ text: "a [illegible]", review_state: "reviewed", citation: "1" }]))).toBe(false);
+    expect(publishBlockers([{ text: "a", review_state: "reviewed" }, { text: "b", review_state: "reviewed", citation: "  " }, { text: "c", review_state: "reviewed", citation: "3" }]).uncited).toBe(2);
+    expect(canPublish(publishBlockers([{ text: "a", review_state: "reviewed", citation: null }]))).toBe(false);
+    expect(canPublish(publishBlockers([{ text: "a [seal]", review_state: "reviewed", citation: "1" }, { text: "b", review_state: "verified", citation: "2" }]))).toBe(true);
   });
 });

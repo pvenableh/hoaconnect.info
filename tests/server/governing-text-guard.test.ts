@@ -91,14 +91,20 @@ describe("provision text has one way in (criterion 8)", () => {
     const writing = functions.filter((f) => /\bwrite\(|renumber\(/.test(f));
     expect(writing.map((f) => f.slice(0, f.indexOf("("))).sort()).toEqual([
       "deleteGoverningDraft",
+      "editGoverningDocument",
       "editGoverningProvision",
       "mergeGoverningProvision",
       "publishGoverningDocument",
       "reorderGoverningProvisions",
       "setGoverningReviewState",
       "splitGoverningProvision",
+      "unpublishGoverningDocument",
     ]);
     for (const f of writing) expect(f, f.slice(0, 40)).toMatch(/writeGoverningAudit\(/);
+    // Editing a document's details and unpublishing never reach a provision.
+    for (const f of writing.filter((f) => /^(editGoverningDocument|unpublishGoverningDocument)\(/.test(f))) {
+      expect(f, f.slice(0, 40)).not.toMatch(/PROVISIONS|provisionsOf|provisionInOrg/);
+    }
     // Text goes in as it is given.
     for (const f of [REVIEWER, "core/shared/governing/review.ts", "core/server/api/governing/provisions/[id].patch.ts"]) {
       expect(source(f), f).not.toMatch(/text[\w.?\][]*\.(trim|trimEnd|trimStart|replace|replaceAll|normalize|toLowerCase|toUpperCase)\(/);

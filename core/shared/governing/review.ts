@@ -9,7 +9,8 @@
  *  - a text edit, a split or a merge sets a draft's provision back to ocr_draft;
  *  - a provision that still contains [illegible] cannot be marked reviewed;
  *    [signature], [seal] and [drawing] may stay in published text;
- *  - a document is published only when every provision is reviewed or verified.
+ *  - a document is published only when every provision is reviewed or verified
+ *    and has a citation (the citation rule: Peter, 2026-11-11).
  *
  * Nothing here changes text. `splitText` only cuts, and its pieces joined are
  * the original exactly; `mergeText` is the exact concatenation.
@@ -89,17 +90,35 @@ export function parseUploadKey(sourceKey: string | null | undefined): { source: 
   return parts[1] && Number.isInteger(page) && page > 0 ? { source: parts[1]!, page_number: page } : null;
 }
 
-export type PublishBlockers = { provisions: number; unreviewed: number; illegible: number };
+export type PublishBlockers = { provisions: number; unreviewed: number; illegible: number; uncited: number };
 
-/** What stands between a draft and publishing. All zero (and at least one provision) means it may be published. */
-export function publishBlockers(provisions: { text: string | null; review_state: ReviewState }[]): PublishBlockers {
+/** A citation that is missing or only spaces. The citation itself is never changed. */
+export const lacksCitation = (citation: string | null | undefined) => !(citation ?? "").trim();
+
+/**
+ * What stands between a draft and publishing. All zero (and at least one
+ * provision) means it may be published. A provision needs a citation to be
+ * published (Peter, 2026-11-11); it does not need one to be marked reviewed.
+ */
+export function publishBlockers(provisions: { text: string | null; review_state: ReviewState; citation?: string | null }[]): PublishBlockers {
   return {
     provisions: provisions.length,
     unreviewed: provisions.filter((p) => p.review_state === "ocr_draft").length,
     illegible: provisions.filter((p) => hasBlockingMarker(p.text)).length,
+    uncited: provisions.filter((p) => lacksCitation(p.citation)).length,
   };
 }
-export const canPublish = (b: PublishBlockers) => b.provisions > 0 && b.unreviewed === 0 && b.illegible === 0;
+export const canPublish = (b: PublishBlockers) => b.provisions > 0 && b.unreviewed === 0 && b.illegible === 0 && b.uncited === 0;
+
+/** The details of a document a manager may edit. Its provisions' text is not among them. */
+export const DOCUMENT_KINDS = ["declaration", "articles", "bylaws", "amendment", "rules", "prospectus", "other"] as const;
+export const DOCUMENT_TEXT_FIELDS = ["title", "citation_prefix", "or_book", "clerk_file_no", "county"] as const;
+export const DOCUMENT_DATE_FIELDS = ["executed_on", "recorded_on"] as const;
+export const DOCUMENT_NUMBER_FIELDS = ["or_page_start", "or_page_end"] as const;
+export type DocumentEdit = Partial<
+  { kind: string } & Record<(typeof DOCUMENT_TEXT_FIELDS)[number] | (typeof DOCUMENT_DATE_FIELDS)[number], string | null> &
+    Record<(typeof DOCUMENT_NUMBER_FIELDS)[number], number | null>
+>;
 
 /**
  * A text box shows every line break as "\n", so a stored "\r\n" is one

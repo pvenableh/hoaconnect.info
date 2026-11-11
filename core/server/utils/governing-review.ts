@@ -17,7 +17,12 @@
 import { createItem, deleteItem, deleteItems, readItems, updateItem } from "@directus/sdk";
 import type { H3Event } from "h3";
 import {
+  DOCUMENT_DATE_FIELDS,
+  DOCUMENT_KINDS,
+  DOCUMENT_NUMBER_FIELDS,
+  DOCUMENT_TEXT_FIELDS,
   REVIEW_MOVES,
+  type DocumentEdit,
   canPublish,
   countMarkers,
   hasBlockingMarker,
@@ -40,6 +45,8 @@ const PROVISION_FIELDS = [
   "id", "document", "source_key", "sort", "citation", "original_label", "heading", "text",
   "review_state", "reviewed_by", "reviewed_at", "block_type", "uncertain",
 ];
+const DOCUMENT_FIELDS = ["id", "title", "kind", "status", ...DOCUMENT_TEXT_FIELDS.slice(1), ...DOCUMENT_DATE_FIELDS, ...DOCUMENT_NUMBER_FIELDS];
+type DocumentRow = { id: string; title: string | null; kind: string | null; status: DocumentStatus } & Record<string, unknown>;
 export const BLOCK_TYPES = ["text", "execution", "exhibit", "drawing"] as const;
 
 const asId = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
@@ -52,11 +59,11 @@ const stateOf = (p: any) => (p.review_state ?? "ocr_draft") as ReviewState;
 async function documentInOrg(organizationId: string, documentId: string) {
   const [document] = await rows(DOCUMENTS, {
     filter: { id: { _eq: documentId }, organization: { _eq: organizationId } },
-    fields: ["id", "title", "kind", "status"],
+    fields: DOCUMENT_FIELDS,
     limit: 1,
   });
   if (!document) throw createError({ statusCode: 404, message: "Document not found" });
-  return document as { id: string; title: string | null; kind: string | null; status: DocumentStatus };
+  return document as DocumentRow;
 }
 
 async function provisionInOrg(organizationId: string, provisionId: string) {
@@ -90,7 +97,7 @@ export async function getGoverningReview(organizationId: string, documentId: str
         limit: -1,
       })
     : [];
-  const blockers = publishBlockers(provisions.map((p) => ({ text: p.text ?? null, review_state: stateOf(p) })));
+  const blockers = publishBlockers(provisions.map((p) => ({ text: p.text ?? null, review_state: stateOf(p), citation: p.citation ?? null })));
   return {
     document,
     provisions: provisions.map((p) => ({
@@ -333,18 +340,18 @@ export async function reorderGoverningProvisions(event: H3Event, organizationId:
   return { changed: true };
 }
 
-/** Publish a draft. Refused until every provision is reviewed and none contains [illegible]. */
+/** Publish a draft. Refused until every provision is reviewed, has a citation, and none contains [illegible]. */
 export async function publishGoverningDocument(event: H3Event, organizationId: string, documentId: string) {
   const document = await documentInOrg(organizationId, documentId);
   if (!isDraftStatus(document.status)) throw createError({ statusCode: 409, message: "Only a draft can be published" });
   const provisions = await provisionsOf(organizationId, document.id);
-  const blockers = publishBlockers(provisions.map((p) => ({ text: p.text ?? null, review_state: stateOf(p) })));
+  const blockers = publishBlockers(provisions.map((p) => ({ text: p.text ?? null, review_state: stateOf(p), citation: p.citation ?? null })));
   if (!canPublish(blockers)) {
     throw createError({
       statusCode: 409,
       message: !blockers.provisions
         ? "This document has no provisions yet"
-        : `Not ready to publish: ${blockers.unreviewed} not reviewed, ${blockers.illegible} still containing [illegible]`,
+        : `Not ready to publish: ${blockers.unreviewed} not reviewed, ${blockers.illegible} still containing [illegible], ${blockers.uncited} with no citation`,
       data: blockers,
     });
   }
@@ -364,6 +371,109 @@ export async function publishGoverningDocument(event: H3Event, organizationId: s
     },
   });
   return { id: document.id, status: "published" as const, provisions: provisions.length };
+}
+
+/**
+ * Edit a document's own details (title, kind, book and page, dates). Never its
+ * provisions. A reason is required when the document is published.
+ */
+export async function editGoverningDocument(event: H3Event, organizationId: string, documentId: string, edit: DocumentEdit, reason: string | null) {
+  const document = await documentInOrg(organizationId, documentId);
+  const bad = (message: string) => createError({ statusCode: 400, message });
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  const set = (field: string, value: unknown) => {
+    const current = document[field] ?? null;
+    if (value === current) return;
+    before[field] = current;
+    after[field] = value;
+  };
+
+  if (edit.kind !== undefined) {
+    if (!(DOCUMENT_KINDS as readonly string[]).includes(edit.kind)) throw bad("Unknown kind of document");
+    set("kind", edit.kind);
+  }
+  for (const field of DOCUMENT_TEXT_FIELDS) {
+    const value = edit[field];
+    if (value === undefined) continue;
+    if (value !== null && typeof value !== "string") throw bad(`${field} must be text`);
+    const text = (value ?? "").trim();
+    if (field === "title" && !text) throw bad("A document needs a title");
+    if (text.length > 500) throw bad(`${field} is too long`);
+    set(field, text || null);
+  }
+  for (const field of DOCUMENT_DATE_FIELDS) {
+    const value = edit[field];
+    if (value === undefined) continue;
+    if (value !== null && value !== "" && !(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)))) {
+      throw bad(`${field} must be a date`);
+    }
+    // Directus may answer a date with a time part; compare the day only.
+    const current = typeof document[field] === "string" ? (document[field] as string).slice(0, 10) : null;
+    if ((value || null) !== current) set(field, value || null);
+  }
+  for (const field of DOCUMENT_NUMBER_FIELDS) {
+    const value = edit[field];
+    if (value === undefined) continue;
+    if (value !== null && !(Number.isInteger(value) && value > 0)) throw bad(`${field} must be a page number`);
+    set(field, value);
+  }
+  const start = ("or_page_start" in after ? after.or_page_start : document.or_page_start) as number | null | undefined;
+  const end = ("or_page_end" in after ? after.or_page_end : document.or_page_end) as number | null | undefined;
+  if (start != null && end != null && end < start) throw bad("The last page cannot come before the first");
+
+  if (!Object.keys(after).length) return { id: document.id, changed: false };
+  if (!isDraftStatus(document.status) && !reason) {
+    throw createError({ statusCode: 400, message: "A reason is required to edit the details of a published document" });
+  }
+
+  const actor = await governingActor(event);
+  await write(updateItem(DOCUMENTS as never, document.id, after as never));
+  try {
+    await writeGoverningAudit(actor, {
+      action: "document_edit",
+      organization: organizationId,
+      document: document.id,
+      summary: `Edited the details of ${(after.title as string | undefined) ?? document.title ?? "a governing document"}`,
+      reason,
+      before,
+      after,
+    });
+  } catch (error) {
+    // No edit without its audit row: put back what was there.
+    await write(updateItem(DOCUMENTS as never, document.id, before as never)).catch(() => {});
+    throw error;
+  }
+  return { id: document.id, changed: true };
+}
+
+/**
+ * Take a published document back to draft: members stop seeing it, its
+ * provisions and its flags, until it is published again. Nothing is deleted
+ * and no provision changes. A reason is required.
+ */
+export async function unpublishGoverningDocument(event: H3Event, organizationId: string, documentId: string, reason: string | null) {
+  const document = await documentInOrg(organizationId, documentId);
+  if (document.status !== "published") throw createError({ statusCode: 409, message: "Only a published document can be unpublished" });
+  if (!reason) throw createError({ statusCode: 400, message: "A reason is required to unpublish a document" });
+
+  const actor = await governingActor(event);
+  await write(updateItem(DOCUMENTS as never, document.id, { status: "draft" } as never));
+  try {
+    await writeGoverningAudit(actor, {
+      action: "unpublish",
+      organization: organizationId,
+      document: document.id,
+      summary: `Unpublished ${document.title ?? "a governing document"}`,
+      reason,
+      before: { status: "published" },
+      after: { status: "draft" },
+    });
+  } catch (error) {
+    await write(updateItem(DOCUMENTS as never, document.id, { status: "published" } as never)).catch(() => {});
+    throw error;
+  }
+  return { id: document.id, status: "draft" as const };
 }
 
 /** Delete a draft: its provisions, its originals with their page images, then the document. Never a published one. */

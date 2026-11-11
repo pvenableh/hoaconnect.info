@@ -39,6 +39,8 @@ const routes = {
   merge: (await import("#core/server/api/governing/provisions/[id]/merge.post")).default as Handler,
   reorder: (await import("#core/server/api/governing/documents/[id]/reorder.post")).default as Handler,
   publish: (await import("#core/server/api/governing/documents/[id]/publish.post")).default as Handler,
+  unpublish: (await import("#core/server/api/governing/documents/[id]/unpublish.post")).default as Handler,
+  editDocument: (await import("#core/server/api/governing/documents/[id].patch")).default as Handler,
   remove: (await import("#core/server/api/governing/documents/[id].delete")).default as Handler,
   documents: (await import("#core/server/api/governing/documents.get")).default as Handler,
   document: (await import("#core/server/api/governing/documents/[id].get")).default as Handler,
@@ -199,7 +201,7 @@ describe("who may review", () => {
       { id: "pg1", source: "src", page_number: 1, image: "img-1", text: A + B, extraction: "ocr" },
       { id: "pg2", source: "src", page_number: 2, image: "img-2", text: C, extraction: "ocr" },
     ]);
-    expect(review.blockers).toEqual({ provisions: 3, unreviewed: 3, illegible: 1 });
+    expect(review.blockers).toEqual({ provisions: 3, unreviewed: 3, illegible: 1, uncited: 3 });
     expect(review.can_publish).toBe(false);
   });
 });
@@ -435,7 +437,7 @@ describe("the publish gate", () => {
     as("u-admin");
     await call(routes.state, "a", { state: "reviewed" });
     await call(routes.state, "b", { state: "reviewed" });
-    await expect(call(routes.publish, "draft")).rejects.toMatchObject({ statusCode: 409, data: { provisions: 3, unreviewed: 1, illegible: 1 } });
+    await expect(call(routes.publish, "draft")).rejects.toMatchObject({ statusCode: 409, data: { provisions: 3, unreviewed: 1, illegible: 1, uncited: 3 } });
     expect(db.one("hoa_governing_documents", "draft")!.status).toBe("draft");
     expect(audit().filter((r: any) => r.action === "publish")).toHaveLength(0);
 
@@ -448,6 +450,16 @@ describe("the publish gate", () => {
     as("u-admin");
     await call(routes.edit, "c", { text: "Signed J. Smith President [signature] [seal]\n" });
     for (const id of ["a", "b", "c"]) await call(routes.state, id, { state: "reviewed" });
+
+    // Reviewed is not enough: every provision needs a citation, and spaces are not one.
+    await call(routes.edit, "a", { citation: "Rule 1" });
+    await call(routes.edit, "b", { citation: "   " });
+    await expect(call(routes.publish, "draft")).rejects.toMatchObject({ statusCode: 409, data: { unreviewed: 0, illegible: 0, uncited: 2 } });
+    expect((await call(routes.review, "draft")).can_publish).toBe(false);
+    await call(routes.edit, "b", { citation: "Rule 1(a)" });
+    await call(routes.edit, "c", { citation: "Execution" });
+    // Giving a citation is not a text edit: the review state stands.
+    expect(prov("a").review_state).toBe("reviewed");
     as("u-board");
     await call(routes.state, "a", { state: "verified" });
     as("u-admin");
@@ -500,5 +512,97 @@ describe("deleting a draft", () => {
     await expect(call(routes.remove, "pub")).rejects.toMatchObject({ statusCode: 409 });
     expect(writes).toHaveLength(0);
     expect(prov("p").text).toBe(PUBLISHED);
+  });
+});
+
+describe("a document's own details", () => {
+  const doc = (id: string) => db.one("hoa_governing_documents", id)!;
+
+  it("only managers may edit them or unpublish", async () => {
+    for (const [user, role, status] of [[null, ROLE.member, 401], ["u-member", ROLE.member, 403], ["u-pm-plain", ROLE.pm, 403], ["u-elsewhere", ROLE.hoaAdmin, 403]] as const) {
+      as(user, role);
+      await expect(call(routes.editDocument, "draft", { title: "X" })).rejects.toMatchObject({ statusCode: status });
+      await expect(call(routes.unpublish, "pub", { reason: "x" })).rejects.toMatchObject({ statusCode: status });
+    }
+    expect(writes).toEqual([]);
+    as("u-admin", ROLE.hoaAdmin);
+    await expect(call(routes.editDocument, "other", { title: "X" })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("edits a draft's details with an audit row of before and after, and touches no provision", async () => {
+    as("u-pm-docs", ROLE.pm);
+    const result = await call(routes.editDocument, "draft", {
+      title: "  Rules and Regulations ", kind: "amendment", or_book: "16986", or_page_start: 3006, or_page_end: 3007, recorded_on: "1995-11-09",
+    });
+    expect(result).toEqual({ id: "draft", changed: true });
+    expect(doc("draft")).toMatchObject({ title: "Rules and Regulations", kind: "amendment", or_book: "16986", or_page_start: 3006, or_page_end: 3007, recorded_on: "1995-11-09", status: "draft" });
+    expect(audit().at(-1)).toMatchObject({
+      action: "document_edit",
+      document: "draft",
+      actor_user: "u-pm-docs",
+      before: { title: "Rules Upload", kind: "rules", or_book: null, or_page_start: null, or_page_end: null, recorded_on: null },
+      after: { title: "Rules and Regulations", kind: "amendment", or_book: "16986", or_page_start: 3006, or_page_end: 3007, recorded_on: "1995-11-09" },
+    });
+    expect(writes.filter((w) => w.collection === PROVISIONS)).toEqual([]);
+
+    // Sending what is already there writes nothing.
+    const rows = audit().length;
+    expect(await call(routes.editDocument, "draft", { title: "Rules and Regulations", or_page_start: 3006 })).toEqual({ id: "draft", changed: false });
+    expect(audit()).toHaveLength(rows);
+  });
+
+  it("refuses what is not a detail: an empty title, an unknown kind, a bad date, pages out of order", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    for (const edit of [{ title: "  " }, { kind: "poem" }, { recorded_on: "November 9" }, { or_page_start: 0 }, { or_page_start: 10, or_page_end: 9 }]) {
+      await expect(call(routes.editDocument, "draft", edit)).rejects.toMatchObject({ statusCode: 400 });
+    }
+    // Status, organization and text are not editable here, whatever is sent.
+    expect(await call(routes.editDocument, "draft", { status: "published", organization: OTHER_ORG, transcription: "x" })).toEqual({ id: "draft", changed: false });
+    expect(doc("draft")).toMatchObject({ status: "draft", organization: ORG });
+    expect(audit()).toHaveLength(0);
+  });
+
+  it("needs a reason on a published document", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    await expect(call(routes.editDocument, "pub", { county: "Dade" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(doc("pub").county ?? null).toBeNull();
+    await call(routes.editDocument, "pub", { county: "Dade", reason: "County was missing" });
+    expect(doc("pub").county).toBe("Dade");
+    expect(audit().at(-1)).toMatchObject({ action: "document_edit", reason: "County was missing", before: { county: null }, after: { county: "Dade" } });
+  });
+
+  it("puts the details back when the audit row cannot be written", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    h.failAudit = true;
+    await expect(call(routes.editDocument, "draft", { title: "Changed" })).rejects.toThrow("audit log unavailable");
+    expect(doc("draft").title).toBe("Rules Upload");
+    await expect(call(routes.unpublish, "pub", { reason: "Wrong scan" })).rejects.toThrow("audit log unavailable");
+    expect(doc("pub").status).toBe("published");
+  });
+});
+
+describe("unpublishing", () => {
+  it("needs a reason, hides the document from members again, changes no provision, and can be published again", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    await expect(call(routes.unpublish, "pub")).rejects.toMatchObject({ statusCode: 400 });
+    await expect(call(routes.unpublish, "draft", { reason: "x" })).rejects.toMatchObject({ statusCode: 409 });
+
+    const before = { ...prov("p") };
+    expect(await call(routes.unpublish, "pub", { reason: "Wrong scan attached" })).toEqual({ id: "pub", status: "draft" });
+    expect(audit().at(-1)).toMatchObject({
+      action: "unpublish", document: "pub", actor_user: "u-admin", reason: "Wrong scan attached",
+      before: { status: "published" }, after: { status: "draft" },
+    });
+    expect(prov("p")).toEqual(before);
+
+    as("u-member");
+    expect((await call(routes.documents, "")).documents).toEqual([]);
+    await expect(call(routes.document, "pub")).rejects.toMatchObject({ statusCode: 404 });
+    expect((await call(routes.search, "", {}, { q: "Poxies" })).total).toBe(0);
+
+    as("u-admin", ROLE.hoaAdmin);
+    expect(await call(routes.publish, "pub")).toMatchObject({ status: "published" });
+    as("u-member");
+    expect((await call(routes.documents, "")).documents.map((d: any) => d.id)).toEqual(["pub"]);
   });
 });

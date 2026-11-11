@@ -15,6 +15,7 @@ import type { listSourcePages } from "#core/server/utils/governing-pages";
 import type { ProvisionEdit, getGoverningReview } from "#core/server/utils/governing-review";
 import type { SettableFlagStatus } from "#core/shared/governing/flags";
 import { UPLOAD_PART_BYTES, partCount } from "#core/shared/governing/upload";
+import type { DocumentEdit } from "#core/shared/governing/review";
 import type { Relationship, ReviewState, Severity } from "#core/shared/governing/types";
 
 export type GoverningDocumentRow = Awaited<ReturnType<typeof listGoverningDocuments>>[number];
@@ -167,6 +168,11 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
   const mergeProvision = (id: string) => post<{ id: string; removed: string }>(provisionUrl(id, "/merge"));
   const reorderProvisions = (documentId: string, ids: string[]) => post<{ changed: boolean }>(documentUrl(documentId, "/reorder"), { ids });
   const publishDocument = (documentId: string) => post<{ id: string; status: "published"; provisions: number }>(documentUrl(documentId, "/publish"));
+  /** A document's own details, never its provisions. A reason is required when it is published. */
+  const editDocument = (documentId: string, edit: DocumentEdit, reason?: string) =>
+    $fetch<{ id: string; changed: boolean }>(documentUrl(documentId), { method: "PATCH", query: base(), body: { ...edit, reason } });
+  /** Back to draft: members stop seeing the document until it is published again. */
+  const unpublishDocument = (documentId: string, reason: string) => post<{ id: string; status: "draft" }>(documentUrl(documentId, "/unpublish"), { reason });
   const deleteDraft = (documentId: string) =>
     $fetch<{ ok: boolean; provisions: number; sources: number }>(documentUrl(documentId), { method: "DELETE", query: base() });
 
@@ -181,7 +187,7 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
     });
 
   return {
-    getAudit,
+    getAudit, editDocument, unpublishDocument,
     suggestFlags,
     getReview, editProvision, setReviewState, splitProvision, mergeProvision, reorderProvisions, publishDocument, deleteDraft,
     getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource,

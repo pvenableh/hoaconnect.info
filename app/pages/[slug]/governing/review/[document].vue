@@ -189,6 +189,19 @@ const publish = async () => {
     await navigateTo(buildOrgPath(`/governing/${documentId.value}`));
   }, "Published");
 };
+const unpublish = async () => {
+  const ok = await confirm({
+    title: "Unpublish this document?",
+    body: "Members stop seeing it, its provisions and its state law notes until it is published again. Nothing is deleted, and the reason is recorded.",
+    confirmLabel: "Unpublish",
+    destructive: true,
+  });
+  if (!ok) return;
+  await run("unpublish", async () => {
+    await api.unpublishDocument(documentId.value, reason.value.trim());
+    reason.value = "";
+  }, "Unpublished");
+};
 const removeDraft = async () => {
   const ok = await confirm({
     title: "Delete this draft?",
@@ -211,6 +224,7 @@ const blockerText = computed(() => {
   const parts = [];
   if (b.unreviewed) parts.push(`${b.unreviewed} not reviewed yet`);
   if (b.illegible) parts.push(`${b.illegible} still containing ${BLOCKING_MARKER}`);
+  if (b.uncited) parts.push(`${b.uncited} with no citation`);
   return parts.join(" · ");
 });
 </script>
@@ -248,6 +262,20 @@ const blockerText = computed(() => {
               <Button variant="ghost" size="sm" class="text-destructive" :disabled="!!busy" @click="removeDraft">Delete Draft</Button>
               <Button size="sm" :disabled="!data?.can_publish || anyDirty || !!busy" @click="publish">Publish</Button>
             </template>
+            <Button
+              v-else-if="doc.status === 'published'"
+              variant="ghost"
+              size="sm"
+              class="text-destructive"
+              :disabled="!!busy || anyDirty || !reason.trim()"
+              :title="reason.trim() ? undefined : 'Give a reason below first'"
+              @click="unpublish"
+            >
+              Unpublish
+            </Button>
+            <NuxtLink :to="{ path: buildOrgPath('/governing/audit'), query: { document: doc.id } }" class="type-meta t-text-accent underline">
+              Change History
+            </NuxtLink>
           </div>
           <p class="type-meta t-text-muted">
             <template v-if="isDraft">
@@ -255,13 +283,17 @@ const blockerText = computed(() => {
               spacing: do not correct what the page really says. Replace every {{ BLOCKING_MARKER }} with what the page shows; [signature], [seal] and
               [drawing] may stay. Every change here is recorded.
             </template>
-            <template v-else>This document is published. An edit takes effect for members at once, is recorded, and needs a reason.</template>
+            <template v-else>
+              This document is published. An edit takes effect for members at once, is recorded, and needs a reason. So does unpublishing it.
+            </template>
           </p>
           <div v-if="!isDraft" class="space-y-1.5">
-            <Label for="governing-review-reason">Reason for the edit</Label>
+            <Label for="governing-review-reason">Reason for the edit or for unpublishing</Label>
             <Input id="governing-review-reason" v-model="reason" placeholder="For example, corrected against the recorded page" />
           </div>
         </div>
+
+        <GoverningDocumentDetails :document="doc" :org-id="selectedOrgId" @saved="refresh()" />
 
         <div v-if="groups.length > 1" class="flex flex-wrap items-center gap-2" data-testid="governing-review-pages">
           <Button
