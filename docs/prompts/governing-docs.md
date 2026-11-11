@@ -444,6 +444,8 @@ From this repo:
     Member policy no longer lets a member update or delete any file in Directus (own uploads, and for update their
     community's library; never governing or support files). Drag-to-reorder seen working. Details and the push in
     `docs/prompts/governing-loose-ends.md`.
+  - **Pushed 2026-11-11 (Peter's word):** `origin/main` at `c7bbbc3` (Session 3 and the follow-ups), live; the
+    scope re-run after the deploy had nothing left to mark.
   - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide; nested
     file reads with a member's token answer 500 on production (Documents page empty for managers; not caused by
     these changes, see the loose-ends file).

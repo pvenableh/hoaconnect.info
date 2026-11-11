@@ -182,7 +182,10 @@ Each session appends its own "Session N done" bullet here.
   - **Change-history paging:** the cursor works on real data (rows older than the 20th are exactly the other 20); the
     "more" button needs over 50 rows (there are 44), so it is still not seen on screen.
   - Gates: 172 files / 3,062 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0.
-  - Deploy and the re-run of `scope:public-files` after the push: see the next bullet.
+  - **Pushed (Peter's word):** `fbd9757` (Session 3) and `c7bbbc3` (these follow-ups) on `origin/main`; the build went
+    live about 4 minutes later (`/_nuxt/builds/latest.json` changed). The re-run of `pnpm run scope:public-files`
+    after it found nothing to mark (11 of 11 governing files marked; no write), `audit:public-policy` is green, and
+    `scope-member-file-writes.ts` reports already scoped.
   - **Open:** the 12 AI flag suggestions (Peter's). **Nested file reads with a member's token answer 500** on
     production: `/users/me?fields=avatar.id`, and the Documents page's `hoa_documents` list with `file.*` (so that page
     lists nothing for managers). Not caused by the member policy (still 500 with it set back to `{}` and the cache
