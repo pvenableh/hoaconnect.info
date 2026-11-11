@@ -273,9 +273,16 @@ From this repo:
     the 1995 Amendment; since it is published, members can open those images, which show what its PDF shows.
   - **OCR prompt tightened 2026-11-10 (Peter's yes)** in `OCR_SYSTEM`: spacing is part of the text (run-together
     words stay run together), a seal is `[seal]` plus only its certain words, a signature is `[signature]`, a
-    drawing is `[drawing]` with no description, and nothing else goes in brackets. **Not yet tried on a page:**
-    the two 1995 pages still hold the text from the first prompt. Reading them again (`force: true` on the OCR
-    route; the page has no button for it) overwrites that draft text and spends credits, so it needs Peter's yes.
+    drawing is `[drawing]` with no description, and nothing else goes in brackets.
+  - **Re-read 2026-11-10 (Peter's yes)**, both 1995 pages, `force: true` on the OCR route from the signed-in
+    page: 28 and 52 credits. 280 of the transcription's 281 words are now in the OCR text (the one miss is the
+    transcriber's `---`); `theCounty` is kept as printed; the survey sheet gives `[drawing]` and no
+    description; the only brackets are `[signature]`, `[seal]`, `[illegible]`, `[drawing]`. **Still for
+    review to catch:** the two runs disagree in the survey sheet's small print (`Mach. = Mailbox` against
+    `Mech = Machine`, `Board of Land Surveyors` against `Surveyor`, the surveyor's name read once and
+    `[illegible]` once) and in where its lines break, and the words read off the corporate seal differ
+    between runs. Neither was checked against the image. One document, two pages: not a measure of accuracy
+    on the 1977 typescript.
 - **Next: Session 3B (review, publish, audit).** Open from the real run: whether to show the credits spent.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
