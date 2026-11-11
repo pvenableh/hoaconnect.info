@@ -24,7 +24,7 @@ const PROVISION_FIELDS = [
 ] as const;
 const LINK_FIELDS = ["id", "from_provision", "to_provision", "type", "note"] as const;
 const FLAG_FIELDS = [
-  "id", "topic", "document_rule", "statute_rule", "statute_citation", "relationship", "severity", "note", "status", "origin",
+  "id", "topic", "document_rule", "statute_rule", "statute_citation", "relationship", "severity", "note", "status", "origin", "quoted_text",
 ] as const;
 const SOURCE_FIELDS = ["id", "document", "file", "is_recorded_copy", "is_authoritative", "notes", "page_count", "date_created"] as const;
 // Never `text`: a page's extracted text is a draft, read only by the manage-only pages route.
@@ -220,7 +220,8 @@ export async function searchGoverning(organizationId: string, query: unknown, fi
 export async function governingOverview(organizationId: string, canManage: boolean, staleAfterDays: number = STALE_AFTER_DAYS) {
   const { documents, provisions, flags } = await loadGoverning(organizationId, canManage);
   const byId = new Map(provisions.map((p) => [p.id, p]));
-  const live = flags.filter((f) => f.status !== "dismissed");
+  // Counted and listed as standing: confirmed flags. A suggestion waits in its own list until someone decides.
+  const live = flags.filter((f) => f.status !== "dismissed" && f.status !== "suggested");
   const withProvisions = (f: GovFlag) => ({
     ...f,
     provisions: f.provisions.flatMap((p) => (byId.has(p) ? [brief(byId.get(p)!)] : [])),
@@ -232,10 +233,10 @@ export async function governingOverview(organizationId: string, canManage: boole
     by_relationship: countByRelationship(live),
     open_questions: sortFlags(live.filter((f) => f.relationship === "counsel_review")).map(withProvisions),
     /** Managers only: flags waiting for a decision, and dismissed ones (so a dismissal can be undone). */
-    suggested: canManage ? sortFlags(flags.filter((f) => f.status === "suggested" && f.relationship !== "counsel_review")).map(withProvisions) : [],
+    suggested: canManage ? sortFlags(flags.filter((f) => f.status === "suggested")).map(withProvisions) : [],
     dismissed: canManage ? sortFlags(flags.filter((f) => f.status === "dismissed")).map(withProvisions) : [],
     /** Managers only: statute references that should be read again (spec §5, freshness). */
-    stale_references: canManage ? staleReferences(live, new Date(), staleAfterDays) : [],
+    stale_references: canManage ? staleReferences(flags.filter((f) => f.status !== "dismissed"), new Date(), staleAfterDays) : [],
     stale_after_days: staleAfterDays,
     can_manage: canManage,
   };

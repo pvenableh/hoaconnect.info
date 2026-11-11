@@ -69,6 +69,8 @@ export type GovFlag = {
   note: string | null;
   status: FlagStatus;
   origin: "curated" | "ai_suggested";
+  /** For an `ai_suggested` flag: the words of the provision the suggestion relied on. */
+  quoted_text: string | null;
   /** Provision ids this flag is about. */
   provisions: string[];
   references: GovReference[];

@@ -339,7 +339,54 @@ From this repo:
     (7) The page image cannot be zoomed or rotated in place (the survey sheet is scanned sideways); "Open Full
     Size" opens it in a tab. (8) Reorder is one step at a time. (9) Not checked with a real member login; the
     member rules are proven by tests.
-- **Next: Session 4 (assisted flagging).** `publishGoverningDocument` is where "on publish" hooks in.
+- **Session 4 done 2026-11-10, committed locally, NOT pushed. Phase 4 stop. No schema change.** Peter's answers:
+  suggestions run from a button, not on publish; one real run on the 1995 Amendment; and (settling 3B's open
+  call) an edit to a published provision keeps it visible and marks it `reviewed`.
+  - **What the model may do:** point. It gets the document's reviewed provisions and the library references of
+    the community's state, and returns `{ provision_id, reference_id, quote }` through one tool
+    (`propose_flags`). `validateSuggestions` in `core/shared/governing/suggest.ts` drops an id that was not
+    sent, a quote that is not in the provision character for character, a quote under 10 characters, a repeat,
+    and a pair that already has a flag of any status (so a dismissed suggestion does not come back).
+  - **What is saved:** `core/server/utils/governing-suggest.ts` `suggestGoverningFlags` creates a flag with
+    `origin: ai_suggested`, `status: suggested`, `quoted_text`, the reference's own code as citation and
+    topic, `statute_rule` = the library's summary or nothing, `document_rule` empty. **My call:** the
+    relationship is always `counsel_review` and severity `info`. The library has no rule text per reference,
+    so any other label would be a legal conclusion made by software. A manager confirms or dismisses with the
+    existing status route. One `flags_suggest` audit row with counts, reasons for drops, credits and model.
+    Model: `MODEL_TIERS.max`; charged to the wallet as the new `AiFeature` `"flags"`; 402 at zero balance; a
+    reply cut off or refused saves nothing (422). Large documents go in passes of about 120,000 characters,
+    and nothing is saved unless every pass came back.
+  - Route: `documents/[id]/suggest-flags.post` (`requireGoverningManage`; published documents only).
+  - **Screens:** "Suggest Flags" on the reading view of a published document, with what the run saved, dropped
+    and cost. `StatuteFlag.vue` shows "Suggested by AI", the quoted words and a caution for managers. The
+    overview's "Waiting for a decision" now lists every suggested flag (it left out `counsel_review` ones),
+    and suggested flags no longer count in the relationship totals or the open questions.
+  - Tests: `tests/server/governing-suggest.test.ts` (27: who may ask, what the model is sent, unknown
+    reference rejected, fabricated quote rejected including a corrected typo, saved shape, no provision
+    written, a member sees no suggestion by any route until it is confirmed). The text guard lists the
+    suggester in `WRITERS` and holds it to creating flags and their links only.
+  - **Real run 2026-11-10 (Peter's yes), 1995 Amendment in 1033 Lenox:** 1 suggestion saved, 0 dropped, 26
+    credits: the "Attached is new SURVEY AND SITE PLAN…" sentence matched to `718.110(1), (3), (4)`. It shows
+    under "Waiting for a decision" with Confirm and Dismiss. **It is still there, undecided:** neither button
+    was clicked. Totals unchanged at 10 / 8 / 15 / 4 / 6 with 10 open questions.
+  - **The nine criteria, 2026-11-10:** read back from the hosted Directus: 7 documents and 209 provisions (1);
+    "proxies" → By-Law 3.5 and "fidelity" → By-Law 6.5 first (2); By-Law 3.5 still reads "Poxies" (3); By-Law
+    6.5 carries `statute_controls` with 718.111(11)(h) (4); overview totals as above (5). By tests and the
+    earlier browser checks: amendment links (6, seen in 1C); members see no draft, suggestion or dismissed
+    flag (7); text changes only through the audited reviewer (8); an upload makes a hidden draft with pages
+    and text (9, run for real in 3B).
+  - **Known / deferred:** (1) one run on two provisions says nothing about quality on the By-Laws; run it
+    there before trusting it. (2) A manager cannot change a suggestion's relationship or add rule text;
+    confirming always yields "Ask counsel." (3) No run on publish (Peter chose the button). (4) The whole
+    library goes in every pass; fine at 33 references. (5) Still open from 3B: audit-log viewer, citation not
+    required to publish, document field editing, unpublish.
+- **Idea parked 2026-11-10 (not built, not planned in a file):** "versions" of non-legal community email:
+  an author-approved short summary and translations, generated once at send time, with each member choosing
+  a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /
+  `community`) as the exclusion hook, per-recipient rendering in `email-send-render.ts`, an unused
+  `"summarize"` AI feature, `directus_users.language`, and no gating of features by plan (`features` on
+  `subscription_plans` is display text). Peter wants income weighed: credits per version now, languages as a
+  higher-plan feature once plan gating exists.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

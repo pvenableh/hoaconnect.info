@@ -168,7 +168,12 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
   const deleteDraft = (documentId: string) =>
     $fetch<{ ok: boolean; provisions: number; sources: number }>(documentUrl(documentId), { method: "DELETE", query: base() });
 
+  /** Ask for statute-flag suggestions on a published document. Uses the community's AI credits. */
+  const suggestFlags = (documentId: string) =>
+    post<{ suggested: number; rejected: number; provisions: number; references: number; credits: number }>(documentUrl(documentId, "/suggest-flags"));
+
   return {
+    suggestFlags,
     getReview, editProvision, setReviewState, splitProvision, mergeProvision, reorderProvisions, publishDocument, deleteDraft,
     getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource,
     createFromUpload, getSourcePages, storePage, readPage, proposeProvisions,

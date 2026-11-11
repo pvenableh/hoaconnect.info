@@ -116,10 +116,19 @@ const setStatus = async (status: SettableFlagStatus) => {
       <div class="flex flex-wrap items-center gap-2">
         <Badge v-if="!isQuiet" variant="secondary">{{ SEVERITY_LABELS[flag.severity] ?? flag.severity }} severity</Badge>
         <Badge v-if="showStatus" variant="secondary">{{ FLAG_STATUS_LABELS[flag.status] }}</Badge>
+        <Badge v-if="manages && flag.origin === 'ai_suggested'" variant="outline" data-testid="governing-flag-ai">Suggested by AI</Badge>
       </div>
     </div>
 
     <dl class="space-y-2">
+      <div v-if="flag.origin === 'ai_suggested' && flag.quoted_text">
+        <dt class="type-micro t-text-muted">Words of the provision this points to</dt>
+        <dd class="type-body t-text whitespace-pre-wrap border-l-2 t-border pl-3">{{ flag.quoted_text }}</dd>
+      </div>
+      <p v-if="manages && flag.origin === 'ai_suggested' && flag.status === 'suggested'" class="type-meta t-text-muted">
+        Software matched this provision to a statute in the library. It has not compared what each says. Read both before confirming; confirming shows
+        members a question for counsel.
+      </p>
       <div v-if="flag.document_rule">
         <dt class="type-micro t-text-muted">Your documents</dt>
         <dd class="type-body t-text whitespace-pre-wrap">{{ flag.document_rule }}</dd>

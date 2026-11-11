@@ -2,6 +2,7 @@
 // Governing documents: one document as a continuous reading view, with a table
 // of contents, recorded-page markers and the transcriber's notes (spec §6).
 // Provision text is shown exactly as stored: plain text, line breaks kept.
+import { toast } from "vue-sonner";
 import { formatBookAndPage, formatRecordDate, kindLabel, provisionDepths, statusLabel } from "#core/shared/governing/labels";
 
 definePageMeta({
@@ -12,7 +13,7 @@ definePageMeta({
 const route = useRoute();
 const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
-const { getDocument } = useGoverningDocs(selectedOrgId);
+const { getDocument, suggestFlags } = useGoverningDocs(selectedOrgId);
 
 const documentId = computed(() => String(route.params.document ?? ""));
 
@@ -33,6 +34,21 @@ const { data, status, refresh } = await useAsyncData(
 // client must too) or during it. A refresh keeps the page on screen.
 const waiting = computed(() => status.value === "idle" || (status.value === "pending" && !data.value));
 const { isPreviewingMember } = useViewAs();
+
+const suggesting = ref(false);
+const suggestion = ref<Awaited<ReturnType<typeof suggestFlags>> | null>(null);
+const suggest = async () => {
+  if (suggesting.value) return;
+  suggesting.value = true;
+  try {
+    suggestion.value = await suggestFlags(documentId.value);
+    await refresh();
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Could not ask for suggestions.");
+  } finally {
+    suggesting.value = false;
+  }
+};
 const unreviewed = computed(() => (data.value?.provisions ?? []).filter((p) => p.review_state === "ocr_draft").length);
 
 const doc = computed(() => data.value?.document ?? null);
@@ -151,6 +167,28 @@ onMounted(scrollToHash);
           <Button as-child size="sm" :variant="doc.status === 'published' ? 'outline' : 'default'">
             <NuxtLink :to="buildOrgPath(`/governing/review/${doc.id}`)">{{ doc.status === "published" ? "Edit Text" : "Review Text" }}</NuxtLink>
           </Button>
+        </div>
+
+        <div
+          v-if="data?.can_manage && !isPreviewingMember && doc.status === 'published' && provisions.length"
+          class="ios-card px-4 py-3 space-y-2"
+          data-testid="governing-suggest-flags"
+        >
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p class="type-meta t-text-secondary flex-1 min-w-0">
+              Have software look for provisions that touch a statute in the library. It uses the community's AI credits. Suggestions wait on the
+              overview for someone to confirm or dismiss; members do not see them.
+            </p>
+            <Button size="sm" variant="outline" :disabled="suggesting" @click="suggest">
+              <Icon :name="suggesting ? 'lucide:loader-2' : 'lucide:sparkles'" class="w-4 h-4 mr-1.5" :class="suggesting ? 'animate-spin' : ''" />
+              Suggest Flags
+            </Button>
+          </div>
+          <p v-if="suggestion" class="type-meta t-text-secondary" role="status" data-testid="governing-suggest-result">
+            {{ suggestion.suggested }} {{ suggestion.suggested === 1 ? "suggestion" : "suggestions" }} saved, {{ suggestion.rejected }} dropped as
+            unverifiable, using {{ suggestion.credits }} AI {{ suggestion.credits === 1 ? "credit" : "credits" }}.
+            <NuxtLink v-if="suggestion.suggested" :to="buildOrgPath('/governing/overview')" class="t-text-accent underline">Review them</NuxtLink>
+          </p>
         </div>
 
         <AppEmptyState

@@ -30,7 +30,9 @@ const COLLECTION = "hoa_governing_provisions";
 const PROPOSER = "core/server/utils/governing-propose.ts";
 /** The audited edit, split, merge, reorder, review state, publish and draft delete (Session 3B). */
 const REVIEWER = "core/server/utils/governing-review.ts";
-const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts", PROPOSER, REVIEWER];
+/** Reads provisions to compare them with the statute library, and writes flags only (Session 4). */
+const SUGGESTER = "core/server/utils/governing-suggest.ts";
+const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts", PROPOSER, REVIEWER, SUGGESTER];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -105,6 +107,18 @@ describe("provision text has one way in (criterion 8)", () => {
     const shared = source("core/shared/governing/review.ts");
     expect(shared).toMatch(/return \[text\.slice\(0, at\), text\.slice\(at\)\];/);
     expect(shared).toMatch(/mergeText = \(first: string, second: string\) => first \+ second;/);
+  });
+
+  it("the suggester only reads provisions: it creates flags and their links, and updates or deletes nothing", () => {
+    const suggester = source(SUGGESTER);
+    expect(suggester).not.toMatch(/\b(updateItems?|updateItemsBatch|deleteItems?|createItems|upsert)\b/);
+    // Its one write helper is only ever called with the three flag collections.
+    const targets = [...suggester.matchAll(/\bcreate\((\w+),/g)].map((m) => m[1]);
+    expect(targets.sort()).toEqual(["FLAGS", "FLAG_PROVISIONS", "FLAG_REFERENCES"]);
+    expect(suggester.match(/createItem\(/g)).toHaveLength(1);
+    expect(suggester).toMatch(/status: "suggested"/);
+    expect(suggester).toMatch(/origin: "ai_suggested"/);
+    expect(suggester).not.toMatch(/status: "(confirmed|counsel_confirmed)"/);
   });
 
   it("the schema script creates no role permissions", () => {
