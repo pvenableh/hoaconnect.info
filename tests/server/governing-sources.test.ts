@@ -11,6 +11,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
+import { GOVERNING_FILE_MARKER } from "#core/shared/governing/files";
+import { isPublicFile } from "../../scripts/lib/public-files";
 import { MemoryDirectus } from "./support/memory-directus";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any, params: {} as any, multipart: [] as any[], streamed: 0 }));
@@ -82,7 +84,7 @@ async function request(op: any): Promise<any> {
     case "uploadFiles": {
       const form = op.data as FormData;
       const blob = form.get("file") as File;
-      const row = { id: uuid(), title: form.get("title"), folder: form.get("folder") ?? null, type: blob.type, filesize: blob.size, filename_download: blob.name };
+      const row = { id: uuid(), title: form.get("title"), description: form.get("description") ?? null, folder: form.get("folder") ?? null, type: blob.type, filesize: blob.size, filename_download: blob.name };
       files.push(row);
       return row;
     }
@@ -206,7 +208,7 @@ describe("original documents — attach", () => {
       expect(result.page_count).toBe(2);
 
       const [file] = db.table("directus_files");
-      expect(file).toMatchObject({ id: result.file, type: "application/pdf", filename_download: "bylaws-recorded.pdf", filesize: PDF.length, folder: `documents-${ORG}` });
+      expect(file).toMatchObject({ id: result.file, type: "application/pdf", filename_download: "bylaws-recorded.pdf", filesize: PDF.length, folder: `documents-${ORG}`, description: GOVERNING_FILE_MARKER });
       expect(sources()).toEqual([
         expect.objectContaining({ id: result.id, organization: ORG, document: DOC.published, file: result.file, is_recorded_copy: true, is_authoritative: true, notes: "From the Clerk", page_count: 2 }),
       ]);
@@ -239,6 +241,8 @@ describe("original documents — attach", () => {
   it("takes an image, with no page count; flags default to false", async () => {
     const result = await attach(DOC.published, [filePart(new Uint8Array([1, 2, 3]), "image/png", "page-1.png")]);
     expect(result.page_count).toBeNull();
+    // Marked, so Directus's public image read leaves it out (scripts/lib/public-files.ts).
+    expect(isPublicFile(db.one("directus_files", result.file)!)).toBe(false);
     expect(sources()[0]).toMatchObject({ is_recorded_copy: false, is_authoritative: false, notes: null, page_count: null });
   });
 

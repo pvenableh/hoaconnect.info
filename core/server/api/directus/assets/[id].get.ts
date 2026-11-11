@@ -9,7 +9,9 @@
  * balance sheets, its approved meeting minutes, and a data-export archive, to
  * anyone who asked. The public grant is now filtered to `type _starts_with
  * image/`, so every PDF, zip and recording is private and reaches its own
- * community through here instead.
+ * community through here instead. Governing originals and page images are
+ * images the grant leaves out too, by their `governing-` description
+ * (scripts/lib/public-files.ts), so a draft's scan comes only through here.
  *
  * Two rules, and the split is deliberate:
  *

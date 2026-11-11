@@ -14,6 +14,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHash } from "node:crypto";
 import type { H3Event } from "h3";
+import { GOVERNING_FILE_MARKER } from "#core/shared/governing/files";
+import { isPublicFile } from "../../scripts/lib/public-files";
 import { MemoryDirectus } from "./support/memory-directus";
 
 const h = vi.hoisted(() => ({
@@ -279,7 +281,7 @@ describe("a file sent in parts", () => {
     expect(Math.ceil(PDF.length / 100)).toBeGreaterThan(2);
     expect(Buffer.from(blobs.get(draft.file)!).equals(Buffer.from(PDF))).toBe(true);
     expect(parts()).toHaveLength(0);
-    expect(db.one("directus_files", draft.file)).toMatchObject({ type: "application/pdf", filename_download: "pool-rules.pdf", filesize: PDF.length, folder: `documents-${ORG}` });
+    expect(db.one("directus_files", draft.file)).toMatchObject({ type: "application/pdf", filename_download: "pool-rules.pdf", filesize: PDF.length, folder: `documents-${ORG}`, description: GOVERNING_FILE_MARKER });
   });
 
   it("a part sent twice replaces the first", async () => {
@@ -348,7 +350,8 @@ describe("an upload becomes a draft (criterion 9)", () => {
       expect.objectContaining({ id: second.id, source: draft.source, page_number: 2, text: null, extraction: null }),
     ]);
     for (const page of pageRows()) {
-      expect(db.one("directus_files", page.image)).toMatchObject({ type: "image/jpeg", folder: `documents-${ORG}` });
+      expect(db.one("directus_files", page.image)).toMatchObject({ type: "image/jpeg", folder: `documents-${ORG}`, description: GOVERNING_FILE_MARKER });
+      expect(isPublicFile(db.one("directus_files", page.image)!)).toBe(false);
       expect(Buffer.from(blobs.get(page.image)!).equals(Buffer.from(JPEG))).toBe(true);
     }
     expect(db.one("hoa_organizations", ORG)!.storage_used_bytes).toBe(PDF.length + 2 * JPEG.length);

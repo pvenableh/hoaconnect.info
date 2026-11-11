@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Governing documents: a document's own details (title, kind, recording
-// data). People who manage governing documents edit them here; the server
+// data, the document it amends). People who manage governing documents edit
+// them here; the server
 // checks again, never touches a provision, and writes the audit row with the
 // fields before and after. A published document's details need a reason.
 import { toast } from "vue-sonner";
@@ -13,20 +14,38 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ saved: [] }>();
 
-const { editDocument } = useGoverningDocs(toRef(props, "orgId"));
+const { editDocument, listDocuments } = useGoverningDocs(toRef(props, "orgId"));
+
+// What this document may amend: the community's other documents. The server
+// refuses itself and a circle again.
+const NONE = "none";
+const others = ref<{ id: string; label: string }[]>([]);
+const loadOthers = async () => {
+  if (import.meta.server || !props.orgId) return;
+  try {
+    const { documents } = await listDocuments();
+    others.value = documents
+      .filter((d) => d.id !== props.document.id)
+      .map((d) => ({ id: d.id, label: `${d.title ?? "Untitled"}${d.recorded_on ? ` (${String(d.recorded_on).slice(0, 4)})` : ""}` }));
+  } catch {
+    others.value = [];
+  }
+};
+watch(() => [props.orgId, props.document.id], loadOthers, { immediate: true });
 
 const TEXT = ["title", "citation_prefix", "or_book", "clerk_file_no", "county"] as const;
 const DATES = ["executed_on", "recorded_on"] as const;
 const NUMBERS = ["or_page_start", "or_page_end"] as const;
-type Field = "kind" | (typeof TEXT)[number] | (typeof DATES)[number] | (typeof NUMBERS)[number];
+type Field = "kind" | "amends" | (typeof TEXT)[number] | (typeof DATES)[number] | (typeof NUMBERS)[number];
 
 // Everything is held as the text the boxes show; a date keeps its day only.
 const stored = (field: Field): string => {
   const value = props.document[field];
+  if (field === "amends") return typeof value === "string" ? value : ((value as { id?: string } | null)?.id ?? NONE);
   if (value == null) return "";
   return (DATES as readonly string[]).includes(field) ? String(value).slice(0, 10) : String(value);
 };
-const FIELDS: Field[] = ["kind", ...TEXT, ...DATES, ...NUMBERS];
+const FIELDS: Field[] = ["kind", "amends", ...TEXT, ...DATES, ...NUMBERS];
 const blank = () => Object.fromEntries(FIELDS.map((f) => [f, stored(f)])) as Record<Field, string>;
 const form = reactive(blank());
 watch(() => props.document, () => Object.assign(form, blank()));
@@ -43,6 +62,7 @@ const save = async () => {
     const value = String(form[field] ?? "").trim();
     if ((NUMBERS as readonly string[]).includes(field)) edit[field] = value ? Number(value) : null;
     else if (field === "kind") edit[field] = value;
+    else if (field === "amends") edit[field] = value === NONE ? null : value;
     else edit[field] = value || null;
   }
   saving.value = true;
@@ -110,6 +130,17 @@ const save = async () => {
         <div class="space-y-1">
           <Label for="gov-doc-county">County</Label>
           <Input id="gov-doc-county" v-model="form.county" />
+        </div>
+        <div class="space-y-1 sm:col-span-2">
+          <Label for="gov-doc-amends">Amends</Label>
+          <Select v-model="form.amends">
+            <SelectTrigger id="gov-doc-amends" data-testid="governing-document-amends"><SelectValue placeholder="Amends" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem :value="NONE">No other document</SelectItem>
+              <SelectItem v-for="d in others" :key="d.id" :value="d.id">{{ d.label }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p class="type-meta t-text-muted">The earlier document this one changes. Members see it on both documents' pages.</p>
         </div>
         <div v-if="published" class="space-y-1 sm:col-span-2">
           <Label for="gov-doc-reason">Reason for the change</Label>

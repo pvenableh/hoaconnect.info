@@ -16,6 +16,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
+import { amendsLoop } from "#core/shared/governing/review";
 import { MemoryDirectus } from "./support/memory-directus";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any, params: {} as any, body: {} as any, failAudit: false }));
@@ -583,6 +584,54 @@ describe("a document's own details", () => {
     await call(routes.editDocument, "pub", { county: "Dade", reason: "County was missing" });
     expect(doc("pub").county).toBe("Dade");
     expect(audit().at(-1)).toMatchObject({ action: "document_edit", reason: "County was missing", before: { county: null }, after: { county: "Dade" } });
+  });
+
+  it("sets what a document amends: another of this community's, never itself or a circle, named in the summary", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    expect(await call(routes.editDocument, "draft", { amends: "pub" })).toEqual({ id: "draft", changed: true });
+    expect(doc("draft").amends).toBe("pub");
+    expect(audit().at(-1)).toMatchObject({
+      action: "document_edit",
+      document: "draft",
+      summary: 'Edited the details of Rules Upload: it now amends "By-Laws"',
+      before: { amends: null },
+      after: { amends: "pub" },
+    });
+    const rows = audit().length;
+    // Not itself, not one that already amends it, not another community's or an unknown one, not a number.
+    for (const [id, amends] of [["draft", "draft"], ["pub", "draft"], ["draft", "other"], ["draft", "nope"], ["draft", 42]] as const) {
+      await expect(call(routes.editDocument, id, { amends, reason: "x" })).rejects.toMatchObject({ statusCode: 400 });
+    }
+    // Sending what is there writes nothing.
+    expect(await call(routes.editDocument, "draft", { amends: "pub" })).toEqual({ id: "draft", changed: false });
+    expect(audit()).toHaveLength(rows);
+    expect(doc("pub").amends ?? null).toBeNull();
+    // Null takes it away, and the summary says what it was.
+    await call(routes.editDocument, "draft", { amends: null });
+    expect(doc("draft").amends).toBeNull();
+    expect(audit().at(-1)).toMatchObject({
+      summary: 'Edited the details of Rules Upload: it no longer amends another document (was "By-Laws")',
+      before: { amends: "pub" },
+      after: { amends: null },
+    });
+    expect(writes.filter((w) => w.collection === PROVISIONS)).toEqual([]);
+  });
+
+  it("on a published document, what it amends changes only with a reason", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    await expect(call(routes.editDocument, "pub", { amends: "draft" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(doc("pub").amends ?? null).toBeNull();
+    await call(routes.editDocument, "pub", { amends: "draft", reason: "The rules amend the By-Laws" });
+    expect(doc("pub").amends).toBe("draft");
+    expect(audit().at(-1)).toMatchObject({ reason: "The rules amend the By-Laws", before: { amends: null }, after: { amends: "draft" } });
+  });
+
+  it("finds a circle however many steps away, and ignores one this document is not in", () => {
+    const chain = new Map<string, string | null>([["a", null], ["b", "a"], ["c", "b"], ["x", "y"], ["y", "x"]]);
+    expect(amendsLoop("a", "c", chain)).toBe(true); // c → b → a
+    expect(amendsLoop("a", "a", chain)).toBe(true);
+    expect(amendsLoop("c", "a", chain)).toBe(false);
+    expect(amendsLoop("a", "x", chain)).toBe(false);
   });
 
   it("puts the details back when the audit row cannot be written", async () => {

@@ -9,6 +9,7 @@
 
 import { createItem, deleteFiles, deleteItem, readFiles, readItems, uploadFiles } from "@directus/sdk";
 import type { H3Event } from "h3";
+import { GOVERNING_FILE_MARKER } from "#core/shared/governing/files";
 import { MEMBER_DOCUMENT_STATUSES } from "#core/shared/governing/visibility";
 import { hasCapability } from "#core/shared/permissions";
 import { resolveActors } from "./board-access";
@@ -76,6 +77,7 @@ export async function attachGoverningSource(event: H3Event, organizationId: stri
   // re-encoding. Fields before the file part, or Directus drops them.
   const form = new FormData();
   form.append("title", `${document.title ?? "Governing document"} (original)`);
+  form.append("description", GOVERNING_FILE_MARKER); // Keeps an image original out of Directus's public read.
   form.append("folder", folder);
   form.append("file", new File([new Uint8Array(input.bytes)], input.filename, { type: input.type }), input.filename);
   const file = (await getTypedDirectus().request(uploadFiles(form))) as { id: string };

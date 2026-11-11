@@ -10,6 +10,7 @@
 import { createItem, deleteFiles, deleteItems, readAssetArrayBuffer, readFiles, readItems, updateItem, uploadFiles } from "@directus/sdk";
 import type { H3Event } from "h3";
 import { MODEL_TIERS } from "#core/shared/ai/credits";
+import { GOVERNING_FILE_MARKER } from "#core/shared/governing/files";
 import { PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_TYPES } from "#core/shared/governing/upload";
 import { chargeForCompletion, getWalletSummary } from "./ai-wallet";
 import { getLlmProvider } from "./llm/provider";
@@ -77,6 +78,7 @@ export async function storeSourcePage(organizationId: string, sourceId: string, 
   const filename = `page-${String(input.page_number).padStart(3, "0")}.${extension}`;
   const form = new FormData();
   form.append("title", `${document.title ?? "Governing document"} (page ${input.page_number})`);
+  form.append("description", GOVERNING_FILE_MARKER); // Keeps the page out of Directus's public image read.
   form.append("folder", storage.map.documents || storage.rootId);
   form.append("file", new File([new Uint8Array(input.bytes)], filename, { type: input.type }), filename);
   const file = (await getTypedDirectus().request(uploadFiles(form))) as { id: string };

@@ -116,9 +116,24 @@ export const DOCUMENT_TEXT_FIELDS = ["title", "citation_prefix", "or_book", "cle
 export const DOCUMENT_DATE_FIELDS = ["executed_on", "recorded_on"] as const;
 export const DOCUMENT_NUMBER_FIELDS = ["or_page_start", "or_page_end"] as const;
 export type DocumentEdit = Partial<
-  { kind: string } & Record<(typeof DOCUMENT_TEXT_FIELDS)[number] | (typeof DOCUMENT_DATE_FIELDS)[number], string | null> &
+  { kind: string; amends: string | null } & Record<(typeof DOCUMENT_TEXT_FIELDS)[number] | (typeof DOCUMENT_DATE_FIELDS)[number], string | null> &
     Record<(typeof DOCUMENT_NUMBER_FIELDS)[number], number | null>
 >;
+
+/**
+ * Would `documentId` amending `target` go round in a circle? True when the
+ * target is the document itself, or already amends it, however many steps
+ * away. `amendsOf` maps each document of the community to what it amends.
+ */
+export function amendsLoop(documentId: string, target: string, amendsOf: ReadonlyMap<string, string | null>): boolean {
+  const seen = new Set<string>();
+  for (let at: string | null | undefined = target; at; at = amendsOf.get(at)) {
+    if (at === documentId) return true;
+    if (seen.has(at)) return false; // A circle already there that this document is not in.
+    seen.add(at);
+  }
+  return false;
+}
 
 /**
  * A text box shows every line break as "\n", so a stored "\r\n" is one

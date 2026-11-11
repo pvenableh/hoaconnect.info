@@ -21,6 +21,8 @@
  * cross-tenant, unauthenticated read — do that deliberately, not by accident.
  */
 
+import { PUBLIC_FILES_FILTER } from "./lib/public-files";
+
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
 if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
@@ -46,9 +48,11 @@ const ALLOWED: Record<string, { action: string; why: string; filter?: unknown }>
     // /assets/<id> URL fetched by a mail client with no session, and so is every
     // image on an anonymous landing page. Images stay public; everything else
     // goes through /api/directus/assets/:id, which checks the session and the
-    // file's owning organization.
-    filter: { _and: [{ type: { _starts_with: "image/" } }] },
-    why: "landing + already-sent-email images are fetched with no session (images only)",
+    // file's owning organization. Governing originals and page images are
+    // images that are not public: they carry a `governing-` description and
+    // the filter leaves them out (scripts/lib/public-files.ts).
+    filter: PUBLIC_FILES_FILTER,
+    why: "landing + already-sent-email images are fetched with no session (images only, governing files excepted)",
   },
   subscription_plans: {
     action: "read",

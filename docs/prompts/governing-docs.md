@@ -400,7 +400,8 @@ From this repo:
     recorded dates, book, pages, clerk's file number, county; `document_edit`) and `unpublishGoverningDocument`
     (published → draft, reason required, nothing deleted; `unpublish`), both in `governing-review.ts` with
     routes `documents/[id].patch` and `documents/[id]/unpublish.post`. A published document's details need a
-    reason. `amends`, the transcriber's notes and the transcription have no edit screen.
+    reason. `amends`, the transcriber's notes and the transcription have no edit screen (`amends` got one in
+    loose-ends Session 3, see below).
     `app/components/Governing/DocumentDetails.vue` sits on the review screen.
   - **Flags:** `editGoverningFlag` (`flags/[id].patch`, `flag_edit`): relationship, severity, the two rule lines
     and the note, **only while the flag is `suggested`**; a confirmed flag's wording stays fixed. **My call:**
@@ -416,12 +417,32 @@ From this repo:
     passwords. None of the new screens has been seen rendered.
   - **Still open:** a provision cannot cross a page; image sources and page images are readable straight from
     Directus by file id; no real member login check; OCR accuracy on the 1977 typescript and Suggest Flags on
-    the By-Laws are unmeasured; the AI suggestion on the 1995 Amendment is still undecided.
+    the By-Laws are unmeasured; the AI suggestion on the 1995 Amendment is still undecided. (All taken up by
+    `docs/prompts/governing-loose-ends.md`; where each stands is in the last governing bullet below.)
 - **Pushed 2026-11-11 (Peter's word):** everything through `9fe6525` is on `origin/main` and live; gates at that
   commit 3,038 tests, 139 lint warnings, 16 audits, typecheck 0. The "NOT pushed" note on the bullet above is
   history. Peter confirmed that verifying takes a second person. **What is left is in
   `docs/prompts/governing-loose-ends.md`** (three sessions: see the screens signed in, measure the two AI steps,
   close three gaps).
+- **Loose ends, 2026-11-11** (details in `docs/prompts/governing-loose-ends.md`, "Where things stand"):
+  - **Session 1:** every screen seen signed in, as a manager (Oscar) and as a plain member (Obie); the member is
+    refused drafts, suggestions, the change history and the review routes on the server. Two small fixes: a merge's
+    pieces read as "Piece 1 / Piece 2" in the change history; the member-preview banner says admin access stays.
+  - **Session 2:** both AI steps measured, 266 credits. Suggest Flags on the By-Laws: 11 suggestions saved, 6
+    dropped as already flagged, about 4 real by reading; the noise comes from 8 library references with no title or
+    summary. OCR on the 1977 typescript: 99.75% of words matched on 5 plain-JPEG pages, 26 credits a page. Fixes:
+    a blank page is not read (`looksBlank`); JPEG 2000 scans draw (`pdfjs-dist@5.6.205` with its decoders in
+    `public/pdfjs/wasm/`); a garbled text layer no longer beats reading the image (`textLayerNoise`).
+  - **Pushed 2026-11-11 (Peter's word):** `origin/main` at `2b1a868`, live (the decoder answers 200 on
+    www.hoaconnect.info). Gates there: 169 files / 3,044 tests, lint 0 errors and 139 warnings, 16 audits, typecheck 0.
+  - **Session 3, committed locally, NOT pushed.** Governing files are out of Directus's public image read (marked
+    `governing-file`; filter in `scripts/lib/public-files.ts`; applied to production with Peter's yes, 11 files
+    marked). A provision still cannot cross a page: merge, then add the break by an edit (Peter's choice). `amends`
+    is editable in Document details, audited, never itself or a circle. After the push, re-run
+    `pnpm run scope:public-files --apply` to mark anything uploaded meanwhile.
+  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide; support
+    attachment images are still public; anonymous `/files` lists every public image's fields; the storage library
+    can rename, move or delete governing files with no governing audit row.
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /

@@ -1,5 +1,6 @@
 /**
- * Narrow the Directus **public** read on `directus_files` to images only.
+ * Narrow the Directus **public** read on `directus_files` to images, governing
+ * files excepted (the contract is `PUBLIC_FILES_FILTER` in scripts/lib/public-files.ts).
  *
  *   pnpm run scope:public-files            # dry run — prints what would change
  *   pnpm run scope:public-files --apply    # write it
@@ -38,8 +39,20 @@
  * an explicit per-file public marker and a backfill — a bigger change, and a
  * more fragile one, since a missed flag breaks a landing page silently.
  *
+ * GOVERNING FILES (2026-11-11)
+ * ---------------------------
+ * A governing document's page images (and an original that is an image) were
+ * public too, and anonymous `/files` listed them. They now carry a description
+ * starting `governing-` (core/shared/governing/files.ts), and the grant leaves
+ * those out. Before narrowing, this marks every file a governing source or page
+ * points at whose description is empty; one with other text is listed and left
+ * alone. Marking comes first, so no moment widens anything.
+ *
  * Idempotent: a second run reports "already scoped" and writes nothing.
  */
+
+import { GOVERNING_FILE_MARKER, isGoverningFileMarker } from "../core/shared/governing/files";
+import { isPublicFile, PUBLIC_FILES_FILTER } from "./lib/public-files";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -48,8 +61,7 @@ if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   process.exit(1);
 }
 
-/** Must stay identical to the `filter` in scripts/audit-public-policy.ts. */
-const IMAGES_ONLY = { _and: [{ type: { _starts_with: "image/" } }] };
+const TARGET = PUBLIC_FILES_FILTER;
 
 const APPLY = process.argv.includes("--apply");
 
@@ -92,25 +104,29 @@ async function main() {
     process.exit(1);
   }
 
+  const governing = await markGoverningFiles();
+
   const current = JSON.stringify(grant.permissions);
-  const target = JSON.stringify(IMAGES_ONLY);
+  const target = JSON.stringify(TARGET);
   console.log(`\npublic.directus_files.read (permission ${grant.id})`);
   console.log(`  current: ${current}`);
   console.log(`  target:  ${target}`);
 
   if (current === target) {
-    console.log("\n✅ Already scoped to images — nothing to do.");
+    console.log("\n✅ Already scoped — nothing to change in the grant.");
+    await checkAnonymously(governing);
     return;
   }
 
   if (!APPLY) {
+    await checkAnonymously(governing);
     console.log("\n(dry run) re-run with --apply to write this.");
     return;
   }
 
   await df(`/permissions/${grant.id}`, {
     method: "PATCH",
-    body: JSON.stringify({ permissions: IMAGES_ONLY }),
+    body: JSON.stringify({ permissions: TARGET }),
   });
 
   // Verify against the running server rather than trusting the 200, and verify
@@ -120,9 +136,75 @@ async function main() {
     console.error("❌ Wrote, but the read-back does not match:", JSON.stringify(check.permissions));
     process.exit(1);
   }
-  console.log("\n✅ Scoped. Verify anonymously:");
-  console.log("   curl -o /dev/null -w '%{http_code}\\n' $DIRECTUS_URL/assets/<a-pdf-id>   # 403");
-  console.log("   curl -o /dev/null -w '%{http_code}\\n' $DIRECTUS_URL/assets/<an-image-id> # 200");
+  console.log("\n✅ Scoped.");
+  await checkAnonymously(governing);
+}
+
+type FileRow = { id: string; type: string | null; description: string | null; title?: string | null };
+const inList = (ids: string[]) => encodeURIComponent(JSON.stringify({ id: { _in: ids } }));
+const byType = (list: FileRow[]) =>
+  Object.entries(list.reduce<Record<string, number>>((n, f) => ((n[f.type ?? "?"] = (n[f.type ?? "?"] ?? 0) + 1), n), {}))
+    .map(([type, n]) => `${n} ${type}`)
+    .join(", ");
+
+/**
+ * Mark every file a governing source or page points at whose description is
+ * empty. Returns the ids of all governing files, for the anonymous check.
+ */
+async function markGoverningFiles(): Promise<string[]> {
+  let ids: string[];
+  try {
+    const sources = (await df("/items/hoa_governing_sources?limit=-1&fields=file")).data as { file: string | null }[];
+    const pages = (await df("/items/hoa_governing_pages?limit=-1&fields=image")).data as { image: string | null }[];
+    ids = [...new Set([...sources.map((s) => s.file), ...pages.map((p) => p.image)].filter((id): id is string => !!id))];
+  } catch {
+    console.log("\nGoverning files: not in this deployment, nothing to mark.");
+    return [];
+  }
+  const files = ids.length
+    ? ((await df(`/files?limit=-1&fields=id,type,description&filter=${inList(ids)}`)).data as FileRow[])
+    : [];
+  const blank = files.filter((f) => !f.description);
+  const other = files.filter((f) => f.description && !isGoverningFileMarker(f.description));
+  console.log(`\nGoverning files (originals and page images): ${files.length}${files.length ? ` (${byType(files)})` : ""}`);
+  console.log(`  already marked: ${files.length - blank.length - other.length}`);
+  console.log(`  to mark "${GOVERNING_FILE_MARKER}": ${blank.length}${blank.length ? ` (${byType(blank)})` : ""}`);
+  for (const f of other) console.log(`  ! ${f.id} has a description of its own; left alone${isPublicFile(f) ? ", and still public" : ""}`);
+
+  const images = (await df(`/files?limit=-1&fields=id,type,description&filter=${encodeURIComponent(JSON.stringify({ type: { _starts_with: "image/" } }))}`))
+    .data as FileRow[];
+  const toMark = new Set(blank.map((f) => f.id));
+  const publicAfter = images.filter((f) => isPublicFile(toMark.has(f.id) ? { ...f, description: GOVERNING_FILE_MARKER } : f));
+  console.log(`  images: ${images.length}; public once marked and scoped: ${publicAfter.length}, governing among them: ${publicAfter.filter((f) => ids.includes(f.id)).length}`);
+
+  if (!APPLY || !blank.length) return ids;
+  await df("/files", { method: "PATCH", body: JSON.stringify({ keys: [...toMark], data: { description: GOVERNING_FILE_MARKER } }) });
+  const back = (await df(`/files?limit=-1&fields=id,description&filter=${inList([...toMark])}`)).data as FileRow[];
+  const missed = back.filter((f) => f.description !== GOVERNING_FILE_MARKER);
+  if (missed.length !== 0 || back.length !== toMark.size) {
+    console.error(`❌ Marked, but the read-back shows ${missed.length} without the mark`);
+    process.exit(1);
+  }
+  console.log(`  ✅ marked ${back.length}`);
+  return ids;
+}
+
+/** What someone with no session gets, from the endpoints that matter. Reads only. */
+async function checkAnonymously(governing: string[]) {
+  const filter = encodeURIComponent(JSON.stringify({ type: { _starts_with: "image/" } }));
+  const res = await fetch(`${DIRECTUS_URL}/files?limit=-1&fields=id&filter=${filter}`);
+  const listed = res.ok ? (((await res.json()) as { data: { id: string }[] }).data ?? []).map((f) => f.id) : [];
+  console.log(`\nAnonymous: /files lists ${listed.length} image(s), governing among them: ${listed.filter((id) => governing.includes(id)).length}`);
+  const status = async (id: string) => {
+    const r = await fetch(`${DIRECTUS_URL}/assets/${id}`);
+    await r.body?.cancel();
+    return r.status;
+  };
+  const images = (await df(`/files?limit=-1&fields=id,type&filter=${filter}`)).data as FileRow[];
+  const governingImage = images.find((f) => governing.includes(f.id));
+  const otherImage = images.find((f) => !governing.includes(f.id) && listed.includes(f.id));
+  if (governingImage) console.log(`  /assets of a governing image: ${await status(governingImage.id)} (403 once scoped)`);
+  if (otherImage) console.log(`  /assets of another image:     ${await status(otherImage.id)} (stays 200)`);
 }
 
 main().catch((e) => {

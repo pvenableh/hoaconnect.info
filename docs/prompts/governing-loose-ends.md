@@ -121,6 +121,39 @@ Each session appends its own "Session N done" bullet here.
        for the whole file (measured 26 per page on this typescript). Pages already stored keep what they have; this
        applies to pages prepared from now on.
   - **Open:** nothing from Session 2.
+- **Session 3 done (2026-11-11).** Signed in as Oscar on the dev server (port 3002). The push of `2b1a868` is live:
+  `https://www.hoaconnect.info/pdfjs/wasm/openjpeg.wasm` answers 200 with 250,009 bytes, the size of the repo's copy.
+  Peter took every recommendation.
+  - **Gap 1, closed (written to Directus with Peter's yes).** It was worse than written above: anonymous `/files`
+    *listed* the two 1995 page images with their titles, so no uuid had to leak. Every governing file now carries the
+    description `governing-file` (`GOVERNING_FILE_MARKER` in `core/shared/governing/files.ts`), written by
+    `attachGoverningSource` and `storeSourcePage`. The public read on `directus_files` (permission 62) is now images
+    whose description is null or does not start with `governing-` (`PUBLIC_FILES_FILTER` in
+    `scripts/lib/public-files.ts`; `audit:public-policy` checks the live grant against it). `pnpm run
+    scope:public-files` first marks any governing file that is still blank, then sets the grant; it was applied once:
+    11 files marked (9 PDF originals, 2 page JPEGs), read back. After: anonymous `/files` lists 32 images, none
+    governing; `/assets` of a page image 403, of another image 200; the audit is green. The app reads files with its
+    own token, so nothing on screen changed (the review page's image still loads through the proxy, 200). A
+    description stays with a file that is moved to another folder; a folder rule would not.
+  - **Gap 2, left (Peter: document it).** A section that runs over a page is two drafts. The reviewer merges them, then
+    adds the line break with an ordinary text edit, which writes its own `text_edit` audit row. The merge stays an
+    exact join.
+  - **Gap 3, closed.** `editGoverningDocument` takes `amends`: another document of the same community, or null.
+    It refuses the document itself, another community's, an unknown id and a circle (`amendsLoop` in
+    `core/shared/governing/review.ts`). A published document needs a reason, and the audit summary names both titles
+    (`… it now amends "By-Laws" (was "…")`). Document details has an Amends choice. Seen in the pane without saving:
+    the 1995 Amendment shows "Declaration of Condominium (1977)", and the list offers "No other document" and the
+    other six. The transcriber's notes and the transcription are left with no edit screen.
+  - Tests: `tests/scripts/public-files.test.ts` (new); the marker asserted in `governing-sources.test.ts` and
+    `governing-upload.test.ts`; `amends` and the circle in `governing-review.test.ts`. The text guard passes.
+  - Gates: 170 files / 3,051 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0.
+  - **Open:** the 12 AI flag suggestions (Peter's). **Re-run `pnpm run scope:public-files --apply` after the next
+    push**: a governing file uploaded on production before then gets no mark and stays public. The 2 support-attachment
+    images are public the same way (Peter: later; they already carry `support-`, so it is one more arm in the filter).
+    Anonymous `/files` still lists every public image of every community with all its fields. The storage library
+    lists governing files in Documents to anyone who may browse it, and its rename, move and delete reach them with
+    no governing audit row (a delete leaves the source row pointing at nothing). From Session 1: change-history
+    paging and drag-to-reorder not seen working.
 
 ---
 
@@ -185,7 +218,7 @@ Done: the two sets of numbers, any prompt change with before and after, gates if
    files private (PDFs are; see `core/server/utils/governing-sources.ts` and the asset proxy
    `core/server/api/directus/assets/[id].get.ts`) and what the public policy matches on. Recommend the smallest
    change that makes these files private without touching unrelated images, show Peter the dry run, and ask before
-   any Directus permission or folder change. Existing files (the 7 originals are PDFs; the 2 page images of the 1995
+   any Directus permission or folder change. Existing files (the 9 originals are PDFs; the 2 page images of the 1995
    Amendment are JPEGs) must be covered too.
 2. **A provision cannot cross a page.** A section that runs over is two drafts, and merging them joins the texts with
    nothing between. Options: leave it and document that the reviewer merges and adds the break by an edit

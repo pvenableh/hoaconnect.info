@@ -23,6 +23,7 @@ import {
   DOCUMENT_TEXT_FIELDS,
   REVIEW_MOVES,
   type DocumentEdit,
+  amendsLoop,
   canPublish,
   countMarkers,
   hasBlockingMarker,
@@ -45,7 +46,7 @@ const PROVISION_FIELDS = [
   "id", "document", "source_key", "sort", "citation", "original_label", "heading", "text",
   "review_state", "reviewed_by", "reviewed_at", "block_type", "uncertain",
 ];
-const DOCUMENT_FIELDS = ["id", "title", "kind", "status", ...DOCUMENT_TEXT_FIELDS.slice(1), ...DOCUMENT_DATE_FIELDS, ...DOCUMENT_NUMBER_FIELDS];
+const DOCUMENT_FIELDS = ["id", "title", "kind", "status", "amends", ...DOCUMENT_TEXT_FIELDS.slice(1), ...DOCUMENT_DATE_FIELDS, ...DOCUMENT_NUMBER_FIELDS];
 type DocumentRow = { id: string; title: string | null; kind: string | null; status: DocumentStatus } & Record<string, unknown>;
 export const BLOCK_TYPES = ["text", "execution", "exhibit", "drawing"] as const;
 
@@ -382,8 +383,9 @@ export async function publishGoverningDocument(event: H3Event, organizationId: s
 }
 
 /**
- * Edit a document's own details (title, kind, book and page, dates). Never its
- * provisions. A reason is required when the document is published.
+ * Edit a document's own details (title, kind, book and page, dates, the
+ * document it amends). Never its provisions. A reason is required when the
+ * document is published.
  */
 export async function editGoverningDocument(event: H3Event, organizationId: string, documentId: string, edit: DocumentEdit, reason: string | null) {
   const document = await documentInOrg(organizationId, documentId);
@@ -426,6 +428,29 @@ export async function editGoverningDocument(event: H3Event, organizationId: stri
     if (value !== null && !(Number.isInteger(value) && value > 0)) throw bad(`${field} must be a page number`);
     set(field, value);
   }
+  // What it amends: another document of this community, never itself or one
+  // that already amends it. Members see this chain on the document's page.
+  let amendsNote = "";
+  if (edit.amends !== undefined) {
+    if (edit.amends !== null && typeof edit.amends !== "string") throw bad("amends must be a document");
+    const target = edit.amends || null;
+    const current = asId(document.amends);
+    if (target !== current) {
+      const all = await rows(DOCUMENTS, { filter: { organization: { _eq: organizationId } }, fields: ["id", "title", "amends"], limit: -1 });
+      const titleOf = (id: string | null) => all.find((d) => d.id === id)?.title ?? null;
+      if (target) {
+        if (!all.some((d) => d.id === target)) throw bad("That document is not one of this community's");
+        if (target === document.id) throw bad("A document cannot amend itself");
+        if (amendsLoop(document.id, target, new Map(all.map((d) => [d.id as string, asId(d.amends)])))) {
+          throw bad(`"${titleOf(target) ?? "That document"}" already amends this one, directly or through another document`);
+        }
+      }
+      before.amends = current;
+      after.amends = target;
+      amendsNote = target ? `: it now amends "${titleOf(target) ?? "a document"}"` : ": it no longer amends another document";
+      if (current) amendsNote += ` (was "${titleOf(current) ?? "a document"}")`;
+    }
+  }
   const start = ("or_page_start" in after ? after.or_page_start : document.or_page_start) as number | null | undefined;
   const end = ("or_page_end" in after ? after.or_page_end : document.or_page_end) as number | null | undefined;
   if (start != null && end != null && end < start) throw bad("The last page cannot come before the first");
@@ -442,7 +467,7 @@ export async function editGoverningDocument(event: H3Event, organizationId: stri
       action: "document_edit",
       organization: organizationId,
       document: document.id,
-      summary: `Edited the details of ${(after.title as string | undefined) ?? document.title ?? "a governing document"}`,
+      summary: `Edited the details of ${(after.title as string | undefined) ?? document.title ?? "a governing document"}${amendsNote}`,
       reason,
       before,
       after,
