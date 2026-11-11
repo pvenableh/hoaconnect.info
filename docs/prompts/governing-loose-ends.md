@@ -103,13 +103,24 @@ Each session appends its own "Session N done" bullet here.
     original and page images answer 404; the list shows no test draft.
   - **Fix made (Peter's choice): a blank-page guard.** `looksBlank` in `core/shared/governing/upload.ts` (tested);
     Prepare Pages warns when a page draws white, and Read Scanned Pages checks each stored image first and skips a
-    blank one with a warning, so no credits are spent. Seen working in the pane on a white and a marked image. **Not
-    fixed:** JPEG 2000 pages still render blank. The cure is to vendor `openjpeg.wasm` from pdfjs-dist (not installed)
-    and pass it as `wasmUrl` to `getDocumentProxy`: a new asset, Peter's call. Until then such a file cannot be read
-    here; a reviewer would re-save it as plain JPEG first.
-  - **Open:** the app takes a poor embedded text layer over OCR (the 1977 pages 12-13 at about 90% words right against
-    99.75% for OCR). `hasUsableTextLayer` only checks length. Not changed; worth a decision before the 57-page file
-    is uploaded.
+    blank one with a warning, so no credits are spent. Seen working in the pane on a white and a marked image.
+  - **Two follow-ups fixed afterwards (Peter: "fix these").**
+    1. **JPEG 2000 pages now draw.** The `unpdf` build strips pdf.js's OpenJPEG, JBIG2 and ICC decoders (their loaders are
+       empty functions, so `wasmUrl` does nothing there). The page renderer now uses the official `pdfjs-dist@5.6.205`
+       (new dependency, exact version, the one `unpdf` bundles; its worker comes in with `?url`) and passes
+       `wasmUrl: "/pdfjs/wasm/"`; `public/pdfjs/wasm/` holds `openjpeg.wasm`, `jbig2.wasm`, `qcms_bg.wasm` (about 450 KB,
+       fetched only when a page needs one) and their licences, copied unchanged from that package; `public/pdfjs/README.md`
+       says to copy again when the version moves. `unpdf` stays for the server (page counts, RAG). Checked in the pane
+       without storing anything: all 57 pages of the 1977 file render (none blank, 4 seconds in all, largest image 787 KB
+       against the 4 MB limit), and the clean-text board copy PDF still gives page text.
+    2. **A poor text layer no longer beats OCR.** `hasUsableTextLayer` now also refuses a layer where at least 2 words and
+       1% of words are garbled marks (a replacement character, one of `<>|~^{}\\@*=`, or `!`, `:`, `;` inside a word);
+       `textLayerNoise` is exported and tested on lines copied from the 1977 layer, and a clean legal paragraph (`e.g.`,
+       `p.m.`, `$25.00`, `5%`, a URL) stays usable. Result on the 1977 file: pages 10, 12 and 13 lose their text layer and
+       are read from the image instead, so all 57 pages now go to Read Scanned Pages: expect about 57 x 26 = 1,500 credits
+       for the whole file (measured 26 per page on this typescript). Pages already stored keep what they have; this
+       applies to pages prepared from now on.
+  - **Open:** nothing from Session 2.
 
 ---
 

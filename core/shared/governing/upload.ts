@@ -23,7 +23,32 @@ export const TEXT_LAYER_MIN_CHARS = 40;
 /** What a document can be. The same list as the `kind` field's choices. */
 export const DOCUMENT_KINDS = ["declaration", "articles", "bylaws", "amendment", "rules", "prospectus", "other"] as const;
 
-export const hasUsableTextLayer = (text: string | null | undefined) => (text ?? "").replace(/\s/g, "").length >= TEXT_LAYER_MIN_CHARS;
+/**
+ * Tokens an old scan-to-text pass leaves behind: a replacement character, symbols that do not occur in
+ * an association's documents (`<>|~^{}\\@*=`), or a colon, semicolon or `!` in the middle of a word.
+ * Measured on the 1977 typescript, whose own text layer reads `admini\uFFFDterinq`, `l!D<ZNS`, `LENOX:PLAZA`.
+ */
+const GARBLED_TOKEN = /[\uFFFD<>|~^{}\\@*=]|[A-Za-z][!:;][A-Za-z]/;
+/** A text layer with at least this share of garbled tokens (and at least two) is not trusted over a reading of the image. */
+export const TEXT_LAYER_MAX_GARBLED_SHARE = 0.01;
+
+/** The share of a text layer's words that are garbled, and how many. */
+export function textLayerNoise(text: string | null | undefined) {
+  const tokens = (text ?? "").split(/\s+/).filter(Boolean);
+  const garbled = tokens.filter((t) => GARBLED_TOKEN.test(t)).length;
+  return { tokens: tokens.length, garbled, share: tokens.length ? garbled / tokens.length : 0 };
+}
+
+/**
+ * Whether a PDF's own text layer is worth keeping over reading the page image. Long enough, and not
+ * riddled with the marks of a poor earlier pass: those pages are left for "Read Scanned Pages" instead,
+ * which matched 99.75% of the words on the same typescript where this layer matched 88% to 92%.
+ */
+export const hasUsableTextLayer = (text: string | null | undefined) => {
+  if ((text ?? "").replace(/\s/g, "").length < TEXT_LAYER_MIN_CHARS) return false;
+  const noise = textLayerNoise(text);
+  return !(noise.garbled >= 2 && noise.share >= TEXT_LAYER_MAX_GARBLED_SHARE);
+};
 
 /**
  * True when RGBA pixels hold nothing but near-white: a page the reader could not

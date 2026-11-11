@@ -3,7 +3,7 @@
  * Pure: page text in, draft pieces out. Every piece is an exact slice.
  */
 import { describe, it, expect } from "vitest";
-import { UPLOAD_PART_BYTES, UPLOAD_PART_MAX_BYTES, hasUsableTextLayer, looksBlank, partCount, proposeProvisions } from "#core/shared/governing/upload";
+import { UPLOAD_PART_BYTES, UPLOAD_PART_MAX_BYTES, hasUsableTextLayer, looksBlank, textLayerNoise, partCount, proposeProvisions } from "#core/shared/governing/upload";
 
 const PAGE_1 = "BY-LAWS OF LENOX PLAZA\n\nARTICLE III\nMEETINGS\n\n.4  Notice shall be given.\n.5  Poxies shall be in writing  \nand filed with the Secretary.\n\n";
 const PAGE_2 = "which continues from the page before, with no heading at all.\n";
@@ -68,6 +68,32 @@ describe("upload limits", () => {
     marked[2] = 0;
     expect(looksBlank(marked)).toBe(false);
     expect(looksBlank(new Uint8ClampedArray(0))).toBe(true);
+  });
+  it("does not trust a text layer riddled with an old pass's garbled marks over reading the image", () => {
+    // From the 1977 typescript's own text layer (page 12), as the file gives it.
+    const poor = [
+      'EXHIBIT "D"', "BY-LAWS", "OF", "LENOX PLAZA ASSOCIATION, INC. ,", "A CONDOMINIUM",
+      'l. Identity. These are the By-Laws of LENOX PLAZA ASSOCIATION, INC., herein called "Association",\u00b7 a non',
+      "profit Florida Corporation organized pursuant to Chapters",
+      "617 and 711, Florida Statutes for the purpose of admini\uFFFDterinq",
+      "LENOX:PLAZA ASSOCIATION, INC., a Condominium, being a",
+      "Condominium of lands lying and being situate in Dade County,",
+      "Florida, as more particularly set forth in its Declaration of Condominium.",
+      "_3 Voting Rights. There shall be assigned to each unit one vote",
+      "l!D<ZNS J. n:rss, AT!01911!Y AT LAW, 407 Lincoln M., IUaai Baach, Plorlda 33139",
+    ].join("\r\n");
+    expect(textLayerNoise(poor).garbled).toBeGreaterThanOrEqual(3);
+    expect(hasUsableTextLayer(poor)).toBe(false);
+  });
+  it("keeps a clean text layer, including the marks ordinary legal text has", () => {
+    const clean =
+      "1. Identity. These are the By-Laws of the Association, e.g. the U.S. rules; the annual meeting is at 7:30 p.m. on Dec. 3. " +
+      "Notice (see Section 4.2(a)) shall be given at least fourteen (14) days before, at a cost of $25.00 or 5% of dues; " +
+      "see http://example.org/rules and Article IV, paragraph 3 of the Declaration of Condominium of the building.";
+    expect(textLayerNoise(clean).garbled).toBe(0);
+    expect(hasUsableTextLayer(clean)).toBe(true);
+    // One stray mark in a long page is not enough to throw the layer away.
+    expect(hasUsableTextLayer(`${clean} ${"The members shall meet in January. ".repeat(40)}a\uFFFDb`)).toBe(true);
   });
   it("a scan's stray marks are not a text layer", () => {
     expect(hasUsableTextLayer(" . \n 3006 ")).toBe(false);

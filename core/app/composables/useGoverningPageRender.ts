@@ -4,7 +4,7 @@
 //
 // Done here and not on the server because rendering a PDF there needs a native
 // canvas package and a long request; the browser has both for free. pdf.js
-// comes from `unpdf`, already a dependency, loaded only when this runs.
+// comes from `pdfjs-dist`, loaded only when this runs.
 import { PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_WIDTH, hasUsableTextLayer, looksBlank } from "#core/shared/governing/upload";
 
 export type RenderedPage = {
@@ -15,6 +15,9 @@ export type RenderedPage = {
   blank: boolean;
 };
 export type OpenedOriginal = { pageCount: number; render: (pageNumber: number) => Promise<RenderedPage>; close: () => void };
+
+/** Where the pdf.js decoders are served from (`public/pdfjs/wasm/`); the trailing slash matters. */
+const PDFJS_WASM_URL = "/pdfjs/wasm/";
 
 const toJpeg = (canvas: HTMLCanvasElement, quality: number) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not make the page image"))), "image/jpeg", quality));
@@ -77,8 +80,11 @@ export function useGoverningPageRender() {
       };
     }
 
-    const { getDocumentProxy } = await import("unpdf");
-    const pdf = await getDocumentProxy(bytes);
+    // The pdf.js build `unpdf` bundles leaves out its JPEG 2000, JBIG2 and ICC decoders, so such a page draws
+    // blank. The official build loads them from `wasmUrl` (public/pdfjs/wasm/, copied from the same version).
+    const [pdfjs, worker] = await Promise.all([import("pdfjs-dist"), import("pdfjs-dist/build/pdf.worker.min.mjs?url")]);
+    pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+    const pdf = await pdfjs.getDocument({ data: bytes, isEvalSupported: false, wasmUrl: PDFJS_WASM_URL }).promise;
     return {
       pageCount: pdf.numPages,
       render: async (pageNumber) => {
