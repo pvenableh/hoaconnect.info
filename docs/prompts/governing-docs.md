@@ -417,6 +417,11 @@ From this repo:
   - **Still open:** a provision cannot cross a page; image sources and page images are readable straight from
     Directus by file id; no real member login check; OCR accuracy on the 1977 typescript and Suggest Flags on
     the By-Laws are unmeasured; the AI suggestion on the 1995 Amendment is still undecided.
+- **Pushed 2026-11-11 (Peter's word):** everything through `9fe6525` is on `origin/main` and live; gates at that
+  commit 3,038 tests, 139 lint warnings, 16 audits, typecheck 0. The "NOT pushed" note on the bullet above is
+  history. Peter confirmed that verifying takes a second person. **What is left is in
+  `docs/prompts/governing-loose-ends.md`** (three sessions: see the screens signed in, measure the two AI steps,
+  close three gaps).
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /
