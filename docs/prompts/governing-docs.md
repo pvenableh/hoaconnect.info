@@ -271,8 +271,12 @@ From this repo:
     document, and there is no route to delete one). The credits charged were not captured (the page discards
     the route's `credits`; the wallet ledger has the two `ocr` debits). The two page rows and images stay on
     the 1995 Amendment; since it is published, members can open those images, which show what its PDF shows.
-- **Next: Session 3B (review, publish, audit).** Open from the real run: whether to tighten the OCR prompt so a
-  drawing becomes `[drawing]` and seals are not described, and whether to show the credits spent.
+  - **OCR prompt tightened 2026-11-10 (Peter's yes)** in `OCR_SYSTEM`: spacing is part of the text (run-together
+    words stay run together), a seal is `[seal]` plus only its certain words, a signature is `[signature]`, a
+    drawing is `[drawing]` with no description, and nothing else goes in brackets. **Not yet tried on a page:**
+    the two 1995 pages still hold the text from the first prompt. Reading them again (`force: true` on the OCR
+    route; the page has no button for it) overwrites that draft text and spends credits, so it needs Peter's yes.
+- **Next: Session 3B (review, publish, audit).** Open from the real run: whether to show the credits spent.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in
