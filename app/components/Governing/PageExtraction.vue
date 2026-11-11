@@ -47,6 +47,8 @@ const canPropose = computed(() => props.provisionCount === 0 && anyText.value);
 // One job at a time: each step is a run of small requests.
 const job = ref<{ source: string; kind: "prepare" | "read"; done: number; total: number } | null>(null);
 const proposing = ref(false);
+// What the last reading run in this visit cost. The wallet ledger has every charge.
+const lastRead = ref<{ source: string; pages: number; credits: number } | null>(null);
 const stop = ref(false);
 const message = (error: any, fallback: string) => error?.data?.message || error?.message || fallback;
 
@@ -89,16 +91,20 @@ const read = async (row: (typeof rows.value)[number]) => {
   if (job.value || !row.unread.length) return;
   stop.value = false;
   job.value = { source: row.source.id, kind: "read", done: 0, total: row.unread.length };
+  let credits = 0;
   try {
     for (const page of row.unread) {
       if (stop.value) break;
-      await readPage(page.id);
+      const result = await readPage(page.id);
+      credits += result.credits ?? 0;
       job.value.done += 1;
     }
     if (!stop.value) toast.success("Scanned pages read");
   } catch (error) {
     toast.error(message(error, "Could not read the scanned pages."));
   } finally {
+    // Pages read before a stop or an error were charged too.
+    if (job.value.done) lastRead.value = { source: row.source.id, pages: job.value.done, credits };
     job.value = null;
     emit("changed");
   }
@@ -144,6 +150,9 @@ const propose = async () => {
         </div>
         <p v-if="row.unread.length && !job" class="type-meta t-text-muted">
           Reading a scanned page uses the community's AI credits, one page at a time. The result is a draft to check against the page image.
+        </p>
+        <p v-if="lastRead?.source === row.source.id && !job" class="type-meta t-text-secondary" data-testid="governing-extraction-credits">
+          Read {{ lastRead.pages }} {{ lastRead.pages === 1 ? "page" : "pages" }} using {{ lastRead.credits }} AI {{ lastRead.credits === 1 ? "credit" : "credits" }}.
         </p>
         <div v-if="job?.source === row.source.id" class="flex items-center gap-3" role="status">
           <Icon name="lucide:loader-2" class="w-4 h-4 animate-spin t-text-muted" />

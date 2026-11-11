@@ -11,9 +11,10 @@ import type {
   searchGoverning,
 } from "#core/server/utils/governing-data";
 import type { listSourcePages } from "#core/server/utils/governing-pages";
+import type { ProvisionEdit, getGoverningReview } from "#core/server/utils/governing-review";
 import type { SettableFlagStatus } from "#core/shared/governing/flags";
 import { UPLOAD_PART_BYTES, partCount } from "#core/shared/governing/upload";
-import type { Relationship, Severity } from "#core/shared/governing/types";
+import type { Relationship, ReviewState, Severity } from "#core/shared/governing/types";
 
 export type GoverningDocumentRow = Awaited<ReturnType<typeof listGoverningDocuments>>[number];
 export type GoverningDocumentView = NonNullable<Awaited<ReturnType<typeof getGoverningDocument>>> & { can_manage: boolean };
@@ -23,6 +24,9 @@ export type GoverningSearchResult = Awaited<ReturnType<typeof searchGoverning>>[
 export type GoverningSourcePages = Awaited<ReturnType<typeof listSourcePages>>;
 export type GoverningUploadRef = { id: string; parts: number; sha256: string; filename: string; type: string };
 export type GoverningProposal = { provisions: number; pages: number; pages_from_text_layer: number; pages_read_from_image: number; pages_without_text: number };
+
+export type GoverningReview = Awaited<ReturnType<typeof getGoverningReview>>;
+export type GoverningReviewProvision = GoverningReview["provisions"][number];
 
 export type GoverningOverview = Awaited<ReturnType<typeof governingOverview>>;
 
@@ -144,7 +148,28 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
       body: { status },
     });
 
+  // Review (managers only). Each of these writes an audit row on the server.
+  const provisionUrl = (id: string, action = "") => `/api/governing/provisions/${encodeURIComponent(id)}${action}`;
+  const documentUrl = (id: string, action = "") => `/api/governing/documents/${encodeURIComponent(id)}${action}`;
+  const post = <T>(url: string, body: Record<string, unknown> = {}) => $fetch<T>(url, { method: "POST", query: base(), body });
+
+  const getReview = (documentId: string) => $fetch<GoverningReview>(documentUrl(documentId, "/review"), { query: base() });
+
+  /** `text` is stored exactly as sent. A reason is required when the document is published. */
+  const editProvision = (id: string, edit: ProvisionEdit, reason?: string) =>
+    $fetch<{ id: string; changed: boolean; review_state: ReviewState }>(provisionUrl(id), { method: "PATCH", query: base(), body: { ...edit, reason } });
+
+  const setReviewState = (id: string, state: ReviewState) =>
+    post<{ id: string; review_state: ReviewState; changed: boolean }>(provisionUrl(id, "/review-state"), { state });
+  const splitProvision = (id: string, at: number) => post<{ id: string; created: string }>(provisionUrl(id, "/split"), { at });
+  const mergeProvision = (id: string) => post<{ id: string; removed: string }>(provisionUrl(id, "/merge"));
+  const reorderProvisions = (documentId: string, ids: string[]) => post<{ changed: boolean }>(documentUrl(documentId, "/reorder"), { ids });
+  const publishDocument = (documentId: string) => post<{ id: string; status: "published"; provisions: number }>(documentUrl(documentId, "/publish"));
+  const deleteDraft = (documentId: string) =>
+    $fetch<{ ok: boolean; provisions: number; sources: number }>(documentUrl(documentId), { method: "DELETE", query: base() });
+
   return {
+    getReview, editProvision, setReviewState, splitProvision, mergeProvision, reorderProvisions, publishDocument, deleteDraft,
     getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource,
     createFromUpload, getSourcePages, storePage, readPage, proposeProvisions,
   };

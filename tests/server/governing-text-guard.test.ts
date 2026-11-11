@@ -12,8 +12,9 @@
  *  - the schema script grants no permissions;
  *  - nothing that handles provision text passes it through a transforming call.
  *
- * Session 3A added the proposer (create only). Session 3B adds the audited edit route to WRITERS, with a route test proving
- * it writes an audit row.
+ * Session 3A added the proposer (create only). Session 3B added the reviewer, the one file that changes text: an
+ * edit, a split or a merge, each with an audit row. tests/server/governing-review.test.ts proves the rows through the
+ * routes; here the file is held to never transforming text and to auditing wherever it writes.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -27,7 +28,9 @@ const COLLECTION = "hoa_governing_provisions";
  * The upload flow's proposer creates `ocr_draft` rows for a document that has none, and has no update call.
  */
 const PROPOSER = "core/server/utils/governing-propose.ts";
-const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts", PROPOSER];
+/** The audited edit, split, merge, reorder, review state, publish and draft delete (Session 3B). */
+const REVIEWER = "core/server/utils/governing-review.ts";
+const WRITERS = ["scripts/lib/governing-import.ts", "scripts/create-governing-docs.ts", PROPOSER, REVIEWER];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -77,6 +80,31 @@ describe("provision text has one way in (criterion 8)", () => {
     for (const f of ["core/server/utils/governing-upload.ts", "core/server/utils/governing-pages.ts", "core/server/utils/governing-sources.ts"]) {
       expect(source(f).includes(COLLECTION), f).toBe(false);
     }
+  });
+
+  it("the reviewer audits every function that writes, and never transforms text", () => {
+    const reviewer = source(REVIEWER);
+    // Each exported function that writes to Directus also writes an audit row.
+    const functions = reviewer.split(/\nexport async function /).slice(1);
+    const writing = functions.filter((f) => /\bwrite\(|renumber\(/.test(f));
+    expect(writing.map((f) => f.slice(0, f.indexOf("("))).sort()).toEqual([
+      "deleteGoverningDraft",
+      "editGoverningProvision",
+      "mergeGoverningProvision",
+      "publishGoverningDocument",
+      "reorderGoverningProvisions",
+      "setGoverningReviewState",
+      "splitGoverningProvision",
+    ]);
+    for (const f of writing) expect(f, f.slice(0, 40)).toMatch(/writeGoverningAudit\(/);
+    // Text goes in as it is given.
+    for (const f of [REVIEWER, "core/shared/governing/review.ts", "core/server/api/governing/provisions/[id].patch.ts"]) {
+      expect(source(f), f).not.toMatch(/text[\w.?\][]*\.(trim|trimEnd|trimStart|replace|replaceAll|normalize|toLowerCase|toUpperCase)\(/);
+    }
+    // The only pieces of text it builds are a cut and a join.
+    const shared = source("core/shared/governing/review.ts");
+    expect(shared).toMatch(/return \[text\.slice\(0, at\), text\.slice\(at\)\];/);
+    expect(shared).toMatch(/mergeText = \(first: string, second: string\) => first \+ second;/);
   });
 
   it("the schema script creates no role permissions", () => {

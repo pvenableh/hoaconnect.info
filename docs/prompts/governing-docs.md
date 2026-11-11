@@ -283,7 +283,63 @@ From this repo:
     `[illegible]` once) and in where its lines break, and the words read off the corporate seal differ
     between runs. Neither was checked against the image. One document, two pages: not a measure of accuracy
     on the 1977 typescript.
-- **Next: Session 3B (review, publish, audit).** Open from the real run: whether to show the credits spent.
+- **Session 3B done 2026-11-10, committed locally, NOT pushed. Phase 3 stop. No schema change.** Peter's answers:
+  any manager marks a provision reviewed and then verified (verified is a second pass, the same person may do
+  both); one edit route for drafts and published documents, a reason required on a published one; an audited
+  route to delete a draft; `[illegible]` blocks "reviewed" (so it blocks publish), `[signature]`, `[seal]` and
+  `[drawing]` may stay in published text.
+  - **Rules:** `core/shared/governing/review.ts` (pure): markers (`findMarkers`, `countMarkers`,
+    `splitAtMarkers`), `REVIEW_MOVES` (ocr_draft → reviewed → verified, either back to ocr_draft),
+    `splitText` / `mergeText` (a cut and a join, nothing else), `parseUploadKey` (page of a draft provision from
+    `source_key`; a split piece keeps its page: `upload:<source>:<page>:<n>:s<stamp>`), `publishBlockers` /
+    `canPublish`, and `asShownInTextBox` / `storedOffset` (a text box shows `\r\n` as one character; these map a
+    cursor back to the stored text without rewriting it).
+  - **The one writer of text:** `core/server/utils/governing-review.ts`. `editGoverningProvision` (text stored
+    exactly as sent; also citation, heading, label, block type, uncertain; action `text_edit` or
+    `provision_edit`; if the audit row cannot be written the fields are put back and the call fails),
+    `setGoverningReviewState` (`review_state`), `splitGoverningProvision` (`provision_split`),
+    `mergeGoverningProvision` (with the provision after it; `provision_merge`), `reorderGoverningProvisions`
+    (writes `sort` only; `provisions_reorder`), `publishGoverningDocument` (`publish`), `deleteGoverningDraft`
+    (`document_delete`, plus a `source_delete` row per original), `getGoverningReview` (read). Every audit row
+    has before and after. In a draft, an edit of the text, a split or a merge sets the provision back to
+    `ocr_draft`. Split, merge, reorder, reopen, publish and delete are refused (409) unless the document is
+    `draft` or `in_review`.
+  - **My call, not asked:** editing the text of a provision in a *published* document leaves it visible and marks
+    it `reviewed` by the editor (a `verified` one drops to `reviewed`). Setting it back to `ocr_draft` would hide
+    it from members on every typo fix. Say so if it should work differently.
+  - Routes (all `requireGoverningManage`): `documents/[id]/review.get`, `provisions/[id].patch`,
+    `provisions/[id]/review-state.post` (`{ state }`), `provisions/[id]/split.post` (`{ at }`),
+    `provisions/[id]/merge.post`, `documents/[id]/reorder.post` (`{ ids }`), `documents/[id]/publish.post`,
+    `documents/[id].delete`.
+  - **Screen:** `app/pages/[slug]/governing/review/[document].vue`, linked from the reading view ("Review Text"
+    on a draft, "Edit Text" on a published document). One page of the original at a time: the image beside the
+    provisions cut from it, each with label, citation, heading and the text in a plain text box; marker chips
+    and the markers picked out below; Save / Discard, Mark Reviewed, Mark Verified, Reopen, Split at Cursor,
+    Merge with Next, move up and down; the whole page's OCR text in a fold; Publish (off until nothing blocks)
+    and Delete Draft, each behind a confirm. A published document shows a reason field that every save needs.
+    Provisions not made from an upload (the seed's) list under "No page image".
+  - **Credits:** `PageExtraction.vue` now says what a reading run cost ("Read 2 pages using 63 AI credits").
+  - Tests: `tests/server/governing-review.test.ts` (33: who may do what, audit rows with before and after,
+    exact text through edit, split and merge, the gate, member sees nothing before publish, draft delete),
+    `tests/shared/governing-review.test.ts` (9), and `governing-text-guard.test.ts` now lists the reviewer in
+    `WRITERS` and holds it to an audit call in every function that writes. Criterion 8 is complete.
+  - **Real run 2026-11-10 (Peter's yes) in 1033 Lenox on the hosted Directus,** on a test draft made from the
+    1995 Amendment PDF: upload in parts (1 part, 1,007,450 bytes) and draft creation; Prepare Pages 2 of 2;
+    Read 2 Scanned Pages, 63 credits; Propose Provisions gave 6 drafts (1 on page 1, 5 on the survey sheet).
+    On the review screen: split page 1's provision at "AMENDMENT" (45 + 2,023 characters) and merged it back,
+    the text equal to the original both times; an edit saved and reverted; Mark Reviewed then Mark Verified;
+    a move down and back up on page 2; Publish stayed off with 5 unreviewed. Then Delete Draft: the document
+    and its file answer 404 and the list is back to 7 documents. **Nothing was published.** The audit rows of
+    the run stay in `hoa_governing_audit_log`; nobody read them back, since there is no viewer.
+  - **Known / deferred:** (1) no audit-log viewer. (2) A merge across a page break joins the two texts with
+    nothing between them, as the rule says; the reviewer adds the break by an edit. (3) A merge drops the
+    second piece's label, citation and heading (they are in the audit row). (4) Citation is not required to
+    mark reviewed or to publish; a published provision with no citation shows with its label only. (5) The
+    document's own fields (title, kind, book and page, recorded date) have no edit screen. (6) No unpublish.
+    (7) The page image cannot be zoomed or rotated in place (the survey sheet is scanned sideways); "Open Full
+    Size" opens it in a tab. (8) Reorder is one step at a time. (9) Not checked with a real member login; the
+    member rules are proven by tests.
+- **Next: Session 4 (assisted flagging).** `publishGoverningDocument` is where "on publish" hooks in.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in

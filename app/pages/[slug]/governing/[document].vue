@@ -32,6 +32,8 @@ const { data, status, refresh } = await useAsyncData(
 // No answer yet: before the first fetch (the server renders this, so the
 // client must too) or during it. A refresh keeps the page on screen.
 const waiting = computed(() => status.value === "idle" || (status.value === "pending" && !data.value));
+const { isPreviewingMember } = useViewAs();
+const unreviewed = computed(() => (data.value?.provisions ?? []).filter((p) => p.review_state === "ocr_draft").length);
 
 const doc = computed(() => data.value?.document ?? null);
 const provisions = computed(() => data.value?.provisions ?? []);
@@ -141,6 +143,15 @@ onMounted(scrollToHash);
           :can-manage="data?.can_manage"
           @changed="refresh()"
         />
+
+        <div v-if="data?.can_manage && !isPreviewingMember && provisions.length" class="ios-card px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="governing-review-link">
+          <p class="type-meta t-text-secondary flex-1 min-w-0">
+            {{ doc.status === "published" ? "Correct the text against the original. Each edit is recorded." : `${unreviewed} of ${provisions.length} provisions still to review before this can be published.` }}
+          </p>
+          <Button as-child size="sm" :variant="doc.status === 'published' ? 'outline' : 'default'">
+            <NuxtLink :to="buildOrgPath(`/governing/review/${doc.id}`)">{{ doc.status === "published" ? "Edit Text" : "Review Text" }}</NuxtLink>
+          </Button>
+        </div>
 
         <AppEmptyState
           v-if="!provisions.length"
