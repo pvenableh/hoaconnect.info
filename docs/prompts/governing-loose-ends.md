@@ -45,6 +45,29 @@ sections and the last three bullets of its "Where things stand", nothing else in
 
 Each session appends its own "Session N done" bullet here.
 
+- **Session 1 done (2026-11-11), no code changed.** Dev server on port 3000 this time. Signed in by Peter as Oscar
+  (Directus role HOA Member, `hoa_members` role HOA Admin: that alone makes a manager) and as Obie (plain member).
+  Checks, seen unless noted:
+  - Change history: seen. All 27 rows have labels and the right actor (Peter for the Nov 10 runs, Oscar for today's);
+    diffs read for text edit, split, flag status, review state; the kind filter and its empty state work. A merge's
+    diff shows its `pieces` as raw JSON (readable, not pretty). **Paging not checked:** 27 rows, under the page of 50.
+  - Document details: seen. Fields filled; Save disabled without a reason; edited the clerk's file number and put it
+    back, two audit rows.
+  - Suggested flag: seen. Edit form opens (relationship, severity, three texts), cancelled unsaved; the counsel
+    sign-off asks who gave it and stays disabled until filled, cancelled. The suggestion is still undecided.
+  - Page image turn and zoom: seen (turn by 90°, zoom 100/150/200, floor 100%). **Drag-to-reorder not checked:**
+    handles and arrows are present on a draft, but dragging writes and was not approved; reorder, split and merge
+    exist only on drafts.
+  - Transcriber's notes: seen, a five-item list.
+  - Unpublish and republish of the 1995 Amendment: done; audit rows for both, with reasons.
+  - Member check as Obie: seen. 6 documents and 207 provisions while the 1995 Amendment was a draft, no Upload,
+    Review, Edit Text, Suggest Flags, change history, "Waiting for a decision" or suggestion; `/governing/audit` and
+    `/governing/review/<id>` show refusals; `/api/governing/audit` and the review route answered 403, the draft 404;
+    a search for the draft's words found only published documents. **The count of 7 after republishing was not
+    re-checked as a member** (same filter; the manager list shows 7).
+  - Note for later sessions: governing API calls need `orgId` as a query parameter (the page sends it); the app's
+    View as Admin/Member/Public switch only hides manager controls and is not a member check.
+
 ---
 
 ## Session 1 — see every screen, signed in · mid model
