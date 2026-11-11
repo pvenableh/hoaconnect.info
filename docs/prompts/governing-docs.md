@@ -259,8 +259,20 @@ From this repo:
     3B's job. (5) A provision does not cross a page, so a section that runs over is two drafts. (6) Deleting a
     draft document has no route yet. (7) The text layer is read in the browser, so it is as trustworthy as the
     manager's own typing; it is a draft either way.
-- **Next: Session 3B (review, publish, audit).** Before it, Peter may want one real run of 3A on a Lenox
-  original (his yes: it writes pages to production and spends AI credits).
+  - **Real run 2026-11-10 (Peter's yes), on the 1995 Amendment on the hosted Directus, through the page's own
+    buttons:** Prepare Pages stored 2 of 2 page images; Read 2 Scanned Pages read both (`extraction: ocr`, 2,090
+    and 3,082 characters). Against the hand transcription, 279 of its 281 words are in the OCR text. The two
+    misses: the transcriber's `---` marker, and **`theCounty`, which the scan prints run together and the OCR
+    wrote as `the County`**: a silent correction, the very thing review must catch. The OCR also added what
+    the prompt did not ask for: `[stamp: …]` readings of seals and, on page 2 (the survey sheet), a bracketed
+    description of the drawing. Signatures came back as `[illegible]`, as asked. The stamp readings were not
+    checked against the image. The document answer carries the two pages with no `text` key.
+    **Not run on production:** upload in parts, draft creation and Propose Provisions (they need a new draft
+    document, and there is no route to delete one). The credits charged were not captured (the page discards
+    the route's `credits`; the wallet ledger has the two `ocr` debits). The two page rows and images stay on
+    the 1995 Amendment; since it is published, members can open those images, which show what its PDF shows.
+- **Next: Session 3B (review, publish, audit).** Open from the real run: whether to tighten the OCR prompt so a
+  drawing becomes `[drawing]` and seals are not described, and whether to show the credits spent.
 - Known before Session 0 (from a directory listing only, verify): Nuxt + Directus SDK, pnpm, vitest
   (`tests/server`, `tests/scripts`, `tests/shared`). Schema changes are tsx scripts under `scripts/` run as
   `pnpm run create:*` / `add:*` against the hosted Directus, then `pnpm generate:types`. Server routes live in
