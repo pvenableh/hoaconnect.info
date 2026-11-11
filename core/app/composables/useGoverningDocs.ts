@@ -10,6 +10,7 @@ import type {
   listGoverningDocuments,
   searchGoverning,
 } from "#core/server/utils/governing-data";
+import type { GoverningAuditEntry } from "#core/server/utils/governing-audit";
 import type { listSourcePages } from "#core/server/utils/governing-pages";
 import type { ProvisionEdit, getGoverningReview } from "#core/server/utils/governing-review";
 import type { SettableFlagStatus } from "#core/shared/governing/flags";
@@ -28,6 +29,7 @@ export type GoverningProposal = { provisions: number; pages: number; pages_from_
 export type GoverningReview = Awaited<ReturnType<typeof getGoverningReview>>;
 export type GoverningReviewProvision = GoverningReview["provisions"][number];
 
+export type { GoverningAuditEntry };
 export type GoverningOverview = Awaited<ReturnType<typeof governingOverview>>;
 
 export type GoverningSearchParams = {
@@ -172,7 +174,14 @@ export function useGoverningDocs(orgId: Ref<string | null | undefined>) {
   const suggestFlags = (documentId: string) =>
     post<{ suggested: number; rejected: number; provisions: number; references: number; credits: number }>(documentUrl(documentId, "/suggest-flags"));
 
+  /** The audit trail, newest first. Managers only. */
+  const getAudit = (params: { document?: string; action?: string; before?: string } = {}) =>
+    $fetch<{ entries: GoverningAuditEntry[]; next_before: string | null }>("/api/governing/audit", {
+      query: { ...base(), document: params.document || undefined, action: params.action || undefined, before: params.before || undefined },
+    });
+
   return {
+    getAudit,
     suggestFlags,
     getReview, editProvision, setReviewState, splitProvision, mergeProvision, reorderProvisions, publishDocument, deleteDraft,
     getOverview, setFlagStatus, listDocuments, getDocument, getProvision, search, attachSource, removeSource,

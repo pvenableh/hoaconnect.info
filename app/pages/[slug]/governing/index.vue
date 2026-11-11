@@ -63,7 +63,12 @@ const runSearch = async () => {
         <Icon name="lucide:chevron-right" class="w-4 h-4 t-text-muted shrink-0" />
       </NuxtLink>
 
-      <div v-if="canUpload" class="flex justify-end">
+      <div v-if="canUpload" class="flex justify-end gap-2">
+        <Button as-child variant="outline" size="sm">
+          <NuxtLink :to="buildOrgPath('/governing/audit')">
+            <Icon name="lucide:history" class="w-4 h-4 mr-1.5" /> Change History
+          </NuxtLink>
+        </Button>
         <Button as-child variant="outline" size="sm">
           <NuxtLink :to="buildOrgPath('/governing/upload')">
             <Icon name="lucide:upload" class="w-4 h-4 mr-1.5" /> Upload Document
