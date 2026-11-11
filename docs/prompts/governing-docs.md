@@ -380,7 +380,11 @@ From this repo:
     confirming always yields "Ask counsel." (3) No run on publish (Peter chose the button). (4) The whole
     library goes in every pass; fine at 33 references. (5) Still open from 3B: audit-log viewer, citation not
     required to publish, document field editing, unpublish.
-- **Idea parked 2026-11-10 (not built, not planned in a file):** "versions" of non-legal community email:
+- **Pushed 2026-11-10 (Peter's word):** Sessions 3A, 3B and 4 are on `origin/main` at `24a3da1`. The "NOT pushed"
+  notes above are history. Seen live about four minutes later on `www.hoaconnect.info`: the new routes stopped
+  answering 404, and all sixteen governing routes refuse a signed-out caller with 401. **Not checked signed in on
+  production:** the browser pane has no session there and the agent does not type passwords.
+- **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /
   `community`) as the exclusion hook, per-recipient rendering in `email-send-render.ts`, an unused
