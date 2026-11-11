@@ -376,6 +376,20 @@ describe("split, merge and reorder", () => {
     });
   });
 
+  it("a merge keeps the first piece's label, citation and heading, and takes from the second only what the first lacks", async () => {
+    as("u-admin");
+    await call(routes.edit, "a", { citation: "Rule 1" });
+    await call(routes.edit, "b", { citation: "Rule 2", heading: "Quorum", original_label: "(a)" });
+    await call(routes.merge, "a");
+    expect(prov("a")).toMatchObject({ text: A + B, citation: "Rule 1", heading: "Quorum", original_label: "(a)" });
+    expect(audit().at(-1)).toMatchObject({
+      action: "provision_merge",
+      before: { pieces: [{ id: "a", citation: "Rule 1", heading: null }, { id: "b", citation: "Rule 2", heading: "Quorum", original_label: "(a)" }] },
+      after: { id: "a", text: A + B, heading: "Quorum", original_label: "(a)" },
+    });
+    expect(audit().at(-1).after).not.toHaveProperty("citation");
+  });
+
   it("split then merge gives back the text it started with", async () => {
     as("u-admin");
     await call(routes.split, "a", { at: 12 });

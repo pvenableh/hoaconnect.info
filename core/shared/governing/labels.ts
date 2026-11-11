@@ -121,3 +121,56 @@ export function splitHighlight(text: string, query: string): HighlightPart[] {
   if (from < text.length) parts.push({ text: text.slice(from), match: false });
   return parts;
 }
+
+// ── Transcriber's notes ─────────────────────────────────────────────────────
+// The notes are the transcriber's own commentary, written in markdown. They
+// are not provision text, so they may be laid out: headings, lists and
+// paragraphs, with bold and code picked out. The words are never changed, and
+// the page renders these as text nodes (no HTML is built).
+
+export type NoteRun = { text: string; bold?: boolean; code?: boolean };
+export type NoteBlock =
+  | { type: "heading"; runs: NoteRun[] }
+  | { type: "paragraph"; runs: NoteRun[] }
+  | { type: "list"; ordered: boolean; items: NoteRun[][] };
+
+/** `**bold**` and `` `code` `` as runs. Anything unbalanced stays as typed. */
+export function noteRuns(text: string): NoteRun[] {
+  const runs: NoteRun[] = [];
+  const pattern = /\*\*([^*]+?)\*\*|`([^`]+?)`/g;
+  let from = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index! > from) runs.push({ text: text.slice(from, match.index) });
+    runs.push(match[1] !== undefined ? { text: match[1], bold: true } : { text: match[2]!, code: true });
+    from = match.index! + match[0].length;
+  }
+  if (from < text.length) runs.push({ text: text.slice(from) });
+  return runs;
+}
+
+export function noteBlocks(markdown: string | null | undefined): NoteBlock[] {
+  const blocks: NoteBlock[] = [];
+  let paragraph: string[] = [];
+  const flush = () => {
+    if (paragraph.length) blocks.push({ type: "paragraph", runs: noteRuns(paragraph.join(" ")) });
+    paragraph = [];
+  };
+  for (const raw of (markdown ?? "").split(/\r?\n/)) {
+    const line = raw.trim();
+    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    const item = /^(?:[-*+]|(\d+)[.)])\s+(.*)$/.exec(line);
+    if (!line) flush();
+    else if (heading) {
+      flush();
+      blocks.push({ type: "heading", runs: noteRuns(heading[1]!) });
+    } else if (item) {
+      flush();
+      const ordered = item[1] !== undefined;
+      const last = blocks[blocks.length - 1];
+      if (last?.type === "list" && last.ordered === ordered) last.items.push(noteRuns(item[2]!));
+      else blocks.push({ type: "list", ordered, items: [noteRuns(item[2]!)] });
+    } else paragraph.push(line);
+  }
+  flush();
+  return blocks;
+}

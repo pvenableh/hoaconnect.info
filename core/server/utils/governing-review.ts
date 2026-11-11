@@ -285,7 +285,10 @@ export async function splitGoverningProvision(event: H3Event, organizationId: st
   return { id: provision.id as string, created: created.id as string };
 }
 
-/** Join a draft provision with the one after it. The result is the first text followed by the second, exactly. */
+/**
+ * Join a draft provision with the one after it. The result is the first text followed by the second, exactly.
+ * The first piece keeps its label, citation and heading; one it lacks is taken from the second.
+ */
 export async function mergeGoverningProvision(event: H3Event, organizationId: string, provisionId: string) {
   const { provision, document } = await provisionInOrg(organizationId, provisionId);
   requireDraft(document, "Merging provisions");
@@ -297,7 +300,12 @@ export async function mergeGoverningProvision(event: H3Event, organizationId: st
   const second = (next.text ?? "") as string;
   const text = mergeText(first, second);
   const actor = await governingActor(event);
-  await write(updateItem(PROVISIONS as never, provision.id, { text, ...UNREVIEWED } as never));
+  // Where the first piece has no label, citation or heading, the second's is kept rather than lost.
+  const kept: Record<string, string> = {};
+  for (const field of ["original_label", "citation", "heading"] as const) {
+    if (!provision[field] && next[field]) kept[field] = next[field];
+  }
+  await write(updateItem(PROVISIONS as never, provision.id, { text, ...kept, ...UNREVIEWED } as never));
   await write(deleteItem(PROVISIONS as never, next.id));
 
   const piece = (p: any, t: string) => ({
@@ -311,7 +319,7 @@ export async function mergeGoverningProvision(event: H3Event, organizationId: st
     provision: provision.id,
     summary: `Merged ${name(provision)} with the provision after it in ${document.title ?? "a governing document"}`,
     before: { pieces: [piece(provision, first), piece(next, second)] },
-    after: { id: provision.id, text, review_state: "ocr_draft" },
+    after: { id: provision.id, text, ...kept, review_state: "ocr_draft" },
   });
   return { id: provision.id as string, removed: next.id as string };
 }

@@ -3,7 +3,7 @@
 // of contents, recorded-page markers and the transcriber's notes (spec §6).
 // Provision text is shown exactly as stored: plain text, line breaks kept.
 import { toast } from "vue-sonner";
-import { formatBookAndPage, formatRecordDate, kindLabel, provisionDepths, statusLabel } from "#core/shared/governing/labels";
+import { formatBookAndPage, formatRecordDate, kindLabel, noteBlocks, provisionDepths, statusLabel } from "#core/shared/governing/labels";
 
 definePageMeta({
   middleware: ["auth", "subscription"],
@@ -233,7 +233,24 @@ onMounted(scrollToHash);
 
             <section v-if="doc.transcriber_notes" class="border-t t-border pt-4 space-y-2">
               <h2 class="type-card t-text">Transcriber's notes</h2>
-              <p class="governing-text type-meta t-text-muted">{{ doc.transcriber_notes }}</p>
+              <div class="space-y-2 type-meta t-text-muted" data-testid="governing-transcriber-notes">
+                <template v-for="(block, i) in noteBlocks(doc.transcriber_notes)" :key="i">
+                  <!-- The notes open with their own "Transcriber's notes" heading; the section already has one. -->
+                  <template v-if="block.type === 'heading'">
+                    <h3 v-if="i > 0" class="type-micro t-text-secondary pt-1">
+                      <template v-for="(run, r) in block.runs" :key="r"><strong v-if="run.bold">{{ run.text }}</strong><code v-else-if="run.code">{{ run.text }}</code><template v-else>{{ run.text }}</template></template>
+                    </h3>
+                  </template>
+                  <component :is="block.ordered ? 'ol' : 'ul'" v-else-if="block.type === 'list'" class="pl-5 space-y-1" :class="block.ordered ? 'list-decimal' : 'list-disc'">
+                    <li v-for="(item, n) in block.items" :key="n">
+                      <template v-for="(run, r) in item" :key="r"><strong v-if="run.bold">{{ run.text }}</strong><code v-else-if="run.code">{{ run.text }}</code><template v-else>{{ run.text }}</template></template>
+                    </li>
+                  </component>
+                  <p v-else>
+                    <template v-for="(run, r) in block.runs" :key="r"><strong v-if="run.bold">{{ run.text }}</strong><code v-else-if="run.code">{{ run.text }}</code><template v-else>{{ run.text }}</template></template>
+                  </p>
+                </template>
+              </div>
             </section>
           </div>
         </div>

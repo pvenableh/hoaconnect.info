@@ -79,3 +79,25 @@ describe("labels", () => {
     expect(depths.get("x")).toBe(1);
   });
 });
+
+describe("noteBlocks (transcriber's notes laid out, words unchanged)", () => {
+  it("reads headings, lists and paragraphs", async () => {
+    const { noteBlocks } = await import("#core/shared/governing/labels");
+    const blocks = noteBlocks('## Transcriber\'s notes\n\n- Typing kept: "theCounty".  \n- A mark, apparently "15.00".\n\nA closing line\nthat wraps.\n1. One\n2. Two');
+    expect(blocks).toEqual([
+      { type: "heading", runs: [{ text: "Transcriber's notes" }] },
+      { type: "list", ordered: false, items: [[{ text: 'Typing kept: "theCounty".' }], [{ text: 'A mark, apparently "15.00".' }]] },
+      { type: "paragraph", runs: [{ text: "A closing line that wraps." }] },
+      { type: "list", ordered: true, items: [[{ text: "One" }], [{ text: "Two" }]] },
+    ]);
+    expect(noteBlocks(null)).toEqual([]);
+  });
+
+  it("picks out bold and code, and leaves an unbalanced mark as typed", async () => {
+    const { noteRuns } = await import("#core/shared/governing/labels");
+    expect(noteRuns("Kept **Poxies** and `theCounty` as printed")).toEqual([
+      { text: "Kept " }, { text: "Poxies", bold: true }, { text: " and " }, { text: "theCounty", code: true }, { text: " as printed" },
+    ]);
+    expect(noteRuns("a ** b ` c")).toEqual([{ text: "a ** b ` c" }]);
+  });
+});

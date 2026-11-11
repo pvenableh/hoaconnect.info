@@ -177,6 +177,61 @@ const move = (p: GoverningReviewProvision, by: -1 | 1) => {
   return run(p.id, () => api.reorderProvisions(documentId.value, ids));
 };
 
+// Drag a provision by its handle onto another to put it there. The server
+// gets the whole new order, as with the arrows, and records it.
+const dragging = ref<string | null>(null);
+const dragOver = ref<string | null>(null);
+const canDrag = (p: GoverningReviewProvision) => isDraft.value && !busy.value && !anyDirty.value && !!p;
+const startDrag = (p: GoverningReviewProvision, event: DragEvent) => {
+  dragging.value = p.id;
+  event.dataTransfer?.setData("text/plain", p.id);
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+};
+const endDrag = () => {
+  dragging.value = null;
+  dragOver.value = null;
+};
+const dropOn = (target: GoverningReviewProvision) => {
+  const moved = dragging.value;
+  endDrag();
+  if (!moved || moved === target.id) return;
+  const ids = provisions.value.map((x) => x.id);
+  const from = ids.indexOf(moved);
+  const to = ids.indexOf(target.id);
+  if (from < 0 || to < 0) return;
+  ids.splice(from, 1);
+  ids.splice(to, 0, moved);
+  return run(moved, () => api.reorderProvisions(documentId.value, ids));
+};
+
+// The page image can be turned and enlarged in place: a survey sheet is often
+// scanned sideways. This changes how it is shown here, never the stored image.
+const ZOOMS = [1, 1.5, 2, 3];
+const zoom = ref(1);
+const turn = ref(0);
+const natural = ref<{ w: number; h: number } | null>(null);
+const sideways = computed(() => turn.value % 180 !== 0);
+const onImageLoad = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  natural.value = img.naturalWidth && img.naturalHeight ? { w: img.naturalWidth, h: img.naturalHeight } : null;
+};
+watch(groupIndex, () => {
+  zoom.value = 1;
+  turn.value = 0;
+  natural.value = null;
+});
+const stepZoom = (by: -1 | 1) => (zoom.value = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, ZOOMS.indexOf(zoom.value) + by))]!);
+const frameStyle = computed(() => {
+  const n = natural.value;
+  return { width: `${zoom.value * 100}%`, ...(n ? { aspectRatio: sideways.value ? `${n.h} / ${n.w}` : `${n.w} / ${n.h}` } : {}) };
+});
+const imageStyle = computed(() => {
+  const n = natural.value;
+  if (!n) return {};
+  // Turned a quarter, the image is as wide as the frame is tall.
+  return { width: sideways.value ? `${(n.w / n.h) * 100}%` : "100%", transform: `translate(-50%, -50%) rotate(${turn.value}deg)` };
+});
+
 const publish = async () => {
   const ok = await confirm({
     title: "Publish this document?",
@@ -319,12 +374,37 @@ const blockerText = computed(() => {
 
         <div v-else class="grid grid-cols-1 gap-6" :class="group.image ? 'lg:grid-cols-2' : ''">
           <div v-if="group.image" class="space-y-2 lg:sticky lg:top-4 lg:self-start">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
               <h2 class="type-section t-text">{{ group.label }}, as scanned</h2>
-              <a :href="getAuthUrl(group.image) ?? undefined" target="_blank" rel="noopener" class="type-meta t-text-accent underline">Open Full Size</a>
+              <div class="flex items-center gap-1" data-testid="governing-review-image-tools">
+                <Button size="sm" variant="ghost" aria-label="Turn left" @click="turn = (turn + 270) % 360">
+                  <Icon name="lucide:rotate-ccw" class="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" aria-label="Turn right" @click="turn = (turn + 90) % 360">
+                  <Icon name="lucide:rotate-cw" class="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" aria-label="Smaller" :disabled="zoom === ZOOMS[0]" @click="stepZoom(-1)">
+                  <Icon name="lucide:zoom-out" class="w-4 h-4" />
+                </Button>
+                <span class="type-meta t-text-muted tabular-nums w-10 text-center">{{ Math.round(zoom * 100) }}%</span>
+                <Button size="sm" variant="ghost" aria-label="Larger" :disabled="zoom === ZOOMS[ZOOMS.length - 1]" @click="stepZoom(1)">
+                  <Icon name="lucide:zoom-in" class="w-4 h-4" />
+                </Button>
+                <a :href="getAuthUrl(group.image) ?? undefined" target="_blank" rel="noopener" class="type-meta t-text-accent underline ml-2">Open Full Size</a>
+              </div>
             </div>
             <div class="ios-card overflow-auto max-h-[80vh]">
-              <img :src="getAuthUrl(group.image) ?? undefined" :alt="`${group.label} of the original document`" class="w-full" data-testid="governing-review-image" />
+              <div class="relative" :style="frameStyle">
+                <img
+                  :key="group.key"
+                  :src="getAuthUrl(group.image) ?? undefined"
+                  :alt="`${group.label} of the original document`"
+                  :class="natural ? 'absolute top-1/2 left-1/2 max-w-none' : 'w-full'"
+                  :style="imageStyle"
+                  data-testid="governing-review-image"
+                  @load="onImageLoad"
+                />
+              </div>
             </div>
           </div>
 
@@ -332,8 +412,30 @@ const blockerText = computed(() => {
             <h2 class="type-section t-text">{{ group.image ? "Text taken from this page" : "Provisions" }}</h2>
             <p v-if="!group.provisions.length" class="type-meta t-text-muted">No provision starts on this page.</p>
 
-            <article v-for="p in group.provisions" :key="p.id" class="ios-card p-4 space-y-3" data-testid="governing-review-provision">
+            <article
+              v-for="p in group.provisions"
+              :key="p.id"
+              class="ios-card p-4 space-y-3"
+              :class="[dragOver === p.id && dragging !== p.id ? 'ring-2 ring-primary' : '', dragging === p.id ? 'opacity-60' : '']"
+              data-testid="governing-review-provision"
+              @dragover="dragging && ($event.preventDefault(), (dragOver = p.id))"
+              @drop.prevent="dropOn(p)"
+            >
               <div class="flex flex-wrap items-center gap-2">
+                <span
+                  v-if="isDraft"
+                  class="cursor-grab t-text-muted"
+                  :class="canDrag(p) ? '' : 'opacity-40 cursor-not-allowed'"
+                  :draggable="canDrag(p)"
+                  role="img"
+                  aria-label="Drag to reorder"
+                  title="Drag onto another provision to move this one there"
+                  data-testid="governing-review-drag"
+                  @dragstart="startDrag(p, $event)"
+                  @dragend="endDrag"
+                >
+                  <Icon name="lucide:grip-vertical" class="w-4 h-4" />
+                </span>
                 <Badge :variant="p.review_state === 'ocr_draft' ? 'secondary' : 'default'">{{ REVIEW_STATE_LABELS[p.review_state] }}</Badge>
                 <span class="type-meta t-text-muted">{{ indexOf(p) + 1 }} of {{ provisions.length }}</span>
                 <span
