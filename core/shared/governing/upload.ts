@@ -25,7 +25,21 @@ export const DOCUMENT_KINDS = ["declaration", "articles", "bylaws", "amendment",
 
 export const hasUsableTextLayer = (text: string | null | undefined) => (text ?? "").replace(/\s/g, "").length >= TEXT_LAYER_MIN_CHARS;
 
-export const partCount = (bytes: number) => Math.max(1, Math.ceil(bytes / UPLOAD_PART_BYTES));
+/**
+ * True when RGBA pixels hold nothing but near-white: a page the reader could not
+ * draw (a JPEG 2000 scan it cannot decode comes out white), or a page that is
+ * really empty. Either way there is nothing to read, so no credits are spent on it.
+ * Checks every `stride`-th pixel; a few specks of dark in a page are enough to say it is not blank.
+ */
+export function looksBlank(rgba: ArrayLike<number>, stride = 7): boolean {
+  const step = Math.max(1, Math.floor(stride)) * 4;
+  for (let i = 0; i + 2 < rgba.length; i += step) {
+    if (rgba[i]! < 200 || rgba[i + 1]! < 200 || rgba[i + 2]! < 200) return false;
+  }
+  return true;
+}
+
+export const partCount =(bytes: number) => Math.max(1, Math.ceil(bytes / UPLOAD_PART_BYTES));
 
 export type ProposalPage = { source: string; page_number: number; text: string | null };
 

@@ -5,9 +5,15 @@
 // Done here and not on the server because rendering a PDF there needs a native
 // canvas package and a long request; the browser has both for free. pdf.js
 // comes from `unpdf`, already a dependency, loaded only when this runs.
-import { PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_WIDTH, hasUsableTextLayer } from "#core/shared/governing/upload";
+import { PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_WIDTH, hasUsableTextLayer, looksBlank } from "#core/shared/governing/upload";
 
-export type RenderedPage = { image: Blob; /** The page's text layer, exactly as the file gives it, or null when it has none worth keeping. */ text: string | null };
+export type RenderedPage = {
+  image: Blob;
+  /** The page's text layer, exactly as the file gives it, or null when it has none worth keeping. */
+  text: string | null;
+  /** The page came out all white: empty, or drawn by a reader that could not decode its image (JPEG 2000). */
+  blank: boolean;
+};
 export type OpenedOriginal = { pageCount: number; render: (pageNumber: number) => Promise<RenderedPage>; close: () => void };
 
 const toJpeg = (canvas: HTMLCanvasElement, quality: number) =>
@@ -20,6 +26,23 @@ async function encode(canvas: HTMLCanvasElement): Promise<Blob> {
     if (blob.size <= PAGE_IMAGE_MAX_BYTES) return blob;
   }
   throw new Error("This page is too large to store as an image");
+}
+
+const canvasIsBlank = (canvas: HTMLCanvasElement) =>
+  looksBlank(canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data);
+
+/** Whether a stored page image has nothing on it. Checked before a page is read, which is paid for. */
+export async function imageIsBlank(url: string): Promise<boolean> {
+  const response = await fetch(url, { credentials: "same-origin" });
+  if (!response.ok) return false;
+  const bitmap = await createImageBitmap(await response.blob());
+  try {
+    const { canvas, context } = blankCanvas(bitmap.width, bitmap.height);
+    context.drawImage(bitmap, 0, 0);
+    return canvasIsBlank(canvas);
+  } finally {
+    bitmap.close();
+  }
 }
 
 function blankCanvas(width: number, height: number) {
@@ -48,7 +71,7 @@ export function useGoverningPageRender() {
           const scale = Math.min(1, PAGE_IMAGE_WIDTH / bitmap.width);
           const { canvas, context } = blankCanvas(bitmap.width * scale, bitmap.height * scale);
           context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          return { image: await encode(canvas), text: null };
+          return { image: await encode(canvas), text: null, blank: canvasIsBlank(canvas) };
         },
         close: () => bitmap.close(),
       };
@@ -69,9 +92,10 @@ export function useGoverningPageRender() {
         // Items in the file's own order; a line ends where the file says it does.
         const content = await page.getTextContent();
         const text = (content.items as Array<{ str?: string; hasEOL?: boolean }>).map((item) => (item.str ?? "") + (item.hasEOL ? "\n" : "")).join("");
+        const blank = canvasIsBlank(canvas);
         const image = await encode(canvas);
         page.cleanup();
-        return { image, text: hasUsableTextLayer(text) ? text : null };
+        return { image, text: hasUsableTextLayer(text) ? text : null, blank };
       },
       close: () => void pdf.destroy(),
     };

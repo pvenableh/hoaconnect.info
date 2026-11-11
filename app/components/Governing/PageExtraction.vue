@@ -58,6 +58,10 @@ const summary = (row: (typeof rows.value)[number]) => {
   return `${row.stored}${of} ${row.stored === 1 && !row.total ? "page" : "pages"} prepared · text on ${row.withText}`;
 };
 
+const pageList = (numbers: number[]) => `${numbers.length === 1 ? "page" : "pages"} ${numbers.join(", ")}`;
+const blankMessage = (numbers: number[]) =>
+  `${pageList(numbers)} came out blank. The page may be empty, or its scan may be in a format this reader cannot draw (JPEG 2000). A blank page is not read, so no credits are spent on it.`;
+
 const prepare = async (row: (typeof rows.value)[number]) => {
   const url = getAuthUrl(row.source.file);
   if (job.value || !url) return;
@@ -69,12 +73,15 @@ const prepare = async (row: (typeof rows.value)[number]) => {
       const have = new Set(props.pages.filter((p) => p.source === row.source.id).map((p) => p.page_number));
       const todo = Array.from({ length: original.pageCount }, (_, i) => i + 1).filter((n) => !have.has(n));
       job.value.total = todo.length;
+      const blank: number[] = [];
       for (const pageNumber of todo) {
         if (stop.value) break;
         const rendered = await original.render(pageNumber);
         await storePage(row.source.id, pageNumber, rendered.image, rendered.text);
+        if (rendered.blank) blank.push(pageNumber);
         job.value.done += 1;
       }
+      if (blank.length) toast.warning(blankMessage(blank), { duration: 15000 });
     } finally {
       original.close();
     }
@@ -92,19 +99,29 @@ const read = async (row: (typeof rows.value)[number]) => {
   stop.value = false;
   job.value = { source: row.source.id, kind: "read", done: 0, total: row.unread.length };
   let credits = 0;
+  let pagesRead = 0;
   try {
+    const skipped: number[] = [];
     for (const page of row.unread) {
       if (stop.value) break;
-      const result = await readPage(page.id);
-      credits += result.credits ?? 0;
+      // A blank image has nothing to read, and reading it is still charged.
+      const url = getAuthUrl(page.image);
+      if (url && (await imageIsBlank(url))) {
+        skipped.push(page.page_number);
+      } else {
+        const result = await readPage(page.id);
+        credits += result.credits ?? 0;
+        pagesRead += 1;
+      }
       job.value.done += 1;
     }
-    if (!stop.value) toast.success("Scanned pages read");
+    if (skipped.length) toast.warning(blankMessage(skipped), { duration: 15000 });
+    if (!stop.value && pagesRead) toast.success("Scanned pages read");
   } catch (error) {
     toast.error(message(error, "Could not read the scanned pages."));
   } finally {
     // Pages read before a stop or an error were charged too.
-    if (job.value.done) lastRead.value = { source: row.source.id, pages: job.value.done, credits };
+    if (pagesRead) lastRead.value = { source: row.source.id, pages: pagesRead, credits };
     job.value = null;
     emit("changed");
   }

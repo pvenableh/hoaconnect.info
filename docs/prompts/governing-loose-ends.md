@@ -71,6 +71,45 @@ Each session appends its own "Session N done" bullet here.
     (details, then the text exactly as stored) through `auditValue` in `core/shared/governing/audit.ts`, with tests;
     the member-preview banner and the Member button now say that admin controls are hidden but admin access stays.
     Gates after: 169 files / 3,041 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0.
+- **Session 2 done (2026-11-11).** Signed in as Oscar on the dev server (port 3001). Credits spent: 266 in all, from a
+  balance of 199,704 (Suggest Flags 121, OCR 145 of which 16 bought nothing, see below).
+  - **Suggest Flags on the By-Laws:** 51 provisions against 33 references, one call to `claude-opus-4-8`, 121 credits.
+    11 suggestions saved and 6 dropped, every drop `already_flagged` (the model keeps proposing pairs a curated flag
+    already holds; the drop is the guard working). All 11 are `counsel_review` / `info` with the provision's own words
+    as the quote, and are left undecided for Peter (12 are waiting in all, with the 1995 Amendment's). By reading:
+    about 4 look like real links (2.4 voting representative, 3.1 annual meeting, 3.3 posting notice, 6.2 budget notice)
+    and about 7 look like noise (2.3, 3.3 against a board-meeting reference, 3.4, 3.5, 3.8, 4.12, 4.1). The cause is
+    not the prompt: **the 8 references behind them have no title and no summary in the library**, so the model judged
+    from a code alone, and three of those codes mean something else in the curated flags (3.4 quorum and 3.5 proxies
+    were matched to `718.112(2)(e)` codes the curators use for the budget; 3.8 and 4.12 minutes to `718.111(13)`, the
+    annual financial report, when the curated flag for the same provisions already links `718.111(12)`, official
+    records). A reading of the statute is counsel's, not this session's: treat the split as a first look. No prompt
+    change made. If wanted: add to `SUGGEST_SYSTEM` "A reference with no title and no summary tells you only its code.
+    Report such a pair only when you are certain what that exact subsection covers", but filling the library's
+    titles and summaries (curators' words, not invented) would do more.
+  - **OCR on the 1977 typescript:** pages 12-14 first. **Finding 1:** the file already carries a text layer on pages
+    12 and 13 (an old poor OCR), so the app uses it and never reads those pages: against the transcription it matches
+    236 of 257 and 264 of 300 words (91.8% and 88.0%), with garbled marks such as `admini�terinq`, `mernbersh�p`.
+    **Finding 2 (bug):** page 14 rendered as a blank white image and "Read Scanned Pages" read it anyway, got empty
+    text and charged 16 credits. Cause: that page's scan is JPEG 2000 (`JPXDecode`) and the bundled pdf.js has no
+    `wasmUrl` for its OpenJPEG decoder, so it draws nothing and says nothing. 49 of this file's 57 pages are JPX; the
+    recorded scans (the ones the other six originals are) are plain JPEG and unaffected. Redone on pages 15, 16, 17,
+    18 and 20 (plain JPEG, no text layer; approved by Peter): 129 credits for 5 pages (26 each), 1,593 words in the
+    transcription, 1,589 matched (99.75%), zero `[illegible]`. Every difference: `designee- directors`, `Declara- tion`
+    (line-end hyphens kept as printed, where the transcription joins them), `shall.` for `shall` on page 17 (a speck
+    after the word in the image; the transcription drops it), and the blank line in "Section ____ of the Declaration"
+    on page 16, which the reading leaves out without a marker. The typed attorney footer and page number on each
+    page are read too; the transcription leaves them out. Both test drafts deleted with Delete Draft; the document,
+    original and page images answer 404; the list shows no test draft.
+  - **Fix made (Peter's choice): a blank-page guard.** `looksBlank` in `core/shared/governing/upload.ts` (tested);
+    Prepare Pages warns when a page draws white, and Read Scanned Pages checks each stored image first and skips a
+    blank one with a warning, so no credits are spent. Seen working in the pane on a white and a marked image. **Not
+    fixed:** JPEG 2000 pages still render blank. The cure is to vendor `openjpeg.wasm` from pdfjs-dist (not installed)
+    and pass it as `wasmUrl` to `getDocumentProxy`: a new asset, Peter's call. Until then such a file cannot be read
+    here; a reviewer would re-save it as plain JPEG first.
+  - **Open:** the app takes a poor embedded text layer over OCR (the 1977 pages 12-13 at about 90% words right against
+    99.75% for OCR). `hasUsableTextLayer` only checks length. Not changed; worth a decision before the 57-page file
+    is uploaded.
 
 ---
 

@@ -3,7 +3,7 @@
  * Pure: page text in, draft pieces out. Every piece is an exact slice.
  */
 import { describe, it, expect } from "vitest";
-import { UPLOAD_PART_BYTES, UPLOAD_PART_MAX_BYTES, hasUsableTextLayer, partCount, proposeProvisions } from "#core/shared/governing/upload";
+import { UPLOAD_PART_BYTES, UPLOAD_PART_MAX_BYTES, hasUsableTextLayer, looksBlank, partCount, proposeProvisions } from "#core/shared/governing/upload";
 
 const PAGE_1 = "BY-LAWS OF LENOX PLAZA\n\nARTICLE III\nMEETINGS\n\n.4  Notice shall be given.\n.5  Poxies shall be in writing  \nand filed with the Secretary.\n\n";
 const PAGE_2 = "which continues from the page before, with no heading at all.\n";
@@ -57,6 +57,17 @@ describe("upload limits", () => {
     expect(partCount(1)).toBe(1);
     expect(partCount(UPLOAD_PART_BYTES)).toBe(1);
     expect(partCount(UPLOAD_PART_BYTES + 1)).toBe(2);
+  });
+  it("sees a page that came out white, so no credits are spent reading it", () => {
+    const white = new Uint8ClampedArray(100 * 100 * 4).fill(255);
+    expect(looksBlank(white)).toBe(true);
+    // One dark pixel on the sampled grid is enough to say the page has something on it.
+    const marked = white.slice();
+    marked[0] = 0;
+    marked[1] = 0;
+    marked[2] = 0;
+    expect(looksBlank(marked)).toBe(false);
+    expect(looksBlank(new Uint8ClampedArray(0))).toBe(true);
   });
   it("a scan's stray marks are not a text layer", () => {
     expect(hasUsableTextLayer(" . \n 3006 ")).toBe(false);
