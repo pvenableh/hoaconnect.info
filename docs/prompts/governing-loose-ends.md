@@ -67,6 +67,10 @@ Each session appends its own "Session N done" bullet here.
     re-checked as a member** (same filter; the manager list shows 7).
   - Note for later sessions: governing API calls need `orgId` as a query parameter (the page sends it); the app's
     View as Admin/Member/Public switch only hides manager controls and is not a member check.
+  - **Two small follow-ups fixed afterwards:** a merge's `pieces` in the change history now read as "Piece 1 / Piece 2"
+    (details, then the text exactly as stored) through `auditValue` in `core/shared/governing/audit.ts`, with tests;
+    the member-preview banner and the Member button now say that admin controls are hidden but admin access stays.
+    Gates after: 169 files / 3,041 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0.
 
 ---
 

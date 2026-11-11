@@ -30,8 +30,27 @@ export const auditActionLabel = (action: string | null | undefined) => AUDIT_ACT
 export type AuditChange = { field: string; before: string; after: string };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const PIECE_DETAILS: Array<[string, string]> = [
+  ["original_label", "Label"],
+  ["citation", "Citation"],
+  ["heading", "Heading"],
+  ["review_state", "Review state"],
+];
+const isPieceList = (v: unknown): v is Array<Record<string, unknown>> =>
+  Array.isArray(v) && v.length > 0 && v.every((p) => isRecord(p) && typeof p.text === "string");
+
+/** A merge records the pieces it joined. Each is laid out as its details, then its text exactly as stored. */
+const pieceList = (pieces: Array<Record<string, unknown>>): string =>
+  pieces
+    .map((p, i) => {
+      const details = PIECE_DETAILS.filter(([key]) => p[key] != null && p[key] !== "").map(([key, label]) => `${label}: ${String(p[key])}`);
+      return [`Piece ${i + 1}`, ...details, "", p.text as string].join("\n");
+    })
+    .join("\n\n");
+
 /** A stored value as text. A string is itself, untouched; nothing is the empty string. */
-export const auditValue = (v: unknown): string => (v == null ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
+export const auditValue = (v: unknown): string =>
+  v == null ? "" : typeof v === "string" ? v : isPieceList(v) ? pieceList(v) : JSON.stringify(v, null, 2);
 
 /**
  * The fields that differ between a row's `before` and `after`, in the order

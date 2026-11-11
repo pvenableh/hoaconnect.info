@@ -138,6 +138,9 @@ onMounted(() => {
     >
       <Icon name="i-lucide-eye" class="size-4 shrink-0" />
       Previewing the member view
+      <span class="hidden font-normal opacity-90 sm:inline">
+        Admin controls are hidden, but you keep admin access. Sign in as a member to test what they can reach.
+      </span>
       <button
         type="button"
         class="underline underline-offset-2 hover:opacity-90"

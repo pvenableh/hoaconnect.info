@@ -29,6 +29,30 @@ describe("auditChanges", () => {
   });
 });
 
+describe("a merge's pieces", () => {
+  const pieces = [
+    { id: "a", text: "First\n\nline  ", source_key: "k:1", citation: "By-Law 3.5", original_label: null, heading: "Notice", review_state: "reviewed" },
+    { id: "b", text: "Second", citation: null, original_label: "(b)", heading: null, review_state: "ocr_draft" },
+  ];
+
+  it("lays each piece out as its details, then its text exactly as stored", () => {
+    expect(auditValue(pieces)).toBe(
+      ["Piece 1", "Citation: By-Law 3.5", "Heading: Notice", "Review state: reviewed", "", "First\n\nline  ", "", "Piece 2", "Label: (b)", "Review state: ocr_draft", "", "Second"].join("\n")
+    );
+  });
+
+  it("shows no JSON in the merge's before", () => {
+    const [change] = auditChanges({ pieces }, { id: "a", text: "First\n\nline  Second" });
+    expect(change.field).toBe("pieces");
+    expect(change.before).not.toMatch(/[{}"]/);
+    expect(change.before).toContain("First\n\nline  ");
+  });
+
+  it("leaves other lists as they were", () => {
+    expect(auditValue([{ id: "x" }])).toBe('[\n  {\n    "id": "x"\n  }\n]');
+  });
+});
+
 describe("labels", () => {
   it("names every listed action and falls back to the raw name", () => {
     for (const action of AUDIT_ACTIONS) expect(auditActionLabel(action)).not.toBe(action);

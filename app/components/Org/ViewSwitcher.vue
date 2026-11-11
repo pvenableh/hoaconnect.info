@@ -24,7 +24,14 @@
           View
         </span>
         <button type="button" :class="segClass(mode === 'admin')" @click="goAdmin">Admin</button>
-        <button type="button" :class="segClass(mode === 'member')" @click="goMember">Member</button>
+        <button
+          type="button"
+          :class="segClass(mode === 'member')"
+          title="Hides admin controls only. You keep admin access; sign in as a member to test what they can reach."
+          @click="goMember"
+        >
+          Member
+        </button>
         <button type="button" :class="segClass(mode === 'public')" @click="goPublic">Public</button>
       </div>
     </div>
