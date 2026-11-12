@@ -31,6 +31,7 @@ vi.mock("@directus/sdk", () => ({
     id,
     query,
   }),
+  readItems: (collection: string, query?: any) => ({ cmd: "readItems", collection, query }),
 }));
 
 vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
@@ -39,6 +40,11 @@ const handler = (await import("#core/server/api/stripe/paymentintent.post"))
   .default as (event: H3Event) => Promise<any>;
 
 const ORG = "11111111-1111-4111-8111-111111111111";
+const OTHER_ORG = "44444444-4444-4444-8444-444444444444";
+const MEMBER = "22222222-2222-4222-8222-222222222222";
+const CHARGE = "33333333-3333-4333-8333-333333333333";
+/** The caller's charges, by (org, member). Anything else misses the filter. */
+const CHARGES = [{ id: CHARGE, organization: ORG, member: MEMBER }];
 const event = {} as H3Event;
 
 let body: Record<string, unknown>;
@@ -63,7 +69,15 @@ beforeEach(() => {
     stripe_connect_account_id: "acct_org",
     connect_charges_enabled: true,
   };
-  directusRequest = vi.fn(async () => org);
+  directusRequest = vi.fn(async (op: any) => {
+    if (op?.cmd === "readItems" && op.collection === "payment_requests") {
+      const f = op.query.filter;
+      return CHARGES.filter(
+        (c) => c.id === f.id._eq && c.organization === f.organization._eq && c.member === f.member._eq
+      ).map((c) => ({ id: c.id }));
+    }
+    return org;
+  });
   paymentIntentsCreate.mockResolvedValue({
     id: "pi_1",
     client_secret: "pi_1_secret",
@@ -82,6 +96,15 @@ beforeEach(() => {
   vi.stubGlobal("readBody", async () => body);
   vi.stubGlobal("isDemoOrg", async () => false);
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
+  vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u-dana" } }));
+  // Dana is an active member of ORG and nothing else.
+  vi.stubGlobal("requireMembership", async (_e: unknown, orgId: string) => {
+    if (orgId !== ORG) throw Object.assign(new Error("not a member"), { statusCode: 403 });
+    return { isMember: true, memberId: MEMBER };
+  });
 });
 
 describe("dues routed to the connected account", () => {
@@ -167,11 +190,11 @@ describe("silent fallback to a platform charge", () => {
     expectPlatformCharge();
   });
 
-  it("never routes without an organizationId", async () => {
+  it("refuses a charge with no organizationId", async () => {
     delete body.organizationId;
-    await handler(event);
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 400 });
     expect(directusRequest).not.toHaveBeenCalled();
-    expectPlatformCharge();
+    expect(paymentIntentsCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -235,13 +258,62 @@ describe("guardrails", () => {
   });
 
   it("carries member + payment_request ids into metadata for the webhook", async () => {
-    body.memberId = "22222222-2222-4222-8222-222222222222";
-    body.paymentRequestId = "33333333-3333-4333-8333-333333333333";
+    body.memberId = MEMBER;
+    body.paymentRequestId = CHARGE;
     await handler(event);
     expect(created().metadata).toMatchObject({
       organization_id: ORG,
       member_id: body.memberId,
       payment_request_id: body.paymentRequestId,
     });
+  });
+});
+
+// Until 2026-11-12 this route had no session check and took every id — and the
+// webhook's metadata — from the body. A caller pays their own charge in a
+// community they belong to, and the ids the webhook books from are the server's.
+describe("whose charge this is", () => {
+  it("refuses an anonymous caller before creating anything", async () => {
+    vi.stubGlobal("requireUserSession", async () => {
+      throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
+    });
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 401 });
+    expect(paymentIntentsCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses another community's charge before reading or creating anything", async () => {
+    body.organizationId = OTHER_ORG;
+    body.paymentRequestId = CHARGE;
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 403 });
+    expect(directusRequest).not.toHaveBeenCalled();
+    expect(paymentIntentsCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses paying as another member", async () => {
+    body.memberId = "55555555-5555-4555-8555-555555555555";
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 403 });
+    expect(paymentIntentsCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a charge that is not the caller's", async () => {
+    body.paymentRequestId = "66666666-6666-4666-8666-666666666666";
+    await expect(handler(event)).rejects.toMatchObject({ statusCode: 404 });
+    expect(paymentIntentsCreate).not.toHaveBeenCalled();
+  });
+
+  it("books the caller's own member id even when the body names none", async () => {
+    await handler(event);
+    expect(created().metadata.member_id).toBe(MEMBER);
+  });
+
+  it("ignores client metadata and customer — the webhook's keys are the server's", async () => {
+    body.metadata = { kind: "ai_credits", org_id: OTHER_ORG, credits: "10000000", organization_id: OTHER_ORG };
+    body.customer = "cus_someone_else";
+    await handler(event);
+    expect(created().metadata.kind).toBeUndefined();
+    expect(created().metadata.credits).toBeUndefined();
+    expect(created().metadata.org_id).toBeUndefined();
+    expect(created().metadata.organization_id).toBe(ORG);
+    expect(created().customer).toBeUndefined();
   });
 });
