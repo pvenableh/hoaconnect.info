@@ -10,7 +10,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * either the email's web_slug (pretty) or its id (always-unique fallback). The
  * org slug scopes the lookup so web_slugs only need to be unique per-org.
  *
- * Public — no auth (emails are viewable on the web by their link).
+ * Public for SENT emails (viewable on the web by their link). A draft resolves
+ * only for the people who can send in the community's name, and is otherwise
+ * "not found" — `web_slug` comes from the subject, so a draft's is guessable.
  */
 export default defineEventHandler(async (event) => {
   const { org, ref } = getQuery(event) as { org?: string; ref?: string };
@@ -31,14 +33,21 @@ export default defineEventHandler(async (event) => {
         status: { _in: ["sent", "draft"] },
         _or: [{ web_slug: { _eq: ref } }, ...idOr],
       },
-      fields: ["id", "subject", "web_slug", "status"],
+      fields: ["id", "subject", "web_slug", "status", "organization"],
       limit: 1,
     })
-  )) as Array<Pick<HoaEmail, "id" | "subject" | "web_slug" | "status">>;
+  )) as Array<Pick<HoaEmail, "id" | "subject" | "web_slug" | "status" | "organization">>;
 
   const email = emails[0];
   if (!email) {
     throw createError({ statusCode: 404, message: "Email not found" });
+  }
+  if (email.status === "draft") {
+    const orgId = typeof email.organization === "string" ? email.organization : (email.organization as { id?: string } | null)?.id;
+    const allowed = orgId
+      ? await requireAdminOrManagerGrant(event, orgId, "communications").then(() => true, () => false)
+      : false;
+    if (!allowed) throw createError({ statusCode: 404, message: "Email not found" });
   }
 
   return { id: email.id, subject: email.subject };
