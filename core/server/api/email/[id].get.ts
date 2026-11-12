@@ -48,6 +48,10 @@ export default defineEventHandler(async (event) => {
           "date_created",
           "sent_at",
           "scheduled_at",
+          // The saved targeting, so the composer reopens a draft with the
+          // audience it was saved with (a custom list must not become "all").
+          "recipient_filter",
+          "recipient_ids",
           "recipient_count",
           "delivered_count",
           "failed_count",
@@ -88,7 +92,7 @@ export default defineEventHandler(async (event) => {
             "status",
             "sent_at",
             "error_message",
-            ...(queue ? ["kind", "suppressed_reason", "delivery_status"] : []),
+            ...(queue ? ["kind", "suppressed_reason", "delivery_status", "claimed_at"] : []),
             {
               member: ["id", "first_name", "last_name"],
             } as any,

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import type { HoaEmailsFile } from "#core/types/directus";
 import { recipientChip } from "#core/shared/email/send-progress";
+import { planUnknownResend } from "#core/shared/email/resend-unknown";
 
 const props = defineProps<{
   emailId: string;
@@ -202,6 +203,43 @@ const handleDelete = async () => {
 // Edit draft
 const handleEdit = () => {
   navigateToOrg(`/admin/communications/compose?id=${props.emailId}`);
+};
+
+// "Resend to these N unknown" (core/shared/email/resend-unknown.ts): only for a
+// finished send, only rows SendGrid has said nothing about for an hour, and it
+// makes a draft to review, never a send.
+const { confirm } = useConfirm();
+const resendPlan = computed(() => {
+  const e = email.value as any;
+  if (!e?.send_run_key || !["sent", "failed", "scheduled"].includes(e.status)) return null;
+  const plan = planUnknownResend(e.recipients ?? [], Date.now());
+  return plan.memberIds.length || plan.waiting ? plan : null;
+});
+const resendReadyAt = computed(() => {
+  const at = resendPlan.value?.readyAt;
+  return at ? new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : null;
+});
+const resending = ref(false);
+const handleResendUnknown = async () => {
+  const n = resendPlan.value?.memberIds.length ?? 0;
+  if (!n || resending.value) return;
+  const people = n === 1 ? "1 person" : `${n} people`;
+  const ok = await confirm({
+    title: `Make a draft for the ${people} SendGrid never reported on?`,
+    body: "Some of them may already have this email, so they could get it twice. Nothing is sent now: you review the draft and send it yourself.",
+    confirmLabel: "Make Draft",
+  });
+  if (!ok) return;
+  resending.value = true;
+  try {
+    const res = await $fetch<{ draftId: string }>(`/api/email/${props.emailId}/resend-unknown`, { method: "POST" });
+    toast.success(`Draft ready for ${people}`);
+    navigateToOrg(`/admin/communications/compose?id=${res.draftId}`);
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Couldn't make the draft");
+  } finally {
+    resending.value = false;
+  }
 };
 
 // Back to list
@@ -498,6 +536,36 @@ useSeoMeta({
                   :resume-error="sendProgress.resumeError.value"
                   @resume="sendProgress.resume()"
                 />
+              </CardContent>
+            </Card>
+
+            <!-- Resend to the unknown (after an hour with no SendGrid event) -->
+            <Card v-if="resendPlan" data-testid="detail-resend-unknown">
+              <CardContent class="py-4 flex flex-wrap items-center gap-3">
+                <div class="min-w-0 flex-1 text-sm">
+                  <p class="font-medium">
+                    {{ resendPlan.memberIds.length + resendPlan.waiting }} unknown
+                  </p>
+                  <p class="t-text-secondary">
+                    <template v-if="resendPlan.memberIds.length">
+                      SendGrid hasn't reported on {{ resendPlan.memberIds.length === 1 ? "this person" : "these people" }} in over an hour, so the email most likely didn't reach them.
+                    </template>
+                    <template v-if="resendPlan.waiting">
+                      {{ resendPlan.waiting }} {{ resendPlan.waiting === 1 ? "is" : "are" }} still within the hour SendGrid gets to report, until {{ resendReadyAt }}.
+                    </template>
+                  </p>
+                </div>
+                <Button
+                  v-if="resendPlan.memberIds.length"
+                  size="sm"
+                  variant="outline"
+                  class="rounded-full"
+                  :disabled="resending"
+                  @click="handleResendUnknown"
+                >
+                  <Icon name="lucide:mail-plus" class="w-4 h-4 mr-1.5" />
+                  Resend to {{ resendPlan.memberIds.length }}
+                </Button>
               </CardContent>
             </Card>
 

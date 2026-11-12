@@ -265,7 +265,18 @@ watch(
           }
         }
       }
-      // Note: Recipients would need to be loaded separately for editing
+      // The saved audience. A custom list reopens as that list — before this
+      // a reopened draft fell back to "All Members", which is how a resend
+      // draft for three people could have gone to everyone.
+      const savedFilter = (email as any).recipient_filter;
+      const savedIds = (email as any).recipient_ids;
+      if (savedFilter === "custom" && Array.isArray(savedIds)) {
+        selectionMode.value = "selected";
+        form.recipientIds = [...savedIds];
+      } else if (savedFilter === "all" || savedFilter === "owners" || savedFilter === "tenants") {
+        selectionMode.value = "all";
+        recipientFilter.value = savedFilter;
+      }
     }
   },
   { immediate: true }
