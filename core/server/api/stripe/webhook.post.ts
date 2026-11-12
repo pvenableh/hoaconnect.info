@@ -431,7 +431,13 @@ async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus
 			})
 		);
 
-		if (transaction.payment_request) {
+		// Take it back the way it was credited: a payment that covered several
+		// charges unwinds across all of them (newest due first); the older
+		// one-charge checkout reverses its one linked request.
+		const chargeIds = parseChargeIds(transactionMetadata(transaction).charge_ids);
+		if (chargeIds.length) {
+			await unwindRefundAcrossCharges(directus, chargeIds, plan.delta);
+		} else if (transaction.payment_request) {
 			const requestId =
 				typeof transaction.payment_request === 'string' ? transaction.payment_request : transaction.payment_request?.id;
 			if (requestId) await updatePaymentRequest(directus, requestId, -plan.delta);
@@ -795,6 +801,45 @@ function parseChargeIds(raw: unknown): string[] {
 	return [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
 }
 
+/** The PaymentIntent metadata booked on a transaction (a JSON field; tolerate a string). */
+function transactionMetadata(transaction: { metadata?: unknown }): Record<string, unknown> {
+	const raw = transaction.metadata;
+	if (raw && typeof raw === 'object') return raw as Record<string, unknown>;
+	if (typeof raw === 'string') {
+		try {
+			const parsed = JSON.parse(raw);
+			return parsed && typeof parsed === 'object' ? parsed : {};
+		} catch {
+			return {};
+		}
+	}
+	return {};
+}
+
+type ChargeRow = { id: string; amount?: number | null; amount_paid?: number | null; due_date?: string | null; date_created?: string | null };
+
+/** The charges a payment covered, oldest due first (then oldest created, then id). */
+async function chargesOldestDueFirst(directus: ReturnType<typeof getTypedDirectus>, chargeIds: string[]): Promise<ChargeRow[]> {
+	const rows = (await directus.request(
+		readItems('payment_requests', {
+			filter: { id: { _in: chargeIds } },
+			fields: ['id', 'amount', 'amount_paid', 'due_date', 'date_created'],
+			limit: -1,
+		})
+	)) as ChargeRow[];
+
+	return rows
+		.filter((r) => chargeIds.includes(r.id))
+		.sort((a, b) => {
+			const da = (a.due_date ?? '9999-12-31').slice(0, 10);
+			const db = (b.due_date ?? '9999-12-31').slice(0, 10);
+			if (da !== db) return da < db ? -1 : 1;
+			const ca = a.date_created ?? '';
+			const cb = b.date_created ?? '';
+			return ca < cb ? -1 : ca > cb ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+		});
+}
+
 /**
  * Allocate one payment across several charges, oldest due first, so a partial
  * payment settles the oldest bill before touching a newer one — the order a
@@ -811,24 +856,7 @@ async function splitPaymentAcrossCharges(
 	amount: number
 ) {
 	try {
-		const rows = (await directus.request(
-			readItems('payment_requests', {
-				filter: { id: { _in: chargeIds } },
-				fields: ['id', 'amount', 'amount_paid', 'due_date', 'date_created'],
-				limit: -1,
-			})
-		)) as Array<{ id: string; amount?: number | null; amount_paid?: number | null; due_date?: string | null; date_created?: string | null }>;
-
-		const charges = rows
-			.filter((r) => chargeIds.includes(r.id))
-			.sort((a, b) => {
-				const da = (a.due_date ?? '9999-12-31').slice(0, 10);
-				const db = (b.due_date ?? '9999-12-31').slice(0, 10);
-				if (da !== db) return da < db ? -1 : 1;
-				const ca = a.date_created ?? '';
-				const cb = b.date_created ?? '';
-				return ca < cb ? -1 : ca > cb ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-			});
+		const charges = await chargesOldestDueFirst(directus, chargeIds);
 		if (!charges.length) {
 			console.warn('charge_ids matched no payment_requests:', chargeIds);
 			return;
@@ -847,6 +875,45 @@ async function splitPaymentAcrossCharges(
 		}
 	} catch (err) {
 		console.error('Error splitting payment across charges:', err);
+	}
+}
+
+/**
+ * Take a refund back off the charges one payment covered: NEWEST due first,
+ * the reverse of splitPaymentAcrossCharges, so a partial refund reopens the
+ * newest bill and leaves the oldest settled, the same order a partial payment
+ * would have left them in. Each charge gives back at most what it has been
+ * paid (an overpayment sat on the newest charge, so it comes back first).
+ *
+ * The caller passes only this refund's DELTA (planChargeRefund), so a replayed
+ * refund event never reaches here.
+ */
+async function unwindRefundAcrossCharges(
+	directus: ReturnType<typeof getTypedDirectus>,
+	chargeIds: string[],
+	amount: number
+) {
+	try {
+		const charges = (await chargesOldestDueFirst(directus, chargeIds)).reverse();
+		if (!charges.length) {
+			console.warn('Refund: charge_ids matched no payment_requests:', chargeIds);
+			return;
+		}
+
+		let leftCents = Math.round(amount * 100);
+		for (const c of charges) {
+			if (leftCents <= 0) break;
+			const paidCents = Math.max(0, Math.round(Number(c.amount_paid ?? 0) * 100));
+			const shareCents = Math.min(paidCents, leftCents);
+			if (shareCents <= 0) continue;
+			await updatePaymentRequest(directus, c.id, -shareCents / 100);
+			leftCents -= shareCents;
+		}
+		if (leftCents > 0) {
+			console.warn('Refund: more than the charges held was asked back; left over (cents):', leftCents, chargeIds);
+		}
+	} catch (err) {
+		console.error('Error unwinding refund across charges:', err);
 	}
 }
 

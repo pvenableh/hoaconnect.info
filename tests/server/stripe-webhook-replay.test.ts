@@ -190,6 +190,81 @@ describe("charge.refunded — partial, then full, each replayed", () => {
   });
 });
 
+describe("charge.refunded — one payment that covered two charges", () => {
+  // The owner's "Pay" button and autopay send every charge a payment covers in
+  // metadata.charge_ids. A $500 payment settles November ($250, due Nov 1) and
+  // December ($250, due Dec 1); the ids are listed newest first on purpose, so
+  // the order comes from the due dates, not the metadata.
+  const DECEMBER = "44444444-4444-4444-8444-444444444444";
+  const december = () => db.one("payment_requests", DECEMBER)!;
+
+  /** A fixture with its Stripe object edited, delivered as raw bytes. */
+  const deliverEdited = async (name: string, edit: (o: any) => void) => {
+    const event = JSON.parse(fixture(name));
+    edit(event.data.object);
+    rawBody = JSON.stringify(event);
+    return handler({} as H3Event);
+  };
+  const refund = (refundedCents: number, full = false) =>
+    deliverEdited(full ? "charge.refunded.full.json" : "charge.refunded.partial.json", (c) => {
+      c.amount = c.amount_captured = 50000;
+      c.amount_refunded = refundedCents;
+      c.refunded = full;
+    });
+
+  beforeEach(async () => {
+    db.seed("payment_requests", [
+      { id: DECEMBER, organization: ORG, title: "December dues", amount: 250, amount_paid: 0, amount_remaining: 250, status: "active", due_date: "2026-12-01", paid_at: null },
+    ]);
+    await deliverEdited("payment_intent.succeeded.json", (pi) => {
+      pi.amount = pi.amount_received = 50000;
+      pi.description = "November and December dues";
+      pi.metadata = { organization_id: ORG, member_id: MEMBER, charge_ids: `${DECEMBER},${REQUEST}` };
+    });
+    await deliverEdited("charge.succeeded.json", (c) => {
+      c.amount = c.amount_captured = 50000;
+    });
+  });
+
+  it("the payment settled both charges", () => {
+    expect(request()).toMatchObject({ amount_paid: 250, status: "paid" });
+    expect(december()).toMatchObject({ amount_paid: 250, status: "paid" });
+  });
+
+  it("a $100 partial refund comes off the newest charge only, once", async () => {
+    await refund(10000);
+    await refund(10000);
+
+    expect(txns()[0]).toMatchObject({ status: "succeeded", net_amount: 400 });
+    expect(december()).toMatchObject({ amount_paid: 150, amount_remaining: 100, status: "partially_paid" });
+    expect(request()).toMatchObject({ amount_paid: 250, status: "paid" });
+    expect(ledger("payment_refunded").map((r) => r.payload.amount)).toEqual([100]);
+  });
+
+  it("the full refund after it unwinds the rest across both charges, newest first; replays change nothing", async () => {
+    await refund(10000);
+    await refund(50000, true);
+    await refund(50000, true);
+    await refund(10000); // a late redelivery of the first refund
+
+    expect(txns()[0]).toMatchObject({ status: "refunded", net_amount: 0 });
+    expect(december()).toMatchObject({ amount_paid: 0, amount_remaining: 250, paid_at: null });
+    // Due Nov 1 and now unpaid: overdue again.
+    expect(request()).toMatchObject({ amount_paid: 0, amount_remaining: 250, status: "overdue", paid_at: null });
+    expect(ledger("payment_refunded").map((r) => [r.payload.amount, r.payload.fully_refunded])).toEqual([
+      [100, false],
+      [400, true],
+    ]);
+  });
+
+  it("a refund that reaches into the older charge takes the newest down to zero first", async () => {
+    await refund(30000);
+
+    expect(december()).toMatchObject({ amount_paid: 0 });
+    expect(request()).toMatchObject({ amount_paid: 200, amount_remaining: 50, status: "partially_paid" });
+  });
+});
+
 describe("charge.refunded — out of order", () => {
   it("a refund processed before charge.succeeded still finds the payment by its PaymentIntent", async () => {
     await deliver("payment_intent.succeeded.json");
