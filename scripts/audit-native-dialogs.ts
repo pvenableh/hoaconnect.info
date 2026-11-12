@@ -19,8 +19,9 @@ import { findNativeDialogs } from "./lib/audit-matchers";
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **4**. 4 `prompt()` calls (ChannelMessage report reason, ProjectGantt ×2, approvals reject note). `confirm`/`alert` are already 0 — Phase 1 held. The plan expected a gate at 0; it is not, so this ratchets until the 4 `prompt()`s become `useConfirm` + a text field.
+ * 2026-11-12 (launch follow-ups Session 4) — **0**. The four are `useConfirm().prompt({ … })`; the gate is at 0.
  */
-const BASELINE = 4;
+const BASELINE = 0;
 
 runFileAudit({
   name: "native-dialogs",
@@ -30,7 +31,7 @@ runFileAudit({
   scan: (src, file) => findNativeDialogs(src, file.endsWith(".vue") ? "vue" : "ts"),
   
   fix: [
-    "Use `const { confirm } = useConfirm()` (an options OBJECT — that is what separates it",
+    "Use `const { confirm, prompt } = useConfirm()` (an options OBJECT — that is what separates it",
     "from the native call) or a toast. Tag a real exception `allow-native-dialog: <why>`.",
   ],
 });

@@ -12,6 +12,7 @@ definePageMeta({
 
 const { selectedOrgId } = await useSelectedOrg();
 const { listRequests, decide } = useChangeRequests();
+const { prompt } = useConfirm();
 
 const denied = ref(false);
 const { data, pending, refresh } = await useAsyncData(
@@ -76,7 +77,16 @@ const approve = async (r: any) => {
 };
 
 const reject = async (r: any) => {
-  const note = prompt("Reason for rejecting (optional — shown to the resident):") ?? undefined;
+  const reason = await prompt({
+    title: "Reject this request?",
+    body: "Your reason is shown to the resident.",
+    label: "Reason (optional)",
+    multiline: true,
+    confirmLabel: "Reject",
+    destructive: true,
+  });
+  if (reason === null) return;
+  const note = reason || undefined;
   busy.value = r.id;
   try {
     await decide(r.id, "reject", note);

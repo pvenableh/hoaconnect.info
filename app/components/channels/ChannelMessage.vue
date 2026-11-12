@@ -3,7 +3,7 @@ import type { HoaChannelMessage } from "#core/types/directus";
 import { toast } from "vue-sonner";
 import { canOfferEdit } from "#core/shared/channels/rules";
 
-const { confirm } = useConfirm();
+const { confirm, prompt } = useConfirm();
 
 const props = defineProps<{
   message: HoaChannelMessage & {
@@ -226,7 +226,15 @@ async function moderate(action: "hide" | "remove") {
 }
 
 async function report() {
-  const reason = window.prompt("Report this message to moderators — a short reason (optional):") ?? "";
+  const reason = await prompt({
+    title: "Report this message to moderators?",
+    label: "Reason (optional)",
+    placeholder: "A short reason",
+    multiline: true,
+    maxLength: 500,
+    confirmLabel: "Report",
+  });
+  if (reason === null) return;
   try {
     await $fetch("/api/hoa/channels/report", {
       method: "POST",

@@ -46,4 +46,45 @@ describe("useConfirm", () => {
     settle(current.value!.id, false);
     await expect(done).resolves.toBeUndefined();
   });
+
+  it("prompt resolves the trimmed text on the action and null on cancel", async () => {
+    const { prompt, current, settle } = useConfirm();
+    const given = prompt({ title: "Report this message?", label: "Reason (optional)", multiline: true, confirmLabel: "Report" });
+    expect(current.value?.kind).toBe("prompt");
+    expect(current.value?.field).toMatchObject({ label: "Reason (optional)", multiline: true, defaultValue: "" });
+    settle(current.value!.id, true, "  spam  ");
+    await expect(given).resolves.toBe("spam");
+
+    const blank = prompt({ title: "Note?" });
+    settle(current.value!.id, true, "");
+    await expect(blank).resolves.toBe("");
+
+    const cancelled = prompt({ title: "Note?", defaultValue: "kept" });
+    expect(current.value?.field?.defaultValue).toBe("kept");
+    settle(current.value!.id, false, "typed anyway");
+    await expect(cancelled).resolves.toBeNull();
+    expect(current.value).toBeNull();
+  });
+
+  it("a required prompt ignores a blank or too-long action and stays open", async () => {
+    const { prompt, current, settle } = useConfirm();
+    const p = prompt({ title: "New project title", required: true, maxLength: 5 });
+    const id = current.value!.id;
+    settle(id, true, "   ");
+    settle(id, true, "toolong");
+    expect(current.value?.id).toBe(id);
+    settle(id, true, "Pool");
+    await expect(p).resolves.toBe("Pool");
+  });
+
+  it("queues a prompt behind a confirm like any other dialog", async () => {
+    const { confirm, prompt, current, settle } = useConfirm();
+    const first = confirm("First?");
+    const second = prompt({ title: "Then a note" });
+    settle(current.value!.id, true);
+    expect(current.value?.kind).toBe("prompt");
+    settle(current.value!.id, true, "ok");
+    await expect(first).resolves.toBe(true);
+    await expect(second).resolves.toBe("ok");
+  });
 });

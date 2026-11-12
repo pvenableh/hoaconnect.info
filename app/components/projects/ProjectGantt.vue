@@ -17,7 +17,7 @@ import type { ScheduleShift } from "#core/shared/projects/schedule";
 import { parseDateOnly } from "#core/shared/projects/schedule";
 import { eventProgress } from "#core/shared/projects/timeline";
 
-const { confirm } = useConfirm();
+const { confirm, prompt } = useConfirm();
 
 const props = defineProps<{ projectId: string; canWrite?: boolean }>();
 const emit = defineEmits<{ (e: "changed"): void }>();
@@ -223,7 +223,17 @@ async function copyLink() {
   }
 }
 async function onDecide(e: ProjectEventRow, decision: "approved" | "rejected") {
-  const note = decision === "rejected" ? prompt("Add a note (optional):") || undefined : undefined;
+  let note: string | undefined;
+  if (decision === "rejected") {
+    const given = await prompt({
+      title: `Send "${e.title}" back?`,
+      label: "Note (optional)",
+      multiline: true,
+      confirmLabel: "Send back",
+    });
+    if (given === null) return;
+    note = given || undefined;
+  }
   await decideApproval(e.id, decision, note);
   approvalLink.value = null;
   await load();
@@ -232,9 +242,14 @@ async function onDecide(e: ProjectEventRow, decision: "approved" | "rejected") {
 
 // ── Spawn project ────────────────────────────────────────────────────────────
 async function onSpawn(e: ProjectEventRow) {
-  const title = prompt("New project title:", `${e.title} — follow-up`);
+  const title = await prompt({
+    title: "Start a follow-up project",
+    label: "Project title",
+    defaultValue: `${e.title} — follow-up`,
+    confirmLabel: "Create",
+  });
   if (title === null) return;
-  await spawnProject(e.id, { title: title.trim() || undefined });
+  await spawnProject(e.id, { title: title || undefined });
   await load();
   emit("changed");
 }
