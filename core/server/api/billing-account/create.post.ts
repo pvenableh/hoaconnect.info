@@ -4,8 +4,17 @@
 // billing_account_members row. Stripe is attached separately via
 // /api/stripe/billing-account/subscribe (P2). Any authenticated user may create
 // an account they own.
+//
+// Until 2026-11-12 any user could also send `isFreeAccount: true` and get a
+// comped account, and every other account was a `trial` with no end date, which
+// `isEntitledFrom` reads as entitled forever: attach a community to it and stop
+// paying. A comped account now takes HOA Connect staff with `billing.write`, and
+// a trial ends after the same 14 days a self-signup gets.
 import { z } from "zod";
 import { createItem } from "@directus/sdk";
+
+/** Same as a self-signup's trial (setup-organization.post.ts). */
+const ACCOUNT_TRIAL_DAYS = 14;
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -23,6 +32,7 @@ export default defineEventHandler(async (event) => {
     });
   }
   const { name, isFreeAccount } = parsed.data;
+  if (isFreeAccount) await requireOpsPermission(event, "billing.write");
 
   const directus = getTypedDirectus();
 
@@ -33,6 +43,9 @@ export default defineEventHandler(async (event) => {
       status: "active",
       // No Stripe yet → trial until subscribe() runs (or free if comped).
       subscription_status: isFreeAccount ? "active" : "trial",
+      trial_ends_at: isFreeAccount
+        ? null
+        : new Date(Date.now() + ACCOUNT_TRIAL_DAYS * 86_400_000).toISOString(),
       is_free_account: isFreeAccount ?? false,
       seats_purchased: 0,
       included_properties: 0,

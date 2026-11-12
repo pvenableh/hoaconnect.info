@@ -4,7 +4,15 @@
 // `quantity` = the initial active-property count on a flat per-seat price.
 // One trial per agency. Returns a SetupIntent (trial) or PaymentIntent (no trial)
 // client secret, as /api/stripe/subscribe-band does. Owner / billing_admin only.
+//
+// The price is the agency plan's, chosen on the server: until 2026-11-12 the
+// browser's `priceId`, `quantity` and `trialDays` (up to 365) went straight to
+// Stripe, so any account owner — and anyone can create an account — could
+// subscribe on any price in the shared Stripe account, at one seat, with a
+// year's trial. `priceId` must now be one of the two agency prices; a seat
+// override or a trial takes HOA Connect staff with `billing.write`.
 import { z } from "zod";
+import { opsCan } from "#core/shared/ops/permissions";
 import { appMetadata } from "#core/shared/billing/stripe-app";
 import Stripe from "stripe";
 import { updateItem } from "@directus/sdk";
@@ -28,10 +36,23 @@ export default defineEventHandler(async (event) => {
       message: parsed.error.errors.map((e) => e.message).join(", "),
     });
   }
-  const { accountId, priceId, billingCycle, trialDays, quantity } = parsed.data;
+  const { accountId, priceId } = parsed.data;
 
   // Authorize: must manage this account.
   await requireBillingAccountRole(event, accountId, ["owner", "billing_admin"]);
+
+  const { agencyPriceIdMonthly, agencyPriceIdYearly } = useRuntimeConfig().public as Record<string, string | undefined>;
+  const billingCycle =
+    priceId && priceId === agencyPriceIdYearly ? "yearly" : priceId && priceId === agencyPriceIdMonthly ? "monthly" : null;
+  if (!billingCycle) {
+    throw createError({ statusCode: 400, message: "That is not an agency plan price." });
+  }
+
+  // A seat override or a trial is a staff decision, not the customer's.
+  const actor = await getPlatformActor(event);
+  const staff = opsCan(actor?.role, "billing.write");
+  const trialDays = staff ? parsed.data.trialDays : undefined;
+  const quantity = staff ? parsed.data.quantity : undefined;
 
   const account = await getBillingAccount(accountId);
   const stripe = getStripe();
@@ -93,7 +114,7 @@ export default defineEventHandler(async (event) => {
       subscription_status: mapped.subscription_status,
       status: mapped.status,
       seats_purchased: subscription.items?.data?.[0]?.quantity ?? seats,
-      billing_cycle: billingCycle || (interval === "year" ? "yearly" : "monthly"),
+      billing_cycle: interval === "year" ? "yearly" : interval === "month" ? "monthly" : billingCycle,
       trial_ends_at: subscription.trial_end
         ? new Date(subscription.trial_end * 1000).toISOString()
         : null,
