@@ -4,6 +4,11 @@
  * framework-free provisioner in core/shared/demo/seed.ts — the SAME code the
  * nightly reset route calls, so the two can never drift.
  *
+ * Also writes what the demo shows of Earnest parity round 3 — reminders ON, a
+ * recurring email, a channel with a DM, a year of paid dues and expenses for
+ * Reports (see core/shared/demo/round3.ts). `--dry` reads and lists all of it
+ * ("(dry) + …") and sends no write.
+ *
  * Target: DIRECTUS_URL + DIRECTUS_STATIC_TOKEN (admin token).
  * Creds:  DEMO_USER_EMAIL / DEMO_USER_PASSWORD (optional; sensible defaults).
  * Run:    pnpm run seed:demo            (writes)
