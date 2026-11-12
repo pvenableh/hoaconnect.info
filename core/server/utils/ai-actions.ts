@@ -74,24 +74,69 @@ interface ExecContext {
 const directus = () => getTypedDirectus();
 
 // ── id resolution ──────────────────────────────────────────────────────────────
+// Every id an executor writes or touches comes from the action's payload, and the
+// payload is not trusted: the model proposes it and the edit route lets the
+// caller replace it wholesale. Executors run with the admin token, so the check
+// below is the only thing keeping one community's action pointed at its own rows.
+
+const NOT_AVAILABLE = "That record isn't available in this association.";
+
+/**
+ * The record kinds `add_comment` may attach a note to. Mirrors the
+ * `target_collection` enum the model is given in `llm/tools.ts`; a collection
+ * outside it is refused rather than looked up.
+ */
+const COMMENT_TARGETS = new Set(["hoa_requests", "hoa_projects", "hoa_announcements", "hoa_meetings"]);
+
+/** A usable record id: a non-empty string or a finite number, never an object. */
+function isRecordId(id: unknown): id is string | number {
+  return (typeof id === "string" && id.trim().length > 0) || (typeof id === "number" && Number.isFinite(id));
+}
+
 // Confirm a referenced row is in THIS org before we touch it (guards hallucinated
 // ids and cross-tenant references). Returns the row or throws a friendly error.
-async function requireOrgRow(collection: string, id: string, orgId: string, fields: string[] = ["id"]): Promise<any> {
+// A missing id is refused here rather than queried: `{ _eq: undefined }` drops
+// out of the request, and the filter would then match the org's first row.
+async function requireOrgRow(
+  collection: string,
+  id: unknown,
+  orgId: string,
+  fields: string[] = ["id"],
+  extraFilter: Record<string, any> = {}
+): Promise<any> {
+  if (!isRecordId(id)) throw new Error(NOT_AVAILABLE);
   const rows = (await directus().request(
     (readItems as any)(collection, {
-      filter: { id: { _eq: id }, organization: { _eq: orgId } },
+      filter: { ...extraFilter, id: { _eq: id }, organization: { _eq: orgId } },
       fields,
       limit: 1,
     })
   )) as any[];
-  if (!rows?.[0]) throw new Error("That record isn't available in this association.");
+  if (!rows?.[0]) throw new Error(NOT_AVAILABLE);
   return rows[0];
 }
+
+/** An optional payload id: absent → null; present → must be this org's row. */
+async function optionalOrgRowId(
+  collection: string,
+  id: unknown,
+  orgId: string,
+  extraFilter: Record<string, any> = {}
+): Promise<string | null> {
+  if (id === undefined || id === null || id === "") return null;
+  const row = await requireOrgRow(collection, id, orgId, ["id"], extraFilter);
+  return String(row.id);
+}
+
+/** A member a request or violation may name: an active member of THIS org. */
+const ACTIVE_MEMBER = { status: { _eq: "active" } };
 
 // ── executors — the only code that writes; keyed by action_type ────────────────
 const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
   async create_task({ payload, orgId }) {
-    const category = payload.request_id ? "request" : payload.project_id ? "project" : "quick";
+    const project = await optionalOrgRowId("hoa_projects", payload.project_id, orgId);
+    const request = await optionalOrgRowId("hoa_requests", payload.request_id, orgId);
+    const category = request ? "request" : project ? "project" : "quick";
     const created = (await directus().request(
       createItem("hoa_tasks", {
         organization: orgId,
@@ -101,19 +146,21 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
         due_date: payload.due_date ?? null,
         status: "new",
         category,
-        project: payload.project_id ?? null,
-        request: payload.request_id ?? null,
+        project,
+        request,
       } as any)
     )) as { id: string };
     return { result: { taskId: created.id }, undo: { kind: "delete", collection: "hoa_tasks", id: created.id } };
   },
 
   async add_comment({ payload, orgId, userId }) {
+    if (!COMMENT_TARGETS.has(payload.target_collection)) throw new Error(NOT_AVAILABLE);
+    const target = await requireOrgRow(payload.target_collection, payload.target_id, orgId);
     const created = (await directus().request(
       createItem("hoa_comments", {
         organization: orgId,
         target_collection: payload.target_collection,
-        target_id: String(payload.target_id),
+        target_id: String(target.id),
         body: payload.body,
         is_internal: payload.is_internal !== false,
         status: "published",
@@ -135,6 +182,7 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
   },
 
   async create_request({ payload, orgId }) {
+    const member = await optionalOrgRowId("hoa_members", payload.member_id, orgId, ACTIVE_MEMBER);
     const created = (await directus().request(
       createItem("hoa_requests", {
         organization: orgId,
@@ -142,7 +190,7 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
         type: payload.type,
         description: payload.description ?? null,
         priority: payload.priority ?? null,
-        member: payload.member_id ?? null,
+        member,
         status: "open",
       } as any)
     )) as { id: string };
@@ -160,15 +208,27 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
 
   async assign_request({ payload, orgId }) {
     const prev = await requireOrgRow("hoa_requests", payload.request_id, orgId, ["id", "assigned_to"]);
-    const users = (await directus().request(
-      (readItems as any)("directus_users", {
-        filter: { email: { _eq: payload.assignee_email } },
-        fields: ["id", "first_name", "last_name"],
+    // Resolve the assignee THROUGH this org's active membership, never across
+    // the platform's users: an address that belongs to someone outside the
+    // community fails exactly like an address nobody has, and their name is
+    // never read. An empty email is refused before the query, where a dropped
+    // `_eq` would otherwise match the org's first member.
+    const email = typeof payload.assignee_email === "string" ? payload.assignee_email.trim() : "";
+    const notFound = new Error(`No staff member found with the email ${email || "given"}.`);
+    if (!email) throw notFound;
+    const members = (await directus().request(
+      (readItems as any)("hoa_members", {
+        filter: {
+          organization: { _eq: orgId },
+          status: { _eq: "active" },
+          user: { email: { _eq: email } },
+        },
+        fields: ["id", "user.id", "user.first_name", "user.last_name"],
         limit: 1,
       })
     )) as any[];
-    const user = users?.[0];
-    if (!user) throw new Error(`No staff member found with the email ${payload.assignee_email}.`);
+    const user = members?.[0]?.user;
+    if (!user || typeof user !== "object" || !isRecordId(user.id)) throw notFound;
     await directus().request(updateItem("hoa_requests", payload.request_id, { assigned_to: user.id } as any));
     return {
       result: { requestId: payload.request_id, assignedTo: `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() },
@@ -188,13 +248,14 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
   },
 
   async log_violation({ payload, orgId }) {
+    const member = await optionalOrgRowId("hoa_members", payload.member_id, orgId, ACTIVE_MEMBER);
     const created = (await directus().request(
       createItem("hoa_requests", {
         organization: orgId,
         type: "violation",
         title: payload.title,
         description: payload.description ?? null,
-        member: payload.member_id ?? null,
+        member,
         priority: payload.priority ?? null,
         status: "open",
       } as any)
