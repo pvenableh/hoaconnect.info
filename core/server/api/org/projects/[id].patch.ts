@@ -38,6 +38,22 @@ export default defineEventHandler(async (event) => {
     patch.completion_date = new Date().toISOString().slice(0, 10);
   }
 
+  // Every link being written is confirmed to belong to THIS community first
+  // (see task-links.ts): the GET expands them into another community's titles,
+  // vendor, team and people otherwise. A null / empty value is a clear and
+  // needs no check.
+  if (patch.team) await requireInOrg("hoa_teams", String(patch.team), orgId, "Team not found");
+  if (patch.parent_project) {
+    await requireInOrg("hoa_projects", String(patch.parent_project), orgId, "Project not found");
+  }
+  if (patch.parent_event) {
+    await requireInOrg("hoa_project_events", String(patch.parent_event), orgId, "Milestone not found");
+  }
+  if (Array.isArray(body.assigned_to)) await requireOrgMembers(orgId, body.assigned_to);
+  for (const vendorId of new Set<string>((patch.vendors || []).map((v: any) => String(v.hoa_vendors_id)))) {
+    await requireInOrg("hoa_vendors", vendorId, orgId, "Vendor not found");
+  }
+
   const updated = await directus.request(updateItem("hoa_projects", id, patch as any));
   return updated;
 });

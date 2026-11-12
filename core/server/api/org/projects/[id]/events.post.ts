@@ -15,6 +15,13 @@ export default defineEventHandler(async (event) => {
   if (meta.organization !== orgId) throw createError({ statusCode: 404, message: "Project not found" });
   await requireProjectsWrite(event, orgId, meta.team);
 
+  // Links from the body are confirmed to belong to THIS community before they
+  // are written (see task-links.ts).
+  if (body.depends_on) {
+    await requireInOrg("hoa_project_events", String(body.depends_on), orgId, "Milestone not found");
+  }
+  if (body.assigned_to) await requireOrgMembers(orgId, [String(body.assigned_to)]);
+
   const directus = getTypedDirectus();
   const end_date =
     body.event_date && body.duration_days

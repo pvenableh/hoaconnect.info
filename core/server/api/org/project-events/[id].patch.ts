@@ -29,6 +29,13 @@ export default defineEventHandler(async (event) => {
   ];
   for (const f of FIELDS) if (f in body) patch[f] = body[f];
 
+  // Links being written are confirmed to belong to THIS community first (see
+  // task-links.ts). A null / empty value is a clear and needs no check.
+  if (patch.depends_on) {
+    await requireInOrg("hoa_project_events", String(patch.depends_on), orgId, "Milestone not found");
+  }
+  if (patch.assigned_to) await requireOrgMembers(orgId, [String(patch.assigned_to)]);
+
   // Recompute end_date whenever the start or duration shifts.
   const nextStart = "event_date" in body ? body.event_date : ev.event_date;
   const nextDur = "duration_days" in body ? body.duration_days : ev.duration_days;

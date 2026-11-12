@@ -41,8 +41,15 @@ export interface ResolvedTaskLinks {
   linkedToProject: boolean;
 }
 
-/** One row of `collection` with this id, in this org, or a 404. */
-async function requireInOrg(
+/**
+ * One row of `collection` with this id, in this org, or a 404.
+ *
+ * Exported because tasks are not the only rows that carry body-supplied links:
+ * the project and phase routes write `team`, `parent_project`, `parent_event`,
+ * `depends_on` and `vendors` the same way, and `GET /api/org/projects/:id`
+ * expands them just as eagerly. Same question, same answer, same status code.
+ */
+export async function requireInOrg(
   collection: string,
   id: string,
   organizationId: string,

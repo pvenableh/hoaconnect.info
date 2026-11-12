@@ -38,6 +38,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // A parent task from another community would put this row inside that
+  // task's `subtasks` expansion — the same check resolveTaskLinks makes on
+  // create/patch. All of them before any write, so a bad id moves nothing.
+  const parentIds = new Set<string>();
+  for (const item of items) {
+    if (found.has(String(item.id)) && item.parent_task) parentIds.add(String(item.parent_task));
+  }
+  for (const parentId of parentIds) {
+    await requireInOrg("hoa_tasks", parentId, orgId, "Task not found");
+  }
+
   let updated = 0;
   for (const item of items) {
     if (!found.has(String(item.id))) continue;

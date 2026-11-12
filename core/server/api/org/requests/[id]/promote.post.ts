@@ -29,6 +29,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "Request is already linked to a project" });
   }
 
+  // The team comes from the body, so it is confirmed to belong to THIS
+  // community before the project is created (see task-links.ts).
+  if (body.team) await requireInOrg("hoa_teams", String(body.team), orgId, "Team not found");
+
   const assigneeId = typeof request.assigned_to === "string" ? request.assigned_to : request.assigned_to?.id;
 
   const project = await directus.request(

@@ -21,6 +21,19 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Every link in the body is confirmed to belong to THIS community before it
+  // is written (see task-links.ts). GET /api/org/projects/:id expands the team,
+  // the parent project and phase, and each assignee's name and email, so an
+  // unchecked id is a read of another community's rows, not a dangling pointer.
+  if (team) await requireInOrg("hoa_teams", team, orgId, "Team not found");
+  if (body.parent_project) {
+    await requireInOrg("hoa_projects", String(body.parent_project), orgId, "Project not found");
+  }
+  if (body.parent_event) {
+    await requireInOrg("hoa_project_events", String(body.parent_event), orgId, "Milestone not found");
+  }
+  if (Array.isArray(body.assigned_to)) await requireOrgMembers(orgId, body.assigned_to);
+
   const directus = getTypedDirectus();
   const created = await directus.request(
     createItem("hoa_projects", {
