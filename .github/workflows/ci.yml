@@ -46,5 +46,10 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # The build step died with exit code 134 (Node's heap limit) on every push
+      # from at least 2026-11-11; the runner has the memory, Node's default
+      # ceiling was the limit.
       - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm build

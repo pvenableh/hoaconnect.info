@@ -5,8 +5,13 @@
  * already had its copy, or will get one when the admin adds it); never
  * scheduled or recurring. Nothing is sent: the admin opens it in the composer.
  */
-import { createItem, readItems } from "@directus/sdk";
+import * as sdk from "@directus/sdk";
 import { buildUniqueWebSlug } from "./email-branding";
+
+// The client is loosely typed (the routes pass getTypedDirectus(), the tests a
+// stub), so the builders are used untyped, as in email-compliance.ts.
+const readItems = (collection: string, query: Record<string, unknown>) => (sdk as any).readItems(collection, query);
+const createItem = (collection: string, data: Record<string, unknown>) => (sdk as any).createItem(collection, data);
 
 /** The fields of the original the draft copies. */
 export const RESEND_DRAFT_SOURCE_FIELDS = [
@@ -36,7 +41,7 @@ export async function createResendDraft(
           filter: { organization: { _eq: organizationId }, web_slug: { _nnull: true } },
           fields: ["web_slug"],
           limit: -1,
-        } as any)
+        })
       )) as Array<{ web_slug?: string | null }>
     )
       .map((r) => r.web_slug)
@@ -71,6 +76,6 @@ export async function createResendDraft(
       bcc: null,
       web_slug: buildUniqueWebSlug(email.subject || "email", taken),
       ...(opts.emailClass && email.email_class ? { email_class: email.email_class } : {}),
-    } as any)
+    })
   )) as { id: string };
 }
