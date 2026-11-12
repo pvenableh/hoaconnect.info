@@ -75,6 +75,6 @@ dashboard, a password, or a device).
 
 ## 8. Known, deliberately open
 
-- **Four native `prompt()`s** (`audit:native-dialogs` ratchet at 4) — `useConfirm` has no text-input mode yet. Report a message, Gantt note/follow-up title, approval reject note.
-- **`charge.refunded` on a multi-charge payment** reverses against the first linked charge only (the split across `charge_ids` is not unwound). Rare; the ledger row is still exact.
+- ~~**Four native `prompt()`s**~~ **Closed 2026-11-12 (`e9e5696`):** `useConfirm().prompt({ … })` is the app's dialog with a text field, and `audit:native-dialogs` is a gate at 0. Cancel now stops the report and the rejection; with the native prompt both went ahead. Checked in the browser by opening the dialog directly; the four buttons themselves were not clicked (1033 Lenox has no projects, pending requests or channels for Oscar).
+- ~~**`charge.refunded` on a multi-charge payment**~~ **Closed 2026-11-12 (`583920b`):** a refund unwinds across every charge in `charge_ids`, newest due first. Tests cover a partial and a full refund across two charges, each replayed; the live "Refund round trip" row above is still Peter's.
 - ~~**The per-plan `/api/stripe/subscription` route**~~ **Closed 2026-11-09:** signup moved to bands and the route and `Payment/SubscriptionForm.vue` are gone.
