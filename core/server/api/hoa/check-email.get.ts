@@ -3,10 +3,23 @@ import { readItems } from "@directus/sdk";
 /**
  * Check if an email exists in the system
  * Returns information about existing accounts/members
+ *
+ * GET /api/hoa/check-email?email=…&organizationId=…
+ *
+ * For an admin of `organizationId`, about that community only. Until
+ * 2026-11-12 this asked for no session and answered across every community:
+ * anyone could learn, for any address, its account's name and every community
+ * it belongs to or is invited to.
  */
 export default defineEventHandler(async (event) => {
+  await requireUserSession(event);
   const query = getQuery(event);
   const email = query.email as string;
+  const organizationId = String(query.organizationId || "").trim();
+  if (!organizationId) {
+    throw createError({ statusCode: 400, message: "organizationId is required" });
+  }
+  await requireAdminAccess(event, organizationId);
 
   if (!email) {
     throw createError({
@@ -61,6 +74,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_members", {
         filter: {
           email: { _eq: email.toLowerCase() },
+          organization: { _eq: organizationId },
         },
         fields: [
           "id",
@@ -82,6 +96,7 @@ export default defineEventHandler(async (event) => {
       readItems("hoa_invitations", {
         filter: {
           email: { _eq: email.toLowerCase() },
+          organization: { _eq: organizationId },
           invitation_status: { _eq: "pending" },
           expires_at: { _gt: new Date().toISOString() } as any,
         },

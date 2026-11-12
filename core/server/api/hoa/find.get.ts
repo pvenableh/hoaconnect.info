@@ -27,9 +27,9 @@ export default defineEventHandler(async (event) => {
         fields: [
           "*",
           {
-            invitations: ["*"],
+            // No `invitations` (pending emails and their tokens) and no `subscription`:
+            // this answer is public. Removed 2026-11-12; nothing on the landing read them.
             amenities: ["*"],
-            subscription: ["*"],
             subscription_plan: ["*"],
             logo: ["*"],
             settings: ["*", { logo: ["*"], icon: ["*"] }],
