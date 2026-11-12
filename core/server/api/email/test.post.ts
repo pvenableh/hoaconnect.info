@@ -5,6 +5,7 @@ import { checkSendCompliance, recipientCompliance } from "#core/shared/email/uns
 import { resolveEmailBranding } from "../../utils/email-branding";
 import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
+import { assertEmailFilesInOrg, assetIdFromSrc, imageTags } from "#core/server/utils/org-files";
 
 interface CidImage {
   cid: string;
@@ -22,10 +23,10 @@ async function extractImagesAsCid(
   directusUrl: string,
   staticToken: string
 ): Promise<{ processedContent: string; cidImages: CidImage[] }> {
-  const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
   let processedContent = content;
   const cidImages: CidImage[] = [];
-  const matches = [...content.matchAll(imgRegex)];
+  // The same matcher assertEmailFilesInOrg checked, so only checked files are fetched.
+  const matches = imageTags(content);
 
   console.log(`[test.post] Processing ${matches.length} image(s) in content`);
 
@@ -38,13 +39,12 @@ async function extractImagesAsCid(
     if (src.includes(directusUrl) || src.includes('/assets/')) {
       try {
         // Extract asset ID from URL
-        const assetMatch = src.match(/\/assets\/([a-f0-9-]+)/i);
-        if (!assetMatch) {
+        const assetId = assetIdFromSrc(src, directusUrl);
+        if (!assetId) {
           console.log(`[test.post] Could not extract asset ID from: ${src}`);
           continue;
         }
 
-        const assetId = assetMatch[1];
         const assetUrl = `${directusUrl}/assets/${assetId}`;
 
         console.log(`[test.post] Downloading image: ${assetId}`);
@@ -158,6 +158,15 @@ export default defineEventHandler(async (event) => {
       message: `Invalid email address format: ${invalidEmails.join(", ")}`,
     });
   }
+
+  // Every file this test would read or mail — attachments and the body's
+  // images — must be this community's (org-files.ts), before any is touched.
+  // Until 2026-11-12 any file id went, another community's private PDF included.
+  await assertEmailFilesInOrg(organizationId, {
+    attachmentIds,
+    content,
+    directusUrl: useRuntimeConfig().directus.url as string,
+  });
 
   try {
     const config = useRuntimeConfig();

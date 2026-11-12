@@ -45,6 +45,7 @@ import {
   type sendOrganizationEmail,
 } from "./sendgrid";
 import { RunParked, type Copies } from "./email-send-queue";
+import { assetIdFromSrc, filesOutsideOrg, imageTags, inlineAssetIds, isFileId } from "./org-files";
 
 export type OrgMessage = Parameters<typeof sendOrganizationEmail>[0];
 export type RenderOrg = HoaOrganization & { settings: BlockSetting | null };
@@ -230,21 +231,21 @@ export async function loadAttachments(
 
 /**
  * Images on Directus asset URLs become CID inline attachments (Outlook renders
- * those, not data URIs). Once per run/request. A failed image keeps its URL.
+ * those, not data URIs). Once per run/request. A failed image keeps its URL,
+ * and so does one in `skip` (another community's file, never fetched). The
+ * matcher is org-files.ts's, so the ids its check saw are the ids fetched.
  */
 export async function extractImagesAsCid(
   content: string,
-  cfg: { directusUrl: string; staticToken: string; fetchImpl?: typeof fetch }
+  cfg: { directusUrl: string; staticToken: string; fetchImpl?: typeof fetch; skip?: ReadonlySet<string> }
 ): Promise<{ processedContent: string; inline: EmailAttachment[] }> {
-  const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)\/?>/gi;
   const doFetch = cfg.fetchImpl ?? fetch;
   let processedContent = content;
   const inline: EmailAttachment[] = [];
-  for (const match of [...content.matchAll(imgRegex)]) {
+  for (const match of imageTags(content)) {
     const [fullMatch, beforeSrc, src, afterSrc = ""] = match;
-    if (!src || !(src.includes(cfg.directusUrl) || src.includes("/assets/"))) continue;
-    const assetId = src.match(/\/assets\/([a-f0-9-]+)/i)?.[1];
-    if (!assetId) continue;
+    const assetId = assetIdFromSrc(src, cfg.directusUrl);
+    if (!assetId || cfg.skip?.has(assetId)) continue;
     try {
       const res = await doFetch(`${cfg.directusUrl}/assets/${assetId}`, {
         headers: { Authorization: `Bearer ${cfg.staticToken}` },
@@ -308,8 +309,32 @@ export async function loadRenderContext(
   if (compliance.ok === false) throw new RunParked(compliance.message);
 
   const files = (email.attachments || []).map((a) => a?.directus_files_id).filter(Boolean) as Array<{ id: string }>;
-  const attachments = await loadAttachments(files, { ...config, strict: true });
-  const { processedContent, inline } = await extractImagesAsCid(email.content || "", config);
+
+  // An email stored before the file check (org-files.ts) may name another
+  // community's file. Drop it — the rest of the send goes — and say so in the
+  // log; a check that can't run parks the run rather than send unchecked.
+  // (These ids are Directus' own, read back from the email; only a UUID can
+  // name a file, so nothing else is checked.)
+  let foreignFiles: Set<string>;
+  let foreignImages: Set<string>;
+  try {
+    foreignFiles = new Set(await filesOutsideOrg(organizationId, files.map((f) => f.id).filter(isFileId)));
+    const imageIds = [...inlineAssetIds(email.content, config.directusUrl), email.footer_image].filter(isFileId);
+    foreignImages = new Set(await filesOutsideOrg(organizationId, imageIds, { allowPublicImages: true }));
+  } catch (e) {
+    console.error(`[email-send-render] email ${emailId}: file check failed:`, (e as Error)?.message || e);
+    throw new RunParked("Could not check this email's files");
+  }
+  if (foreignFiles.size || foreignImages.size) {
+    console.warn(
+      `[email-send-render] email ${emailId}: dropped ${foreignFiles.size} attachment(s) and ${foreignImages.size} image(s) from outside org ${organizationId}`
+    );
+  }
+  const ownFiles = files.filter((f) => !(isFileId(f.id) && foreignFiles.has(f.id.toLowerCase())));
+  const footerImage = isFileId(email.footer_image) && foreignImages.has(email.footer_image.toLowerCase()) ? null : email.footer_image;
+
+  const attachments = await loadAttachments(ownFiles, { ...config, strict: true });
+  const { processedContent, inline } = await extractImagesAsCid(email.content || "", { ...config, skip: foreignImages });
   const includeBoardFooter = email.include_board_footer ?? true;
 
   return buildRenderContext({
@@ -317,7 +342,7 @@ export async function loadRenderContext(
     org,
     emailClass: compliance.emailClass,
     mailingAddress: compliance.mailingAddress,
-    email,
+    email: { ...email, footer_image: footerImage },
     content: processedContent,
     boardMembers: includeBoardFooter ? await readBoardMembers(directus, organizationId) : [],
     attachments: [...attachments, ...inline],

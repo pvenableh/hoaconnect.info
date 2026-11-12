@@ -39,6 +39,7 @@ import {
   type RenderOrg,
 } from "../../utils/email-send-render";
 import { readSendProgress, runInlineTick } from "../../utils/email-send-tick";
+import { assertEmailFilesInOrg } from "#core/server/utils/org-files";
 
 interface SendEmailBody {
   organizationId: string;
@@ -79,6 +80,16 @@ export default defineEventHandler(async (event) => {
   // Authorize: must be an org admin, or a property manager with the
   // "communications" grant. (Previously this route only required a session.)
   await requireAdminOrManagerGrant(event, organizationId, "communications");
+
+  // Every file this send stores or mails — attachments, the body's images, the
+  // footer photo — must be this community's (org-files.ts), before anything is
+  // read or written. Until 2026-11-12 any file id went.
+  await assertEmailFilesInOrg(organizationId, {
+    attachmentIds,
+    content,
+    footerImageId,
+    directusUrl: useRuntimeConfig().directus.url as string,
+  });
 
   try {
     const config = useRuntimeConfig();

@@ -4,6 +4,7 @@ import { defaultEmailClass } from "#core/shared/email/email-class";
 import { checkSendCompliance, orgMailingAddress, recipientCompliance } from "#core/shared/email/unsubscribe";
 import { SAMPLE_MERGE_VALUES, applyMergeFields } from "../../utils/email-merge";
 import type { HoaBoardMember, HoaMember, HoaOrganization, BlockSetting, DirectusFile } from "#core/types/directus";
+import { assertFilesInOrg } from "#core/server/utils/org-files";
 
 interface PreviewEmailBody {
   organizationId: string;
@@ -52,6 +53,13 @@ export default defineEventHandler(async (event) => {
       message: "Missing required fields: organizationId, subject, content, emailType",
     });
   }
+
+  // The preview describes each attachment (name, type, size) and shows the
+  // footer photo: both must be this community's files (org-files.ts). Until
+  // 2026-11-12 it described any file named. The body's images are not read
+  // here — the browser loads them as the public policy allows.
+  await assertFilesInOrg(organizationId, attachmentIds);
+  await assertFilesInOrg(organizationId, [footerImageId], { allowPublicImages: true });
 
   try {
     const config = useRuntimeConfig();

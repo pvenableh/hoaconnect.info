@@ -5,6 +5,7 @@ import { checkSendCompliance } from "#core/shared/email/unsubscribe";
 import { emailComplianceSchema } from "../../utils/email-compliance";
 import { emailPhase4Schema } from "../../utils/email-send-health";
 import { isRecurrenceRule, validTimeZone, type RecurrenceRule } from "#core/shared/email/recurrence";
+import { assertEmailFilesInOrg } from "#core/server/utils/org-files";
 
 interface SaveEmailBody {
   emailId?: string;
@@ -83,6 +84,16 @@ export default defineEventHandler(async (event) => {
   if (classResolution.ok === false) {
     throw createError({ statusCode: 400, message: classResolution.message, data: { code: classResolution.code } });
   }
+
+  // A saved email is sent later (the cron, a recurrence) from what is stored
+  // here: every file it names must be this community's (org-files.ts) before
+  // it is written. Until 2026-11-12 any file id was stored.
+  await assertEmailFilesInOrg(organizationId, {
+    attachmentIds,
+    content,
+    footerImageId,
+    directusUrl: useRuntimeConfig().directus.url as string,
+  });
 
   try {
     const directus = getTypedDirectus();
