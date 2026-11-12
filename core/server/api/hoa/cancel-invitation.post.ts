@@ -1,7 +1,7 @@
 import { updateItem, readItem } from "@directus/sdk";
 
 export default defineEventHandler(async (event) => {
-  const session = await requireUserSession(event);
+  await requireUserSession(event);
   const body = await readBody(event);
 
   const { invitationId } = body;
@@ -29,6 +29,18 @@ export default defineEventHandler(async (event) => {
         message: "Invitation not found",
       });
     }
+
+    // Only an admin of the invitation's own community may cancel it. Until
+    // 2026-11-12 this route asked for nothing but a session, so anyone signed in
+    // could cancel any community's pending invitation by its id.
+    const organizationId =
+      typeof invitation.organization === "string"
+        ? invitation.organization
+        : (invitation.organization as { id?: string } | null)?.id;
+    if (!organizationId) {
+      throw createError({ statusCode: 400, message: "Invitation has no associated organization" });
+    }
+    await requireAdminAccess(event, organizationId);
 
     // Check if the invitation is still pending
     if (invitation.invitation_status !== "pending") {

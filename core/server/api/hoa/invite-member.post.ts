@@ -8,6 +8,7 @@ import {
 } from "#core/shared/transition/grants";
 import { normalizeResidency, isKnownNonResidency } from "#core/shared/members/residency";
 import { inviteGateFor } from "#core/shared/members/invitability";
+import { assertAssignableRole } from "#core/server/utils/member-roles";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -59,8 +60,11 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Only org admins (or app admins) may invite members to this organization
-  await requireAdminAccess(event, organizationId);
+  // Only org admins (or app admins) may invite members to this organization,
+  // and only into a community role: accepting creates an account with this
+  // role, so an unchecked id could mint an App Admin (see member-roles.ts).
+  const admin = await requireAdminAccess(event, organizationId);
+  assertAssignableRole(roleId, admin);
 
   // Normalize email to lowercase
   const normalizedEmail = email.toLowerCase().trim();

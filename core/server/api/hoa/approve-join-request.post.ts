@@ -1,4 +1,5 @@
 import { readItem, updateItem, createItem } from "@directus/sdk";
+import { assertAssignableRole } from "#core/server/utils/member-roles";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -61,10 +62,25 @@ export default defineEventHandler(async (event) => {
     const organization = joinRequest.organization as { id: string; name: string; slug?: string };
 
     // Verify admin access to this organization
-    await requireAdminAccess(event, organization.id);
+    const admin = await requireAdminAccess(event, organization.id);
 
-    // Use provided role or default to member role
+    // Use provided role or default to member role — a community role only.
     const memberRoleId = roleId || config.public.directusRoleMember;
+    assertAssignableRole(memberRoleId, admin);
+
+    // A unit, if named, must be this community's: otherwise approving would
+    // link the new member to another community's unit. Same rule as
+    // member-units/assign.post.ts. Checked before anything is written.
+    if (unitId) {
+      const unit = await directus
+        .request(readItem("hoa_units", String(unitId), { fields: ["id", "organization"] }))
+        .catch(() => null);
+      const unitOrgId =
+        typeof unit?.organization === "string" ? unit.organization : (unit?.organization as { id?: string } | null)?.id;
+      if (!unit || unitOrgId !== organization.id) {
+        throw createError({ statusCode: 400, message: "Unit does not belong to this organization" });
+      }
+    }
 
     // Create HoaMember record
     const newMember = await directus.request(
