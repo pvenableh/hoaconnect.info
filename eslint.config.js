@@ -2,11 +2,12 @@
 //
 // What was dropped, and why (Phase 8 of the Round 3 plan):
 //   • `prettier/prettier` and the `padding-line-between-statements` rule set.
-//     This repo has no committed prettier config, so enabling the rule reports
+//     The code was never run through Prettier, so enabling the rule reports
 //     formatting on essentially every file — a wall of noise that buries real
-//     findings. Prettier stays a formatter (`lint-staged`, on touched files),
-//     not a lint rule. `eslint-config-prettier` still switches off every core
-//     rule that would fight it.
+//     findings. `.prettierrc` (2026-11-12) is fitted to the code as written,
+//     for editors and deliberate `prettier --write` runs; it is not a lint
+//     rule. `eslint-config-prettier` still switches off every core rule that
+//     would fight it.
 //   • `vue/no-restricted-html-elements` for `<button>`. HOA has the dedicated
 //     `audit:raw-buttons` ratchet (with an `allow-raw-button` marker) which is
 //     the stricter, measured version of the same rule.

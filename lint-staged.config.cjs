@@ -3,10 +3,12 @@
  * (the warning burn-down is `pnpm lint`'s `--max-warnings` ratchet, not a
  * per-commit tax on whoever touches a file).
  *
- * Deliberately NOT prettier: this repo has no committed prettier config, so
- * `prettier --write` on a touched file would reformat all of it to defaults and
- * bury a 5-line change in a 500-line diff. Earnest runs it because it has the
- * config; add `.prettierrc` first, then add it back here.
+ * Deliberately NOT prettier. `.prettierrc` exists now (2026-11-12), fitted to
+ * the code as written (140 columns, double quotes, semicolons, es5 commas), but
+ * the code was never run through Prettier: on a sample of 174 files only 47
+ * came out unchanged, and the rest averaged ~22 changed lines. `prettier
+ * --write` on every touched file would still bury a 5-line change in that
+ * churn. Format a file deliberately, in its own commit, when that is the point.
  *
  * `app/components/ui/**` is vendored shadcn-vue and is in eslint.config.js's
  * ignores; lint-staged would still hand those paths to eslint, so they are

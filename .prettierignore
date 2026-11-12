@@ -1,0 +1,9 @@
+# Vendored, generated or served as-is: never reformatted (the same set
+# lint-staged.config.cjs keeps away from ESLint).
+app/components/ui/
+core/types/
+core/public/
+public/
+scripts/browser/
+*.d.ts
+pnpm-lock.yaml
