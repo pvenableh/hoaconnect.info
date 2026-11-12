@@ -24,12 +24,11 @@
  * Gate: an admin of the org, or a property manager with the communications
  * grant — the people who can send in its name.
  *
- *             or `invitation` — the member invitation
- *             (core/server/utils/invitation-email.ts), with a sample inviter.
- *
- * The welcome / accepted emails are still SendGrid dynamic templates
- * (email-templates-invite.mjml is their source, not compiled here), so they
- * are not previewable from this route.
+ *             or an account email (core/server/utils/account-email.ts) with
+ *             sample people: `invitation` — the member invitation,
+ *             `welcome` — the welcome to a new HOA Admin, or
+ *             `invitation-accepted` — the note that tells an inviter their
+ *             invitation was accepted
  */
 import { readItems } from "@directus/sdk";
 import type { BlockSetting, HoaOrganization } from "#core/types/directus";
@@ -39,7 +38,10 @@ import { buildEmailHtml, buildEmailMjml, buildEmailText, type EmailType } from "
 import { resolveEmailBranding } from "../../utils/email-branding";
 import { partialWithCta, transactionalContent } from "../../utils/transactional-email";
 import { REMINDER_EMAIL_TEMPLATES, reminderEmail, sampleReminders } from "../../utils/reminder-email";
-import { INVITATION_EMAIL_TYPE, invitationEmailParts } from "../../utils/invitation-email";
+import { ACCOUNT_EMAIL_TYPE, type AccountEmailParts, type AccountEmailReason } from "../../utils/account-email";
+import { invitationEmailParts } from "../../utils/invitation-email";
+import { welcomeEmailParts } from "../../utils/welcome-email";
+import { invitationAcceptedEmailParts } from "../../utils/invitation-accepted-email";
 
 export const PREVIEW_TEMPLATES = [
   "basic",
@@ -50,6 +52,8 @@ export const PREVIEW_TEMPLATES = [
   "notice",
   "notification",
   "invitation",
+  "welcome",
+  "invitation-accepted",
   ...REMINDER_EMAIL_TEMPLATES,
 ] as const;
 export type PreviewTemplate = (typeof PREVIEW_TEMPLATES)[number];
@@ -140,33 +144,45 @@ export default defineEventHandler(async (event) => {
     ? sampleReminders(organization.name || undefined)[template as (typeof REMINDER_EMAIL_TEMPLATES)[number]]
     : null;
   const reminderParts = reminder ? reminderEmail(reminder) : null;
-  // The invitation renders as sendHoaInvitationEmail would, with a sample inviter.
-  const invitation =
+  // An account email renders as its sender would (account-email.ts), with
+  // sample people.
+  const orgName = organization.name || "Your community";
+  const account: { parts: AccountEmailParts; reason: AccountEmailReason } | null =
     template === "invitation"
-      ? invitationEmailParts({
-          organizationName: organization.name || "Your community",
-          invitationUrl: `${appUrl}/${slug}/accept-invite?token=sample`,
-          inviterName: "Jordan Lee",
-          roleName: "Owner",
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-      : null;
+      ? {
+          reason: "invitation",
+          parts: invitationEmailParts({
+            organizationName: orgName,
+            invitationUrl: `${appUrl}/${slug}/accept-invite?token=sample`,
+            inviterName: "Jordan Lee",
+            roleName: "Owner",
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        }
+      : template === "welcome"
+        ? { reason: "membership", parts: welcomeEmailParts({ organizationName: orgName, loginUrl: `${appUrl}/dashboard` }) }
+        : template === "invitation-accepted"
+          ? {
+              reason: "inviter",
+              parts: invitationAcceptedEmailParts({ organizationName: orgName, memberName: "Jordan Lee", memberEmail: "jordan@example.com" }),
+            }
+          : null;
   const emailType: EmailType = reminderParts
     ? reminderParts.emailType
     : isNotification
       ? "notice"
-      : invitation
-        ? INVITATION_EMAIL_TYPE
+      : account
+        ? ACCOUNT_EMAIL_TYPE
         : (template as EmailType);
   const subject = reminder
     ? reminder.subject
     : isNotification
       ? sample.subject
-      : invitation
-        ? invitation.subject
+      : account
+        ? account.parts.subject
         : "A sample message from your community";
-  const content = invitation
-    ? invitation.bodyHtml
+  const content = account
+    ? account.parts.bodyHtml
     : reminderParts
     ? transactionalContent(reminderParts, { appUrl, slug, settings: organization.settings })
     : isNotification
@@ -179,7 +195,7 @@ export default defineEventHandler(async (event) => {
   // (switched off in preferences); dues and violation reminders are essential
   // and can't be unsubscribed; organization emails preview as community mail.
   const { footer: complianceFooter } = recipientCompliance({
-    emailClass: isNotification || reminder || invitation ? "essential" : "community",
+    emailClass: isNotification || reminder || account ? "essential" : "community",
     org: organization,
     mailingAddress: orgMailingAddress(organization),
     appUrl,
@@ -187,8 +203,8 @@ export default defineEventHandler(async (event) => {
       ? { reason: reminder.essential ? ("reminders" as const) : ("notifications" as const) }
       : isNotification
         ? { reason: "notifications" as const }
-        : invitation
-          ? { reason: "invitation" as const }
+        : account
+          ? { reason: account.reason }
           : {}),
   });
 
@@ -204,8 +220,8 @@ export default defineEventHandler(async (event) => {
     footerImage: branding.footerImage,
     homepageUrl: branding.homepageUrl,
     complianceFooter,
-    contentPartial: invitation
-      ? invitation.contentPartial
+    contentPartial: account
+      ? account.parts.contentPartial
       : reminderParts
         ? partialWithCta(reminderParts.contentPartial, reminderParts.cta, { appUrl, slug })
         : null,

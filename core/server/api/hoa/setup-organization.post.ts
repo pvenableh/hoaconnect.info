@@ -12,7 +12,7 @@ import {
   readMe,
 } from "@directus/sdk";
 import { createDirectus } from "@directus/sdk";
-import { sendWelcomeEmail } from "../../utils/sendgrid";
+import { sendWelcomeEmail } from "../../utils/welcome-email";
 import { isContactOnly } from "#core/shared/billing/bands";
 import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
 
@@ -388,7 +388,7 @@ export default defineEventHandler(async (event) => {
         },
       });
 
-      // Send welcome email via SendGrid (only for new users)
+      // Send the welcome email, in the new community's branding (only for new users)
       try {
         await sendWelcomeEmail({
           to: email,
@@ -396,6 +396,7 @@ export default defineEventHandler(async (event) => {
           lastName,
           organizationName,
           loginUrl: `${config.public.appUrl}/dashboard`,
+          organizationId: organization.id,
         });
 
         console.log("✅ Welcome email sent successfully to:", email);

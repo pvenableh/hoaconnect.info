@@ -118,6 +118,30 @@ describe("GET /api/email/preview-mjml", () => {
     expect(html).toContain("invited this address to its HOA Connect portal");
   });
 
+  it("welcome: the new HOA Admin's welcome in the org's brand, the login button, the membership footer", async () => {
+    h.query = { org: "demo", template: "welcome" };
+    const html = await (await route())({});
+    expect(html).toContain("Welcome to Harborview Lofts!");
+    expect(html).toContain(`href="https://app.test/dashboard"`);
+    expect(html).toContain("Log In Now");
+    expect(html).toContain("background-color:#1e3a8a");
+    expect(html).toContain("You receive this because you are a member of Harborview Lofts; it cannot be unsubscribed.");
+    h.query = { org: "demo", template: "welcome", format: "mjml" };
+    expect(await (await route())({})).not.toMatch(/@CONTENT|\{\{/);
+  });
+
+  it("invitation-accepted: the inviter's note in the org's brand, a sample member, the inviter footer", async () => {
+    h.query = { org: "demo", template: "invitation-accepted" };
+    const html = await (await route())({});
+    expect(html).toContain("Jordan Lee has joined Harborview Lofts");
+    expect(html).toContain("jordan@example.com");
+    expect(html).toContain("background-color:#1e3a8a");
+    expect(html).toContain("you invited someone to join Harborview Lofts on HOA Connect and they accepted");
+    expect(html).not.toContain(">Preferences<");
+    h.query = { org: "demo", template: "invitation-accepted", format: "text" };
+    expect(await (await route())({})).toContain("Great news! Jordan Lee has accepted your invitation");
+  });
+
   it("format=mjml is the composed source; format=text the plain part", async () => {
     h.query = { org: "demo", template: "alert", format: "mjml" };
     const mjml = await (await route())({});

@@ -1,0 +1,35 @@
+{{!--
+  The welcome: a new HOA Admin's account for the community was created (at
+  signup, or re-sent from the operator console). The content slot of _layout,
+  beside org-email, so it carries the community's header, colours and footer
+  like every other email.
+
+  Edit the wording here. Rendered by core/server/utils/welcome-email.ts, which
+  escapes every variable: bodyPadding, greeting, greetingPadding, headingFont,
+  heading, orgName, ctaHref, ctaLabel, buttonBg, buttonColor. The plain-text
+  part is written beside it in welcome-email.ts (welcomeEmailParts); keep the
+  two saying the same.
+--}}
+      <!-- Welcome -->
+      <mj-section background-color="#ffffff" padding="{{bodyPadding}}">
+        <mj-column>
+          {{#if greeting}}
+          <mj-text padding="{{greetingPadding}}" color="#374151" font-size="16px" line-height="1.6">{{greeting}}</mj-text>
+          {{/if}}
+          <mj-text padding="0 32px 8px 32px" color="#111827" font-family="{{headingFont}}" font-size="20px" font-weight="600" line-height="1.3">{{heading}}</mj-text>
+          <mj-text padding="0 32px 16px 32px" color="#374151" font-size="16px" line-height="1.6">
+            Your account for <strong>{{orgName}}</strong> has been successfully created. You now have administrator access to manage your community.
+          </mj-text>
+          <mj-text padding="0 32px 8px 32px" color="#374151" font-size="16px" line-height="1.6">Here's what you can do:</mj-text>
+          <mj-text padding="0 32px 8px 32px" color="#374151" font-size="16px" line-height="1.6">
+            <ul style="margin:0;padding-left:20px;">
+              <li>Manage members and units</li>
+              <li>Send announcements and newsletters</li>
+              <li>Track payments and dues</li>
+              <li>Access community documents</li>
+            </ul>
+          </mj-text>
+          <mj-button href="{{ctaHref}}" align="left" background-color="{{buttonBg}}" color="{{buttonColor}}" border-radius="9999px" font-size="15px" font-weight="600" inner-padding="12px 24px" padding="16px 32px 16px 32px">{{ctaLabel}}</mj-button>
+          <mj-text padding="0 32px 8px 32px" color="#6b7280" font-size="13px" line-height="1.5">If you have any questions, please reach out to our support team.</mj-text>
+        </mj-column>
+      </mj-section>

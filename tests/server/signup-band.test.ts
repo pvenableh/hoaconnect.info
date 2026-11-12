@@ -42,7 +42,7 @@ vi.mock("#core/server/utils/stripe", () => ({
   getStripe: () => h.stripe,
   isStripeLiveMode: () => false,
 }));
-vi.mock("#core/server/utils/sendgrid", () => ({ sendWelcomeEmail: vi.fn(async () => undefined) }));
+vi.mock("#core/server/utils/welcome-email", () => ({ sendWelcomeEmail: vi.fn(async () => undefined) }));
 
 vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
 vi.stubGlobal("createError", (e: any) => Object.assign(new Error(e.message), e));

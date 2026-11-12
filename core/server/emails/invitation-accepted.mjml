@@ -1,0 +1,34 @@
+{{!--
+  The invitation accepted: someone accepted an invitation and joined the
+  community, and this tells the person who invited them. The content slot of
+  _layout, beside org-email, so it carries the community's header, colours and
+  footer like every other email.
+
+  Edit the wording here. Rendered by core/server/utils/invitation-accepted-email.ts,
+  which escapes every variable: bodyPadding, greeting, greetingPadding,
+  headingFont, heading, memberName, memberEmail, orgName. The plain-text part
+  is written beside it in invitation-accepted-email.ts
+  (invitationAcceptedEmailParts); keep the two saying the same.
+--}}
+      <!-- Invitation accepted -->
+      <mj-section background-color="#ffffff" padding="{{bodyPadding}}">
+        <mj-column>
+          {{#if greeting}}
+          <mj-text padding="{{greetingPadding}}" color="#374151" font-size="16px" line-height="1.6">{{greeting}}</mj-text>
+          {{/if}}
+          <mj-text padding="0 32px 8px 32px" color="#111827" font-family="{{headingFont}}" font-size="20px" font-weight="600" line-height="1.3">{{heading}}</mj-text>
+          <mj-text padding="0 32px 16px 32px" color="#374151" font-size="16px" line-height="1.6">
+            Great news! <strong>{{memberName}}</strong> has accepted your invitation and joined <strong>{{orgName}}</strong>.
+          </mj-text>
+          <mj-text padding="0 32px 16px 32px" color="#374151" font-size="15px" line-height="1.6">
+            <div style="background-color:#f9fafb;border-radius:8px;padding:16px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0 0 8px 0;">Member Details</div>
+              <div><strong>Name:</strong> {{memberName}}</div>
+              {{#if memberEmail}}
+              <div><strong>Email:</strong> {{memberEmail}}</div>
+              {{/if}}
+            </div>
+          </mj-text>
+          <mj-text padding="0 32px 8px 32px" color="#6b7280" font-size="13px" line-height="1.5">You can view and manage all members from your organization dashboard.</mj-text>
+        </mj-column>
+      </mj-section>

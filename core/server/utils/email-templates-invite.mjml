@@ -1,4 +1,4 @@
-<!-- The INVITATION section below is no longer sent from this hosted template (2026-11-12): the app renders core/server/emails/invitation.mjml (core/server/utils/invitation-email.ts). "welcome" and "accepted" still use this template. -->
+<!-- Nothing is sent from this SendGrid-hosted template any more (2026-11-12). The app renders its own MJML for all three sections: core/server/emails/invitation.mjml, welcome.mjml and invitation-accepted.mjml (core/server/utils/account-email.ts). Kept for reference only. -->
 <mjml>
   <mj-head>
     <mj-attributes>

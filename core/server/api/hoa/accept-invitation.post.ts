@@ -11,7 +11,7 @@ import {
 import { createDirectus } from "@directus/sdk";
 import type { User } from "#auth-utils";
 import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
-import { sendInvitationAcceptedEmail } from "../../utils/sendgrid";
+import { sendInvitationAcceptedEmail } from "../../utils/invitation-accepted-email";
 import { normalizeResidency, residencyOnAccept } from "#core/shared/members/residency";
 import { invitableMembers } from "#core/shared/members/invitability";
 
@@ -385,32 +385,8 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    // 8. Send notification email to admin who sent the invitation
-    // Build organization branding data for email
-    const org = invitation.organization;
-    let orgLogoUrl: string | undefined;
-    const settings = (org as any).settings as { logo?: string | { id: string } } | null;
-    if (settings?.logo) {
-      const logoId = typeof settings.logo === "string" ? settings.logo : settings.logo?.id;
-      if (logoId) {
-        orgLogoUrl = `${config.directus.url}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
-      }
-    }
-
-    // Build organization address
-    const addressParts = [
-      (org as any).street_address,
-      (org as any).city,
-      (org as any).state,
-      (org as any).zip,
-    ].filter(Boolean);
-    const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
-
-    // Build organization URL (slug-based)
-    const orgUrl = (org as any).slug
-      ? `${config.public.appUrl}/${(org as any).slug}`
-      : config.public.appUrl;
-
+    // 8. Tell the person who sent the invitation, in the community's branding
+    // (the sender loads the community's record for its logo, colours and footer).
     try {
       await sendInvitationAcceptedEmail({
         to: inviterEmail,
@@ -418,13 +394,6 @@ export default defineEventHandler(async (event) => {
         memberName: `${firstName} ${lastName}`,
         memberEmail: newUser.email || invitation.email,
         organizationName: organizationName,
-        // Organization branding data
-        orgLogoUrl,
-        orgUrl,
-        orgPhoneNumber: (org as any).phone || undefined,
-        orgEmail: (org as any).email || undefined,
-        orgAddress,
-        orgLegalName: (org as any).legal_name || undefined,
         // Without this the demo guardrail cannot fire: sending a demo
         // invitation was suppressed, but accepting one mailed the inviter.
         organizationId,

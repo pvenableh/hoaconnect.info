@@ -33,7 +33,7 @@ vi.mock("#core/server/utils/stripe", () => ({
   getStripe: () => h.stripe,
   isStripeLiveMode: () => false,
 }));
-vi.mock("#core/server/utils/sendgrid", () => ({ sendWelcomeEmail: (...a: unknown[]) => h.sendWelcome(...a) }));
+vi.mock("#core/server/utils/welcome-email", () => ({ sendWelcomeEmail: (...a: unknown[]) => h.sendWelcome(...a) }));
 // The real limiter keeps its buckets for the life of the process; here each test starts fresh.
 vi.mock("#core/server/utils/rate-limit", () => ({
   rateLimit: (...args: unknown[]) => {
@@ -1174,7 +1174,7 @@ describe("re-send welcome, email a receipt, change the billing contact", () => {
   it("re-sends the welcome email to one of the community's HOA Admins only", async () => {
     await call(actions.resendWelcome, { id: "harbor" }, submit({ memberId: "m-alice" }));
     expect(h.sendWelcome).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "alice@harbor.test", firstName: "Alice", organizationName: "Harbor Court", loginUrl: "https://app.test/dashboard" })
+      expect.objectContaining({ to: "alice@harbor.test", firstName: "Alice", organizationName: "Harbor Court", loginUrl: "https://app.test/dashboard", organizationId: "harbor" })
     );
     await expect(call(actions.resendWelcome, { id: "harbor" }, submit({ memberId: "m-rita" }))).rejects.toMatchObject({ statusCode: 404 });
     await expect(call(actions.resendWelcome, { id: "agency1" }, submit({ memberId: "m-alice" }))).rejects.toMatchObject({ statusCode: 404 });

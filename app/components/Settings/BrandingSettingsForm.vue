@@ -353,6 +353,8 @@
                 <option value="basic">Basic</option>
                 <option value="notification">Notification</option>
                 <option value="invitation">Member invitation</option>
+                <option value="welcome">Welcome (new HOA Admin)</option>
+                <option value="invitation-accepted">Invitation accepted</option>
                 <optgroup label="Reminders">
                   <option value="reminder-dues">Dues reminder</option>
                   <option value="reminder-meeting">Meeting reminder</option>

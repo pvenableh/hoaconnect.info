@@ -4,7 +4,7 @@
 import { readItems } from "@directus/sdk";
 import { z } from "zod";
 import { beginOpsAction, loadOpsCommunityBilling, runOpsAction } from "#core/server/utils/ops-actions";
-import { sendWelcomeEmail } from "#core/server/utils/sendgrid";
+import { sendWelcomeEmail } from "#core/server/utils/welcome-email";
 
 const readAny = readItems as any;
 const schema = z.object({ memberId: z.string().min(1, "Choose who gets it.") });
@@ -43,6 +43,7 @@ export default defineEventHandler(async (event) => {
         lastName,
         organizationName: c.org.name,
         loginUrl: `${String(config.public.appUrl || "").replace(/\/$/, "")}/dashboard`,
+        organizationId: c.org.id,
       });
       return {
         result: { sentTo: to },

@@ -165,6 +165,13 @@ describe("recipientCompliance — the per-recipient assembly", () => {
     const f = buildComplianceFooter({ emailClass: "essential", orgName: "Oak", reason: "notifications", preferencesUrl: `${APP}/oak/profile#email` });
     expect(f.text.split("\n")[0]).toBe("You receive this because you are a member of Oak and these notifications are on.");
   });
+
+  it("inviter wording for the accepted note, with no Preferences link (the inviter may not be a member)", () => {
+    const f = buildComplianceFooter({ emailClass: "essential", orgName: "Oak", reason: "inviter", preferencesUrl: `${APP}/oak/profile#email` });
+    expect(f.text.split("\n")[0]).toBe("You receive this because you invited someone to join Oak on HOA Connect and they accepted.");
+    expect(f.text).not.toContain("Preferences");
+    expect(f.html).not.toContain("profile#email");
+  });
 });
 
 describe("the footer in every body the builders produce", () => {

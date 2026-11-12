@@ -131,9 +131,11 @@ export interface ComplianceFooterInput {
    * than an unsubscribe. `reminders`: an essential reminder (dues, a
    * violation's correction date) that only the master email switch stops.
    * `invitation`: someone invited this address to join; it isn't a member
-   * yet, so there are no preferences to link to. Defaults to `membership`.
+   * yet, so there are no preferences to link to. `inviter`: an invitation this
+   * person sent was accepted; they may be an App Admin with no member row
+   * here, so again no preferences link. Defaults to `membership`.
    */
-  reason?: "membership" | "notifications" | "reminders" | "invitation";
+  reason?: "membership" | "notifications" | "reminders" | "invitation" | "inviter";
 }
 
 /**
@@ -158,10 +160,12 @@ export function buildComplianceFooter(input: ComplianceFooterInput): ComplianceF
     lead = `You receive this because you are a member of ${org}. Reminders about dues and notices are essential and cannot be unsubscribed; turning off all email in Preferences stops them.`;
   } else if (input.reason === "invitation") {
     lead = `You receive this because someone at ${org} invited this address to its HOA Connect portal.`;
+  } else if (input.reason === "inviter") {
+    lead = `You receive this because you invited someone to join ${org} on HOA Connect and they accepted.`;
   } else {
     lead = `You receive this because you are a member of ${org}; it cannot be unsubscribed.`;
   }
-  if (prefs && input.reason !== "invitation") links.push({ label: "Preferences", url: prefs });
+  if (prefs && input.reason !== "invitation" && input.reason !== "inviter") links.push({ label: "Preferences", url: prefs });
 
   const htmlParts = [`<span>${esc(lead)}</span>`];
   if (links.length) {
