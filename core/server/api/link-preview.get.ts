@@ -4,21 +4,13 @@
 // server-side. Best-effort: any failure returns a null-filled preview rather
 // than erroring, so the client just skips the card. Ported from Earnest's
 // link-preview route, hardened for HOA Connect.
-
-/** Reject obvious non-public hosts to blunt SSRF (literal private/loopback). */
-function isBlockedHost(host: string): boolean {
-  const h = host.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
-  if (h === "localhost" || h.endsWith(".localhost")) return true;
-  if (h === "0.0.0.0" || h === "::1" || h === "::") return true;
-  if (h === "169.254.169.254") return true; // cloud metadata
-  // IPv4 private / loopback / link-local ranges
-  if (/^127\./.test(h)) return true;
-  if (/^10\./.test(h)) return true;
-  if (/^192\.168\./.test(h)) return true;
-  if (/^169\.254\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return true;
-  return false;
-}
+//
+// The guard resolves the host and refuses any private/local/reserved address,
+// and redirects are followed by hand with the check re-run on each hop
+// (public-url.ts). Until 2026-11-12 it only compared the hostname's spelling and
+// followed redirects blindly, so a public URL that redirected to 169.254.169.254
+// (or a name resolving to 10.x) was fetched and its <title> returned.
+import { fetchPublic, isPublicHttpUrl } from "#core/server/utils/public-url";
 
 const EMPTY = (url: string) => ({ url, title: null, description: null, image: null, siteName: null });
 
@@ -37,18 +29,17 @@ export default defineEventHandler(async (event) => {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw createError({ statusCode: 400, message: "Only http(s) URLs are supported" });
   }
-  if (isBlockedHost(parsed.hostname)) {
+  if (!(await isPublicHttpUrl(parsed))) {
     // Not an error the UI needs to see — just no preview.
     return EMPTY(url);
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchPublic(url, {
       headers: { "User-Agent": "HOAConnect-LinkPreview/1.0", Accept: "text/html" },
-      redirect: "follow",
       signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) return EMPTY(url);
+    if (!response?.ok) return EMPTY(url);
 
     // Only parse HTML, and cap how much we read (previews live in the <head>).
     const ct = response.headers.get("content-type") || "";

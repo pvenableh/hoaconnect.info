@@ -4,10 +4,12 @@
 // method, view/download invoices, manage the subscription — without custom
 // PCI-scoped UI. Returns a one-time URL to redirect to. Owner / billing_admin only.
 import { z } from "zod";
+import { safeReturnUrl } from "#core/server/utils/return-url";
 
 const schema = z.object({
   accountId: z.string().min(1),
-  returnUrl: z.string().url().optional(),
+  // Checked by safeReturnUrl: the app's own origin only, else the default.
+  returnUrl: z.string().optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -27,12 +29,10 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const config = useRuntimeConfig();
-  const appUrl = (config.public.appUrl || "").replace(/\/$/, "");
   const stripe = getStripe();
   const session = await stripe.billingPortal.sessions.create({
     customer: account.stripe_customer_id,
-    return_url: returnUrl || `${appUrl}/billing/${accountId}`,
+    return_url: await safeReturnUrl(event, returnUrl, `/billing/${accountId}`),
   });
 
   return { url: session.url };
