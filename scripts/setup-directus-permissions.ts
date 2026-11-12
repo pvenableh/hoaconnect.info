@@ -20,6 +20,7 @@
  */
 
 import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
+import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
 
 // ============================================================================
 // Configuration
@@ -1082,6 +1083,19 @@ function buildPermissionsForLevel(
         }
       );
       break;
+  }
+
+  // The landing-page hero has no organization column: an HOA Admin changes only
+  // their own community's hero, through block_hero.hoa_organizations
+  // (scripts/lib/org-write-scopes.ts). Read and create stay open; a new hero is
+  // linked to its community after it is created.
+  if (collection === "block_hero") {
+    for (const p of permissions) {
+      if (p.action === "update" || p.action === "delete") {
+        p.permissions = HERO_OF_MY_COMMUNITY;
+        p.validation = null;
+      }
+    }
   }
 
   return permissions;

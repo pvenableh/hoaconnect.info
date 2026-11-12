@@ -449,7 +449,11 @@ From this repo:
   - **Nested-read 500 fixed the same day:** file and folder permissions no longer use
     `$CURRENT_USER.hoa_members.organization.folder` (mixed with the org path every other rule uses, it broke every
     nested file, folder or user read with a member's token). See the loose-ends file.
-  - **Still open:** the 12 AI flag suggestions (11 By-Laws, 1 on the 1995 Amendment) are Peter's to decide.
+  - **Open items finished the same day:** Peter confirmed all 12 AI flag suggestions (audited, through the app); the
+    self-parented "Test" folder was deleted; the HOA policies' unrestricted update and delete rights were scoped to the
+    user's own community (folders, the landing hero) or own rows (dashboards, panels). Remaining risk, recorded: a
+    member can add a file or folder to another community's library; the fix is to stop handing the browser a Directus
+    token (separate session).
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /

@@ -186,9 +186,8 @@ Each session appends its own "Session N done" bullet here.
     live about 4 minutes later (`/_nuxt/builds/latest.json` changed). The re-run of `pnpm run scope:public-files`
     after it found nothing to mark (11 of 11 governing files marked; no write), `audit:public-policy` is green, and
     `scope-member-file-writes.ts` reports already scoped.
-  - **Open:** the 12 AI flag suggestions (Peter's). A folder (`f0b2cfd6…`) is its own parent. A member may still move a
-    file into another community's folder (update has no validation on the new folder). Other HOA Member permissions
-    with `{}` on write actions were not reviewed.
+  - **Open then (all closed below):** the 12 AI flag suggestions; a folder that was its own parent; moves into another
+    community's folder; the other unrestricted write permissions.
 - **Nested-read 500 fixed (2026-11-11, Peter: "look into it and fix"; written with his yes after a dry run).** With a
   member's own token, every nested read of a file, folder or user answered a bare 500 on production:
   `/users/me?fields=avatar.id`, the Documents page's `hoa_documents` list with `file.*` (that page showed managers
@@ -209,6 +208,35 @@ Each session appends its own "Session N done" bullet here.
   before). The three scripts (`scope:public-files`, `scope-member-file-writes`, `fix-folder-org-filters`) each report
   nothing to do. Tests: `tests/scripts/folder-org-filters.test.ts`. Gates: 173 files / 3,067 tests, lint 0 errors
   and 139 warnings, 16 audits green, typecheck 0. Pushed with Peter's word.
+- **Open items finished (2026-11-11, Peter: "finish the open items"; each Directus write with his yes after a dry run).**
+  - **The 12 AI flag suggestions: all confirmed (Peter's decision).** He selected all twelve, including the seven my
+    Session 2 first look called noise (2.3, 3.3 against `718.112(2)(c)`, 3.4, 3.5, 3.8, 4.12, 4.1). Set through the
+    app's own route (`POST /api/governing/flags/:id/status`, signed in as Oscar), one `flag_status` audit row each with
+    the reason "Peter's decision (governing loose ends, 2026-11-11): confirm all 12 AI suggestions". None is left
+    suggested. Members now see each as a counsel-review (info) note on its provision.
+  - **The folder that was its own parent** ("Test", `f0b2cfd6…`): re-read just before (no files, no subfolders, no
+    community's root) and deleted.
+  - **The other unrestricted write rights, reviewed and scoped** (`scripts/lib/org-write-scopes.ts`,
+    `scripts/scope-org-writes.ts`; 13 rows backed up, then written, read back, cache cleared). HOA Member had 11 rows
+    of `{}` on create, update or delete, HOA Admin 14, Property Manager none. Scoped: folders (HOA Member update and
+    delete, HOA Admin delete) to folders below the user's community roots, never a root; `block_hero`, the
+    community landing hero (HOA Admin update and delete), to the user's community's hero through a new hidden alias
+    `block_hero.hoa_organizations` (reverse of `hoa_organizations.hero`); Insights dashboards and panels (both
+    policies; none exist, the app does not use them) to the user's own. Checked with Oscar's token: a Lenox subfolder
+    may be changed and deleted; the Lenox root, another community's root and its subfolder may not; nested reads
+    still 200. The hero rule could not be tried live (no HOA Admin session); it is checked by read-back only.
+    `setup-directus-permissions.ts` writes the same hero rule, and its audit mode shows no drift on files, folders or
+    the hero (it does report drift it did not cause on `hoa_members`, `hoa_channel_messages` and `hoa_email_recipients`
+    reads and one channel-message update; left alone).
+  - **Creates and moves into another community's library: recorded as the remaining risk (Peter's choice).** A create
+    or a move is checked against the new values, and a payload validation cannot follow a relation; the folder path
+    that could say it brings back the nested-read 500. So a signed-in member can still add a file or folder to another
+    community's library, or move one of their own there; they cannot read or change that community's files. Also
+    left as they were: create rights on files, folders, shares, dashboards and panels (both policies), and `block_hero`
+    and `hoa_meetings_files` (HOA Admin). The root cause is that `/api/websocket/token` hands every signed-in user
+    their own Directus token, and the HOA policies have app access; a separate session is proposed for it.
+  - Tests: `tests/scripts/org-write-scopes.test.ts`. Gates: 174 files / 3,071 tests, lint 0 errors and 139 warnings,
+    16 audits green, typecheck 0. Pushed with Peter's word.
 
 ---
 
