@@ -66,11 +66,17 @@ export default defineEventHandler(async (event) => {
   // Read the RAW body — signature verification must run over the exact bytes.
   const raw = (await readRawBody(event)) || "";
 
-  // Verify SendGrid's signed-webhook signature when a key is configured. If the
-  // key isn't set yet, accept but warn (lets the webhook work before signing is
-  // turned on); once SENDGRID_WEBHOOK_PUBLIC_KEY is set, unsigned/forged posts
-  // are rejected with 403.
+  // Verify SendGrid's signed-webhook signature. With SENDGRID_WEBHOOK_PUBLIC_KEY
+  // set, unsigned/forged posts are rejected with 403. Without it, a production
+  // build refuses everything with 503 — an unsigned post can mark any
+  // community's members bounced or opted out, and until 2026-11-12 that was
+  // accepted — while SendGrid keeps retrying, so events are delivered once the
+  // key is set. Only a local/test server still accepts unsigned posts (warned).
   const publicKey = useRuntimeConfig().sendgridWebhookPublicKey as string | undefined;
+  if (!publicKey && process.env.NODE_ENV === "production") {
+    console.error("[email/activity] SENDGRID_WEBHOOK_PUBLIC_KEY not set — refusing unsigned webhook posts");
+    throw createError({ statusCode: 503, message: "Webhook signing is not configured" });
+  }
   if (publicKey) {
     const ok = verifySendgridEventWebhook({
       publicKey,
