@@ -20,20 +20,31 @@ that session.
 - Run the Stripe prices script only with `STRIPE_EXPECT_ACCOUNT=acct_1Fv2XpA7IKygGtBC`.
 - Tick a docs/gtm-checklist.md row only when its "Verified when" column is actually met. If a part wasn't checked, say so on the row.
 
-## Where things stand (2026-11-09)
+## Where things stand (2026-11-12)
 
-- `origin/main` is at 7593ca5 (signup on bands, deployed by push; deploy not confirmed). 80184f9 (existing-email signup fix) is
-  committed locally and NOT pushed. `.claude/launch.json` has an uncommitted dev-port fix.
+- **Git:** `origin/main` is at 111e77d (fetched 2026-11-12), so 80184f9 (existing-email signup fix) is pushed, as is everything
+  from Sessions 2–4 and the gate on the email detail and list routes. Only f8601c3 (this file) was local when Session 5 began.
+  The `.claude/launch.json` dev-port fix is committed (87ca1da). Deployed: production's public config reports the app
+  version as `2.1.111e77d` (2026-11-12).
+- **Sessions 1–4 are done.**
+  - **Session 1** (87ca1da, 70c2e68, 2026-11-09): the live Stripe checks. Prices, webhook endpoint, portal and a live $2 signup
+    that was refunded are recorded on the gtm §3 rows.
+  - **Session 2:** the "someone subscribed" email, and no old trials without an end date.
+  - **Session 3:** automatic re-banding, proven on a Stripe test clock.
+  - **Session 4** (2026-11-12): the app's own text dialog in place of the four `prompt()`s, multi-charge refunds, `.prettierrc`,
+    "Resend to these N unknown" as a draft, and the member invitation as the app's own MJML email.
+  - **Still Peter's from Session 4:** the gtm §3 "Refund round trip" row.
 - Node: `eval "$(/opt/homebrew/bin/brew shellenv zsh)"; eval "$(fnm env --shell zsh)"; fnm use 22.22.1`. The pre-commit hook needs this too.
-- Gates at 80184f9: 144 files / 2,510 tests, 16 audits, lint 0 errors and 139 warnings (limit 148), typecheck 0
-  (`NODE_OPTIONS=--max-old-space-size=6144`). Build exit 0 at 7593ca5.
+- Gates last recorded at 80184f9: 144 files / 2,510 tests, 16 audits, lint 0 errors and 139 warnings (limit 148), typecheck 0
+  (`NODE_OPTIONS=--max-old-space-size=6144`). Not re-recorded since; Session 5 changes docs only and did not re-run them.
 - Dev server on this Mac: plain `pnpm dev` answers HTTP 426 because Vite's HMR socket lands on port 3000.
   `NUXT_PORT=3000 PORT=24678 pnpm dev` works.
-- Stripe: the app runs on Hue's `acct_1Fv2XpA7IKygGtBC`. The CLI is paired with a different account also named "hue"
-  (`acct_1TvM9jPOPxSJoMmo`), so its webhooks don't reach the app. `gh` is not installed.
+- Stripe: the app runs on Hue's `acct_1Fv2XpA7IKygGtBC`. On 2026-11-09 the CLI was paired with a different account also named
+  "hue" (`acct_1TvM9jPOPxSJoMmo`), so its webhooks didn't reach the app; not re-checked since. `gh` is not installed.
 - `declared_units` exists on admin.hoaconnect.info. New signups get a 14-day `trial_ends_at`.
 - Test-mode signup passed through `/setup` (Mid monthly, $2,949, `trial → active` by webhook). That org is deleted and its subscription canceled.
-- Directus snapshot: 7 orgs, none `active`, so no paying customers yet.
+- Directus snapshot, 2026-11-12: 7 orgs: 2 demos (`trial`), the transition fixture (`expired`) and 4 free communities (2 `trial`,
+  2 with no status). None is `active`. Live Stripe has one HOA Connect subscription, the $2 test, `canceled`. No paying customers yet.
 
 ### A test-mode run, when a session needs one
 
@@ -145,9 +156,22 @@ Done on local `main`, not pushed:
 
 Gates green, `pnpm build` too. Commit each of 1–4 separately and stop.
 
-## Session 5 — the rest of the GTM checklist (Sonnet 5.5, Peter-led)
+## Session 5 — the rest of the GTM checklist (Sonnet 5.5, Peter-led) — agent checks DONE 2026-11-12; Peter's list is open
 
 Blockers first. The agent checks what it can, hands Peter a short list, and ticks only what is verified. docs/plan-marketing-split.md is its own project and isn't part of this.
+
+**Done, read-only (no Directus, Stripe or Vercel write; nothing pushed):** ticked §1 schema scripts and §1 tag `v2.1`; reopened §2 support inbox
+(`hoaconnect.info` has no MX); the other rows carry what was and wasn't checked. Scratch scripts were run from the scratchpad with `.env`; no value was printed.
+
+**Peter's list, in order:**
+1. SendGrid: turn on Signed Event Webhook, set `SENDGRID_WEBHOOK_PUBLIC_KEY` in Vercel, redeploy. The agent then re-probes for 403. Open and 🔒: production accepts unsigned posts today.
+2. Vercel Production env, one pass: `OUTBOUND_EMAIL_ONLY_TO` absent; `STRIPE_MODE` absent or `live`; both Stripe key pairs; `NUXT_VAPID_PRIVATE_KEY`; `VOYAGE_API_KEY`; the same Anthropic key; add the two `STRIPE_PRICE_ADDON_STORAGE_100_*` vars after making the price.
+3. Stripe Connect: docs/connect-activation-runbook.md §3–§6, including the second "Connected accounts" endpoint. Nothing exists yet in either mode.
+4. An MX record for `hoaconnect.info`, so `support@` receives mail (and the "someone subscribed" email reaches Peter).
+5. On production, signed in: "Ask the HOA" on `/transition-test` answers (Anthropic, Voyage `ledgerMode: "vector"`), and Profile → Notifications can subscribe (VAPID).
+6. Then yes to delete the fixture, and the choices: which status tool, the privacy-policy link, the refund round trip, the device rows and DM test, Inbound Parse DNS, reminders per pilot.
+
+Needs code, not a dashboard: the demo re-seed (the seed has none of the Round 3 features and the nightly purge deletes demo emails).
 
 | Row | Who | How the agent helps |
 |---|---|---|
