@@ -1,4 +1,7 @@
-import { createItem, createItems } from "@directus/sdk";
+import { readItems, createItem, createItems } from "@directus/sdk";
+
+const idOf = (v: any): string | null =>
+  v == null ? null : typeof v === "string" ? v : (v.id ?? null);
 
 /**
  * Elevated channel creation (Phase 8, Track A).
@@ -10,7 +13,11 @@ import { createItem, createItems } from "@directus/sdk";
  * an elevated read route). PRIVATE channels skip the auto-enroll: only the
  * creator and any explicitly invited users are added.
  *
- * Authorized for org admins OR active board members.
+ * Authorized for org admins OR active board members. Everything the body names
+ * must belong to that same community — the linked `request` / `project`, and
+ * every `invite_users` entry (an active hoa_members row there) — and is checked
+ * before anything is written: the writes are on the admin client, so being an
+ * admin of community A must not let you link B's ticket or enroll B's people.
  *
  * Body: { organization, name, slug, description?, is_private?, is_default?,
  *         request?, project?, invite_users?: string[] }
@@ -50,6 +57,55 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Linked records must be this community's own.
+  for (const [collection, id] of [
+    ["hoa_requests", request],
+    ["hoa_projects", project],
+  ] as const) {
+    if (!id) continue;
+    const rows = (await directus.request(
+      readItems(collection, {
+        filter: { id: { _eq: id } },
+        fields: ["id", "organization"],
+        limit: 1,
+      } as never)
+    )) as any[];
+    if (idOf(rows?.[0]?.organization) !== organization) {
+      throw createError({
+        statusCode: 403,
+        message: `That ${collection === "hoa_requests" ? "request" : "project"} is not in this community`,
+      });
+    }
+  }
+
+  // Invitees must be active members of this community. (The creator is enrolled
+  // regardless, on the authorization above.)
+  const invitees = Array.isArray(invite_users)
+    ? [...new Set(invite_users.filter((u: unknown): u is string => typeof u === "string" && !!u))].filter(
+        (u) => u !== userId
+      )
+    : [];
+  if (invitees.length) {
+    const active = (await directus.request(
+      readItems("hoa_members", {
+        filter: {
+          user: { _in: invitees },
+          organization: { _eq: organization },
+          status: { _eq: "active" },
+        },
+        fields: ["user"],
+        limit: -1,
+      })
+    )) as any[];
+    const ok = new Set(active.map((m) => idOf(m.user)).filter(Boolean));
+    if (invitees.some((u) => !ok.has(u))) {
+      throw createError({
+        statusCode: 403,
+        message: "Everyone invited must be an active member of this community",
+      });
+    }
+  }
+
   // Create the channel.
   const channel: any = await directus.request(
     createItem("hoa_channels", {
@@ -81,12 +137,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Explicitly invited users (e.g. a ticket author) join as members.
-  if (Array.isArray(invite_users)) {
-    for (const u of invite_users) {
-      if (typeof u === "string" && u && !rows.has(u)) {
-        rows.set(u, { hoa_member: null, role: "member" });
-      }
-    }
+  for (const u of invitees) {
+    if (!rows.has(u)) rows.set(u, { hoa_member: null, role: "member" });
   }
 
   const memberPayload = Array.from(rows.entries()).map(([user, v]) => ({
