@@ -95,16 +95,22 @@ const pagination = computed(() => emailsData.value?.pagination || { page: 1, lim
 // Delete confirmation
 const showDeleteDialog = ref(false);
 const emailToDelete = ref<string | null>(null);
+// A failed send that reached nobody can be removed too (core/shared/email/
+// failed-sends.ts); the server decides, this only picks the wording.
+const deletingFailed = computed(
+  () => emails.value.find((e: HoaEmail) => e.id === emailToDelete.value)?.status === "failed"
+);
 
 const handleDelete = async () => {
   if (!emailToDelete.value) return;
 
   try {
+    const failed = deletingFailed.value;
     await emailSystem.deleteEmail(emailToDelete.value);
-    toast.success("Email draft deleted");
+    toast.success(failed ? "Failed email removed" : "Email draft deleted");
     await refreshEmails();
   } catch (error: any) {
-    toast.error(error.message || "Failed to delete email");
+    toast.error(error?.data?.message || error.message || "Failed to delete email");
   } finally {
     showDeleteDialog.value = false;
     emailToDelete.value = null;
@@ -356,10 +362,10 @@ useSeoMeta({
                       <Icon name="lucide:eye" />
                     </Button>
                     <Button
-                      v-if="row.status === 'draft'"
+                      v-if="row.status === 'draft' || row.status === 'failed'"
                       variant="destructive"
                       size="icon-sm"
-                      aria-label="Delete draft"
+                      :aria-label="row.status === 'draft' ? 'Delete draft' : 'Remove failed email'"
                       @click="confirmDelete(row.id)"
                     >
                       <Icon name="lucide:trash-2" />
@@ -438,9 +444,14 @@ useSeoMeta({
         <Dialog v-model:open="showDeleteDialog">
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete Draft</DialogTitle>
+              <DialogTitle>{{ deletingFailed ? "Remove Failed Email" : "Delete Draft" }}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete this email draft? This action cannot be undone.
+                <template v-if="deletingFailed">
+                  This email reached nobody. Removing it takes it off the list for good, along with its failed recipient rows. This action cannot be undone.
+                </template>
+                <template v-else>
+                  Are you sure you want to delete this email draft? This action cannot be undone.
+                </template>
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -448,7 +459,7 @@ useSeoMeta({
                 Cancel
               </Button>
               <Button variant="destructive" @click="handleDelete">
-                Delete
+                {{ deletingFailed ? 'Remove' : 'Delete' }}
               </Button>
             </DialogFooter>
           </DialogContent>

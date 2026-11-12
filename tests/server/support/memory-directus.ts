@@ -148,6 +148,14 @@ export class MemoryDirectus {
         for (const p of op.data as Row[]) Object.assign(this.one(c, p.id) ?? {}, p);
         return op.data;
       }
+      case "deleteItems": {
+        const k = op.keysOrQuery;
+        const gone = new Set(
+          (Array.isArray(k) ? k : this.all(c, k?.filter).map((r) => r.id)).map((id: unknown) => String(id))
+        );
+        this.rows.set(c, this.table(c).filter((r) => !gone.has(String(r.id))));
+        return {};
+      }
       case "deleteItem": {
         this.rows.set(c, this.table(c).filter((r) => String(r.id) !== String(op.id)));
         return {};

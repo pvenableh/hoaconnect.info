@@ -11,6 +11,7 @@ import {
 import type { HoaEmailsFile } from "#core/types/directus";
 import { recipientChip } from "#core/shared/email/send-progress";
 import { planUnknownResend } from "#core/shared/email/resend-unknown";
+import { canRemoveEmail, planFailedRetry, summarizeFailures } from "#core/shared/email/failed-sends";
 
 const props = defineProps<{
   emailId: string;
@@ -190,15 +191,20 @@ const showDeleteDialog = ref(false);
 
 const handleDelete = async () => {
   try {
+    const wasDraft = email.value?.status === "draft";
     await emailSystem.deleteEmail(props.emailId);
-    toast.success("Email draft deleted");
+    toast.success(wasDraft ? "Email draft deleted" : "Failed email removed");
     navigateToOrg("/admin/communications");
   } catch (error: any) {
-    toast.error(error.message || "Failed to delete email");
+    toast.error(error?.data?.message || error.message || "Failed to delete email");
   } finally {
     showDeleteDialog.value = false;
   }
 };
+
+// A draft, or a failed send that reached nobody, can be removed
+// (core/shared/email/failed-sends.ts); the server checks again.
+const canRemove = computed(() => canRemoveEmail(email.value?.status, ((email.value as any)?.recipients ?? []) as any[]));
 
 // Edit draft
 const handleEdit = () => {
@@ -239,6 +245,33 @@ const handleResendUnknown = async () => {
     toast.error(error?.data?.message || "Couldn't make the draft");
   } finally {
     resending.value = false;
+  }
+};
+
+// Why a send failed, and "Retry the N that failed" (core/shared/email/
+// failed-sends.ts). Like the unknown resend it makes a draft to review, never a
+// send; unlike it, a failed row was refused, so nobody gets the email twice.
+const failureReasons = computed(() => {
+  const e = email.value as any;
+  if (!e || !["sent", "failed", "scheduled"].includes(e.status)) return [];
+  return summarizeFailures(e.recipients ?? []);
+});
+const failedCount = computed(() => failureReasons.value.reduce((n, r) => n + r.count, 0));
+const retryPlan = computed(() => planFailedRetry(((email.value as any)?.recipients ?? []) as any[]));
+const retrying = ref(false);
+const handleRetryFailed = async () => {
+  const n = retryPlan.value.memberIds.length;
+  if (!n || retrying.value) return;
+  const people = n === 1 ? "1 person" : `${n} people`;
+  retrying.value = true;
+  try {
+    const res = await $fetch<{ draftId: string }>(`/api/email/${props.emailId}/retry-failed`, { method: "POST" });
+    toast.success(`Draft ready for ${people}. Review it and send.`);
+    navigateToOrg(`/admin/communications/compose?id=${res.draftId}`);
+  } catch (error: any) {
+    toast.error(error?.data?.message || "Couldn't make the draft");
+  } finally {
+    retrying.value = false;
   }
 };
 
@@ -433,9 +466,11 @@ useSeoMeta({
                       <Icon name="lucide:edit" class="w-4 h-4" />
                     </Button>
                     <Button
-                      v-if="email.status === 'draft'"
+                      v-if="canRemove"
                       variant="destructive"
                       size="sm"
+                      :aria-label="email.status === 'draft' ? 'Delete draft' : 'Remove failed email'"
+                      data-testid="detail-remove-email"
                       @click="showDeleteDialog = true"
                     >
                       <Icon name="lucide:trash-2" class="w-4 h-4" />
@@ -477,6 +512,50 @@ useSeoMeta({
                 </div>
               </Card>
             </div>
+
+            <!-- Why it failed, and trying again -->
+            <Card v-if="failureReasons.length" data-testid="detail-failure-reasons">
+              <CardContent class="py-4 space-y-3">
+                <div class="flex flex-wrap items-start gap-3">
+                  <div class="min-w-0 flex-1 text-sm">
+                    <p class="font-medium flex items-center gap-1.5">
+                      <Icon name="lucide:alert-triangle" class="w-4 h-4 text-destructive" />
+                      {{ failedCount }} {{ failedCount === 1 ? "recipient" : "recipients" }} failed
+                    </p>
+                    <p class="t-text-secondary">
+                      SendGrid refused {{ failedCount === 1 ? "this message" : "these messages" }}, so nothing reached {{ failedCount === 1 ? "this person" : "these people" }}.
+                    </p>
+                  </div>
+                  <Button
+                    v-if="retryPlan.memberIds.length"
+                    size="sm"
+                    variant="outline"
+                    class="rounded-full"
+                    :disabled="retrying"
+                    data-testid="detail-retry-failed"
+                    @click="handleRetryFailed"
+                  >
+                    <Icon name="lucide:rotate-cw" class="w-4 h-4 mr-1.5" />
+                    Retry {{ retryPlan.memberIds.length }} failed
+                  </Button>
+                </div>
+                <ul class="space-y-2">
+                  <li
+                    v-for="item in failureReasons"
+                    :key="item.reason"
+                    class="rounded-lg t-bg-subtle p-3 text-sm"
+                  >
+                    <p v-if="item.hint" class="font-medium">{{ item.hint }}</p>
+                    <p class="t-text-secondary break-words" :class="item.hint ? 'text-xs mt-1' : ''">
+                      <span v-if="failureReasons.length > 1 || item.count !== failedCount">{{ item.count }} × </span>{{ item.reason }}
+                    </p>
+                  </li>
+                </ul>
+                <p v-if="retryPlan.memberIds.length" class="text-xs t-text-muted">
+                  Retry makes a draft addressed to just {{ retryPlan.memberIds.length === 1 ? "this person" : "these people" }}. Nothing is sent until you review it and press Send.
+                </p>
+              </CardContent>
+            </Card>
 
             <!-- Email Content Preview -->
             <Card>
@@ -840,9 +919,14 @@ useSeoMeta({
         <Dialog v-model:open="showDeleteDialog">
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete Draft</DialogTitle>
+              <DialogTitle>{{ email?.status === "draft" ? "Delete Draft" : "Remove Failed Email" }}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete this email draft? This action cannot be undone.
+                <template v-if="email?.status === 'draft'">
+                  Are you sure you want to delete this email draft? This action cannot be undone.
+                </template>
+                <template v-else>
+                  This email reached nobody. Removing it takes it off the list for good, along with its failed recipient rows. This action cannot be undone.
+                </template>
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -850,7 +934,7 @@ useSeoMeta({
                 Cancel
               </Button>
               <Button variant="destructive" @click="handleDelete">
-                Delete
+                {{ email?.status === 'draft' ? 'Delete' : 'Remove' }}
               </Button>
             </DialogFooter>
           </DialogContent>

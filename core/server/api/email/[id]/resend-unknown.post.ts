@@ -11,11 +11,11 @@
  * Same gate as sending. 409 while the send is still running, and when nobody
  * is ready yet (with when they will be).
  */
-import { createItem, readItem, readItems } from "@directus/sdk";
+import { readItem, readItems } from "@directus/sdk";
 import { planUnknownResend } from "#core/shared/email/resend-unknown";
 import { emailComplianceSchema } from "../../../utils/email-compliance";
 import { emailQueueSchema } from "../../../utils/email-send-queue";
-import { buildUniqueWebSlug } from "../../../utils/email-branding";
+import { createResendDraft } from "../../../utils/email-resend-draft";
 
 const FINISHED = new Set(["sent", "failed", "scheduled"]);
 
@@ -80,50 +80,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const taken = new Set(
-    (
-      (await directus.request(
-        readItems("hoa_emails", {
-          filter: { organization: { _eq: organizationId }, web_slug: { _nnull: true } },
-          fields: ["web_slug"],
-          limit: -1,
-        })
-      )) as Array<{ web_slug?: string | null }>
-    )
-      .map((r) => r.web_slug)
-      .filter(Boolean) as string[]
-  );
-
-  const attachments = (Array.isArray(email.attachments) ? email.attachments : [])
-    .map((a: any) => (typeof a?.directus_files_id === "object" ? a.directus_files_id?.id : a?.directus_files_id))
-    .filter(Boolean)
-    .map((fileId: string) => ({ directus_files_id: fileId }));
-
-  const draft = (await directus.request(
-    createItem("hoa_emails", {
-      organization: organizationId,
-      subject: email.subject,
-      content: email.content,
-      email_type: email.email_type,
-      content_mode: email.content_mode ?? "visual",
-      greeting: email.greeting ?? null,
-      salutation: email.salutation ?? null,
-      include_board_footer: email.include_board_footer ?? true,
-      header_text: email.header_text ?? null,
-      footer_image: typeof email.footer_image === "object" ? (email.footer_image?.id ?? null) : (email.footer_image ?? null),
-      status: "draft",
-      scheduled_at: null,
-      next_run_at: null,
-      recurrence_rule: "none",
-      recipient_filter: "custom",
-      recipient_ids: plan.memberIds,
-      attachments,
-      cc: null,
-      bcc: null,
-      web_slug: buildUniqueWebSlug(email.subject || "email", taken),
-      ...(schema.emailClass && email.email_class ? { email_class: email.email_class } : {}),
-    } as any)
-  )) as { id: string };
+  const draft = await createResendDraft(directus, email, organizationId, plan.memberIds, { emailClass: schema.emailClass });
 
   return {
     draftId: draft.id,

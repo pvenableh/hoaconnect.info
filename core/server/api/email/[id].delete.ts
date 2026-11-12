@@ -1,4 +1,5 @@
-import { readItem, deleteItem, deleteItems } from "@directus/sdk";
+import { readItem, readItems, deleteItem, deleteItems } from "@directus/sdk";
+import { canRemoveEmail } from "#core/shared/email/failed-sends";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -43,15 +44,26 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Only allow deleting drafts
-    if (email.status !== "draft") {
+    // A draft, or a failed send that reached nobody (core/shared/email/
+    // failed-sends.ts). Anything a member was sent is a record and stays.
+    const rows = email.status === "failed"
+      ? ((await directus.request(
+          readItems("hoa_email_recipients", { filter: { email: { _eq: id } }, fields: ["status"], limit: -1 })
+        )) as Array<{ status?: string | null }>)
+      : [];
+    if (!canRemoveEmail(email.status, rows)) {
       throw createError({
         statusCode: 400,
-        message: "Only draft emails can be deleted. Sent emails are kept for records.",
+        message:
+          email.status === "failed"
+            ? "Some of this email was sent, so it is kept for records."
+            : "Only drafts and failed sends that reached nobody can be deleted. Sent emails are kept for records.",
+        data: { code: "kept_for_records" },
       });
     }
 
-    // Delete any recipients first (shouldn't be any for drafts, but just in case)
+    // Its recipient rows first (a draft shouldn't have any; a failed send has
+    // one per person it was meant for).
     await directus.request(
       deleteItems("hoa_email_recipients", {
         filter: {
