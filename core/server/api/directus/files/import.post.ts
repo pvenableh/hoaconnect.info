@@ -3,6 +3,7 @@
  * Uses native Directus SDK importFile method
  */
 
+import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
 import { importFile } from '@directus/sdk'
 
 export default defineEventHandler(async (event) => {
@@ -23,7 +24,11 @@ export default defineEventHandler(async (event) => {
     const metadata: Record<string, any> = {}
     if (title) metadata.title = title
     if (description) metadata.description = description
-    if (folder) metadata.folder = folder
+    // Directus cannot check where a new file goes; this route does.
+    if (folder) {
+      await assertFolderInCallerLibrary(event, folder)
+      metadata.folder = folder
+    }
 
     const result = await directus.request(
       importFile(url, metadata)

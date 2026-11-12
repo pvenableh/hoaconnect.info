@@ -13,6 +13,7 @@ import {
   deleteFolder,
   deleteFolders
 } from '@directus/sdk'
+import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -42,6 +43,8 @@ export default defineEventHandler(async (event) => {
 
       case 'create':
         if (!data) throw new Error('Data required for create operation')
+        // Directus cannot check where a new folder goes; this route does.
+        await assertFolderInCallerLibrary(event, data.parent)
         return await directus.request(
           createFolder(data)
         )
@@ -50,6 +53,7 @@ export default defineEventHandler(async (event) => {
         if (!data || !Array.isArray(data)) {
           throw new Error('Array of folder objects required for createMultiple operation')
         }
+        for (const folder of data) await assertFolderInCallerLibrary(event, folder?.parent)
         return await directus.request(
           createFolders(data)
         )
@@ -57,6 +61,7 @@ export default defineEventHandler(async (event) => {
       case 'update':
         if (!id) throw new Error('Folder ID required for update operation')
         if (!data) throw new Error('Data required for update operation')
+        if ('parent' in data) await assertFolderInCallerLibrary(event, data.parent)
         return await directus.request(
           updateFolder(id, data)
         )
@@ -66,6 +71,7 @@ export default defineEventHandler(async (event) => {
           throw new Error('Array of folder IDs required for updateMultiple operation')
         }
         if (!data) throw new Error('Data required for updateMultiple operation')
+        if ('parent' in data) await assertFolderInCallerLibrary(event, data.parent)
         return await directus.request(
           updateFolders(ids, data)
         )

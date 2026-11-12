@@ -117,9 +117,10 @@ export function useChannelUnread() {
           "hoa_channel_messages",
           // Deliberately unfiltered: this watches for activity ANYWHERE the
           // caller can see, which is the whole point of a roster badge. The
-          // socket carries the user's own token, so Directus already limits the
-          // events to channels they may read.
-          { fields: ["id", "channel", "date_created"], filter: null, sort: null },
+          // poll runs with the user's own token on the server, so Directus
+          // already limits it to channels they may read. Newest first, so a
+          // new message is inside the polled window however many there are.
+          { fields: ["id", "channel", "date_created"], filter: null, sort: ["-date_created"] },
           (eventName) => {
             if (eventName === "init") return;
             scheduleRefresh();

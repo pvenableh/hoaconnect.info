@@ -12,6 +12,7 @@ import {
   deleteFiles,
   importFile
 } from '@directus/sdk'
+import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
 import { GOVERNING_FILE_ELSEWHERE, GOVERNING_FILE_PREFIX, NOT_GOVERNING_FILE } from '#core/shared/governing/files'
 
 /**
@@ -66,6 +67,8 @@ export default defineEventHandler(async (event) => {
         if (!id) throw new Error('File ID required for update operation')
         if (!data) throw new Error('Data required for update operation')
         if (await anyGoverningFile(id)) throw createError({ statusCode: 409, message: GOVERNING_FILE_ELSEWHERE })
+        // Directus cannot check where a file is moved to; this route does.
+        if ('folder' in data) await assertFolderInCallerLibrary(event, data.folder, { allowNone: true })
         return await directus.request(
           updateFile(id, data)
         )

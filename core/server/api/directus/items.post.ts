@@ -6,6 +6,7 @@
  * Operations: list, get, create, update, delete, aggregate
  */
 
+import { assertMeetingsInCallerCommunities } from "#core/server/utils/caller-library";
 import {
   readItems,
   readItem,
@@ -177,6 +178,13 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         message: "Collection and operation are required",
       });
+    }
+
+    // Directus cannot check that a new meeting-file link points at the caller's
+    // own community's meeting; this route does.
+    if (collection === "hoa_meetings_files" && data && (operation === "create" || operation === "update")) {
+      const rows = Array.isArray(data) ? data : [data];
+      await assertMeetingsInCallerCommunities(event, rows.filter((r: any) => r && "hoa_meetings_id" in r).map((r: any) => r.hoa_meetings_id));
     }
 
     const result = await executeOperation(event, collection, operation, id, data, query);

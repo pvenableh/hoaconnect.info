@@ -4,6 +4,7 @@
  */
 
 import { uploadFiles } from '@directus/sdk'
+import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -52,7 +53,11 @@ export default defineEventHandler(async (event) => {
     // Add metadata
     if (metadata.title) uploadFormData.append('title', metadata.title)
     if (metadata.description) uploadFormData.append('description', metadata.description)
-    if (metadata.folder) uploadFormData.append('folder', metadata.folder)
+    // Directus cannot check where a new file goes; this route does.
+    if (metadata.folder) {
+      await assertFolderInCallerLibrary(event, metadata.folder)
+      uploadFormData.append('folder', metadata.folder)
+    }
     if (metadata.tags) uploadFormData.append('tags', JSON.stringify(metadata.tags))
     
     // Upload using SDK

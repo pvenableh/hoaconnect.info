@@ -451,9 +451,12 @@ From this repo:
     nested file, folder or user read with a member's token). See the loose-ends file.
   - **Open items finished the same day:** Peter confirmed all 12 AI flag suggestions (audited, through the app); the
     self-parented "Test" folder was deleted; the HOA policies' unrestricted update and delete rights were scoped to the
-    user's own community (folders, the landing hero) or own rows (dashboards, panels). Remaining risk, recorded: a
-    member can add a file or folder to another community's library; the fix is to stop handing the browser a Directus
-    token (separate session).
+    user's own community (folders, the landing hero) or own rows (dashboards, panels).
+  - **No Directus token in the browser (2026-11-12):** realtime polls `/api/realtime/poll` instead of a WebSocket with
+    the user's token; `/api/websocket/token` is gone and `/api/auth/session` no longer returns the token; the app's
+    own file and folder routes refuse a target outside the caller's community. Remaining, recorded: a member who logs
+    in to Directus directly with their own password can still add a file or folder to another community's library;
+    only a blocking Directus Flow would stop that. Details in the loose-ends file.
 - **Idea now has its own file, `docs/prompts/message-versions.md`** (Session 0 not run). Summary of it: "versions" of non-legal community email:
   an author-approved short summary and translations, generated once at send time, with each member choosing
   a default. A read-only pass found: `hoa_emails` with `email_type` and `email_class` (`essential` /

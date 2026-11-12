@@ -237,6 +237,39 @@ Each session appends its own "Session N done" bullet here.
     their own Directus token, and the HOA policies have app access; a separate session is proposed for it.
   - Tests: `tests/scripts/org-write-scopes.test.ts`. Gates: 174 files / 3,071 tests, lint 0 errors and 139 warnings,
     16 audits green, typecheck 0. Pushed with Peter's word.
+- **The browser no longer gets a Directus token (2026-11-12, Peter: "finish this here").**
+  - **Directus create rules tested first (Peter's choice):** with "your library or no folder" set on the four file and
+    folder create rules (backed up), a folder created as Oscar under another community's root was created (204).
+    Directus 11.13 does not enforce a create rule's item filter. The test folder was deleted and the four rules put
+    back as they were.
+  - **Realtime now polls the app** (`/api/realtime/poll`, `core/shared/realtime/diff.ts`). The shared manager
+    (`useWebSocketManager`, name kept so its eight users are unchanged: chat threads and lists, replies, comments,
+    reactions, the bell, unread counts, org items) sends one request every 4 seconds while the tab is visible and
+    every 30 while hidden, carrying every subscription. The server runs each query with the user's own token, kept
+    on the server, so Directus applies the same permissions a socket did; two polls become the same `init`,
+    `create`, `update` and `delete` events. A poll is capped at 200 rows; at the cap no delete is reported. The
+    unread watcher now sorts newest first so a new message is always inside that window. Changes now arrive within a
+    few seconds instead of at once. A relay socket was not an option on Vercel.
+  - **Two routes handed out the token, both closed:** `/api/websocket/token` is deleted, and `/api/auth/session`
+    (called by nothing in the app) returned it too and no longer does.
+  - **The app's own routes check where files and folders go** (`core/server/utils/caller-library.ts`), because they
+    act with the user's token and Directus cannot: `/api/directus/folders` creates and moves folders only inside the
+    caller's community library; `/api/directus/files` moves a file only into it or out of every library;
+    `/api/directus/files/upload` and `/import` refuse a folder outside it; `/api/directus/items` refuses a
+    `hoa_meetings_files` link to another community's meeting. (The storage library's routes already checked.)
+  - **Checked on the dev server signed in as Oscar:** polls answer 200 with no socket opened; the poll returns
+    exactly what the REST route does (88 members, 1 organization, the same empty sets for channels, messages and
+    notifications, which Oscar has none of in Lenox); `/api/websocket/token` answers 404; neither session route
+    carries a token. **Not seen live:** an event arriving by poll, since Oscar has no channel or notification to change
+    without a write; the diff and the manager are covered by tests.
+  - **What remains:** the app signs members in with their Directus email and password, so a member can still log in
+    to Directus's own API directly and get a token. With it they can still add a file or folder to another
+    community's library (not read or change one). Closing that needs a blocking Directus Flow on file and folder
+    creates and updates (offered on 2026-11-11 and passed over as risky).
+  - Tests: `tests/shared/realtime-diff.test.ts`, `tests/server/realtime-poll.test.ts`,
+    `tests/server/caller-library.test.ts`, and `tests/composables/useWebSocketManager.test.ts` rewritten for polling.
+  - Gates: 177 files / 3,075 tests, lint 0 errors and 139 warnings, 16 audits green, typecheck 0. Pushed with Peter's
+    word.
 
 ---
 
