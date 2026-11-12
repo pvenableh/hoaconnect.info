@@ -1,7 +1,7 @@
 // server/api/hoa/by-slug.get.ts
 import { readItems } from "@directus/sdk";
-import type { QueryFields } from "@directus/sdk";
-import type { Schema, HoaOrganization } from "#core/types/directus";
+import type { HoaOrganization } from "#core/types/directus";
+import { PUBLIC_ORG_FIELDS, toPublicOrg } from "../../utils/public-org";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -23,18 +23,8 @@ export default defineEventHandler(async (event) => {
           slug: { _eq: slug },
           status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] },
         },
-        fields: [
-          "*",
-          {
-            // No `invitations` (pending emails and their tokens) and no `subscription`:
-            // this answer is public. Removed 2026-11-12; nothing on the landing read them.
-            amenities: ["*"],
-            subscription_plan: ["*"],
-            logo: ["*"],
-            settings: ["*", { logo: ["*"], icon: ["*"] }],
-            hero: ["*", { background_image: ["*"], foreground_image: ["*"] }],
-          },
-        ] as QueryFields<Schema, HoaOrganization>,
+        // Public, like /api/hoa/find: the same field list, never "*".
+        fields: PUBLIC_ORG_FIELDS,
         limit: 1,
       })
     );
@@ -46,7 +36,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    return hoas[0];
+    return toPublicOrg(hoas[0] as Record<string, any>);
   } catch (error: any) {
     throw createError({
       statusCode: error.statusCode || 500,

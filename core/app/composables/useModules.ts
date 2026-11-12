@@ -6,7 +6,7 @@
 // config, not a permission boundary — the server still enforces real access.
 //
 // Source of truth is the slug-resolved org from useActiveHoa (the /api/hoa/find
-// payload includes every org field, `modules` among them). Missing/unknown keys
+// payload's public field list includes `modules`; see server/utils/public-org.ts). Missing/unknown keys
 // default to ENABLED so existing orgs — whose column is null until first save —
 // lose nothing.
 

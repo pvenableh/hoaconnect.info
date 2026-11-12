@@ -207,6 +207,14 @@ const ensureSettingsId = async (): Promise<string> => {
 
 const save = async () => {
   if (!orgId.value) return;
+  // /api/hoa/find gives the full landing (with the inquiry recipient) and the
+  // library folder only to a caller the server confirms as this community's
+  // admin, and marks that answer `admin_view`. Saving the public, redacted
+  // landing would erase the recipient, so without it nothing is written.
+  if (org.value?.admin_view !== true) {
+    toast.error("Saving is off: your admin access to this community couldn't be confirmed. Reload the page, or ask an administrator.");
+    return;
+  }
   saving.value = true;
   try {
     // Hero (images already uploaded to ids via the image fields).

@@ -1,7 +1,12 @@
 // server/api/hoa/find.get.ts
 import { readItems } from "@directus/sdk";
-import type { QueryFields } from "@directus/sdk";
-import type { Schema, HoaOrganization } from "#core/types/directus";
+import type { HoaOrganization } from "#core/types/directus";
+import {
+  PUBLIC_ORG_FIELDS,
+  toPublicOrg,
+  isOrgAdminCaller,
+  attachOrgAdminExtras,
+} from "../../utils/public-org";
 
 export default defineEventHandler(async (event) => {
   const { slug } = getQuery(event);
@@ -24,18 +29,9 @@ export default defineEventHandler(async (event) => {
             { status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] } },
           ],
         },
-        fields: [
-          "*",
-          {
-            // No `invitations` (pending emails and their tokens) and no `subscription`:
-            // this answer is public. Removed 2026-11-12; nothing on the landing read them.
-            amenities: ["*"],
-            subscription_plan: ["*"],
-            logo: ["*"],
-            settings: ["*", { logo: ["*"], icon: ["*"] }],
-            hero: ["*", { background_image: ["*"], foreground_image: ["*"] }],
-          },
-        ] as QueryFields<Schema, HoaOrganization>,
+        // This answer is public: only what the public pages read (see
+        // utils/public-org.ts), never "*".
+        fields: PUBLIC_ORG_FIELDS,
         limit: 1,
       })
     );
@@ -47,7 +43,16 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const org = organizations[0] as Record<string, any>;
+    const org = toPublicOrg(organizations[0] as Record<string, any>);
+
+    // The site builder (an admin page) loads through this route too, and it
+    // edits two things the public must not see: the library folder its uploads
+    // go into and the inquiry recipient. Only a signed-in admin of THIS
+    // community gets them, and that answer is never cached.
+    if (await isOrgAdminCaller(event, org.id)) {
+      await attachOrgAdminExtras(directus, org);
+      setResponseHeader(event, "cache-control", "private, no-store");
+    }
 
     // Attach the primary management company (first active `management` vendor) so
     // the public landing can feature it when the admin opts in. Public-safe

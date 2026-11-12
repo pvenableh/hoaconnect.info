@@ -13,8 +13,8 @@
  *
  * And the public community lookups, /api/hoa/find and /api/hoa/by-slug, no
  * longer ask for the community's invitations (emails and tokens) or its Stripe
- * subscription. They still return the rest of the record: an explicit public
- * field list is a follow-up.
+ * subscription. (Both now read an explicit public field list; that is covered
+ * in public-org-fields.test.ts.)
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
