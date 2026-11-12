@@ -443,12 +443,12 @@ async function seedChannels(c: Round3Ctx, cfg: DemoRound3Def, t: Round3Target): 
   if (peer) {
     peerUserId = idOf(peer.user);
     if (!peerUserId) {
-      const existing = (await c.dx(`/users${qs({ filter: { email: { _eq: cfg.dmPeerEmail } }, fields: "id", limit: 1 })}`))?.data?.[0];
+      const existing = (await c.dx(`/users${qs({ filter: { email: { _eq: cfg.dmPeerUserEmail } }, fields: "id", limit: 1 })}`))?.data?.[0];
       peerUserId = existing?.id ?? null;
     }
     if (!peerUserId) {
-      const made = await mut(c, `+ user ${cfg.dmPeerEmail} (no one holds the password)`, "POST", "/users", {
-        email: cfg.dmPeerEmail,
+      const made = await mut(c, `+ user ${cfg.dmPeerUserEmail} (no one holds the password)`, "POST", "/users", {
+        email: cfg.dmPeerUserEmail,
         first_name: peer.first_name,
         last_name: peer.last_name,
         password: `${globalThis.crypto.randomUUID()}${globalThis.crypto.randomUUID()}`,

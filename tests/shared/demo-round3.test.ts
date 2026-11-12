@@ -105,6 +105,13 @@ describe("buildDemoLedger", () => {
     for (const { cfg, def } of orgs) expect(def.members.map((m) => m.email)).toContain(cfg.dmPeerEmail);
   });
 
+  it("the DM peer's Directus login uses a real top-level domain (Directus refuses `.demo`; the real run failed on it)", () => {
+    for (const { cfg } of orgs) {
+      expect(cfg.dmPeerUserEmail).toMatch(/^[a-z0-9.]+@hoaconnect\.info$/);
+      expect(cfg.dmPeerUserEmail).not.toBe(cfg.dmPeerEmail);
+    }
+  });
+
   it.each(orgs)("$slug: bills only owners, once a month each, at the community's dues", ({ cfg }) => {
     const members = [...ids(3), { id: "tenant", member_type: "tenant" }];
     const { requests } = buildDemoLedger(cfg, "org-1", members, new Date("2026-11-30T12:00:00Z"));

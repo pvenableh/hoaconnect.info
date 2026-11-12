@@ -64,8 +64,14 @@ export interface DemoExpenseLine {
 export interface DemoRound3Def {
   /** The community channel — the DM is the second half of "a channel with a DM". */
   channel: { name: string; slug: string; description: string };
-  /** Which directory member the demo admin has the direct message with (by email). */
+  /** Which directory member the demo admin has the direct message with (by the member's directory email). */
   dmPeerEmail: string;
+  /**
+   * The Directus login made for that member. Not `dmPeerEmail`: the directory keeps its made-up `.demo` addresses, but
+   * Directus refuses a user whose email's top-level domain isn't a real one. Demo orgs never deliver mail, and no one
+   * holds this account's password.
+   */
+  dmPeerUserEmail: string;
   email: {
     webSlug: string;
     subject: string;
@@ -92,6 +98,7 @@ export const DEMO_ROUND3: Record<"demo" | "demo-classic", DemoRound3Def> = {
       description: "Where the board and management keep the building running — decisions, vendors and follow-ups.",
     },
     dmPeerEmail: "ava.bennett@harborviewlofts.demo",
+    dmPeerUserEmail: "demo.ava.bennett@hoaconnect.info",
     email: {
       webSlug: "monthly-community-update",
       subject: "Harborview Lofts — your monthly community update",
@@ -124,6 +131,7 @@ export const DEMO_ROUND3: Record<"demo" | "demo-classic", DemoRound3Def> = {
       description: "The board's working room — landmark upkeep, vendors and the month's decisions.",
     },
     dmPeerEmail: "eleanor.ashford@thebeaumont.demo",
+    dmPeerUserEmail: "demo.eleanor.ashford@hoaconnect.info",
     email: {
       webSlug: "monthly-community-update",
       subject: "The Beaumont — your monthly community update",

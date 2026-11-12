@@ -171,7 +171,7 @@ Blockers first. The agent checks what it can, hands Peter a short list, and tick
 5. On production, signed in: "Ask the HOA" on `/transition-test` answers (Anthropic, Voyage `ledgerMode: "vector"`), and Profile → Notifications can subscribe (VAPID).
 6. Then yes to delete the fixture, and the choices: which status tool, the privacy-policy link, the refund round trip, the device rows and DM test, Inbound Parse DNS, reminders per pilot.
 
-Needs code, not a dashboard: the demo re-seed (the seed has none of the Round 3 features and the nightly purge deletes demo emails).
+The demo re-seed was code, not a dashboard (the seed had none of the Round 3 features and the nightly purge deletes demo emails). It is now written, merged into `main` (not pushed) and run against hosted Directus on 2026-11-12 at Peter's word; what's left on that row is looking at `/demo` and `/demo-classic`.
 
 | Row | Who | How the agent helps |
 |---|---|---|

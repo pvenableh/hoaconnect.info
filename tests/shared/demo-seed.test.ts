@@ -169,7 +169,7 @@ describe("seedDemos — Round 3, on a fresh database", () => {
     expect(community).toMatchObject({ status: "published", is_private: false });
 
     const admin = fake.table("users").find((u) => u.email === USER.email)!;
-    const peer = fake.table("users").find((u) => u.email === cfg.dmPeerEmail)!;
+    const peer = fake.table("users").find((u) => u.email === cfg.dmPeerUserEmail)!;
     expect(peer).toBeTruthy();
     const dm = channels.find((c) => c.is_dm === true)!;
     expect(dm).toMatchObject({ slug: dmSlug(admin.id, peer.id), is_private: true, status: "published", is_default: false });
@@ -187,7 +187,7 @@ describe("seedDemos — Round 3, on a fresh database", () => {
     await seed(fake);
     for (const def of DEMO_DEFS) {
       const cfg = DEMO_ROUND3[def.slug as keyof typeof DEMO_ROUND3];
-      const peer = fake.table("users").find((u) => u.email === cfg.dmPeerEmail)!;
+      const peer = fake.table("users").find((u) => u.email === cfg.dmPeerUserEmail)!;
       expect(peer).toMatchObject({ role: "role-hoa-admin", status: "active" });
       // A random secret that is not the demo's published password, and not anywhere the repo can name.
       expect(peer.password).not.toBe(USER.password);
