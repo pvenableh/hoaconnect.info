@@ -73,6 +73,13 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // The same gate as sending, on the community the email belongs to. Until
+    // 2026-11-12 any signed-in user could read any community's email by id:
+    // its content and every recipient's name and address.
+    const organizationId = typeof email.organization === "object" ? email.organization?.id : email.organization;
+    if (!organizationId) throw createError({ statusCode: 404, message: "Email not found" });
+    await requireAdminOrManagerGrant(event, organizationId, "communications");
+
     // Get recipients if email has been sent. With the send queue, the rows of
     // the latest occurrence (a recurring email keeps every occurrence's rows),
     // in send order, with the queue's chips.
