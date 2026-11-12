@@ -15,14 +15,17 @@ import { isWithinOrgRoot } from "./org-storage";
 
 const asId = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
 
-/** The organizations the caller belongs to, with each one's library root. */
+/**
+ * The organizations the caller is an ACTIVE member of, with each one's library
+ * root. A removed member's (inactive/archived) row puts nothing in reach.
+ */
 export async function callerCommunities(event: H3Event): Promise<{ organization: string; root: string | null }[]> {
   const session = await requireUserSession(event);
   const userId = (session.user as { id?: string } | undefined)?.id;
   if (!userId) return [];
   const rows = (await getTypedDirectus().request(
     readItems("hoa_members" as never, {
-      filter: { user: { _eq: userId } },
+      filter: { user: { _eq: userId }, status: { _eq: "active" } },
       fields: ["organization.id", "organization.folder"],
       limit: -1,
     } as never)

@@ -59,10 +59,12 @@ export default defineEventHandler(async (event) => {
   let canViewAll = admin.isAdmin;
 
   // The viewer's own occupancy windows on THIS unit (used for the member rule and
-  // also to detect board membership via their member record).
+  // also to detect board membership via their member record). Active rows only:
+  // someone removed from the community keeps neither a board view nor the
+  // records of a unit they used to occupy.
   const myMembers = await directus.request(
     readItems("hoa_members", {
-      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
+      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
       fields: ["id"],
       limit: -1,
     })

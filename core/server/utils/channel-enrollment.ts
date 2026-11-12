@@ -49,11 +49,13 @@ export async function getOrgChannelEnrollees(
 
   // Active board members (published term, current date inside the term window).
   // hoa_board_members has no org column — it links via hoa_member → organization.
+  // The member row must itself be active: removing someone from the community
+  // (transition-execute's deactivate_member) does not end their board term.
   const boardTerms = await directus.request(
     readItems("hoa_board_members", {
       filter: {
         status: { _eq: "published" },
-        hoa_member: { organization: { _eq: orgId } },
+        hoa_member: { organization: { _eq: orgId }, status: { _eq: "active" } },
         _or: [{ term_start: { _null: true } }, { term_start: { _lte: nowIso } as any }],
       },
       fields: ["id", "term_end", { hoa_member: ["id", "user"] }],
@@ -88,8 +90,9 @@ export async function getChannelOrg(
 
 /**
  * Can this user manage membership of a channel? True for org admins, active
- * board members, or a user enrolled in the channel with role `admin`. Returns
- * the channel's org id when allowed, else throws 403/404.
+ * board members, or a user enrolled in the channel with role `admin` who is
+ * still an active member of the channel's org. Returns the channel's org id
+ * when allowed, else throws 403/404.
  */
 export async function requireChannelManager(
   event: any,
@@ -111,14 +114,38 @@ export async function requireChannelManager(
       limit: 1,
     })
   );
-  if ((mine as any[]).length) return orgId;
+  // A channel-admin row outlives removal from the community, so it counts only
+  // while the user still has an active membership in the channel's org.
+  if ((mine as any[]).length && (await activeMemberIds(directus, userId, orgId)).length) {
+    return orgId;
+  }
 
   throw createError({ statusCode: 403, message: "Not allowed to manage this channel" });
 }
 
 /**
+ * The user's ACTIVE hoa_members ids in an org. An inactive or archived row is
+ * someone removed from the community, and grants nothing (as `checkMembership`).
+ */
+async function activeMemberIds(
+  directus: ReturnType<typeof getTypedDirectus>,
+  userId: string,
+  orgId: string
+): Promise<string[]> {
+  const members = await directus.request(
+    readItems("hoa_members", {
+      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
+      fields: ["id"],
+      limit: -1,
+    })
+  );
+  return (members as any[]).map((m) => m.id);
+}
+
+/**
  * Is the user an active board member of the org? (Used to authorize channel
- * creation for board members, who aren't admins.)
+ * creation for board members, who aren't admins.) Requires an active member
+ * row as well as a current term: removing a member does not end their term.
  */
 export async function isActiveBoardMember(
   directus: ReturnType<typeof getTypedDirectus>,
@@ -126,14 +153,7 @@ export async function isActiveBoardMember(
   orgId: string
 ): Promise<boolean> {
   const nowIso = new Date().toISOString();
-  const members = await directus.request(
-    readItems("hoa_members", {
-      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
-      fields: ["id"],
-      limit: -1,
-    })
-  );
-  const ids = (members as any[]).map((m) => m.id);
+  const ids = await activeMemberIds(directus, userId, orgId);
   if (!ids.length) return false;
 
   const terms = await directus.request(

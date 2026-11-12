@@ -355,11 +355,13 @@ export async function resolveStorageContext(
   }
 
   // Resolve membership with the admin client (reliable regardless of the
-  // member's own read grants). No membership in this org → no access.
+  // member's own read grants). No ACTIVE membership in this org → no access:
+  // an inactive/archived row is someone removed from the community, and their
+  // role column still says whatever it said (a former HOA Admin stays "HOA Admin").
   const admin = getTypedDirectus();
   const members = (await admin.request(
     readItems("hoa_members", {
-      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
+      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
       fields: [
         "id",
         "role",
