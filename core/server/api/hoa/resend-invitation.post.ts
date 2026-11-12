@@ -1,5 +1,5 @@
 import { readItem, updateItem, readItems } from "@directus/sdk";
-import { sendHoaInvitationEmail } from "../../utils/sendgrid";
+import { sendHoaInvitationEmail } from "../../utils/invitation-email";
 import { randomBytes } from "crypto";
 import type { HoaOrganization, DirectusRole } from "#core/types/directus";
 

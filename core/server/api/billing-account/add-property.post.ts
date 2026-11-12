@@ -19,7 +19,7 @@
 import { z } from "zod";
 import { createItem, createFolder, readItems, readRoles, updateItem } from "@directus/sdk";
 import { randomBytes } from "crypto";
-import { sendHoaInvitationEmail } from "../../utils/sendgrid";
+import { sendHoaInvitationEmail } from "../../utils/invitation-email";
 
 /** How long the board admin's invitation stays valid. Matches invite-member. */
 const INVITE_TTL_DAYS = 7;

@@ -352,6 +352,7 @@
                 <option value="alert">Alert</option>
                 <option value="basic">Basic</option>
                 <option value="notification">Notification</option>
+                <option value="invitation">Member invitation</option>
                 <optgroup label="Reminders">
                   <option value="reminder-dues">Dues reminder</option>
                   <option value="reminder-meeting">Meeting reminder</option>

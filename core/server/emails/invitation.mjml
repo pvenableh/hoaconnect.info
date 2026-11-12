@@ -1,0 +1,27 @@
+{{!--
+  The member invitation: someone at the community invited this person to its
+  HOA Connect portal. The content slot of _layout, beside org-email, so it
+  carries the community's header, colours and footer like every other email.
+
+  Edit the wording here. Rendered by core/server/utils/invitation-email.ts,
+  which escapes every variable: bodyPadding, greeting, greetingPadding,
+  headingFont, heading, inviterName, orgName, roleArticle ("a" or "an"),
+  roleName, expires, ctaHref, ctaLabel, buttonBg, buttonColor. The plain-text part is written beside it in
+  invitation-email.ts (invitationEmailParts); keep the two saying the same.
+--}}
+      <!-- Invitation -->
+      <mj-section background-color="#ffffff" padding="{{bodyPadding}}">
+        <mj-column>
+          {{#if greeting}}
+          <mj-text padding="{{greetingPadding}}" color="#374151" font-size="16px" line-height="1.6">{{greeting}}</mj-text>
+          {{/if}}
+          <mj-text padding="0 32px 8px 32px" color="#111827" font-family="{{headingFont}}" font-size="20px" font-weight="600" line-height="1.3">{{heading}}</mj-text>
+          <mj-text padding="0 32px 16px 32px" color="#374151" font-size="16px" line-height="1.6">
+            <strong>{{inviterName}}</strong> has invited you to join <strong>{{orgName}}</strong> as {{roleArticle}} <strong>{{roleName}}</strong>.
+          </mj-text>
+          <mj-text padding="0 32px 8px 32px" color="#374151" font-size="16px" line-height="1.6">Click the button below to create your account and get started:</mj-text>
+          <mj-button href="{{ctaHref}}" align="left" background-color="{{buttonBg}}" color="{{buttonColor}}" border-radius="9999px" font-size="15px" font-weight="600" inner-padding="12px 24px" padding="16px 32px 16px 32px">{{ctaLabel}}</mj-button>
+          <mj-text padding="0 32px 4px 32px" color="#6b7280" font-size="13px" line-height="1.5">This invitation expires on <strong>{{expires}}</strong>.</mj-text>
+          <mj-text padding="0 32px 8px 32px" color="#6b7280" font-size="13px" line-height="1.5">If you didn't expect this invitation, you can safely ignore this email.</mj-text>
+        </mj-column>
+      </mj-section>

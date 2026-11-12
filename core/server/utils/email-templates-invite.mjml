@@ -1,3 +1,4 @@
+<!-- The INVITATION section below is no longer sent from this hosted template (2026-11-12): the app renders core/server/emails/invitation.mjml (core/server/utils/invitation-email.ts). "welcome" and "accepted" still use this template. -->
 <mjml>
   <mj-head>
     <mj-attributes>

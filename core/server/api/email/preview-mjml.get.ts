@@ -24,7 +24,10 @@
  * Gate: an admin of the org, or a property manager with the communications
  * grant — the people who can send in its name.
  *
- * The invitation / welcome / accepted emails are SendGrid dynamic templates
+ *             or `invitation` — the member invitation
+ *             (core/server/utils/invitation-email.ts), with a sample inviter.
+ *
+ * The welcome / accepted emails are still SendGrid dynamic templates
  * (email-templates-invite.mjml is their source, not compiled here), so they
  * are not previewable from this route.
  */
@@ -36,6 +39,7 @@ import { buildEmailHtml, buildEmailMjml, buildEmailText, type EmailType } from "
 import { resolveEmailBranding } from "../../utils/email-branding";
 import { partialWithCta, transactionalContent } from "../../utils/transactional-email";
 import { REMINDER_EMAIL_TEMPLATES, reminderEmail, sampleReminders } from "../../utils/reminder-email";
+import { INVITATION_EMAIL_TYPE, invitationEmailParts } from "../../utils/invitation-email";
 
 export const PREVIEW_TEMPLATES = [
   "basic",
@@ -45,6 +49,7 @@ export const PREVIEW_TEMPLATES = [
   "reminder",
   "notice",
   "notification",
+  "invitation",
   ...REMINDER_EMAIL_TEMPLATES,
 ] as const;
 export type PreviewTemplate = (typeof PREVIEW_TEMPLATES)[number];
@@ -135,13 +140,34 @@ export default defineEventHandler(async (event) => {
     ? sampleReminders(organization.name || undefined)[template as (typeof REMINDER_EMAIL_TEMPLATES)[number]]
     : null;
   const reminderParts = reminder ? reminderEmail(reminder) : null;
+  // The invitation renders as sendHoaInvitationEmail would, with a sample inviter.
+  const invitation =
+    template === "invitation"
+      ? invitationEmailParts({
+          organizationName: organization.name || "Your community",
+          invitationUrl: `${appUrl}/${slug}/accept-invite?token=sample`,
+          inviterName: "Jordan Lee",
+          roleName: "Owner",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+      : null;
   const emailType: EmailType = reminderParts
     ? reminderParts.emailType
     : isNotification
       ? "notice"
-      : (template as EmailType);
-  const subject = reminder ? reminder.subject : isNotification ? sample.subject : "A sample message from your community";
-  const content = reminderParts
+      : invitation
+        ? INVITATION_EMAIL_TYPE
+        : (template as EmailType);
+  const subject = reminder
+    ? reminder.subject
+    : isNotification
+      ? sample.subject
+      : invitation
+        ? invitation.subject
+        : "A sample message from your community";
+  const content = invitation
+    ? invitation.bodyHtml
+    : reminderParts
     ? transactionalContent(reminderParts, { appUrl, slug, settings: organization.settings })
     : isNotification
       ? transactionalContent(
@@ -153,7 +179,7 @@ export default defineEventHandler(async (event) => {
   // (switched off in preferences); dues and violation reminders are essential
   // and can't be unsubscribed; organization emails preview as community mail.
   const { footer: complianceFooter } = recipientCompliance({
-    emailClass: isNotification || reminder ? "essential" : "community",
+    emailClass: isNotification || reminder || invitation ? "essential" : "community",
     org: organization,
     mailingAddress: orgMailingAddress(organization),
     appUrl,
@@ -161,7 +187,9 @@ export default defineEventHandler(async (event) => {
       ? { reason: reminder.essential ? ("reminders" as const) : ("notifications" as const) }
       : isNotification
         ? { reason: "notifications" as const }
-        : {}),
+        : invitation
+          ? { reason: "invitation" as const }
+          : {}),
   });
 
   const options = {
@@ -176,7 +204,11 @@ export default defineEventHandler(async (event) => {
     footerImage: branding.footerImage,
     homepageUrl: branding.homepageUrl,
     complianceFooter,
-    contentPartial: reminderParts ? partialWithCta(reminderParts.contentPartial, reminderParts.cta, { appUrl, slug }) : null,
+    contentPartial: invitation
+      ? invitation.contentPartial
+      : reminderParts
+        ? partialWithCta(reminderParts.contentPartial, reminderParts.cta, { appUrl, slug })
+        : null,
   };
 
   if (format === "mjml" || format === "text") {

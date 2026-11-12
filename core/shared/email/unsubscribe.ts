@@ -130,9 +130,10 @@ export interface ComplianceFooterInput {
    * which the member controls through their notification preferences rather
    * than an unsubscribe. `reminders`: an essential reminder (dues, a
    * violation's correction date) that only the master email switch stops.
-   * Defaults to `membership`.
+   * `invitation`: someone invited this address to join; it isn't a member
+   * yet, so there are no preferences to link to. Defaults to `membership`.
    */
-  reason?: "membership" | "notifications" | "reminders";
+  reason?: "membership" | "notifications" | "reminders" | "invitation";
 }
 
 /**
@@ -155,10 +156,12 @@ export function buildComplianceFooter(input: ComplianceFooterInput): ComplianceF
     lead = `You receive this because you are a member of ${org} and these notifications are on.`;
   } else if (input.reason === "reminders") {
     lead = `You receive this because you are a member of ${org}. Reminders about dues and notices are essential and cannot be unsubscribed; turning off all email in Preferences stops them.`;
+  } else if (input.reason === "invitation") {
+    lead = `You receive this because someone at ${org} invited this address to its HOA Connect portal.`;
   } else {
     lead = `You receive this because you are a member of ${org}; it cannot be unsubscribed.`;
   }
-  if (prefs) links.push({ label: "Preferences", url: prefs });
+  if (prefs && input.reason !== "invitation") links.push({ label: "Preferences", url: prefs });
 
   const htmlParts = [`<span>${esc(lead)}</span>`];
   if (links.length) {

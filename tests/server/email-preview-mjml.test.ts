@@ -109,6 +109,15 @@ describe("GET /api/email/preview-mjml", () => {
     expect(html).toContain("Pay now");
   });
 
+  it("invitation: the member invitation in the org's brand, a sample accept link, the invitation footer", async () => {
+    h.query = { org: "demo", template: "invitation" };
+    const html = await (await route())({});
+    expect(html).toContain("invited to join Harborview Lofts");
+    expect(html).toContain("https://app.test/demo/accept-invite?token=sample");
+    expect(html).toContain("Accept Invitation");
+    expect(html).toContain("invited this address to its HOA Connect portal");
+  });
+
   it("format=mjml is the composed source; format=text the plain part", async () => {
     h.query = { org: "demo", template: "alert", format: "mjml" };
     const mjml = await (await route())({});
