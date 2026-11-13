@@ -117,6 +117,16 @@ meant ~2,880 runs a month booting a runner to find an empty queue.
 - [ ] Set three **GitHub** repository secrets at *Settings → Secrets and
       variables → Actions*: `DIRECTUS_STATIC_TOKEN`, `SENDGRID_API_KEY`,
       `CRON_SECRET`. The two Actions workflows do nothing until this is done.
+- [x] **The billing worker needs more** ([billing-cron.md](billing-cron.md)):
+      `STRIPE_SECRET_KEY_TEST` (and `_LIVE` only when `BILLING_STRIPE_MODE`
+      flips to `live`), plus `NUXT_PUBLIC_VAPID_PUBLIC_KEY` /
+      `NUXT_VAPID_PRIVATE_KEY` for push reminders. Its scheduled run always
+      passes `--autopay`, and the worker exits 1 without the Stripe key — which
+      is why all ten scheduled runs from 2026-11-03 to 2026-11-12 failed. Peter
+      added the test key and the VAPID pair on 2026-11-12; a manual live run
+      (`--autopay --org 1033-lenox`) passed that day. The VAPID pair must be the
+      same pair Vercel holds (§5), or the worker's pushes fail with a 401. Not
+      yet seen: a green **scheduled** run.
 - [ ] Set `GITHUB_DISPATCH_TOKEN` in **Vercel** env — a fine-grained PAT scoped
       to this repo with **Contents: Read and write** (what
       `POST /repos/{owner}/{repo}/dispatches` requires). Optional:
