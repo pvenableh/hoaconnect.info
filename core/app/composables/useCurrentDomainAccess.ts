@@ -11,8 +11,14 @@
  *
  * In this case, this composable will correctly identify that the user is NOT an admin
  * of the currently viewed organization, preventing unauthorized access.
+ *
+ * The role answers come from the shared RoleContext resolver
+ * (docs/spec-role-context.md), run over the cached membership so route
+ * middleware never waits on a fetch. See roleContextFromMembership for the
+ * client rules kept until Session 2.
  */
 import { normalizeGrants, type ManagerGrantKey } from "#core/shared/transition/grants";
+import { roleContextFromMembership } from "./useRoleContext";
 
 export const useCurrentDomainAccess = () => {
   const { activeHoa } = useActiveHoa();
@@ -73,40 +79,59 @@ export const useCurrentDomainAccess = () => {
     return role;
   });
 
+  // Board terms current for the current domain (the client's date filter;
+  // the server's read is date-inclusive — see the spec).
+  const currentDomainBoardTerms = computed(() => {
+    const terms = currentDomainMembership.value?.board_member_terms;
+    if (!terms || !Array.isArray(terms)) return [];
+
+    const now = new Date();
+    return terms.filter((term: any) => {
+      if (term.status !== "published") return false;
+      const startDate = term.term_start ? new Date(term.term_start) : null;
+      const endDate = term.term_end ? new Date(term.term_end) : null;
+      if (startDate && now < startDate) return false;
+      if (endDate && now > endDate) return false;
+      return true;
+    });
+  });
+
+  // The membership resolved by the shared RoleContext resolver.
+  const roleContext = computed(() =>
+    roleContextFromMembership(
+      currentDomainMembership.value,
+      currentDomainBoardTerms.value,
+      userGlobalRoleId.value,
+      {
+        appAdmin: config.public.directusRoleAppAdmin as string | undefined,   // App Administrator - full system access
+        hoaAdmin: config.public.directusRoleHoaAdmin as string | undefined,   // HOA Admin - organization-level admin access
+        legacyAdmin: config.public.directusRoleAdmin as string | undefined,   // Legacy fallback
+        propertyManager: config.public.directusRolePropertyManager as string | undefined,
+      }
+    )
+  );
+
   /**
    * Check if user is an admin of the CURRENT domain's organization
    * Both App Administrator and HOA Admin roles grant full admin access
    * to view and manage all admin content and features (including during maintenance mode)
    */
   const isAdminOfCurrentDomain = computed(() => {
-    const roleId = userGlobalRoleId.value;
-
-    // First check if user has a global admin role (App Admin or HOA Admin)
-    // This provides immediate admin access before membership data loads
-    if (roleId === config.public.directusRoleAppAdmin) {
+    // HOA Admin users also get admin access - they can manage admin content
+    // This ensures HOA Admin users can see navigation in maintenance mode.
+    // Client-only rule (the server does not honour it): any membership here
+    // plus the HOA Admin global role. Kept until Session 2.
+    if (
+      userGlobalRoleId.value &&
+      userGlobalRoleId.value === config.public.directusRoleHoaAdmin &&
+      currentDomainMembership.value
+    ) {
       return true;
     }
 
-    // HOA Admin users also get admin access - they can manage admin content
-    // This ensures HOA Admin users can see navigation in maintenance mode
-    if (roleId === config.public.directusRoleHoaAdmin) {
-      // For HOA Admin, we need to verify they have membership in this org
-      // If memberships aren't loaded yet, we'll check on the next render
-      if (currentDomainMembership.value) {
-        return true;
-      }
-    }
-
-    // Then check if they have admin role in this specific organization's membership
-    if (!currentDomainRoleId.value) return false;
-
-    const adminRoles = [
-      config.public.directusRoleAppAdmin,   // App Administrator - full system access
-      config.public.directusRoleHoaAdmin,   // HOA Admin - organization-level admin access
-      config.public.directusRoleAdmin,      // Legacy fallback
-    ].filter(Boolean);
-
-    return adminRoles.includes(currentDomainRoleId.value);
+    // Global App Admin (before membership data loads), or an admin role on
+    // this organization's membership.
+    return roleContext.value.hats.admin;
   });
 
   // Check if user is a member (any role) of the current domain's organization
@@ -126,31 +151,15 @@ export const useCurrentDomainAccess = () => {
     return memberRoles.includes(currentDomainRoleId.value);
   });
 
-  // Get board member status for current domain
-  const currentDomainBoardTerms = computed(() => {
-    const terms = currentDomainMembership.value?.board_member_terms;
-    if (!terms || !Array.isArray(terms)) return [];
-
-    const now = new Date();
-    return terms.filter((term: any) => {
-      if (term.status !== "published") return false;
-      const startDate = term.term_start ? new Date(term.term_start) : null;
-      const endDate = term.term_end ? new Date(term.term_end) : null;
-      if (startDate && now < startDate) return false;
-      if (endDate && now > endDate) return false;
-      return true;
-    });
-  });
-
-  const isBoardMemberOfCurrentDomain = computed(() => {
-    return currentDomainBoardTerms.value.length > 0;
-  });
+  const isBoardMemberOfCurrentDomain = computed(() => roleContext.value.hats.board);
 
   // ── Property Manager (external management staff) ──────────────────────────
   // A real login role with per-manager grant flags (manager_permissions) the
   // admin toggles. The Directus policy is an org-scoped ceiling shared by all
   // managers; these flags decide what each manager actually sees/does (enforced
   // app-side here, and in server routes for sends / violation writes).
+  // This is the ROLE (access), not the manager hat (identity): the manager
+  // middleware admits on it.
   const isPropertyManagerOfCurrentDomain = computed(() => {
     return currentDomainRoleId.value === config.public.directusRolePropertyManager;
   });
@@ -161,11 +170,11 @@ export const useCurrentDomainAccess = () => {
   );
 
   // True if the user may access a capability of the current domain: admins
-  // always can; property managers only for a granted capability.
+  // always can; property managers only for a granted capability — the area's
+  // "can work on it" switch.
   const managerCan = (key: ManagerGrantKey): boolean => {
     if (isAdminOfCurrentDomain.value) return true;
-    if (isPropertyManagerOfCurrentDomain.value) return currentDomainManagerPermissions.value[key];
-    return false;
+    return roleContext.value.areas[key]?.canWork ?? false;
   };
 
   // Get member type for current domain

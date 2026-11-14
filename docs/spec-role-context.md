@@ -74,7 +74,7 @@ An area with no gate cannot be granted. It is not in `MANAGER_GRANT_KEYS`, not i
 ## Client
 
 - `useRoleContext()` calls `GET /api/org/role-context?orgId=` and returns `{ context, actors, capabilities }`, cached per org.
-- `useCapabilities` reads its actors and capabilities from it. Same return, same values: the endpoint computes them exactly as `/api/org/capabilities`, which stays.
+- `useCapabilities` reads its actors and capabilities from it. Same return, same values: both endpoints call `resolveCapabilities`. A non-member got empty arrays before (no hats) and gets them now (the 403 lands in the same error path). `/api/org/capabilities` stays.
 - `useCurrentDomainAccess` has to answer synchronously, because route middleware runs before any fetch. So it runs the same resolver over the cached membership (`roleContextFromMembership`). Today's client rules that differ from the server are kept as named compat clauses, so nothing it returns changes. Session 2 retires them:
   - every cached membership counts as live, whatever its status;
   - the legacy `Administrator` role id counts as admin;
@@ -86,7 +86,7 @@ An area with no gate cannot be granted. It is not in `MANAGER_GRANT_KEYS`, not i
 
 `GET /api/org/role-context?orgId=`:
 - 401 without a session; 400 without `orgId`.
-- 403 when the caller has no membership in that org and is not the App Admin.
+- 403 when the caller has no active or pending membership in that org and is not the App Admin. An archived row there still gets 403.
 - Every read is filtered by the session user and that `orgId`. Any user id in the query is ignored.
 
 ## Named tests
