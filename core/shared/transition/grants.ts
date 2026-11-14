@@ -21,57 +21,82 @@
  */
 
 /**
- * Every grant a Property Manager can hold. Adding one here is the only place it
- * needs adding — `manager-access.ts` imports this type, the presets below are
- * checked for completeness in the test suite, and revocation walks the same list.
+ * Every AREA of a community a manager can be given — the one list, for server
+ * and client (docs/spec-role-context.md). Each manager membership carries two
+ * switches per area: "can work on it" (the grant) and "is notified about it"
+ * (the responsibility). Adding an area here is the only place it needs adding.
+ *
+ * `label` is the short noun the area goes by in a sentence. The settings screen
+ * phrases grants as actions ("Send communications") because it is describing a
+ * switch; a ledger entry needs the noun — "added Communications, removed
+ * Projects" — and a permanent record should not carry the UI's phrasing of the
+ * day.
+ *
+ * `gate` is the file that enforces "can work on it" — a test checks the file
+ * exists and names the key. An area with no gate (`null`) cannot be granted:
+ * it is not in `MANAGER_GRANT_KEYS`, not in a preset, not a settings switch,
+ * and only an admin can work on it. It can still be notified. It becomes
+ * grantable in the same change that gives it a gate, never before — a switch
+ * with nothing behind it tells an admin they delegated something they did not.
  *
  * `feedback` covers polls: seeing them, their live tallies, and closing them.
  * It is deliberately NOT part of `communications`, so an admin can let a manager
  * see what residents think without also letting them email every resident — the
  * two are adjacent but a board may well want one and not the other. It covers
  * closing as well as reading for the same reason `documents` covers publishing
- * as well as viewing: a grant names an area of responsibility, not a verb.
- *
- * Every key defaults to FALSE through `normalizeGrants`, so adding one here
- * never widens an existing manager's access — an admin has to turn it on.
+ * as well as viewing: an area names a responsibility, not a verb.
  */
-export const MANAGER_GRANT_KEYS = [
-  "inquiries",
-  "violations",
-  "directory",
-  "documents",
-  "communications",
-  "feedback",
-  "projects",
-  "activity",
+export const AREAS = [
+  { key: "inquiries", label: "Inquiries", gate: "app/pages/[slug]/manage/inquiries/index.vue" },
+  { key: "violations", label: "Violations", gate: "app/pages/[slug]/manage/inquiries/index.vue" },
+  { key: "directory", label: "Directory", gate: "core/server/utils/change-request-access.ts" },
+  { key: "documents", label: "Documents", gate: "core/server/utils/governing-access.ts" },
+  { key: "communications", label: "Communications", gate: "core/server/api/email/send.post.ts" },
+  { key: "feedback", label: "Community feedback", gate: "core/server/utils/poll-access.ts" },
+  { key: "projects", label: "Projects", gate: "core/server/utils/project-access.ts" },
+  { key: "activity", label: "Activity", gate: "core/server/api/org/activity.get.ts" },
   // Phase 3 support: may open "Contact HOA Connect" requests for the community.
-  "contact_platform",
+  { key: "contact_platform", label: "Contact HOA Connect", gate: "core/shared/support/access.ts" },
+  // Notify-only until their pages and routes exist (plan §3.1, §3.2).
+  { key: "vendors", label: "Vendors and contracts", gate: null },
+  { key: "billing", label: "Invoices and payments", gate: null },
 ] as const;
 
-export type ManagerGrantKey = (typeof MANAGER_GRANT_KEYS)[number];
+export type AreaKey = (typeof AREAS)[number]["key"];
+
+export const AREA_KEYS: readonly AreaKey[] = AREAS.map((a) => a.key);
+
+type GrantableArea = Extract<(typeof AREAS)[number], { gate: string }>;
+
+/**
+ * Every grant a Property Manager can hold: the areas with a gate, in list
+ * order. `manager-access.ts` imports this type, the presets below are checked
+ * for completeness in the test suite, and revocation walks the same list.
+ *
+ * Every key defaults to FALSE through `normalizeGrants`, so adding one never
+ * widens an existing manager's access — an admin has to turn it on.
+ */
+export const MANAGER_GRANT_KEYS: readonly GrantableArea["key"][] = AREAS.filter(
+  (a): a is GrantableArea => a.gate !== null
+).map((a) => a.key);
+
+export type ManagerGrantKey = GrantableArea["key"];
 
 export type ManagerGrants = Readonly<Record<ManagerGrantKey, boolean>>;
 
-/**
- * The short noun each grant goes by in a sentence.
- *
- * The settings screen phrases these as actions ("Send communications") because
- * it is describing a switch. A ledger entry needs the noun — "added
- * Communications, removed Projects" — and a permanent record should not be
- * carrying the UI's phrasing of the day. Both live off the same key list, so a
- * new grant is still added in exactly one place.
- */
-export const MANAGER_GRANT_LABELS: Readonly<Record<ManagerGrantKey, string>> = {
-  inquiries: "Inquiries",
-  violations: "Violations",
-  directory: "Directory",
-  documents: "Documents",
-  communications: "Communications",
-  feedback: "Community feedback",
-  projects: "Projects",
-  activity: "Activity",
-  contact_platform: "Contact HOA Connect",
-};
+/** The short noun for each grant, from the area list. */
+export const MANAGER_GRANT_LABELS: Readonly<Record<ManagerGrantKey, string>> = Object.fromEntries(
+  AREAS.filter((a): a is GrantableArea => a.gate !== null).map((a) => [a.key, a.label])
+) as Record<ManagerGrantKey, string>;
+
+/** The short noun for any area (grantable or not); the key itself if unknown. */
+export function areaLabel(key: string): string {
+  return AREAS.find((a) => a.key === key)?.label ?? key;
+}
+
+export function isAreaKey(key: unknown): key is AreaKey {
+  return typeof key === "string" && (AREA_KEYS as readonly string[]).includes(key);
+}
 
 export function grantLabel(key: string): string {
   return MANAGER_GRANT_LABELS[key as ManagerGrantKey] ?? key;

@@ -7,6 +7,8 @@
  * else is redirected. Sensitive writes are still authorized server-side; this
  * only gates page access.
  */
+import type { ManagerGrantKey } from "#core/shared/transition/grants";
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
   const { user } = useDirectusAuth();
@@ -29,13 +31,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     managerCan,
   } = useCurrentDomainAccess();
 
-  const capability = (to.meta.managerCapability as
-    | "inquiries"
-    | "violations"
-    | "directory"
-    | "documents"
-    | "communications"
-    | undefined) || null;
+  const capability = (to.meta.managerCapability as ManagerGrantKey | undefined) || null;
 
   if (isAdminOfCurrentDomain.value) return;
   if (

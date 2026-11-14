@@ -12,6 +12,8 @@
  * In this case, this composable will correctly identify that the user is NOT an admin
  * of the currently viewed organization, preventing unauthorized access.
  */
+import { normalizeGrants, type ManagerGrantKey } from "#core/shared/transition/grants";
+
 export const useCurrentDomainAccess = () => {
   const { activeHoa } = useActiveHoa();
   const { loggedIn, user } = useUserSession();
@@ -153,21 +155,14 @@ export const useCurrentDomainAccess = () => {
     return currentDomainRoleId.value === config.public.directusRolePropertyManager;
   });
 
-  const currentDomainManagerPermissions = computed(() => {
-    const raw = currentDomainMembership.value?.manager_permissions;
-    const obj = raw && typeof raw === "object" ? raw : {};
-    return {
-      inquiries: obj.inquiries === true,
-      violations: obj.violations === true,
-      directory: obj.directory === true,
-      documents: obj.documents === true,
-      communications: obj.communications === true,
-    };
-  });
+  // Every grant key, from the one area list (core/shared/transition/grants.ts).
+  const currentDomainManagerPermissions = computed(() =>
+    normalizeGrants(currentDomainMembership.value?.manager_permissions)
+  );
 
   // True if the user may access a capability of the current domain: admins
   // always can; property managers only for a granted capability.
-  const managerCan = (key: "inquiries" | "violations" | "directory" | "documents" | "communications"): boolean => {
+  const managerCan = (key: ManagerGrantKey): boolean => {
     if (isAdminOfCurrentDomain.value) return true;
     if (isPropertyManagerOfCurrentDomain.value) return currentDomainManagerPermissions.value[key];
     return false;
