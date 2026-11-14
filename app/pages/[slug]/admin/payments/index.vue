@@ -16,13 +16,15 @@ definePageMeta({
 const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 
 const { selectedOrgId } = await useSelectedOrg();
-const { list: listRequests, create: createRequest, update: updateRequest } =
+// Reads come from the server (admin or money:read); writes stay admin-only.
+const { create: createRequest, update: updateRequest } =
   useDirectusItems<PaymentRequest>("payment_requests");
-const { list: listSchedules, create: createSchedule, update: updateSchedule } =
+const { create: createSchedule, update: updateSchedule } =
   useDirectusItems<PaymentSchedule>("payment_schedules");
+const money = useMoneyReads();
 const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
 const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
-const { list: listExpenses, listForOversight } = useExpenses();
+const { list: listExpenses } = useExpenses();
 const { buildOrgPath } = useOrgNavigation();
 
 const tab = ref<"overview" | "charges" | "recurring" | "reports">("overview");
@@ -32,17 +34,7 @@ const { data: requests, pending, refresh } = await useAsyncData(
   `admin-payments-${selectedOrgId.value}`,
   async () => {
     if (!selectedOrgId.value) return [];
-    const rows = await listRequests({
-      fields: [
-        "id", "title", "status", "request_type", "amount", "amount_paid",
-        "amount_remaining", "due_date", "paid_at",
-        "member.id", "member.first_name", "member.last_name",
-      ],
-      filter: { organization: { _eq: selectedOrgId.value } },
-      sort: ["-date_created"],
-      limit: 200,
-    });
-    return (rows || []) as PaymentRequest[];
+    return money.listCharges(selectedOrgId.value, { limit: 200 });
   },
   { watch: [selectedOrgId], server: false }
 );
@@ -51,17 +43,7 @@ const { data: schedules, refresh: refreshSchedules } = await useAsyncData(
   `admin-schedules-${selectedOrgId.value}`,
   async () => {
     if (!selectedOrgId.value) return [];
-    const rows = await listSchedules({
-      fields: [
-        "id", "title", "status", "amount", "frequency", "start_date",
-        "next_payment_date", "total_payments_generated",
-        "member.id", "member.first_name", "member.last_name",
-      ],
-      filter: { organization: { _eq: selectedOrgId.value } },
-      sort: ["-date_created"],
-      limit: 200,
-    });
-    return (rows || []) as PaymentSchedule[];
+    return money.listSchedules(selectedOrgId.value, { limit: 200 });
   },
   { watch: [selectedOrgId], server: false }
 );
@@ -83,8 +65,7 @@ const { data: members } = await useAsyncData(
 
 const { data: expenses } = await useAsyncData(
   `admin-payments-expenses-${selectedOrgId.value}`,
-  // A board seat without admin reads them from the server (oversight).
-  () => (canWrite.value ? listExpenses : listForOversight)(selectedOrgId.value || undefined),
+  () => listExpenses(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
 

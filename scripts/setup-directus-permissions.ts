@@ -280,7 +280,9 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
   {
     collection: "payment_requests",
     adminLevel: "full",
-    memberLevel: "read_only", // Members can see their payment requests
+    // Own rows only (see the payment-read override below): org-wide money is
+    // read through the money:read server routes (plan decision 16).
+    memberLevel: "read_only",
     filterType: "organization",
     description: "Payment requests",
   },
@@ -827,12 +829,16 @@ function buildPermissionsForLevel(
         }
       : null;
 
-  // Special handling for payment_methods — live Stripe ids, so the member
-  // level (read_only) is narrowed to "my own member record" rather than the
-  // ordinary org-wide filter. Admin (full) is untouched — it falls through to
-  // effectiveFilter below and stays org-scoped.
+  // Special handling for payment_methods — live Stripe ids — and for charges,
+  // recurring charges and transactions: the member level (read_only) is
+  // narrowed to "my own member record" rather than the ordinary org-wide
+  // filter. Org-wide money is read only through the server routes that check
+  // money:read (/api/org/money/*; plan decision 16;
+  // scripts/narrow-payment-reads.ts applies just this). Admin (full) is
+  // untouched — it falls through to effectiveFilter below and stays org-scoped.
+  const OWN_ROW_COLLECTIONS = ["payment_methods", "payment_requests", "payment_schedules", "payment_transactions"];
   const paymentMethodsFilter =
-    collection === "payment_methods" && level === "read_only"
+    OWN_ROW_COLLECTIONS.includes(collection) && level === "read_only"
       ? { member: { user: { _eq: "$CURRENT_USER" } } }
       : null;
 

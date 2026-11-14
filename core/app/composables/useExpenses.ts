@@ -1,7 +1,8 @@
 // useExpenses — org-scoped CRUD for payment_expenses (Phase 7b, Track A).
-// Money OUT: vendor bills, maintenance, utilities, etc. Admin-only (members have
-// no Directus access to the collection). Thin wrapper over useDirectusItems plus
-// a receipt-upload helper (useDirectusFiles).
+// Money OUT: vendor bills, maintenance, utilities, etc. Reads go through the
+// server (/api/org/expenses: admins and every board seat, money:read); writes
+// are admin-only, through Directus (members have no access to the collection),
+// plus a receipt-upload helper (useDirectusFiles).
 
 import type { PaymentExpense } from "#core/types/directus";
 
@@ -20,38 +21,18 @@ export const EXPENSE_STATUSES = [
   { value: "paid", label: "Paid" },
 ] as const;
 
-const EXPENSE_FIELDS = [
-  "id", "status", "category", "title", "vendor", "amount",
-  "expense_date", "paid_date", "description", "notes",
-  "receipt", "organization", "project", "date_created",
-];
-
 export function useExpenses() {
   const { selectedOrgId } = useSelectedOrgState();
   const items = useDirectusItems<PaymentExpense>("payment_expenses");
   const { upload } = useDirectusFiles();
 
+  const money = useMoneyReads();
+
+  /** The org's expenses, newest first, from the server (admin or money:read). */
   const list = async (orgId?: string): Promise<PaymentExpense[]> => {
     const org = orgId || selectedOrgId.value;
     if (!org) return [];
-    const rows = await items.list({
-      fields: EXPENSE_FIELDS,
-      filter: { organization: { _eq: org } },
-      sort: ["-expense_date", "-date_created"],
-      limit: 500,
-    });
-    return (rows || []) as PaymentExpense[];
-  };
-
-  /**
-   * The same list for a board seat without admin (money:read): members have no
-   * Directus access to the collection, so it comes from the server, read-only.
-   */
-  const listForOversight = async (orgId?: string): Promise<PaymentExpense[]> => {
-    const org = orgId || selectedOrgId.value;
-    if (!org) return [];
-    const res = await $fetch<{ expenses: PaymentExpense[] }>("/api/org/expenses", { query: { orgId: org } });
-    return res?.expenses ?? [];
+    return money.listExpenses(org);
   };
 
   const create = (data: Partial<PaymentExpense>, orgId?: string) =>
@@ -68,7 +49,7 @@ export function useExpenses() {
     return result?.id ?? result?.data?.id ?? null;
   };
 
-  return { list, listForOversight, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
+  return { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
 }
 
 // useSelectedOrg is async (it awaits membership data); inside a composable we only

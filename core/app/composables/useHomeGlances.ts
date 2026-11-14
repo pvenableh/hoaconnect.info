@@ -62,7 +62,9 @@ import { orgTimeZone } from "#core/shared/org-timezone";
  * rather than this month's facts.
  */
 export async function useMoneyGlance(org: MaybeRefOrGetter<string | null | undefined>) {
-  const { list } = useDirectusItems("payment_requests");
+  // Org-wide charges come from the server (admin or money:read); anyone else
+  // gets nothing to count, never another resident's charges.
+  const money = useMoneyReads();
   const { isEnabled } = useModules();
   const orgId = computed(() => toValue(org) || null);
 
@@ -70,23 +72,9 @@ export async function useMoneyGlance(org: MaybeRefOrGetter<string | null | undef
     `home-money-glance-${orgId.value}`,
     async () => {
       if (!orgId.value || !isEnabled("payments")) return [] as ChargeRow[];
-      return (await list({
-        fields: [
-          "id",
-          "status",
-          "amount",
-          "amount_paid",
-          "amount_remaining",
-          "due_date",
-          "paid_at",
-        ],
-        filter: {
-          organization: { _eq: orgId.value },
-          _or: [{ paid_at: { _nnull: true } }, { status: { _nin: ["paid", "canceled"] } }],
-        },
-        sort: ["-date_created"],
-        limit: 1000,
-      })) as ChargeRow[];
+      return (await money
+        .listCharges(orgId.value, { limit: 1000, view: "glance" })
+        .catch(() => [])) as ChargeRow[];
     },
     { watch: [orgId], server: false, default: () => [] as ChargeRow[] },
   );

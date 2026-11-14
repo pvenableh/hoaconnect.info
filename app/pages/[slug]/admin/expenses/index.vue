@@ -11,7 +11,7 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const { list, listForOversight, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
+const { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
 const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 const { getUrl } = useDirectusFiles();
 const { list: listProjects } = useProjects();
@@ -27,8 +27,7 @@ const projectName = (id: string | null | undefined) =>
 
 const { data: expenses, pending, refresh } = await useAsyncData(
   `admin-expenses-${selectedOrgId.value}`,
-  // A board seat without admin reads them from the server (oversight).
-  () => (canWrite.value ? list : listForOversight)(selectedOrgId.value || undefined),
+  () => list(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
 
