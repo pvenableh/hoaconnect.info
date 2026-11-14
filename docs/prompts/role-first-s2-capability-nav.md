@@ -61,6 +61,10 @@ access; access comes only from admin or an area's work switch. No grant
 without a gate: an area with no page or route stays out of the dock.
 projects, activity and feedback have server gates but no manager pages.
 Give each one an entry, or say in the log why it waits.
+Phase 2b (plan §3.4) will add a `responsibilities` area and two nav entries,
+an admin register and an owner view gated by a community publish switch, so
+the registry entry shape must allow a gate that combines an area, a module
+toggle and an org-level flag; build none of it in this session.
 
 Token rules: subagents on Haiku 5.5 for census/grep; review diffs, not
 files. Gates run in the background; read only the tail. Typecheck with
