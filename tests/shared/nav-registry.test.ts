@@ -237,10 +237,12 @@ describe("what each role's dock shows", () => {
     expect(dock(PERSONAS.tenant)).toEqual(today);
   });
 
-  it("board: Money for money:read holders only", () => {
+  it("board: every seat gets Money (oversight); residents and managers do not", () => {
     expect(dock(PERSONAS.treasurer)).toContain("payments");
     expect(dock(PERSONAS.president)).toContain("payments");
-    expect(dock(PERSONAS.director)).not.toContain("payments");
+    expect(dock(PERSONAS.director)).toContain("payments");
+    expect(dock(PERSONAS.owner)).not.toContain("payments");
+    expect(dock(PERSONAS.fullService)).not.toContain("payments");
   });
 
   it("manager: the queue and exactly the areas they can work", () => {

@@ -31,14 +31,15 @@ describe("hasCapability", () => {
     }
   });
 
-  it("treasurer can read and write money", () => {
-    expect(hasCapability(["board_treasurer"], "money:read")).toBe(true);
-    expect(hasCapability(["board_treasurer"], "money:write")).toBe(true);
-  });
-
-  it("president has money read oversight but not write", () => {
-    expect(hasCapability(["board_president"], "money:read")).toBe(true);
-    expect(hasCapability(["board_president"], "money:write")).toBe(false);
+  // Oversight (decided 2026-11-14): every board seat reads the books, and no
+  // office writes them on its own — the treasurer included.
+  it("every board seat reads money; no office writes it", () => {
+    for (const seat of ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"] as Actor[]) {
+      expect(hasCapability([seat], "money:read"), seat).toBe(true);
+      expect(hasCapability([seat], "money:write"), seat).toBe(false);
+    }
+    expect(hasCapability(["member"], "money:read")).toBe(false);
+    expect(hasCapability(["property_manager"], "money:read")).toBe(false);
   });
 
   it("president and VP can approve milestones; a plain member cannot", () => {
@@ -54,7 +55,8 @@ describe("hasCapability", () => {
 
   it("ORs across multiple hats — the most permissive wins", () => {
     const hats: Actor[] = ["member", "board_treasurer"];
-    expect(hasCapability(hats, "money:write")).toBe(true);
+    expect(hasCapability(hats, "money:read")).toBe(true);
+    expect(hasCapability(["member"], "money:read")).toBe(false);
   });
 
   it("members:manage and settings:manage are admin-only", () => {
@@ -78,7 +80,7 @@ describe("capabilitiesFor", () => {
   it("unions capabilities across hats without duplicates", () => {
     const caps = capabilitiesFor(["board_treasurer", "team_lead"]);
     expect(caps).toContain("money:read");
-    expect(caps).toContain("money:write");
+    expect(caps).not.toContain("money:write");
     expect(caps).toContain("projects:write");
     expect(caps).toContain("milestone:approve");
     expect(new Set(caps).size).toBe(caps.length);

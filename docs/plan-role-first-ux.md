@@ -332,6 +332,7 @@ Settled 2026-11-14:
 13. Owners see the register only after the community publishes it, and see the present only.
 14. An admin can choose to show unassigned jobs to owners, as a dated fact with no commentary. Admin only.
 15. The register gets a Map mode (Phase 2c): two-sided highlight with a time slider, not a network graph.
+16. Money is overseen, not delegated: every board seat reads the books; no single officer writes them. Money going out needs approval by two of the operating committee (President, Treasurer, Secretary), or a board majority where there is no committee, never by the person who entered it, and each approval is in the Ledger.
 
 ## 7. Status
 
@@ -394,7 +395,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 1. **Payments read policy (security, decide soon).** The Member policy on `payment_requests` and `payment_schedules` is `read_only` with the `organization` filter (`scripts/setup-directus-permissions.ts`). So any member can read every charge in their community through the API, not just their own. The read-only Money pages for Treasurer and President rely on that read. Narrowing it means moving the Money reads behind a server route that checks `money:read`. That is a schema and route change, so it is not in this session.
 2. Give a manager who is also an admin the hat (`is_manager`, `manager_title`) by hand, as in Session 1 TODO 2. Until then their dock has no Queue and they land on the org root.
-3. `money:write` is in the matrix for the Treasurer, but every Money write is admin-only on the server. Decide whether the Treasurer should write. That needs a gate on the payments routes, then the pages' `canWrite`.
+3. ~~Decide whether the Treasurer should write.~~ **Decided 2026-11-14 (decision 16): no office writes money.** `money:write` is now held by no office, and every board seat reads. Money going out gets a two-person approval in its own session.
+4. If a treasurer holds the HOA Admin role, they can still record and approve anything in the app, because admin bypasses every money gate. The account owner can remove the role (decision 6). The approval session will close this gap for admins too.
 
 **Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, 16/16 audits)
 
@@ -409,8 +411,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 | Who | Before | Now |
 |---|---|---|
-| Treasurer, President | Owner dock | Owner dock plus Money (Payments, Expenses, read-only: no new charge, mark paid, cancel, edit or delete) |
-| Other board seats | Owner dock | Unchanged. Approvals waits (see decisions) |
+| Every board seat | Owner dock | Owner dock plus Money (Payments, Expenses, read-only: no new charge, mark paid, cancel, edit or delete; no receipt links yet). Approvals (member changes) still waits |
 | Property manager, not admin | Resident dock; manager links only in the phone sheet | Queue plus one slot per area they can work, on desktop and phone. The resident apps leave their dock |
 | Property manager with no grants | Sheet showed "Overview"; `/manage` showed "no permissions yet" | Resident dock; `/manage` redirects to Documents |
 | Manager with only Feedback, Projects or Activity | `/manage` said "no permissions yet" | `/manage` opens Polls, Projects or Activity |
@@ -428,7 +429,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 **Deviations and decisions**
 
-- **Asked and decided with the operator:** Money goes to holders of `money:read` (Treasurer, President), read-only. §2.2 said "a board member's dock gains Money and Approvals because they hold the capability", but only those two seats hold `money:read`. No capability covers Approvals, and `isChangeReviewer` admits only admins and managers with Directory. So Approvals waits until it has a board capability and a server gate. Managers with Directory get it now.
+- **Asked and decided with the operator, then revised the same day:** Money is read-only oversight for **every board seat**, not just Treasurer and President (decision 16). The operator's community has a treasurer acting without approval, so visibility goes to the whole board, and no office writes. Members have no Directus access to `payment_expenses`, so the first version showed board seats an empty expenses list. `GET /api/org/expenses` (admin or `money:read`) now serves it read-only. Receipts stay admin-only until they are served through the server too.
+- The first answer was Money for Treasurer and President only, because §2.2 said "a board member's dock gains Money and Approvals because they hold the capability" and only those two seats held `money:read` then. No capability covers Approvals, and `isChangeReviewer` admits only admins and managers with Directory. So Approvals waits until it has a board capability and a server gate. Managers with Directory get it now.
 - **Asked and decided with the operator:** a manager's dock is Queue plus their areas (§2.2 "exactly the delegated areas"). The resident apps leave it.
 - The hat picks the layout and the home, never a need. Layout: admin (admin hat, not previewing), manager (not admin, with any `canWork` area), member (everyone else, and an admin previewing).
 - `projects`, `activity` and `feedback` each have an entry now: `/admin/projects` (moved to `nav-gate`), `/admin/activity` (its page and route already admit the grant) and `/polls` (the server's `viewer.canManage`).

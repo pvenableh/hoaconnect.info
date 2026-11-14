@@ -87,7 +87,8 @@ Gates as they are today unless marked **new**. "A" = `{admin}`, "m:x" = module x
 
 ## Decisions taken with the operator (2026-11-14)
 
-- **Money** goes to holders of `money:read` (Treasurer, President). For them the pages are read-only: the write controls hide for non-admins, because the server lets only admins write.
+- **Money is oversight.** Every board seat holds `money:read` and sees charges and expenses read-only (revised the same day: first Treasurer and President only). Expenses come from `GET /api/org/expenses`, because members have no Directus access to them. No office holds `money:write`; writes stay admin-only.
+- **Money going out needs approval** by two of the operating committee (President, Treasurer, Secretary), or a board majority where there is no committee, and never by the person who entered it. Not built yet: its own session.
 - **Approvals waits for the board.** No capability covers it, and `isChangeReviewer` admits only admins and managers with Directory. Managers with Directory get it.
 - **A manager's dock** is Queue plus their areas. The resident apps leave it (URLs, the sheet and the home page still reach them).
 

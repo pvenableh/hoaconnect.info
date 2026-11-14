@@ -43,6 +43,17 @@ export function useExpenses() {
     return (rows || []) as PaymentExpense[];
   };
 
+  /**
+   * The same list for a board seat without admin (money:read): members have no
+   * Directus access to the collection, so it comes from the server, read-only.
+   */
+  const listForOversight = async (orgId?: string): Promise<PaymentExpense[]> => {
+    const org = orgId || selectedOrgId.value;
+    if (!org) return [];
+    const res = await $fetch<{ expenses: PaymentExpense[] }>("/api/org/expenses", { query: { orgId: org } });
+    return res?.expenses ?? [];
+  };
+
   const create = (data: Partial<PaymentExpense>, orgId?: string) =>
     items.create({ organization: orgId || selectedOrgId.value, ...data } as Partial<PaymentExpense>);
 
@@ -57,7 +68,7 @@ export function useExpenses() {
     return result?.id ?? result?.data?.id ?? null;
   };
 
-  return { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
+  return { list, listForOversight, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
 }
 
 // useSelectedOrg is async (it awaits membership data); inside a composable we only

@@ -22,7 +22,7 @@ const { list: listSchedules, create: createSchedule, update: updateSchedule } =
   useDirectusItems<PaymentSchedule>("payment_schedules");
 const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
 const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
-const { list: listExpenses } = useExpenses();
+const { list: listExpenses, listForOversight } = useExpenses();
 const { buildOrgPath } = useOrgNavigation();
 
 const tab = ref<"overview" | "charges" | "recurring" | "reports">("overview");
@@ -83,7 +83,8 @@ const { data: members } = await useAsyncData(
 
 const { data: expenses } = await useAsyncData(
   `admin-payments-expenses-${selectedOrgId.value}`,
-  () => listExpenses(selectedOrgId.value || undefined),
+  // A board seat without admin reads them from the server (oversight).
+  () => (canWrite.value ? listExpenses : listForOversight)(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
 

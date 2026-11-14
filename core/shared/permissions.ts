@@ -127,9 +127,15 @@ export const CAPABILITY_MATRIX: Record<Capability, Actor[]> = {
   // offices. PM-with-`projects` grant is layered on in the route.
   "milestone:approve": ["board_president", "board_vp", "team_lead"],
 
-  // Money: the treasurer owns the books; the president has read oversight.
-  "money:read": ["board_treasurer", "board_president"],
-  "money:write": ["board_treasurer"],
+  // Money (decided with the operator 2026-11-14). Oversight is the point: every
+  // board seat reads the books, so no officer's handling of money goes unseen.
+  // No single officer writes them — money writes stay admin-only on the server,
+  // and money going out will need approval by two of the operating committee
+  // (President, Treasurer, Secretary), or a board majority where there is no
+  // committee, never by the person who entered it. Do not hand money:write to
+  // an office: route it through that approval instead.
+  "money:read": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
+  "money:write": [],
 
   // Higher-trust outward actions.
   "communications:send": ["board_president", "property_manager"],
