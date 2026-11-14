@@ -12,13 +12,16 @@
  * In this case, this composable will correctly identify that the user is NOT an admin
  * of the currently viewed organization, preventing unauthorized access.
  *
- * The role answers come from the shared RoleContext resolver
- * (docs/spec-role-context.md), run over the cached membership so route
- * middleware never waits on a fetch. See roleContextFromMembership for the
- * client rules kept until Session 2.
+ * The role answers come from the RoleContext (docs/spec-role-context.md): the
+ * server's (useRoleContext) once it is loaded for the org on screen, and until
+ * then the shared resolver over the cached membership, under the server's own
+ * rules — so route middleware never has to wait, and never disagrees with the
+ * server once it knows. The admin, admin-or-board, manager and nav-gate
+ * middleware load the server context before they decide.
  */
 import { normalizeGrants, type AreaKey, type ManagerGrantKey } from "#core/shared/transition/grants";
-import { roleContextFromMembership } from "./useRoleContext";
+import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
+import { roleContextFromMembership, useRoleContext } from "./useRoleContext";
 
 export const useCurrentDomainAccess = () => {
   const { activeHoa } = useActiveHoa();
@@ -79,25 +82,24 @@ export const useCurrentDomainAccess = () => {
     return role;
   });
 
-  // Board terms current for the current domain (the client's date filter;
-  // the server's read is date-inclusive — see the spec).
+  // Board terms current for the current domain, by the server's rule (both
+  // ends inclusive, UTC dates).
   const currentDomainBoardTerms = computed(() => {
     const terms = currentDomainMembership.value?.board_member_terms;
     if (!terms || !Array.isArray(terms)) return [];
-
-    const now = new Date();
-    return terms.filter((term: any) => {
-      if (term.status !== "published") return false;
-      const startDate = term.term_start ? new Date(term.term_start) : null;
-      const endDate = term.term_end ? new Date(term.term_end) : null;
-      if (startDate && now < startDate) return false;
-      if (endDate && now > endDate) return false;
-      return true;
-    });
+    const today = todayUtc();
+    return terms.filter((term: any) => isCurrentBoardTerm(term, today));
   });
 
-  // The membership resolved by the shared RoleContext resolver.
-  const roleContext = computed(() =>
+  // The server's context, when it is loaded for the org on screen.
+  const role = useRoleContext();
+  const serverContext = computed(() => {
+    const ctx = role.context.value;
+    return ctx && ctx.orgId && ctx.orgId === currentDomainOrgId.value ? ctx : null;
+  });
+
+  // The cached membership under the server's rules, for before it arrives.
+  const cachedContext = computed(() =>
     roleContextFromMembership(
       currentDomainMembership.value,
       currentDomainBoardTerms.value,
@@ -105,10 +107,14 @@ export const useCurrentDomainAccess = () => {
       {
         appAdmin: config.public.directusRoleAppAdmin as string | undefined,   // App Administrator - full system access
         hoaAdmin: config.public.directusRoleHoaAdmin as string | undefined,   // HOA Admin - organization-level admin access
-        legacyAdmin: config.public.directusRoleAdmin as string | undefined,   // Legacy fallback
         propertyManager: config.public.directusRolePropertyManager as string | undefined,
       }
     )
+  );
+
+  // Without a login there is nothing to resolve, whatever is cached.
+  const roleContext = computed(() =>
+    loggedIn.value ? (serverContext.value ?? cachedContext.value) : cachedContext.value
   );
 
   /**
@@ -117,20 +123,9 @@ export const useCurrentDomainAccess = () => {
    * to view and manage all admin content and features (including during maintenance mode)
    */
   const isAdminOfCurrentDomain = computed(() => {
-    // HOA Admin users also get admin access - they can manage admin content
-    // This ensures HOA Admin users can see navigation in maintenance mode.
-    // Client-only rule (the server does not honour it): any membership here
-    // plus the HOA Admin global role. Kept until Session 2.
-    if (
-      userGlobalRoleId.value &&
-      userGlobalRoleId.value === config.public.directusRoleHoaAdmin &&
-      currentDomainMembership.value
-    ) {
-      return true;
-    }
-
-    // Global App Admin (before membership data loads), or an admin role on
-    // this organization's membership.
+    if (!loggedIn.value) return false;
+    // Global App Admin (before membership data loads), or the HOA Admin role on
+    // a live membership here — what checkAdminAccess admits.
     return roleContext.value.hats.admin;
   });
 
@@ -151,7 +146,7 @@ export const useCurrentDomainAccess = () => {
     return memberRoles.includes(currentDomainRoleId.value);
   });
 
-  const isBoardMemberOfCurrentDomain = computed(() => roleContext.value.hats.board);
+  const isBoardMemberOfCurrentDomain = computed(() => loggedIn.value && roleContext.value.hats.board);
 
   // ── Property Manager (external management staff) ──────────────────────────
   // A real login role with per-manager grant flags (manager_permissions) the

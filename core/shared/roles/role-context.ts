@@ -49,6 +49,28 @@ export interface RoleMembership extends MemberResidency {
   manager_areas?: Record<string, unknown> | null;
 }
 
+/** Today as the server's board-term filter writes it: YYYY-MM-DD in UTC. */
+export function todayUtc(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Is this `hoa_board_members` row a current term on `today`? The server's rule
+ * (getBoardPosition, getRoleContext): published, started on or before today,
+ * not ended before today — both ends inclusive, compared as UTC dates.
+ */
+export function isCurrentBoardTerm(
+  term: { status?: string | null; term_start?: string | null; term_end?: string | null },
+  today: string
+): boolean {
+  if (term.status !== "published") return false;
+  const start = term.term_start ? String(term.term_start).slice(0, 10) : null;
+  const end = term.term_end ? String(term.term_end).slice(0, 10) : null;
+  if (start && start > today) return false;
+  if (end && end < today) return false;
+  return true;
+}
+
 /** A current-term `hoa_board_members` row. Only the office is read. */
 export interface RoleBoardTerm {
   title?: string | null;

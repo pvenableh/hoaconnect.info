@@ -21,8 +21,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   if (!user.value) return;
 
-  // Populate memberships state (consumed by useCurrentDomainAccess).
+  // Populate memberships state (consumed by useCurrentDomainAccess), then the
+  // server's RoleContext, which it prefers.
   await useSelectedOrg();
+  await useRoleContext().load();
 
   const { isAdminOfCurrentDomain, isMemberOfCurrentDomain, canWorkArea } = useCurrentDomainAccess();
 

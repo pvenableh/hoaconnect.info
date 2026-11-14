@@ -27,6 +27,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (user.value) {
     // Ensure useSelectedOrg is called to populate memberships state
     const { isAdmin, currentOrg } = await useSelectedOrg();
+    // Then the server's RoleContext, which useCurrentDomainAccess prefers.
+    await useRoleContext().load();
 
     // Determine if we're on an org-specific context (slug route)
     const isOnOrgContext = !!to.params.slug;

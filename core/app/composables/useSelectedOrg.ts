@@ -158,6 +158,8 @@ export const useSelectedOrg = async () => {
             // Entitlement (own fields + parent billing_account, resolved up)
             ...entitlementFields("organization"),
             "role",
+            // RoleContext needs it: an archived or inactive row carries no hats.
+            "status",
             "member_type",
             "manager_permissions",
             "board_member_terms.id",

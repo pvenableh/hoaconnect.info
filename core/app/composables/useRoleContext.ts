@@ -93,22 +93,19 @@ export const useRoleContext = () => {
 export interface ClientRoleIds {
   appAdmin?: string | null;
   hoaAdmin?: string | null;
-  /** The legacy "Administrator" role, which the client has always counted. */
-  legacyAdmin?: string | null;
   propertyManager?: string | null;
 }
 
 /**
  * Resolve the CACHED membership on the client, synchronously, with the same
- * resolver the server uses. Route middleware runs before any fetch, so
- * useCurrentDomainAccess cannot wait for the server context.
+ * resolver and the same rules the server uses (docs/spec-capability-nav.md,
+ * "Client context"). useCurrentDomainAccess uses this until the server
+ * context is loaded for the org on screen, and the server's from then on.
  *
- * Two client rules differ from the server and are kept so nothing changes
- * this session (Session 2 retires them with the move to the server context):
- *  - every cached membership counts as live, whatever its status;
- *  - the legacy Administrator role counts as admin.
- * The billing account is not in the cache, so `isAccountOwner` is false here —
- * ask useRoleContext().context for it.
+ * The only difference left: a row read before `status` was in the cached
+ * fields has none, and counts as active (today's behaviour) rather than as
+ * over. The billing account is not in the cache, so `isAccountOwner` is false
+ * here — ask useRoleContext().context for it.
  */
 export function roleContextFromMembership(
   membership: RoleMembership | null | undefined,
@@ -116,13 +113,15 @@ export function roleContextFromMembership(
   globalRoleId: string | null | undefined,
   roles: ClientRoleIds
 ): RoleContext {
-  const ctx = resolveRoleContext(membership ? { ...membership, status: "active" } : null, currentTerms, null, {
+  const row = membership ? { ...membership, status: membership.status ?? "active" } : null;
+  const ctx = resolveRoleContext(row, currentTerms, null, {
     userId: null,
     globalRoleId,
+    // The server's: App Admin by global role, HOA Admin by membership role.
     roles: {
       appAdmin: roles.appAdmin,
       propertyManager: roles.propertyManager,
-      adminRoleIds: [roles.appAdmin, roles.hoaAdmin, roles.legacyAdmin],
+      adminRoleIds: [roles.hoaAdmin],
     },
   });
   return { ...ctx, isAccountOwner: false };

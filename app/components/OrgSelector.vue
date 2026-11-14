@@ -12,6 +12,7 @@ const router = useRouter();
 const config = useRuntimeConfig();
 
 import { hatLine, managerChip } from "#core/shared/roles/hat-badge";
+import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
 
 const { currentOrg, memberships, setOrganization, hasMultipleOrgs, isAdmin } =
   await useSelectedOrg();
@@ -76,15 +77,8 @@ const adminRoleIds = [
 const hasActiveBoardTerm = (m: any): boolean => {
   const terms = m?.board_member_terms;
   if (!Array.isArray(terms)) return false;
-  const now = new Date();
-  return terms.some((t: any) => {
-    if (t?.status !== "published") return false;
-    const start = t.term_start ? new Date(t.term_start) : null;
-    const end = t.term_end ? new Date(t.term_end) : null;
-    if (start && now < start) return false;
-    if (end && now > end) return false;
-    return true;
-  });
+  const today = todayUtc();
+  return terms.some((t: any) => !!t && isCurrentBoardTerm(t, today));
 };
 
 const roleLabel = (m: any): string => {
