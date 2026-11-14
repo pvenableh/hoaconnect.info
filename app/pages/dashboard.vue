@@ -12,19 +12,20 @@ const { currentOrg, isLoading } = await useSelectedOrg();
 const hasRedirected = ref(false);
 
 // This non-slug `/dashboard` is just a slug-agnostic entry point — resolve the
-// user's org and send them to its clean root (the org root IS the dashboard).
+// user's org and send them home: its clean root (the org root IS the
+// dashboard), or the queue for a manager who can work an area there.
 watch(
   [isLoading, () => currentOrg.value?.organization?.slug],
-  ([loading, slug]) => {
+  async ([loading, slug]) => {
     // Skip if still loading or already redirected
     if (loading || hasRedirected.value) {
       return;
     }
 
-    // Redirect to the org's clean root if we have a slug
     if (slug) {
       hasRedirected.value = true;
-      navigateTo(`/${slug}`, { replace: true });
+      const home = await resolveHomePath(currentOrg.value?.organization?.id);
+      navigateTo(orgHomeUrl(slug as string, home), { replace: true });
     }
   },
   { immediate: true }

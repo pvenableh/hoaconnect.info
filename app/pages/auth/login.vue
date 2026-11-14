@@ -65,14 +65,18 @@ const handleSubmit = async (values: { email: string; password: string }) => {
     // land on that org (resolved into activeHoa by host), never the user's default
     // org, which could belong to a different tenant and would render its content
     // on the wrong domain (e.g. 605lincolnroad.com/1033-lenox).
+    // A manager (hat) who can work an area there lands on their queue
+    // (resolveHomePath); everyone else on the org root.
     if (isCustomDomain.value) {
       const domainSlug = activeHoa.value?.slug;
-      await navigateTo(domainSlug ? `/${domainSlug}` : "/", { replace: true });
+      const home = await resolveHomePath(activeHoa.value?.id);
+      await navigateTo(domainSlug ? orgHomeUrl(domainSlug, home) : "/", { replace: true });
     } else {
       // Main app host: route to the user's default org slug, or the slug-agnostic
       // /dashboard entry when they have none.
       const org = loginUser?.organization;
-      await navigateTo(org?.slug ? `/${org.slug}` : "/dashboard", {
+      const home = await resolveHomePath(org?.id);
+      await navigateTo(org?.slug ? orgHomeUrl(org.slug, home) : "/dashboard", {
         replace: true,
       });
     }
