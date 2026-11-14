@@ -56,6 +56,7 @@
     "add:channel-category": "dotenv -- tsx scripts/add-channel-category-field.ts",
     "add:invitation-member-type": "dotenv -- tsx scripts/add-invitation-member-type.ts",
     "add:unit-link-residency": "dotenv -- tsx scripts/add-unit-link-residency.ts",
+    "add:manager-hat": "dotenv -- tsx scripts/add-manager-hat.ts",
     "fix:channel-writes": "dotenv -- tsx scripts/fix-channel-message-write.ts",
     "add:channel-phase7": "dotenv -- tsx scripts/add-channel-phase7.ts",
     "widen:users-read": "dotenv -- tsx scripts/widen-users-read-to-org.ts",
