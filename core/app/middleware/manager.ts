@@ -1,13 +1,13 @@
 /**
  * manager middleware — gates the property-manager portal (/[slug]/manage/*).
  *
- * Admits org admins (full access) and property managers of the current domain's
- * organization. When a page declares `meta.managerCapability`, a property
- * manager must additionally hold that grant (manager_permissions[...]). Everyone
- * else is redirected. Sensitive writes are still authorized server-side; this
- * only gates page access.
+ * Admits org admins (full access) and anyone who can work an area here — the
+ * area a page names in `meta.managerCapability`, or any area for the portal
+ * root. The manager hat alone opens nothing (docs/spec-capability-nav.md).
+ * Everyone else is redirected. Sensitive writes are still authorized
+ * server-side; this only gates page access.
  */
-import type { ManagerGrantKey } from "#core/shared/transition/grants";
+import { AREA_KEYS, type AreaKey } from "#core/shared/transition/grants";
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
@@ -24,22 +24,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Populate memberships state (consumed by useCurrentDomainAccess).
   await useSelectedOrg();
 
-  const {
-    isAdminOfCurrentDomain,
-    isPropertyManagerOfCurrentDomain,
-    isMemberOfCurrentDomain,
-    managerCan,
-  } = useCurrentDomainAccess();
+  const { isAdminOfCurrentDomain, isMemberOfCurrentDomain, canWorkArea } = useCurrentDomainAccess();
 
-  const capability = (to.meta.managerCapability as ManagerGrantKey | undefined) || null;
+  const capability = (to.meta.managerCapability as AreaKey | undefined) || null;
 
   if (isAdminOfCurrentDomain.value) return;
-  if (
-    isPropertyManagerOfCurrentDomain.value &&
-    (!capability || managerCan(capability))
-  ) {
-    return;
-  }
+  if (capability ? canWorkArea(capability) : AREA_KEYS.some((k) => canWorkArea(k))) return;
 
   const slug = (to.params.slug as string) || activeHoa.value?.slug || null;
   if (isMemberOfCurrentDomain.value && slug) return navigateTo(`/${slug}/documents`);

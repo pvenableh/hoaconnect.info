@@ -18,20 +18,21 @@ definePageMeta({
   layout: "auth",
 });
 
+import { NAV_LAYOUTS, meets, navEntry } from "#core/shared/nav/registry";
+
 const { buildOrgPath } = useOrgNavigation();
-const { managerCan, isPropertyManagerOfCurrentDomain } = useCurrentDomainAccess();
+const { isPropertyManagerOfCurrentDomain } = useCurrentDomainAccess();
+const nav = useNavContext();
 
-// Order is the landing priority: inquiries is the manager's actual inbox, so a
-// manager who holds it lands there whatever else they were granted.
-const MANAGER_AREAS = [
-  { key: "inquiries", path: "/manage/inquiries" },
-  { key: "directory", path: "/manage/directory" },
-  { key: "communications", path: "/manage/communications" },
-  { key: "documents", path: "/documents" },
-] as const;
-
+// The manager layout's order is the landing priority (nav registry): inquiries
+// is the manager's actual inbox, so a manager who holds it lands there
+// whatever else they were granted.
 const home = computed(
-  () => MANAGER_AREAS.find((a) => managerCan(a.key))?.path ?? null
+  () =>
+    NAV_LAYOUTS.manager
+      .filter((id) => id !== "queue")
+      .map((id) => navEntry(id))
+      .find((e) => !!e && meets(e, nav.ctx.value))?.path ?? null
 );
 
 // `replace` so Back leaves the portal rather than bouncing through this root.

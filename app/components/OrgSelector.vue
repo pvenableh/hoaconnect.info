@@ -11,8 +11,24 @@ import {
 const router = useRouter();
 const config = useRuntimeConfig();
 
+import { hatLine, managerChip } from "#core/shared/roles/hat-badge";
+
 const { currentOrg, memberships, setOrganization, hasMultipleOrgs, isAdmin } =
   await useSelectedOrg();
+
+// Each membership's hats, from the server (GET /api/user/hats): hats add, and
+// the manager hat carries its title. Until they load, the role labels below.
+const membershipHats = useMembershipHats();
+onMounted(() => void membershipHats.load());
+const hatsFor = (m: any) => membershipHats.forOrg(m?.organization?.id);
+const roleLine = (m: any): string => {
+  const h = hatsFor(m);
+  return h ? hatLine(h) : roleLabel(m);
+};
+const chipFor = (m: any): string | null => {
+  const h = hatsFor(m);
+  return h ? managerChip(h) : null;
+};
 
 // Agency / multi-property billing: surface the user's billing account(s) so a
 // property manager can jump to the agency dashboard ("All properties").
@@ -254,9 +270,10 @@ const goToAgency = async (accountId: string) => {
           <span class="block font-semibold truncate t-text">{{
             currentOrg?.organization?.name
           }}</span>
-          <span class="block text-xs font-normal t-text-muted">{{
-            roleLabel(currentOrg)
-          }}</span>
+          <span class="flex flex-wrap items-center gap-1 text-xs font-normal t-text-muted">
+            <span v-if="chipFor(currentOrg)" class="px-1.5 rounded-full font-medium t-bg-accent/20 t-text-accent">{{ chipFor(currentOrg) }}</span>
+            <span v-if="roleLine(currentOrg)">{{ roleLine(currentOrg) }}</span>
+          </span>
         </span>
       </DropdownMenuLabel>
 
@@ -293,7 +310,10 @@ const goToAgency = async (accountId: string) => {
           </span>
           <span class="flex-1 min-w-0">
             <span class="block truncate">{{ m.organization.name }}</span>
-            <span class="block text-xs t-text-muted">{{ roleLabel(m) }}</span>
+            <span class="flex flex-wrap items-center gap-1 text-xs t-text-muted">
+              <span v-if="chipFor(m)" class="px-1.5 rounded-full font-medium t-bg-accent/20 t-text-accent">{{ chipFor(m) }}</span>
+              <span v-if="roleLine(m)">{{ roleLine(m) }}</span>
+            </span>
           </span>
         </DropdownMenuItem>
       </template>

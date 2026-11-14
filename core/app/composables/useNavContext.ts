@@ -51,7 +51,9 @@ export function useNavContext() {
   /** What the person can do here; an admin previewing gets the member's view. */
   const ctx = computed<NavContext>(() => (previewing.value ? previewContext(base.value) : base.value));
 
-  const managerHat = computed(() => !previewing.value && access.hasManagerHat.value);
+  const managerHat = computed(
+    () => !previewing.value && (server.value ? server.value.hats.manager : access.hasManagerHat.value)
+  );
   const anyArea = computed(() => AREA_KEYS.some((k) => ctx.value.canWork(k)));
 
   const layout = computed<NavLayoutId>(() =>

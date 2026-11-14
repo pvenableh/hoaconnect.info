@@ -134,3 +134,66 @@ export async function resolveCapabilities(
 
   return { actors, capabilities: [...caps] };
 }
+
+/** One membership's hats, for the org switcher's badge. Identity only. */
+export interface MembershipHats {
+  orgId: string;
+  hats: RoleContext["hats"];
+  managerTitle: string | null;
+  residency: RoleContext["residency"];
+}
+
+/**
+ * The session user's hats in every community they belong to, for the org
+ * switcher (docs/spec-capability-nav.md). Reads only the caller's own rows,
+ * with the admin token and `*`, so the client never names the manager fields.
+ * Board terms are read per membership exactly as getRoleContext reads them.
+ */
+export async function getMembershipHats(event: H3Event): Promise<MembershipHats[]> {
+  const session = await getUserSession(event);
+  const userId: string | null = session?.user?.id ?? null;
+  if (!userId) return [];
+  const roles = serverRoleIds();
+  const globalRoleId = roleIdOf(session?.user?.role);
+  const directus = getTypedDirectus();
+
+  const rows = ((await directus.request(
+    readItems("hoa_members", {
+      filter: { user: { _eq: userId } },
+      fields: ["*", ...RESIDENCY_UNIT_FIELDS] as any,
+      limit: 200,
+    })
+  )) ?? []) as RoleMembership[];
+
+  const byOrg = new Map<string, RoleMembership[]>();
+  for (const row of rows) {
+    const orgId = roleIdOf(row.organization as any);
+    if (!orgId) continue;
+    byOrg.set(orgId, [...(byOrg.get(orgId) ?? []), row]);
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const out: MembershipHats[] = [];
+  for (const [orgId, orgRows] of byOrg) {
+    const membership = pickMembership(orgRows);
+    let terms: RoleBoardTerm[] = [];
+    if (membership?.id && membership.status === "active") {
+      terms = ((await directus.request(
+        readItems("hoa_board_members", {
+          filter: {
+            _and: [
+              { hoa_member: { _eq: membership.id } },
+              { status: { _eq: "published" } },
+              { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
+              { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
+            ],
+          } as any,
+          fields: ["title"],
+        })
+      )) ?? []) as RoleBoardTerm[];
+    }
+    const ctx = resolveRoleContext(membership, terms, null, { userId, globalRoleId, roles, orgId });
+    out.push({ orgId, hats: ctx.hats, managerTitle: ctx.managerTitle, residency: ctx.residency });
+  }
+  return out;
+}
