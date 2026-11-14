@@ -7,10 +7,13 @@ import type {
 } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
+// nav-gate: admins, and holders of money:read (Treasurer, President) read-only.
+// Every write here is admin-only on the server, so `canWrite` hides it.
 definePageMeta({
-  middleware: ["admin", "subscription"],
+  middleware: ["nav-gate", "subscription"],
   layout: "auth",
 });
+const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 
 const { selectedOrgId } = await useSelectedOrg();
 const { list: listRequests, create: createRequest, update: updateRequest } =
@@ -153,6 +156,7 @@ const recentActivity = computed(() => {
 const showNew = ref(false);
 // "+ New → New Charge" and Spotlight land here with ?new=charge.
 useCreateIntent("charge", () => {
+  if (!canWrite.value) return;
   showNew.value = true;
 });
 const recurring = ref(false);
@@ -335,7 +339,7 @@ const TYPE_FILTERS = [
           <h1 class="text-2xl font-semibold t-text">Finances</h1>
           <PaymentStripeModeBadge />
         </div>
-        <Button class="rounded-full" @click="showNew = !showNew">
+        <Button v-if="canWrite" class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           New charge
         </Button>
@@ -375,7 +379,7 @@ const TYPE_FILTERS = [
       />
 
       <!-- New charge form -->
-      <div v-if="showNew" class="ios-card p-6 space-y-4">
+      <div v-if="showNew && canWrite" class="ios-card p-6 space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="font-semibold t-text">New charge</h2>
           <label class="flex items-center gap-2 text-sm t-text-muted">
@@ -586,7 +590,7 @@ const TYPE_FILTERS = [
             </template>
             <template #cell-actions="{ row }">
               <div class="flex items-center justify-end gap-2">
-                <template v-if="!['paid', 'canceled'].includes(row.status as string)">
+                <template v-if="canWrite && !['paid', 'canceled'].includes(row.status as string)">
                   <Button
                     variant="outline"
                     size="icon-sm"
@@ -638,7 +642,7 @@ const TYPE_FILTERS = [
               <span class="t-text-muted capitalize">{{ value }}</span>
             </template>
             <template #cell-actions="{ row }">
-              <div class="flex items-center justify-end gap-2">
+              <div v-if="canWrite" class="flex items-center justify-end gap-2">
                 <Button
                   v-if="row.status === 'active'"
                   variant="outline"

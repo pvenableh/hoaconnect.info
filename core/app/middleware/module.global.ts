@@ -1,40 +1,22 @@
 // module.global.ts — enforces per-org module toggles (Phase 7b, Track B).
 //
-// When an org disables an optional module from Settings → Modules, its dock
-// entry is already hidden (useAppNav filters by useModules), but the page must
-// also refuse a direct URL. This global middleware infers the module a slug
-// route belongs to and redirects to the org home when that module is off.
+// When an org disables an optional module from Settings → Modules, its nav
+// entries are already hidden, but the page must also refuse a direct URL. This
+// global middleware finds the module a slug route belongs to and redirects to
+// the org home when that module is off.
+//
+// The route → module table is built from the nav registry
+// (core/shared/nav/registry.ts, moduleRoutePrefixes): every entry with one
+// module gates its path, so a link the nav hides is a URL this refuses, and
+// there is no second copy to drift. Routes with no entry (the feed) are listed
+// there too. No "announcements" entry: that module was retired with its pages,
+// and its `/announcements` prefix used to break the public "view this email on
+// the web" route under `/announcements/email/{ref}`.
 //
 // Runs after domain-detector.global (alphabetical order), so useActiveHoa —
 // and thus the org's `modules` map — is already populated. Non-slug (main
 // domain) routes are skipped. Missing keys default to enabled (see useModules).
-
-// An org-relative path prefix → module key. The longest matching prefix wins,
-// mirroring the dock's app keys. Records-only modules (pets/vehicles/leases)
-// have no dedicated route, so they're gated in-page, not here.
-const MODULE_PREFIXES: { module: string; prefixes: string[] }[] = [
-  { module: "feed", prefixes: ["/feed"] },
-  // No "announcements" entry. The module was retired with the pages it gated —
-  // and it was actively harmful while it lasted: the `/announcements` prefix
-  // also matched `/announcements/email/{ref}`, the PUBLIC "view this email on
-  // the web" route that every sent email links back to. An org that switched
-  // announcements off silently broke its own email links.
-  { module: "meetings", prefixes: ["/meetings", "/admin/meetings"] },
-  { module: "polls", prefixes: ["/polls", "/admin/polls"] },
-  { module: "documents", prefixes: ["/documents", "/admin/documents"] },
-  { module: "rules", prefixes: ["/rules"] },
-  { module: "governing", prefixes: ["/governing"] },
-  { module: "board", prefixes: ["/board"] },
-  { module: "payments", prefixes: ["/payments", "/admin/payments"] },
-  { module: "expenses", prefixes: ["/admin/expenses"] },
-  { module: "requests", prefixes: ["/requests", "/admin/requests"] },
-  { module: "projects", prefixes: ["/projects", "/admin/projects"] },
-  { module: "moderation", prefixes: ["/admin/moderation"] },
-  { module: "email", prefixes: ["/admin/communications", "/admin/email"] },
-  { module: "directory", prefixes: ["/admin/members", "/admin/units", "/admin/teams"] },
-  { module: "channels", prefixes: ["/admin/channels"] },
-  { module: "vendors", prefixes: ["/vendors"] },
-];
+import { moduleForPath } from "#core/shared/nav/registry";
 
 export default defineNuxtRouteMiddleware((to) => {
   const slug = to.params.slug as string | undefined;
@@ -43,19 +25,11 @@ export default defineNuxtRouteMiddleware((to) => {
   // Org-relative path (strip the leading "/<slug>").
   const rel = to.path.replace(new RegExp(`^/${slug}`), "") || "/";
 
-  // Longest-prefix match → the module this route belongs to.
-  let matched: { module: string; len: number } | null = null;
-  for (const { module, prefixes } of MODULE_PREFIXES) {
-    for (const p of prefixes) {
-      if (rel === p || rel.startsWith(`${p}/`)) {
-        if (!matched || p.length > matched.len) matched = { module, len: p.length };
-      }
-    }
-  }
-  if (!matched) return;
+  const module = moduleForPath(rel);
+  if (!module) return;
 
   const { isEnabled } = useModules();
-  if (!isEnabled(matched.module)) {
+  if (!isEnabled(module)) {
     return navigateTo(`/${slug}`);
   }
 });

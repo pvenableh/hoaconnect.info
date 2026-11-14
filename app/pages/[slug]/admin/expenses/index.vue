@@ -3,13 +3,16 @@ import type { PaymentExpense } from "#core/types/directus";
 import type { ProjectRow } from "#core/app/composables/useProjects";
 import { toast } from "vue-sonner";
 
+// nav-gate: admins, and holders of money:read (Treasurer, President) read-only.
+// Writes are admin (or a manager with Projects) on the server, so `canWrite` hides them.
 definePageMeta({
-  middleware: ["admin", "subscription"],
+  middleware: ["nav-gate", "subscription"],
   layout: "auth",
 });
 
 const { selectedOrgId } = await useSelectedOrg();
 const { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
+const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 const { getUrl } = useDirectusFiles();
 const { list: listProjects } = useProjects();
 
@@ -56,7 +59,7 @@ const form = ref(blank());
 // this screen does not write itself — see the save handler below.
 const originalStatus = ref<PaymentExpense["status"] | null>(null);
 
-const openCreate = () => { editingId.value = null; originalStatus.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
+const openCreate = () => { if (!canWrite.value) return; editingId.value = null; originalStatus.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
 // "+ New → Log Expense" and Spotlight land here with ?new=expense.
 useCreateIntent("expense", openCreate);
 const openEdit = (e: PaymentExpense) => {
@@ -185,7 +188,7 @@ const expenseColumns = [
     <PageContainer class="space-y-6">
       <div class="flex items-center justify-between gap-2">
         <h1 class="text-2xl font-semibold t-text">Expenses</h1>
-        <Button class="rounded-full" @click="openCreate">
+        <Button v-if="canWrite" class="rounded-full" @click="openCreate">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           Add expense
         </Button>
@@ -197,7 +200,7 @@ const expenseColumns = [
       </div>
 
       <!-- Form -->
-      <div v-if="showForm" class="ios-card p-6 space-y-4">
+      <div v-if="showForm && canWrite" class="ios-card p-6 space-y-4">
         <h2 class="font-semibold t-text">{{ editingId ? "Edit expense" : "Add expense" }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-1.5 md:col-span-2">
@@ -322,10 +325,10 @@ const expenseColumns = [
               >
                 <Icon name="lucide:paperclip" />
               </Button>
-              <Button variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(row)">
+              <Button v-if="canWrite" variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(row)">
                 <Icon name="lucide:pencil" />
               </Button>
-              <Button variant="destructive" size="icon-sm" aria-label="Delete expense" title="Delete" @click="removeExpense(row)">
+              <Button v-if="canWrite" variant="destructive" size="icon-sm" aria-label="Delete expense" title="Delete" @click="removeExpense(row)">
                 <Icon name="lucide:trash-2" />
               </Button>
             </div>

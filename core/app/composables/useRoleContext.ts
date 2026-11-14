@@ -22,8 +22,17 @@ interface RoleContextState {
   loaded: boolean;
 }
 
+// One fetch per org at a time, and one org-change watcher, however many
+// components ask (client only: module state on the server is shared across
+// requests).
+const inflight = new Map<string, Promise<void>>();
+let watching = false;
+
 export const useRoleContext = () => {
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+  // Forwards the session cookie during SSR, so route middleware can load the
+  // context on the server too (a bare $fetch there is anonymous and 401s).
+  const requestFetch = useRequestFetch();
   const state = useState<RoleContextState>("orgRoleContext", () => ({
     orgId: null,
     context: null,
@@ -32,12 +41,9 @@ export const useRoleContext = () => {
     loaded: false,
   }));
 
-  const load = async (force = false) => {
-    const orgId = selectedOrgId.value;
-    if (!orgId) return;
-    if (!force && state.value.loaded && state.value.orgId === orgId) return;
+  const fetchOnce = async (orgId: string) => {
     try {
-      const res = await $fetch<{ context: RoleContext; actors: Actor[]; capabilities: Capability[] }>(
+      const res = await requestFetch<{ context: RoleContext; actors: Actor[]; capabilities: Capability[] }>(
         "/api/org/role-context",
         { query: { orgId } }
       );
@@ -54,11 +60,26 @@ export const useRoleContext = () => {
     }
   };
 
+  const load = async (force = false) => {
+    const orgId = selectedOrgId.value;
+    if (!orgId) return;
+    if (!force && state.value.loaded && state.value.orgId === orgId) return;
+    if (import.meta.server) return fetchOnce(orgId);
+    const pending = inflight.get(orgId);
+    if (pending) return pending;
+    const p = fetchOnce(orgId).finally(() => inflight.delete(orgId));
+    inflight.set(orgId, p);
+    return p;
+  };
+
   /** True once the context for the current org is loaded. */
   const ready = computed(() => state.value.loaded && state.value.orgId === selectedOrgId.value);
 
   // Refetch when the active org changes.
-  watch(selectedOrgId, () => load(true));
+  if (import.meta.client && !watching) {
+    watching = true;
+    watch(selectedOrgId, () => void load(true));
+  }
 
   return {
     context: computed(() => state.value.context),

@@ -3,8 +3,10 @@ import type { ProjectRow } from "#core/app/composables/useProjects";
 import { useProjects } from "#core/app/composables/useProjects";
 import { listOpensOnTimeline } from "#core/shared/projects/timeline";
 
+// nav-gate: admins, and a manager with the Projects area (the server's
+// project-access.ts admits the same people).
 definePageMeta({
-  middleware: ["admin", "subscription"],
+  middleware: ["nav-gate", "subscription"],
   layout: "auth",
 });
 

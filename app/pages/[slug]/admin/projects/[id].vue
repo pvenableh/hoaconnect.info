@@ -5,8 +5,10 @@ import { projectOpensOnTimeline } from "#core/shared/projects/timeline";
 
 const { confirm } = useConfirm();
 
+// nav-gate: admins, and a manager with the Projects area (the server's
+// project-access.ts admits the same people).
 definePageMeta({
-  middleware: ["admin", "subscription"],
+  middleware: ["nav-gate", "subscription"],
   layout: "auth",
 });
 

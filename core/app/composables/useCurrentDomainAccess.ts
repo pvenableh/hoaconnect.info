@@ -17,7 +17,7 @@
  * middleware never waits on a fetch. See roleContextFromMembership for the
  * client rules kept until Session 2.
  */
-import { normalizeGrants, type ManagerGrantKey } from "#core/shared/transition/grants";
+import { normalizeGrants, type AreaKey, type ManagerGrantKey } from "#core/shared/transition/grants";
 import { roleContextFromMembership } from "./useRoleContext";
 
 export const useCurrentDomainAccess = () => {
@@ -177,6 +177,20 @@ export const useCurrentDomainAccess = () => {
     return roleContext.value.areas[key]?.canWork ?? false;
   };
 
+  // Any area, grantable or not: admin, or that area's work switch. What the
+  // nav registry's `area` needs read.
+  const canWorkArea = (key: AreaKey): boolean => {
+    if (isAdminOfCurrentDomain.value) return true;
+    return roleContext.value.areas[key]?.canWork ?? false;
+  };
+
+  // Residency from the resolver (unit link first, member_type fallback).
+  const currentDomainResidency = computed(() => roleContext.value.residency);
+
+  // The manager HAT (identity, never access): the badge, the queue in an
+  // admin's dock, the queue-first home.
+  const hasManagerHat = computed(() => roleContext.value.hats.manager);
+
   // Get member type for current domain
   const currentDomainMemberType = computed<"owner" | "tenant" | null>(() => {
     return currentDomainMembership.value?.member_type || null;
@@ -203,6 +217,9 @@ export const useCurrentDomainAccess = () => {
     isPropertyManagerOfCurrentDomain,
     currentDomainManagerPermissions,
     managerCan,
+    canWorkArea,
+    hasManagerHat,
+    currentDomainResidency,
 
     // Member type for current domain
     currentDomainMemberType,

@@ -32,11 +32,11 @@ A hub shows only when its own `needs` hold **and** at least one of its pills sho
 | Layout | Who | Entries, in order |
 |---|---|---|
 | `admin` | admin hat, not previewing as a member | `queue` (manager hat only) · dashboard · people · comms · records · payments · requests · settings |
-| `manager` | not admin; manager hat or any `canWork` area | queue · inquiries · directory · approvals · communications · documents · feedback · projects · activity |
+| `manager` | not admin, with at least one `canWork` area | queue · inquiries · directory · approvals · communications · documents · feedback · projects · activity |
 | `member` | everyone else, and an admin previewing | home · meetings · documents · rules · governing · board · ledger · payments (Money) · pay · requests · projects · polls |
 | `sheet` | mobile sheet's Navigation list | home · board · documents · vendors |
 
-The hat never grants access: it only chooses a layout, and every entry is still filtered by its `needs`. Previewing evaluates against an empty context (no hats, no areas, no capabilities).
+The hat never grants access. It adds the queue to an admin's layout and picks the home route; every entry is still filtered by its `needs`. Previewing evaluates against an empty context (no hats, no areas, no capabilities).
 
 ## Entries and gates
 
