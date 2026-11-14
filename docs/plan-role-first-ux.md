@@ -266,9 +266,50 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 | Session | Phase | State | Notes |
 |---|---|---|---|
-| 1 | 1a — Role context: spec, resolver, one area list, schema script | [ ] | Prompt: `docs/prompts/role-first-s1-role-context.md` |
-| 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [ ] | |
+| 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script written, **not run** (operator TODO 1). Prompt: `docs/prompts/role-first-s1-role-context.md` |
+| 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [ ] | Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
 
 ### Session log
 
 (Each session appends: shipped, deviations, operator TODOs.)
+
+#### Session 1 — Phase 1a, role context (2026-11-14)
+
+**Operator TODOs (schema script first)**
+
+1. Run `scripts/add-manager-hat.ts` against staging and then production. Do a dry run first: `pnpm add:manager-hat --dry-run`, then `pnpm add:manager-hat`, then `pnpm generate:types`. It has not been run anywhere. Until it runs, every RoleContext reports `source: "legacy"`: the hat comes from the Property Manager role, nobody is notified by area, and `resolveNotified` returns the admins. That is today's behaviour.
+2. Read the script's list of "admins linked from a management vendor". For each admin who manages the community, set `is_manager` (and `manager_title`) by hand. The script changes no admin rows.
+3. If the `hoa_members` read policies are field-limited, the three new fields are invisible to app users. That is fine for now, because the server reads them with the admin token. Session 2 needs them only if the client reads them.
+4. Later, in one change: move `manager_areas.work` from mirror to source. The grants route, invitations and transition revocation write it, and `getManagerGrants`, poll, project and activity access read it.
+
+**Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, 16/16 audits)
+
+- `c8eef40` `docs/spec-role-context.md`: the shape, where each field comes from, the area list, the notify fallback and the named tests.
+- `2ceb0de` one area list: `AREAS` in `core/shared/transition/grants.ts` (11 areas). `MANAGER_GRANT_KEYS`, labels and type derive from it, in the old order. `vendors` and `billing` added. The client's private five-key copies in `useCurrentDomainAccess` and `middleware/manager.ts` are deleted.
+- `1c7ddbf` `resolveRoleContext()` in `core/shared/roles/role-context.ts`, with table tests (22).
+- `6d36fd1` `scripts/add-manager-hat.ts`: idempotent, with `--dry-run`. Commits 3 and 4 were gated together, since the script is imported by nothing.
+- `a0c449d` `GET /api/org/role-context` with org-scope tests, `useRoleContext()`, and a shared `resolveCapabilities()`. `useCapabilities` and `useCurrentDomainAccess` are re-pointed. An equivalence test runs the old rules against the new composable over 2,304 input combinations.
+- `a9300e9` `resolveNotified(orgId, area)` with the pure `pickNotified()`, and tests. It is not wired into the reminder engine.
+
+**Deviations and decisions**
+
+- `projects`, `activity` and `feedback` are **kept**. Each already has a real server gate:
+  - `projects`: `project-access.ts`, `expenses/record`, `requests/[id]/promote`;
+  - `activity`: `GET /api/org/activity` data scope;
+  - `feedback`: `poll-access.ts`.
+
+  What they lack is a manager page, and that is Session 2's nav work. Every grantable area names its gate file in `AREAS`, and a test checks that the file exists and names the key.
+- `vendors` and `billing` are **notify-only** (not grantable) until they have gates. Adding them as grants would have changed presets, the "Full service" match for existing managers, the settings switches and the ledger.
+- `canWork` reads `manager_permissions`, not `manager_areas.work`. Every enforcement path and every writer uses `manager_permissions`, so reading a second store would drift. Access via a grant also requires the Property Manager role, as `getManagerGrants` does today. The hat is identity only.
+- `useCurrentDomainAccess` answers synchronously, because middleware runs before any fetch. It runs the shared resolver over the cached membership and keeps four client-only rules as named compat:
+  - any status counts as live;
+  - the legacy Administrator role counts as admin;
+  - the HOA Admin global role plus any membership counts as admin;
+  - the client's own board-term date filter.
+
+  `isPropertyManagerOfCurrentDomain` stays the role check, because `manager.ts` uses it for access. `currentDomainManagerPermissions` now returns all nine grant keys; the five it returned before keep their values.
+- `/api/org/capabilities` now calls the shared `resolveCapabilities()`, with the same output. `useCapabilities` reads the role-context response. A non-member gets the same empty arrays (now from a 403), plus one console line.
+- The plan's "10 grant keys" was 9; there are now 11 areas.
+- Plan §2.1 "(verify)": confirmed with a correction. `hoa_vendors` links both `user` and `hoa_member`. Only `user` is read, by inquiry routing for the in-app recipient. Neither is used for access, and nothing ties a membership to an engagement yet.
+- Self-billed communities have no owner field, so `isAccountOwner` there means an HOA Admin on an active membership. Platform staff are never the account owner.
+- Existing tests are untouched. New files: `tests/shared/areas.test.ts`, `tests/shared/role-context.test.ts`, `tests/server/role-context-org-scope.test.ts`, `tests/composables/useCurrentDomainAccess.test.ts`, `tests/server/resolve-notified.test.ts`.
