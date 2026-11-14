@@ -30,12 +30,13 @@ What Sessions 1 and 2 left you (do not rebuild them):
   page that is a nav destination gets an entry there, and
   tests/shared/nav-registry.test.ts checks its middleware.
 - Charges live on /admin/payments. It is open to holders of money:read
-  (Treasurer, President) read-only through `nav-gate`, and its write
-  controls hide behind `canWrite` (admin). The converted page must keep
-  that: a role never sees a control it cannot use.
-- Operator TODO 1 in the Session 2 log (members can read every charge in
-  their org through Directus) is open. Do not widen that read, and if the
-  scaffold reads charges through a server route, gate it on money:read.
+  (every board seat, decision 16) read-only through `nav-gate`, and its
+  write controls hide behind `canWrite` (admin). The converted page must
+  keep that: a role never sees a control it cannot use.
+- Org-wide charges, schedules and expenses are read only through
+  /api/org/money/* and /api/org/expenses (`requireMoneyRead`). The HOA
+  Member policy reads only a member's own rows in Directus. The scaffold
+  reads through those routes and must not widen either read.
 
 Read before designing, and only these:
 - app/pages/[slug]/admin/payments/index.vue and the components it mounts
