@@ -183,3 +183,40 @@ export function resolveRoleContext(
 
   return ctx;
 }
+
+/** A `hoa_members` row as `pickNotified` needs it: the resolver's fields plus the login. */
+export interface NotifiableMembership extends RoleMembership {
+  user?: Ref;
+}
+
+export interface NotifiedPick {
+  members: NotifiableMembership[];
+  /** "area": members with the hat and notify on. "admins": nobody had it, so the admins. */
+  via: "area" | "admins";
+}
+
+/**
+ * Who is addressed for `area` in one community (plan §2.1): the members with
+ * the manager hat and notify on for that area, else the community's admins.
+ * Each row runs through `resolveRoleContext`, so "notified" and "admin" mean
+ * exactly what they mean everywhere else — an archived row, a legacy row, or
+ * the hat switched off never counts. Rows without a login are dropped.
+ */
+export function pickNotified(
+  rows: readonly NotifiableMembership[],
+  area: AreaKey,
+  roles: RoleIds
+): NotifiedPick {
+  const withLogin = rows.filter((r) => !!idOf(r.user));
+  const resolved = withLogin.map((row) => ({
+    row,
+    ctx: resolveRoleContext(row, [], null, { userId: idOf(row.user), roles }),
+  }));
+  const notified = resolved.filter(({ ctx }) => ctx.areas[area]?.isNotified).map(({ row }) => row);
+  if (notified.length) return { members: notified, via: "area" };
+  // Admins by membership role only — the platform App Admin is staff, not the community's admin.
+  const admins = resolved
+    .filter(({ row, ctx }) => ctx.hats.admin && row.status === "active")
+    .map(({ row }) => row);
+  return { members: admins, via: "admins" };
+}
