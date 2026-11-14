@@ -266,7 +266,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 | Session | Phase | State | Notes |
 |---|---|---|---|
-| 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script written, **not run** (operator TODO 1). Prompt: `docs/prompts/role-first-s1-role-context.md` |
+| 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script run by the operator 2026-11-14; types regenerated. Prompt: `docs/prompts/role-first-s1-role-context.md` |
 | 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [ ] | Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
 
 ### Session log
@@ -277,7 +277,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 
 **Operator TODOs (schema script first)**
 
-1. Run `scripts/add-manager-hat.ts` against staging and then production. Do a dry run first: `pnpm add:manager-hat --dry-run`, then `pnpm add:manager-hat`, then `pnpm generate:types`. It has not been run anywhere. Until it runs, every RoleContext reports `source: "legacy"`: the hat comes from the Property Manager role, nobody is notified by area, and `resolveNotified` returns the admins. That is today's behaviour.
+1. ~~Run `scripts/add-manager-hat.ts`, then `pnpm generate:types`.~~ **Done 2026-11-14 by the operator.** The regenerated types are committed. Rows now resolve with `source: "hat"`. The back-fill turned every `notify` off, so `resolveNotified` still returns the admins until someone switches an area on. Any environment the script has not reached still resolves as `"legacy"`, which is today's behaviour.
 2. Read the script's list of "admins linked from a management vendor". For each admin who manages the community, set `is_manager` (and `manager_title`) by hand. The script changes no admin rows.
 3. If the `hoa_members` read policies are field-limited, the three new fields are invisible to app users. That is fine for now, because the server reads them with the admin token. Session 2 needs them only if the client reads them.
 4. Later, in one change: move `manager_areas.work` from mirror to source. The grants route, invitations and transition revocation write it, and `getManagerGrants`, poll, project and activity access read it.

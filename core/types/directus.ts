@@ -285,6 +285,8 @@ export interface BlockHero {
 	cta_link?: string | null;
 	background_image?: DirectusFile | string | null;
 	foreground_image?: DirectusFile | string | null;
+	/** @description Reverse of hoa_organizations.hero. HOA Admin update/delete scope through it (scripts/lib/org-write-scopes.ts). */
+	hoa_organizations?: HoaOrganization[] | string[];
 }
 
 export interface BlockSetting {
@@ -1422,6 +1424,12 @@ export interface HoaMember {
 	email_bounced_reason?: string | null;
 	/** @description Credential in this member's unsubscribe links: 24 random bytes, base64url. Minted at send time; never shown in the app. */
 	unsubscribe_token?: string | null;
+	/** @description The property-manager hat: identity only (badge, queue-first home, routing). Never grants access — that comes from admin or manager_permissions. */
+	is_manager?: boolean;
+	/** @description What this manager does here, e.g. Accounting or Maintenance. Shown only with the manager hat. */
+	manager_title?: string | null;
+	/** @description Per area { work, notify }. Areas: inquiries, violations, directory, documents, communications, feedback, projects, activity, contact_platform, vendors, billing. notify picks who is addressed for the area (admins when nobody). work mirrors manager_permissions until the cutover. */
+	manager_areas?: Record<string, any> | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
@@ -2505,6 +2513,8 @@ export interface DirectusFolder {
 	id: string;
 	name?: string;
 	parent?: DirectusFolder | string | null;
+	/** @description Reverse of hoa_organizations.folder. File and folder permissions scope through it (scripts/lib/folder-org-filters.ts). */
+	hoa_organizations?: HoaOrganization[] | string[];
 }
 
 export interface DirectusMigration {
