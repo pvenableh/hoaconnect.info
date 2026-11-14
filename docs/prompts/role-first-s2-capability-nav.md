@@ -30,6 +30,10 @@ What Session 1 left you (do not rebuild it):
 
 Read before designing, and only these:
 - core/app/composables/useDockApps.ts, useCreateVerbs.ts
+- core/app/composables/useAppNav.ts (appsFor filters the dock by module),
+  useSectionNav.ts (the pills' `module:` gates), useModules.ts
+- core/app/middleware/module.global.ts (blocks direct URLs from its own
+  table of route prefixes)
 - app/components/App/Nav.vue, SubNav.vue, Spotlight.vue
 - core/app/middleware/manager.ts, admin.ts, admin-or-board.ts
 - the organization switcher, for the badge (find it with a Haiku grep;
@@ -39,11 +43,16 @@ Read before designing, and only these:
 
 Build, in this order, one commit each:
 1. docs/spec-capability-nav.md, under 120 lines: the registry entry shape
-   (id, label, path, icon, needs: capability | area | admin | residency),
-   every entry today's dock and pills show, and which RoleContext field
-   gates each. Stop and ask me if it contradicts §2.2.
+   (id, label, path, icon, needs), every entry today's dock and pills
+   show, and what gates each. `needs` is a list of conditions that must
+   ALL hold; a condition is one of capability, area, admin, residency,
+   module (the community's module toggle) or orgFlag (a boolean on the
+   organization). Every module gate nav has today is carried over: none
+   is dropped. Stop and ask me if it contradicts §2.2.
 2. The registry in core/shared, the only source of nav entries. A test
-   that every entry's gate matches the middleware on its route.
+   that every entry's gate matches the middleware on its route, including
+   module.global.ts and its route-prefix table, which should read the
+   registry instead of keeping its own copy.
 3. The dock, App Library, section pills and Spotlight read it, replacing
    appsFor(isAdmin). Board members gain Money and Approvals because they
    hold the capability. A manager's dock shows their canWork areas.
@@ -61,10 +70,11 @@ access; access comes only from admin or an area's work switch. No grant
 without a gate: an area with no page or route stays out of the dock.
 projects, activity and feedback have server gates but no manager pages.
 Give each one an entry, or say in the log why it waits.
-Phase 2b (plan §3.4) will add a `responsibilities` area and two nav entries,
-an admin register and an owner view gated by a community publish switch, so
-the registry entry shape must allow a gate that combines an area, a module
-toggle and an org-level flag; build none of it in this session.
+Phase 2b (plan §3.4) will add a `responsibilities` area and two nav entries:
+an admin register (area + module) and an owner view (residency + module).
+The owner entry shows before the community publishes, because the page has
+an empty state; the publish switch decides which rows show, not whether the
+entry does. Build none of it in this session.
 
 Token rules: subagents on Haiku 5.5 for census/grep; review diffs, not
 files. Gates run in the background; read only the tail. Typecheck with

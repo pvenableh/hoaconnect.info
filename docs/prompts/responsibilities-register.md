@@ -79,6 +79,8 @@ Additions to existing collections (same script):
     changed_office (nullable)
   hoa_tasks.responsibility (M2O, SET NULL, one_field tasks)
   hoa_organizations.responsibilities_published (boolean, default false)
+  hoa_organizations.responsibilities_show_unassigned (boolean, default
+    false)
   modules.responsibilities in DEFAULT_MODULES, backfilled idempotently
 
 Do NOT create attestation or review collections. They are Phase 11.
@@ -117,13 +119,22 @@ Build, in this order, one commit each:
    routes live under /api/org, not /api/hoa), zod bodies, org-scope tests:
    - GET  index?asOf=          editors and board: everything
    - GET  published            owners and tenants: published rows, current
-                               holders, four columns, nothing else
+                               holders, four columns, nothing else. A row
+                               with no current holder is left out unless
+                               show_unassigned is on; then it is returned
+                               with unassignedSince (the last holder's
+                               end date, else the row's creation date) and
+                               nothing else. A disputed row returns its
+                               holder, or as unassigned; never "disputed".
    - POST create · PATCH [id] · POST [id]/retire      (no delete)
    - POST [id]/assignees       add a holder
    - POST [id]/hand-over       ends one row, opens the next, one call
    - PATCH assignees/[id]      correction only: notes, role, a wrong date
    - POST apply-template       additive, idempotent on title
-   - POST publish · POST unpublish
+   - PATCH visibility          { published?, showUnassigned? }. ADMIN ONLY:
+                               the area's work switch is not enough. Each
+                               change logs hoa_activity with the actor.
+                               Test that a non-admin editor gets 403.
    - GET  export.pdf?asOf=     grouped by category; columns Job · Who ·
                                Cadence · Basis · Last verified; an empty Who
                                prints as an empty cell; the as-of date in
@@ -153,10 +164,17 @@ Build, in this order, one commit each:
    in the §2.3 layout: summary strip with the one next action (Hand over,
    or Assign when empty), facts, the holder timeline (ended rows with their
    dates and frozen names), files, discussion. Header actions: New job ·
-   Start from the Florida condominium list · Publish · Export PDF.
+   Start from the Florida condominium list · Export PDF, and for admins
+   only a Visibility menu with two switches: "Published to owners" and
+   "Show unassigned jobs to owners". Turning the second on confirms with
+   the count of jobs owners will now see as unassigned.
+   Build the index so a second mode (Map, Phase 2c) can sit beside the
+   grid on the same data; do not build the map.
 
 8. Owner view at /{slug}/responsibilities: published rows only, same
    grouping, Job · Who · Cadence · Last verified. Its own registry entry.
+   Unassigned rows, when the route returns them, lead their category and
+   read "Unassigned since 12 October 2026" in the attention treatment.
    Empty state: "The board hasn't published who handles what yet."
 
 9. Service history on the member detail: offices held and jobs held, with
@@ -166,7 +184,7 @@ Rules: a role never sees a control it cannot use. The hat never grants
 access. No delete for a job or a holder row. A stored value is never one
 that can be derived.
 
-Out of scope: the director survey and diff, the monthly review mode, the
+Out of scope: the Map mode (Phase 2c), the director survey and diff, the monthly review mode, the
 home tile, reminders on next review, any sync between the register and
 manager_areas.notify, billing. Note the hook points in the spec; build none.
 

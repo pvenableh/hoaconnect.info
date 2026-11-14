@@ -237,7 +237,25 @@ The register describes; the areas route. Each row may name one area from `AREAS`
 
 **Publishing.** One switch per community, off by default. Until it is on, owners see "The board hasn't published who handles what yet." Published rows show job, who, cadence and last verified; never basis, notes, disputes or history.
 
+**Showing unassigned jobs** (decided 2026-11-14). A second switch, "Show unassigned jobs to owners", off by default. It exists for the case where a board or a manager will not say who does a job: the admin can still publish the gap. When on, a published job with no current holder appears to owners as "Unassigned since 12 October 2026", in its own group at the top of its category. Rules that keep it a statement of fact and not an accusation:
+
+- Owners see the job, the word "Unassigned" and the date. No notes, no names of who was asked, no "disputed". A disputed job shows its current holder, or shows as unassigned if it has none.
+- The date is derived: the day the last holder's row ended, or the day the job was added.
+- Only an admin can turn either switch on or off. The `responsibilities` work switch does not include it, because the delegate may be the party who is not answering. Under decision 6 the account owner still has the final say over who is admin.
+- Each change of either switch is written to `hoa_activity` with who made it.
+- `member_visible` off still hides a single row, assigned or not.
+
 **Screens.** On the §2.3 scaffold: index grouped by five categories (finance · building · mechanical and safety · compliance and records · people and community), detail in the standard layout with the assignee timeline as its timeline. PDF export of the grid, the document handed to the board. A seed list applied in one click; the first one is labelled "Florida condominium" because it names Chapter 718, SIRS and the 40-year recertification, and other states get their own.
+
+**Map view** (decided 2026-11-14, Phase 2c). A second mode on the same page, Grid | Map, for admins and for owners. It adds no schema and reads the same routes.
+
+- Holders on one side (offices with the person for the date, members, vendors, teams, each with a job count), jobs on the other in their five categories.
+- Pick a holder: their jobs light up and the rest dim. Pick a job: its owner, backup and oversight light up.
+- The "As of" control is a slider. Crossing a hand-over or an election animates the job from one holder to the next.
+- Unassigned jobs and vacant offices sit in their own group in the attention colour.
+- Following §2.4: job cards are solid content; the holder rail, the slider and the detail sheet are glass. Motion uses Vue transitions and honours `prefers-reduced-motion`.
+- Not a node-and-line graph: about 45 jobs and a dozen holders tangle, and it fails on phones. On a phone the two sides stack and the holder rail scrolls sideways.
+- Owners get the present day only, with no slider.
 
 **Second slice, later:** the "who does this today?" survey of directors with a side-by-side diff, the monthly line-by-line review, the admin home tile. Their collections are not created until then.
 
@@ -270,6 +288,7 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 | 1 | **Role context and capability nav** — `RoleContext`, one registry, PM hat, desktop PM entry, login routing, one grant list, naming and badge cleanup, denial redirects to home | 2 | Opus | — |
 | 2 | **Resource scaffold** — `AppResourceIndex`, `useResource`, panel registry entries, the three audits as ratchets; convert Charges as the proof | 1 | Opus | — |
 | 2b | **Responsibilities register, first slice** — §3.4: two collections, the `responsibilities` area and gate, board-term history actions, grid on the scaffold, hand-over, as-of, seed list, PDF, published owner view | 2 | Opus for schema and routes, Sonnet for pages | 1, 2 |
+| 2c | **Responsibilities map** — §3.4: the Map mode for admins and owners, time slider, transitions, glass rail and sheet | 1 | Opus | 2b; glass polish after 4 |
 | 3 | **Sweeps** — Members, Documents, Email, Meetings, Requests, Vendors onto the scaffold; ratchets to zero | 2 | Sonnet | 2 |
 | 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency | 1–2 | Opus for the material, Sonnet for the sweep | — |
 | 5 | **Invoices** — issued notice, single reminder path, manual send, timeline, aging | 2 | Opus | 2 |
@@ -282,7 +301,7 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 
 Phase 2b has a date: the 1033 Lenox board is seated 2026-12-09 and needs the grid and the PDF by then. Order to meet it: Session 2 (Phase 1b), Phase 2, Phase 2b. If Phase 2 slips, 2b builds its index on `AppDataTable` directly and Phase 3 converts it. Prompt: `docs/prompts/responsibilities-register.md`.
 
-About 20–24 sessions. Phases 1, 2 and 4 are independent and can run in parallel worktrees. Phase 1 now includes the engagement record and the per-area manager switches from §2.1.
+About 21–25 sessions. Phases 1, 2 and 4 are independent and can run in parallel worktrees. Phase 1 now includes the engagement record and the per-area manager switches from §2.1.
 
 ## 5. Keeping token use low
 
@@ -311,6 +330,8 @@ Settled 2026-11-14:
 11. History is kept by ending dated rows, for board terms and job assignments alike. In-place edits are corrections only.
 12. A job can be held by a board office, so elections do not rewrite the register.
 13. Owners see the register only after the community publishes it, and see the present only.
+14. An admin can choose to show unassigned jobs to owners, as a dated fact with no commentary. Admin only.
+15. The register gets a Map mode (Phase 2c): two-sided highlight with a time slider, not a network graph.
 
 ## 7. Status
 
