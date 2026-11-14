@@ -1,0 +1,274 @@
+# Plan — role-first UX, one resource grammar, invoices and vendors
+
+Written 2026-11-14 from three read-only surveys (HOA Connect roles/nav, HOA Connect features/UI, Earnest channels/email).
+Nothing here is built. Claims marked **(verify)** come from a survey excerpt and should be confirmed in the session that touches them.
+
+## 0. What the surveys changed about the ask
+
+Round 3 already shipped most of the plumbing this request needs. This plan is a delta, not a rebuild.
+
+| Asked for | Already here | Actually missing |
+|---|---|---|
+| Earnest channels | Channels with DMs, presence, edit window, moderation — ahead of Earnest, which has no DMs or presence | Embedded thread on vendor/contract/invoice detail; roster polish |
+| Earnest email | Send queue, scheduling, recurrence, auto-pause, MJML branding, signed webhook | Test-send-first, dry-run recipient count, per-send failure rollup, audience picker by role/team, held drafts for money email |
+| Invoice reminders | Reminder engine (hourly, once-only log, org time zone) with a dues rule; a second, older path in the billing worker | "Invoice issued" email (`email_sent` is never written), manual send, a tracking view, one reminder path instead of two |
+| Vendor tracking | `hoa_vendors`, coverage reminder on `active_until`, project and channel links | Contracts, deliverables, assignments, vendor bills (expenses store the vendor as free text) |
+| Consistent CRUD | The primitives exist (`AppDataTable`, `AppPageHeader`, `AppBottomSheet`, slide-over stack, `useConfirm`) and audits enforce some rules | Pages pick different ones: 4 create surfaces, 2 filter styles, 2 header styles, search on one page |
+| Liquid glass | One glass theme, light/dark/system | Glass is applied broadly rather than as a layer; 6 appearance knobs compete for attention |
+| Role clarity | A capability matrix and 10 delegation grants on the server | Navigation branches on one boolean (`appsFor(isAdmin)`), so four of the five roles get the same dock |
+
+The root cause of "not intuitive" is the last row. The server knows what each person can do; the interface does not ask it.
+
+## 1. The five people, and what each opens the app to do
+
+One rule for every home screen: **what needs you, then what's new, then everything else.** A role never sees a control it cannot use.
+
+| Person | Opens the app to… | Home leads with | Today's friction |
+|---|---|---|---|
+| **Tenant** | Report a problem, read notices, find a rule or a contact | Notices · my requests · contacts | Shown as "Resident" in one place and "Member" in another; sees money and votes they may not have |
+| **Owner** | Pay, see what they owe, vote, attend, request | Balance and Pay · open votes · next meeting · my requests | A new charge arrives silently; no history of what was sent to them |
+| **Board member** | Approve, decide, keep an eye on money and vendors | Approvals waiting · votes · arrears snapshot · contract dates coming up | Gets the owner dock; board rights (money, governing review, unit detail) exist with no way to reach them |
+| **Property manager** (not admin) | Work a queue on behalf of the board, within what was delegated | My queue: inquiries · assigned deliverables · invoices to chase | The portal has no desktop entry (mobile sheet only); not routed to it on login; no badge; 5 of 10 grants have no page behind them |
+| **Property manager who is admin** | The same queue, plus everything | PM queue first, admin apps in the dock | Roles are exclusive, so taking admin erases the PM identity and the queue |
+| **Admin** | Set up, delegate, see everything | Setup health · what's overdue across the community · recent activity | Settings live in four places; dock labels don't match destinations ("Requests" opens `/admin/more`, "Records" opens reporting) |
+
+## 2. Design rationale
+
+### 2.1 Identity is layered, not a single role
+
+Resolve one `RoleContext` per membership, server-side, and hand it to the client whole:
+
+- **Residency:** owner, tenant, or none (an outside manager).
+- **Hats:** board (from active terms), property manager, admin. Hats add; they never replace each other.
+- **Grants:** the delegation keys an admin turned on, from the single list in `core/shared/transition/grants.ts`.
+
+Every part of this is per membership (`hoa_members` is already one row per person per community), so one person can be an owner in one community, a board member in a second and a manager in a third. The organization switcher shows the hat beside each name.
+
+#### The property-manager relationship (decided 2026-11-14: a hat, not a role)
+
+Today one word, "property manager", answers three different questions. Split them:
+
+| Question | Answered by | Exists? |
+|---|---|---|
+| Who pays for and owns the account? | The billing account and its owner (`billing_accounts`, `billing_account_members`) | Yes — built for agencies |
+| Which company manages this community? | An engagement: the community's link to a management company (the vendor record of category management, with start and end dates) | Partly — `hoa_vendors` has management routing and a linked user **(verify)** |
+| What may this person do here? | Their membership: the manager hat plus either full access (admin) or a set of grants | Grants yes; the hat is new |
+
+The two ways a manager arrives then differ only in the first row:
+
+| | The management company created the community | The board added a manager |
+|---|---|---|
+| Account owner | The company's billing account (one account, many communities) | The board's |
+| Manager's membership | Manager hat + admin | Manager hat + grants from a preset, or + admin if the board chooses |
+| Board's membership | Invited by the company, with whatever access the company gives | Admin |
+| Ending the engagement | Board or company ends it; the existing transition flow (`core/shared/transition/`) hands over | Admin removes the hat and grants |
+
+Rules that keep this safe:
+
+- **The hat never implies access.** It decides identity: the badge, the queue-first home, "Managed by" contact routing, who assignments default to. Access comes only from admin or grants.
+- **The account owner decides** (decided 2026-11-14). Whoever owns the billing account — the payer — has the final say over who is admin and who is removed, whether that is the board or a management company. No seat is protected from the account owner.
+- **A community can have several managers, each with a different job** (decided 2026-11-14). Each manager membership carries a title ("Accounting", "Maintenance") and one row per area with two switches:
+
+  | Area | Can work on it | Is notified about it |
+  |---|---|---|
+  | Invoices and payments | ✓ | ✓ |
+  | Vendors and contracts | ✓ | — |
+  | Requests (by type) | — | — |
+  | Projects | ✓ | ✓ |
+
+  "Can work on it" is the grant. "Is notified" is the responsibility: reminder rules and events addressed to "the manager for invoices" resolve to the members with that switch on, and fall back to admins when nobody has it. One list of areas, defined once beside the grants, drives both columns. A person's own notification preferences still choose bell, push or email.
+- **A manager with several communities** gets a portfolio home at `/dashboard`: one queue across communities, grouped by community, each row opening in that community's context.
+- **Staff of a company** are members with the hat who share the same engagement, so ending the engagement removes all of them at once.
+
+### 2.2 Navigation is the capability matrix, rendered
+
+One app registry. Each entry names the capability it needs; the dock, the phone App Library, the section pills and the route middleware all read the same entry. Consequences:
+
+- A board member's dock gains Money and Approvals because they hold the capability, not because someone remembered to add a link.
+- A PM's dock shows exactly the delegated areas, on desktop too.
+- A grant with no page (`projects`, `activity`, `feedback`) is either given one or deleted from the list.
+- The client stops keeping its own copy of 5 grant keys.
+
+### 2.3 One grammar for every resource
+
+| Moment | Pattern | Why |
+|---|---|---|
+| **Index** | `AppPageHeader` (title, count, one primary "New …" button) · search · one segmented status filter · `AppDataTable` on desktop, the same rows as cards on phones · `AppEmptyState` that offers the create action | Same eye path on every page |
+| **Detail** | Slide-over from the index on desktop; the same component as a full page on phones and for deep links | Keeps the list in view; every record still has a URL |
+| **Detail layout** | Summary strip (status, the one next action) · facts · timeline (who did what, what was sent) · discussion (embedded channel thread) | The next action is always top right |
+| **Create / Edit** | One form component per resource in `AppBottomSheet`; edit opens the same form filled in | Learning create teaches edit |
+| **Delete** | In the overflow menu, never beside the primary action; `useConfirm` naming the record and what goes with it; archive with an Undo toast where the data allows | No surprise losses |
+| **Feedback** | Toast for the result of an action; banner only for page state | Already the norm |
+
+Exception, stated once: composing an email stays a full page.
+
+Build this as a scaffold (`AppResourceIndex`, a resource entry in the panel registry, `useResource` for list/search/filter/remove) so new pages are compliant by construction, then enforce it with three new audits beside the existing sixteen: raw `<h1>` on a page, raw `Dialog` used for a form, `filter-pill`.
+
+### 2.4 Glass as a layer, fewer knobs
+
+Apple's Liquid Glass puts glass on the controls that float above content — bars, dock, sheets, menus — and leaves the content itself solid and legible. The app already has the material; the change is where it is used.
+
+- **Glass:** top bar, dock, section pills, sheets and slide-overs, menus, toasts.
+- **Not glass:** tables, cards of content, form fields (already solid for performance).
+- **Details:** nested corner radii that share a centre, a soft fade where content scrolls under a bar, the accent tint reserved for the one primary action per screen, no glass on glass.
+- **Accessibility:** honour `prefers-reduced-transparency` and `prefers-contrast` instead of a manual "glass chrome" switch.
+
+Appearance settings go from six to two (decided 2026-11-14):
+
+| Setting | Options | What it does |
+|---|---|---|
+| **Appearance** | Light · Dark · Auto | As today |
+| **Tint** | On · Off | Off: clear, neutral glass that takes its colour from what is behind it. On: the glass carries the community's accent colour and is slightly more opaque, as iOS's tinted glass is — more colour and more contrast in one switch |
+
+Removed: dock palettes (Fresh, Aurora, Neutral — the tint replaces them), the glass chrome toggle (the OS reduced-transparency setting decides), the dock label toggle (labels on), and dock position from the appearance panel.
+
+Each person picks their own tint colour (decided 2026-11-14) from a short row of swatches shown when Tint is on; the first swatch is the community's accent and is the default. It is stored with the per-user app preferences that already hold the dock settings. `core/shared/branding/accent.ts` already resolves one accent from a hex and is the single place the choice feeds. Tinted and clear glass each need a contrast-checked pair in light and dark (every swatch in both modes, added to `audit:contrast-pairs`, which is why the swatches are a fixed set and not a colour picker). The public site keeps its three styles; that is a one-time board choice, not a daily one.
+
+## 3. Features
+
+### 3.0 Work: requests, tasks and projects
+
+The schema for this already exists and mirrors Earnest's; what is missing is one clear mental model and the screens that show it. No new "ticket" collection: a request is the ticket.
+
+| Thing | Meaning | Who creates it | Collection |
+|---|---|---|---|
+| **Request** | Someone asks for something. It has a requester who is kept informed. | Anyone | `hoa_requests` |
+| **Task** | One piece of work with an assignee and a due date. | Whoever does or directs the work | `hoa_tasks` (subtasks, links to request / project / event) |
+| **Project** | A body of work with a budget and a timeline — the roof, the 40-year recertification. | Admin, board, or a manager with the grant | `hoa_projects` (`parent_project` for nesting) |
+| **Timeline event** | A phase, milestone, inspection, meeting or payment on a project. Tasks hang from it; it can need approval and carry a cost. | Same | `hoa_project_events` (`depends_on`, `approval`, `cost_amount`) |
+
+Every path between them, as one "Move to…" menu on each detail:
+
+| From | To | State |
+|---|---|---|
+| Request | Task(s) | Built (`spawnTask`) |
+| Request | New project | Built (`promote.post.ts`) |
+| Request | Existing project, or a phase of one | **(verify; likely missing)** |
+| Task | Project (the task becomes its first task) | Missing |
+| Timeline event | Sub-project (spawned from that event) | Built (`spawn-project.post.ts`) |
+| Project | Child project | Field exists; needs the action |
+| Template | Project with its phases and tasks filled in | Missing — see below |
+
+Lineage is always visible in both directions ("From request: leak in unit 4B" / "Became project: Roof replacement"), and closing the work updates the requester through the existing request-status reminder.
+
+**What a project page shows, top to bottom:**
+
+1. **Progress** — one ring: milestones reached of total, with child projects rolled up into the parent. Derived by a pure shared function; no stored percentage to drift.
+2. **Health** — On track · At risk · Blocked, also derived: an overdue milestone or task makes it at risk; an unapproved event past its date or an unmet dependency makes it blocked.
+3. **Needs** — the short list that answers "what is this waiting on?": approvals pending, overdue tasks, tasks with no assignee, spend against budget, contracts expiring inside the project's dates.
+4. **Phases** — a stepper of phase events in order, the current one expanded to its tasks.
+5. **Timeline** — the existing Gantt (`ProjectGantt.vue`), compared against Earnest's lane-based `ProjectTimeline/*` and upgraded only where Earnest is clearer.
+6. **Tabs** — Tasks · Sub-projects (a tree) · Vendors and contracts · Money · Files · Discussion.
+
+Owners see a reduced version when `member_visible` is on: the ring, the phase stepper and posted updates — "Roof: phase 2 of 4, inspection on 3 December".
+
+**Attaching work to projects and vendors** (decided 2026-11-14). A task or a request carries at most one project and at most one vendor, both optional. That is enough to answer every question without a second kind of link:
+
+- A project's vendors are the existing many-to-many list (`hoa_projects_vendors`), so a project can have several.
+- The **vendor** on a task or request is the outside party doing the work; the **assignee** is the member responsible for seeing it done. Vendors are not assignees.
+- A task that belongs to a contract takes its vendor from the contract; nobody picks it twice.
+- On screen each is one chip in the detail's summary strip — "Roof replacement" · "Apex Roofing" — and one optional field in the form.
+
+The vendor page then needs no new data: **Projects**, grouped Current · Upcoming · Past from the project's status and dates; **Open work**, one list of that vendor's tasks and requests; then Contracts, Bills and Discussion. The same work-list component renders on the project page, the vendor page and the home queue, with a different filter each time.
+
+**Templates.** A project template is a saved set of phases, milestones and tasks with relative dates: 40-year recertification, roof replacement, reserve study, annual meeting, insurance renewal. Built-in ones ship with the paid module; a community can save its own.
+
+**Across projects.** The projects index is a portfolio: one row per top-level project with ring, health, next milestone and needs count (`OrgTimeline.vue` is the start of this).
+
+### 3.1 Owner invoices (today's "charges", `payment_requests`)
+
+Decided 2026-11-14: "invoices" covers both owner invoices and vendor bills, owner invoices first; owners and admins see the word **Invoice**.
+
+- **Issued notice.** Activating a charge sends an essential-class email and push, and finally writes `email_sent`. Bulk issues from a schedule can wait as held drafts for one approval (Earnest's `held_emails` idea).
+- **One reminder path.** The reminder engine owns all dues reminders, including owners with no app account (email only); step 4 of the billing worker is deleted **(verify the engine can address email-only members first)**.
+- **Manual send.** "Send reminder" on a row, on the detail, and in bulk. The confirm shows who receives it and a preview, and warns if one went out in the last 3 days. It writes to `hoa_reminder_log` like an automatic one.
+- **Tracking.** Index filter: Open · Overdue · Paid · Draft. Columns: unit, remaining, due, last notified, next reminder. Aging strip above (current, 1–30, 31–60, 61–90, 90+). Detail timeline: issued → emailed (delivered or bounced, from the webhook) → each reminder (automatic or by whom) → payments.
+- **Owner side.** The same timeline, read-only, so "I never got it" has an answer.
+- **Fix in passing.** Cancelling a charge has no confirm.
+
+### 3.2 Vendors, contracts, deliverables, bills
+
+New Directus collections, created by scripts in the house style:
+
+| Collection | Key fields |
+|---|---|
+| `hoa_vendor_contracts` | vendor, title, status (draft · active · ended), start, end, auto-renews, notice days, amount and cadence, files, **responsible** (a member) |
+| `hoa_tasks` (extend) | contract link, recurrence, evidence file — a deliverable is a task that belongs to a contract |
+| `payment_expenses` (extend) | vendor as a relation (free text kept for old rows), contract, invoice number, due date |
+
+Decided 2026-11-14: deliverables are tasks, following §3.0. Tasks already have a due date, assignees and a slide-over panel, so a deliverable shows up in the same "assigned to me" list as everything else. A contract can also be linked to a project, which is how a roofing contract's deliverables appear on the roof project's timeline.
+
+Vendors, contracts and project templates are one paid module (decided 2026-11-14), switched by the existing module toggles; the portfolio queue across communities is its agency tier.
+
+- **Pages** (all on the §2.3 scaffold): Vendors index → vendor detail with tabs Contracts · Deliverables · Bills · Discussion (the vendor's channel, embedded).
+- **Reminder rules** added to `core/shared/reminders/rules.ts`: contract renewal notice and expiry → the responsible person; deliverable before / due / overdue → the assignee, escalating to the responsible person after N days; bill due → whoever approves. Manual "Remind" uses the same button as invoices.
+- **Who sees it.** Two new grant keys, `vendors` and `billing`. Admins see everything; a delegate sees the area they were granted; an assignee without the grant sees only their own items, in their queue.
+- **Assigned to me.** One list on the home screen for every hat: deliverables, requests, approvals.
+
+### 3.3 Taken from Earnest
+
+| From Earnest | Lands as |
+|---|---|
+| `SendNewsletterModal`: test send first, dry-run count, From line | The send step of `EmailComposePage` |
+| `email/activity.vue`: per-send rollup with failure counts | The email index and detail |
+| Audience segments | A role/team picker (board, managers, owners, tenants, a team, owners with a balance) replacing the `@board` tokens; decide the fate of the unused `hoa_mailing_lists` |
+| `ChannelThread` embed | Vendor, contract and invoice detail |
+| Channels roster (categories, archived, search) | Compare and close gaps only |
+
+Not taken: Earnest's WebSocket realtime. HOA Connect polls on purpose **(verify why)**; revisit only if polling cost shows up.
+
+## 4. Phases
+
+Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, typecheck, build).
+
+| # | Phase | Sessions | Model | Depends on |
+|---|---|---|---|---|
+| 1 | **Role context and capability nav** — `RoleContext`, one registry, PM hat, desktop PM entry, login routing, one grant list, naming and badge cleanup, denial redirects to home | 2 | Opus | — |
+| 2 | **Resource scaffold** — `AppResourceIndex`, `useResource`, panel registry entries, the three audits as ratchets; convert Charges as the proof | 1 | Opus | — |
+| 3 | **Sweeps** — Members, Documents, Email, Meetings, Requests, Vendors onto the scaffold; ratchets to zero | 2 | Sonnet | 2 |
+| 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency | 1–2 | Opus for the material, Sonnet for the sweep | — |
+| 5 | **Invoices** — issued notice, single reminder path, manual send, timeline, aging | 2 | Opus | 2 |
+| 6 | **Work** — §3.0: the "Move to…" menu and its missing paths, lineage chips, derived progress and health, the Needs list, phase stepper, portfolio index, owner view | 2–3 | Opus | 1, 2 |
+| 7 | **Vendors** — contracts, deliverables as tasks, bills, reminder rules, grants, project templates, module toggle | 2–3 | Opus, then Sonnet for pages | 6 |
+| 8 | **Email and channels uptake** — §3.3 | 1 | Sonnet | 2 |
+| 9 | **Role homes and settings** — five home screens on the §1 rule, the manager's portfolio home, one Settings tree; delete `/admin/email/*`, `/admin/announcements` and the legacy `useAnnouncements` source | 2 | Opus | 1, 5, 6, 7 |
+| 10 | **Walk-through** — seed one login per role (manager with and without admin, and one person holding different hats in two communities); browser pass per role, phone and desktop | 1 | Sonnet | all |
+
+About 16–20 sessions. Phases 1, 2 and 4 are independent and can run in parallel worktrees. Phase 1 now includes the engagement record and the per-area manager switches from §2.1.
+
+## 5. Keeping token use low
+
+- **Scaffold before sweep.** Phase 2 makes Phase 3 mechanical, which is what lets it run on the cheaper model.
+- **Audits instead of reading.** A session checks compliance by running `pnpm audit:all`, not by re-reading pages.
+- **One section per session.** The kickoff prompt names this file's section and the files to open; nothing else is read up front. Surveys go to read-only subagents that return conclusions.
+- **Spec first for the two risky pieces** (role context, the single reminder path): a short spec with named tests, then build — the pattern `spec-email-send-queue.md` used.
+- **Shared code over copies.** One grant list, one nav registry, one reminder button, one form per resource.
+- **Log deviations here**, a few lines per session, so the next session does not rediscover them.
+
+## 6. Decisions
+
+Settled 2026-11-14:
+
+1. "Invoices" is both owner invoices and vendor bills, owner invoices first, and the word is Invoice.
+2. Property manager is a hat on a membership, separate from account ownership and from access (§2.1).
+3. Deliverables are tasks; requests, tasks and projects are one work model with no ticket collection (§3.0).
+4. Appearance is Light / Dark / Auto plus a Tint switch (§2.4).
+5. Vendors, contracts and project templates are a paid module.
+
+6. The account owner (the payer) decides who is admin and who is removed; no protected board seat.
+7. A community can have several managers, each with a title and per-area access and notification switches.
+8. Each person picks their own tint colour from a fixed set of swatches.
+9. Tasks and requests carry at most one project and one vendor.
+
+## 7. Status
+
+Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
+
+| Session | Phase | State | Notes |
+|---|---|---|---|
+| 1 | 1a — Role context: spec, resolver, one area list, schema script | [ ] | Prompt: `docs/prompts/role-first-s1-role-context.md` |
+| 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [ ] | |
+
+### Session log
+
+(Each session appends: shipped, deviations, operator TODOs.)
