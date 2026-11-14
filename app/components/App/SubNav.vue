@@ -41,29 +41,23 @@
 // NO top-level await in this component, deliberately. `useSlidingThumb` registers
 // lifecycle hooks, and a composable that does so has to be called before any
 // await in setup or it runs without an active component instance — which took
-// every workspace page to a 500 the first time this bar was rewritten. The admin
-// check therefore uses the synchronous domain-access composable instead of
+// every workspace page to a 500 the first time this bar was rewritten. The
+// role checks therefore come from the synchronous useNavContext instead of
 // awaiting useSelectedOrg().
-const route = useRoute();
-const { appsFor, activeKeyFor } = useAppNav();
+import { toAppDef } from "#core/app/composables/useAppNav";
+
+const { activeKeyFor } = useAppNav();
 const { sectionLinksFor, isLinkActive, buildOrgPath } = useSectionNav();
-const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
-const { isPreviewingMember } = useViewAs();
+const nav = useNavContext();
 // Published by PageContainer so this bar tracks the page's own column width.
 const { pageWide } = usePageWidth();
 
-// The bar only makes sense on an org route: every link it renders is org-scoped
-// through buildOrgPath.
-const isOnOrgPage = computed(() => !!route.params.slug);
-const showAdminUI = computed(
-  () => isOnOrgPage.value && !isPreviewingMember.value && isAdminOfCurrentDomain.value
-);
-
-const apps = computed(() => appsFor(showAdminUI.value));
+// The active dock slot's pills (nav registry): an admin's sections, a board
+// seat's Money. Only on an org route — every link is org-scoped (buildOrgPath),
+// and the dock has no entries elsewhere.
+const apps = computed(() => nav.entries.value.map(toAppDef));
 const activeKey = computed(() => activeKeyFor(apps.value));
-const links = computed(() =>
-  showAdminUI.value ? sectionLinksFor(activeKey.value) : []
-);
+const links = computed(() => sectionLinksFor(activeKey.value));
 
 // -1 when no child page matches (a section root): the thumb fades out in place
 // rather than snapping to the first pill and claiming that one is selected.

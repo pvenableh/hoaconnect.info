@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { NAV_LAYOUTS, SHEET_ADMIN_EXTRAS, meets, navEntry, type NavEntry } from "#core/shared/nav/registry";
+import { ADMIN_APPS } from "#core/app/composables/useAppNav";
 import { toast } from "vue-sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -86,7 +88,6 @@ const {
   isMemberOfCurrentDomain,
   isBoardMemberOfCurrentDomain,
   isPropertyManagerOfCurrentDomain,
-  managerCan,
 } = useCurrentDomainAccess();
 
 // Per-org module toggles (gate optional member-facing nav links).
@@ -193,20 +194,19 @@ const showAdminUI = computed(() => {
   return isAdmin.value;
 });
 
-// Property managers (not admins) see a scoped "Manage" section with only the
-// areas the admin granted them.
-const showManagerUI = computed(() => {
-  if (!user.value || !isOnOrgPage.value) return false;
-  return isPropertyManagerOfCurrentDomain.value && !isAdminOfCurrentDomain.value;
-});
+// Every list in the sheet comes from the nav registry
+// (core/shared/nav/registry.ts) through useNavContext, so the sheet, the dock
+// and the App Library offer the same entries under the same gates.
+const nav = useNavContext();
+const sheetItem = (e: NavEntry) => ({ label: e.label, path: buildPath(e.path), icon: e.icon });
+
+// Managers (not admins) see a "Manage" section: the queue and the areas the
+// admin let them work — the manager layout's entries.
+const showManagerUI = computed(
+  () => !!user.value && isOnOrgPage.value && nav.layout.value === "manager"
+);
 const managerNavItems = computed(() =>
-  [
-    { label: "Overview", path: buildPath("/manage"), icon: "layout-dashboard", show: true },
-    { label: "Inquiries", path: buildPath("/manage/inquiries"), icon: "inbox", show: managerCan("inquiries") },
-    { label: "Directory", path: buildPath("/manage/directory"), icon: "users", show: managerCan("directory") },
-    { label: "Documents", path: buildPath("/documents"), icon: "file-text", show: managerCan("documents") },
-    { label: "Communications", path: buildPath("/manage/communications"), icon: "mail", show: managerCan("communications") },
-  ].filter((i) => i.show)
+  showManagerUI.value ? nav.entries.value.map(sheetItem) : []
 );
 
 // Determine the appropriate user status badge for current context
@@ -280,12 +280,6 @@ const buildPath = (path: string) => {
   return `/${currentSlug.value}${path}`;
 };
 
-// Check if board should be shown (defaults to true if not set)
-const showBoard = computed(() => {
-  // Check activeHoa for public pages, fall back to true if not set
-  return activeHoa.value?.show_board !== false;
-});
-
 // Check if maintenance mode is enabled (hide public nav when true for non-admins)
 const isMaintenanceMode = computed(() => {
   return activeHoa.value?.maintenance_mode === true;
@@ -296,53 +290,32 @@ const hideNavForMaintenance = computed(() => {
   return isMaintenanceMode.value && !isAdminOfCurrentDomain.value;
 });
 
-// Public navigation items (visible to all authenticated users)
-const publicNavItems = computed(() => {
-  const items = [{ label: "Home", path: buildPath("/"), icon: "home" }];
-
-  // Only show Board link if show_board is not false
-  if (showBoard.value) {
-    items.push({ label: "Board", path: buildPath("/board"), icon: "award" });
-  }
-
-  // No Announcements entry: Phase 9 retired the standalone feature and
-  // `/{slug}/announcements` is now a bare redirect to the org home, so the item
-  // sent members somewhere and then bounced them straight back. Community
-  // updates live in the building feed and arrive by email.
-  items.push({
-    label: "Documents",
-    path: buildPath("/documents"),
-    icon: "file",
-  });
-
-  if (isModuleEnabled("vendors")) {
-    items.push({ label: "Vendors", path: buildPath("/vendors"), icon: "contact" });
-  }
-
-  return items;
-});
-
-// Admin-only navigation items — derived from the SAME dock registry (useAppNav
-// ADMIN_APPS) so the mobile sheet and the desktop dock can never drift apart.
-// Module gating + the always-on Settings gear come through for free. Less-used
-// destinations (Users, Teams, Announcements) live under Settings → People/Features.
-const { appsFor } = useAppNav();
-const adminNavItems = computed(() =>
-  appsFor(true).map((app) => ({
-    label: app.label,
-    path: buildPath(app.path),
-    icon: app.icon,
-  }))
+// Public navigation items (visible to all authenticated users): the registry's
+// sheet layout. No Announcements entry: Phase 9 retired the standalone feature.
+const publicNavItems = computed(() =>
+  NAV_LAYOUTS.sheet.flatMap((id) => {
+    const e = navEntry(id);
+    return e && meets(e, nav.ctx.value) ? [sheetItem(e)] : [];
+  })
 );
+
+// Admin-only navigation items — the admin dock's own entries, so the mobile
+// sheet and the desktop dock can never drift apart. Less-used destinations
+// (Users, Teams) live under Settings → People/Features.
+// Off an org page (the main domain) the admin list is the selected org's.
+const adminNavItems = computed(() => {
+  if (isOnOrgPage.value) return nav.layout.value === "admin" ? nav.entries.value.map(sheetItem) : [];
+  return ADMIN_APPS.map((app) => ({ label: app.label, path: buildPath(app.path), icon: app.icon }));
+});
 
 // Lower-frequency admin destinations that aren't dock icons (reached on desktop
 // via the section sub-nav or a dashboard launcher widget). Listed here so the
 // mobile sheet still has a stable, complete path to them.
 const adminExtraItems = computed(() =>
-  [
-    { label: "Requests", path: buildPath("/admin/requests"), icon: "clipboard-list", show: isModuleEnabled("requests") },
-    { label: "Moderation", path: buildPath("/admin/moderation"), icon: "shield-alert", show: isModuleEnabled("moderation") },
-  ].filter((i) => i.show)
+  SHEET_ADMIN_EXTRAS.flatMap((id) => {
+    const e = navEntry(id);
+    return e && meets(e, nav.ctx.value) ? [sheetItem(e)] : [];
+  })
 );
 
 // Legacy userStatusBadge - kept for backwards compatibility but prefer contextAwareStatusBadge

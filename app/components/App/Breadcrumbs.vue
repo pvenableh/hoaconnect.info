@@ -5,7 +5,10 @@
 // root (where it would collapse to a single crumb).
 const route = useRoute();
 const { orgSlug, buildOrgPath } = useOrgNavigation();
-const { appsFor, activeKeyFor } = useAppNav();
+import { ADMIN_APPS, MANAGER_APPS, MEMBER_APPS, toAppDef } from "#core/app/composables/useAppNav";
+
+const { activeKeyFor } = useAppNav();
+const nav = useNavContext();
 const { pageWide, setPageWide } = usePageWidth();
 
 // Reset to the standard width on every navigation; the destination page's
@@ -20,13 +23,13 @@ const humanize = (s: string) => s.replace(/-/g, " ");
 
 // Find the dock app whose match fragments cover the current route (admin first,
 // then member), so we can reuse its human label for the section crumb.
+// This person's dock first (its hubs already resolved to where they open), then
+// every layout, for a page reached by URL.
 const sectionApp = computed(() => {
-  const admin = appsFor(true);
-  const k1 = activeKeyFor(admin);
-  if (k1) return admin.find((a) => a.key === k1) || null;
-  const member = appsFor(false);
-  const k2 = activeKeyFor(member);
-  if (k2) return member.find((a) => a.key === k2) || null;
+  for (const apps of [nav.entries.value.map(toAppDef), [...ADMIN_APPS], [...MANAGER_APPS], [...MEMBER_APPS]]) {
+    const k = activeKeyFor(apps);
+    if (k) return apps.find((a) => a.key === k) || null;
+  }
   return null;
 });
 

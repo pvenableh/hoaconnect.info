@@ -29,10 +29,12 @@ describe("sectionHomeFor", () => {
   });
 
   it("falls through to an ungated child when every gated one is off", () => {
-    // Teams has no module gate, so People can never resolve to nothing.
-    expect(sectionHomeFor("people", off("directory", "board", "vendors"))).toBe(
-      "/admin/teams"
-    );
+    // Teams is part of Directory ("Members, units, and teams") and its route
+    // was always gated on it, so with Directory, Board and Vendors all off
+    // People has nowhere to land and its slot hides (docs/spec-capability-nav.md).
+    // It used to land on /admin/teams, which module.global then refused.
+    expect(sectionHomeFor("people", off("directory", "board", "vendors"))).toBeNull();
+    expect(sectionHomeFor("people", off("board", "vendors"))).toBe("/admin/members");
     // Ledger is deliberately ungated (Pillar B) — Records survives the same way.
     expect(
       sectionHomeFor("records", off("meetings", "documents", "files", "rules", "governing"))

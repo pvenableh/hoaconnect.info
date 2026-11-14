@@ -3,9 +3,9 @@
  * Spotlight — ⌘K / Ctrl-K search across the workspace.
  *
  * Two sources, one list:
- *   - DESTINATIONS, instantly and client-side: the dock apps (`useAppNav`) and
- *     every section link under them (`useSectionNav`), module-filtered the same
- *     way the dock and sub-nav are. Members get their own app set.
+ *   - DESTINATIONS, instantly and client-side: this person's dock entries and
+ *     the pills under them, from the nav registry (useNavContext), gated the
+ *     same way the dock and sub-nav are.
  *   - RECORDS, debounced, from `GET /api/search` — members, units, vendors,
  *     documents, meetings, requests, projects, channels. Org-scoped and
  *     capability-filtered on the server (core/shared/search). Staff only; for a
@@ -52,7 +52,7 @@ const { isOpen, close, toggle } = useSpotlight();
 const createVerbs = useCreateVerbs();
 const router = useRouter();
 const route = useRoute();
-const { appsFor } = useAppNav();
+const nav = useNavContext();
 const { sectionLinksFor, buildOrgPath } = useSectionNav();
 const { isEnabled } = useModules();
 const access = useCurrentDomainAccess();
@@ -60,9 +60,6 @@ const { isPreviewingMember } = useViewAs();
 const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
 
 const isOnOrgPage = computed(() => !!route.params.slug);
-const adminUI = computed(
-  () => !isPreviewingMember.value && isOnOrgPage.value && access.isAdminOfCurrentDomain.value,
-);
 // Record search is offered to the same hats the assistant is: the server
 // re-checks per group, this only decides whether to ask.
 const canSearchRecords = computed(
@@ -80,11 +77,11 @@ const allDestinations = computed<Destination[]>(() => {
   if (props.destinations) return props.destinations;
   const out: Destination[] = [];
   const seen = new Set<string>();
-  for (const app of appsFor(adminUI.value)) {
-    const links = adminUI.value ? sectionLinksFor(app.key) : [];
+  for (const app of nav.entries.value) {
+    const links = sectionLinksFor(app.id);
     if (!links.length && !seen.has(app.path)) {
       seen.add(app.path);
-      out.push({ key: `app:${app.key}`, label: app.label, icon: `lucide:${app.icon}`, to: app.path, section: "Go to" });
+      out.push({ key: `app:${app.id}`, label: app.label, icon: `lucide:${app.icon}`, to: app.path, section: "Go to" });
     }
     for (const l of links) {
       if (seen.has(l.path)) continue;

@@ -26,15 +26,12 @@ export interface AppDef {
   path: string;
   /** Route fragments that mark this app active ("__root__" = exact "/") */
   match: string[];
-  /**
-   * For a "hub" slot that fronts several modules (People, Records, Requests…):
-   * the module keys it contains. The slot shows iff any child is enabled
-   * (anyEnabled). Omit for a leaf slot whose own `key` is its module gate.
-   */
+  /** For a hub gated on a list of modules: those module keys. Informational. */
   children?: string[];
 }
 
 import type { DockPosition, DockPrefs, PaletteId } from "#core/shared/nav/app-prefs";
+import { NAV_LAYOUTS, isHub, navEntry, type NavEntry } from "#core/shared/nav/registry";
 export type { DockPosition, PaletteId };
 
 interface Palette {
@@ -127,9 +124,9 @@ const NOTIF_BADGE_KEYS: Record<string, string[]> = {
   email: ["comms"],
   meeting: ["records", "meetings"],
   document: ["records", "documents"],
-  payment: ["payments"],
+  payment: ["payments", "pay"],
   membership: ["people"],
-  request: ["requests"],
+  request: ["requests", "my-requests"],
 };
 
 export function badgeCountsFor(
@@ -159,68 +156,36 @@ export function badgeCountsFor(
   return counts;
 }
 
-// Admin dock — job-based sections rather than a flat tool list. Seven slots:
-// Home + five content sections (People, Communications, Records, Money,
-// Requests) + Settings. Each section fronts several modules and opens on the
-// first of them (see appsFor); AppSubNav discloses the rest as pills. A
-// section's `children` are its module keys; the slot shows iff any child is on
-// (anyEnabled). Leaf slots (dashboard, settings) gate on their own `key` and
-// are core (always shown). `match[]` covers every child route so the
-// longest-prefix activeKeyFor highlights the right section. Channels is still
-// reached via the top-nav chat button (deliberately off the dock).
-export const ADMIN_APPS: readonly AppDef[] = [
-  { key: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", match: ["__root__", "/admin/boardroom", "/admin/activity", "/admin/ai-spend"] },
-  {
-    key: "people", label: "People", shortName: "People", icon: "users-round", path: "/admin/people",
-    // Vendors is a People-area route (/admin/vendors). It used to live under
-    // /admin/settings/property-management, which collided with the Settings hub
-    // prefix and made the sidebar jump to Settings; the dedicated URL fixes that.
-    match: ["/admin/people", "/admin/members", "/admin/units", "/admin/teams", "/board", "/admin/vendors"],
-    children: ["directory", "board", "vendors", "teams"],
-  },
-  {
-    key: "comms", label: "Communications", shortName: "Comms", icon: "mail", path: "/admin/communications",
-    match: ["/admin/communications", "/admin/email", "/admin/announcements", "/admin/channels", "/polls"],
-    children: ["email", "channels", "polls"],
-  },
-  {
-    key: "records", label: "Records", shortName: "Records", icon: "library", path: "/admin/reporting",
-    match: ["/admin/reporting", "/admin/meetings", "/meetings", "/admin/documents", "/documents", "/admin/files", "/rules", "/governing", "/admin/ledger"],
-    children: ["meetings", "documents", "rules", "governing", "files"],
-  },
-  {
-    key: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments",
-    match: ["/admin/payments", "/admin/expenses"],
-    children: ["payments", "expenses"],
-  },
-  {
-    key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/more",
-    match: ["/admin/more", "/admin/requests", "/admin/projects", "/admin/leads", "/admin/approvals", "/admin/moderation"],
-    children: ["requests", "projects", "moderation", "approvals"],
-  },
-  // Settings is a core app (never module-toggled) — keep it last so the dock
-  // always ends with a way into org configuration / public site / billing.
-  { key: "settings", label: "Settings", shortName: "Setup", icon: "settings", path: "/admin/settings", match: ["/admin/settings", "/admin/users"] },
-];
+// The dock's apps come from the nav registry (core/shared/nav/registry.ts), the
+// only source of nav entries; see docs/spec-capability-nav.md. An AppDef is the
+// dock's view of one entry. These derived lists keep the shape the page
+// transitions and Breadcrumbs read: the admin sections in dock order, the
+// member apps, and the manager's areas.
+export function toAppDef(e: NavEntry): AppDef {
+  const modules = e.needs.flatMap((n) => ("module" in n && typeof n.module !== "string" ? [...n.module] : []));
+  return {
+    key: e.id,
+    label: e.label,
+    shortName: e.shortName,
+    icon: e.icon,
+    path: e.path,
+    match: [...(e.match ?? (e.path === "/" ? ["__root__"] : [e.path.split("?")[0]]))],
+    ...(modules.length ? { children: modules } : {}),
+  };
+}
 
-export const MEMBER_APPS: readonly AppDef[] = [
-  { key: "home", label: "Home", shortName: "Home", icon: "home", path: "/", match: ["__root__"] },
-  { key: "meetings", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/meetings", match: ["/meetings"] },
-  { key: "documents", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", match: ["/documents"] },
-  { key: "rules", label: "Rules", shortName: "Rules", icon: "scale", path: "/rules", match: ["/rules"] },
-  // The recorded declaration, by-laws and amendments as verbatim provisions.
-  // Not the same thing as Rules (house rules and policies the board writes).
-  { key: "governing", label: "Governing Documents", shortName: "Gov Docs", icon: "scroll-text", path: "/governing", match: ["/governing"] },
-  { key: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", match: ["/board"] },
-  // Ungated, like the admin link: Pillar B's promise is that an owner can see
-  // what their board decided WITHOUT asking permission, and a ledger an org
-  // can hide from its own owners is not that promise.
-  { key: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", match: ["/ledger"] },
-  { key: "payments", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", match: ["/payments"] },
-  { key: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", match: ["/requests"] },
-  { key: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", match: ["/projects"] },
-  { key: "polls", label: "Polls", shortName: "Polls", icon: "vote", path: "/polls", match: ["/polls"] },
-];
+const layoutApps = (ids: readonly string[]): AppDef[] =>
+  ids.flatMap((id) => {
+    const e = navEntry(id);
+    return e ? [toAppDef(e)] : [];
+  });
+
+/** The admin dock's sections, in dock order (the queue aside: it is the hat's). */
+export const ADMIN_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.admin.filter((id) => id !== "queue"));
+/** The member dock's apps (Money is a hub, so it lives with the admin sections). */
+export const MEMBER_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.member.filter((id) => !isHub(id)));
+/** The manager dock: the queue and one slot per area. */
+export const MANAGER_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.manager);
 
 const PALETTE_KEY = "app-nav-palette";
 const POSITION_KEY = "app-nav-position";
@@ -306,32 +271,11 @@ function pushUserPrefs() {
 export function useAppNav() {
   const route = useRoute();
   const { buildOrgPath, navigateToOrg } = useOrgNavigation();
-  const { isEnabled, anyEnabled } = useModules();
   const { user } = useDirectusAuth();
 
   loadPrefs();
   const userId = user.value?.id;
   if (import.meta.client && userId) void pullUserPrefs(userId);
-
-  // Hide apps whose org module is toggled off (Track B). A hub slot shows iff
-  // ANY of its children is enabled (anyEnabled); a leaf slot gates on its own
-  // `key` (which doubles as its module key — core apps like dashboard/home/
-  // settings aren't in any module map, so isEnabled() returns true for them).
-  //
-  // A hub's declared `path` is its section ROOT (/admin/people, /admin/more…),
-  // which used to render a grid of cards listing exactly what AppSubNav already
-  // shows as pills. The dock now opens the section's first enabled child
-  // directly, so the click lands on content instead of on a menu. Resolving
-  // here — rather than redirecting from the root page — means no navigation
-  // flash and no history entry to back out of. `match` is deliberately left
-  // alone: it still covers the root, so the slot highlights either way, and the
-  // root route keeps a redirect shim for typed URLs and old links.
-  const appsFor = (isAdmin: boolean): AppDef[] =>
-    (isAdmin ? ADMIN_APPS : MEMBER_APPS)
-      .filter((app) => (app.children ? anyEnabled(app.children) : isEnabled(app.key)))
-      .map((app) =>
-        app.children ? { ...app, path: sectionHomeFor(app.key, isEnabled) ?? app.path } : app
-      );
 
   // Per-app accent sampled from the active palette ramp by the app's position
   const accentsForApps = (apps: AppDef[], paletteId: PaletteId = palette.value): HSL[] => {
@@ -400,7 +344,6 @@ export function useAppNav() {
     dockPosition,
     showLabels,
     glassChrome,
-    appsFor,
     accentsForApps,
     swatchesFor,
     activeKeyFor,
