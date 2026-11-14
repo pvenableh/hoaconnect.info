@@ -292,6 +292,7 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 | 3 | **Sweeps** — Members, Documents, Email, Meetings, Requests, Vendors onto the scaffold; ratchets to zero | 2 | Sonnet | 2 |
 | 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency | 1–2 | Opus for the material, Sonnet for the sweep | — |
 | 5 | **Invoices** — issued notice, single reminder path, manual send, timeline, aging | 2 | Opus | 2 |
+| 5b | **Money approvals** — decisions 16 and 17: the approval rule, `money_approvals`, routes as the only write path, Ledger entries, waivers, the Approvals page | 2 | Opus | 1 |
 | 6 | **Work** — §3.0: the "Move to…" menu and its missing paths, lineage chips, derived progress and health, the Needs list, phase stepper, portfolio index, owner view | 2–3 | Opus | 1, 2 |
 | 7 | **Vendors** — contracts, deliverables as tasks, bills, reminder rules, grants, project templates, module toggle | 2–3 | Opus, then Sonnet for pages | 6 |
 | 8 | **Email and channels uptake** — §3.3 | 1 | Sonnet | 2 |
@@ -333,6 +334,7 @@ Settled 2026-11-14:
 14. An admin can choose to show unassigned jobs to owners, as a dated fact with no commentary. Admin only.
 15. The register gets a Map mode (Phase 2c): two-sided highlight with a time slider, not a network graph.
 16. Money is overseen, not delegated: every board seat reads the books; no single officer writes them. Money going out needs approval by two of the operating committee (President, Treasurer, Secretary), or a board majority where there is no committee, never by the person who entered it, and each approval is in the Ledger.
+17. Money approvals, confirmed with the operator 2026-11-14 (`docs/spec-money-approvals.md`): recording an expense paid before approval is allowed and flagged for good, with the whole board notified, because the books must match the bank. Waiving or cancelling an owner charge needs the same approval as spending. Every expense needs approval, with no small-amount limit for now. The HOA Admin role approves nothing; approval comes from board seats only.
 
 ## 7. Status
 
@@ -343,6 +345,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script run by the operator 2026-11-14; types regenerated. Prompt: `docs/prompts/role-first-s1-role-context.md` |
 | 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [x] | Spec `docs/spec-capability-nav.md`. Registry `core/shared/nav/registry.ts`. Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
 | 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [ ] | Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
+| 4 | 5b — Money approvals: rule, schema, routes, Ledger, write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Independent of Session 3. Prompt: to write |
 
 ### Session log
 
@@ -396,7 +399,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 1. ~~**Payments read policy (security).**~~ **Done 2026-11-14.** The Member policy read `payment_requests`, `payment_schedules` and `payment_transactions` with the org-wide filter, so any member could read every charge in their community through the API. Org-wide money is now read only through `GET /api/org/money/charges`, `/api/org/money/schedules` and `/api/org/expenses`, which check admin or `money:read` (`core/server/utils/money-access.ts`). A member's own Payments page and home read only their own rows. `pnpm narrow:payment-reads --apply` ran against the live instance: it narrowed the HOA Member policy's three reads to `member.user = $CURRENT_USER`, the filter `payment_methods` already uses, and a dry run afterwards found nothing left to change. `setup-directus-permissions.ts` carries the same rule, so a full re-run keeps it.
 2. Give a manager who is also an admin the hat (`is_manager`, `manager_title`) by hand, as in Session 1 TODO 2. Until then their dock has no Queue and they land on the org root. **1033 Lenox, 2026-11-14:** at the operator's request, `is_manager` is now on its two active HOA Admin rows, which are the operator's test accounts. No title was set.
 3. ~~Decide whether the Treasurer should write.~~ **Decided 2026-11-14 (decision 16): no office writes money.** `money:write` is now held by no office, and every board seat reads. Money going out gets a two-person approval in its own session.
-4. If a treasurer holds the HOA Admin role, they can still record and approve anything in the app, because admin bypasses every money gate. The account owner can remove the role (decision 6). The approval session will close this gap for admins too.
+4. If a treasurer holds the HOA Admin role, they can still record and approve anything in the app, because admin bypasses every money gate. The account owner can remove the role (decision 6). The approval session will close this gap for admins too. **Spec'd 2026-11-14** (decision 17): the HOA Admin role approves nothing, and every expense write goes through routes.
 5. **HOA Admin policy scope (security, review).** The dry run shows the HOA Admin policy's money reads filtered by `organization in $CURRENT_USER.hoa_members.organization`, meaning any community the user belongs to in any role. An admin of one community who is a plain member of another can therefore read the second one's charges through the API. That is likely true of every admin-level permission. Narrowing it means filtering on memberships with the HOA Admin role: one change across the admin policy, not just money.
 
 **Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, 16/16 audits)
