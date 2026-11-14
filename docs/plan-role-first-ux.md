@@ -217,6 +217,50 @@ Vendors, contracts and project templates are one paid module (decided 2026-11-14
 
 Not taken: Earnest's WebSocket realtime. HOA Connect polls on purpose **(verify why)**; revisit only if polling cost shows up.
 
+### 3.4 Responsibilities register
+
+Added 2026-11-14. A register of standing jobs: one row per job, who holds it today, how often, what document says so. The board reviews it line by line; owners read the published version. It is not a task list: "reconcile the bank statements every month" is a responsibility, "reconcile October" is a task it can spawn (`hoa_tasks.responsibility`).
+
+How it sits beside what §2.1 and §3.2 already decided:
+
+| Question | Answered by |
+|---|---|
+| Who gets the reminder or the event for an area? | `manager_areas.notify` (§2.1). Unchanged. |
+| Who answers for one contract? | `responsible` on the contract (§3.2). Unchanged. |
+| Who does each standing job, in words a board and an owner can read, and who did it before? | The register. |
+
+The register describes; the areas route. Each row may name one area from `AREAS`, which is how a later phase can show "the register says the CPA, the notify switch says the manager". Nothing syncs in the first slice.
+
+**Who can hold a job.** Each assignee row points at exactly one of: a board office, a member, a user, a vendor, a team, or a free-text label ("City of Miami Beach", "Nobody"). A board office is the preferred target for board jobs: the row says "Treasurer", and the person is read from the board terms for the date in question, so an election changes no register rows.
+
+**Access.** A new area, `responsibilities`, in `AREAS` with its gate file. Admins and members with that area's work switch edit; the hat alone gives nothing. Board members read everything. Owners and tenants read the published register only.
+
+**Publishing.** One switch per community, off by default. Until it is on, owners see "The board hasn't published who handles what yet." Published rows show job, who, cadence and last verified; never basis, notes, disputes or history.
+
+**Screens.** On the §2.3 scaffold: index grouped by five categories (finance · building · mechanical and safety · compliance and records · people and community), detail in the standard layout with the assignee timeline as its timeline. PDF export of the grid, the document handed to the board. A seed list applied in one click; the first one is labelled "Florida condominium" because it names Chapter 718, SIRS and the 40-year recertification, and other states get their own.
+
+**Second slice, later:** the "who does this today?" survey of directors with a side-by-side diff, the monthly line-by-line review, the admin home tile. Their collections are not created until then.
+
+#### History: end, don't erase
+
+Decided 2026-11-14. Board seats change every year and sometimes mid-year, and "who was responsible then?" must stay answerable. One rule for both board terms and job assignments: **a change of holder closes one dated row and opens another. Nothing is overwritten and nothing is deleted.**
+
+| Record | Today | Change |
+|---|---|---|
+| Board term (`hoa_board_members`: member, office, `term_start`, `term_end`) | The shape already holds history, and the Board tab lists past terms. But Edit overwrites the person and office in place, and Remove hard-deletes the row (`MembersPage.vue`). | Three separate actions. **End term** sets `term_end` and an `end_reason` (term ended · resigned · removed · changed office). **Change office** ends the row on a date and opens a new one for the same person. **Correct** fixes a typo in place and is the only in-place edit. Delete remains only for a row entered by mistake, behind a confirm that says so. |
+| Job assignment (`hoa_responsibility_assignees`: target, role, `start_date`, `end_date`) | New | **Hand over** asks for the date, ends the current row and opens the next in one server call. No delete route. |
+
+What that buys:
+
+- **"Treasurer was responsible for this until October 2026."** One assignee row: office treasurer, ended 2026-10-31, followed by the row for whoever took it over.
+- **"Who was the treasurer then?"** Read from the board terms for that date. A mid-year resignation shows as two terms inside one assignment.
+- **As of.** A date control on the register and on the Board tab shows either one as it stood on any day. The PDF prints its as-of date.
+- **Service history** on a member's detail: every office held and every job held, with dates.
+- **Names survive departures.** When a row is ended, the server freezes the holder's display name on it, as meeting attendance already freezes the title "for history". A later archived or removed member still reads correctly.
+- **Vacancy is visible.** An office with no current term shows as "Treasurer (vacant)" on every job it holds.
+
+Owners see the present only. History is for admins, the board and the `responsibilities` area.
+
 ## 4. Phases
 
 Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, typecheck, build).
@@ -225,6 +269,7 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 |---|---|---|---|---|
 | 1 | **Role context and capability nav** — `RoleContext`, one registry, PM hat, desktop PM entry, login routing, one grant list, naming and badge cleanup, denial redirects to home | 2 | Opus | — |
 | 2 | **Resource scaffold** — `AppResourceIndex`, `useResource`, panel registry entries, the three audits as ratchets; convert Charges as the proof | 1 | Opus | — |
+| 2b | **Responsibilities register, first slice** — §3.4: two collections, the `responsibilities` area and gate, board-term history actions, grid on the scaffold, hand-over, as-of, seed list, PDF, published owner view | 2 | Opus for schema and routes, Sonnet for pages | 1, 2 |
 | 3 | **Sweeps** — Members, Documents, Email, Meetings, Requests, Vendors onto the scaffold; ratchets to zero | 2 | Sonnet | 2 |
 | 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency | 1–2 | Opus for the material, Sonnet for the sweep | — |
 | 5 | **Invoices** — issued notice, single reminder path, manual send, timeline, aging | 2 | Opus | 2 |
@@ -233,8 +278,11 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 | 8 | **Email and channels uptake** — §3.3 | 1 | Sonnet | 2 |
 | 9 | **Role homes and settings** — five home screens on the §1 rule, the manager's portfolio home, one Settings tree; delete `/admin/email/*`, `/admin/announcements` and the legacy `useAnnouncements` source | 2 | Opus | 1, 5, 6, 7 |
 | 10 | **Walk-through** — seed one login per role (manager with and without admin, and one person holding different hats in two communities); browser pass per role, phone and desktop | 1 | Sonnet | all |
+| 11 | **Responsibilities, second slice** — §3.4: director survey and diff, monthly review, home tile, `next review` wired to the reminder engine | 2 | Opus, then Sonnet | 2b, 9 |
 
-About 16–20 sessions. Phases 1, 2 and 4 are independent and can run in parallel worktrees. Phase 1 now includes the engagement record and the per-area manager switches from §2.1.
+Phase 2b has a date: the 1033 Lenox board is seated 2026-12-09 and needs the grid and the PDF by then. Order to meet it: Session 2 (Phase 1b), Phase 2, Phase 2b. If Phase 2 slips, 2b builds its index on `AppDataTable` directly and Phase 3 converts it. Prompt: `docs/prompts/responsibilities-register.md`.
+
+About 20–24 sessions. Phases 1, 2 and 4 are independent and can run in parallel worktrees. Phase 1 now includes the engagement record and the per-area manager switches from §2.1.
 
 ## 5. Keeping token use low
 
@@ -259,6 +307,10 @@ Settled 2026-11-14:
 7. A community can have several managers, each with a title and per-area access and notification switches.
 8. Each person picks their own tint colour from a fixed set of swatches.
 9. Tasks and requests carry at most one project and one vendor.
+10. A responsibilities register is added (§3.4). It describes who does each standing job; `manager_areas.notify` keeps routing.
+11. History is kept by ending dated rows, for board terms and job assignments alike. In-place edits are corrections only.
+12. A job can be held by a board office, so elections do not rewrite the register.
+13. Owners see the register only after the community publishes it, and see the present only.
 
 ## 7. Status
 
