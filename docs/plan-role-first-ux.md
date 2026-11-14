@@ -340,7 +340,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | Session | Phase | State | Notes |
 |---|---|---|---|
 | 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script run by the operator 2026-11-14; types regenerated. Prompt: `docs/prompts/role-first-s1-role-context.md` |
-| 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [ ] | Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
+| 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [x] | Spec `docs/spec-capability-nav.md`. Registry `core/shared/nav/registry.ts`. Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
+| 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [ ] | Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
 
 ### Session log
 
@@ -386,3 +387,57 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 - Plan §2.1 "(verify)": confirmed with a correction. `hoa_vendors` links both `user` and `hoa_member`. Only `user` is read, by inquiry routing for the in-app recipient. Neither is used for access, and nothing ties a membership to an engagement yet.
 - Self-billed communities have no owner field, so `isAccountOwner` there means an HOA Admin on an active membership. Platform staff are never the account owner.
 - Existing tests are untouched. New files: `tests/shared/areas.test.ts`, `tests/shared/role-context.test.ts`, `tests/server/role-context-org-scope.test.ts`, `tests/composables/useCurrentDomainAccess.test.ts`, `tests/server/resolve-notified.test.ts`.
+
+#### Session 2 — Phase 1b, capability nav (2026-11-14)
+
+**Operator TODOs**
+
+1. **Payments read policy (security, decide soon).** The Member policy on `payment_requests` and `payment_schedules` is `read_only` with the `organization` filter (`scripts/setup-directus-permissions.ts`). So any member can read every charge in their community through the API, not just their own. The read-only Money pages for Treasurer and President rely on that read. Narrowing it means moving the Money reads behind a server route that checks `money:read`. That is a schema and route change, so it is not in this session.
+2. Give a manager who is also an admin the hat (`is_manager`, `manager_title`) by hand, as in Session 1 TODO 2. Until then their dock has no Queue and they land on the org root.
+3. `money:write` is in the matrix for the Treasurer, but every Money write is admin-only on the server. Decide whether the Treasurer should write. That needs a gate on the payments routes, then the pages' `canWrite`.
+
+**Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, 16/16 audits)
+
+- `922a8a1` `docs/spec-capability-nav.md`: entry shape, layouts, every entry and its gate, and the two decisions below. The layout rule was simplified in the next commit: the manager layout is "not admin, with a `canWork` area".
+- `860d5c7` the registry, `core/shared/nav/registry.ts`, the only source of nav entries. `module.global.ts` builds its route table from it, and the new `nav-gate` middleware admits a page when an entry covering it meets its access needs. `useNavContext()` builds the context. `useRoleContext` now forwards the cookie during SSR (`useRequestFetch`) and runs one fetch and one watcher per org. Test: `tests/shared/nav-registry.test.ts` (75): every entry's gate against its page's middleware for 16 personas, the old module table, no grant without a gate, and each role's dock.
+- `6a5cb03` the dock, App Library, section pills, Spotlight, mobile sheet and Breadcrumbs read the registry. `appsFor(isAdmin)` is deleted. `ADMIN_APPS`, `MEMBER_APPS` and `ADMIN_SECTION_LINKS` are derived from the registry, so page transitions are unchanged.
+- `2a68949` the manager entry on desktop: Queue as the first slot for an admin with the hat. `GET /api/user/hats` and the switcher badge (`core/shared/roles/hat-badge.ts`). The `manager` middleware admits on areas. `/manage` lands in registry order. Test: `tests/server/user-hats.test.ts`.
+- `6082097` login routing: `resolveHomePath()` sends a manager (hat) who can work an area to `/[slug]/manage`, from login and from `/dashboard`. Everyone else lands as before. Test: `tests/composables/useHomeRoute.test.ts`.
+- `1c82217` the four client compat rules are retired. `useCurrentDomainAccess` uses the server context once it is loaded for the org on screen, and the `admin`, `admin-or-board` and `manager` middleware load it first. The cached membership now carries `status`. Board terms use the server's rule (`isCurrentBoardTerm`, both ends inclusive, UTC dates). Test: `tests/composables/useCurrentDomainAccess.test.ts`, rewritten against the server's rules.
+
+**What a user sees change**
+
+| Who | Before | Now |
+|---|---|---|
+| Treasurer, President | Owner dock | Owner dock plus Money (Payments, Expenses, read-only: no new charge, mark paid, cancel, edit or delete) |
+| Other board seats | Owner dock | Unchanged. Approvals waits (see decisions) |
+| Property manager, not admin | Resident dock; manager links only in the phone sheet | Queue plus one slot per area they can work, on desktop and phone. The resident apps leave their dock |
+| Property manager with no grants | Sheet showed "Overview"; `/manage` showed "no permissions yet" | Resident dock; `/manage` redirects to Documents |
+| Manager with only Feedback, Projects or Activity | `/manage` said "no permissions yet" | `/manage` opens Polls, Projects or Activity |
+| Manager with Projects | `/admin/projects` refused | Opens it (the server already let them write) |
+| Manager with Directory | Approvals reachable only by URL | Approvals slot |
+| Admin with the manager hat | No queue | Queue first in the dock; lands on the queue at login |
+| Everyone, org switcher | One role label | Every hat ("Admin · Board · Owner"), and a "Manager · title" chip |
+| Admins | Teams pill showed with Directory off, then bounced | Teams hides with Directory off; People hides when Directory, Board and Vendors are all off |
+| Admins | `/admin/files`, `/admin/vendors` opened with their module off | Redirect home, like every other module route |
+| Members | Dock Board ignored `show_board`; sheet Board and Documents ignored their modules | Both honour both, the same everywhere |
+| Legacy Administrator membership role | Admin chrome (the server refused its calls) | No admin chrome |
+| HOA Admin global role with a member row | Admin chrome (the server refused its calls) | No admin chrome |
+| Archived or inactive membership | Hats and grants still showed | None; pending keeps admin only, as the server does |
+| Board term on its last day | Lost the board hat at 00:00 UTC | Board through the end date |
+
+**Deviations and decisions**
+
+- **Asked and decided with the operator:** Money goes to holders of `money:read` (Treasurer, President), read-only. §2.2 said "a board member's dock gains Money and Approvals because they hold the capability", but only those two seats hold `money:read`. No capability covers Approvals, and `isChangeReviewer` admits only admins and managers with Directory. So Approvals waits until it has a board capability and a server gate. Managers with Directory get it now.
+- **Asked and decided with the operator:** a manager's dock is Queue plus their areas (§2.2 "exactly the delegated areas"). The resident apps leave it.
+- The hat picks the layout and the home, never a need. Layout: admin (admin hat, not previewing), manager (not admin, with any `canWork` area), member (everyone else, and an admin previewing).
+- `projects`, `activity` and `feedback` each have an entry now: `/admin/projects` (moved to `nav-gate`), `/admin/activity` (its page and route already admit the grant) and `/polls` (the server's `viewer.canManage`).
+- **Waits, with reasons:** `violations` is worked on the inquiries page and has no page of its own. `contact_platform` is an action, not a destination. `vendors` and `billing` are notify-only, so they have no entry.
+- `isPropertyManagerOfCurrentDomain` stays the role check. It only drives copy, the assistant launcher and record search. Access reads areas. Making it "any `canWork` area" would have made it true for every admin, and three callers test `isPM && !isAdmin`.
+- `manager_title` and `is_manager` are not added to the client's membership read. Naming a field that does not exist fails the whole read, and environments before the schema script have no such field. The hat comes from the server: `GET /api/user/hats` and the role context.
+- The member Payments and Requests slots are `pay` and `my-requests`, because one registry cannot hold two `payments` ids. The admin Money hub keeps `payments`. Badges map to both ids.
+- The Records hub keeps its module gate (any of its five modules), even though its Ledger pill is ungated. That carries today's rule over unchanged.
+- `projects` is a module key with no switch in Settings → Modules. The registry test allows it and says so.
+- The member home page's tiles (`MemberDashboardPage`) do not read the registry yet. That belongs to the role homes (Phase 9).
+- Phase 1 items not in this session's brief, carried: naming cleanup ("Resident" vs "Member"), denial redirects to home (denials still go to `/documents`), and the engagement record (§2.1).
+- Existing test changed: `useSectionNav.test.ts`. With Directory, Board and Vendors off, People resolves to nothing instead of `/admin/teams`, which `module.global` refused. `useCurrentDomainAccess.test.ts` is rewritten. Its oracle is now the server's rules instead of the pre-Session 1 client rules, with one case per retired rule.
