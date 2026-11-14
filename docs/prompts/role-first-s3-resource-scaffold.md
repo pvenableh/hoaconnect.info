@@ -66,6 +66,7 @@ Quality gate, per commit: typecheck 0, vitest green, build green (serially),
 existing test passes or its change is explained in the log.
 
 When done: update the §7 Status row, append to the Session log (shipped,
-deviations, operator TODOs), write the Session 4 prompt with its model,
-and stop.
+deviations, operator TODOs), write the prompt for the next Phase 2b
+session with its model, numbered after the highest session in §7
+(Sessions 4 and 5 are money approvals), and stop.
 ```

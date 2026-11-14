@@ -345,7 +345,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script run by the operator 2026-11-14; types regenerated. Prompt: `docs/prompts/role-first-s1-role-context.md` |
 | 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [x] | Spec `docs/spec-capability-nav.md`. Registry `core/shared/nav/registry.ts`. Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
 | 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [ ] | Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
-| 4 | 5b — Money approvals: rule, schema, routes, Ledger, write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Independent of Session 3. Prompt: to write |
+| 4 | 5b — Money approvals, part 1: rule, schema, routes, Ledger, notifications, Expenses and Approvals pages, expense write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Not alongside Session 3 in one checkout; leaves the Charges page alone. Prompt: `docs/prompts/role-first-s4-money-approvals.md` (Opus 5.5) |
+| 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
 
 ### Session log
 

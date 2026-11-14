@@ -107,12 +107,12 @@ Each route checks the org, reads rows through the org filter, applies the rule o
 | `expense_voided` (new) | owners if it was approved or paid, else board | "…was voided: {reason}." |
 | `charge_waived` (new) | board (it names a household, like `payment_recorded`) | "A $300.00 charge for {title} was waived, approved by … : {reason}." |
 
-## Notifications (`core/shared/notifications/events.ts`)
+## Notifications (`notifyUsers` in `core/server/utils/notify.ts`, category `payment`)
 
-- An approval opens, or a new round starts: the eligible approvers. Essential class.
+- An approval opens, or a new round starts: the eligible approvers, with `essential: true` (only the master email switch stops it).
 - Each decision: whoever asked for the approval.
 - Approved or rejected: whoever asked for it, and for `spend`, everyone who can record it as paid.
-- Paid without approval: every board seat. Essential class, so no one can opt out.
+- Paid without approval: every board seat, with `essential: true`, so no category opt-out silences it.
 
 ## Nav (registry)
 
