@@ -2,6 +2,10 @@
 
 Model: Opus 5.5 (`claude-opus-5-5`), high effort. The scaffold and its ratchets are design work. Census and grep go to Haiku 5.5 subagents.
 
+Start it with (the prompt itself is the one code block below):
+
+> Read docs/prompts/role-first-s3-resource-scaffold.md and carry out the prompt in its code block exactly: Phase 2 (resource scaffold) of docs/plan-role-first-ux.md, on main, asking before you push.
+
 ```
 Continue the role-first UX programme with Phase 2 (resource scaffold). Read
 docs/spec-capability-nav.md first (all of it), then in
@@ -68,5 +72,7 @@ existing test passes or its change is explained in the log.
 When done: update the §7 Status row, append to the Session log (shipped,
 deviations, operator TODOs), write the prompt for the next Phase 2b
 session with its model, numbered after the highest session in §7
-(Sessions 4 and 5 are money approvals), and stop.
+(Sessions 4 and 5 are money approvals). End your reply with the one
+sentence that starts it, in a code block, like the "Start it with" line
+at the top of this file. Then stop.
 ```

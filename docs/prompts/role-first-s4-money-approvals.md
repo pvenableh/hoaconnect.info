@@ -2,6 +2,10 @@
 
 Model: Opus 5.5 (`claude-opus-5-5`), high effort. The rule, the routes and the write lock are security work. Census and grep go to Haiku 5.5 subagents.
 
+Start it with (the prompt itself is the one code block below):
+
+> Read docs/prompts/role-first-s4-money-approvals.md and carry out the prompt in its code block exactly: Phase 5b part 1 (money approvals) of docs/plan-role-first-ux.md, on main, asking before you push.
+
 ```
 Build the first half of money approvals (plan Phase 5b, decisions 16 and
 17). Read docs/spec-money-approvals.md first (all of it): it is confirmed
@@ -106,5 +110,6 @@ When done: update the §7 Status row, append to the Session log (shipped,
 what a user sees change, deviations, operator TODOs), write the Session 5
 prompt (waivers, the Charges page's "Ask to waive" on whatever page
 Session 3 left, receipts through the server, the charge cancel lock)
-with its model, and stop.
+with its model and a "Start it with" line under its Model line. End
+your reply with that one sentence, in a code block. Then stop.
 ```
