@@ -774,7 +774,8 @@ async function setupPermissions(): Promise<void> {
       adminPermissions: {
         create: { permissions: {}, validation: attendeeOrgFilter, fields: ["*"] },
         read: { permissions: attendeeOrgFilter, validation: null, fields: ["*"] },
-        update: { permissions: attendeeOrgFilter, validation: null, fields: ["*"] },
+        // Pinned: an edit cannot point the row at another community's meeting.
+        update: { permissions: attendeeOrgFilter, validation: attendeeOrgFilter, fields: ["*"] },
         delete: { permissions: attendeeOrgFilter, validation: null, fields: ["*"] },
       },
       memberPermissions: {
@@ -783,10 +784,10 @@ async function setupPermissions(): Promise<void> {
     },
     {
       collection: "hoa_meetings_files",
+      // No create or update: Directus cannot check that a link names one of the
+      // admin's own meetings (scripts/lib/admin-scope-perms.ts REMOVED_ADMIN_RULES).
       adminPermissions: {
-        create: { permissions: {}, validation: null, fields: ["*"] },
         read: { permissions: filesOrgFilter, validation: null, fields: ["*"] },
-        update: { permissions: filesOrgFilter, validation: null, fields: ["*"] },
         delete: { permissions: filesOrgFilter, validation: null, fields: ["*"] },
       },
       memberPermissions: {

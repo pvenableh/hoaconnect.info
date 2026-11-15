@@ -21,7 +21,8 @@
 
 import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
 import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
-import { isRemovedManagerRule, mentionsAnyMembership, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
+import { isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
+import { baseOf, planSharedValidations, type LiveRule, type PolicyKind } from "./lib/shared-write-validations";
 import { MANAGER_SCOPE_FIELDS, adminScopeChanges, scopeChanges, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
 
 // ============================================================================
@@ -718,9 +719,13 @@ function permissionMatches(
   const sameJson = (a: unknown, b: unknown) =>
     JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
   const sortFields = (f: string[] | null | undefined) => [...(f || [])].sort();
+  // A shared write carries one combined validation (alignSharedWrites); it
+  // matches when the policy's own branch of it does.
+  const kind = policyKind(desired.policy);
+  const own = kind ? baseOf(existing.validation, kind) : existing.validation;
   return (
     sameJson(existing.permissions, desired.permissions) &&
-    sameJson(existing.validation, desired.validation) &&
+    (sameJson(existing.validation, desired.validation) || sameJson(own, desired.validation)) &&
     sameJson(sortFields(existing.fields), sortFields(desired.fields))
   );
 }
@@ -734,6 +739,14 @@ function permissionMatches(
  * that would lock admins out of their own communities.
  */
 let ADMIN_SCOPE: "scoped" | "legacy" = "legacy";
+
+/** Which of the three community policies a policy id is. */
+function policyKind(policyId: string): PolicyKind | null {
+  if (policyId === POLICIES.HOA_MEMBER) return "member";
+  if (policyId === POLICIES.HOA_ADMIN) return "admin";
+  if (policyId === POLICIES.PROPERTY_MANAGER) return "manager";
+  return null;
+}
 /** The same for the Property Manager policy, by grant (scripts/lib/admin-scope-perms.ts). */
 let MANAGER_SCOPE: "scoped" | "legacy" = "legacy";
 const UNSCOPED_ADMIN_RULES: string[] = [];
@@ -1615,15 +1628,28 @@ async function scopeStrayRules(
   label: string,
   scope: (p: { collection: string; action: string; permissions: unknown; validation: unknown }) => { permissions: unknown; validation: unknown },
   removed: (collection: string, action: string) => boolean,
-  auditMode: boolean
+  auditMode: boolean,
+  pin: <P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P) => P = (p) => p
 ): Promise<{ updated: number; removed: number }> {
   const rules = await directusApi<(ExistingPermission & { collection: string })[]>(
     `/permissions?filter[policy][_eq]=${policyId}&fields=id,collection,action,permissions,validation&limit=-1`
   );
+  const kind = policyKind(policyId);
+  // A combined validation holds the member's branch, which reaches through any
+  // membership by design: judge and scope the policy's own branch only, and
+  // leave the combining to alignSharedWrites.
+  const own = (r: { validation: unknown }) => (kind ? (baseOf(r.validation, kind) ?? r.validation) : r.validation);
+  const fixed = (r: ExistingPermission & { collection: string }) => {
+    const p = { collection: r.collection, action: r.action, permissions: r.permissions, validation: own(r) };
+    return pin({ ...p, ...scope(p) });
+  };
   const drop = (rules ?? []).filter((r) => removed(r.collection, r.action));
-  const stray = (rules ?? []).filter(
-    (r) => !removed(r.collection, r.action) && (mentionsAnyMembership(r.permissions) || mentionsAnyMembership(r.validation))
-  );
+  const stray = (rules ?? []).filter((r) => {
+    if (removed(r.collection, r.action)) return false;
+    const f = fixed(r);
+    return JSON.stringify(f.permissions ?? null) !== JSON.stringify(r.permissions ?? null) ||
+      JSON.stringify(f.validation ?? null) !== JSON.stringify(own(r) ?? null);
+  });
   if (!stray.length && !drop.length) {
     console.log(`   ⏭️  None: every ${label} rule is scoped`);
     return { updated: 0, removed: 0 };
@@ -1636,7 +1662,7 @@ async function scopeStrayRules(
     return { updated: stray.length, removed: drop.length };
   }
   for (const r of stray) {
-    const scoped = scope({ collection: r.collection, action: r.action, permissions: r.permissions, validation: r.validation });
+    const scoped = fixed(r);
     await directusApi(`/permissions/${r.id}`, {
       method: "PATCH",
       body: JSON.stringify({ permissions: scoped.permissions, validation: scoped.validation }),
@@ -1646,6 +1672,40 @@ async function scopeStrayRules(
   if (stray.length) console.log(`   ✅ Scoped ${stray.length} ${label} rules on ${names.length} collections: ${names.join(", ")}`);
   if (drop.length) console.log(`   🗑️  Removed ${label} rules: ${dropped.join(", ")}`);
   return { updated: stray.length, removed: drop.length };
+}
+
+/**
+ * Every create or update rule the three community policies share gets one
+ * validation, the union of theirs (scripts/lib/shared-write-validations.ts).
+ * Directus ANDs the validations of every policy a role holds, so without this
+ * an admin's write had to pass the member rule as well as the admin one. Runs
+ * last, on the live rules, so it sees what every other script wrote.
+ */
+async function alignSharedWrites(auditMode: boolean): Promise<{ updated: number }> {
+  const ids = [POLICIES.HOA_MEMBER, POLICIES.HOA_ADMIN, POLICIES.PROPERTY_MANAGER];
+  const rows = await directusApi<{ id: number; policy: string; collection: string; action: string; validation: unknown }[]>(
+    `/permissions?filter[policy][_in]=${ids.join(",")}&filter[action][_in]=create,update&fields=id,policy,collection,action,validation&limit=-1`
+  );
+  const rules: LiveRule[] = (rows ?? []).flatMap((r) => {
+    const kind = policyKind(r.policy);
+    return kind ? [{ id: r.id, kind, collection: r.collection, action: r.action, validation: r.validation }] : [];
+  });
+  const plan = planSharedValidations(rules);
+  for (const s of plan.skipped) console.log(`   ⏭️  Left as it is: ${s}`);
+  if (!plan.changes.length) {
+    console.log(`   ⏭️  None to change: ${plan.combined.length} shared writes carry one validation (${plan.combined.join(", ") || "none"})`);
+    return { updated: 0 };
+  }
+  const label = (c: (typeof plan.changes)[number]) => `${c.collection}.${c.action} (${c.kind})`;
+  if (auditMode) {
+    console.log(`   📋 Would align ${plan.changes.length} rules: ${plan.changes.map(label).join(", ")}`);
+    return { updated: plan.changes.length };
+  }
+  for (const c of plan.changes) {
+    await directusApi(`/permissions/${c.id}`, { method: "PATCH", body: JSON.stringify({ validation: c.validation }) });
+  }
+  console.log(`   ✅ Aligned ${plan.changes.length} rules: ${plan.changes.map(label).join(", ")}`);
+  return { updated: plan.changes.length };
 }
 
 async function main() {
@@ -1807,14 +1867,21 @@ async function main() {
 
     if (ADMIN_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "HOA Admin") && !collectionsArg.length) {
       console.log("\n🔑 HOA Admin rules made by other scripts");
-      const r = await scopeStrayRules(POLICIES.HOA_ADMIN, "HOA Admin", scopeAdminPermission, () => false, auditMode);
+      const r = await scopeStrayRules(POLICIES.HOA_ADMIN, "HOA Admin", scopeAdminPermission, isRemovedAdminRule, auditMode, pinAdminUpdate);
       totalStats.updated += r.updated;
+      totalStats.removed += r.removed;
     }
     if (MANAGER_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "Property Manager") && !collectionsArg.length) {
       console.log("\n🔑 Property Manager rules made by other scripts");
       const r = await scopeStrayRules(POLICIES.PROPERTY_MANAGER, "Property Manager", scopeManagerPermission, isRemovedManagerRule, auditMode);
       totalStats.updated += r.updated;
       totalStats.removed += r.removed;
+    }
+
+    if (!collectionsArg.length) {
+      console.log("\n🤝 Writes the community policies share (one validation each)");
+      const r = await alignSharedWrites(auditMode);
+      totalStats.updated += r.updated;
     }
 
     if (UNSCOPED_ADMIN_RULES.length) {

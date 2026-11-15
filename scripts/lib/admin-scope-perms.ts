@@ -82,6 +82,44 @@ export function scopeManagerPermission<P extends { collection: string; action: s
   return { ...p, permissions: toScope(p.permissions, path), validation: toScope(p.validation, path) };
 }
 
+// ── Admin writes that could leave the community ──────────────────────────────
+//
+// A create is checked only against its validation (Directus 11.13 does not
+// apply a create rule's item filter), and an update's item filter only checks
+// the row as it was. A validation cannot look a related row up: on a nested
+// path it holds only for a payload that sends the relation as an object, which
+// Directus then writes under its own permissions, so a plain id fails it.
+
+/**
+ * HOA Admin rules removed outright. Meeting attachments: the create rule had
+ * no validation, so an admin could attach a file to any community's meeting,
+ * and the update rule could move a link there. No page writes these links;
+ * `/api/directus/items` checks the meeting if one ever does.
+ */
+export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string }[] = [
+  { collection: "hoa_meetings_files", action: "create" },
+  { collection: "hoa_meetings_files", action: "update" },
+];
+
+export const isRemovedAdminRule = (collection: string, action: string) =>
+  REMOVED_ADMIN_RULES.some((r) => r.collection === collection && r.action === action);
+
+/**
+ * HOA Admin update rules whose validation should repeat their item filter, so
+ * an edit cannot point the row at another community: email templates (by
+ * `organization`) and meeting attendees (by `meeting`, a relation, so an edit
+ * that names a meeting by id is refused; no page changes an attendee's
+ * meeting). Not a general rule: file and folder moves are relational too and
+ * the app makes them with the user's token.
+ */
+export const PINNED_ADMIN_UPDATES: readonly string[] = ["hoa_email_templates", "hoa_meeting_attendees"];
+
+/** The rule with its validation pinned to its filter, when it is one of the pinned updates. */
+export function pinAdminUpdate<P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P): P {
+  if (p.action !== "update" || !PINNED_ADMIN_UPDATES.includes(p.collection)) return p;
+  return { ...p, validation: p.permissions };
+}
+
 /** True when a filter still reaches through any membership (a string that was not swapped). */
 export function mentionsAnyMembership(value: unknown): boolean {
   return JSON.stringify(value ?? null).includes(ANY_MEMBERSHIP);

@@ -379,7 +379,8 @@ async function setupPermissions(): Promise<void> {
   const adminPermissions: Record<string, any> = {
     create: { permissions: {}, validation: ownOrgFilter, fields: ["*"] },
     read: { permissions: readFilter, validation: null, fields: ["*"] },
-    update: { permissions: ownOrgFilter, validation: null, fields: ["*"] },
+    // Pinned: an edit cannot move a template to another community.
+    update: { permissions: ownOrgFilter, validation: ownOrgFilter, fields: ["*"] },
     delete: { permissions: ownOrgFilter, validation: null, fields: ["*"] },
   };
 

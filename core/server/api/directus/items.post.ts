@@ -181,7 +181,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // Directus cannot check that a new meeting-file link points at the caller's
-    // own community's meeting; this route does.
+    // own community's meeting, so the HOA Admin policy no longer allows the
+    // create or update at all (scripts/lib/admin-scope-perms.ts); this check
+    // stays for when a page writes these links through a rule again.
     if (collection === "hoa_meetings_files" && data && (operation === "create" || operation === "update")) {
       const rows = Array.isArray(data) ? data : [data];
       await assertMeetingsInCallerCommunities(event, rows.filter((r: any) => r && "hoa_meetings_id" in r).map((r: any) => r.hoa_meetings_id));
