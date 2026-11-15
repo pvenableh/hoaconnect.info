@@ -857,6 +857,54 @@ const READ_FIELDS: Record<string, string[]> = {
  */
 const WITHHELD_ACTIONS: Record<string, string[]> = {
   hoa_channel_messages: ["update"],
+  // Membership is the fence for every channel read below, so nobody may write
+  // their own way through it. Invites, removals, read markers, mute and
+  // presence all go through /api/hoa/channels/* with the admin token; no app
+  // path writes this collection on a user's token. With create allowed, a
+  // member could enrol themselves in any private channel and read it.
+  hoa_channel_members: ["create", "update", "delete"],
+};
+
+/**
+ * Row scopes that replace a level's org-wide filter for one policy and action.
+ *
+ * Channels are an internal admin and board tool that a member joins only by
+ * invitation (core/server/utils/channel-enrollment.ts): access is a real
+ * hoa_channel_members row, because realtime enforces the subscriber's own
+ * permissions. The level's filter ("any channel in an org I belong to") let
+ * any member read every private channel and direct message in their community
+ * and delete anyone's message. These scopes are the same rule the server's
+ * search applies (core/server/utils/channel-scope.ts):
+ *   - HOA Member (members and the board): channels they are enrolled in.
+ *   - HOA Admin: those, plus every non-private channel of their orgs. Direct
+ *     messages are private, so they stay with their two people.
+ *   - Delete: authors only. Moderators hide and remove through
+ *     /api/hoa/channels/moderate, which records it.
+ * Create keeps its membership validation (CHANNEL_MEMBERSHIP_CREATE).
+ */
+const MY_CHANNELS = { _in: "$CURRENT_USER.channel_memberships.channel" };
+const OPEN_CHANNEL_IN_MY_ORGS = {
+  _and: [
+    { organization: { _in: "$CURRENT_USER.hoa_members.organization" } },
+    { is_private: { _neq: true } },
+  ],
+};
+const MY_OWN = { user_created: { _eq: "$CURRENT_USER" } };
+
+const SCOPES: Record<string, Partial<Record<string, Partial<Record<Permission["action"], object>>>>> = {
+  hoa_channels: {
+    "HOA Member": { read: { id: MY_CHANNELS } },
+  },
+  hoa_channel_members: {
+    "HOA Member": { read: { channel: MY_CHANNELS } },
+  },
+  hoa_channel_messages: {
+    "HOA Member": { read: { channel: MY_CHANNELS }, delete: MY_OWN },
+    "HOA Admin": {
+      read: { _or: [{ channel: MY_CHANNELS }, { channel: OPEN_CHANNEL_IN_MY_ORGS }] },
+      delete: MY_OWN,
+    },
+  },
 };
 
 function buildPermissionsForLevel(
@@ -1237,7 +1285,11 @@ async function setupCollectionPermissions(
       p.action === "read" && READ_FIELDS[config.collection]
         ? { ...p, fields: READ_FIELDS[config.collection]! }
         : p
-    );
+    )
+    .map((p) => {
+      const scope = SCOPES[config.collection]?.[roleName]?.[p.action];
+      return scope ? { ...p, permissions: scope } : p;
+    });
 
   for (const permission of desiredPermissions) {
     const result = await createOrUpdatePermission(
