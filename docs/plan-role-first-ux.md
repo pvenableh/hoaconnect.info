@@ -344,9 +344,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 |---|---|---|---|
 | 1 | 1a — Role context: spec, resolver, one area list, schema script | [x] | Spec `docs/spec-role-context.md`. Schema script run by the operator 2026-11-14; types regenerated. Prompt: `docs/prompts/role-first-s1-role-context.md` |
 | 2 | 1b — Capability nav: one registry, manager entry on desktop, badges, login routing | [x] | Spec `docs/spec-capability-nav.md`. Registry `core/shared/nav/registry.ts`. Prompt: `docs/prompts/role-first-s2-capability-nav.md` (Opus 5.5) |
-| 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [ ] | Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
+| 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [x] | Spec `docs/spec-resource-scaffold.md`. Landed in one session, so 2b builds on it. 19 audits. Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
 | 4 | 5b — Money approvals, part 1: rule, schema, routes, Ledger, notifications, Expenses and Approvals pages, expense write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Not alongside Session 3 in one checkout; leaves the Charges page alone. Prompt: `docs/prompts/role-first-s4-money-approvals.md` (Opus 5.5) |
 | 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
+| 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5). Part 2, the pages, is Session 7 (Sonnet 5.5), prompt written by Session 6 |
 
 ### Session log
 
@@ -448,3 +449,46 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 - The member home page's tiles (`MemberDashboardPage`) do not read the registry yet. That belongs to the role homes (Phase 9).
 - Phase 1 items not in this session's brief, carried: naming cleanup ("Resident" vs "Member"), denial redirects to home (denials still go to `/documents`), and the engagement record (§2.1).
 - Existing test changed: `useSectionNav.test.ts`. With Directory, Board and Vendors off, People resolves to nothing instead of `/admin/teams`, which `module.global` refused. `useCurrentDomainAccess.test.ts` is rewritten. Its oracle is now the server's rules instead of the pre-Session 1 client rules, with one case per retired rule.
+
+#### Session 3 — Phase 2, resource scaffold (2026-11-14)
+
+The scaffold landed in one session, so Phase 2b builds on it, not on `AppDataTable` directly.
+
+**Operator TODOs**
+
+1. Look at Charges on a board seat's login (money:read, not admin). The tests and the template gates say a board seat sees the rows, filters and the charge panel with no New charge, no Mark paid and no overflow menu. The demo login is an admin, so this session could not check it in a browser.
+2. Session 5 ("Ask to waive", the charge cancel lock) works on the converted page. Cancel has one path, `remove.run` in `core/app/composables/useChargesResource.ts`, used by the row's overflow menu and the panel's. Lock it there. "Ask to waive" belongs in the same two overflow menus.
+
+**Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, audit:all green)
+
+- `c746564` `docs/spec-resource-scaffold.md`: `useResource`, `AppResourceIndex`, the panel registry entry, Charges, and the three audits.
+- `92dd9bd` `useResource` (`core/app/composables/useResource.ts`). Rows sit in `useState("resource:<key>")` with their org, so an index and its panel share them and make one request between them. It also holds the search, one status filter, more filters, the selection, the open panel on `?slide=`, and remove through `useConfirm`. Loads run on the client only, as the page's `server: false` reads did. Panel registry entries gain `resource`, `index` and `page`, with `getPanelEntry()` and `recordPath()`. Tests: `tests/composables/useResource.test.ts` (27), `tests/components/panel-registry.test.ts`.
+- `62501d0` `AppResourceIndex` (`app/components/App/ResourceIndex.vue`), rendered in `/ui-kit` on the sample members.
+- `e0d6ea1` Charges on the scaffold. `useChargesResource` (definition, helpers, Mark paid), `ChargePanel`, `PaymentChargeForm`, `AppResourceRecordPage` with the route `/admin/payments/charges/[id]`, and `AppSlideOverShell`'s `page` mode. Test: `tests/composables/useChargesResource.test.ts` (the read goes through `/api/org/money/charges` and never through Directus; the default view; filters; the cancel confirm; Mark paid once).
+- `b8f2bf9` The three audits as ratchets in `audit:all` (19 now): `page-h1` at 42, `form-dialogs` at 27, `filter-pills` at 8. Matchers in `scripts/lib/audit-matchers.ts` with table tests. Each gate failed on one added violation (checked, then reverted).
+
+**What a user sees change** (Finances, `/admin/payments`)
+
+| Who | Before | Now |
+|---|---|---|
+| Everyone who opens Finances | "Finances" as a heading in the page | The title in the shell header, the Stripe badge beside it, New charge top right (admins) |
+| Everyone | Tabs and filters as pills | Tabs as a segmented control. On Charges: a search box (new), one Outstanding · Paid · All control, and the type as a select |
+| Everyone | A charge was a row only | Clicking a row opens the charge (status, amount due, details, timeline). A link to it opens as a full page |
+| Admins | New charge opened a card inside the page | It opens a sheet (a centred dialog on desktop) with the same form |
+| Admins | Cancel was an X beside Mark paid, with no confirm | Cancel is in a `…` menu on the row and in the charge, and asks: "Cancel “Roof”? Ann Lee will no longer owe $450.00." |
+| Admins | With no charges, "No matches" | "No charges yet", with New charge |
+| Board seats (money:read) | Read-only | Read-only, and they can open a charge too |
+
+**Deviations and decisions**
+
+- **Deep links get a full page.** §2.3 says the detail is "the same component as a full page on phones and for deep links". From the index the record opens as `?slide=charge:<id>`, which is full width on phones. A deep link uses the route `/admin/payments/charges/<id>`, which renders the same `ChargePanel` with `page` set. `AppSlideOverShell` then draws `AppPageHeader` with Back instead of its slide-over header. A test checks the route's middleware matches the index's and that the nav registry gates the two paths the same way.
+- **The count leads the toolbar on a hub page.** Finances owns its header (title, badge, New charge) across four tabs. So the Charges index is headless, and its count ("15 charges") opens the toolbar. A page that is one resource passes `title`, and the count sits in the header.
+- **The type filter is a select.** §2.3 allows one segmented status filter, so the type pills became a `Select` in the `#filters` slot.
+- **Cancel has no Undo.** Reopening a charge bills the member again, which is its own decision. Session 5 puts cancel behind approval.
+- **The panel shows what the route returns.** `/api/org/money/charges` returns no description or email. The route is unchanged, so neither read widened. The timeline has the two dates the route carries: created and paid.
+- `reset()` clears search and filters but keeps the status segment, which is a view.
+- **Build heap.** `pnpm build` ran out of heap at the default size. Every gate in this session ran it with `NODE_OPTIONS=--max-old-space-size=6144`, as the typecheck already did.
+- **Census against matcher.** The census (a plain grep) found 48 h1s, 39 Dialog lines and 12 pills. The matchers skip comments and count Dialog elements, which gives 43, 27 and 11 before Charges.
+- The `/ui-kit` hydration warning comes from the existing `DateTimeInput` demo, not from this work.
+- Existing tests are untouched. New files: `tests/composables/useResource.test.ts`, `tests/components/panel-registry.test.ts`, `tests/composables/useChargesResource.test.ts`, plus three blocks in `tests/scripts/audit-matchers.test.ts`.
+- Out of scope, per the brief: invoices, vendors, work and glass. The Recurring tab stays a plain table: schedules are a resource of their own, for Phase 3 or Phase 5.
