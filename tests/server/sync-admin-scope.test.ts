@@ -11,6 +11,7 @@ vi.mock("@directus/sdk", () => ({
 }));
 
 const ADMIN = "role-admin";
+const PM = "role-pm";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 let rows: any[];
 let writes: any[];
@@ -24,6 +25,8 @@ beforeEach(() => {
     { id: id(2), role: "role-member", status: "active", organization: "org-b", admin_of: "org-b" },
     { id: id(3), role: ADMIN, status: "active", organization: "org-c", admin_of: "org-c" },
   ];
+  // Rows read with "*" carry every scope field that exists; these three do not
+  // have the manager fields yet, so only admin_of is compared on them.
   writes = [];
   reads = [];
   cron = true;
@@ -33,7 +36,7 @@ beforeEach(() => {
   vi.stubGlobal("readBody", async (e: any) => e.__body);
   vi.stubGlobal("getHeader", (e: any, name: string) => (name === "x-cron-secret" && cron ? "s3cret" : undefined));
   vi.stubGlobal("getUserSession", async () => session ?? {});
-  vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: ADMIN, directusRoleAppAdmin: "role-app-admin" } }));
+  vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: ADMIN, directusRolePropertyManager: PM, directusRoleAppAdmin: "role-app-admin" } }));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
       if (op.op === "read") {
@@ -68,6 +71,7 @@ describe("sync-admin-scope", () => {
       [id(2), { admin_of: null }],
     ]);
     expect(reads[0].query.filter).toBeUndefined();
+    expect(reads[0].query.fields).toEqual(["*"]);
   });
 
   it("syncs only the members a Flow trigger names", async () => {
@@ -82,6 +86,21 @@ describe("sync-admin-scope", () => {
     const res = await call({ keys: [id(1), id(2)] });
     expect(res.updated).toBe(0);
     expect(writes).toHaveLength(0);
+  });
+
+  it("scopes a manager by role and grants, never by the hat", async () => {
+    const SCOPES = { admin_of: null, manager_of: null, communications_of: null, inquiries_of: null };
+    rows = [
+      { id: id(4), role: PM, status: "active", organization: "org-m", manager_permissions: { inquiries: true, communications: false }, ...SCOPES },
+      { id: id(5), role: PM, status: "pending", organization: "org-m", manager_permissions: { inquiries: true }, ...SCOPES },
+      { id: id(6), role: "role-member", status: "active", organization: "org-m", is_manager: true, manager_permissions: { inquiries: true }, ...SCOPES },
+      { id: id(7), role: PM, status: "active", organization: "org-n", manager_permissions: { communications: true }, ...SCOPES, manager_of: "org-n", inquiries_of: "org-n" },
+    ];
+    await call({ all: true });
+    expect(writes.map((w) => [w.id, w.data])).toEqual([
+      [id(4), { manager_of: "org-m", inquiries_of: "org-m" }],
+      [id(7), { communications_of: "org-n", inquiries_of: null }],
+    ]);
   });
 
   it("an App Administrator may run it by hand", async () => {

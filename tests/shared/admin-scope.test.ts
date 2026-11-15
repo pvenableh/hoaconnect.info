@@ -3,7 +3,7 @@
  * a membership administers, as the HOA Admin policy reads it.
  */
 import { describe, it, expect } from "vitest";
-import { adminScopeChanges, adminScopeOf, syncKeysFrom } from "#core/shared/roles/admin-scope";
+import { adminScopeChanges, adminScopeOf, managerScopeOf, scopeChanges, scopeFieldsOf, syncKeysFrom } from "#core/shared/roles/admin-scope";
 
 const ADMIN = "role-admin";
 const MEMBER = "role-member";
@@ -68,5 +68,36 @@ describe("syncKeysFrom", () => {
   it("caps a batch at 500", () => {
     const many = Array.from({ length: 600 }, (_, i) => id(i + 1));
     expect(syncKeysFrom({ keys: many })).toHaveLength(500);
+  });
+});
+
+const PM = "role-pm";
+const ROLES = { hoaAdmin: ADMIN, propertyManager: PM };
+
+describe("manager scopes", () => {
+  it("manager_of: an active Property Manager membership only (getManagerGrants' rule)", () => {
+    expect(managerScopeOf({ id: "m", role: PM, status: "active", organization: "org-m" }, PM)).toBe("org-m");
+    expect(managerScopeOf({ id: "m", role: PM, status: "pending", organization: "org-m" }, PM)).toBeNull();
+    expect(managerScopeOf({ id: "m", role: MEMBER, status: "active", organization: "org-m" }, PM)).toBeNull();
+    expect(managerScopeOf({ id: "m", role: PM, status: "active", organization: "org-m" }, "")).toBeNull();
+  });
+
+  it("a grant field holds the org only with the grant, and never without the role", () => {
+    expect(scopeFieldsOf({ id: "m", role: PM, status: "active", organization: "org-m", manager_permissions: { communications: true } }, ROLES)).toEqual({
+      admin_of: null, manager_of: "org-m", communications_of: "org-m", inquiries_of: null,
+    });
+    expect(scopeFieldsOf({ id: "m", role: MEMBER, status: "active", organization: "org-m", manager_permissions: { communications: true, inquiries: true } }, ROLES)).toEqual({
+      admin_of: null, manager_of: null, communications_of: null, inquiries_of: null,
+    });
+    expect(scopeFieldsOf({ id: "m", role: PM, status: "active", organization: "org-m", manager_permissions: null }, ROLES).inquiries_of).toBeNull();
+  });
+
+  it("scopeChanges compares only fields the row has, and only those named", () => {
+    const rows = [
+      { id: "a", role: PM, status: "active", organization: "org-m", manager_permissions: { inquiries: true }, admin_of: null },
+      { id: "b", role: PM, status: "active", organization: "org-m", manager_permissions: { inquiries: true }, admin_of: null, manager_of: null, inquiries_of: null, communications_of: null },
+    ];
+    expect(scopeChanges(rows, ROLES)).toEqual([{ id: "b", patch: { manager_of: "org-m", inquiries_of: "org-m" } }]);
+    expect(scopeChanges(rows, ROLES, ["admin_of"])).toEqual([]);
   });
 });

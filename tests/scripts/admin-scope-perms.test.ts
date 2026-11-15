@@ -2,7 +2,19 @@
  * The HOA Admin policy's scope swap (scripts/lib/admin-scope-perms.ts).
  */
 import { describe, it, expect } from "vitest";
-import { ADMIN_MEMBERSHIP, ANY_MEMBERSHIP, mentionsAnyMembership, scopeAdminPermission, toAdminScope } from "../../scripts/lib/admin-scope-perms";
+import {
+  ADMIN_MEMBERSHIP,
+  ANY_MEMBERSHIP,
+  COMMUNICATIONS_MEMBERSHIP,
+  INQUIRIES_MEMBERSHIP,
+  MANAGER_MEMBERSHIP,
+  isRemovedManagerRule,
+  managerScopePath,
+  mentionsAnyMembership,
+  scopeAdminPermission,
+  scopeManagerPermission,
+  toAdminScope,
+} from "../../scripts/lib/admin-scope-perms";
 import { FOLDER_OF_MY_ORG } from "../../scripts/lib/folder-org-filters";
 
 describe("toAdminScope", () => {
@@ -51,5 +63,31 @@ describe("scopeAdminPermission", () => {
     expect(out.fields).toEqual(["*"]);
     expect(mentionsAnyMembership(out.permissions)).toBe(false);
     expect(mentionsAnyMembership(p.permissions)).toBe(true);
+  });
+});
+
+describe("the Property Manager policy, by grant", () => {
+  it.each([
+    ["hoa_emails", "read", COMMUNICATIONS_MEMBERSHIP],
+    ["hoa_email_recipients", "read", COMMUNICATIONS_MEMBERSHIP],
+    ["hoa_requests", "read", INQUIRIES_MEMBERSHIP],
+    ["hoa_requests", "update", INQUIRIES_MEMBERSHIP],
+    ["hoa_comments", "read", INQUIRIES_MEMBERSHIP],
+    ["hoa_comments", "create", MANAGER_MEMBERSHIP],
+    ["hoa_members", "read", MANAGER_MEMBERSHIP],
+    ["directus_users", "read", MANAGER_MEMBERSHIP],
+  ])("%s %s reads through %s", (collection, action, path) => {
+    expect(managerScopePath(collection, action)).toBe(path);
+  });
+
+  it("rewrites a rule's filters with its grant's path", () => {
+    const p = { collection: "hoa_email_recipients", action: "read", permissions: { email: { organization: { _in: ANY_MEMBERSHIP } } }, validation: null };
+    expect(scopeManagerPermission(p).permissions).toEqual({ email: { organization: { _in: COMMUNICATIONS_MEMBERSHIP } } });
+  });
+
+  it("drops the vendor read, and nothing else", () => {
+    expect(isRemovedManagerRule("hoa_vendors", "read")).toBe(true);
+    expect(isRemovedManagerRule("hoa_vendors", "update")).toBe(false);
+    expect(isRemovedManagerRule("hoa_requests", "read")).toBe(false);
   });
 });

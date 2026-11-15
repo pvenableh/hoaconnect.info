@@ -9,6 +9,8 @@
  * organization only on an HOA Admin membership. The HOA Member policy, also
  * attached to the HOA Admin role, keeps member-level access in the others.
  *
+ * The Property Manager policy gets the same treatment, by grant (below).
+ *
  * `admin_of` is a plain uuid, not a relation, so the two paths are two scalar
  * fields of one read and cannot collide the way `organization` and
  * `organization.folder` once did (scripts/lib/folder-org-filters.ts).
@@ -16,18 +18,68 @@
 export const ANY_MEMBERSHIP = "$CURRENT_USER.hoa_members.organization";
 export const ADMIN_MEMBERSHIP = "$CURRENT_USER.hoa_members.admin_of";
 
-/** A deep copy with every `ANY_MEMBERSHIP` value replaced by `ADMIN_MEMBERSHIP`. */
-export function toAdminScope<T>(value: T): T {
-  if (value === ANY_MEMBERSHIP) return ADMIN_MEMBERSHIP as unknown as T;
-  if (Array.isArray(value)) return value.map((v) => toAdminScope(v)) as unknown as T;
+/** A deep copy with every `ANY_MEMBERSHIP` value replaced by `path`. */
+export function toScope<T>(value: T, path: string): T {
+  if (value === ANY_MEMBERSHIP) return path as unknown as T;
+  if (Array.isArray(value)) return value.map((v) => toScope(v, path)) as unknown as T;
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, toAdminScope(v)])) as T;
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, toScope(v, path)])) as T;
   }
   return value;
 }
 
+/** A deep copy with every `ANY_MEMBERSHIP` value replaced by `ADMIN_MEMBERSHIP`. */
+export function toAdminScope<T>(value: T): T {
+  return toScope(value, ADMIN_MEMBERSHIP);
+}
+
 export function scopeAdminPermission<P extends { permissions: unknown; validation: unknown }>(p: P): P {
   return { ...p, permissions: toAdminScope(p.permissions), validation: toAdminScope(p.validation) };
+}
+
+// ── Property Manager ─────────────────────────────────────────────────────────
+//
+// The Property Manager role carries the HOA Member policy too, so a manager
+// reads what any resident reads, in the communities they manage and wherever
+// they live. The manager policy's own rules then only matter where they reach
+// beyond that, and each of those is scoped by the field for the grant that
+// covers it (core/shared/roles/admin-scope.ts):
+//   emails and their recipients          communications_of
+//   every request (read, edit), and
+//   internal comments                    inquiries_of
+//   everything else                      manager_of
+// Measured on 2026-11-15: 17 of the 24 manager rules equalled the member
+// rule, and five reached beyond it (the four above, and vendors).
+
+export const MANAGER_MEMBERSHIP = "$CURRENT_USER.hoa_members.manager_of";
+export const COMMUNICATIONS_MEMBERSHIP = "$CURRENT_USER.hoa_members.communications_of";
+export const INQUIRIES_MEMBERSHIP = "$CURRENT_USER.hoa_members.inquiries_of";
+
+/** The scope a Property Manager rule should read through. */
+export function managerScopePath(collection: string, action: string): string {
+  if (collection === "hoa_emails" || collection === "hoa_email_recipients") return COMMUNICATIONS_MEMBERSHIP;
+  if (collection === "hoa_requests") return INQUIRIES_MEMBERSHIP;
+  if (collection === "hoa_comments" && action === "read") return INQUIRIES_MEMBERSHIP;
+  return MANAGER_MEMBERSHIP;
+}
+
+/**
+ * Manager rules removed outright. Vendors: the manager rule read every vendor
+ * with its contact fields; no manager page reads vendors, and "Vendors and
+ * contracts" has no grant yet (AREAS: notify-only). A manager now reads the
+ * vendors residents see (show_to_members). When the area gets its gate it
+ * gets a scope field of its own.
+ */
+export const REMOVED_MANAGER_RULES: readonly { collection: string; action: string }[] = [
+  { collection: "hoa_vendors", action: "read" },
+];
+
+export const isRemovedManagerRule = (collection: string, action: string) =>
+  REMOVED_MANAGER_RULES.some((r) => r.collection === collection && r.action === action);
+
+export function scopeManagerPermission<P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P): P {
+  const path = managerScopePath(p.collection, p.action);
+  return { ...p, permissions: toScope(p.permissions, path), validation: toScope(p.validation, path) };
 }
 
 /** True when a filter still reaches through any membership (a string that was not swapped). */

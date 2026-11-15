@@ -21,8 +21,8 @@
 
 import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
 import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
-import { mentionsAnyMembership, scopeAdminPermission } from "./lib/admin-scope-perms";
-import { adminScopeChanges, type ScopedMembership } from "../core/shared/roles/admin-scope";
+import { isRemovedManagerRule, mentionsAnyMembership, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
+import { MANAGER_SCOPE_FIELDS, adminScopeChanges, scopeChanges, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
 
 // ============================================================================
 // Configuration
@@ -734,6 +734,8 @@ function permissionMatches(
  * that would lock admins out of their own communities.
  */
 let ADMIN_SCOPE: "scoped" | "legacy" = "legacy";
+/** The same for the Property Manager policy, by grant (scripts/lib/admin-scope-perms.ts). */
+let MANAGER_SCOPE: "scoped" | "legacy" = "legacy";
 const UNSCOPED_ADMIN_RULES: string[] = [];
 
 async function createOrUpdatePermission(
@@ -746,6 +748,9 @@ async function createOrUpdatePermission(
     if (mentionsAnyMembership(permission.permissions) || mentionsAnyMembership(permission.validation)) {
       UNSCOPED_ADMIN_RULES.push(`${permission.collection}.${permission.action}`);
     }
+  }
+  if (permission.policy === POLICIES.PROPERTY_MANAGER && MANAGER_SCOPE === "scoped") {
+    permission = scopeManagerPermission(permission);
   }
   const existing = existingPermissions.find(
     (p) => p.action === permission.action
@@ -861,8 +866,9 @@ const READ_FIELDS: Record<string, string[]> = {
     "units", "vehicles", "pets", "board_member_terms",
     // Added 2026-11-15: the HOA Admin policy's scope. Says no more than `role`
     // already does, and keeps $CURRENT_USER.hoa_members.admin_of resolvable
-    // however Directus reads the user's own context.
-    "admin_of",
+    // however Directus reads the user's own context. The manager scopes, the
+    // same way: `role` and `manager_permissions` already say as much.
+    "admin_of", "manager_of", "communications_of", "inquiries_of",
   ],
   hoa_email_recipients: [
     "id", "sort", "user_created", "date_created", "recipient_email", "recipient_name", "status",
@@ -1573,34 +1579,73 @@ async function ensureRolePolicy(roleId: string, policyId: string, label: string,
   return 1;
 }
 
+/** Are the manager scope fields present and right on every membership? */
+async function managerScopeReadiness(): Promise<{ ready: boolean; reason: string }> {
+  for (const f of MANAGER_SCOPE_FIELDS) {
+    try {
+      await directusApi(`/fields/hoa_members/${f}`);
+    } catch {
+      return { ready: false, reason: `hoa_members.${f} does not exist (run pnpm add:admin-scope)` };
+    }
+  }
+  const rows = await directusApi<ScopedMembershipWithGrants[]>(
+    `/items/hoa_members?fields=id,role,status,organization,manager_permissions,${MANAGER_SCOPE_FIELDS.join(",")}&limit=-1`
+  );
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ready: false, reason: "read no memberships, so the manager scopes cannot be checked" };
+  }
+  const wrong = scopeChanges(rows, { hoaAdmin: ROLES.HOA_ADMIN, propertyManager: ROLES.PROPERTY_MANAGER }, MANAGER_SCOPE_FIELDS);
+  if (wrong.length) {
+    return { ready: false, reason: `${wrong.length} memberships have a wrong manager scope (run pnpm add:admin-scope)` };
+  }
+  const managers = rows.filter((r) => r.manager_of).length;
+  return { ready: true, reason: `${rows.length} memberships, manager scopes right on all (${managers} manage a community)` };
+}
+
 /**
- * Every HOA Admin rule, whichever script made it, gets the admin scope. The
- * per-feature schema scripts (meetings, polls, comments, requests, teams,
+ * Every rule of a policy, whichever script made it, gets that policy's scope.
+ * The per-feature schema scripts (meetings, polls, comments, requests, teams,
  * vendors, expenses, …) write their own permissions on collections this file
  * does not manage, all with the any-membership path; without this pass the
- * scope would stop at the collections above. Only the path is rewritten; the
- * rule is otherwise left as its script made it.
+ * scope would stop at the collections above. Only the path is rewritten
+ * (or, for a rule listed as removed, the rule is deleted).
  */
-async function scopeStrayAdminRules(auditMode: boolean): Promise<number> {
+async function scopeStrayRules(
+  policyId: string,
+  label: string,
+  scope: (p: { collection: string; action: string; permissions: unknown; validation: unknown }) => { permissions: unknown; validation: unknown },
+  removed: (collection: string, action: string) => boolean,
+  auditMode: boolean
+): Promise<{ updated: number; removed: number }> {
   const rules = await directusApi<(ExistingPermission & { collection: string })[]>(
-    `/permissions?filter[policy][_eq]=${POLICIES.HOA_ADMIN}&fields=id,collection,action,permissions,validation&limit=-1`
+    `/permissions?filter[policy][_eq]=${policyId}&fields=id,collection,action,permissions,validation&limit=-1`
   );
-  const stray = (rules ?? []).filter((r) => mentionsAnyMembership(r.permissions) || mentionsAnyMembership(r.validation));
-  if (!stray.length) {
-    console.log("   ⏭️  None: every HOA Admin rule is scoped");
-    return 0;
+  const drop = (rules ?? []).filter((r) => removed(r.collection, r.action));
+  const stray = (rules ?? []).filter(
+    (r) => !removed(r.collection, r.action) && (mentionsAnyMembership(r.permissions) || mentionsAnyMembership(r.validation))
+  );
+  if (!stray.length && !drop.length) {
+    console.log(`   ⏭️  None: every ${label} rule is scoped`);
+    return { updated: 0, removed: 0 };
   }
   const names = [...new Set(stray.map((r) => r.collection))].sort();
+  const dropped = drop.map((r) => `${r.collection}.${r.action}`);
   if (auditMode) {
-    console.log(`   📋 Would scope ${stray.length} rules on ${names.length} collections: ${names.join(", ")}`);
-    return stray.length;
+    if (stray.length) console.log(`   📋 Would scope ${stray.length} ${label} rules on ${names.length} collections: ${names.join(", ")}`);
+    if (drop.length) console.log(`   📋 Would remove ${label} rules: ${dropped.join(", ")}`);
+    return { updated: stray.length, removed: drop.length };
   }
   for (const r of stray) {
-    const scoped = scopeAdminPermission({ permissions: r.permissions, validation: r.validation });
-    await directusApi(`/permissions/${r.id}`, { method: "PATCH", body: JSON.stringify(scoped) });
+    const scoped = scope({ collection: r.collection, action: r.action, permissions: r.permissions, validation: r.validation });
+    await directusApi(`/permissions/${r.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permissions: scoped.permissions, validation: scoped.validation }),
+    });
   }
-  console.log(`   ✅ Scoped ${stray.length} rules on ${names.length} collections: ${names.join(", ")}`);
-  return stray.length;
+  for (const r of drop) await directusApi(`/permissions/${r.id}`, { method: "DELETE" });
+  if (stray.length) console.log(`   ✅ Scoped ${stray.length} ${label} rules on ${names.length} collections: ${names.join(", ")}`);
+  if (drop.length) console.log(`   🗑️  Removed ${label} rules: ${dropped.join(", ")}`);
+  return { updated: stray.length, removed: drop.length };
 }
 
 async function main() {
@@ -1678,15 +1723,22 @@ async function main() {
       console.log(`   (file + user self-access steps skipped)\n`);
     }
 
-    // The HOA Admin policy's scope. --preview-admin-scope shows the scoped
-    // diff in an audit before admin_of exists; it never applies it.
-    const readiness = await adminScopeReadiness();
+    // The HOA Admin and Property Manager policies' scopes. --preview-admin-scope
+    // shows the scoped diff in an audit before the fields exist; it never applies it.
     const preview = auditMode && process.argv.includes("--preview-admin-scope");
+    const readiness = await adminScopeReadiness();
     ADMIN_SCOPE = readiness.ready || preview ? "scoped" : "legacy";
     console.log(`🔑 HOA Admin policy scope: ${ADMIN_SCOPE === "scoped" ? "communities they administer (admin_of)" : "every community they belong to (legacy)"}`);
     console.log(`   ${readiness.ready ? "✅" : "⚠️ "} ${readiness.reason}${preview && !readiness.ready ? " — previewing anyway (audit only)" : ""}`);
+    const managerReadiness = await managerScopeReadiness();
+    MANAGER_SCOPE = managerReadiness.ready || preview ? "scoped" : "legacy";
+    console.log(`🔑 Property Manager policy scope: ${MANAGER_SCOPE === "scoped" ? "communities they manage, by grant (manager_of, communications_of, inquiries_of)" : "every community they belong to (legacy)"}`);
+    console.log(`   ${managerReadiness.ready ? "✅" : "⚠️ "} ${managerReadiness.reason}${preview && !managerReadiness.ready ? " — previewing anyway (audit only)" : ""}`);
     if (rolesToProcess.some((r) => r.name === "HOA Admin")) {
       totalStats.created += await ensureRolePolicy(ROLES.HOA_ADMIN, POLICIES.HOA_MEMBER, "HOA Member policy on the HOA Admin role", auditMode);
+    }
+    if (rolesToProcess.some((r) => r.name === "Property Manager") && MANAGER_SCOPE === "scoped") {
+      totalStats.created += await ensureRolePolicy(ROLES.PROPERTY_MANAGER, POLICIES.HOA_MEMBER, "HOA Member policy on the Property Manager role", auditMode);
     }
 
     for (const role of rolesToProcess) {
@@ -1755,7 +1807,14 @@ async function main() {
 
     if (ADMIN_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "HOA Admin") && !collectionsArg.length) {
       console.log("\n🔑 HOA Admin rules made by other scripts");
-      totalStats.updated += await scopeStrayAdminRules(auditMode);
+      const r = await scopeStrayRules(POLICIES.HOA_ADMIN, "HOA Admin", scopeAdminPermission, () => false, auditMode);
+      totalStats.updated += r.updated;
+    }
+    if (MANAGER_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "Property Manager") && !collectionsArg.length) {
+      console.log("\n🔑 Property Manager rules made by other scripts");
+      const r = await scopeStrayRules(POLICIES.PROPERTY_MANAGER, "Property Manager", scopeManagerPermission, isRemovedManagerRule, auditMode);
+      totalStats.updated += r.updated;
+      totalStats.removed += r.removed;
     }
 
     if (UNSCOPED_ADMIN_RULES.length) {
