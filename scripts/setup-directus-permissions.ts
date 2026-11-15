@@ -1535,14 +1535,19 @@ async function adminScopeReadiness(): Promise<{ ready: boolean; reason: string }
   } catch {
     return { ready: false, reason: "hoa_members.admin_of does not exist (run pnpm add:admin-scope)" };
   }
-  const res = await directusApi<{ data: ScopedMembership[] }>(
+  // directusApi already unwraps `data`.
+  const rows = await directusApi<ScopedMembership[]>(
     "/items/hoa_members?fields=id,role,status,organization,admin_of&limit=-1"
   );
-  const wrong = adminScopeChanges(res?.data ?? [], ROLES.HOA_ADMIN);
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ready: false, reason: "read no memberships, so admin_of cannot be checked" };
+  }
+  const wrong = adminScopeChanges(rows, ROLES.HOA_ADMIN);
   if (wrong.length) {
     return { ready: false, reason: `${wrong.length} memberships have the wrong admin_of (run pnpm add:admin-scope)` };
   }
-  return { ready: true, reason: `${res?.data?.length ?? 0} memberships, admin_of right on all` };
+  const admins = rows.filter((r) => r.admin_of).length;
+  return { ready: true, reason: `${rows.length} memberships, admin_of right on all (${admins} administer a community)` };
 }
 
 /**
@@ -1552,10 +1557,10 @@ async function adminScopeReadiness(): Promise<{ ready: boolean; reason: string }
  * reaches there.
  */
 async function ensureRolePolicy(roleId: string, policyId: string, label: string, auditMode: boolean): Promise<number> {
-  const existing = await directusApi<{ data: { id: string }[] }>(
+  const existing = await directusApi<{ id: string }[]>(
     `/access?filter[role][_eq]=${roleId}&filter[policy][_eq]=${policyId}&fields=id&limit=1`
   );
-  if (existing?.data?.length) {
+  if (Array.isArray(existing) && existing.length) {
     console.log(`   ⏭️  ${label}: already attached`);
     return 0;
   }
