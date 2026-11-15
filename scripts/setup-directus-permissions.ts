@@ -21,6 +21,8 @@
 
 import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
 import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
+import { mentionsAnyMembership, scopeAdminPermission } from "./lib/admin-scope-perms";
+import { adminScopeChanges, type ScopedMembership } from "../core/shared/roles/admin-scope";
 
 // ============================================================================
 // Configuration
@@ -723,11 +725,28 @@ function permissionMatches(
   );
 }
 
+/**
+ * The HOA Admin policy's scope (scripts/lib/admin-scope-perms.ts).
+ * "scoped": every admin rule reads $CURRENT_USER.hoa_members.admin_of, so an
+ * admin holds admin rights only where they administer. "legacy": every
+ * community they belong to, as before. main() picks "scoped" only once every
+ * membership's admin_of is right (scripts/add-admin-scope.ts); scoping before
+ * that would lock admins out of their own communities.
+ */
+let ADMIN_SCOPE: "scoped" | "legacy" = "legacy";
+const UNSCOPED_ADMIN_RULES: string[] = [];
+
 async function createOrUpdatePermission(
   permission: Permission,
   existingPermissions: ExistingPermission[],
   auditMode: boolean
 ): Promise<{ created: boolean; updated: boolean; skipped: boolean }> {
+  if (permission.policy === POLICIES.HOA_ADMIN && ADMIN_SCOPE === "scoped") {
+    permission = scopeAdminPermission(permission);
+    if (mentionsAnyMembership(permission.permissions) || mentionsAnyMembership(permission.validation)) {
+      UNSCOPED_ADMIN_RULES.push(`${permission.collection}.${permission.action}`);
+    }
+  }
   const existing = existingPermissions.find(
     (p) => p.action === permission.action
   );
@@ -840,6 +859,10 @@ const READ_FIELDS: Record<string, string[]> = {
     "total_payments", "last_payment_date", "last_payment_amount", "payment_status", "outstanding_balance",
     "company", "manager_permissions", "mailing_address", "payment_tracking",
     "units", "vehicles", "pets", "board_member_terms",
+    // Added 2026-11-15: the HOA Admin policy's scope. Says no more than `role`
+    // already does, and keeps $CURRENT_USER.hoa_members.admin_of resolvable
+    // however Directus reads the user's own context.
+    "admin_of",
   ],
   hoa_email_recipients: [
     "id", "sort", "user_created", "date_created", "recipient_email", "recipient_name", "status",
@@ -1502,6 +1525,49 @@ async function setupUserPermissions(
 // Main Execution
 // ============================================================================
 
+/**
+ * Is hoa_members.admin_of present and right on every membership? Only then
+ * may the HOA Admin policy be scoped by it.
+ */
+async function adminScopeReadiness(): Promise<{ ready: boolean; reason: string }> {
+  try {
+    await directusApi("/fields/hoa_members/admin_of");
+  } catch {
+    return { ready: false, reason: "hoa_members.admin_of does not exist (run pnpm add:admin-scope)" };
+  }
+  const res = await directusApi<{ data: ScopedMembership[] }>(
+    "/items/hoa_members?fields=id,role,status,organization,admin_of&limit=-1"
+  );
+  const wrong = adminScopeChanges(res?.data ?? [], ROLES.HOA_ADMIN);
+  if (wrong.length) {
+    return { ready: false, reason: `${wrong.length} memberships have the wrong admin_of (run pnpm add:admin-scope)` };
+  }
+  return { ready: true, reason: `${res?.data?.length ?? 0} memberships, admin_of right on all` };
+}
+
+/**
+ * The HOA Admin role also carries the HOA Member policy. Directus unions a
+ * role's policies, so a global HOA Admin keeps member-level access in a
+ * community where they are only a member, once the admin policy no longer
+ * reaches there.
+ */
+async function ensureRolePolicy(roleId: string, policyId: string, label: string, auditMode: boolean): Promise<number> {
+  const existing = await directusApi<{ data: { id: string }[] }>(
+    `/access?filter[role][_eq]=${roleId}&filter[policy][_eq]=${policyId}&fields=id&limit=1`
+  );
+  if (existing?.data?.length) {
+    console.log(`   ⏭️  ${label}: already attached`);
+    return 0;
+  }
+  if (auditMode) {
+    console.log(`   📋 Would attach ${label}`);
+    return 1;
+  }
+  await directusApi("/access", { method: "POST", body: JSON.stringify({ role: roleId, policy: policyId }) });
+  console.log(`   ✅ Attached ${label}`);
+  return 1;
+}
+
 async function main() {
   const auditMode = process.argv.includes("--audit");
 
@@ -1577,6 +1643,17 @@ async function main() {
       console.log(`   (file + user self-access steps skipped)\n`);
     }
 
+    // The HOA Admin policy's scope. --preview-admin-scope shows the scoped
+    // diff in an audit before admin_of exists; it never applies it.
+    const readiness = await adminScopeReadiness();
+    const preview = auditMode && process.argv.includes("--preview-admin-scope");
+    ADMIN_SCOPE = readiness.ready || preview ? "scoped" : "legacy";
+    console.log(`🔑 HOA Admin policy scope: ${ADMIN_SCOPE === "scoped" ? "communities they administer (admin_of)" : "every community they belong to (legacy)"}`);
+    console.log(`   ${readiness.ready ? "✅" : "⚠️ "} ${readiness.reason}${preview && !readiness.ready ? " — previewing anyway (audit only)" : ""}`);
+    if (rolesToProcess.some((r) => r.name === "HOA Admin")) {
+      totalStats.created += await ensureRolePolicy(ROLES.HOA_ADMIN, POLICIES.HOA_MEMBER, "HOA Member policy on the HOA Admin role", auditMode);
+    }
+
     for (const role of rolesToProcess) {
       console.log("\n" + "═".repeat(60));
       console.log(`🎭 Processing role: ${role.name}`);
@@ -1639,6 +1716,10 @@ async function main() {
         );
         totalStats.errors++;
       }
+    }
+
+    if (UNSCOPED_ADMIN_RULES.length) {
+      console.log(`\n⚠️  HOA Admin rules still reaching through any membership: ${UNSCOPED_ADMIN_RULES.join(", ")}`);
     }
 
     // Summary
