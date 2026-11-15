@@ -375,6 +375,39 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     description: "Task assignee junction",
   },
 
+  // ========== Responsibilities register (plan §3.4, docs/spec-responsibilities.md) ==========
+  // No policy reads or writes these. Every read and write is a route under
+  // /api/org/responsibilities (core/server/utils/responsibility-access.ts),
+  // with the admin token. That keeps basis, notes, history and vendor contact
+  // fields from owners (they read GET published), keeps "nothing is deleted"
+  // true at the API (there is no delete route), and keeps the register out of
+  // the HOA Admin policy's any-membership scope. "none" also removes anything
+  // a hand-made permission left behind.
+  {
+    collection: "hoa_responsibilities",
+    adminLevel: "none",
+    memberLevel: "none",
+    pmLevel: "none",
+    filterType: "organization",
+    description: "Responsibilities register (routes only)",
+  },
+  {
+    collection: "hoa_responsibility_assignees",
+    adminLevel: "none",
+    memberLevel: "none",
+    pmLevel: "none",
+    filterType: "organization",
+    description: "Register holders, dated (routes only)",
+  },
+  {
+    collection: "hoa_responsibilities_files",
+    adminLevel: "none",
+    memberLevel: "none",
+    pmLevel: "none",
+    filterType: "none",
+    description: "Register evidence junction (routes only)",
+  },
+
   // ========== Settings & Branding ==========
   {
     collection: "block_settings",
@@ -776,6 +809,20 @@ async function removePermissions(
 // Permission Setup Functions
 // ============================================================================
 
+/**
+ * Field lists for a read_only level, where "*" would say too much. Members and
+ * managers read the board roster, not why a term ended or the name frozen on
+ * it (plan §3.4: owners see the present; history is for admins, the board and
+ * the responsibilities area, through /api/org/responsibilities). Every field
+ * that existed before end_reason and holder_name is listed, so no read narrows.
+ */
+const READ_ONLY_FIELDS: Record<string, string[]> = {
+  hoa_board_members: [
+    "id", "status", "sort", "user_created", "date_created", "user_updated", "date_updated",
+    "hoa_member", "term_start", "term_end", "title", "icon", "message",
+  ],
+};
+
 function buildPermissionsForLevel(
   policyId: string,
   collection: string,
@@ -917,7 +964,7 @@ function buildPermissionsForLevel(
         action: "read",
         permissions: filter || {},
         validation: null,
-        fields: ["*"],
+        fields: READ_ONLY_FIELDS[collection] ?? ["*"],
       });
       break;
 
