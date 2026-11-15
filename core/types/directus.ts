@@ -1436,6 +1436,12 @@ export interface HoaMember {
 	manager_areas?: Record<string, any> | null;
 	/** @description The organization on an active or pending HOA Admin membership, else null. Written only by /api/internal/sync-admin-scope; the HOA Admin policy scopes every rule with it. */
 	admin_of?: string | null;
+	/** @description The organization on an active Property Manager membership, else null. Written only by /api/internal/sync-admin-scope; the Property Manager policy scopes its rules with it. */
+	manager_of?: string | null;
+	/** @description manager_of when the manager holds the communications grant, else null. Scopes the manager's reads of emails and recipients. */
+	communications_of?: string | null;
+	/** @description manager_of when the manager holds the inquiries grant, else null. Scopes the manager's reads and edits of requests and internal comments. */
+	inquiries_of?: string | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
