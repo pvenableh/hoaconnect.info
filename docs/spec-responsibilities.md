@@ -55,7 +55,7 @@ Every route is under `/api/org`, takes `orgId` (query on GET and DELETE, body ot
 
 **read** is admin, the `responsibilities` grant, or a board seat (`responsibilities:read`, every office). **edit** is admin or the grant (`requireAdminOrManagerGrant`). The hat gives nothing. Board terms stay admin-only, as the Board tab is today.
 
-`planHandOver(current, next, effective)` and `planTermChange(term, action, date)` are the pure plans the routes write: the row to end, the row to open, or the patch.
+`planHandOver(current, next, effective)` and `planTermChange(term, action)` (the date travels in the action) are the pure plans the routes write: the row to end, the row to open, or the patch.
 
 ## What each audience reads
 
