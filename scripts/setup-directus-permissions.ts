@@ -823,6 +823,42 @@ const READ_ONLY_FIELDS: Record<string, string[]> = {
   ],
 };
 
+/**
+ * Read field lists at EVERY level, for collections that hold a value no app
+ * user should read through Directus. Pinned to what production had on
+ * 2026-11-14: a full run on 2026-11-15 replaced these lists with "*", which let
+ * any member read every member's `unsubscribe_token` and email-bounce fields,
+ * and the recipients' merge fields. The server reads those with the admin
+ * token (the digest worker, the unsubscribe routes, the role context), so the
+ * app needs none of them here. A field added to one of these collections is
+ * invisible to app users until it is listed: that is the safe default.
+ */
+const READ_FIELDS: Record<string, string[]> = {
+  hoa_members: [
+    "id", "status", "sort", "user_created", "date_created", "user_updated", "date_updated",
+    "user", "organization", "role", "first_name", "last_name", "email", "phone", "member_type",
+    "total_payments", "last_payment_date", "last_payment_amount", "payment_status", "outstanding_balance",
+    "company", "manager_permissions", "mailing_address", "payment_tracking",
+    "units", "vehicles", "pets", "board_member_terms",
+  ],
+  hoa_email_recipients: [
+    "id", "sort", "user_created", "date_created", "recipient_email", "recipient_name", "status",
+    "sent_at", "error_message", "sg_message_id", "email", "member", "kind", "run_key", "position",
+    "dedupe_key", "claimed_at", "copies", "suppressed_reason", "delivery_status",
+  ],
+};
+
+/**
+ * Actions no policy gets on a collection, whatever its level says. Channel
+ * messages are edited and moderated only through the server
+ * (/api/hoa/channels/[channel]/edit, /api/hoa/channels/moderate), which check
+ * authorship and roles. Production never had an update permission here; the
+ * level's org-wide filter would let any member rewrite anyone's message.
+ */
+const WITHHELD_ACTIONS: Record<string, string[]> = {
+  hoa_channel_messages: ["update"],
+};
+
 function buildPermissionsForLevel(
   policyId: string,
   collection: string,
@@ -1195,7 +1231,13 @@ async function setupCollectionPermissions(
     config.collection,
     level,
     config
-  );
+  )
+    .filter((p) => !(WITHHELD_ACTIONS[config.collection] ?? []).includes(p.action))
+    .map((p) =>
+      p.action === "read" && READ_FIELDS[config.collection]
+        ? { ...p, fields: READ_FIELDS[config.collection]! }
+        : p
+    );
 
   for (const permission of desiredPermissions) {
     const result = await createOrUpdatePermission(
