@@ -347,8 +347,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [x] | Spec `docs/spec-resource-scaffold.md`. Landed in one session, so 2b builds on it. 19 audits. Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
 | 4 | 5b — Money approvals, part 1: rule, schema, routes, Ledger, notifications, Expenses and Approvals pages, expense write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Not alongside Session 3 in one checkout; leaves the Charges page alone. Prompt: `docs/prompts/role-first-s4-money-approvals.md` (Opus 5.5) |
 | 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
-| 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [x] | Spec `docs/spec-responsibilities.md`. All five landed, plus the service-history route. Schema script not yet run (operator TODO). Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5) |
-| 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. Needs the schema script run first. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
+| 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [x] | Spec `docs/spec-responsibilities.md`. All five landed, plus the service-history route. Schema script and permissions run by the operator 2026-11-15; types regenerated. The permissions run widened three older reads and edits: reversal scripted, to apply (Session log TODO 2b). Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5) |
+| 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. The schema is live. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
 
 ### Session log
 
@@ -500,7 +500,7 @@ All five commits landed in one session, plus one more: Session 7 builds only pag
 
 **Operator TODOs (schema script first)**
 
-1. Run `pnpm create:responsibilities --dry-run`, read it, then `pnpm create:responsibilities`, then `pnpm generate:types` and commit the types. Until it runs, every route under `/api/org/responsibilities` and `/api/org/board-terms` fails on the missing collections and fields, and nothing else changes. Dry run against the live instance, 2026-11-15 (field lines folded):
+1. ~~Run `pnpm create:responsibilities --dry-run`, read it, then `pnpm create:responsibilities`, then `pnpm generate:types` and commit the types.~~ **Done 2026-11-15 by the operator.** The regenerated types are committed. A second dry run afterwards found nothing left to do (7 communities, 0 to update). Every field list the routes request reads cleanly from the live instance. 1033 Lenox has the module on and both switches off. Dry run before it ran, 2026-11-15 (field lines folded):
 
    ```
    🚀 create-responsibilities-collections (dry run — nothing is written)
@@ -618,7 +618,16 @@ All five commits landed in one session, plus one more: Session 7 builds only pag
    ```
 
    </details>
-2. Then `pnpm setup:permissions`. **Review first:** it applies everything the audit lists, and the audit listed seven items before this session started (create 2, update 5: the `hoa_members` read on three policies, the `hoa_email_recipients` read on two, and an `hoa_channel_messages` update permission on two). This session adds two: the `hoa_board_members` read for HOA Member and Property Manager, which becomes an explicit field list without `end_reason` and `holder_name`. After: create 2, update 7, remove 0. The three new collections need nothing: no policy has access, and the audit says "No permissions (as expected)".
+2. ~~Then `pnpm setup:permissions`.~~ **Done 2026-11-15 by the operator.** The audit afterwards reads create 0, update 0, remove 0. It applied nine items: the two from this session (the `hoa_board_members` read for HOA Member and Property Manager, now an explicit field list without `end_reason` and `holder_name`) and the seven the audit already listed before this session (the `hoa_members` read on three policies, the `hoa_email_recipients` read on two, and an `hoa_channel_messages` update permission on two). The three new collections have no permissions on any policy, as intended.
+
+   **Three of the seven older items widened access**, read from Directus's revision history afterwards:
+   - `hoa_members` read (HOA Admin, HOA Member, Property Manager) went from a field list to `*`. Members could read every member's `unsubscribe_token`, the email-bounce fields and the manager-hat fields.
+   - `hoa_email_recipients` read (HOA Admin, Property Manager) went from a field list to `*`, adding `claim` and `member_fields`.
+   - `hoa_channel_messages` gained an update permission (HOA Admin, HOA Member) filtered only by organization, so any member could rewrite anyone's message through the API. The app edits and moderates through server routes and never needed it.
+
+   `de0a221` makes the script keep yesterday's state: `READ_FIELDS` pins the two lists as they were on 2026-11-14, and `WITHHELD_ACTIONS` keeps update off channel messages. The audit now shows exactly the reversal: update 5, remove 2.
+2b. **Apply the reversal:** `pnpm setup:permissions:audit` (expect update 5, remove 2, nothing else), then `pnpm setup:permissions`.
+2c. Found in passing, not changed: HOA Members also hold an org-wide **delete** on `hoa_channel_messages`, and an org-wide read, so a member can delete any message in their community through the API, private channels included. That predates this session and needs its own change.
 3. **Publishing for 1033 Lenox**, after 1 and 2 and before the board is seated on 2026-12-09: an admin applies the Florida condominium list, assigns the holders, and turns on "Published to owners" (Session 7 builds the switch; until then it is `PATCH /api/org/responsibilities/visibility`). Leave "Show unassigned jobs to owners" off unless the board decides otherwise.
 4. After Session 7 moves the Board tab onto the term routes, take update and delete on `hoa_board_members` away from the HOA Admin policy, so history cannot be overwritten through the API. Session 7 writes the change; the operator applies it.
 5. Known gap, not fixed: an admin can still flip the two publishing switches on `hoa_organizations` through Directus, without the activity row. The app writes them only through the route. Closing it needs an explicit field list on the HOA Admin policy's update of `hoa_organizations`.
@@ -631,6 +640,8 @@ All five commits landed in one session, plus one more: Session 7 builds only pag
 - `2eb00e4` `scripts/create-responsibilities-collections.ts` (`pnpm create:responsibilities`, `--dry-run`) and the permission entries.
 - `2e69822` the routes: eleven under `core/server/api/org/responsibilities/`, four under `core/server/api/org/board-terms/`, with `core/server/utils/responsibilities.ts` (loads, names, org checks, activity), `core/server/utils/register-pdf.ts`, and the pure `views.ts` (what each audience reads) and `schemas.ts` (zod bodies, shared so forms can use them). Tests: `tests/server/responsibilities-routes.test.ts`, `tests/server/board-terms-routes.test.ts`, `tests/server/register-pdf.test.ts`.
 - `e93c5f5` `GET /api/org/responsibilities/service-history?member=` with the pure `history.ts`, so Session 7 builds no route.
+- `9c53f4a` the regenerated types, and the register in the Data Trust export map (both tiers; notes blanked in the shareable copy). The export completeness test caught the gap.
+- `de0a221` `setup-directus-permissions.ts` stops widening `hoa_members`, `hoa_email_recipients` and channel-message edits (TODO 2).
 
 **What a user sees change**
 

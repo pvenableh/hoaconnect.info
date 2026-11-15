@@ -19,11 +19,12 @@ docs/spec-resource-scaffold.md, docs/ux-standards.md, and in
 docs/plan-role-first-ux.md only §2.3, §3.4 with "History: end, don't
 erase", and §7 with the Session 6 log. Do not read the rest of the plan.
 
-Before any page: check that the operator has run the schema script
-(core/types/directus.ts has hoa_responsibilities after pnpm
-generate:types). If not, ask me before going on. The pages can be built
-against the tests, but not seen in a browser, and the routes answer 500
-until the collections exist.
+The schema script and setup:permissions ran on 2026-11-15 and the types
+are committed (core/types/directus.ts has hoa_responsibilities), so the
+routes answer against the live instance. Every community's register is
+empty and unpublished: apply the Florida condominium list in a test
+community to see the pages with rows, never in 1033 Lenox without asking
+me.
 
 What Session 6 left you (do not rebuild, do not change a route's shape
 without a reason in the log):
