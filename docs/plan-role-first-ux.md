@@ -347,7 +347,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 3 | 2 — Resource scaffold: AppResourceIndex, useResource, panel registry, three ratchets, Charges | [x] | Spec `docs/spec-resource-scaffold.md`. Landed in one session, so 2b builds on it. 19 audits. Prompt: `docs/prompts/role-first-s3-resource-scaffold.md` (Opus 5.5) |
 | 4 | 5b — Money approvals, part 1: rule, schema, routes, Ledger, notifications, Expenses and Approvals pages, expense write lock | [ ] | Spec `docs/spec-money-approvals.md` (confirmed 2026-11-14). Not alongside Session 3 in one checkout; leaves the Charges page alone. Prompt: `docs/prompts/role-first-s4-money-approvals.md` (Opus 5.5) |
 | 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
-| 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5). Part 2, the pages, is Session 7 (Sonnet 5.5), prompt written by Session 6 |
+| 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [x] | Spec `docs/spec-responsibilities.md`. All five landed, plus the service-history route. Schema script not yet run (operator TODO). Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5) |
+| 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. Needs the schema script run first. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
 
 ### Session log
 
@@ -492,3 +493,168 @@ The scaffold landed in one session, so Phase 2b builds on it, not on `AppDataTab
 - The `/ui-kit` hydration warning comes from the existing `DateTimeInput` demo, not from this work.
 - Existing tests are untouched. New files: `tests/composables/useResource.test.ts`, `tests/components/panel-registry.test.ts`, `tests/composables/useChargesResource.test.ts`, plus three blocks in `tests/scripts/audit-matchers.test.ts`.
 - Out of scope, per the brief: invoices, vendors, work and glass. The Recurring tab stays a plain table: schedules are a resource of their own, for Phase 3 or Phase 5.
+
+#### Session 6 — Phase 2b part 1, responsibilities register (2026-11-15)
+
+All five commits landed in one session, plus one more: Session 7 builds only pages.
+
+**Operator TODOs (schema script first)**
+
+1. Run `pnpm create:responsibilities --dry-run`, read it, then `pnpm create:responsibilities`, then `pnpm generate:types` and commit the types. Until it runs, every route under `/api/org/responsibilities` and `/api/org/board-terms` fails on the missing collections and fields, and nothing else changes. Dry run against the live instance, 2026-11-15 (field lines folded):
+
+   ```
+   🚀 create-responsibilities-collections (dry run — nothing is written)
+   📋 hoa_responsibilities              would create the collection, 22 fields, 5 relations
+   📁 hoa_responsibilities_files        would create the collection, 2 fields, 2 relations (CASCADE)
+   👥 hoa_responsibility_assignees      would create the collection, 18 fields, 8 relations
+                                        (member, user, vendor, team: SET NULL; responsibility, organization: CASCADE)
+   🏛️  hoa_board_members                would create end_reason, holder_name
+   ✅ hoa_tasks                         would create responsibility → hoa_responsibilities (SET NULL)
+   🏢 hoa_organizations                 would create responsibilities_published, responsibilities_show_unassigned
+   🧩 modules.responsibilities          would add responsibilities: true to the field default
+                                        would set it on Park Terrace 2, 11 Lincoln, Harborview Lofts,
+                                        The Beaumont Residences, Transition Test HOA [TEST FIXTURE],
+                                        1033 Lenox, 605 Lincoln Road
+                                        7 communities · 7 to update · 0 with no stored map
+   📈 hoa_activity.event_type           would add choices responsibility, board_term
+   🧾 Managers who held every old grant none
+   🪪 Board terms with no member        none
+   ```
+
+   <details><summary>The dry run as printed</summary>
+
+   ```
+   🚀 create-responsibilities-collections (dry run — nothing is written)
+   📡 admin.hoaconnect.info
+   📋 hoa_responsibilities
+      🔎 would create collection hoa_responsibilities
+      🔎 would create field hoa_responsibilities.organization (uuid)
+      🔎 would relate hoa_responsibilities.organization → hoa_organizations (CASCADE)
+      🔎 would create field hoa_responsibilities.title (string)
+      🔎 would create field hoa_responsibilities.description (text)
+      🔎 would create field hoa_responsibilities.category (string)
+      🔎 would create field hoa_responsibilities.cadence (string)
+      🔎 would create field hoa_responsibilities.basis (string)
+      🔎 would create field hoa_responsibilities.basis_reference (string)
+      🔎 would create field hoa_responsibilities.evidence (alias)
+      🔎 would create field hoa_responsibilities.area (string)
+      🔎 would create field hoa_responsibilities.status (string)
+      🔎 would create field hoa_responsibilities.last_verified (date)
+      🔎 would create field hoa_responsibilities.last_verified_by (uuid)
+      🔎 would relate hoa_responsibilities.last_verified_by → directus_users (SET NULL)
+      🔎 would create field hoa_responsibilities.member_visible (boolean)
+      🔎 would create field hoa_responsibilities.project (uuid)
+      🔎 would relate hoa_responsibilities.project → hoa_projects (SET NULL)
+      🔎 would create field hoa_responsibilities.notes (text)
+      🔎 would create field hoa_responsibilities.assignees (alias)
+      🔎 would create field hoa_responsibilities.tasks (alias)
+      🔎 would create field hoa_responsibilities.sort (integer)
+      🔎 would create field hoa_responsibilities.date_created (timestamp)
+      🔎 would create field hoa_responsibilities.date_updated (timestamp)
+      🔎 would create field hoa_responsibilities.user_created (uuid)
+      🔎 would relate hoa_responsibilities.user_created → directus_users (SET NULL)
+      🔎 would create field hoa_responsibilities.user_updated (uuid)
+      🔎 would relate hoa_responsibilities.user_updated → directus_users (SET NULL)
+   📁 hoa_responsibilities_files
+      🔎 would create collection hoa_responsibilities_files
+      🔎 would create field hoa_responsibilities_files.hoa_responsibilities_id (uuid)
+      🔎 would relate hoa_responsibilities_files.hoa_responsibilities_id → hoa_responsibilities (CASCADE)
+      🔎 would create field hoa_responsibilities_files.directus_files_id (uuid)
+      🔎 would relate hoa_responsibilities_files.directus_files_id → directus_files (CASCADE)
+   👥 hoa_responsibility_assignees
+      🔎 would create collection hoa_responsibility_assignees
+      🔎 would create field hoa_responsibility_assignees.organization (uuid)
+      🔎 would relate hoa_responsibility_assignees.organization → hoa_organizations (CASCADE)
+      🔎 would create field hoa_responsibility_assignees.responsibility (uuid)
+      🔎 would relate hoa_responsibility_assignees.responsibility → hoa_responsibilities (CASCADE)
+      🔎 would create field hoa_responsibility_assignees.office (string)
+      🔎 would create field hoa_responsibility_assignees.member (uuid)
+      🔎 would relate hoa_responsibility_assignees.member → hoa_members (SET NULL)
+      🔎 would create field hoa_responsibility_assignees.user (uuid)
+      🔎 would relate hoa_responsibility_assignees.user → directus_users (SET NULL)
+      🔎 would create field hoa_responsibility_assignees.vendor (uuid)
+      🔎 would relate hoa_responsibility_assignees.vendor → hoa_vendors (SET NULL)
+      🔎 would create field hoa_responsibility_assignees.team (uuid)
+      🔎 would relate hoa_responsibility_assignees.team → hoa_teams (SET NULL)
+      🔎 would create field hoa_responsibility_assignees.label (string)
+      🔎 would create field hoa_responsibility_assignees.role (string)
+      🔎 would create field hoa_responsibility_assignees.start_date (date)
+      🔎 would create field hoa_responsibility_assignees.end_date (date)
+      🔎 would create field hoa_responsibility_assignees.holder_name (string)
+      🔎 would create field hoa_responsibility_assignees.notes (text)
+      🔎 would create field hoa_responsibility_assignees.sort (integer)
+      🔎 would create field hoa_responsibility_assignees.date_created (timestamp)
+      🔎 would create field hoa_responsibility_assignees.date_updated (timestamp)
+      🔎 would create field hoa_responsibility_assignees.user_created (uuid)
+      🔎 would relate hoa_responsibility_assignees.user_created → directus_users (SET NULL)
+      🔎 would create field hoa_responsibility_assignees.user_updated (uuid)
+      🔎 would relate hoa_responsibility_assignees.user_updated → directus_users (SET NULL)
+   🏛️  hoa_board_members
+      🔎 would create field hoa_board_members.end_reason (string)
+      🔎 would create field hoa_board_members.holder_name (string)
+   ✅ hoa_tasks
+      🔎 would create field hoa_tasks.responsibility (uuid)
+      🔎 would relate hoa_tasks.responsibility → hoa_responsibilities (SET NULL)
+   🏢 hoa_organizations
+      🔎 would create field hoa_organizations.responsibilities_published (boolean)
+      🔎 would create field hoa_organizations.responsibilities_show_unassigned (boolean)
+   🧩 hoa_organizations.modules.responsibilities
+      🔎 would add responsibilities: true to the field default
+      🔎 would set modules.responsibilities on Park Terrace 2
+      🔎 would set modules.responsibilities on 11 Lincoln
+      🔎 would set modules.responsibilities on Harborview Lofts
+      🔎 would set modules.responsibilities on The Beaumont Residences
+      🔎 would set modules.responsibilities on Transition Test HOA [TEST FIXTURE]
+      🔎 would set modules.responsibilities on 1033 Lenox
+      🔎 would set modules.responsibilities on 605 Lincoln Road
+      7 communities · 7 to update · 0 with no stored map (read as enabled)
+   📈 hoa_activity.event_type choices
+      🔎 would add choices responsibility, board_term
+   🧾 Property Managers who held every grant before `responsibilities` (listed only — not changed)
+      none
+   🪪 Board terms whose member row is gone (listed only)
+      none
+   ✅ Done (dry run). Next: pnpm setup:permissions, then pnpm generate:types
+   ```
+
+   </details>
+2. Then `pnpm setup:permissions`. **Review first:** it applies everything the audit lists, and the audit listed seven items before this session started (create 2, update 5: the `hoa_members` read on three policies, the `hoa_email_recipients` read on two, and an `hoa_channel_messages` update permission on two). This session adds two: the `hoa_board_members` read for HOA Member and Property Manager, which becomes an explicit field list without `end_reason` and `holder_name`. After: create 2, update 7, remove 0. The three new collections need nothing: no policy has access, and the audit says "No permissions (as expected)".
+3. **Publishing for 1033 Lenox**, after 1 and 2 and before the board is seated on 2026-12-09: an admin applies the Florida condominium list, assigns the holders, and turns on "Published to owners" (Session 7 builds the switch; until then it is `PATCH /api/org/responsibilities/visibility`). Leave "Show unassigned jobs to owners" off unless the board decides otherwise.
+4. After Session 7 moves the Board tab onto the term routes, take update and delete on `hoa_board_members` away from the HOA Admin policy, so history cannot be overwritten through the API. Session 7 writes the change; the operator applies it.
+5. Known gap, not fixed: an admin can still flip the two publishing switches on `hoa_organizations` through Directus, without the activity row. The app writes them only through the route. Closing it needs an explicit field list on the HOA Admin policy's update of `hoa_organizations`.
+
+**Shipped** (each commit gated: typecheck 0, vitest green, lint 138 against a cap of 148, build green, 19/19 audits; commit 4 touches only `scripts/` and `package.json`, so its build ran with commit 5's)
+
+- `c1ef959` `docs/spec-responsibilities.md` (89 lines): shapes, the exactly-one-target rule, current / as-of / vacant / unassigned since, effective dates, every route with who may call it, what each audience reads, Session 7's names, hook points, named tests.
+- `3401ec3` `core/shared/responsibilities/`: `config.ts` (categories, cadences, bases, roles, offices, end reasons, the Florida condominium seed of 45 rows, `rowsToAdd`), `holders.ts` (`validateTarget`, `holdersAsOf`, `currentHolders`, `unassignedSince`, `officeHolderAsOf` and `officeTermsWithin` on `isCurrentBoardTerm`), `review.ts` (`nextReview`), `plan.ts` (`planHandOver`, `planTermChange`), `activity.ts` (the sentences). Test: `tests/shared/responsibilities.test.ts` (40).
+- `90f15ea` the area. `responsibilities` in `AREAS`, grantable, gated by `core/server/utils/responsibility-access.ts`. New capability `responsibilities:read` for every board office. The settings switch "Edit the responsibilities register" and the ops view-as label.
+- `2eb00e4` `scripts/create-responsibilities-collections.ts` (`pnpm create:responsibilities`, `--dry-run`) and the permission entries.
+- `2e69822` the routes: eleven under `core/server/api/org/responsibilities/`, four under `core/server/api/org/board-terms/`, with `core/server/utils/responsibilities.ts` (loads, names, org checks, activity), `core/server/utils/register-pdf.ts`, and the pure `views.ts` (what each audience reads) and `schemas.ts` (zod bodies, shared so forms can use them). Tests: `tests/server/responsibilities-routes.test.ts`, `tests/server/board-terms-routes.test.ts`, `tests/server/register-pdf.test.ts`.
+- `e93c5f5` `GET /api/org/responsibilities/service-history?member=` with the pure `history.ts`, so Session 7 builds no route.
+
+**What a user sees change**
+
+| Who | Before | Now |
+|---|---|---|
+| Admin, Settings → Property management | Nine switches per manager | A tenth: "Edit the responsibilities register". A manager who had all nine reads as Custom, not Full service, until an admin picks Full service again (the dry run found none) |
+| Platform staff, ops "view as" | — | A board seat lists "See who handles what, with history" |
+| Everyone else | — | Nothing until Session 7's pages |
+
+**Deviations and decisions**
+
+- **`hoa_board_members.holder_name` added.** The brief listed only `end_reason`, but says ending any row freezes `holder_name`. The live schema deletes a member's terms' link (`hoa_member` is SET NULL), so a term needs its own frozen name. End term and Change office write it.
+- **Effective dates.** Hand-over, Change office and retire take the first day of the new state; the old row ends the day before, so no day has two holders and no day has none. End term takes the last day served, which is the `term_end` it writes. "Unassigned since" is therefore the day after the last end, which is the date the admin entered; the brief's "the last holder's end date" would read one day early.
+- **Hand-over without a next holder ends the row.** No other route ends an open row, and §3.4's "unassigned since the day the last holder's row ended" needs one. Correct cannot end an open row.
+- **Full service includes the register.** It is every grant key by construction. Nobody's access widens: a stored grant set without the key reads false. Session 1 kept vendors and billing notify-only because they had no gate; this area has one.
+- **The board reads by capability, not by the grant:** `responsibilities:read` for every office, checked through `getBoardPosition` as milestone approval is. Editing is admin or the grant (`requireAdminOrManagerGrant`'s rule). The hat gives nothing.
+- **No Directus policy on the three new collections, admins included** (the brief named members). That keeps "nothing is deleted" true at the API and keeps the register out of the HOA Admin policy's any-membership scope (Session 2 TODO 5).
+- **Board-term routes are admin only**, as the Board tab is; managers have read-only on `hoa_board_members` today.
+- **Delete of a term is also refused when a meeting's attendance links it**, beside the brief's "an assignee row depends on it". Attendance freezes history too.
+- **Correct on a term** may change office, dates, message, icon, status and end reason, never the member (the body is strict, so `hoa_member` is a 400). The activity row carries before and after.
+- **The owner view also needs the module on**, and each row carries `id` and `category` beside the four columns, for grouping. Office holders carry the people's names, which owners already see on the Board page.
+- **Evidence files** must pass `filesOutsideOrg`. They are not added to `file-owner.ts`: that would let any member open them through the asset proxy.
+- **The PDF renders on the server** with jsPDF (landscape letter), from the pure `registerPdfDoc`, in the Finances report's look. Retired jobs are left out; every category prints, empty or not.
+- **Activity types `responsibility` and `board_term`** are written only by the server and are not in the client's `ACTIVITY_EVENT_TYPES`, so no client can forge one. The Activity page shows the raw type until it has labels.
+- **Next review:** one month after the last verification for daily, weekly and monthly jobs, three for quarterly, twelve for the rest. Never verified counts as overdue.
+- Tool shells here had node and pnpm on PATH; fnm is at `/opt/homebrew/bin`, not `/usr/local/bin`.
+- Existing tests changed: `tests/shared/areas.test.ts` (the grant order gains `responsibilities`) and `tests/shared/nav-registry.test.ts` (`responsibilities` waits for its page, Session 7). New: the five files named above and `tests/server/__fixtures__/responsibilities-db.ts`.

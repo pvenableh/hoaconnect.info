@@ -26,6 +26,11 @@ exists, treat this list as authoritative over the older phase text:
   income-by-type, expense-by-category, delinquency aging, CSV export. See the
   Reports tab on the Finances page (`/admin/payments`).
 - **Health**: typecheck 0 errors, 300+ passing unit tests (was "no test coverage").
+- **Responsibilities register** (role-first UX Phase 2b, [plan](plan-role-first-ux.md) §3.4) —
+  who does each standing job, with dated history, board-term End / Change office / Correct,
+  a published owner view and a PDF for the board. Spec: [spec-responsibilities.md](spec-responsibilities.md).
+  Schema script, gate and routes shipped 2026-11-15; the pages are Session 7. Due for the
+  1033 Lenox board, seated 2026-12-09.
 
 ## North star
 

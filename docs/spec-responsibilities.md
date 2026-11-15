@@ -48,6 +48,7 @@ Every route is under `/api/org`, takes `orgId` (query on GET and DELETE, body ot
 | `POST responsibilities/apply-template` | edit | `{ template }`. Adds the seed rows whose title the community lacks (trimmed, any case, retired rows included). Returns the counts |
 | `PATCH responsibilities/visibility` | **admin** | `{ published?, showUnassigned? }`. The work switch is not enough: the delegate may be the party who is not answering. One activity row per switch changed |
 | `GET responsibilities/export.pdf?asOf=` | read | Grouped by category. Job · Who · Cadence · Basis · Last verified. An empty Who is an empty cell. The as-of date in the header |
+| `GET responsibilities/service-history?member=` | read | One member's offices held and jobs held, with dates: rows naming them, and office rows clipped to their terms of that office |
 | `POST board-terms/[id]/end` | admin | `{ lastDay, reason }` (term_ended · resigned · removed). Freezes the name. Refused once `end_reason` is set |
 | `POST board-terms/[id]/change-office` | admin | `{ effective, office }`. Ends the term on `effective − 1` with `changed_office`, and opens one for the same member from `effective`, keeping the planned `term_end` when it is later |
 | `PATCH board-terms/[id]` | admin | Correction only: office, dates, message, icon, status, end reason. Never the member. The activity row carries before and after |
@@ -85,3 +86,4 @@ Map mode (Phase 2c) reads the same two GET routes. The director survey, the mont
 - `tests/server/responsibilities-routes.test.ts`: 401, 400, 403 for a plain member, and 404 for a row of another org, on every route; read for a board seat; edit refused to a board seat; visibility 403 for a non-admin editor; hand-over ends and opens in one call; published hides basis, notes and contact fields, leaves out the unassigned until the switch, never says disputed; apply-template twice adds nothing; the PDF's header carries the as-of date.
 - `tests/server/board-terms-routes.test.ts`: admin only; end freezes the name; change office opens a term for the same member; correct never changes the member; delete refused while a job depends on the term.
 - `tests/server/register-pdf.test.ts`: the server renders a real PDF.
+- Service history, in the routes test: offices and jobs, a job held through an office clipped to the term, 404 for another community's member.
