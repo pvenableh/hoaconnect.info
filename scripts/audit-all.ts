@@ -33,6 +33,10 @@ export const AUDITS = [
   "empty-states",
   "vue-global",
   "detached-promises",
+  // The resource grammar (plan §2.3, docs/spec-resource-scaffold.md).
+  "page-h1",
+  "form-dialogs",
+  "filter-pills",
 ] as const;
 
 const verbose = process.argv.includes("--list");

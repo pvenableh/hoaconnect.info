@@ -577,3 +577,89 @@ export function overlayRegion(src: string): Set<number> {
   });
   return region;
 }
+
+/* ──────────────────────── resource grammar (plan §2.3) ───────────────────── */
+
+/**
+ * page-h1 — a raw `<h1>` in a page. A page's title is `AppPageHeader`: in the
+ * workspace it registers with the shell header, so the title is the same size
+ * and place on every page and hands itself to the Nav on scroll. A hand-rolled
+ * `<h1>` sits inline at whatever size its page chose.
+ */
+export const PAGE_H1_MARKER = "allow-page-h1";
+export function findPageH1s(src: string) {
+  const tpl = blankComments(templateOnly(src), "vue");
+  const raw = src.split("\n");
+  const hits: Hit[] = [];
+  let allowed = 0;
+  tpl.split("\n").forEach((line, i) => {
+    const n = (line.match(/<h1(?=[\s>/]|$)/g) ?? []).length;
+    for (let k = 0; k < n; k += 1) {
+      if (hasMarker(raw, i, PAGE_H1_MARKER, 2)) {
+        allowed += 1;
+        continue;
+      }
+      hits.push({ line: i + 1, text: trim(raw[i] ?? "") });
+    }
+  });
+  return { hits, allowed };
+}
+
+/**
+ * form-dialogs — a raw `<Dialog>` holding a form. A record's form is one
+ * component in `AppBottomSheet` (a sheet on phones, a centred dialog on
+ * desktop), and edit opens the same form filled in. A hand-built Dialog form is
+ * a second, phone-hostile copy of that. `AlertDialog` and the Dialog parts
+ * (`DialogContent`…) are not matched; a Dialog with no form control is not
+ * counted (a viewer, a picker of cards).
+ */
+export const FORM_DIALOG_MARKER = "allow-form-dialog";
+const DIALOG_OPEN = /<Dialog(?=[\s>/]|$)/g;
+const FORM_CONTROL =
+  /<(?:form|input|textarea|select|Input|Textarea|Select|DateInput|DateTimeInput|Switch|Checkbox|RadioGroup)(?=[\s>/]|$)/;
+export function findFormDialogs(src: string) {
+  const tpl = blankComments(templateOnly(src), "vue");
+  const raw = src.split("\n");
+  const hits: Hit[] = [];
+  let allowed = 0;
+  for (const m of tpl.matchAll(DIALOG_OPEN)) {
+    const start = m.index!;
+    const tagEnd = tpl.indexOf(">", start);
+    if (tagEnd !== -1 && tpl[tagEnd - 1] === "/") continue; // <Dialog … /> has no body
+    const close = tpl.indexOf("</Dialog>", start);
+    const body = tpl.slice(start, close === -1 ? undefined : close);
+    if (!FORM_CONTROL.test(body)) continue;
+    const line = tpl.slice(0, start).split("\n").length;
+    if (hasMarker(raw, line - 1, FORM_DIALOG_MARKER, 2)) {
+      allowed += 1;
+      continue;
+    }
+    hits.push({ line, text: trim(raw[line - 1] ?? "") });
+  }
+  return { hits, allowed };
+}
+
+/**
+ * filter-pills — the `filter-pill` class. An index has ONE segmented status
+ * filter (`AppSegmentedControl`); any further filter is a `Select`. Rows of
+ * pills grew one per page and each read differently. Counted once per element:
+ * the `filter-pill--active` modifier is the same pill.
+ */
+export const FILTER_PILL_MARKER = "allow-filter-pill";
+export function findFilterPills(src: string) {
+  const tpl = blankComments(templateOnly(src), "vue");
+  const raw = src.split("\n");
+  const hits: Hit[] = [];
+  let allowed = 0;
+  tpl.split("\n").forEach((line, i) => {
+    const n = (line.match(/(?<![\w-])filter-pill(?![\w-])/g) ?? []).length;
+    for (let k = 0; k < n; k += 1) {
+      if (hasMarker(raw, i, FILTER_PILL_MARKER, 2)) {
+        allowed += 1;
+        continue;
+      }
+      hits.push({ line: i + 1, text: trim(raw[i] ?? "") });
+    }
+  });
+  return { hits, allowed };
+}

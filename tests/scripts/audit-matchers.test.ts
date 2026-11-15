@@ -8,7 +8,10 @@ import {
   findCssColors,
   findDeadThemeClasses,
   findDetachedPromises,
+  findFilterPills,
+  findFormDialogs,
   findHeadingLabels,
+  findPageH1s,
   findNativeDialogs,
   findRawButtons,
   findRawDateInputs,
@@ -334,6 +337,73 @@ describe("nested boxes (overlay-boxes / settings-boxes)", () => {
     const found = findBoxes(src, overlayRegion(src)).findings;
     expect(found).toHaveLength(1);
     expect(found[0]!.text).toContain("inside");
+  });
+});
+
+describe("page-h1", () => {
+  const cases: [string, string, number][] = [
+    ["a raw h1", `<h1 class="text-2xl">Finances</h1>`, 1],
+    ["h1 alone on its line", `<h1\n  class="x"\n>`, 1],
+    ["two on one line", `<h1>a</h1><h1>b</h1>`, 2],
+    ["an h2", `<h2 class="type-section">x</h2>`, 0],
+    ["AppPageHeader", `<AppPageHeader title="Finances" />`, 0],
+    ["a tag that starts with h1", `<h1x />`, 0],
+    ["in a comment", `<!-- <h1>old</h1> -->`, 0],
+  ];
+  it.each(cases)("%s", (_n, tpl, count) => {
+    expect(findPageH1s(sfc(tpl)).hits).toHaveLength(count);
+  });
+  it("ignores <h1 in script", () => {
+    expect(findPageH1s(sfc(`<p />`, `<script setup>\nconst s = "<h1>";\n</script>`)).hits).toHaveLength(0);
+  });
+  it("honours allow-page-h1 within two lines", () => {
+    expect(findPageH1s(sfc(`<!-- allow-page-h1: public landing -->\n<h1>Welcome</h1>`)).allowed).toBe(1);
+  });
+});
+
+describe("form-dialogs", () => {
+  const cases: [string, string, number][] = [
+    ["a Dialog with an Input", `<Dialog v-model:open="o">\n  <DialogContent>\n    <Input v-model="x" />\n  </DialogContent>\n</Dialog>`, 1],
+    ["a Dialog with a native form", `<Dialog>\n<form @submit="s"></form>\n</Dialog>`, 1],
+    ["a Dialog with a Select", `<Dialog>\n<Select v-model="t"><SelectTrigger /></Select>\n</Dialog>`, 1],
+    ["a Dialog with no control", `<Dialog>\n<DialogContent><img src="a.png" /></DialogContent>\n</Dialog>`, 0],
+    ["only part tags", `<DialogContent><Input /></DialogContent>`, 0],
+    ["an AlertDialog with a field", `<AlertDialog>\n<Input />\n</AlertDialog>`, 0],
+    ["InputGroup is not an Input", `<Dialog>\n<InputGroup />\n</Dialog>`, 0],
+    ["the field is after the Dialog closes", `<Dialog>\n<p>x</p>\n</Dialog>\n<Input />`, 0],
+    ["a self-closing Dialog", `<Dialog :open="o" />\n<Input />`, 0],
+    ["two form dialogs", `<Dialog>\n<Input />\n</Dialog>\n<Dialog>\n<Textarea />\n</Dialog>`, 2],
+    ["AppBottomSheet", `<AppBottomSheet v-model:open="o">\n<Input />\n</AppBottomSheet>`, 0],
+  ];
+  it.each(cases)("%s", (_n, tpl, count) => {
+    expect(findFormDialogs(sfc(tpl)).hits).toHaveLength(count);
+  });
+  it("reports the Dialog's line", () => {
+    expect(findFormDialogs(sfc(`<p />\n<Dialog>\n<Input />\n</Dialog>`)).hits[0]?.line).toBe(3);
+  });
+  it("honours allow-form-dialog within two lines", () => {
+    expect(findFormDialogs(sfc(`<!-- allow-form-dialog: wizard -->\n<Dialog>\n<Input />\n</Dialog>`)).allowed).toBe(1);
+  });
+});
+
+describe("filter-pills", () => {
+  const cases: [string, string, number][] = [
+    ["a pill and its active modifier", `<button class="filter-pill" :class="{ 'filter-pill--active': on }">`, 1],
+    ["in a bound class array", `<Button :class="['filter-pill', x]">`, 1],
+    ["two pills", `<a class="filter-pill"></a><a class="filter-pill"></a>`, 2],
+    ["only the modifier", `<a :class="{ 'filter-pill--active': on }">`, 0],
+    ["a longer class", `<a class="filter-pills-row">`, 0],
+    ["the segmented control", `<AppSegmentedControl v-model="s" :items="i" />`, 0],
+    ["in a comment", `<!-- was a filter-pill row -->`, 0],
+  ];
+  it.each(cases)("%s", (_n, tpl, count) => {
+    expect(findFilterPills(sfc(tpl)).hits).toHaveLength(count);
+  });
+  it("ignores the class in <style>", () => {
+    expect(findFilterPills(sfc(`<p />`, `<style>\n.filter-pill { color: red; }\n</style>`)).hits).toHaveLength(0);
+  });
+  it("honours allow-filter-pill within two lines", () => {
+    expect(findFilterPills(sfc(`<!-- allow-filter-pill: legacy report -->\n<a class="filter-pill">`)).allowed).toBe(1);
   });
 });
 

@@ -94,10 +94,10 @@ Charges have no edit and no discussion thread. The form takes a `record` prop wh
 
 Each is a ratchet in the `scripts/lib/audit-kit.ts` shape, wired into `audit:all`. The matchers sit in `audit-matchers.ts` with table tests. Baselines are measured after Charges converted.
 
-| Audit | Finds | Scope | Marker | Census before Charges |
-|---|---|---|---|---|
-| `page-h1` | `<h1` in a page's template | `app/pages/**`, `app/components/pages/**` | `allow-page-h1` | 48 |
-| `form-dialogs` | a `<Dialog>` whose body holds a form control (`form`, `input`, `textarea`, `select`, `Input`, `Textarea`, `Select`, `DateInput`, `DateTimeInput`, `Switch`, `Checkbox`, `RadioGroup`) | `.vue` in `app/**`, `core/app/**`, not `ui/` | `allow-form-dialog` | about 39 |
-| `filter-pills` | the `filter-pill` class in a template, once per element (`--active` is not counted) | the same | `allow-filter-pill` | 12 |
+| Audit | Finds | Scope | Marker | Before Charges | Baseline |
+|---|---|---|---|---|---|
+| `page-h1` | `<h1` in a page's template | `app/pages/**`, `app/components/pages/**` | `allow-page-h1` | 43 | 42 |
+| `form-dialogs` | a `<Dialog>` whose body holds a form control (`form`, `input`, `textarea`, `select`, `Input`, `Textarea`, `Select`, `DateInput`, `DateTimeInput`, `Switch`, `Checkbox`, `RadioGroup`) | `.vue` in `app/**`, `core/app/**`, not `ui/` | `allow-form-dialog` | 27 | 27 |
+| `filter-pills` | the `filter-pill` class in a template, once per element (`--active` is not counted) | the same | `allow-filter-pill` | 11 | 8 |
 
-The fix lines point at `AppPageHeader`, at `AppBottomSheet` with one form component, and at `AppSegmentedControl` or a `Select`.
+Counts skip comments, so they sit below a plain grep (48, 39 lines and 12). The fix lines point at `AppPageHeader`, at `AppBottomSheet` with one form component, and at `AppSegmentedControl` or a `Select`.
