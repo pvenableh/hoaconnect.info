@@ -40,6 +40,15 @@ describe("panel registry", () => {
     expect(getPanelEntry("nope")).toBeNull();
   });
 
+  it("Charges has a resource panel: the scaffold's proof", () => {
+    expect(PANELS.charge).toMatchObject({
+      resource: "charges",
+      index: "/admin/payments",
+      page: "/admin/payments/charges/:id",
+    });
+    expect(resourcePanels.length).toBeGreaterThan(0);
+  });
+
   it("a resource panel names its index and a page under it", () => {
     for (const [type, e] of resourcePanels) {
       expect(e.index, type).toMatch(/^\//);

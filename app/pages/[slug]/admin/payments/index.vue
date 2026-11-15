@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import type {
-  PaymentRequest,
-  PaymentSchedule,
-  HoaMember,
-  HoaOrganization,
-} from "#core/types/directus";
+import type { HoaMember, HoaOrganization, PaymentRequest, PaymentSchedule } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
-// nav-gate: admins, and holders of money:read (Treasurer, President) read-only.
+// nav-gate: admins, and every board seat (money:read) read-only.
 // Every write here is admin-only on the server, so `canWrite` hides it.
 definePageMeta({
   middleware: ["nav-gate", "subscription"],
@@ -17,10 +12,7 @@ const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 
 const { selectedOrgId } = await useSelectedOrg();
 // Reads come from the server (admin or money:read); writes stay admin-only.
-const { create: createRequest, update: updateRequest } =
-  useDirectusItems<PaymentRequest>("payment_requests");
-const { create: createSchedule, update: updateSchedule } =
-  useDirectusItems<PaymentSchedule>("payment_schedules");
+const { update: updateSchedule } = useDirectusItems<PaymentSchedule>("payment_schedules");
 const money = useMoneyReads();
 const { list: listMembers } = useDirectusItems<HoaMember>("hoa_members");
 const { get: getOrganization } = useDirectusItems<HoaOrganization>("hoa_organizations");
@@ -28,16 +20,18 @@ const { list: listExpenses } = useExpenses();
 const { buildOrgPath } = useOrgNavigation();
 
 const tab = ref<"overview" | "charges" | "recurring" | "reports">("overview");
+const TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "charges", label: "Charges" },
+  { value: "recurring", label: "Recurring" },
+  { value: "reports", label: "Reports" },
+];
 
 // --- Data ---------------------------------------------------------------
-const { data: requests, pending, refresh } = await useAsyncData(
-  `admin-payments-${selectedOrgId.value}`,
-  async () => {
-    if (!selectedOrgId.value) return [];
-    return money.listCharges(selectedOrgId.value, { limit: 200 });
-  },
-  { watch: [selectedOrgId], server: false }
-);
+// Charges are a resource (docs/spec-resource-scaffold.md): the index below and
+// the charge panel share these rows, read through /api/org/money/charges.
+const { resource: charges, markPaid, markingId } = useChargesResource(selectedOrgId);
+const requests = computed(() => charges.rows);
 
 const { data: schedules, refresh: refreshSchedules } = await useAsyncData(
   `admin-schedules-${selectedOrgId.value}`,
@@ -83,32 +77,16 @@ const { data: orgBalance } = await useAsyncData(
   { watch: [selectedOrgId], server: false }
 );
 
-const memberName = (m: any) => {
-  const mm = typeof m === "object" ? m : null;
-  if (!mm) return "—";
-  return [mm.first_name, mm.last_name].filter(Boolean).join(" ") || mm.email || "—";
-};
-
-// --- Filters ------------------------------------------------------------
-const statusFilter = ref<"outstanding" | "paid" | "all">("outstanding");
-const typeFilter = ref<string>("all");
-
-const filtered = computed(() => {
-  let rows = requests.value || [];
-  if (statusFilter.value === "outstanding") rows = rows.filter((r) => !["paid", "canceled"].includes(r.status as string));
-  else if (statusFilter.value === "paid") rows = rows.filter((r) => r.status === "paid");
-  if (typeFilter.value !== "all") rows = rows.filter((r) => r.request_type === typeFilter.value);
-  return rows;
-});
+const memberName = chargeMemberName;
 
 // --- Stats --------------------------------------------------------------
 const totalOutstanding = computed(() =>
-  (requests.value || [])
-    .filter((r) => !["paid", "canceled"].includes(r.status as string))
+  requests.value
+    .filter((r) => isOpenCharge(r))
     .reduce((s, r) => s + (r.amount_remaining ?? r.amount ?? 0), 0)
 );
 const totalCollected = computed(() =>
-  (requests.value || []).reduce((s, r) => s + (r.amount_paid ?? 0), 0)
+  requests.value.reduce((s, r) => s + (r.amount_paid ?? 0), 0)
 );
 
 // --- Financials overview ------------------------------------------------
@@ -123,7 +101,7 @@ const expensePct = computed(() => (totalExpenses.value / maxFlow.value) * 100);
 
 // Recent activity: most recent paid charges + expenses, merged by date.
 const recentActivity = computed(() => {
-  const income = (requests.value || [])
+  const income = requests.value
     .filter((r) => r.status === "paid" && r.paid_at)
     .map((r) => ({ kind: "in" as const, label: r.title, member: memberName(r.member), amount: r.amount_paid ?? r.amount ?? 0, date: r.paid_at as string }));
   const out = (expenses.value || [])
@@ -134,118 +112,26 @@ const recentActivity = computed(() => {
     .slice(0, 8);
 });
 
-// --- New charge form ----------------------------------------------------
+// --- New charge ---------------------------------------------------------
 const showNew = ref(false);
-// "+ New → New Charge" and Spotlight land here with ?new=charge.
-useCreateIntent("charge", () => {
+const openNew = () => {
   if (!canWrite.value) return;
   showNew.value = true;
-});
-const recurring = ref(false);
-const saving = ref(false);
-const form = ref({
-  memberId: "",
-  request_type: "monthly_dues" as PaymentRequest["request_type"],
-  title: "",
-  amount: null as number | null,
-  due_date: "",
-  description: "",
-  frequency: "monthly" as PaymentSchedule["frequency"],
-  start_date: "",
-});
-
-const resetForm = () => {
-  form.value = {
-    memberId: "", request_type: "monthly_dues", title: "", amount: null,
-    due_date: "", description: "", frequency: "monthly", start_date: "",
-  };
-  recurring.value = false;
 };
+// "+ New → New Charge" and Spotlight land here with ?new=charge.
+useCreateIntent("charge", openNew);
 
-const canSave = computed(() =>
-  !!form.value.memberId && !!form.value.title.trim() && (form.value.amount || 0) > 0 &&
-  (!recurring.value || !!form.value.start_date)
-);
-
-const saveCharge = async () => {
-  if (!canSave.value || !selectedOrgId.value) return;
-  saving.value = true;
-  try {
-    if (recurring.value) {
-      await createSchedule({
-        organization: selectedOrgId.value,
-        member: form.value.memberId,
-        title: form.value.title.trim(),
-        amount: form.value.amount,
-        frequency: form.value.frequency,
-        start_date: form.value.start_date,
-        next_payment_date: form.value.start_date,
-        status: "active",
-      } as Partial<PaymentSchedule>);
-      toast.success("Recurring charge created");
-      await refreshSchedules();
-      tab.value = "recurring";
-    } else {
-      await createRequest({
-        organization: selectedOrgId.value,
-        member: form.value.memberId,
-        request_type: form.value.request_type,
-        title: form.value.title.trim(),
-        amount: form.value.amount,
-        amount_paid: 0,
-        amount_remaining: form.value.amount,
-        due_date: form.value.due_date || null,
-        description: form.value.description || null,
-        status: "active",
-      } as Partial<PaymentRequest>);
-      toast.success("Charge created");
-      await refresh();
-    }
-    showNew.value = false;
-    resetForm();
-  } catch (e: any) {
-    console.error("Failed to create charge:", e);
-    toast.error(e?.message || "Failed to create charge");
-  } finally {
-    saving.value = false;
+const onSaved = async (kind: "charge" | "schedule") => {
+  showNew.value = false;
+  if (kind === "schedule") {
+    await refreshSchedules();
+    tab.value = "recurring";
+  } else {
+    await charges.refresh();
   }
 };
 
 // --- Row actions --------------------------------------------------------
-const markingId = ref<string | null>(null);
-
-const markPaid = async (r: PaymentRequest) => {
-  if (markingId.value) return;
-  markingId.value = r.id;
-  try {
-    // The offline transaction, the charge's status, and the community's
-    // permanent record of the payment all happen in one place —
-    // core/server/api/org/payments/record.post.ts. An offline payment is the
-    // one that later gets disputed, which is exactly why it needs the record.
-    await $fetch("/api/org/payments/record", {
-      method: "POST",
-      body: { orgId: selectedOrgId.value, paymentRequestId: r.id },
-    });
-    toast.success("Marked as paid");
-    await refresh();
-  } catch (e: any) {
-    console.error("Failed to mark paid:", e);
-    toast.error(e?.message || "Failed to mark paid");
-  } finally {
-    markingId.value = null;
-  }
-};
-
-const cancelCharge = async (r: PaymentRequest) => {
-  try {
-    await updateRequest(r.id, { status: "canceled" } as Partial<PaymentRequest>);
-    toast.success("Charge canceled");
-    await refresh();
-  } catch (e: any) {
-    toast.error(e?.message || "Failed to cancel");
-  }
-};
-
 const setScheduleStatus = async (s: PaymentSchedule, status: PaymentSchedule["status"]) => {
   try {
     await updateSchedule(s.id, { status } as Partial<PaymentSchedule>);
@@ -256,25 +142,10 @@ const setScheduleStatus = async (s: PaymentSchedule, status: PaymentSchedule["st
 };
 
 // --- Formatting ---------------------------------------------------------
-const currency = (v?: number | null) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v || 0);
+const currency = chargeCurrency;
 const fdate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
-const TYPE_LABEL: Record<string, string> = {
-  monthly_dues: "Monthly Dues", assessment: "Assessment", late_fee: "Late Fee", other: "Other",
-};
-// Status is meaning, not decoration, so it rides the status tokens rather than
-// a hand-picked palette pair per mode — one definition that is already proven
-// against both grounds.
-const STATUS_CLASS: Record<string, string> = {
-  active: "bg-warning/15 text-warning",
-  overdue: "bg-destructive/15 text-destructive",
-  partially_paid: "bg-info/15 text-info",
-  paid: "bg-success/15 text-success",
-  canceled: "t-bg-subtle t-text-muted",
-  draft: "t-bg-subtle t-text-muted",
-};
 // Columns. The identity column (who, or what happened) stays on the phone; the
 // rest is context and folds away, so a charge is still readable one-handed.
 const activityColumns = [
@@ -285,7 +156,7 @@ const activityColumns = [
 ];
 
 const chargeColumns = [
-  { key: "member", label: "Member", sortable: true, value: (r: any) => memberName(r.member) },
+  { key: "member", label: "Member", sortable: true, value: (r: PaymentRequest) => memberName(r.member) },
   { key: "title", label: "Charge", sortable: true },
   { key: "due_date", label: "Due", sortable: true, hideOnMobile: true },
   { key: "amount", label: "Amount", align: "right" as const, sortable: true, class: "tabular-nums" },
@@ -304,28 +175,28 @@ const scheduleColumns = [
 ];
 
 const TYPE_FILTERS = [
-  { key: "all", label: "All types" },
-  { key: "monthly_dues", label: "Monthly Dues" },
-  { key: "assessment", label: "Assessment" },
-  { key: "late_fee", label: "Late Fee" },
-  { key: "other", label: "Other" },
+  { value: "all", label: "All types" },
+  { value: "monthly_dues", label: "Monthly Dues" },
+  { value: "assessment", label: "Assessment" },
+  { value: "late_fee", label: "Late Fee" },
+  { value: "other", label: "Other" },
 ];
 </script>
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
-      <!-- Header -->
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-semibold t-text">Finances</h1>
+      <AppPageHeader title="Finances">
+        <template #meta>
           <PaymentStripeModeBadge />
-        </div>
-        <Button v-if="canWrite" class="rounded-full" @click="showNew = !showNew">
-          <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
-          New charge
-        </Button>
-      </div>
+        </template>
+        <template v-if="canWrite" #actions>
+          <Button class="rounded-full" @click="openNew">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            New charge
+          </Button>
+        </template>
+      </AppPageHeader>
 
       <!-- The assistant's advisory strip: what needs looking at here, and
            anything waiting for a decision. Self-hides when it has nothing. -->
@@ -355,88 +226,14 @@ const TYPE_FILTERS = [
         identically as a total and are completely different communities.
       -->
       <AdminMoneyGlance
-        :charges="(requests as any[]) || []"
+        :charges="(requests as any[])"
         :expenses="(expenses as any[]) || []"
-        :loading="pending"
+        :loading="charges.pending"
       />
 
-      <!-- New charge form -->
-      <div v-if="showNew && canWrite" class="ios-card p-6 space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold t-text">New charge</h2>
-          <label class="flex items-center gap-2 text-sm t-text-muted">
-            Recurring
-            <Switch v-model="recurring" />
-          </label>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <Label>Member</Label>
-            <select v-model="form.memberId" class="w-full px-3 py-2 border rounded-md bg-background">
-              <option value="" disabled>Select a member…</option>
-              <option v-for="m in members" :key="m.id" :value="m.id">{{ memberName(m) }}</option>
-            </select>
-          </div>
-
-          <div class="space-y-1.5">
-            <Label>{{ recurring ? "Description" : "Type" }}</Label>
-            <select v-if="!recurring" v-model="form.request_type" class="w-full px-3 py-2 border rounded-md bg-background">
-              <option value="monthly_dues">Monthly Dues</option>
-              <option value="assessment">Assessment</option>
-              <option value="late_fee">Late Fee</option>
-              <option value="other">Other</option>
-            </select>
-            <select v-else v-model="form.frequency" class="w-full px-3 py-2 border rounded-md bg-background">
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annually">Annually</option>
-            </select>
-          </div>
-
-          <div class="space-y-1.5 md:col-span-2">
-            <Label>Title</Label>
-            <Input v-model="form.title" placeholder="e.g. October Dues" />
-          </div>
-
-          <div class="space-y-1.5">
-            <Label>Amount</Label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-              <Input v-model.number="form.amount" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
-            </div>
-          </div>
-
-          <div class="space-y-1.5">
-            <Label>{{ recurring ? "Start date" : "Due date" }}</Label>
-            <DateInput v-if="recurring" v-model="form.start_date" />
-            <DateInput v-else v-model="form.due_date" />
-          </div>
-
-          <div v-if="!recurring" class="space-y-1.5 md:col-span-2">
-            <Label>Description (optional)</Label>
-            <Input v-model="form.description" placeholder="Add a note for the member…" />
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2">
-          <Button variant="outline" class="rounded-full" @click="showNew = false; resetForm()">Cancel</Button>
-          <Button class="rounded-full" :disabled="!canSave || saving" @click="saveCharge">
-            <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
-            {{ recurring ? "Create recurring charge" : "Create charge" }}
-          </Button>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="flex items-center gap-1.5">
-        <button
-          v-for="t in [{ key: 'overview', label: 'Overview' }, { key: 'charges', label: 'Charges' }, { key: 'recurring', label: 'Recurring' }, { key: 'reports', label: 'Reports' }]"
-          :key="t.key"
-          @click="tab = t.key as any"
-          class="filter-pill"
-          :class="{ 'filter-pill--active': tab === t.key }"
-        >{{ t.label }}</button>
+      <!-- Views -->
+      <div class="flex flex-wrap items-center gap-2">
+        <AppSegmentedControl v-model="tab" :items="TABS" label="Finances views" />
         <NuxtLink :to="buildOrgPath('/admin/expenses')" class="ml-auto">
           <Button variant="outline" class="rounded-full">
             <Icon name="lucide:receipt" class="w-4 h-4 mr-1.5" /> Manage expenses
@@ -518,82 +315,81 @@ const TYPE_FILTERS = [
         </div>
       </template>
 
-      <!-- Charges tab -->
-      <template v-if="tab === 'charges'">
-        <!-- Filters -->
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex gap-1.5 overflow-x-auto">
-            <button
-              v-for="opt in TYPE_FILTERS"
-              :key="opt.key"
-              @click="typeFilter = opt.key"
-              class="filter-pill flex-shrink-0"
-              :class="{ 'filter-pill--active': typeFilter === opt.key }"
-            >{{ opt.label }}</button>
-          </div>
-          <div class="flex gap-1.5 ml-auto">
-            <button
-              v-for="opt in [{ key: 'outstanding', label: 'Outstanding' }, { key: 'paid', label: 'Paid' }, { key: 'all', label: 'All' }]"
-              :key="opt.key"
-              @click="statusFilter = opt.key as any"
-              class="filter-pill"
-              :class="{ 'filter-pill--active': statusFilter === opt.key }"
-            >{{ opt.label }}</button>
-          </div>
-        </div>
-
-        <div class="ios-card overflow-hidden px-2 pb-2">
-          <AppDataTable
-            :columns="chargeColumns"
-            :rows="filtered"
-            :loading="pending"
-            :filtered="statusFilter !== 'all' || typeFilter !== 'all'"
-            empty-title="No charges yet"
-            empty-description="Create a charge to bill a member for dues, an assessment, or a fee."
-            empty-icon="lucide:receipt"
-          >
-            <template #cell-member="{ value }">
-              <span class="t-text">{{ value }}</span>
-            </template>
-            <template #cell-title="{ row }">
-              <span class="t-text">{{ row.title }}</span>
-              <span class="t-text-muted text-xs ml-2">{{ TYPE_LABEL[row.request_type as string] }}</span>
-            </template>
-            <template #cell-due_date="{ value }">
-              <span class="t-text-muted">{{ fdate(value as string) }}</span>
-            </template>
-            <template #cell-amount="{ value }">
-              <span class="font-medium t-text">{{ currency(value as number) }}</span>
-            </template>
-            <template #cell-status="{ value }">
-              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="STATUS_CLASS[value as string]">
-                {{ value }}
-              </span>
-            </template>
-            <template #cell-actions="{ row }">
-              <div class="flex items-center justify-end gap-2">
-                <template v-if="canWrite && !['paid', 'canceled'].includes(row.status as string)">
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    :disabled="markingId === row.id"
-                    aria-label="Mark as paid"
-                    title="Mark as paid"
-                    @click="markPaid(row)"
-                  >
-                    <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
-                    <Icon v-else name="lucide:check" />
+      <!-- Charges tab: the resource index (plan §2.3). -->
+      <AppResourceIndex
+        v-else-if="tab === 'charges'"
+        :resource="charges"
+        :columns="chargeColumns"
+        :noun="{ one: 'charge', other: 'charges' }"
+        :can-create="canWrite"
+        create-label="New charge"
+        search-placeholder="Search member or charge"
+        empty-title="No charges yet"
+        empty-description="Create a charge to bill a member for dues, an assessment, or a fee."
+        empty-icon="lucide:receipt"
+        @create="openNew"
+      >
+        <template #filters>
+          <Select v-model="charges.filters.type">
+            <SelectTrigger class="w-40 rounded-full" aria-label="Charge type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in TYPE_FILTERS" :key="opt.value" :value="opt.value">{{ opt.label }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </template>
+        <template #cell-member="{ value }">
+          <span class="t-text">{{ value }}</span>
+        </template>
+        <template #cell-title="{ row }">
+          <span class="t-text">{{ row.title }}</span>
+          <span class="t-text-muted text-xs ml-2">{{ CHARGE_TYPE_LABEL[row.request_type as string] }}</span>
+        </template>
+        <template #cell-due_date="{ value }">
+          <span class="t-text-muted">{{ fdate(value as string) }}</span>
+        </template>
+        <template #cell-amount="{ value }">
+          <span class="font-medium t-text">{{ currency(value as number) }}</span>
+        </template>
+        <template #cell-status="{ value }">
+          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="CHARGE_STATUS_CLASS[value as string]">
+            {{ value }}
+          </span>
+        </template>
+        <template #cell-actions="{ row }">
+          <!-- A control here must not also open the row. -->
+          <div class="flex items-center justify-end gap-2" @click.stop @keydown.stop>
+            <template v-if="canWrite && isOpenCharge(row)">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                :disabled="markingId === row.id"
+                aria-label="Mark as paid"
+                title="Mark as paid"
+                @click="markPaid(row)"
+              >
+                <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
+                <Icon v-else name="lucide:check" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                    <Icon name="lucide:more-horizontal" />
                   </Button>
-                  <Button variant="outline" size="icon-sm" aria-label="Cancel charge" title="Cancel charge" @click="cancelCharge(row)">
-                    <Icon name="lucide:x" />
-                  </Button>
-                </template>
-                <span v-else class="t-text-muted text-xs px-2">—</span>
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem class="text-destructive" @click="charges.remove(row)">
+                    <Icon name="lucide:x" class="w-4 h-4 mr-2" />
+                    {{ charges.removeLabel }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </template>
-          </AppDataTable>
-        </div>
-      </template>
+            <span v-else class="t-text-muted text-xs px-2">—</span>
+          </div>
+        </template>
+      </AppResourceIndex>
 
       <!-- Recurring tab -->
       <template v-else-if="tab === 'recurring'">
@@ -664,12 +460,16 @@ const TYPE_FILTERS = [
       <!-- Reports tab -->
       <template v-else-if="tab === 'reports'">
         <PaymentFinancialsReport
-          :requests="requests || []"
+          :requests="requests"
           :expenses="expenses || []"
           :members="members || []"
           :organization="orgBalance || null"
         />
       </template>
     </PageContainer>
+
+    <AppBottomSheet v-if="canWrite" v-model:open="showNew" title="New charge" size="lg">
+      <PaymentChargeForm :org-id="selectedOrgId" :members="members || []" @saved="onSaved" @cancel="showNew = false" />
+    </AppBottomSheet>
   </div>
 </template>

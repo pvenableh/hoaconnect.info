@@ -31,6 +31,14 @@ const props = defineProps<{
    * Children should emit `close` to dismiss.
    */
   fullscreen?: boolean;
+  /**
+   * Full-page presentation (docs/spec-resource-scaffold.md): the index path
+   * to go back to. Set by `AppResourceRecordPage` when a record is opened by a
+   * deep link. The shell then renders `AppPageHeader` (title, subtitle as its
+   * description, a back link, `#actions` in the shell header) instead of the
+   * slide-over header, so one panel component serves both presentations.
+   */
+  page?: string | null;
 }>();
 
 defineEmits<{
@@ -147,12 +155,26 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="app-slide-over-shell"
-    :class="{ 'app-slide-over-shell--fullscreen': fullscreen }"
+    :class="{ 'app-slide-over-shell--fullscreen': fullscreen, 'app-slide-over-shell--page': !!page }"
     :data-fullscreen="fullscreen ? '' : null"
   >
     <template v-if="fullscreen">
       <!-- Headerless fullscreen mode — caller owns the chrome. -->
       <slot />
+    </template>
+    <template v-else-if="page">
+      <!-- Full page (a deep link): the page header, then the same body. -->
+      <AppPageHeader :title="title || ''" :description="subtitle || undefined" :back-to="page" back-label="Back">
+        <template v-if="$slots.actions" #actions>
+          <slot name="actions" />
+        </template>
+      </AppPageHeader>
+      <div class="app-slide-over-shell__page-body">
+        <slot />
+      </div>
+      <footer v-if="$slots.footer" class="app-slide-over-shell__page-footer">
+        <slot name="footer" />
+      </footer>
     </template>
     <template v-else>
       <header class="app-slide-over-shell__header">
@@ -222,6 +244,15 @@ onBeforeUnmount(() => {
 
 .app-slide-over-shell--fullscreen {
   padding: 0;
+}
+
+/* Full page: the page scrolls, not the shell, and the page ground shows through. */
+.app-slide-over-shell--page {
+  height: auto;
+  background: transparent;
+}
+.app-slide-over-shell__page-footer {
+  margin-top: 1.5rem;
 }
 
 .app-slide-over-shell__header {

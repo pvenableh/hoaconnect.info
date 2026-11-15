@@ -41,6 +41,12 @@ export interface PanelEntry {
 export const PANELS: Record<string, PanelEntry> = {
   request: { load: () => import("./RequestPanel.vue") },
   task: { load: () => import("./TaskPanel.vue") },
+  charge: {
+    load: () => import("./ChargePanel.vue"),
+    resource: "charges",
+    index: "/admin/payments",
+    page: "/admin/payments/charges/:id",
+  },
 };
 
 const componentCache = new Map<string, Component>();
