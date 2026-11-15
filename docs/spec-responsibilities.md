@@ -84,3 +84,4 @@ Map mode (Phase 2c) reads the same two GET routes. The director survey, the mont
 - `tests/shared/areas.test.ts`, `tests/shared/nav-registry.test.ts`: `responsibilities` is grantable with its gate; it waits for its page in Session 7.
 - `tests/server/responsibilities-routes.test.ts`: 401, 400, 403 for a plain member, and 404 for a row of another org, on every route; read for a board seat; edit refused to a board seat; visibility 403 for a non-admin editor; hand-over ends and opens in one call; published hides basis, notes and contact fields, leaves out the unassigned until the switch, never says disputed; apply-template twice adds nothing; the PDF's header carries the as-of date.
 - `tests/server/board-terms-routes.test.ts`: admin only; end freezes the name; change office opens a term for the same member; correct never changes the member; delete refused while a job depends on the term.
+- `tests/server/register-pdf.test.ts`: the server renders a real PDF.

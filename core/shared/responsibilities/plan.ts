@@ -46,7 +46,7 @@ export function planHandOver(
   if (!next) return { ok: true, plan: { end, open: null, target: null } };
 
   const t = validateTarget(next);
-  if (!t.ok) return fail(400, t.error);
+  if (t.ok === false) return fail(400, t.error);
   if (sameTarget(t.target, targetOf(current))) return fail(409, "They already hold it.");
   const role = (next.role && (ROLE_KEYS as string[]).includes(next.role) ? next.role : current.role) as AssigneeRole;
   return {
