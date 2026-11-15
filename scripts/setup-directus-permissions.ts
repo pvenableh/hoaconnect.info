@@ -1573,6 +1573,36 @@ async function ensureRolePolicy(roleId: string, policyId: string, label: string,
   return 1;
 }
 
+/**
+ * Every HOA Admin rule, whichever script made it, gets the admin scope. The
+ * per-feature schema scripts (meetings, polls, comments, requests, teams,
+ * vendors, expenses, …) write their own permissions on collections this file
+ * does not manage, all with the any-membership path; without this pass the
+ * scope would stop at the collections above. Only the path is rewritten; the
+ * rule is otherwise left as its script made it.
+ */
+async function scopeStrayAdminRules(auditMode: boolean): Promise<number> {
+  const rules = await directusApi<(ExistingPermission & { collection: string })[]>(
+    `/permissions?filter[policy][_eq]=${POLICIES.HOA_ADMIN}&fields=id,collection,action,permissions,validation&limit=-1`
+  );
+  const stray = (rules ?? []).filter((r) => mentionsAnyMembership(r.permissions) || mentionsAnyMembership(r.validation));
+  if (!stray.length) {
+    console.log("   ⏭️  None: every HOA Admin rule is scoped");
+    return 0;
+  }
+  const names = [...new Set(stray.map((r) => r.collection))].sort();
+  if (auditMode) {
+    console.log(`   📋 Would scope ${stray.length} rules on ${names.length} collections: ${names.join(", ")}`);
+    return stray.length;
+  }
+  for (const r of stray) {
+    const scoped = scopeAdminPermission({ permissions: r.permissions, validation: r.validation });
+    await directusApi(`/permissions/${r.id}`, { method: "PATCH", body: JSON.stringify(scoped) });
+  }
+  console.log(`   ✅ Scoped ${stray.length} rules on ${names.length} collections: ${names.join(", ")}`);
+  return stray.length;
+}
+
 async function main() {
   const auditMode = process.argv.includes("--audit");
 
@@ -1721,6 +1751,11 @@ async function main() {
         );
         totalStats.errors++;
       }
+    }
+
+    if (ADMIN_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "HOA Admin") && !collectionsArg.length) {
+      console.log("\n🔑 HOA Admin rules made by other scripts");
+      totalStats.updated += await scopeStrayAdminRules(auditMode);
     }
 
     if (UNSCOPED_ADMIN_RULES.length) {
