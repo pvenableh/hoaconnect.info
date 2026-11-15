@@ -122,6 +122,33 @@ const members = [
   { id: 4, name: "Tom Alvarez", unit: "1D", type: "Owner", balance: 85 },
 ];
 
+// ── Resource index ──────────────────────────────────────────────────────────
+// The scaffold (docs/spec-resource-scaffold.md) on the same members: a real
+// useResource handle with a local loader, since the kit has no org. Row click
+// opens the sheet here; on a real page it opens the resource's panel.
+const kitResourceEmpty = ref(false);
+const kitResource = useResource<(typeof members)[number]>(
+  {
+    key: "kit-members",
+    rowKey: (m) => String(m.id),
+    load: async () => (kitResourceEmpty.value ? [] : members),
+    search: (m) => [m.name, m.unit, m.type],
+    statuses: [
+      { value: "all", label: "All" },
+      { value: "owners", label: "Owners", match: (m) => m.type === "Owner" },
+      { value: "tenants", label: "Tenants", match: (m) => m.type === "Tenant" },
+    ],
+    filters: {
+      balance: { initial: "any", match: (m, v) => (v === "owing" ? m.balance > 0 : m.balance <= 0) },
+    },
+  },
+  { orgId: ref("kit") },
+);
+const toggleKitResourceEmpty = async () => {
+  kitResourceEmpty.value = !kitResourceEmpty.value;
+  await kitResource.refresh();
+};
+
 // ── Charts ──────────────────────────────────────────────────────────────────
 // Fixed sample data, not random: the point of the page is that a change to a
 // chart primitive is visible as a DIFF, and a chart that redraws itself
@@ -599,6 +626,56 @@ const materials = [
               </span>
             </template>
           </AppDataTable>
+        </div>
+      </section>
+
+      <!-- ── Resource index ───────────────────────────────────────────── -->
+      <section data-kit="resource-index">
+        <h2 class="type-section">Resource index</h2>
+        <p class="type-body">
+          The index of plan §2.3, by construction: count, search, the one
+          segmented status filter, any further filter as a select, the rows,
+          and an empty state that offers the create action. A `#bulk` slot adds
+          checkboxes and a selection bar. Rows open the resource's panel.
+        </p>
+        <div class="mt-3 space-y-3">
+          <Button size="sm" variant="outline" @click="toggleKitResourceEmpty">
+            {{ kitResourceEmpty ? "Show Rows" : "Show Empty State" }}
+          </Button>
+          <AppResourceIndex
+            :resource="kitResource"
+            :columns="columns"
+            :noun="{ one: 'member', other: 'members' }"
+            :row-class="memberRowClass"
+            can-create
+            create-label="New Member"
+            search-placeholder="Search name or unit"
+            empty-description="Invite the first owner to get started."
+            empty-icon="lucide:users"
+            @create="sheetOpen = true"
+            @open="sheetOpen = true"
+          >
+            <template #filters>
+              <Select v-model="kitResource.filters.balance">
+                <SelectTrigger class="w-36 rounded-full" aria-label="Balance">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any balance</SelectItem>
+                  <SelectItem value="owing">Owing</SelectItem>
+                  <SelectItem value="settled">Settled</SelectItem>
+                </SelectContent>
+              </Select>
+            </template>
+            <template #cell-balance="{ value }">
+              <span :class="value < 0 ? 'text-destructive' : ''">
+                {{ value < 0 ? `-$${Math.abs(value as number)}` : `$${value}` }}
+              </span>
+            </template>
+            <template #bulk="{ rows }">
+              <Button size="sm" variant="outline" :disabled="!rows.length">Message Selected</Button>
+            </template>
+          </AppResourceIndex>
         </div>
       </section>
 
