@@ -34,7 +34,7 @@ describe("the area list", () => {
     expect(AREA_KEYS).toContain("billing");
   });
 
-  it("grant keys derive from the areas, in the old order", () => {
+  it("grant keys derive from the areas, in the old order, new ones after", () => {
     expect([...MANAGER_GRANT_KEYS]).toEqual([
       "inquiries",
       "violations",
@@ -45,6 +45,7 @@ describe("the area list", () => {
       "projects",
       "activity",
       "contact_platform",
+      "responsibilities",
     ]);
   });
 

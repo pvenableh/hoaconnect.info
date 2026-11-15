@@ -40,6 +40,7 @@ export type Capability =
   | "milestone:approve"
   | "money:read"
   | "money:write"
+  | "responsibilities:read"
   | "directory:read"
   | "documents:read"
   | "governing:read"
@@ -136,6 +137,11 @@ export const CAPABILITY_MATRIX: Record<Capability, Actor[]> = {
   // an office: route it through that approval instead.
   "money:read": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
   "money:write": [],
+
+  // The responsibilities register (plan §3.4): every board seat reads all of it,
+  // history included. Editing comes from admin or the manager grant
+  // (responsibility-access.ts); owners read only the published view.
+  "responsibilities:read": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
 
   // Higher-trust outward actions.
   "communications:send": ["board_president", "property_manager"],

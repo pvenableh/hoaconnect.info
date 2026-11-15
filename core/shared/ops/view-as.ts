@@ -24,6 +24,7 @@ const CAPABILITY_LABEL: Record<Capability, string> = {
   "milestone:approve": "Approve project milestones",
   "money:read": "See the community's finances",
   "money:write": "Record expenses and payments",
+  "responsibilities:read": "See who handles what, with history",
   "directory:read": "See the member directory",
   "documents:read": "Read the community's documents",
   "governing:read": "Read the governing documents",

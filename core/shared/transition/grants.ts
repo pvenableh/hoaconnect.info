@@ -57,6 +57,9 @@ export const AREAS = [
   { key: "activity", label: "Activity", gate: "core/server/api/org/activity.get.ts" },
   // Phase 3 support: may open "Contact HOA Connect" requests for the community.
   { key: "contact_platform", label: "Contact HOA Connect", gate: "core/shared/support/access.ts" },
+  // Edit the register of who does each standing job (plan §3.4). The board
+  // reads it by its seat, not by this grant; publishing it stays with admins.
+  { key: "responsibilities", label: "Responsibilities register", gate: "core/server/utils/responsibility-access.ts" },
   // Notify-only until their pages and routes exist (plan §3.1, §3.2).
   { key: "vendors", label: "Vendors and contracts", gate: null },
   { key: "billing", label: "Invoices and payments", gate: null },
@@ -143,7 +146,7 @@ export const GRANT_PRESETS: readonly GrantPreset[] = [
     key: "full_service",
     label: "Full service",
     description:
-      "Runs the community day-to-day: everything above plus sending communications, managing projects and seeing portal activity. The board still owns the account, the data and the audit trail — full service is a set of permissions, never a handover.",
+      "Runs the community day-to-day: everything above plus sending communications, managing projects, seeing portal activity and keeping the responsibilities register. The board still owns the account, the data and the audit trail — full service is a set of permissions, never a handover.",
     grants: build([...MANAGER_GRANT_KEYS]),
   },
 ];

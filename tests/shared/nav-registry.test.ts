@@ -209,8 +209,9 @@ describe("no grant without a gate", () => {
   });
 
   it("gives every grantable area an entry, or says why it waits", () => {
-    // violations is worked on the inquiries page; contact_platform is an action, not a destination.
-    const WAITS = new Set(["violations", "contact_platform"]);
+    // violations is worked on the inquiries page; contact_platform is an action, not a destination;
+    // responsibilities has routes now and its pages in Session 7 (docs/spec-responsibilities.md).
+    const WAITS = new Set(["violations", "contact_platform", "responsibilities"]);
     for (const k of MANAGER_GRANT_KEYS) {
       if (WAITS.has(k)) continue;
       expect(NAV_ENTRIES.some((e) => e.needs.some((n) => "area" in n && n.area === k)), k).toBe(true);
