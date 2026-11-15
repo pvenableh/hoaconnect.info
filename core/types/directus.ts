@@ -396,7 +396,7 @@ export interface HoaActivity {
 	/** @description The auth identity. */
 	user?: DirectusUser | string | null;
 	/** @required */
-	event_type: 'page_view' | 'download' | 'doc_view' | 'session_start' | 'login' | 'logout' | 'payment' | 'request' | 'profile_update' | 'upload' | 'search';
+	event_type: 'page_view' | 'download' | 'doc_view' | 'session_start' | 'login' | 'logout' | 'payment' | 'request' | 'profile_update' | 'upload' | 'search' | 'responsibility' | 'board_term';
 	path?: string | null;
 	target_collection?: string | null;
 	target_id?: string | null;
@@ -466,6 +466,10 @@ export interface HoaBoardMember {
 	title?: 'president' | 'vice_president' | 'secretary' | 'treasurer' | 'director' | null;
 	icon?: string | null;
 	message?: string | null;
+	/** @description Set by End term or Change office. Null while the term runs. */
+	end_reason?: 'term_ended' | 'resigned' | 'removed' | 'changed_office' | null;
+	/** @description Frozen when the term is ended: deleting a member sets hoa_member to null. */
+	holder_name?: string | null;
 }
 
 export interface HoaChannelMember {
@@ -1571,6 +1575,10 @@ export interface HoaOrganization {
 	/** @description Does the declaration adopt the statute "as amended from time to time"? Null = not yet answered. */
 	incorporates_future_amendments?: boolean | null;
 	incorporates_future_amendments_note?: string | null;
+	/** @description Owners read the published register. Admin only; each change is logged. */
+	responsibilities_published?: boolean;
+	/** @description Owners see published jobs nobody holds, as “Unassigned since …”. Admin only; each change is logged. */
+	responsibilities_show_unassigned?: boolean;
 	amenities?: HoaAmenity[] | string[];
 }
 
@@ -1819,6 +1827,83 @@ export interface HoaRequest {
 	tasks?: HoaTask[] | string[];
 }
 
+export interface HoaResponsibility {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	title: string;
+	description?: string | null;
+	/** @required */
+	category: 'finance' | 'building' | 'mechanical_safety' | 'compliance_records' | 'community';
+	cadence?: 'continuous' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'as_needed' | null;
+	basis?: 'contract' | 'bylaws' | 'statute' | 'resolution' | 'practice' | 'unknown';
+	/** @description Contract name, bylaw article, statute section, resolution date… */
+	basis_reference?: string | null;
+	/** @description A key from AREAS (core/shared/transition/grants.ts). Checked by the routes; nothing syncs with manager_areas. */
+	area?: string | null;
+	/** @description Unassigned is never stored: a job with no current holder reads as unassigned. */
+	status?: 'active' | 'disputed' | 'retired';
+	last_verified?: string | null;
+	/** @description Who last verified the row */
+	last_verified_by?: DirectusUser | string | null;
+	/** @description Per-row opt-out. Owners see nothing until the community publishes the register. */
+	member_visible?: boolean;
+	/** @description A project this job belongs to */
+	project?: HoaProject | string | null;
+	notes?: string | null;
+	sort?: number | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	user_updated?: DirectusUser | string | null;
+	evidence?: HoaResponsibilitiesFile[] | string[];
+	assignees?: HoaResponsibilityAssignee[] | string[];
+	tasks?: HoaTask[] | string[];
+}
+
+export interface HoaResponsibilitiesFile {
+	/** @primaryKey */
+	id: string;
+	hoa_responsibilities_id?: HoaResponsibility | string | null;
+	directus_files_id?: DirectusFile | string | null;
+}
+
+export interface HoaResponsibilityAssignee {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	responsibility: HoaResponsibility | string;
+	/** @description A board office: the person is read from the board terms for the date. */
+	office?: 'president' | 'vice_president' | 'secretary' | 'treasurer' | 'director' | null;
+	/** @description A member of this community */
+	member?: HoaMember | string | null;
+	/** @description A user with a membership here */
+	user?: DirectusUser | string | null;
+	/** @description A vendor of this community */
+	vendor?: HoaVendor | string | null;
+	/** @description A team of this community */
+	team?: HoaTeam | string | null;
+	/** @description A name with no record: “City of Miami Beach”, “Nobody” */
+	label?: string | null;
+	role?: 'owner' | 'performs' | 'backup' | 'oversight';
+	/** @required */
+	start_date: string;
+	/** @description Null while the row is current. Inclusive. */
+	end_date?: string | null;
+	/** @description Frozen by the server when the row is ended, so a departed holder still reads correctly. */
+	holder_name?: string | null;
+	notes?: string | null;
+	sort?: number | null;
+	date_created?: string | null;
+	date_updated?: string | null;
+	user_created?: DirectusUser | string | null;
+	user_updated?: DirectusUser | string | null;
+}
+
 export interface HoaStatuteFlag {
 	/** @primaryKey */
 	id: string;
@@ -1901,6 +1986,8 @@ export interface HoaTask {
 	date_created?: string | null;
 	date_updated?: string | null;
 	user_created?: DirectusUser | string | null;
+	/** @description The standing job this task was spawned from */
+	responsibility?: HoaResponsibility | string | null;
 	subtasks?: HoaTask[] | string[];
 	assigned_to?: HoaTasksUser[] | string[];
 }
@@ -2927,6 +3014,9 @@ export interface Schema {
 	hoa_reactions: HoaReaction[];
 	hoa_reminder_log: HoaReminderLog[];
 	hoa_requests: HoaRequest[];
+	hoa_responsibilities: HoaResponsibility[];
+	hoa_responsibilities_files: HoaResponsibilitiesFile[];
+	hoa_responsibility_assignees: HoaResponsibilityAssignee[];
 	hoa_statute_flags: HoaStatuteFlag[];
 	hoa_statute_flags_provisions: HoaStatuteFlagsProvision[];
 	hoa_statute_flags_references: HoaStatuteFlagsReference[];
@@ -3054,6 +3144,9 @@ export enum CollectionNames {
 	hoa_reactions = 'hoa_reactions',
 	hoa_reminder_log = 'hoa_reminder_log',
 	hoa_requests = 'hoa_requests',
+	hoa_responsibilities = 'hoa_responsibilities',
+	hoa_responsibilities_files = 'hoa_responsibilities_files',
+	hoa_responsibility_assignees = 'hoa_responsibility_assignees',
 	hoa_statute_flags = 'hoa_statute_flags',
 	hoa_statute_flags_provisions = 'hoa_statute_flags_provisions',
 	hoa_statute_flags_references = 'hoa_statute_flags_references',

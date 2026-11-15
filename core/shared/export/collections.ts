@@ -299,6 +299,13 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
     },
   }),
   direct("hoa_tasks", "Tasks", BOTH),
+  // The responsibilities register (plan §3.4): who does each standing job and
+  // who did before. It is what an incoming manager needs most, so it travels in
+  // both tiers; the board's notes stay in the full copy. Its human-readable
+  // form is the PDF (GET /api/org/responsibilities/export.pdf), not a CSV here.
+  direct("hoa_responsibilities", "Responsibilities register", BOTH, { redact: ["notes"] }),
+  direct("hoa_responsibility_assignees", "Responsibility holders", BOTH, { redact: ["notes"] }),
+  via("hoa_responsibilities_files", "Responsibility evidence", "hoa_responsibilities", "hoa_responsibilities_id", BOTH),
   via("hoa_tasks_users", "Task assignments", "hoa_tasks", "hoa_tasks_id", BOTH),
   direct("hoa_projects", "Projects", BOTH),
   via("hoa_projects_users", "Project assignments", "hoa_projects", "hoa_projects_id", BOTH),
