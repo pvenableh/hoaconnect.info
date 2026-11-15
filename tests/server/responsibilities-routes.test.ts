@@ -33,6 +33,7 @@ const ROUTES = {
   template: `${R}/apply-template.post`,
   visibility: `${R}/visibility.patch`,
   pdf: `${R}/export.pdf.get`,
+  history: `${R}/service-history.get`,
 } as const;
 type Route = keyof typeof ROUTES;
 
@@ -69,6 +70,7 @@ const VALID: Record<Route, { query?: any; body?: any; params?: any }> = {
   template: { body: { orgId: ORG, template: "florida_condominium" } },
   visibility: { body: { orgId: ORG, published: true } },
   pdf: { query: { orgId: ORG, asOf: "2026-11-01" } },
+  history: { query: { orgId: ORG, member: ID.memberAnn } },
 };
 
 /** The same request aimed at another community's row (or community). */
@@ -80,7 +82,7 @@ const FOREIGN: Partial<Record<Route, { query?: any; body?: any; params?: any }>>
   correct: { params: { id: ID.aOther }, body: { orgId: ORG, notes: "x" } },
 };
 
-const READS: Route[] = ["index", "pdf"];
+const READS: Route[] = ["index", "pdf", "history"];
 const EDITS: Route[] = ["create", "patch", "retire", "add", "handOver", "correct", "template"];
 
 describe("every route", () => {
@@ -354,6 +356,35 @@ describe("the PDF", () => {
   it("is refused to an owner", async () => {
     as(PERSONAS.owner);
     await expect(call("pdf", VALID.pdf)).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe("service history", () => {
+  it("lists offices held and jobs held, through the office too, for editors and the board", async () => {
+    // Ann was treasurer from 2026-01-01; Bob took the bank job directly in 2026 and was secretary in 2019.
+    as(PERSONAS.board);
+    const ann = await call("history", VALID.history);
+    expect(ann.offices).toEqual([
+      { termId: ID.termAnn, office: "treasurer", label: "Treasurer", from: "2026-01-01", to: null, endReason: null, status: "published" },
+    ]);
+    expect(ann.jobs).toEqual([
+      { jobId: ID.jobBank, title: "Reconciles bank statements", category: "finance", role: "owner", roleLabel: "Owner", from: "2026-01-01", to: null, via: "office", office: "treasurer" },
+    ]);
+    as(PERSONAS.editor);
+    const bob = await call("history", { query: { orgId: ORG, member: ID.memberBob } });
+    expect(bob.offices.map((o: any) => o.office)).toEqual(["secretary"]);
+    expect(bob.jobs.map((j: any) => [j.title, j.via])).toEqual([["Keys, fobs, gate codes, access list", "member"]]);
+  });
+
+  it("a resignation inside an assignment clips the job to the term", async () => {
+    state.db.hoa_board_members!.find((t) => t.id === ID.termAnn)!.term_end = "2026-06-15";
+    const ann = await call("history", VALID.history);
+    expect(ann.jobs[0]).toMatchObject({ from: "2026-01-01", to: "2026-06-15", via: "office" });
+  });
+
+  it("404 for a member of another community; 400 without one", async () => {
+    await expect(call("history", { query: { orgId: ORG, member: ID.memberOther } })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call("history", { query: { orgId: ORG } })).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 
