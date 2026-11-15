@@ -26,7 +26,7 @@ function useResource<Row>(def: ResourceDefinition<Row>, opts: { orgId: Ref<strin
 | Part | Fields |
 |---|---|
 | List | `rows` (everything loaded), `visible` (after status, filters and search), `total`, `count`, `pending`, `error`, `refresh()`, `find(id)`, `keyOf(row)` |
-| Filters | `query`, `status`, `filters` (by name), `statusItems` (for `AppSegmentedControl`), `isFiltered`, `reset()` |
+| Filters | `query`, `status`, `filters` (by name), `statusItems` (for `AppSegmentedControl`), `isFiltered` (search or a filter is on), `reset()` (clears both; the status stays) |
 | Selection | `selected` (ids), `selectedRows`, `isSelected(row)`, `toggle(row)`, `selectAll()` (the visible rows), `clear()`. Ids that leave `rows` drop out |
 | Open panel | `openId` (this panel type's id on `?slide=`), `open(row)`, `close()` |
 | Remove | `remove(row)`: `useConfirm(def.remove.confirm(row))`, then `run`, a toast, `refresh()`. Resolves false when cancelled |
