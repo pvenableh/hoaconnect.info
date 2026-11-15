@@ -74,7 +74,8 @@ async function ensureFlow(name: string, flow: Record<string, unknown>, body: str
     console.log(`   🔎 would create "${name}" (${flow.trigger}) → POST ${ENDPOINT} with ${body === "{{$trigger}}" ? "the trigger" : body}`);
     return;
   }
-  const created = await df("/flows", { method: "POST", body: JSON.stringify({ name, status: "active", accountability: null, ...flow }) });
+  // "activity": each run is logged (Directus → Activity) without its data, so a failed sync shows.
+  const created = await df("/flows", { method: "POST", body: JSON.stringify({ name, status: "active", accountability: "activity", ...flow }) });
   const op = await df("/operations", { method: "POST", body: JSON.stringify({ flow: created.data.id, ...requestOp(body) }) });
   await df(`/flows/${created.data.id}`, { method: "PATCH", body: JSON.stringify({ operation: op.data.id }) });
   console.log(`   ✅ Created "${name}" → POST ${ENDPOINT}`);
