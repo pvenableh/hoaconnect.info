@@ -113,7 +113,8 @@ export function scopeManagerPermission<P extends { collection: string; action: s
  *                          project and receipt it names went unchecked, and the
  *                          asset proxy opens a receipt to the books' readers
  *   member–unit links      /api/hoa/member-units/assign and /remove
- *   board terms            POST /api/org/board-terms, PATCH board-terms/[id]
+ *   board terms            POST /api/org/board-terms, PATCH board-terms/[id],
+ *                          DELETE board-terms/[id] (read stays)
  *   email recipients and   /api/email/send and the delivery webhook
  *   their activity         (/api/email/activity)
  *   mailing-list members   none: nothing in the app writes them
@@ -144,6 +145,11 @@ export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string 
   ...CREATE_AND_UPDATE("payment_expenses"),
   ...CREATE_AND_UPDATE("hoa_member_units"),
   ...CREATE_AND_UPDATE("hoa_board_members"),
+  // And delete (2026-11-16, Session 7): the Board tab removes a term through
+  // DELETE /api/org/board-terms/[id], which refuses one a register row or a
+  // meeting's attendance depends on. A delete through Directus checked neither,
+  // so history could be erased through the API.
+  { collection: "hoa_board_members", action: "delete" },
   ...CREATE_AND_UPDATE("hoa_email_recipients"),
   ...CREATE_AND_UPDATE("hoa_email_activity"),
   ...CREATE_AND_UPDATE("hoa_mailing_list_members"),

@@ -10,6 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { residencyFor } from "#core/shared/members/residency";
+import { isCurrentBoardTerm } from "#core/shared/roles/role-context";
+import { endReasonLabel, officeLabel } from "#core/shared/responsibilities/config";
+import type { BoardTermAction, BoardTermForSheet } from "~/components/Members/BoardTermSheets.vue";
 import {
   ONBOARDING_INVITATION_FIELDS,
   isOutstandingInvitation,
@@ -29,10 +32,7 @@ const {
 } = useDirectusItems("hoa_members");
 const { list: listInvitations, update: updateInvitation } = useDirectusItems("hoa_invitations");
 const { list: listUnits } = useDirectusItems("hoa_units");
-const {
-  list: listBoardTerms,
-  remove: removeBoardTerm,
-} = useDirectusItems("hoa_board_members");
+const { list: listBoardTerms } = useDirectusItems("hoa_board_members");
 
 // Secured API function for member-unit assignment (admin-only)
 const assignMemberUnit = async (
@@ -237,6 +237,8 @@ const { data: boardTerms, refresh: refreshBoardTerms } = await useAsyncData(
           "term_end",
           "message",
           "status",
+          "end_reason",
+          "holder_name",
           "hoa_member.id",
           "hoa_member.first_name",
           "hoa_member.last_name",
@@ -270,26 +272,44 @@ const boardTitleOptions = [
   { value: "director", label: "Director" },
 ];
 
-// Check if a board term is currently active
-const isActiveTerm = (term: any) => {
-  const now = new Date();
-  const start = term.term_start ? new Date(term.term_start) : null;
-  const end = term.term_end ? new Date(term.term_end) : null;
+// The Board tab shows the board as it stood on a day (plan §3.4, "As of").
+// Today by default. "In office" is the one definition the rest of the app
+// uses, `isCurrentBoardTerm` (a published term whose dates include the day).
+const localToday = () => new Date().toLocaleDateString("en-CA");
+const boardAsOf = ref(localToday());
+const boardAsOfIsToday = computed(() => !boardAsOf.value || boardAsOf.value === localToday());
+const boardDay = computed(() => boardAsOf.value || localToday());
 
-  if (term.status !== "published") return false;
-  if (start && start > now) return false;
-  if (end && end < now) return false;
-  return true;
-};
-
-// Separate active and past board terms
 const activeBoardTerms = computed(() =>
-  (boardTerms.value || []).filter((term: any) => isActiveTerm(term))
+  (boardTerms.value || []).filter((term: any) => isCurrentBoardTerm(term, boardDay.value))
 );
 
 const pastBoardTerms = computed(() =>
-  (boardTerms.value || []).filter((term: any) => !isActiveTerm(term))
+  (boardTerms.value || []).filter((term: any) => !isCurrentBoardTerm(term, boardDay.value))
 );
+
+// A term can still be ended or moved to another office while it has not ended:
+// no recorded reason, and no end date already behind us.
+const isOpenTerm = (term: any) =>
+  !term.end_reason && (!term.term_end || String(term.term_end).slice(0, 10) >= localToday());
+
+const termPerson = (term: any): string =>
+  [term.hoa_member?.first_name, term.hoa_member?.last_name].filter(Boolean).join(" ") ||
+  term.holder_name ||
+  "Former member";
+
+const termInitials = (term: any): string =>
+  term.hoa_member
+    ? `${term.hoa_member.first_name?.[0] || ""}${term.hoa_member.last_name?.[0] || ""}`
+    : (termPerson(term)[0] ?? "");
+
+// The three actions on a term, each a sheet (components/Members/BoardTermSheets.vue).
+const termAction = ref<BoardTermAction | null>(null);
+const termForAction = ref<BoardTermForSheet | null>(null);
+const startTermAction = (action: BoardTermAction, term: any) => {
+  termForAction.value = term;
+  termAction.value = action;
+};
 
 // ── Membership status: what is shown, and how it is changed ────────────────
 //
@@ -757,9 +777,9 @@ const handleResendInvitation = async (invitationId: string) => {
   }
 };
 
-// Board term modal
+// Add a board position. Edit, end and change office are the sheets above
+// (components/Members/BoardTermSheets.vue); Delete is below.
 const showBoardModal = ref(false);
-const editingBoardTermId = ref<string | null>(null);
 const boardForm = reactive({
   hoa_member: null as string | null,
   title: "director" as string,
@@ -776,22 +796,10 @@ const resetBoardForm = () => {
   boardForm.term_end = "";
   boardForm.message = "";
   boardForm.status = "published";
-  editingBoardTermId.value = null;
 };
 
 const handleAddBoardTerm = () => {
   resetBoardForm();
-  showBoardModal.value = true;
-};
-
-const handleEditBoardTerm = (term: any) => {
-  boardForm.hoa_member = term.hoa_member?.id || null;
-  boardForm.title = term.title || "director";
-  boardForm.term_start = term.term_start ? term.term_start.split("T")[0] : "";
-  boardForm.term_end = term.term_end ? term.term_end.split("T")[0] : "";
-  boardForm.message = term.message || "";
-  boardForm.status = term.status || "published";
-  editingBoardTermId.value = term.id;
   showBoardModal.value = true;
 };
 
@@ -802,25 +810,21 @@ const handleSubmitBoardTerm = async () => {
   }
 
   try {
-    // Through the board-term routes, which check the person is a member of
-    // this community (Directus cannot). An edit never changes the person: the
-    // picker is locked, and the route refuses it.
-    const data = {
-      orgId: orgId.value,
-      title: boardForm.title,
-      term_start: boardForm.term_start || null,
-      term_end: boardForm.term_end || null,
-      message: boardForm.message || null,
-      status: boardForm.status,
-    };
-
-    if (editingBoardTermId.value) {
-      await $fetch(`/api/org/board-terms/${editingBoardTermId.value}`, { method: "PATCH", body: data });
-      toast.success("Board position updated");
-    } else {
-      await $fetch("/api/org/board-terms", { method: "POST", body: { ...data, hoa_member: boardForm.hoa_member } });
-      toast.success("Board position added");
-    }
+    // Through the board-term route, which checks the person is a member of
+    // this community (Directus cannot).
+    await $fetch("/api/org/board-terms", {
+      method: "POST",
+      body: {
+        orgId: orgId.value,
+        hoa_member: boardForm.hoa_member,
+        title: boardForm.title,
+        term_start: boardForm.term_start || null,
+        term_end: boardForm.term_end || null,
+        message: boardForm.message || null,
+        status: boardForm.status,
+      },
+    });
+    toast.success("Board position added");
 
     await refreshBoardTerms();
     showBoardModal.value = false;
@@ -831,15 +835,25 @@ const handleSubmitBoardTerm = async () => {
   }
 };
 
-const handleDeleteBoardTerm = async (id: string) => {
-  if (!(await confirm({ title: "Remove this board position?", confirmLabel: "Remove", destructive: true }))) return;
+// Delete is for a term entered by mistake. A real term that is over is End
+// term, which keeps it. The route refuses (409) while a register job or a
+// meeting's attendance depends on the term, and says which; its message is
+// shown as it comes.
+const handleDeleteBoardTerm = async (term: any) => {
+  const ok = await confirm({
+    title: `Delete ${termPerson(term)} as ${officeLabel(term.title)}?`,
+    body: "Use this only for a term entered by mistake. A real term that is over should be ended, so the history stays. This cannot be undone.",
+    confirmLabel: "Delete Term",
+    destructive: true,
+  });
+  if (!ok) return;
 
   try {
-    await removeBoardTerm(id);
+    await $fetch(`/api/org/board-terms/${term.id}`, { method: "DELETE", query: { orgId: orgId.value } });
     await refreshBoardTerms();
-    toast.success("Board position removed");
-  } catch (error) {
-    toast.error("Failed to remove board position");
+    toast.success("Board position deleted");
+  } catch (error: any) {
+    toast.error(error?.data?.message || error?.statusMessage || error?.message || "Couldn't delete that board position");
   }
 };
 
@@ -873,6 +887,13 @@ const formatUnits = (member: any) => {
   }
   const primary = getPrimaryUnit(member);
   return `${primary?.unit_number || "N/A"} (+${member.units.length - 1} more)`;
+};
+
+// A date-only value (a term's start or end, the As of day) is a day, not a
+// moment: reading "2025-01-01" as midnight UTC shows it as Dec 31 west of UTC.
+const formatDay = (date: string) => {
+  const [y, m, d] = String(date).slice(0, 10).split("-").map(Number);
+  return new Date(y!, m! - 1, d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
 const formatDate = (date: string) => {
@@ -1349,24 +1370,38 @@ useSeoMeta({
                 <p class="text-sm t-text">
                   <strong>Manage your HOA Board:</strong>
                   Assign board positions to members. Active board members will be displayed on the public Board page.
+                  When the board changes, end the term or change the office rather than editing it: the history stays.
                 </p>
               </CardContent>
             </Card>
 
-            <!-- Action Button -->
-            <div class="flex justify-end">
+            <!-- As of · Add -->
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div class="flex items-end gap-2">
+                <div class="grid gap-1.5">
+                  <Label for="board-as-of">As of</Label>
+                  <DateInput id="board-as-of" v-model="boardAsOf" class="w-44" />
+                </div>
+                <Button v-if="!boardAsOfIsToday" variant="ghost" size="sm" @click="boardAsOf = localToday()">
+                  Today
+                </Button>
+              </div>
               <Button @click="handleAddBoardTerm">
                 <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
                 Add Board Position
               </Button>
             </div>
 
-            <!-- Active Board Members -->
+            <!-- Current Board Members -->
             <Card>
               <CardHeader>
-                <CardTitle>Current Board Members</CardTitle>
+                <CardTitle>{{ boardAsOfIsToday ? "Current Board Members" : `Board on ${formatDay(boardDay)}` }}</CardTitle>
                 <CardDescription>
-                  Active board positions displayed on your public Board page
+                  {{
+                    boardAsOfIsToday
+                      ? "Active board positions displayed on your public Board page"
+                      : "Who held a seat on that day. The public Board page shows today's board."
+                  }}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1374,19 +1409,17 @@ useSeoMeta({
                   <div
                     v-for="term in activeBoardTerms"
                     :key="term.id"
-                    class="flex items-center justify-between p-4 border rounded-lg hover:t-bg-subtle"
+                    class="flex flex-wrap items-center justify-between gap-3 p-4 border rounded-lg hover:t-bg-subtle"
                   >
                     <div class="flex items-center gap-4">
                       <div
                         class="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
                         :class="getBoardTitleColor(term.title)"
                       >
-                        {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
+                        {{ termInitials(term) }}
                       </div>
                       <div>
-                        <p class="font-medium">
-                          {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
-                        </p>
+                        <p class="font-medium">{{ termPerson(term) }}</p>
                         <span
                           class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
                           :class="getBoardTitleColor(term.title)"
@@ -1394,36 +1427,47 @@ useSeoMeta({
                           {{ formatBoardTitle(term.title) }}
                         </span>
                         <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
-                          <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                          <span v-if="term.term_start">{{ formatDay(term.term_start) }}</span>
                           <span v-if="term.term_start && term.term_end"> - </span>
-                          <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                          <span v-if="term.term_end">{{ formatDay(term.term_end) }}</span>
                           <span v-if="term.term_start && !term.term_end"> - Present</span>
+                          <span v-if="term.end_reason"> · {{ endReasonLabel(term.end_reason) }}</span>
                         </p>
                       </div>
                     </div>
-                    <div class="flex gap-2">
-                      <Button
-                        @click="handleEditBoardTerm(term)"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Icon name="lucide:edit" class="w-4 h-4" />
-                      </Button>
-                      <Button
-                        @click="handleDeleteBoardTerm(term.id)"
-                        variant="destructive"
-                        size="sm"
-                      >
-                        <Icon name="lucide:trash-2" class="w-4 h-4" />
-                      </Button>
+                    <div class="flex items-center gap-2">
+                      <template v-if="isOpenTerm(term)">
+                        <Button variant="outline" size="sm" @click="startTermAction('end', term)">End term</Button>
+                        <Button variant="outline" size="sm" @click="startTermAction('change-office', term)">
+                          Change office
+                        </Button>
+                      </template>
+                      <Button variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                            <Icon name="lucide:more-horizontal" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
+                            <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" />
+                            Delete (entered by mistake)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
                 <AppEmptyState
                   v-else
                   icon="lucide:award"
-                  title="No active board members"
-                  description="Board positions added here appear on your community's public Board page."
+                  :title="boardAsOfIsToday ? 'No active board members' : 'No board seats on that day'"
+                  :description="
+                    boardAsOfIsToday
+                      ? 'Board positions added here appear on your community\'s public Board page.'
+                      : 'No published term includes that date.'
+                  "
                 />
               </CardContent>
             </Card>
@@ -1431,9 +1475,13 @@ useSeoMeta({
             <!-- Past Board Members -->
             <Card v-if="pastBoardTerms?.length">
               <CardHeader>
-                <CardTitle>Past Board Members</CardTitle>
+                <CardTitle>{{ boardAsOfIsToday ? "Past Board Members" : "Other terms" }}</CardTitle>
                 <CardDescription>
-                  Historical board positions (expired or inactive)
+                  {{
+                    boardAsOfIsToday
+                      ? "Terms that have ended, have not started, or are hidden"
+                      : "Terms that did not include that day"
+                  }}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1441,43 +1489,49 @@ useSeoMeta({
                   <div
                     v-for="term in pastBoardTerms"
                     :key="term.id"
-                    class="flex items-center justify-between p-4 border rounded-lg t-bg-subtle"
+                    class="flex flex-wrap items-center justify-between gap-3 p-4 border rounded-lg t-bg-subtle"
                   >
                     <div class="flex items-center gap-4">
                       <div
                         class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold t-bg-alt t-text-secondary"
                       >
-                        {{ term.hoa_member?.first_name?.[0] || '' }}{{ term.hoa_member?.last_name?.[0] || '' }}
+                        {{ termInitials(term) }}
                       </div>
                       <div>
-                        <p class="font-medium t-text-secondary">
-                          {{ term.hoa_member?.first_name }} {{ term.hoa_member?.last_name }}
-                        </p>
+                        <p class="font-medium t-text-secondary">{{ termPerson(term) }}</p>
                         <span class="text-xs t-text-muted">
                           {{ formatBoardTitle(term.title) }}
+                          <template v-if="term.status !== 'published'"> · {{ term.status }}</template>
                         </span>
                         <p v-if="term.term_start || term.term_end" class="text-xs t-text-muted mt-1">
-                          <span v-if="term.term_start">{{ formatDate(term.term_start) }}</span>
+                          <span v-if="term.term_start">{{ formatDay(term.term_start) }}</span>
                           <span v-if="term.term_start && term.term_end"> - </span>
-                          <span v-if="term.term_end">{{ formatDate(term.term_end) }}</span>
+                          <span v-if="term.term_end">{{ formatDay(term.term_end) }}</span>
+                          <span v-if="term.end_reason"> · {{ endReasonLabel(term.end_reason) }}</span>
                         </p>
                       </div>
                     </div>
-                    <div class="flex gap-2">
-                      <Button
-                        @click="handleEditBoardTerm(term)"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Icon name="lucide:edit" class="w-4 h-4" />
-                      </Button>
-                      <Button
-                        @click="handleDeleteBoardTerm(term.id)"
-                        variant="ghost"
-                        size="sm"
-                      >
-                        <Icon name="lucide:trash-2" class="w-4 h-4" />
-                      </Button>
+                    <div class="flex items-center gap-2">
+                      <template v-if="isOpenTerm(term)">
+                        <Button variant="outline" size="sm" @click="startTermAction('end', term)">End term</Button>
+                        <Button variant="outline" size="sm" @click="startTermAction('change-office', term)">
+                          Change office
+                        </Button>
+                      </template>
+                      <Button variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                            <Icon name="lucide:more-horizontal" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
+                            <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" />
+                            Delete (entered by mistake)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
@@ -1602,11 +1656,11 @@ useSeoMeta({
           </template>
         </AppBottomSheet>
 
-        <!-- Add/Edit Board Position Modal -->
+        <!-- Add Board Position. Correct, End term and Change office are MembersBoardTermSheets. -->
         <Dialog v-model:open="showBoardModal">
           <DialogContent class="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{{ editingBoardTermId ? "Edit" : "Add" }} Board Position</DialogTitle>
+              <DialogTitle>Add Board Position</DialogTitle>
               <DialogDescription>
                 Assign a board position to a member. Active positions will be displayed on the public Board page.
               </DialogDescription>
@@ -1618,7 +1672,6 @@ useSeoMeta({
                   id="board-member"
                   v-model="boardForm.hoa_member"
                   class="w-full p-2 border rounded"
-                  :disabled="!!editingBoardTermId"
                 >
                   <option :value="null">Select a member...</option>
                   <option
@@ -1706,6 +1759,14 @@ useSeoMeta({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <MembersBoardTermSheets
+          v-if="orgId"
+          v-model:action="termAction"
+          :org-id="orgId"
+          :term="termForAction"
+          @saved="refreshBoardTerms"
+        />
         </div>
       </PageContainer>
   </div>

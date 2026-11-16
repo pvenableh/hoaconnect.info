@@ -254,8 +254,14 @@ describe("admin writes that could leave the community", () => {
       expect(isRemovedAdminRule(collection, "create")).toBe(true);
       expect(isRemovedAdminRule(collection, "update")).toBe(true);
       expect(isRemovedAdminRule(collection, "read")).toBe(false);
-      expect(isRemovedAdminRule(collection, "delete")).toBe(false);
+      // Board terms alone lose delete as well, below.
+      expect(isRemovedAdminRule(collection, "delete")).toBe(collection === "hoa_board_members");
     }
+    // Board terms also lose delete (2026-11-16): DELETE board-terms/[id] refuses
+    // a term the register or a meeting's attendance depends on, which a Directus
+    // delete would not. Read stays.
+    expect(isRemovedAdminRule("hoa_board_members", "delete")).toBe(true);
+    expect(isRemovedAdminRule("hoa_board_members", "read")).toBe(false);
     // Leases (2026-11-16): the validation was on the lease's own `organization`,
     // but the unit, tenant and owner it names went unchecked. Routes now.
     expect(isRemovedAdminRule("hoa_leases", "create")).toBe(true);
