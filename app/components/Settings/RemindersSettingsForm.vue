@@ -118,13 +118,15 @@
               Send me a test
             </Button>
           </div>
+          <!-- allow-color-literal: the email's own canvas. Mail clients show it on
+               white in every theme, so the frame must not turn dark around it. -->
           <div class="relative rounded-lg border overflow-hidden bg-white">
             <iframe
               :src="previewSrc"
               sandbox=""
               title="Reminder email preview"
               data-testid="reminders-email-preview"
-              class="w-full h-[520px] bg-white"
+              class="w-full h-[520px]"
             />
           </div>
         </div>

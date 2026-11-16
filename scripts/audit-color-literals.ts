@@ -31,8 +31,11 @@ const PUBLIC_SURFACE =
  * 2026-11-16 — **592**. The comment-blanking fix (`accept="image/*"` no longer
  * hides the rest of a file) uncovered 4; all fixed or tagged, and the count was
  * already 17 under.
+ *
+ * 2026-11-16 — **590**: the Reminders email preview's white canvas is tagged like
+ * the Branding one, and its iframe's second `bg-white` is gone (−2).
  */
-const BASELINE = 592;
+const BASELINE = 590;
 
 runFileAudit({
   name: "color-literals",

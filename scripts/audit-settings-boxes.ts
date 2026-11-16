@@ -28,8 +28,10 @@ import { findBoxes } from "./lib/audit-matchers";
  * 2026-11-16 — **23**. The comment-blanking fix uncovered 15 (account.vue, the
  * Branding and SEO forms, all hidden behind an `accept="image/*"`); all three
  * are one surface of `.form-section` groups now, which also took one old one.
+ *
+ * 2026-11-16 — **22**: the SEO form's search preview sits flat, set off by a rule (−1).
  */
-const BASELINE = 23;
+const BASELINE = 22;
 
 const SCOPE = [
   /^app\/components\/Settings\//,

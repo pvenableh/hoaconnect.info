@@ -42,8 +42,9 @@
               </p>
             </div>
 
-            <!-- Search Preview -->
-            <div class="mt-6 p-4 rounded-lg border bg-muted/30">
+            <!-- Search Preview. A results page shows a listing as plain text, not a
+                 card, so the mock sits flat in the section, set off by a rule. -->
+            <div class="mt-6 border-l-2 t-border pl-4">
               <p class="text-xs font-medium text-muted-foreground mb-2">Search Preview</p>
               <div class="space-y-1">
                 <p class="text-blue-600 text-lg hover:underline cursor-pointer">
