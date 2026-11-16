@@ -349,6 +349,28 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
 | 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [x] | Spec `docs/spec-responsibilities.md`. All five landed, plus the service-history route. Schema script and permissions run by the operator 2026-11-15; types regenerated. The permissions run widened three older reads and edits, and channel access did not follow membership: both fixed and applied 2026-11-15 (Session log TODO 2b, 2c). The admin scope (TODO 6) applied 2026-11-15; the shared-write and relation-rule fixes, with routes for attendees, pets and vehicles, and board terms, applied 2026-11-16 and checked through the API and in the app. Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5) |
 | 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [ ] | Due before the 1033 Lenox board is seated 2026-12-09. The schema is live. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
+| 8 | Delegation to members: volunteer and committee grants (spec first, then build) | [ ] | Queued 2026-11-16 at the operator's request ("can an admin grant create privileges for specific members if they volunteer to help or are on a committee?"). Findings and scope below, "Queued: delegation to members". Runs after 7; independent of 4 and 5 |
+
+
+### Queued: delegation to members (Session 8)
+
+Asked 2026-11-16. Found by reading the code that day:
+
+- **Grants reach property managers only.** The ten grantable areas (`AREAS`, `core/shared/transition/grants.ts`) go to `hoa_members` rows with the Property Manager role: `getManagerGrants` reads only those (`core/server/utils/manager-access.ts`), and `POST /api/org/managers/grants` refuses anyone else ("That member is not a property manager."). The admin switches them in Settings → Property management. A volunteer or committee member cannot be given one.
+- **No area covers announcements, events or meetings,** the things a committee most often posts. `vendors` and `billing` are notify-only.
+- **Teams give two things, one of them in the page only.**
+  - A team lead gets `projects:write` and `milestone:approve` on their team's projects, and the server checks it (`board-access.ts`, `project-access.ts`).
+  - A team whose domain matches a request's type gets board-style controls on that request, but only in `app/pages/[slug]/requests/[id].vue` (`isBoard`); no server route was found that honours it, so those controls may fail or rest on other rules.
+- **Two board capabilities are in the matrix and nowhere else:** `communications:send` (President) and `violations:manage` (board) in `core/shared/permissions.ts`. Sending email checks `requireAdminOrManagerGrant(…, "communications")`, which admits admins and managers only.
+- Polls and reactions already work for residents: a member votes on a poll card (polls page, the feed, the home glance) and reacts to channel messages, feed items and comments; admins, board seats and managers with the `feedback` grant create polls. One loose end: `vote()` in `core/app/composables/usePolls.ts` takes the community from `selectedOrgId`, where every other poll call uses the page's slug.
+
+Scope for Session 8, to settle in its spec with the operator:
+1. Who can hold a grant: any member of the community, one at a time ("helper"), and a team as a whole ("committee"), whose members hold its grants while they are on it. The grant list stays `AREAS`; the record of who holds what moves off the Property Manager role check.
+2. New areas: announcements (post and edit), events and meetings (create and edit, not minutes approval), and perhaps documents for a committee's own folder. Each one checked on the server, as `requireAdminOrManagerGrant` checks today.
+3. Server checks for the team-domain request controls, or the controls go.
+4. Enforce or drop `communications:send` and `violations:manage` for board seats.
+5. The admin's UI: grant from the member's page and from the team page, with the same switch list and presets as Property management. Every grant change goes in the activity log.
+6. What a holder sees: the area's pages in their dock, as a manager's grants do (§2.2), and nothing else of the admin's.
 
 ### Session log
 
