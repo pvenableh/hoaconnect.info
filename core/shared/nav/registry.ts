@@ -131,6 +131,9 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   // The recorded declaration, by-laws and amendments — not house Rules.
   { id: "governing", label: "Governing Documents", shortName: "Gov Docs", icon: "scroll-text", path: "/governing", needs: [mod("governing")] },
   { id: "board", label: "Board", shortName: "Board", icon: "award", path: "/board", needs: [mod("board"), { orgFlag: "show_board" }] },
+  // The published register: who handles what, today. The board decides when it
+  // is published (the page says so until then), so the entry needs only the module.
+  { id: "responsibilities", label: "Who handles what", shortName: "Jobs", icon: "hand-helping", path: "/responsibilities", needs: [mod("responsibilities")] },
   // Ungated (Pillar B): an owner sees what their board decided without asking.
   { id: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", needs: [] },
   { id: "pay", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", needs: [mod("payments")] },
@@ -163,7 +166,7 @@ export const NAV_LAYOUTS = {
   admin: ["queue", "dashboard", "people", "responsibilities-register", "comms", "records", "payments", "requests", "settings"],
   manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
   // A board seat's own register sits beside the one owners read.
-  member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "ledger", "payments", "pay", "my-requests", "projects", "polls"],
+  member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "responsibilities", "ledger", "payments", "pay", "my-requests", "projects", "polls"],
   /** The mobile sheet's "Navigation" list. */
   sheet: ["home", "board", "documents", "vendors"],
 } as const satisfies Record<string, readonly string[]>;

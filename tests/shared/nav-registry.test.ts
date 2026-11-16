@@ -233,7 +233,7 @@ describe("what each role's dock shows", () => {
   });
 
   it("owner and tenant: today's member apps", () => {
-    const today = ["home", "meetings", "documents", "rules", "governing", "board", "ledger", "pay", "my-requests", "projects", "polls"];
+    const today = ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities", "ledger", "pay", "my-requests", "projects", "polls"];
     expect(dock(PERSONAS.owner)).toEqual(today);
     expect(dock(PERSONAS.tenant)).toEqual(today);
   });
@@ -255,6 +255,22 @@ describe("what each role's dock shows", () => {
       expect(dock(PERSONAS[who]), who).not.toContain("responsibilities-register");
       expect(dock(PERSONAS[who]), who).not.toContain("responsibilities-mgr");
     }
+  });
+
+  it("who handles what: every resident reads the published page, and a board seat has the register beside it", () => {
+    for (const who of ["owner", "tenant", "director", "treasurer", "president"] as const) {
+      expect(dock(PERSONAS[who]), who).toContain("responsibilities");
+    }
+    for (const who of ["director", "treasurer", "president"] as const) {
+      const d = dock(PERSONAS[who]);
+      expect(d.indexOf("responsibilities-register"), who).toBeGreaterThan(-1);
+      expect(d.indexOf("responsibilities"), who).toBeGreaterThan(d.indexOf("responsibilities-register"));
+    }
+    // The module switch turns both off.
+    const off = ctx({ isEnabled: (k) => k !== "responsibilities" });
+    expect(dock(off)).not.toContain("responsibilities");
+    expect(moduleForPath("/responsibilities")).toBe("responsibilities");
+    expect(moduleForPath("/admin/responsibilities/abc")).toBe("responsibilities");
   });
 
   it("the register is one door for the gate: the area and the capability both admit /admin/responsibilities", () => {
