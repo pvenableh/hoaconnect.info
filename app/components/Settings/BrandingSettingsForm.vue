@@ -1,401 +1,386 @@
 <template>
   <div class="space-y-6">
-    <!-- Logo & Icon -->
+    <!-- ONE surface for the tab (docs/ux-standards.md: a settings tab is one
+         surface). Each group is a flat `.form-section` — a heading and a
+         hairline from the group above — never a card of its own. -->
     <Card>
-      <CardHeader>
-        <CardTitle>Logo & Icon</CardTitle>
-        <CardDescription>
-          Upload your organization's logo and favicon
-        </CardDescription>
-      </CardHeader>
       <CardContent>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Logo Upload -->
-          <div class="space-y-4">
-            <Label>Logo</Label>
-            <div
-              class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
-              @click="triggerLogoUpload"
-              @drop.prevent="handleLogoDrop"
-              @dragover.prevent
-            >
-              <input
-                ref="logoInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleLogoChange"
-              />
-              <div v-if="logoPreview || currentLogoUrl" class="mb-4">
-                <img
-                  :src="logoPreview || currentLogoUrl"
-                  alt="Logo preview"
-                  class="max-h-24 mx-auto object-contain"
-                />
-              </div>
-              <div v-else>
-                <Icon name="lucide:image" class="h-12 w-12 mx-auto text-muted-foreground" />
-              </div>
-              <p class="text-sm text-muted-foreground mt-2">
-                {{ logoPreview ? "Click to change" : "Click or drag to upload" }}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                Recommended: 400x100px. Use a transparent PNG for the public site —
-                or an SVG to enable the animated color-fill logo in the header.
-              </p>
-            </div>
-            <Button
-              v-if="logoPreview || currentLogoUrl"
-              variant="outline"
-              size="sm"
-              @click="removeLogo"
-              :disabled="isSaving"
-            >
-              <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
-              Remove Logo
-            </Button>
-          </div>
-
-          <!-- Icon Upload -->
-          <div class="space-y-4">
-            <Label>Favicon / Icon</Label>
-            <div
-              class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
-              @click="triggerIconUpload"
-              @drop.prevent="handleIconDrop"
-              @dragover.prevent
-            >
-              <input
-                ref="iconInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleIconChange"
-              />
-              <div v-if="iconPreview || currentIconUrl" class="mb-4">
-                <img
-                  :src="iconPreview || currentIconUrl"
-                  alt="Icon preview"
-                  class="h-16 w-16 mx-auto object-contain"
-                />
-              </div>
-              <div v-else>
-                <Icon name="lucide:square" class="h-12 w-12 mx-auto text-muted-foreground" />
-              </div>
-              <p class="text-sm text-muted-foreground mt-2">
-                {{ iconPreview ? "Click to change" : "Click or drag to upload" }}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                Recommended: 512x512px, PNG
-              </p>
-            </div>
-            <Button
-              v-if="iconPreview || currentIconUrl"
-              variant="outline"
-              size="sm"
-              @click="removeIcon"
-              :disabled="isSaving"
-            >
-              <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
-              Remove Icon
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- The public site's theme (Classic / Modern / Luxury) is chosen in ONE
-         place: the landing builder's Site settings. It used to be here too, and
-         saving this form wrote a stale theme over the builder's choice. -->
-    <!-- Brand Palette -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Brand Palette</CardTitle>
-        <CardDescription>
-          Your community's colors — used on your site and to brand outgoing emails
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="space-y-2">
-              <Label for="primaryColor">Primary</Label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="primaryColor"
-                  type="color"
-                  v-model="form.primaryColor"
-                  class="h-9 w-12 rounded border cursor-pointer bg-background"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-                <Input
-                  v-model="form.primaryColor"
-                  class="font-mono"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-              </div>
-              <p class="text-xs text-muted-foreground">Email header &amp; footer bands</p>
-            </div>
-            <div class="space-y-2">
-              <Label for="secondaryColor">Secondary</Label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="secondaryColor"
-                  type="color"
-                  v-model="form.secondaryColor"
-                  class="h-9 w-12 rounded border cursor-pointer bg-background"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-                <Input
-                  v-model="form.secondaryColor"
-                  class="font-mono"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-              </div>
-              <p class="text-xs text-muted-foreground">Site accents</p>
-            </div>
-            <div class="space-y-2">
-              <Label for="accentColor">Accent</Label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="accentColor"
-                  type="color"
-                  v-model="form.accentColor"
-                  class="h-9 w-12 rounded border cursor-pointer bg-background"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-                <Input
-                  v-model="form.accentColor"
-                  class="font-mono"
-                  :disabled="isSaving"
-                  @input="markPaletteDirty"
-                />
-              </div>
-              <p class="text-xs text-muted-foreground">Email type badge</p>
-            </div>
-          </div>
-          <div class="flex items-center justify-between gap-4">
-            <p class="text-xs text-muted-foreground">
-              {{ usingPlatformPalette
-                ? "Using the platform's default email colors. Pick colors above to brand your emails."
-                : "Alert emails keep their red badge regardless of your palette, so urgent messages stay urgent." }}
-            </p>
-            <Button
-              v-if="!usingPlatformPalette"
-              variant="outline"
-              size="sm"
-              @click="resetPalette"
-              :disabled="isSaving"
-            >
-              Reset to defaults
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Site Title & Description -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Site Content</CardTitle>
-        <CardDescription>
-          Title and description shown on your landing page
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <!-- Title -->
-          <div class="space-y-2">
-            <Label for="title">Site Title</Label>
-            <Input
-              id="title"
-              v-model="form.title"
-              placeholder="Welcome to Our Community"
-              :disabled="isSaving"
-            />
-          </div>
-
-          <!-- Description -->
-          <div class="space-y-2">
-            <Label for="description">Site Description</Label>
-            <textarea
-              id="description"
-              v-model="form.description"
-              rows="3"
-              class="w-full px-3 py-2 border rounded-md bg-background resize-none"
-              placeholder="A brief description of your HOA community..."
-              :disabled="isSaving"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Email Branding -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Email Branding</CardTitle>
-        <CardDescription>
-          Defaults for outgoing emails &amp; the "view on web" page. Each send can override these.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <!-- Header line -->
-          <div class="space-y-2">
-            <Label for="header_text">Header line</Label>
-            <Input
-              id="header_text"
-              v-model="form.headerText"
-              placeholder="Official Communication of {name}"
-              :disabled="isSaving"
-            />
-            <p class="text-xs text-muted-foreground">
-              Shown under the logo. Use <code>{name}</code> or <code>{legal_name}</code> as placeholders.
-            </p>
-          </div>
-
-          <!-- CC/BCC threshold -->
-          <div class="space-y-2">
-            <Label for="cc_bcc_threshold">CC/BCC visibility cutoff</Label>
-            <Input
-              id="cc_bcc_threshold"
-              v-model.number="form.ccBccThreshold"
-              type="number"
-              min="1"
-              class="w-32"
-              :disabled="isSaving"
-            />
-            <p class="text-xs text-muted-foreground">
-              At or below this many recipients, CC/BCC are attached to each email so everyone
-              sees the copy (e.g. a violation notice). Above it, CC/BCC contacts each get one copy.
-            </p>
-          </div>
-
-          <!-- Homepage URL -->
-          <div class="space-y-2">
-            <Label for="homepage_url">Footer homepage link</Label>
-            <Input
-              id="homepage_url"
-              v-model="form.homepageUrl"
-              placeholder="https://yourbuilding.com"
-              :disabled="isSaving"
-            />
-            <p class="text-xs text-muted-foreground">
-              Optional. Falls back to your external site, then your resident portal.
-            </p>
-          </div>
-
-          <!-- Footer building photo -->
-          <div class="space-y-2">
-            <Label>Footer building photo</Label>
-            <div
-              class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
-              @click="triggerFooterUpload"
-              @drop.prevent="handleFooterDrop"
-              @dragover.prevent
-            >
-              <input
-                ref="footerInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleFooterChange"
-              />
-              <div v-if="footerPreview || currentFooterImageUrl" class="mb-4">
-                <img
-                  :src="footerPreview || currentFooterImageUrl"
-                  alt="Footer building photo preview"
-                  class="max-h-40 w-full mx-auto object-cover rounded"
-                />
-              </div>
-              <div v-else>
-                <Icon name="lucide:building" class="h-12 w-12 mx-auto text-muted-foreground" />
-              </div>
-              <p class="text-sm text-muted-foreground mt-2">
-                {{ footerPreview ? "Click to change" : "Click or drag to upload" }}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                Shown full-width at the bottom of emails. Recommended: 1200px wide.
-              </p>
-            </div>
-            <Button
-              v-if="footerPreview || currentFooterImageUrl"
-              variant="outline"
-              size="sm"
-              @click="removeFooterImage"
-              :disabled="isSaving"
-            >
-              <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
-              Remove Photo
-            </Button>
-          </div>
-
-          <!-- Live email preview -->
-          <div class="space-y-2 pt-2 border-t">
-            <div class="flex items-center justify-between gap-4 pt-2">
-              <Label for="emailPreviewType">Email preview</Label>
-              <select
-                id="emailPreviewType"
-                v-model="previewType"
-                class="px-3 py-1.5 border rounded-md bg-background text-sm"
-              >
-                <option value="notice">Notice</option>
-                <option value="announcement">Announcement</option>
-                <option value="newsletter">Newsletter</option>
-                <option value="reminder">Reminder</option>
-                <option value="alert">Alert</option>
-                <option value="basic">Basic</option>
-                <option value="notification">Notification</option>
-                <option value="invitation">Member invitation</option>
-                <option value="welcome">Welcome (new HOA Admin)</option>
-                <option value="invitation-accepted">Invitation accepted</option>
-                <optgroup label="Reminders">
-                  <option value="reminder-dues">Dues reminder</option>
-                  <option value="reminder-meeting">Meeting reminder</option>
-                  <option value="reminder-violation">Violation reminder</option>
-                  <option value="reminder-poll">Poll reminder</option>
-                </optgroup>
-              </select>
-            </div>
-            <div v-if="previewType === 'notification'" class="flex items-center justify-between gap-4">
-              <Label for="emailPreviewCategory" class="text-xs text-muted-foreground">Notification about</Label>
-              <select
-                id="emailPreviewCategory"
-                v-model="previewCategory"
-                class="px-3 py-1.5 border rounded-md bg-background text-sm"
-              >
-                <option v-for="c in NOTIFICATION_CATEGORIES" :key="c.key" :value="c.key">{{ c.label }}</option>
-              </select>
-            </div>
-            <p class="text-xs text-muted-foreground">
-              How this email type will look for your community — including unsaved palette changes.
-            </p>
-            <div class="relative rounded-lg border overflow-hidden bg-white">
+        <!-- Logo & Icon -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Logo & Icon</h3>
+          <p class="form-section__hint">Upload your organization's logo and favicon</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Logo Upload -->
+            <div class="space-y-4">
+              <Label>Logo</Label>
               <div
-                v-if="previewLoading"
-                class="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none"
+                class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                @click="triggerLogoUpload"
+                @drop.prevent="handleLogoDrop"
+                @dragover.prevent
               >
-                <Icon name="lucide:loader-2" class="h-6 w-6 animate-spin" />
+                <input
+                  ref="logoInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleLogoChange"
+                />
+                <div v-if="logoPreview || currentLogoUrl" class="mb-4">
+                  <img
+                    :src="logoPreview || currentLogoUrl"
+                    alt="Logo preview"
+                    class="max-h-24 mx-auto object-contain"
+                  />
+                </div>
+                <div v-else>
+                  <Icon name="lucide:image" class="h-12 w-12 mx-auto text-muted-foreground" />
+                </div>
+                <p class="text-sm text-muted-foreground mt-2">
+                  {{ logoPreview ? "Click to change" : "Click or drag to upload" }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Recommended: 400x100px. Use a transparent PNG for the public site —
+                  or an SVG to enable the animated color-fill logo in the header.
+                </p>
               </div>
-              <iframe
-                v-if="previewSrc"
-                :src="previewSrc"
-                sandbox=""
-                title="Email preview"
-                data-testid="branding-email-preview"
-                class="w-full h-[560px] bg-white"
-                :class="{ 'opacity-60': previewLoading }"
-                @load="previewLoading = false"
+              <Button
+                v-if="logoPreview || currentLogoUrl"
+                variant="outline"
+                size="sm"
+                @click="removeLogo"
+                :disabled="isSaving"
+              >
+                <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
+                Remove Logo
+              </Button>
+            </div>
+
+            <!-- Icon Upload -->
+            <div class="space-y-4">
+              <Label>Favicon / Icon</Label>
+              <div
+                class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                @click="triggerIconUpload"
+                @drop.prevent="handleIconDrop"
+                @dragover.prevent
+              >
+                <input
+                  ref="iconInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleIconChange"
+                />
+                <div v-if="iconPreview || currentIconUrl" class="mb-4">
+                  <img
+                    :src="iconPreview || currentIconUrl"
+                    alt="Icon preview"
+                    class="h-16 w-16 mx-auto object-contain"
+                  />
+                </div>
+                <div v-else>
+                  <Icon name="lucide:square" class="h-12 w-12 mx-auto text-muted-foreground" />
+                </div>
+                <p class="text-sm text-muted-foreground mt-2">
+                  {{ iconPreview ? "Click to change" : "Click or drag to upload" }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Recommended: 512x512px, PNG
+                </p>
+              </div>
+              <Button
+                v-if="iconPreview || currentIconUrl"
+                variant="outline"
+                size="sm"
+                @click="removeIcon"
+                :disabled="isSaving"
+              >
+                <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
+                Remove Icon
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <!-- The public site's theme (Classic / Modern / Luxury) is chosen in ONE
+             place: the landing builder's Site settings. It used to be here too, and
+             saving this form wrote a stale theme over the builder's choice. -->
+        <!-- Brand Palette -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Brand Palette</h3>
+          <p class="form-section__hint">Your community's colors — used on your site and to brand outgoing emails</p>
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <Label for="primaryColor">Primary</Label>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="primaryColor"
+                    type="color"
+                    v-model="form.primaryColor"
+                    class="h-9 w-12 rounded border cursor-pointer bg-background"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                  <Input
+                    v-model="form.primaryColor"
+                    class="font-mono"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                </div>
+                <p class="text-xs text-muted-foreground">Email header &amp; footer bands</p>
+              </div>
+              <div class="space-y-2">
+                <Label for="secondaryColor">Secondary</Label>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="secondaryColor"
+                    type="color"
+                    v-model="form.secondaryColor"
+                    class="h-9 w-12 rounded border cursor-pointer bg-background"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                  <Input
+                    v-model="form.secondaryColor"
+                    class="font-mono"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                </div>
+                <p class="text-xs text-muted-foreground">Site accents</p>
+              </div>
+              <div class="space-y-2">
+                <Label for="accentColor">Accent</Label>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="accentColor"
+                    type="color"
+                    v-model="form.accentColor"
+                    class="h-9 w-12 rounded border cursor-pointer bg-background"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                  <Input
+                    v-model="form.accentColor"
+                    class="font-mono"
+                    :disabled="isSaving"
+                    @input="markPaletteDirty"
+                  />
+                </div>
+                <p class="text-xs text-muted-foreground">Email type badge</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <p class="text-xs text-muted-foreground">
+                {{ usingPlatformPalette
+                  ? "Using the platform's default email colors. Pick colors above to brand your emails."
+                  : "Alert emails keep their red badge regardless of your palette, so urgent messages stay urgent." }}
+              </p>
+              <Button
+                v-if="!usingPlatformPalette"
+                variant="outline"
+                size="sm"
+                @click="resetPalette"
+                :disabled="isSaving"
+              >
+                Reset to defaults
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Site Title & Description -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Site Content</h3>
+          <p class="form-section__hint">Title and description shown on your landing page</p>
+          <div class="space-y-4">
+            <!-- Title -->
+            <div class="space-y-2">
+              <Label for="title">Site Title</Label>
+              <Input
+                id="title"
+                v-model="form.title"
+                placeholder="Welcome to Our Community"
+                :disabled="isSaving"
+              />
+            </div>
+
+            <!-- Description -->
+            <div class="space-y-2">
+              <Label for="description">Site Description</Label>
+              <textarea
+                id="description"
+                v-model="form.description"
+                rows="3"
+                class="w-full px-3 py-2 border rounded-md bg-background resize-none"
+                placeholder="A brief description of your HOA community..."
+                :disabled="isSaving"
               />
             </div>
           </div>
-        </div>
+        </section>
+
+        <!-- Email Branding -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Email Branding</h3>
+          <p class="form-section__hint">Defaults for outgoing emails &amp; the "view on web" page. Each send can override these.</p>
+          <div class="space-y-4">
+            <!-- Header line -->
+            <div class="space-y-2">
+              <Label for="header_text">Header line</Label>
+              <Input
+                id="header_text"
+                v-model="form.headerText"
+                placeholder="Official Communication of {name}"
+                :disabled="isSaving"
+              />
+              <p class="text-xs text-muted-foreground">
+                Shown under the logo. Use <code>{name}</code> or <code>{legal_name}</code> as placeholders.
+              </p>
+            </div>
+
+            <!-- CC/BCC threshold -->
+            <div class="space-y-2">
+              <Label for="cc_bcc_threshold">CC/BCC visibility cutoff</Label>
+              <Input
+                id="cc_bcc_threshold"
+                v-model.number="form.ccBccThreshold"
+                type="number"
+                min="1"
+                class="w-32"
+                :disabled="isSaving"
+              />
+              <p class="text-xs text-muted-foreground">
+                At or below this many recipients, CC/BCC are attached to each email so everyone
+                sees the copy (e.g. a violation notice). Above it, CC/BCC contacts each get one copy.
+              </p>
+            </div>
+
+            <!-- Homepage URL -->
+            <div class="space-y-2">
+              <Label for="homepage_url">Footer homepage link</Label>
+              <Input
+                id="homepage_url"
+                v-model="form.homepageUrl"
+                placeholder="https://yourbuilding.com"
+                :disabled="isSaving"
+              />
+              <p class="text-xs text-muted-foreground">
+                Optional. Falls back to your external site, then your resident portal.
+              </p>
+            </div>
+
+            <!-- Footer building photo -->
+            <div class="space-y-2">
+              <Label>Footer building photo</Label>
+              <div
+                class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                @click="triggerFooterUpload"
+                @drop.prevent="handleFooterDrop"
+                @dragover.prevent
+              >
+                <input
+                  ref="footerInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleFooterChange"
+                />
+                <div v-if="footerPreview || currentFooterImageUrl" class="mb-4">
+                  <img
+                    :src="footerPreview || currentFooterImageUrl"
+                    alt="Footer building photo preview"
+                    class="max-h-40 w-full mx-auto object-cover rounded"
+                  />
+                </div>
+                <div v-else>
+                  <Icon name="lucide:building" class="h-12 w-12 mx-auto text-muted-foreground" />
+                </div>
+                <p class="text-sm text-muted-foreground mt-2">
+                  {{ footerPreview ? "Click to change" : "Click or drag to upload" }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Shown full-width at the bottom of emails. Recommended: 1200px wide.
+                </p>
+              </div>
+              <Button
+                v-if="footerPreview || currentFooterImageUrl"
+                variant="outline"
+                size="sm"
+                @click="removeFooterImage"
+                :disabled="isSaving"
+              >
+                <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
+                Remove Photo
+              </Button>
+            </div>
+
+            <!-- Live email preview -->
+            <div class="space-y-2 pt-2 border-t">
+              <div class="flex items-center justify-between gap-4 pt-2">
+                <Label for="emailPreviewType">Email preview</Label>
+                <select
+                  id="emailPreviewType"
+                  v-model="previewType"
+                  class="px-3 py-1.5 border rounded-md bg-background text-sm"
+                >
+                  <option value="notice">Notice</option>
+                  <option value="announcement">Announcement</option>
+                  <option value="newsletter">Newsletter</option>
+                  <option value="reminder">Reminder</option>
+                  <option value="alert">Alert</option>
+                  <option value="basic">Basic</option>
+                  <option value="notification">Notification</option>
+                  <option value="invitation">Member invitation</option>
+                  <option value="welcome">Welcome (new HOA Admin)</option>
+                  <option value="invitation-accepted">Invitation accepted</option>
+                  <optgroup label="Reminders">
+                    <option value="reminder-dues">Dues reminder</option>
+                    <option value="reminder-meeting">Meeting reminder</option>
+                    <option value="reminder-violation">Violation reminder</option>
+                    <option value="reminder-poll">Poll reminder</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div v-if="previewType === 'notification'" class="flex items-center justify-between gap-4">
+                <Label for="emailPreviewCategory" class="text-xs text-muted-foreground">Notification about</Label>
+                <select
+                  id="emailPreviewCategory"
+                  v-model="previewCategory"
+                  class="px-3 py-1.5 border rounded-md bg-background text-sm"
+                >
+                  <option v-for="c in NOTIFICATION_CATEGORIES" :key="c.key" :value="c.key">{{ c.label }}</option>
+                </select>
+              </div>
+              <p class="text-xs text-muted-foreground">
+                How this email type will look for your community — including unsaved palette changes.
+              </p>
+              <!-- allow-color-literal: the email's own canvas. Mail clients show it on
+                   white in every theme, so the frame must not turn dark around it. -->
+              <div class="relative rounded-lg border overflow-hidden bg-white">
+                <div
+                  v-if="previewLoading"
+                  class="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none"
+                >
+                  <Icon name="lucide:loader-2" class="h-6 w-6 animate-spin" />
+                </div>
+                <iframe
+                  v-if="previewSrc"
+                  :src="previewSrc"
+                  sandbox=""
+                  title="Email preview"
+                  data-testid="branding-email-preview"
+                  class="w-full h-[560px]"
+                  :class="{ 'opacity-60': previewLoading }"
+                  @load="previewLoading = false"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
       </CardContent>
     </Card>
 

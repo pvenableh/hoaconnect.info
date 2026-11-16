@@ -24,8 +24,12 @@ import { findBoxes } from "./lib/audit-matchers";
  * 2026-11-05 (Phase 8) — measured **31**. 31 boxes beyond the first in the settings files (`settings/subscription.vue` alone has most).
  *
  * 2026-11-05 (Phase 9) — **24**: settings/subscription.vue is one surface (−7).
+ *
+ * 2026-11-16 — **23**. The comment-blanking fix uncovered 15 (account.vue, the
+ * Branding and SEO forms, all hidden behind an `accept="image/*"`); all three
+ * are one surface of `.form-section` groups now, which also took one old one.
  */
-const BASELINE = 24;
+const BASELINE = 23;
 
 const SCOPE = [
   /^app\/components\/Settings\//,

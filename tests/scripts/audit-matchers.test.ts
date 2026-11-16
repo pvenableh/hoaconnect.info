@@ -155,6 +155,11 @@ describe("dead-theme-classes", () => {
     ["tailwind utilities are not theme classes", `<p class="text-sm tracking-wide type-x-y-z-not">`, 1],
     ["comment", `<!-- class="t-gone" -->`, 0],
     ["template-literal prefix", "<p :class=\"`t-text-${tone}`\">", 0],
+    ["a compared string is a value", `<Card v-if="a || reason === 'ios-install'">`, 0],
+    ["compared on the left", `<p v-if="'ios-old' !== reason">`, 0],
+    ["a case label", `case "type-a": return 1;`, 0],
+    ["a class in a ternary is still a class", `<p :class="on ? 't-nope' : ''">`, 1],
+    ["a class keyed by a comparison is still a class", `<p :class="{ 't-nope': x === 'a' }">`, 1],
   ];
   it.each(cases)("%s", (_n, src, count) => {
     expect(findDeadThemeClasses(src, defined).hits).toHaveLength(count);

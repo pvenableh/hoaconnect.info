@@ -179,7 +179,8 @@ export function findDeadThemeClasses(
   strict = false,
 ) {
   const raw = src.split("\n");
-  const lines = blankComments(src, "vue").split("\n");
+  // strict = a `.ts` file: its comments are `//` and `/* */`, with no <script> around them.
+  const lines = blankComments(src, strict ? "ts" : "vue").split("\n");
   const hits: Hit[] = [];
   let allowed = 0;
   lines.forEach((line, i) => {
@@ -191,6 +192,12 @@ export function findDeadThemeClasses(
       seen.add(cls);
       // Template-literal prefix `t-text-${x}` leaves a trailing dash — not a class.
       if (/\$\{/.test(line.slice(m.index! + m[0].length, m.index! + m[0].length + 2))) continue;
+      // A whole string being COMPARED is a value, not a class:
+      // `reason === 'ios-install'`, `'type-a' !== kind`, `case "t-x":`.
+      const before = line.slice(0, m.index!);
+      const after = line.slice(m.index! + m[0].length);
+      if (/(?:[!=]==?|\bcase)\s*["'`]$/.test(before) && /^["'`]/.test(after)) continue;
+      if (/["'`]$/.test(before) && /^["'`]\s*[!=]==?/.test(after)) continue;
       if (defined.has(cls) || dynamicOk(cls)) continue;
       if (hasMarker(raw, i, DEAD_CLASS_MARKER, 2)) {
         allowed += 1;

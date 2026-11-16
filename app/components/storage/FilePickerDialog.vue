@@ -305,7 +305,7 @@ function thumbUrl(f: StorageFile, size = 160) {
               class="flex flex-col items-center gap-1.5 rounded-xl border border-transparent p-3 text-center transition hover:border-border hover:bg-muted/60"
               @click="openFolder(folder)"
             >
-              <Icon name="lucide:folder" class="h-10 w-10 text-amber-400" />
+              <Icon name="lucide:folder" class="h-10 w-10 text-warning" />
               <span class="line-clamp-2 text-xs font-medium">{{ folder.name }}</span>
             </button>
             <!-- files -->

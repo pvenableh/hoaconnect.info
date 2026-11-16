@@ -19,8 +19,10 @@ import { findPageH1s } from "./lib/audit-matchers";
  *
  * 2026-11-14 (role-first Session 3) — measured **42** after Charges moved to
  * `AppPageHeader` (−1 from the census).
+ *
+ * 2026-11-16 — **41**: the count had already dropped by one.
  */
-const BASELINE = 42;
+const BASELINE = 41;
 
 runFileAudit({
   name: "page-h1",

@@ -58,33 +58,144 @@ export const isVendoredUi = (file: string) => file.startsWith(VENDORED_UI);
 /**
  * Blank comment bodies with spaces (newlines kept) so a finding's line number
  * stays exact and prose ABOUT a problem never lands in the count.
- *   vue → `<!-- -->` and `/* *\/` and `//` line comments inside <script>/<style>
+ *   vue → `<!-- -->` in the template; `/* *\/` and `//` inside <script>;
+ *         `/* *\/` inside <style>
  *   ts  → `/* *\/` and `//`
  *   css → `/* *\/`
+ *
+ * ⚠️ A comment opener only counts where its language has comments. The old
+ * version ran one `/\*[\s\S]*?(?:\*\/|$)/` over the whole SFC, so the `/*` in
+ * `accept="image/*"` (template text) or `"/api/*"` (a script string) opened an
+ * "unclosed comment" that blanked THE REST OF THE FILE — every audit silently
+ * skipped everything after it (found 2026-11-16). Now a template only ever
+ * loses `<!-- -->`, and script/style are scanned left to right so a string or
+ * regex literal is stepped over before anything inside it can open a comment.
  */
 export function blankComments(src: string, kind: "vue" | "ts" | "css"): string {
   const out = src.split("");
   const blank = (from: number, to: number) => {
     for (let i = from; i < to && i < out.length; i += 1) if (out[i] !== "\n") out[i] = " ";
   };
-  if (kind === "vue") {
-    for (const m of src.matchAll(/<!--[\s\S]*?(?:-->|$)/g)) blank(m.index!, m.index! + m[0].length);
-  }
-  for (const m of src.matchAll(/\/\*[\s\S]*?(?:\*\/|$)/g)) blank(m.index!, m.index! + m[0].length);
-  if (kind !== "css") {
-    // `//` to end of line, but not the `//` in a URL (`https://…`) — the char
-    // before must not be `:` or a word char, which is wrong only for `a//b` regexes.
-    let offset = 0;
-    for (const line of src.split("\n")) {
-      const m = /(^|[^:\w"'`\\])\/\/.*$/.exec(line);
-      if (m) {
-        const start = offset + m.index + m[1].length;
-        blank(start, offset + line.length);
-      }
-      offset += line.length + 1;
+  if (kind === "ts") blankCodeComments(src, 0, src.length, "js", blank);
+  else if (kind === "css") blankCodeComments(src, 0, src.length, "css", blank);
+  else {
+    // Same block split as `templateOnly` in audit-matchers.ts.
+    let at = 0;
+    for (const m of src.matchAll(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+      const bodyStart = m.index! + m[0].indexOf(">") + 1;
+      blankHtmlComments(src, at, m.index!, blank);
+      blankCodeComments(src, bodyStart, bodyStart + m[2]!.length, m[1] === "script" ? "js" : "css", blank);
+      at = m.index! + m[0].length;
     }
+    blankHtmlComments(src, at, src.length, blank);
   }
   return out.join("");
+}
+
+type Blank = (from: number, to: number) => void;
+
+/** `<!-- -->` in `src[from, to)`; an unclosed one runs to `to`, never past it. */
+function blankHtmlComments(src: string, from: number, to: number, blank: Blank) {
+  for (const m of src.slice(from, to).matchAll(/<!--[\s\S]*?(?:-->|$)/g)) {
+    blank(from + m.index!, from + m.index! + m[0].length);
+  }
+}
+
+/** A `/` after one of these (or at the start) begins a regex literal, not a division. */
+const REGEX_AFTER = new Set("(,=:[!&|?{};+-*%<>~^".split(""));
+const REGEX_KEYWORD =
+  /(?:^|[^\w$.])(?:return|typeof|case|in|of|void|delete|throw|new|else|do|yield|await|instanceof)\s*$/;
+
+/**
+ * Blank `/* *\/` (and, for JS, `//`) comments in `src[from, to)`, stepping over
+ * strings, template literals (with their `${…}` holes) and regex literals.
+ * A quote that never closes ends with its line, so one odd character cannot
+ * swallow the rest of a block the way an unclosed `/*` used to.
+ */
+function blankCodeComments(src: string, from: number, to: number, lang: "js" | "css", blank: Blank) {
+  const js = lang === "js";
+  /** Brace depth of each enclosing `${…}` hole; empty = not inside a template literal. */
+  const holes: number[] = [];
+  let depth = 0;
+  /** Last significant code character — decides regex literal vs. division. */
+  let prev = "";
+
+  /** From inside a template literal: index after its closing backtick, or just inside a `${`. */
+  const templateFrom = (k: number): number => {
+    while (k < to) {
+      const c = src[k];
+      if (c === "\\") k += 2;
+      else if (c === "`") return k + 1;
+      else if (c === "$" && src[k + 1] === "{") {
+        holes.push(depth);
+        depth = 0;
+        return k + 2;
+      } else k += 1;
+    }
+    return to;
+  };
+  /** From an opening quote: index after the closing one, or the end of its line. */
+  const quotedFrom = (k: number, q: string): number => {
+    for (k += 1; k < to; k += 1) {
+      const c = src[k];
+      if (c === "\\") k += 1;
+      else if (c === q) return k + 1;
+      else if (c === "\n") return k;
+    }
+    return to;
+  };
+  /** From a regex literal's opening `/`: index after its closing `/`, or the end of its line. */
+  const regexFrom = (k: number): number => {
+    let inClass = false;
+    for (k += 1; k < to; k += 1) {
+      const c = src[k];
+      if (c === "\\") k += 1;
+      else if (c === "\n") return k;
+      else if (inClass) inClass = c !== "]";
+      else if (c === "[") inClass = true;
+      else if (c === "/") return k + 1;
+    }
+    return to;
+  };
+
+  let i = from;
+  while (i < to) {
+    const c = src[i]!;
+    const n = src[i + 1];
+    if (c === "/" && n === "*") {
+      const close = src.indexOf("*/", i + 2);
+      const end = close === -1 || close + 2 > to ? to : close + 2;
+      blank(i, end);
+      i = end;
+    } else if (js && c === "/" && n === "/") {
+      const nl = src.indexOf("\n", i);
+      const end = nl === -1 || nl > to ? to : nl;
+      blank(i, end);
+      i = end;
+    } else if (c === '"' || c === "'") {
+      i = quotedFrom(i, c);
+      prev = c;
+    } else if (js && c === "`") {
+      i = templateFrom(i + 1);
+      prev = "`";
+    } else if (js && c === "/" && (prev === "" || REGEX_AFTER.has(prev) || REGEX_KEYWORD.test(src.slice(Math.max(from, i - 16), i)))) {
+      i = regexFrom(i);
+      prev = "/";
+    } else if (c === "\\") {
+      i += 2;
+    } else {
+      if (js && holes.length && c === "}" && depth === 0) {
+        depth = holes.pop()!;
+        i = templateFrom(i + 1);
+        prev = "`";
+        continue;
+      }
+      if (c === "{") depth += 1;
+      else if (c === "}" && depth > 0) depth -= 1;
+      if (!/\s/.test(c)) prev = c;
+      i += 1;
+    }
+  }
 }
 
 /** Is `marker` in a comment on line `i` or within `lookback` lines above it? */

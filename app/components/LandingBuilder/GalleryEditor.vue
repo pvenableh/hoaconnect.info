@@ -55,17 +55,27 @@ const removeImage = (i: number) => g.value.images.splice(i, 1);
           <StorageFilePickerButton accept="image" source="image" label="Library" icon="lucide:folder-open" variant="outline" size="sm" :multiple="true" @select="onPick" />
         </div>
       </div>
-      <div v-if="!landing.gallery.images.length" class="text-xs t-text-muted">No images yet.</div>
-      <div class="flex flex-wrap gap-3">
+      <AppEmptyState
+        v-if="!landing.gallery.images.length"
+        size="sm"
+        icon="lucide:images"
+        title="No images yet"
+        description="Upload photos, or pick them from your library."
+      />
+      <div v-else class="flex flex-wrap gap-3">
         <div v-for="(id, j) in landing.gallery.images" :key="id" class="relative">
           <img :src="fileUrl(id, 'small')" class="h-20 w-28 object-cover rounded border t-border" />
-          <button
+          <Button
             type="button"
-            class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow"
+            variant="destructive"
+            size="icon"
+            class="absolute -top-2 -right-2 size-6 shadow"
+            title="Remove image"
+            aria-label="Remove image"
             @click="removeImage(j)"
           >
             <Icon name="lucide:x" class="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
     </template>

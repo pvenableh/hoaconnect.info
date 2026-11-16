@@ -43,8 +43,12 @@ const PRIMITIVES = [
  * 2026-11-05 (Phase 8) — measured **318**. 318 outside `ui/button` and the 7 shell primitives.
  *
  * 2026-11-05 (Phase 9) — **313**: the subscription page's buttons are `<Button>` / `AppSegmentedControl` (−5).
+ *
+ * 2026-11-16 — **307**. The comment-blanking fix uncovered 2 (account.vue's tab
+ * row, the gallery editor's remove badge); both fixed, plus the avatar's remove
+ * badge, on an already-lower count.
  */
-const BASELINE = 313;
+const BASELINE = 307;
 
 runFileAudit({
   name: "raw-buttons",

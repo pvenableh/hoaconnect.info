@@ -1,222 +1,211 @@
 <template>
   <div class="space-y-6">
-    <!-- SEO Metadata -->
+    <!-- ONE surface for the tab (docs/ux-standards.md: a settings tab is one
+         surface). Each group is a flat `.form-section` — a heading and a
+         hairline from the group above — never a card of its own. -->
     <Card>
-      <CardHeader>
-        <CardTitle>Search Engine Optimization</CardTitle>
-        <CardDescription>
-          Optimize how your site appears in search results
-        </CardDescription>
-      </CardHeader>
       <CardContent>
-        <div class="space-y-4">
-          <!-- SEO Title -->
-          <div class="space-y-2">
-            <Label for="seoTitle">SEO Title</Label>
-            <Input
-              id="seoTitle"
-              v-model="form.title"
-              placeholder="Your HOA Name | Community Management"
-              :disabled="isSaving"
-              maxlength="60"
-            />
-            <p class="text-xs text-muted-foreground">
-              {{ form.title?.length || 0 }}/60 characters (recommended max)
-            </p>
-          </div>
-
-          <!-- Meta Description -->
-          <div class="space-y-2">
-            <Label for="metaDescription">Meta Description</Label>
-            <textarea
-              id="metaDescription"
-              v-model="form.metaDescription"
-              rows="3"
-              class="w-full px-3 py-2 border rounded-md bg-background resize-none"
-              placeholder="A compelling description of your HOA community that will appear in search results..."
-              :disabled="isSaving"
-              maxlength="160"
-            />
-            <p class="text-xs text-muted-foreground">
-              {{ form.metaDescription?.length || 0 }}/160 characters (recommended max)
-            </p>
-          </div>
-
-          <!-- Search Preview -->
-          <div class="mt-6 p-4 rounded-lg border bg-muted/30">
-            <p class="text-xs font-medium text-muted-foreground mb-2">Search Preview</p>
-            <div class="space-y-1">
-              <p class="text-blue-600 text-lg hover:underline cursor-pointer">
-                {{ form.title || "Your Page Title" }}
-              </p>
-              <p class="text-green-700 text-sm">
-                {{ previewUrl }}
-              </p>
-              <p class="text-sm text-muted-foreground">
-                {{ form.metaDescription || "Your meta description will appear here..." }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <!-- Open Graph / Social Media -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Social Media Preview</CardTitle>
-        <CardDescription>
-          How your site appears when shared on social media
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <!-- OG Image Upload -->
-          <div class="space-y-2">
-            <Label>Social Share Image</Label>
-            <div
-              class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
-              @click="triggerOgImageUpload"
-              @drop.prevent="handleOgImageDrop"
-              @dragover.prevent
-            >
-              <input
-                ref="ogImageInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleOgImageChange"
+        <!-- SEO Metadata -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Search Engine Optimization</h3>
+          <p class="form-section__hint">Optimize how your site appears in search results</p>
+          <div class="space-y-4">
+            <!-- SEO Title -->
+            <div class="space-y-2">
+              <Label for="seoTitle">SEO Title</Label>
+              <Input
+                id="seoTitle"
+                v-model="form.title"
+                placeholder="Your HOA Name | Community Management"
+                :disabled="isSaving"
+                maxlength="60"
               />
-              <div v-if="ogImagePreview || currentOgImageUrl" class="mb-4">
-                <img
-                  :src="ogImagePreview || currentOgImageUrl"
-                  alt="OG image preview"
-                  class="max-h-40 mx-auto object-cover rounded"
-                />
-              </div>
-              <div v-else>
-                <Icon name="lucide:image-plus" class="h-12 w-12 mx-auto text-muted-foreground" />
-              </div>
-              <p class="text-sm text-muted-foreground mt-2">
-                {{ ogImagePreview ? "Click to change" : "Click or drag to upload" }}
-              </p>
               <p class="text-xs text-muted-foreground">
-                Recommended: 1200x630px, PNG or JPG
+                {{ form.title?.length || 0 }}/60 characters (recommended max)
               </p>
             </div>
-            <Button
-              v-if="ogImagePreview || currentOgImageUrl"
-              variant="outline"
-              size="sm"
-              @click="removeOgImage"
-              :disabled="isSaving"
-            >
-              <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
-              Remove Image
-            </Button>
-          </div>
 
-          <!-- Social Preview Card -->
-          <div class="mt-6 border rounded-lg overflow-hidden max-w-md">
-            <div class="aspect-[1.91/1] bg-muted flex items-center justify-center">
-              <img
-                v-if="ogImagePreview || currentOgImageUrl"
-                :src="ogImagePreview || currentOgImageUrl"
-                alt="Preview"
-                class="w-full h-full object-cover"
+            <!-- Meta Description -->
+            <div class="space-y-2">
+              <Label for="metaDescription">Meta Description</Label>
+              <textarea
+                id="metaDescription"
+                v-model="form.metaDescription"
+                rows="3"
+                class="w-full px-3 py-2 border rounded-md bg-background resize-none"
+                placeholder="A compelling description of your HOA community that will appear in search results..."
+                :disabled="isSaving"
+                maxlength="160"
               />
-              <Icon v-else name="lucide:image" class="h-16 w-16 text-muted-foreground" />
-            </div>
-            <div class="p-3 bg-background">
-              <p class="text-xs text-muted-foreground uppercase">{{ previewDomain }}</p>
-              <p class="font-semibold text-sm mt-1 line-clamp-1">
-                {{ form.title || "Page Title" }}
-              </p>
-              <p class="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {{ form.metaDescription || "Page description..." }}
+              <p class="text-xs text-muted-foreground">
+                {{ form.metaDescription?.length || 0 }}/160 characters (recommended max)
               </p>
             </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
 
-    <!-- Advanced Settings -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Advanced Settings</CardTitle>
-        <CardDescription>
-          Additional SEO configuration options
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div class="space-y-4">
-          <!-- No Index -->
-          <div class="flex items-center justify-between">
-            <div class="space-y-0.5">
-              <Label>Hide from Search Engines</Label>
-              <p class="text-sm text-muted-foreground">
-                Prevent search engines from indexing this site
-              </p>
-            </div>
-            <Switch v-model="form.noIndex" :disabled="isSaving" />
-          </div>
-
-          <!-- No Follow -->
-          <div class="flex items-center justify-between">
-            <div class="space-y-0.5">
-              <Label>No Follow Links</Label>
-              <p class="text-sm text-muted-foreground">
-                Prevent search engines from following links on this site
-              </p>
-            </div>
-            <Switch v-model="form.noFollow" :disabled="isSaving" />
-          </div>
-
-          <!-- Sitemap Settings -->
-          <div class="pt-4 border-t">
-            <Label class="mb-3 block">Sitemap Configuration</Label>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label for="changeFrequency" class="text-sm">Change Frequency</Label>
-                <select
-                  id="changeFrequency"
-                  v-model="form.changeFrequency"
-                  class="w-full px-3 py-2 border rounded-md bg-background text-sm"
-                  :disabled="isSaving"
-                >
-                  <option value="always">Always</option>
-                  <option value="hourly">Hourly</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="never">Never</option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <Label for="priority" class="text-sm">Priority</Label>
-                <select
-                  id="priority"
-                  v-model="form.priority"
-                  class="w-full px-3 py-2 border rounded-md bg-background text-sm"
-                  :disabled="isSaving"
-                >
-                  <option value="1.0">1.0 (Highest)</option>
-                  <option value="0.9">0.9</option>
-                  <option value="0.8">0.8</option>
-                  <option value="0.7">0.7</option>
-                  <option value="0.6">0.6</option>
-                  <option value="0.5">0.5 (Default)</option>
-                  <option value="0.4">0.4</option>
-                  <option value="0.3">0.3</option>
-                  <option value="0.2">0.2</option>
-                  <option value="0.1">0.1 (Lowest)</option>
-                </select>
+            <!-- Search Preview -->
+            <div class="mt-6 p-4 rounded-lg border bg-muted/30">
+              <p class="text-xs font-medium text-muted-foreground mb-2">Search Preview</p>
+              <div class="space-y-1">
+                <p class="text-blue-600 text-lg hover:underline cursor-pointer">
+                  {{ form.title || "Your Page Title" }}
+                </p>
+                <p class="text-green-700 text-sm">
+                  {{ previewUrl }}
+                </p>
+                <p class="text-sm text-muted-foreground">
+                  {{ form.metaDescription || "Your meta description will appear here..." }}
+                </p>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <!-- Open Graph / Social Media -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Social Media Preview</h3>
+          <p class="form-section__hint">How your site appears when shared on social media</p>
+          <div class="space-y-4">
+            <!-- OG Image Upload -->
+            <div class="space-y-2">
+              <Label>Social Share Image</Label>
+              <div
+                class="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                @click="triggerOgImageUpload"
+                @drop.prevent="handleOgImageDrop"
+                @dragover.prevent
+              >
+                <input
+                  ref="ogImageInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleOgImageChange"
+                />
+                <div v-if="ogImagePreview || currentOgImageUrl" class="mb-4">
+                  <img
+                    :src="ogImagePreview || currentOgImageUrl"
+                    alt="OG image preview"
+                    class="max-h-40 mx-auto object-cover rounded"
+                  />
+                </div>
+                <div v-else>
+                  <Icon name="lucide:image-plus" class="h-12 w-12 mx-auto text-muted-foreground" />
+                </div>
+                <p class="text-sm text-muted-foreground mt-2">
+                  {{ ogImagePreview ? "Click to change" : "Click or drag to upload" }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Recommended: 1200x630px, PNG or JPG
+                </p>
+              </div>
+              <Button
+                v-if="ogImagePreview || currentOgImageUrl"
+                variant="outline"
+                size="sm"
+                @click="removeOgImage"
+                :disabled="isSaving"
+              >
+                <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
+                Remove Image
+              </Button>
+            </div>
+
+            <!-- Social Preview Card -->
+            <div class="mt-6 border rounded-lg overflow-hidden max-w-md">
+              <div class="aspect-[1.91/1] bg-muted flex items-center justify-center">
+                <img
+                  v-if="ogImagePreview || currentOgImageUrl"
+                  :src="ogImagePreview || currentOgImageUrl"
+                  alt="Preview"
+                  class="w-full h-full object-cover"
+                />
+                <Icon v-else name="lucide:image" class="h-16 w-16 text-muted-foreground" />
+              </div>
+              <div class="p-3 bg-background">
+                <p class="text-xs text-muted-foreground uppercase">{{ previewDomain }}</p>
+                <p class="font-semibold text-sm mt-1 line-clamp-1">
+                  {{ form.title || "Page Title" }}
+                </p>
+                <p class="text-xs text-muted-foreground mt-1 line-clamp-2">
+                  {{ form.metaDescription || "Page description..." }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Advanced Settings -->
+        <section class="form-section">
+          <h3 class="form-section__title type-card">Advanced Settings</h3>
+          <p class="form-section__hint">Additional SEO configuration options</p>
+          <div class="space-y-4">
+            <!-- No Index -->
+            <div class="flex items-center justify-between">
+              <div class="space-y-0.5">
+                <Label>Hide from Search Engines</Label>
+                <p class="text-sm text-muted-foreground">
+                  Prevent search engines from indexing this site
+                </p>
+              </div>
+              <Switch v-model="form.noIndex" :disabled="isSaving" />
+            </div>
+
+            <!-- No Follow -->
+            <div class="flex items-center justify-between">
+              <div class="space-y-0.5">
+                <Label>No Follow Links</Label>
+                <p class="text-sm text-muted-foreground">
+                  Prevent search engines from following links on this site
+                </p>
+              </div>
+              <Switch v-model="form.noFollow" :disabled="isSaving" />
+            </div>
+
+            <!-- Sitemap Settings -->
+            <div class="pt-4 border-t">
+              <Label class="mb-3 block">Sitemap Configuration</Label>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <Label for="changeFrequency" class="text-sm">Change Frequency</Label>
+                  <select
+                    id="changeFrequency"
+                    v-model="form.changeFrequency"
+                    class="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                    :disabled="isSaving"
+                  >
+                    <option value="always">Always</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                    <option value="never">Never</option>
+                  </select>
+                </div>
+                <div class="space-y-2">
+                  <Label for="priority" class="text-sm">Priority</Label>
+                  <select
+                    id="priority"
+                    v-model="form.priority"
+                    class="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                    :disabled="isSaving"
+                  >
+                    <option value="1.0">1.0 (Highest)</option>
+                    <option value="0.9">0.9</option>
+                    <option value="0.8">0.8</option>
+                    <option value="0.7">0.7</option>
+                    <option value="0.6">0.6</option>
+                    <option value="0.5">0.5 (Default)</option>
+                    <option value="0.4">0.4</option>
+                    <option value="0.3">0.3</option>
+                    <option value="0.2">0.2</option>
+                    <option value="0.1">0.1 (Lowest)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </CardContent>
     </Card>
 
