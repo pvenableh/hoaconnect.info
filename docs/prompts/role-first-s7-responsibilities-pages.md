@@ -53,15 +53,19 @@ without a reason in the log):
 
 Build, one commit each, gated as below:
 
-6. Board tab (app/components/pages/MembersPage.vue): replace
-   updateBoardTerm and removeBoardTerm with the term routes. Row actions
-   End term · Change office · Correct, each a form in AppBottomSheet.
-   Delete in the overflow, behind useConfirm saying it is for a term
-   entered by mistake; show the route's 409 message as it comes. An
-   "As of" DateInput that filters the list. Create stays as it is. Then
-   take update and delete on hoa_board_members away from the HOA Admin
-   policy in scripts/setup-directus-permissions.ts (an operator TODO to
-   apply), and run pnpm setup:permissions:audit before and after.
+6. Board tab (app/components/pages/MembersPage.vue). Since 2026-11-16
+   (7dc42c0) the tab already adds and edits terms through POST
+   /api/org/board-terms and PATCH [id], and the HOA Admin create and
+   update on hoa_board_members are gone (REMOVED_ADMIN_RULES in
+   scripts/lib/admin-scope-perms.ts, applied). Left: removeBoardTerm
+   still deletes through useDirectusItems; move it to DELETE [id]. Row
+   actions End term · Change office · Correct, each a form in
+   AppBottomSheet. Delete in the overflow, behind useConfirm saying it is
+   for a term entered by mistake; show the route's 409 message as it
+   comes. An "As of" DateInput that filters the list. Create stays as it
+   is. Then take delete on hoa_board_members away from the HOA Admin
+   policy the same way (an operator TODO to apply), and run pnpm
+   setup:permissions:audit before and after.
 7. Admin register. First add grouped rows with sticky headers to
    AppResourceIndex itself (a `group` function and group labels), with a
    /ui-kit demo, so every grouped index gets them. Then the register on
