@@ -1641,6 +1641,9 @@ useSeoMeta({
                 never signed in is still active.
               </p>
             </div>
+
+            <!-- Offices and jobs held, with dates: editors and the board only (the route says no to anyone else). -->
+            <MembersServiceHistory v-if="editingId && orgId" :org-id="orgId" :member-id="editingId" />
           </div>
           <template #footer>
             <Button
