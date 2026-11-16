@@ -24,6 +24,7 @@ import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
 import { isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
 import { baseOf, planSharedValidations, type LiveRule, type PolicyKind } from "./lib/shared-write-validations";
 import { MANAGER_SCOPE_FIELDS, adminScopeChanges, scopeChanges, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
+import { ADMIN_FILE_FIELDS, adminWritableFields } from "../core/shared/roles/admin-file-fields";
 
 // ============================================================================
 // Configuration
@@ -632,6 +633,22 @@ async function directusApi<T>(
 
   const data = JSON.parse(text);
   return data.data as T;
+}
+
+/**
+ * The field list for the HOA Admin create and update on a collection with
+ * file fields the policy may not write (core/shared/roles/admin-file-fields.ts):
+ * its live fields but those. Read once per run.
+ */
+const adminWriteFieldCache = new Map<string, string[]>();
+async function adminWriteFields(collection: string): Promise<string[]> {
+  if (!adminWriteFieldCache.has(collection)) {
+    const rows = await directusApi<{ field: string }[]>(`/fields/${collection}`);
+    const live = (rows ?? []).map((r) => r.field);
+    if (!live.length) throw new Error(`No fields read for ${collection}: refusing to write an empty field list`);
+    adminWriteFieldCache.set(collection, adminWritableFields(collection, live));
+  }
+  return adminWriteFieldCache.get(collection)!;
 }
 
 /**
@@ -1343,6 +1360,14 @@ async function setupCollectionPermissions(
       return scope ? { ...p, permissions: scope } : p;
     });
 
+  // File fields the HOA Admin policy may not write: an explicit field list on
+  // its create and update (core/shared/roles/admin-file-fields.ts).
+  if (roleName === "HOA Admin" && ADMIN_FILE_FIELDS[config.collection]) {
+    for (const p of desiredPermissions) {
+      if (p.action === "create" || p.action === "update") p.fields = await adminWriteFields(config.collection);
+    }
+  }
+
   for (const permission of desiredPermissions) {
     const result = await createOrUpdatePermission(
       permission,
@@ -1631,7 +1656,9 @@ async function managerScopeReadiness(): Promise<{ ready: boolean; reason: string
  * vendors, expenses, …) write their own permissions on collections this file
  * does not manage, all with the any-membership path; without this pass the
  * scope would stop at the collections above. Only the path is rewritten
- * (or, for a rule listed as removed, the rule is deleted).
+ * (or, for a rule listed as removed, the rule is deleted), and, for a
+ * create or update in `narrow`, the field list (file fields the policy may
+ * not write, core/shared/roles/admin-file-fields.ts).
  */
 async function scopeStrayRules(
   policyId: string,
@@ -1639,11 +1666,19 @@ async function scopeStrayRules(
   scope: (p: { collection: string; action: string; permissions: unknown; validation: unknown }) => { permissions: unknown; validation: unknown },
   removed: (collection: string, action: string) => boolean,
   auditMode: boolean,
-  pin: <P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P) => P = (p) => p
+  pin: <P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P) => P = (p) => p,
+  narrow: Readonly<Record<string, string[]>> = {}
 ): Promise<{ updated: number; removed: number }> {
   const rules = await directusApi<(ExistingPermission & { collection: string })[]>(
-    `/permissions?filter[policy][_eq]=${policyId}&fields=id,collection,action,permissions,validation&limit=-1`
+    `/permissions?filter[policy][_eq]=${policyId}&fields=id,collection,action,permissions,validation,fields&limit=-1`
   );
+  const narrowed = (r: { collection: string; action: string }) =>
+    (r.action === "create" || r.action === "update") && narrow[r.collection] ? narrow[r.collection]! : null;
+  const sortFields = (f: string[] | null | undefined) => JSON.stringify([...(f ?? [])].sort());
+  const fieldsDiffer = (r: ExistingPermission & { collection: string }) => {
+    const want = narrowed(r);
+    return !!want && sortFields(r.fields) !== sortFields(want);
+  };
   const kind = policyKind(policyId);
   // A combined validation holds the member's branch, which reaches through any
   // membership by design: judge and scope the policy's own branch only, and
@@ -1658,7 +1693,8 @@ async function scopeStrayRules(
     if (removed(r.collection, r.action)) return false;
     const f = fixed(r);
     return JSON.stringify(f.permissions ?? null) !== JSON.stringify(r.permissions ?? null) ||
-      JSON.stringify(f.validation ?? null) !== JSON.stringify(own(r) ?? null);
+      JSON.stringify(f.validation ?? null) !== JSON.stringify(own(r) ?? null) ||
+      fieldsDiffer(r);
   });
   if (!stray.length && !drop.length) {
     console.log(`   ⏭️  None: every ${label} rule is scoped`);
@@ -1666,20 +1702,24 @@ async function scopeStrayRules(
   }
   const names = [...new Set(stray.map((r) => r.collection))].sort();
   const dropped = drop.map((r) => `${r.collection}.${r.action}`);
+  const fileFieldRules = stray.filter(fieldsDiffer).map((r) => `${r.collection}.${r.action}`);
   if (auditMode) {
     if (stray.length) console.log(`   📋 Would scope ${stray.length} ${label} rules on ${names.length} collections: ${names.join(", ")}`);
+    if (fileFieldRules.length) console.log(`   📋 …of which file fields left out: ${fileFieldRules.join(", ")}`);
     if (drop.length) console.log(`   📋 Would remove ${label} rules: ${dropped.join(", ")}`);
     return { updated: stray.length, removed: drop.length };
   }
   for (const r of stray) {
     const scoped = fixed(r);
+    const fields = narrowed(r);
     await directusApi(`/permissions/${r.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ permissions: scoped.permissions, validation: scoped.validation }),
+      body: JSON.stringify({ permissions: scoped.permissions, validation: scoped.validation, ...(fields ? { fields } : {}) }),
     });
   }
   for (const r of drop) await directusApi(`/permissions/${r.id}`, { method: "DELETE" });
   if (stray.length) console.log(`   ✅ Scoped ${stray.length} ${label} rules on ${names.length} collections: ${names.join(", ")}`);
+  if (fileFieldRules.length) console.log(`   ✅ …of which file fields left out: ${fileFieldRules.join(", ")}`);
   if (drop.length) console.log(`   🗑️  Removed ${label} rules: ${dropped.join(", ")}`);
   return { updated: stray.length, removed: drop.length };
 }
@@ -1877,7 +1917,12 @@ async function main() {
 
     if (ADMIN_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "HOA Admin") && !collectionsArg.length) {
       console.log("\n🔑 HOA Admin rules made by other scripts");
-      const r = await scopeStrayRules(POLICIES.HOA_ADMIN, "HOA Admin", scopeAdminPermission, isRemovedAdminRule, auditMode, pinAdminUpdate);
+      // File fields left out of the create and update on tables another script
+      // makes the rules for (hoa_meetings); the main pass narrows its own.
+      const managed = new Set(COLLECTION_CONFIGS.map((c) => c.collection));
+      const narrow: Record<string, string[]> = {};
+      for (const c of Object.keys(ADMIN_FILE_FIELDS).filter((c) => !managed.has(c))) narrow[c] = await adminWriteFields(c);
+      const r = await scopeStrayRules(POLICIES.HOA_ADMIN, "HOA Admin", scopeAdminPermission, isRemovedAdminRule, auditMode, pinAdminUpdate, narrow);
       totalStats.updated += r.updated;
       totalStats.removed += r.removed;
     }

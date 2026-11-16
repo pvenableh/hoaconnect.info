@@ -7,6 +7,7 @@
  */
 
 import { assertMeetingsInCallerCommunities } from "#core/server/utils/caller-library";
+import { finishHeldCreate, holdAdminFileFields, setHeldFileFields } from "#core/server/utils/admin-file-writes";
 import {
   readItems,
   readItem,
@@ -189,7 +190,19 @@ export default defineEventHandler(async (event) => {
       await assertMeetingsInCallerCommunities(event, rows.filter((r: any) => r && "hoa_meetings_id" in r).map((r: any) => r.hoa_meetings_id));
     }
 
-    const result = await executeOperation(event, collection, operation, id, data, query);
+    // A file field the HOA Admin policy may not write (a new document's file):
+    // checked here, left out of the caller's own write, and set with the app's
+    // token (core/server/utils/admin-file-writes.ts).
+    const held = await holdAdminFileFields(event, collection, operation, id, data);
+    let result: any;
+    if (!held) {
+      result = await executeOperation(event, collection, operation, id, data, query);
+    } else if (operation === "create") {
+      result = await finishHeldCreate(collection, await executeOperation(event, collection, operation, id, held.data, query), held.files);
+    } else {
+      if (Object.keys(held.data).length) await executeOperation(event, collection, operation, id, held.data, query);
+      result = await setHeldFileFields(collection, id as string | number, held.files);
+    }
     await maybeReindexRag(collection, operation, id, result);
     return result;
   } catch (error: any) {

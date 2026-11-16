@@ -22,6 +22,7 @@
  *
  * Idempotent: existing collections/fields/relations are skipped.
  */
+import { adminWritableFields } from "../core/shared/roles/admin-file-fields";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -756,13 +757,20 @@ async function setupPermissions(): Promise<void> {
     },
   };
 
+  // Every field but the notice and recording files: Directus would link any
+  // file id there, so the HOA Admin policy may not write them
+  // (core/shared/roles/admin-file-fields.ts). setup:permissions keeps the list.
+  const meetingFields: string[] = ((await directusFetch("/fields/hoa_meetings"))?.data ?? []).map((f: { field: string }) => f.field);
+  if (!meetingFields.length) throw new Error("No fields read for hoa_meetings");
+  const meetingAdminFields = adminWritableFields("hoa_meetings", meetingFields);
+
   const collections = [
     {
       collection: "hoa_meetings",
       adminPermissions: {
-        create: { permissions: {}, validation: orgFilter, fields: ["*"] },
+        create: { permissions: {}, validation: orgFilter, fields: meetingAdminFields },
         read: { permissions: orgFilter, validation: null, fields: ["*"] },
-        update: { permissions: orgFilter, validation: orgFilter, fields: ["*"] },
+        update: { permissions: orgFilter, validation: orgFilter, fields: meetingAdminFields },
         delete: { permissions: orgFilter, validation: null, fields: ["*"] },
       },
       memberPermissions: {

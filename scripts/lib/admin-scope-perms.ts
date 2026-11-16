@@ -122,6 +122,12 @@ export function scopeManagerPermission<P extends { collection: string; action: s
  *   task links
  * The ones with no route named were written only with the app's token
  * already. Read and delete stay: they check the row as it is.
+ *
+ * A file field is the same kind of link: Directus links any file id, and a
+ * row naming a file makes it its community's (core/server/utils/file-owner.ts).
+ * Documents, meetings and amenities keep their create and update, without
+ * their file fields (core/shared/roles/admin-file-fields.ts); a new
+ * document's file is checked and set by `/api/directus/items`.
  */
 const CREATE_AND_UPDATE = (collection: string) =>
   [

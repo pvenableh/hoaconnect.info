@@ -111,6 +111,17 @@ describe("files", () => {
     await call(routes.upload, {});
     expect(ops()).toEqual(["uploadFiles"]);
   });
+
+  it("sends the folder and title before the file, which Directus needs to file it", async () => {
+    // Directus stores the file with only the fields read before it; with the
+    // file first, every upload landed in no folder and a PDF came back with no id.
+    const part = (name: string, value: string) => ({ name, data: Buffer.from(value) });
+    h.multipart = [{ name: "file", filename: "rules.pdf", type: "application/pdf", data: Buffer.from("%PDF-") }, part("title", "Rules"), part("folder", "docs-lenox")];
+    await call(routes.upload, {});
+    const form = h.userOps[0].args[0] as FormData;
+    expect([...form.keys()]).toEqual(["title", "folder", "file"]);
+    expect(form.get("folder")).toBe("docs-lenox");
+  });
 });
 
 describe("meeting files", () => {

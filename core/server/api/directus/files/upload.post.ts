@@ -43,14 +43,13 @@ export default defineEventHandler(async (event) => {
       }
     })
     
-    // Create FormData for Directus SDK
+    // Create FormData for Directus SDK. The metadata goes BEFORE the file:
+    // Directus stores the file as its part arrives, with only the fields read
+    // so far. With the file first, every upload lost its folder and title, and
+    // a PDF in no folder is one the uploader may not read, so Directus answered
+    // with no id and the document form failed ("Failed to upload document").
     const uploadFormData = new FormData()
-    
-    // Add file
-    const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.type || 'application/octet-stream' })
-    uploadFormData.append('file', blob, fileData.filename || 'upload')
-    
-    // Add metadata
+
     if (metadata.title) uploadFormData.append('title', metadata.title)
     if (metadata.description) uploadFormData.append('description', metadata.description)
     // Directus cannot check where a new file goes; this route does.
@@ -59,7 +58,11 @@ export default defineEventHandler(async (event) => {
       uploadFormData.append('folder', metadata.folder)
     }
     if (metadata.tags) uploadFormData.append('tags', JSON.stringify(metadata.tags))
-    
+
+    // The file, last.
+    const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.type || 'application/octet-stream' })
+    uploadFormData.append('file', blob, fileData.filename || 'upload')
+
     // Upload using SDK
     const result = await directus.request(uploadFiles(uploadFormData))
     
