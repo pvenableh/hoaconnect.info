@@ -122,7 +122,10 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
   {
     collection: "hoa_member_units",
     adminLevel: "full",
-    memberLevel: "member_specific", // Members can update their own unit assignments
+    // Read only: a write rule could check only the person, not the unit, so a
+    // resident could link themselves to another community's unit. Links are
+    // made by /api/hoa/member-units/assign and the invitation and join routes.
+    memberLevel: "read_only",
     // A PM READS the junction — it is where residency lives since Phase 2, and
     // a client query runs on the USER'S OWN token. Without this, a manager's
     // composer and audience counts fell back to hoa_members.member_type while
@@ -267,14 +270,17 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
   {
     collection: "hoa_pets",
     adminLevel: "full",
-    memberLevel: "member_specific", // Members can manage their own pets
+    // Read only: a write rule could check only the person, not the unit or
+    // community. Residents change theirs through change requests
+    // (core/server/utils/change-requests.ts), admins through /api/hoa/units/records.
+    memberLevel: "read_only",
     filterType: "member",
     description: "Member pets",
   },
   {
     collection: "hoa_vehicles",
     adminLevel: "full",
-    memberLevel: "member_specific", // Members can manage their own vehicles
+    memberLevel: "read_only", // As pets, above
     filterType: "member",
     description: "Member vehicles",
   },

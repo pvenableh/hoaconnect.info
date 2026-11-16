@@ -5,7 +5,7 @@
  * the term's member.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { ID, ORG, PERSONAS, ev, seed, stubGlobals, type Db, type Who } from "./__fixtures__/responsibilities-db";
+import { ID, ORG, PERSONAS, ev, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
 
@@ -130,5 +130,49 @@ describe("Delete (entered by mistake)", () => {
     await call("remove", VALID.remove);
     expect(state.db.hoa_board_members!.find((t) => t.id === ID.termOld)).toBeUndefined();
     expect(activity()[0].label).toBe("Deleted Bob Diaz's term as Secretary, entered by mistake");
+  });
+});
+
+describe("Add a term (POST board-terms)", () => {
+  // The Members page's "Add Board Position". Directus cannot check the person
+  // a new term names, so the HOA Admin policy has no create on the collection.
+  let create: (e: any) => Promise<any>;
+  beforeAll(async () => {
+    create = (await import(/* @vite-ignore */ `${B}/index.post`)).default;
+  });
+  const BODY = { orgId: ORG, hoa_member: ID.memberBob, title: "secretary", term_start: "2026-11-01", term_end: null, message: null };
+  const add = (body: any) => create(ev({ body }));
+
+  it("adds a term for a member of the community, published unless said otherwise, and logs it", async () => {
+    const res = await add(BODY);
+    expect(term(res.id)).toMatchObject({ hoa_member: ID.memberBob, title: "secretary", term_start: "2026-11-01", term_end: null, status: "published" });
+    expect(activity()[0]).toMatchObject({ event_type: "board_term", target_id: res.id, label: "Added Bob Diaz as Secretary", user: ID.userAdmin });
+    const draft = await add({ ...BODY, status: "draft" });
+    expect(term(draft.id).status).toBe("draft");
+  });
+
+  it("401, then admin only: a board seat, the register grant and a resident are refused", async () => {
+    as(PERSONAS.nobody);
+    await expect(add(BODY)).rejects.toMatchObject({ statusCode: 401 });
+    for (const who of [PERSONAS.board, PERSONAS.editor, PERSONAS.owner, PERSONAS.outsider]) {
+      as(who);
+      await expect(add(BODY)).rejects.toMatchObject({ statusCode: 403 });
+    }
+    expect(fake.calls.filter((c) => !c.op.startsWith("read"))).toHaveLength(0);
+  });
+
+  it("refuses another community's person, an unknown one, dates out of order, a title that is not an office, and a field it does not take", async () => {
+    for (const body of [
+      { ...BODY, hoa_member: ID.memberOther },
+      { ...BODY, hoa_member: uuid(98) },
+      { ...BODY, term_start: "2026-11-01", term_end: "2026-10-31" },
+      { ...BODY, title: "chair" },
+      { ...BODY, holder_name: "Someone else" },
+      { ...BODY, hoa_member: { id: ID.memberOther } },
+      { ...BODY, orgId: undefined },
+    ]) {
+      await expect(add(body)).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(fake.calls.filter((c) => !c.op.startsWith("read"))).toHaveLength(0);
   });
 });

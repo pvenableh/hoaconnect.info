@@ -102,6 +102,25 @@ export const endTermBody = z.object({
 
 export const changeOfficeBody = z.object({ orgId, effective: dateOnly, office: z.enum(tuple(OFFICE_KEYS)) });
 
+/**
+ * A new board term (the Members page's "Add Board Position"). The route checks
+ * the person is a member of the community: Directus cannot, so the HOA Admin
+ * policy has no create on hoa_board_members (scripts/lib/admin-scope-perms.ts).
+ */
+export const createTermBody = z
+  .object({
+    orgId,
+    hoa_member: id,
+    title: z.enum(tuple(OFFICE_KEYS), { message: "Choose a board office." }),
+    term_start: dateOnly.nullish(),
+    term_end: dateOnly.nullish(),
+    message: text(2000),
+    icon: z.string().max(100).nullish(),
+    status: z.enum(["published", "draft", "archived"]).optional(),
+  })
+  .strict()
+  .refine((b) => !b.term_start || !b.term_end || b.term_end >= b.term_start, "The term ends before it starts.");
+
 /** Correction only: never the member. `.strict()` refuses `hoa_member` outright. */
 export const correctTermBody = z
   .object({

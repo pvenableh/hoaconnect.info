@@ -31,8 +31,6 @@ const { list: listInvitations, update: updateInvitation } = useDirectusItems("ho
 const { list: listUnits } = useDirectusItems("hoa_units");
 const {
   list: listBoardTerms,
-  create: createBoardTerm,
-  update: updateBoardTerm,
   remove: removeBoardTerm,
 } = useDirectusItems("hoa_board_members");
 
@@ -804,8 +802,11 @@ const handleSubmitBoardTerm = async () => {
   }
 
   try {
+    // Through the board-term routes, which check the person is a member of
+    // this community (Directus cannot). An edit never changes the person: the
+    // picker is locked, and the route refuses it.
     const data = {
-      hoa_member: boardForm.hoa_member,
+      orgId: orgId.value,
       title: boardForm.title,
       term_start: boardForm.term_start || null,
       term_end: boardForm.term_end || null,
@@ -814,10 +815,10 @@ const handleSubmitBoardTerm = async () => {
     };
 
     if (editingBoardTermId.value) {
-      await updateBoardTerm(editingBoardTermId.value, data);
+      await $fetch(`/api/org/board-terms/${editingBoardTermId.value}`, { method: "PATCH", body: data });
       toast.success("Board position updated");
     } else {
-      await createBoardTerm(data);
+      await $fetch("/api/org/board-terms", { method: "POST", body: { ...data, hoa_member: boardForm.hoa_member } });
       toast.success("Board position added");
     }
 
@@ -826,7 +827,7 @@ const handleSubmitBoardTerm = async () => {
     resetBoardForm();
   } catch (error: any) {
     console.error("Save error:", error);
-    toast.error(error.message || "Failed to save board position");
+    toast.error(error?.data?.message || error.message || "Failed to save board position");
   }
 };
 

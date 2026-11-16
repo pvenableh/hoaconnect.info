@@ -98,25 +98,46 @@ export function scopeManagerPermission<P extends { collection: string; action: s
 // route that checks both sides, and the rule goes.
 
 /**
- * HOA Admin rules removed outright, each with the route that does the write:
+ * HOA Admin rules removed outright: every create and update whose validation
+ * followed a relation (measured live 2026-11-15), each with what does the
+ * write instead:
  *   meeting attachments    none: no page writes these links;
  *                          `/api/directus/items` checks the meeting if one does
  *   meeting attendees      POST /api/org/meetings/[id]/attendees
  *   pets, vehicles         POST and PATCH /api/hoa/units/records
  *   member–unit links      /api/hoa/member-units/assign and /remove
- * Read and delete stay: they check the row as it is.
+ *   board terms            POST /api/org/board-terms, PATCH board-terms/[id]
+ *   email recipients and   /api/email/send and the delivery webhook
+ *   their activity         (/api/email/activity)
+ *   mailing-list members   none: nothing in the app writes them
+ *   mention edits          none: nothing in the app edits a mention
+ *   project, event and     the project and task routes
+ *   task links
+ * The ones with no route named were written only with the app's token
+ * already. Read and delete stay: they check the row as it is.
  */
+const CREATE_AND_UPDATE = (collection: string) =>
+  [
+    { collection, action: "create" },
+    { collection, action: "update" },
+  ] as const;
+
 export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string }[] = [
-  { collection: "hoa_meetings_files", action: "create" },
-  { collection: "hoa_meetings_files", action: "update" },
-  { collection: "hoa_meeting_attendees", action: "create" },
-  { collection: "hoa_meeting_attendees", action: "update" },
-  { collection: "hoa_pets", action: "create" },
-  { collection: "hoa_pets", action: "update" },
-  { collection: "hoa_vehicles", action: "create" },
-  { collection: "hoa_vehicles", action: "update" },
-  { collection: "hoa_member_units", action: "create" },
-  { collection: "hoa_member_units", action: "update" },
+  ...CREATE_AND_UPDATE("hoa_meetings_files"),
+  ...CREATE_AND_UPDATE("hoa_meeting_attendees"),
+  ...CREATE_AND_UPDATE("hoa_pets"),
+  ...CREATE_AND_UPDATE("hoa_vehicles"),
+  ...CREATE_AND_UPDATE("hoa_member_units"),
+  ...CREATE_AND_UPDATE("hoa_board_members"),
+  ...CREATE_AND_UPDATE("hoa_email_recipients"),
+  ...CREATE_AND_UPDATE("hoa_email_activity"),
+  ...CREATE_AND_UPDATE("hoa_mailing_list_members"),
+  { collection: "hoa_channel_mentions", action: "update" },
+  ...CREATE_AND_UPDATE("hoa_projects_users"),
+  ...CREATE_AND_UPDATE("hoa_projects_files"),
+  ...CREATE_AND_UPDATE("hoa_projects_vendors"),
+  ...CREATE_AND_UPDATE("hoa_project_events_files"),
+  ...CREATE_AND_UPDATE("hoa_tasks_users"),
 ];
 
 export const isRemovedAdminRule = (collection: string, action: string) =>

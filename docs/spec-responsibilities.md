@@ -49,6 +49,7 @@ Every route is under `/api/org`, takes `orgId` (query on GET and DELETE, body ot
 | `PATCH responsibilities/visibility` | **admin** | `{ published?, showUnassigned? }`. The work switch is not enough: the delegate may be the party who is not answering. One activity row per switch changed |
 | `GET responsibilities/export.pdf?asOf=` | read | Grouped by category. Job · Who · Cadence · Basis · Last verified. An empty Who is an empty cell. The as-of date in the header |
 | `GET responsibilities/service-history?member=` | read | One member's offices held and jobs held, with dates: rows naming them, and office rows clipped to their terms of that office |
+| `POST board-terms` | admin | `{ hoa_member, title, term_start?, term_end?, message?, icon?, status? }`. Adds a term; the person must be a member of the community. Added after Session 6 for the Members page: the HOA Admin policy has no create on `hoa_board_members`, because Directus cannot check the person a term names |
 | `POST board-terms/[id]/end` | admin | `{ lastDay, reason }` (term_ended · resigned · removed). Freezes the name. Refused once `end_reason` is set |
 | `POST board-terms/[id]/change-office` | admin | `{ effective, office }`. Ends the term on `effective − 1` with `changed_office`, and opens one for the same member from `effective`, keeping the planned `term_end` when it is later |
 | `PATCH board-terms/[id]` | admin | Correction only: office, dates, message, icon, status, end reason. Never the member. The activity row carries before and after |

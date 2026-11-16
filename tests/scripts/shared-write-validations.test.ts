@@ -243,12 +243,25 @@ describe("admin writes that could leave the community", () => {
     expect(passes(own, { organization: { id: "LR" } }, ADMIN)).toBe(false);
   });
 
-  it("removes the create and update of every admin rule that followed a relation the app writes", () => {
-    for (const collection of ["hoa_meetings_files", "hoa_meeting_attendees", "hoa_pets", "hoa_vehicles", "hoa_member_units"]) {
+  it("removes the create and update of every admin rule that followed a relation", () => {
+    // Measured live 2026-11-15: these were all of them.
+    const RELATIONAL = [
+      "hoa_meetings_files", "hoa_meeting_attendees", "hoa_pets", "hoa_vehicles", "hoa_member_units",
+      "hoa_board_members", "hoa_email_recipients", "hoa_email_activity", "hoa_mailing_list_members",
+      "hoa_projects_users", "hoa_projects_files", "hoa_projects_vendors", "hoa_project_events_files", "hoa_tasks_users",
+    ];
+    for (const collection of RELATIONAL) {
       expect(isRemovedAdminRule(collection, "create")).toBe(true);
       expect(isRemovedAdminRule(collection, "update")).toBe(true);
       expect(isRemovedAdminRule(collection, "read")).toBe(false);
       expect(isRemovedAdminRule(collection, "delete")).toBe(false);
+    }
+    // A mention's create is checked by its own `channel`; only the edit followed a relation.
+    expect(isRemovedAdminRule("hoa_channel_mentions", "update")).toBe(true);
+    expect(isRemovedAdminRule("hoa_channel_mentions", "create")).toBe(false);
+    // Parents keep theirs: their validation reads their own `organization`.
+    for (const collection of ["hoa_meetings", "hoa_projects", "hoa_tasks", "hoa_emails"]) {
+      expect(isRemovedAdminRule(collection, "create")).toBe(false);
     }
   });
 

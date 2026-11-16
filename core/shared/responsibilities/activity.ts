@@ -28,6 +28,7 @@ export const sentences = {
   showUnassigned: (on: boolean) =>
     on ? "Turned on showing unassigned jobs to owners" : "Turned off showing unassigned jobs to owners",
 
+  termAdded: (person: string, office: string) => `Added ${person} as ${officeLabel(office)}`,
   termEnded: (person: string, office: string, reason: string) =>
     `${person}'s term as ${officeLabel(office)} ended (${endReasonLabel(reason).toLowerCase()})`,
   officeChanged: (person: string, from: string, to: string) =>

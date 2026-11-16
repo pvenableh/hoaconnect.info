@@ -35,7 +35,9 @@ without a reason in the log):
   [id]/hand-over, PATCH assignees/[id], POST apply-template, PATCH
   visibility (admin only), GET export.pdf?asOf=, GET
   service-history?member=. Under core/server/api/org/board-terms/: POST
-  [id]/end, POST [id]/change-office, PATCH [id], DELETE [id].
+  (add a term), POST [id]/end, POST [id]/change-office, PATCH [id],
+  DELETE [id]. Board terms are written only through these routes: the
+  HOA Admin policy has no create or update on hoa_board_members.
 - Response shapes: RegisterRow, HolderView, PublishedRow in
   core/shared/responsibilities/views.ts; ServiceHistory in history.ts.
   Labels, categories, cadences, offices, the seed list: config.ts. The

@@ -28,6 +28,7 @@
  * Prerequisites: DIRECTUS_URL + DIRECTUS_STATIC_TOKEN in .env (admin token).
  * Idempotent: existing collections/fields/relations/permissions are skipped.
  */
+import { isRemovedAdminRule } from "./lib/admin-scope-perms";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -695,9 +696,16 @@ async function setupPermissions(): Promise<void> {
     for (const collection of ALL_COLLECTIONS) {
       console.log(`\n   📋 ${collection} for HOA Admin...`);
       const filter = collection.includes("_users") || collection.includes("_files") || collection.includes("_vendors") ? {} : orgFilter;
-      await postPermission(adminPolicy.id, collection, "create", { permissions: {}, validation: filter, fields: ["*"] });
+      // The link tables get no create or update: Directus cannot check the
+      // project a new link names, and the project and task routes write them
+      // with the app's token (scripts/lib/admin-scope-perms.ts REMOVED_ADMIN_RULES).
+      if (!isRemovedAdminRule(collection, "create")) {
+        await postPermission(adminPolicy.id, collection, "create", { permissions: {}, validation: filter, fields: ["*"] });
+      }
       await postPermission(adminPolicy.id, collection, "read", { permissions: filter, validation: null, fields: ["*"] });
-      await postPermission(adminPolicy.id, collection, "update", { permissions: filter, validation: filter, fields: ["*"] });
+      if (!isRemovedAdminRule(collection, "update")) {
+        await postPermission(adminPolicy.id, collection, "update", { permissions: filter, validation: filter, fields: ["*"] });
+      }
       await postPermission(adminPolicy.id, collection, "delete", { permissions: filter, validation: null, fields: ["*"] });
     }
   }
