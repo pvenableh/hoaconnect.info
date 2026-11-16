@@ -232,20 +232,32 @@ describe("planSharedValidations", () => {
 });
 
 describe("admin writes that could leave the community", () => {
-  it("removes the meeting-attachment create and update", () => {
-    expect(isRemovedAdminRule("hoa_meetings_files", "create")).toBe(true);
-    expect(isRemovedAdminRule("hoa_meetings_files", "update")).toBe(true);
-    expect(isRemovedAdminRule("hoa_meetings_files", "delete")).toBe(false);
+  it("a validation on a relation refuses the page's plain id and passes an object holding only the id", () => {
+    const viaMeeting = { meeting: { organization: { _in: ADMIN_MEMBERSHIP } } };
+    expect(passes(viaMeeting, { meeting: "m-1" }, ADMIN)).toBe(false);
+    // Directus then links the row to that meeting, checking only that it exists.
+    expect(passes(viaMeeting, { meeting: { id: "another-community's-meeting" } }, ADMIN)).toBe(true);
+    // A field of the row itself holds either way.
+    const own = { organization: { _in: ADMIN_MEMBERSHIP } };
+    expect(passes(own, { organization: "LR" }, ADMIN)).toBe(false);
+    expect(passes(own, { organization: { id: "LR" } }, ADMIN)).toBe(false);
   });
 
-  it("pins the template and attendee updates to their filter", () => {
-    const filter = { meeting: { organization: { _in: ADMIN_MEMBERSHIP } } };
-    const rule = { collection: "hoa_meeting_attendees", action: "update", permissions: filter, validation: null };
+  it("removes the create and update of every admin rule that followed a relation the app writes", () => {
+    for (const collection of ["hoa_meetings_files", "hoa_meeting_attendees", "hoa_pets", "hoa_vehicles", "hoa_member_units"]) {
+      expect(isRemovedAdminRule(collection, "create")).toBe(true);
+      expect(isRemovedAdminRule(collection, "update")).toBe(true);
+      expect(isRemovedAdminRule(collection, "read")).toBe(false);
+      expect(isRemovedAdminRule(collection, "delete")).toBe(false);
+    }
+  });
+
+  it("pins the template update to its filter, and nothing on a relation", () => {
+    const filter = { organization: { _in: ADMIN_MEMBERSHIP } };
+    const rule = { collection: "hoa_email_templates", action: "update", permissions: filter, validation: null };
     expect(pinAdminUpdate(rule).validation).toEqual(filter);
     expect(pinAdminUpdate({ ...rule, action: "delete" }).validation).toBeNull();
+    expect(pinAdminUpdate({ ...rule, collection: "hoa_meeting_attendees" }).validation).toBeNull();
     expect(pinAdminUpdate({ ...rule, collection: "directus_files" }).validation).toBeNull();
-    // An attendee edit that names a meeting by id is refused; one that does not, passes.
-    expect(passes(filter, { meeting: "m-1" }, ADMIN)).toBe(false);
-    expect(passes(filter, { attended: true }, ADMIN)).toBe(true);
   });
 });

@@ -771,11 +771,12 @@ async function setupPermissions(): Promise<void> {
     },
     {
       collection: "hoa_meeting_attendees",
+      // No create or update: Directus cannot check that the row names one of
+      // the admin's own meetings and members. The meetings page adds attendees
+      // through POST /api/org/meetings/[id]/attendees, which does
+      // (scripts/lib/admin-scope-perms.ts REMOVED_ADMIN_RULES).
       adminPermissions: {
-        create: { permissions: {}, validation: attendeeOrgFilter, fields: ["*"] },
         read: { permissions: attendeeOrgFilter, validation: null, fields: ["*"] },
-        // Pinned: an edit cannot point the row at another community's meeting.
-        update: { permissions: attendeeOrgFilter, validation: attendeeOrgFilter, fields: ["*"] },
         delete: { permissions: attendeeOrgFilter, validation: null, fields: ["*"] },
       },
       memberPermissions: {

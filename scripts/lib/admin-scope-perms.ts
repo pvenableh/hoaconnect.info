@@ -86,19 +86,37 @@ export function scopeManagerPermission<P extends { collection: string; action: s
 //
 // A create is checked only against its validation (Directus 11.13 does not
 // apply a create rule's item filter), and an update's item filter only checks
-// the row as it was. A validation cannot look a related row up: on a nested
-// path it holds only for a payload that sends the relation as an object, which
-// Directus then writes under its own permissions, so a plain id fails it.
+// the row as it was. A validation cannot look a related row up. On a nested
+// path (`meeting.organization`) it checks the payload only:
+//   - a plain id fails it (a nested path needs an object), so the app's own
+//     writes, which send ids, were refused;
+//   - an object holding only the id passes it (an absent field is not
+//     checked), and Directus then links the row after checking only that the
+//     id exists (api/src/services/payload.ts, processM2O). So through the API
+//     an admin could link a row to another community's meeting or member.
+// Such a rule cannot be made safe in Directus. The write moves to a server
+// route that checks both sides, and the rule goes.
 
 /**
- * HOA Admin rules removed outright. Meeting attachments: the create rule had
- * no validation, so an admin could attach a file to any community's meeting,
- * and the update rule could move a link there. No page writes these links;
- * `/api/directus/items` checks the meeting if one ever does.
+ * HOA Admin rules removed outright, each with the route that does the write:
+ *   meeting attachments    none: no page writes these links;
+ *                          `/api/directus/items` checks the meeting if one does
+ *   meeting attendees      POST /api/org/meetings/[id]/attendees
+ *   pets, vehicles         POST and PATCH /api/hoa/units/records
+ *   member–unit links      /api/hoa/member-units/assign and /remove
+ * Read and delete stay: they check the row as it is.
  */
 export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string }[] = [
   { collection: "hoa_meetings_files", action: "create" },
   { collection: "hoa_meetings_files", action: "update" },
+  { collection: "hoa_meeting_attendees", action: "create" },
+  { collection: "hoa_meeting_attendees", action: "update" },
+  { collection: "hoa_pets", action: "create" },
+  { collection: "hoa_pets", action: "update" },
+  { collection: "hoa_vehicles", action: "create" },
+  { collection: "hoa_vehicles", action: "update" },
+  { collection: "hoa_member_units", action: "create" },
+  { collection: "hoa_member_units", action: "update" },
 ];
 
 export const isRemovedAdminRule = (collection: string, action: string) =>
@@ -106,13 +124,13 @@ export const isRemovedAdminRule = (collection: string, action: string) =>
 
 /**
  * HOA Admin update rules whose validation should repeat their item filter, so
- * an edit cannot point the row at another community: email templates (by
- * `organization`) and meeting attendees (by `meeting`, a relation, so an edit
- * that names a meeting by id is refused; no page changes an attendee's
- * meeting). Not a general rule: file and folder moves are relational too and
- * the app makes them with the user's token.
+ * an edit cannot point the row at another community: email templates, by
+ * `organization`, a field of the row itself. A pin on a relation would not
+ * hold (an object with only the id passes it, above). Not a general rule:
+ * file and folder moves are relational too and the app makes them with the
+ * user's token.
  */
-export const PINNED_ADMIN_UPDATES: readonly string[] = ["hoa_email_templates", "hoa_meeting_attendees"];
+export const PINNED_ADMIN_UPDATES: readonly string[] = ["hoa_email_templates"];
 
 /** The rule with its validation pinned to its filter, when it is one of the pinned updates. */
 export function pinAdminUpdate<P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P): P {

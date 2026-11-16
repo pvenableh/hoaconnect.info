@@ -11,8 +11,6 @@ const {
 } = useDirectusItems("hoa_meetings");
 const { announce } = useNotifyEvent();
 const {
-  list: listAttendees,
-  create: createAttendee,
   remove: removeAttendee,
 } = useDirectusItems("hoa_meeting_attendees");
 const { list: listMembers } = useDirectusItems("hoa_members");
@@ -360,15 +358,22 @@ const handleSubmit = async () => {
       const keptIds = formAttendees.value.map((a) => a.id).filter(Boolean) as string[];
       const toDelete = originalAttendeeIds.value.filter((id) => !keptIds.includes(id));
       for (const id of toDelete) await removeAttendee(id);
-      // Create new attendees
-      for (const a of formAttendees.value.filter((x) => !x.id)) {
-        await createAttendee({
-          meeting: meetingId,
-          hoa_member: a.hoa_member,
-          board_term: a.board_term,
-          role_at_meeting: a.role_at_meeting,
-          is_board_member: a.is_board_member,
-          attendance: a.attendance,
+      // Add new attendees through the server, which checks each person and
+      // board term is this community's (Directus cannot check the meeting a
+      // new attendee row names).
+      const added = formAttendees.value.filter((x) => !x.id);
+      if (added.length) {
+        await $fetch(`/api/org/meetings/${meetingId}/attendees`, {
+          method: "POST",
+          body: {
+            attendees: added.map((a) => ({
+              hoa_member: a.hoa_member,
+              board_term: a.board_term,
+              role_at_meeting: a.role_at_meeting,
+              is_board_member: a.is_board_member,
+              attendance: a.attendance,
+            })),
+          },
         });
       }
     }

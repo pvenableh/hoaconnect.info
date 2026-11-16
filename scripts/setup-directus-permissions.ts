@@ -1323,6 +1323,10 @@ async function setupCollectionPermissions(
     config
   )
     .filter((p) => !(WITHHELD_ACTIONS[config.collection] ?? []).includes(p.action))
+    // Rules a policy no longer holds (scripts/lib/admin-scope-perms.ts): the
+    // write goes through a server route, so an existing one is removed below.
+    .filter((p) => !(roleName === "HOA Admin" && isRemovedAdminRule(config.collection, p.action)))
+    .filter((p) => !(roleName === "Property Manager" && isRemovedManagerRule(config.collection, p.action)))
     .map((p) =>
       p.action === "read" && READ_FIELDS[config.collection]
         ? { ...p, fields: READ_FIELDS[config.collection]! }

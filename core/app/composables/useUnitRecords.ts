@@ -4,9 +4,11 @@
  *
  * Reads go through the role-aware server route (server/api/hoa/units/records):
  * admins & active board members see every record on the unit; owners/tenants see
- * only records overlapping their own occupancy windows. Writes are admin-only and
- * go straight to Directus (HOA Admin policy has full org CRUD on these
- * collections).
+ * only records overlapping their own occupancy windows. Writes are admin-only.
+ * Pets and vehicles go through POST and PATCH on the same route, which check
+ * the unit, the person and the photo are this community's (Directus cannot:
+ * core/shared/units/record-writes.ts). Leases still go to Directus, whose rule
+ * checks the lease's own organization.
  *
  * History UX rule: on turnover we set end_date + status=archived rather than
  * deleting, so a unit's history is always answerable.
@@ -88,8 +90,6 @@ export const isCurrentRecord = (r: { end_date?: string | null }): boolean => {
 
 export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
-  const pets = useDirectusItems("hoa_pets");
-  const vehicles = useDirectusItems("hoa_vehicles");
   const leases = useDirectusItems("hoa_leases");
 
   const fetchRecords = async (): Promise<UnitRecordsResponse> => {
@@ -107,27 +107,27 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
   // ── Writes (admin only) ──────────────────────────────────────────────────────
   const nowIso = () => new Date().toISOString();
 
-  const createPet = (input: Partial<PetRecord> & { member_id: string }) =>
-    pets.create({
-      ...input,
-      unit_id: toValue(unitId),
-      organization: selectedOrgId.value,
-      status: input.status || "published",
-      start_date: input.start_date || nowIso(),
+  // Optional fields the forms leave undefined are dropped by JSON, so the
+  // route's strict body sees only what was set.
+  const createRecord = (kind: "pet" | "vehicle", record: Record<string, unknown>) =>
+    $fetch("/api/hoa/units/records", {
+      method: "POST",
+      body: { orgId: selectedOrgId.value, unitId: toValue(unitId), kind, record },
     });
 
-  const updatePet = (id: string, patch: Partial<PetRecord>) => pets.update(id, patch);
-
-  const createVehicle = (input: Partial<VehicleRecord> & { member_id: string }) =>
-    vehicles.create({
-      ...input,
-      unit_id: toValue(unitId),
-      organization: selectedOrgId.value,
-      status: input.status || "published",
-      start_date: input.start_date || nowIso(),
+  const patchRecord = (kind: "pet" | "vehicle", id: string, patch: Record<string, unknown>) =>
+    $fetch("/api/hoa/units/records", {
+      method: "PATCH",
+      body: { orgId: selectedOrgId.value, id, kind, patch },
     });
 
-  const updateVehicle = (id: string, patch: Partial<VehicleRecord>) => vehicles.update(id, patch);
+  const createPet = (input: Partial<PetRecord> & { member_id: string }) => createRecord("pet", input);
+
+  const updatePet = (id: string, patch: Partial<PetRecord>) => patchRecord("pet", id, patch);
+
+  const createVehicle = (input: Partial<VehicleRecord> & { member_id: string }) => createRecord("vehicle", input);
+
+  const updateVehicle = (id: string, patch: Partial<VehicleRecord>) => patchRecord("vehicle", id, patch);
 
   const createLease = (input: Partial<LeaseRecord> & { tenant?: string; owner?: string }) =>
     leases.create({
@@ -143,8 +143,7 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
   // "Move out / end" — end-date + archive instead of deleting.
   const endRecord = (kind: "pet" | "vehicle" | "lease", id: string, endDate?: string) => {
     const end_date = endDate || nowIso();
-    if (kind === "pet") return pets.update(id, { end_date, status: "archived" });
-    if (kind === "vehicle") return vehicles.update(id, { end_date, status: "archived" });
+    if (kind === "pet" || kind === "vehicle") return patchRecord(kind, id, { end_date, status: "archived" });
     return leases.update(id, { end_date, status: "expired" });
   };
 
