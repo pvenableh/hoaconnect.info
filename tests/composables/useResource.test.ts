@@ -16,7 +16,7 @@ vi.mock("vue-sonner", () => ({
   toast: { success: (m: string) => toasts.push(`ok:${m}`), error: (m: string) => toasts.push(`err:${m}`) },
 }));
 
-import { applyResourceView, foldText, useResource, type ResourceDefinition } from "#core/app/composables/useResource";
+import { applyResourceView, foldText, groupRows, useResource, type ResourceDefinition } from "#core/app/composables/useResource";
 import { useAppSlideOverStackUrlSync } from "#core/app/composables/useAppSlideOverStack";
 
 interface Charge {
@@ -98,6 +98,32 @@ describe("applyResourceView", () => {
   });
   it("blank search matches all", () => expect(view({ query: "   " })).toEqual(["c1", "c2"]));
   it("foldText strips marks", () => expect(foldText("Ñandú ÉTÉ")).toBe("nandu ete"));
+});
+
+describe("groupRows", () => {
+  const rows = [
+    { id: 1, cat: "b" },
+    { id: 2, cat: "a" },
+    { id: 3, cat: "b" },
+    { id: 4, cat: "zz" },
+    { id: 5, cat: null as string | null },
+  ];
+  const groups = [
+    { key: "a", label: "Alpha" },
+    { key: "b", label: "Bravo" },
+    { key: "c", label: "Charlie" },
+  ];
+  const run = () => groupRows(rows, (r) => r.cat, groups);
+
+  it("sections follow the order given, not the order the rows came in", () =>
+    expect(run().map((g) => g.key)).toEqual(["a", "b", "zz", ""]));
+  it("rows keep their order inside a section", () => expect(run()[1]!.rows.map((r) => r.id)).toEqual([1, 3]));
+  it("a section with no rows is left out", () => expect(run().some((g) => g.key === "c")).toBe(false));
+  it("a listed section reads its label; an unlisted one reads its key; none reads Other", () =>
+    expect(run().map((g) => g.label)).toEqual(["Alpha", "Bravo", "zz", "Other"]));
+  it("no groups listed: sections in the order first seen", () =>
+    expect(groupRows(rows, (r) => r.cat).map((g) => g.key)).toEqual(["b", "a", "zz", ""]));
+  it("no rows, no sections", () => expect(groupRows([], () => "a", groups)).toEqual([]));
 });
 
 describe("loading", () => {

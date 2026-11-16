@@ -149,6 +149,39 @@ const toggleKitResourceEmpty = async () => {
   await kitResource.refresh();
 };
 
+// ── Grouped index ───────────────────────────────────────────────────────────
+// The same scaffold with `group` and `groups`: sticky headers per section. Three
+// groups of six, so there is enough to scroll for the headers to show they stick.
+const kitJobs = [
+  ["finance", "Sends dues statements", "Monthly"], ["finance", "Deposits funds", "Weekly"],
+  ["finance", "Reconciles bank statements", "Monthly"], ["finance", "Prepares the annual budget", "Annual"],
+  ["finance", "Pays vendors", "Continuous"], ["finance", "Files the tax return", "Annual"],
+  ["building", "Walks the building", "Weekly"], ["building", "Pest control", "Monthly"],
+  ["building", "Roof and drainage checks", "Quarterly"], ["building", "Landscaping", "Weekly"],
+  ["building", "Pool and courtyard", "Weekly"], ["building", "Trash and recycling", "Weekly"],
+  ["safety", "Elevator service", "Monthly"], ["safety", "Fire inspections", "Annual"],
+  ["safety", "Backflow inspection", "Annual"], ["safety", "Hurricane prep", "Annual"],
+  ["safety", "Keys and fobs", "Continuous"], ["safety", "After-hours emergencies", "As needed"],
+].map(([section, job, cadence], i) => ({ id: i + 1, section: section!, job: job!, cadence: cadence! }));
+const kitJobColumns = [
+  { key: "job", label: "Job", sortable: true },
+  { key: "cadence", label: "Cadence", hideOnMobile: true },
+];
+const kitJobGroups = [
+  { key: "finance", label: "Finance" },
+  { key: "building", label: "Building" },
+  { key: "safety", label: "Mechanical and safety" },
+];
+const kitGrouped = useResource<(typeof kitJobs)[number]>(
+  {
+    key: "kit-grouped",
+    rowKey: (r) => String(r.id),
+    load: async () => kitJobs,
+    search: (r) => [r.job, r.cadence],
+  },
+  { orgId: ref("kit") },
+);
+
 // ── Charts ──────────────────────────────────────────────────────────────────
 // Fixed sample data, not random: the point of the page is that a change to a
 // chart primitive is visible as a DIFF, and a chart that redraws itself
@@ -676,6 +709,29 @@ const materials = [
               <Button size="sm" variant="outline" :disabled="!rows.length">Message Selected</Button>
             </template>
           </AppResourceIndex>
+        </div>
+      </section>
+
+      <!-- ── Grouped index ────────────────────────────────────────────── -->
+      <section data-kit="grouped-index">
+        <h2 class="type-section">Grouped index</h2>
+        <p class="type-body">
+          `group` (a row's section key) and `groups` (the sections, in order, with
+          their labels) put the rows under sticky headers, so an index with a
+          natural set of sections, like the responsibilities register, reads by
+          section. Scroll: each header holds under the app bar until the next
+          one replaces it. Search and sort work inside the sections, and a
+          section with no rows left disappears.
+        </p>
+        <div class="mt-3">
+          <AppResourceIndex
+            :resource="kitGrouped"
+            :columns="kitJobColumns"
+            :noun="{ one: 'job', other: 'jobs' }"
+            :group="(r) => r.section"
+            :groups="kitJobGroups"
+            search-placeholder="Search jobs"
+          />
         </div>
       </section>
 

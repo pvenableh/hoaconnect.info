@@ -47,6 +47,7 @@ The scaffold reads only through `def.load`. Charges load from `GET /api/org/mone
 | `title`, `description` | render `AppPageHeader` (title, the count in `#meta`, the primary button in `#actions`). Leave out when the index is one view of a page that owns its header; the count then leads the toolbar |
 | `canCreate`, `createLabel` | the one primary "New …", in the header and the empty state. `canCreate: false` hides both: a role never sees a control it cannot use |
 | `searchPlaceholder`, `emptyTitle`, `emptyDescription`, `emptyIcon`, `rowClass` | as named |
+| `group`, `groups` | Rows in sections under sticky headers (added 2026-11-16 for the responsibilities register). `group(row)` is a row's section key; `groups` is `{ key, label }[]` in the order the sections show. A section with no rows is left out; a row whose key is not listed follows under its key; sorting a column sorts inside each section. `groupRows()` in `useResource.ts` is the pure split. The header sticks under the app bar (`--data-table-group-top`, default 4rem); a grouped table lets the window scroll, so its wrapper is not a scroll container. Demo: `/ui-kit`, "Grouped index" |
 
 Emits `create`. Slots: `cell-<key>` (handed to `AppDataTable`), `filters` (beside the status control: a `Select`, never pills), `meta` and `actions` (more header content when titled), `bulk` (`{ rows }`; when given, each row gets a checkbox and a bar shows the selection).
 

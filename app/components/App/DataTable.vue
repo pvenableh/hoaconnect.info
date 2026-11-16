@@ -35,6 +35,8 @@ export interface DataTableColumn<Row = Record<string, unknown>> {
   value?: (row: Row) => unknown;
 }
 
+import { groupRows } from "#core/app/composables/useResource";
+
 const props = withDefaults(
   defineProps<{
     columns: DataTableColumn<Row>[];
@@ -53,6 +55,16 @@ const props = withDefaults(
     stickyHeader?: boolean;
     /** Per-row classes, for tables where a row's state tints the whole row. */
     rowClass?: (row: Row) => string | undefined;
+    /**
+     * Group the rows under sticky headers: a row's group key. Rows keep the
+     * order they came in within a group (sorting a column sorts inside each).
+     */
+    group?: (row: Row) => string | null | undefined;
+    /**
+     * The groups in the order they show, with their labels. A group with no
+     * rows is left out; a row whose key is not listed follows, under its key.
+     */
+    groups?: { key: string; label: string }[];
   }>(),
   {
     rowKey: "id",
@@ -115,6 +127,22 @@ const keyFor = (row: Row, i: number) => {
   return row[props.rowKey] ?? i;
 };
 
+// What the body draws, in order: plain rows, or — with `group` — a header row
+// before each group's rows. One list, so the row markup is written once.
+type Entry =
+  | { type: "group"; id: string; label: string; count: number }
+  | { type: "row"; id: string | number; row: Row };
+
+const entries = computed<Entry[]>(() => {
+  const rows = sortedRows.value;
+  const group = props.group;
+  if (!group) return rows.map((row, i) => ({ type: "row", id: keyFor(row, i), row }));
+  return groupRows(rows, group, props.groups).flatMap((g) => [
+    { type: "group" as const, id: `group:${g.key}`, label: g.label, count: g.rows.length },
+    ...g.rows.map((row, i) => ({ type: "row" as const, id: keyFor(row, i), row })),
+  ]);
+});
+
 const clickable = computed(() => !!getCurrentInstance()?.vnode.props?.onRowClick);
 
 const alignClass = (col: DataTableColumn<Row>) =>
@@ -130,7 +158,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
     <div
       ref="tableEl"
       class="data-table__scroll"
-      :class="{ 'data-table__scroll--sticky': stickyHeader }"
+      :class="{ 'data-table__scroll--sticky': stickyHeader, 'data-table__scroll--grouped': !!group }"
     >
       <Table class="data-table__table">
         <TableHeader>
@@ -174,29 +202,38 @@ const alignClass = (col: DataTableColumn<Row>) =>
             </TableCell>
           </TableRow>
 
-          <TableRow
-            v-for="(row, i) in loading ? [] : sortedRows"
-            :key="keyFor(row, i)"
-            :data-flip-id="keyFor(row, i)"
-            class="data-table__row stagger-item"
-            :class="[{ 'data-table__row--clickable': clickable }, rowClass?.(row)]"
-            :tabindex="clickable ? 0 : undefined"
-            :role="clickable ? 'button' : undefined"
-            @click="clickable && emit('row-click', row)"
-            @keydown.enter="clickable && emit('row-click', row)"
-            @keydown.space.prevent="clickable && emit('row-click', row)"
-          >
-            <TableCell
-              v-for="col in columns"
-              :key="col.key"
-              :class="[alignClass(col), col.class, col.hideOnMobile ? 'data-table__col--desktop' : '']"
-              :data-label="col.label"
+          <template v-for="entry in loading ? [] : entries" :key="entry.id">
+            <TableRow v-if="entry.type === 'group'" class="data-table__group-row hover:bg-transparent">
+              <TableHead :colspan="columns.length" scope="rowgroup" class="data-table__group">
+                <div class="data-table__group-inner">
+                  <span class="type-micro">{{ entry.label }}</span>
+                  <span class="type-meta tabular-nums">{{ entry.count }}</span>
+                </div>
+              </TableHead>
+            </TableRow>
+            <TableRow
+              v-else
+              :data-flip-id="entry.id"
+              class="data-table__row stagger-item"
+              :class="[{ 'data-table__row--clickable': clickable }, rowClass?.(entry.row)]"
+              :tabindex="clickable ? 0 : undefined"
+              :role="clickable ? 'button' : undefined"
+              @click="clickable && emit('row-click', entry.row)"
+              @keydown.enter="clickable && emit('row-click', entry.row)"
+              @keydown.space.prevent="clickable && emit('row-click', entry.row)"
             >
-              <slot :name="`cell-${col.key}`" :row="row" :value="cellValue(row, col)">
-                {{ cellValue(row, col) }}
-              </slot>
-            </TableCell>
-          </TableRow>
+              <TableCell
+                v-for="col in columns"
+                :key="col.key"
+                :class="[alignClass(col), col.class, col.hideOnMobile ? 'data-table__col--desktop' : '']"
+                :data-label="col.label"
+              >
+                <slot :name="`cell-${col.key}`" :row="entry.row" :value="cellValue(entry.row, col)">
+                  {{ cellValue(entry.row, col) }}
+                </slot>
+              </TableCell>
+            </TableRow>
+          </template>
         </TableBody>
       </Table>
     </div>
@@ -243,6 +280,34 @@ const alignClass = (col: DataTableColumn<Row>) =>
 .data-table__scroll :deep(th) {
   color: var(--theme-text-muted);
 }
+/* Grouped rows: the header of each group sticks under the app bar while its
+   rows scroll past. A sticky cell sticks to its nearest scrolling ancestor,
+   and both this wrapper and the Table primitive's own `overflow-auto` are one,
+   so a grouped table lets the window scroll instead (the table is as wide as
+   its card, and cells wrap). */
+.data-table__scroll--grouped,
+.data-table__scroll--grouped :deep([data-slot="table-container"]) {
+  overflow: visible;
+}
+.data-table__scroll :deep(th.data-table__group) {
+  position: sticky;
+  top: var(--data-table-group-top, 4rem);
+  z-index: 1;
+  height: auto;
+  padding: 0.5rem 0.5rem 0.375rem;
+  background: var(--theme-card-bg);
+  border-bottom: 1px solid var(--theme-border-light);
+  color: var(--theme-text-secondary);
+}
+.data-table__group-inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.data-table__group-inner .type-meta {
+  color: var(--theme-text-muted);
+}
 .data-table__sort {
   display: inline-flex;
   align-items: center;
@@ -274,6 +339,18 @@ const alignClass = (col: DataTableColumn<Row>) =>
   }
   .data-table__scroll :deep(thead) {
     display: none;
+  }
+  /* Grouped, the header rows and the card rows share one block list, so a
+     sticky header has the whole list to stick within. */
+  .data-table__scroll--grouped :deep(table),
+  .data-table__scroll--grouped :deep(tbody) {
+    display: block;
+  }
+  .data-table__scroll :deep(tbody tr.data-table__group-row) {
+    display: contents;
+  }
+  .data-table__scroll :deep(th.data-table__group) {
+    display: block;
   }
   .data-table__scroll :deep(tbody tr) {
     display: block;

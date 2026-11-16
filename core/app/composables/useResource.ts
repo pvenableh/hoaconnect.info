@@ -87,6 +87,37 @@ export function applyResourceView<Row>(rows: Row[], def: ResourceDefinition<Row>
   });
 }
 
+export interface RowGroup<Row> {
+  key: string;
+  label: string;
+  rows: Row[];
+}
+
+/**
+ * Rows into sections for a grouped index. The sections come in the order
+ * `groups` lists them, each with its label; a section with no rows is left
+ * out; a row whose key is not listed follows under its own key (a row with no
+ * key, under "Other"). Rows keep their order inside a section. Pure.
+ */
+export function groupRows<Row>(
+  rows: readonly Row[],
+  group: (row: Row) => string | null | undefined,
+  groups: readonly { key: string; label: string }[] = [],
+): RowGroup<Row>[] {
+  const byKey = new Map<string, Row[]>();
+  for (const row of rows) {
+    const key = group(row) ?? "";
+    const list = byKey.get(key);
+    if (list) list.push(row);
+    else byKey.set(key, [row]);
+  }
+  const labelOf = new Map(groups.map((g) => [g.key, g.label]));
+  const order = [...labelOf.keys(), ...[...byKey.keys()].filter((k) => !labelOf.has(k))];
+  return order
+    .filter((key) => byKey.get(key)?.length)
+    .map((key) => ({ key, label: labelOf.get(key) ?? (key || "Other"), rows: byKey.get(key)! }));
+}
+
 interface ResourceCache<Row> {
   orgId: string | null;
   rows: Row[];

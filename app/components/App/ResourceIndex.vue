@@ -19,6 +19,9 @@
  *   • Without, it is one view of a page that owns its header (a tab of a hub),
  *     and the count leads the toolbar instead.
  *
+ * `group` and `groups` draw the rows in sections with sticky headers, for every
+ * index that has them (docs/spec-resource-scaffold.md).
+ *
  * `canCreate: false` hides every create control: a role never sees a control
  * it cannot use. Cell slots (`#cell-<key>`) pass straight to `AppDataTable`;
  * a control inside a cell must stop its click, or it also opens the row.
@@ -43,6 +46,13 @@ const props = withDefaults(
     emptyDescription?: string;
     emptyIcon?: string;
     rowClass?: (row: Row) => string | undefined;
+    /**
+     * Group the rows under sticky headers (a row's group key), in the order and
+     * with the labels `groups` gives. A grouped index is how a resource with a
+     * natural set of sections reads: the register, by category.
+     */
+    group?: (row: Row) => string | null | undefined;
+    groups?: { key: string; label: string }[];
   }>(),
   { canCreate: false, emptyIcon: "lucide:inbox" },
 );
@@ -147,6 +157,8 @@ function rowClasses(row: Row) {
         :row-key="resource.keyOf"
         :loading="resource.pending"
         :row-class="rowClasses"
+        :group="group"
+        :groups="groups"
         v-on="rowListeners"
       >
         <template v-if="selectable" #[SELECT_SLOT]="{ row }">
