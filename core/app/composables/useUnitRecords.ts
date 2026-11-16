@@ -134,6 +134,15 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
 
   const updateLease = (id: string, patch: Record<string, unknown>) => patchRecord("lease", id, patch);
 
+  // The signed lease, before the lease is saved: a PDF filed in no library
+  // (core/server/api/hoa/units/lease-document.post.ts).
+  const uploadLeaseDocument = (file: File) => {
+    const form = new FormData();
+    form.append("orgId", selectedOrgId.value || "");
+    form.append("file", file, file.name);
+    return $fetch<{ id: string; filename: string }>("/api/hoa/units/lease-document", { method: "POST", body: form });
+  };
+
   // "Move out / end" — end-date + archive instead of deleting.
   const endRecord = (kind: "pet" | "vehicle" | "lease", id: string, endDate?: string) => {
     const end_date = endDate || nowIso();
@@ -150,6 +159,7 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
     updateVehicle,
     createLease,
     updateLease,
+    uploadLeaseDocument,
     endRecord,
   };
 };

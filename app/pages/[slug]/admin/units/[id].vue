@@ -29,6 +29,7 @@ const {
   updateVehicle,
   createLease,
   updateLease,
+  uploadLeaseDocument,
   endRecord,
 } = useUnitRecords(unitId);
 
@@ -262,7 +263,7 @@ const { buildOrgPath } = useOrgNavigation();
           </DialogHeader>
           <UnitsPetForm v-if="formKind === 'pet'" :members="members" :record="editing" @submit="onSubmit" @cancel="showModal = false" />
           <UnitsVehicleForm v-else-if="formKind === 'vehicle'" :members="members" :record="editing" @submit="onSubmit" @cancel="showModal = false" />
-          <UnitsLeaseForm v-else :members="members" :record="editing" @submit="onSubmit" @cancel="showModal = false" />
+          <UnitsLeaseForm v-else :members="members" :record="editing" :upload="uploadLeaseDocument" @submit="onSubmit" @cancel="showModal = false" />
         </DialogContent>
       </Dialog>
     </PageContainer>

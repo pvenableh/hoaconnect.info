@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { toast } from "vue-sonner";
 import type { LeaseRecord, UnitRecordMember } from "#core/app/composables/useUnitRecords";
 import { dateInputToTimestamp, timestampToDateInput } from "#core/shared/units/record-dates";
+import { LEASE_DOCUMENT_MAX_BYTES, LEASE_DOCUMENT_TYPE } from "#core/shared/units/lease-requests";
 
 const props = defineProps<{
   members: UnitRecordMember[];
   record?: LeaseRecord | null;
+  /** Stores the signed lease and returns its id (useUnitRecords().uploadLeaseDocument). */
+  upload: (file: File) => Promise<{ id: string; filename: string }>;
 }>();
 const emit = defineEmits<{ (e: "submit", payload: Record<string, any>): void; (e: "cancel"): void }>();
 
-const { upload, getAuthUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 
 const tenant = ref<string>(props.record?.tenant?.id || "");
 const owner = ref<string>(props.record?.owner?.id || "");
@@ -23,24 +27,39 @@ const documentName = ref<string>(props.record?.document ? "Current document" : "
 const uploading = ref(false);
 const submitting = ref(false);
 
-const documentUrl = computed(() => (documentId.value ? getAuthUrl(documentId.value) : null));
+// Only the saved document opens: a new upload is in no library, and the app
+// serves it once a lease names it (lease-documents.ts).
+const documentUrl = computed(() =>
+  documentId.value && documentId.value === props.record?.document ? getAuthUrl(documentId.value) : null
+);
 
+const fileInput = ref<HTMLInputElement | null>(null);
 const onFile = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
   if (!file) return;
+  if (file.type !== LEASE_DOCUMENT_TYPE) {
+    toast.error("The signed lease has to be a PDF.");
+    return;
+  }
+  if (file.size > LEASE_DOCUMENT_MAX_BYTES) {
+    toast.error("That PDF is over 4 MB. Save a smaller copy and try again.");
+    return;
+  }
   uploading.value = true;
   try {
-    const res: any = await upload(file, { title: file.name });
-    documentId.value = res?.id || res?.data?.id || null;
-    documentName.value = file.name;
-  } catch (err) {
-    console.error("Lease document upload failed:", err);
+    const res = await props.upload(file);
+    documentId.value = res.id;
+    documentName.value = res.filename;
+  } catch (err: any) {
+    toast.error(err?.data?.message || "Couldn't upload the lease");
   } finally {
     uploading.value = false;
   }
 };
 
-const canSubmit = computed(() => !!tenant.value);
+const canSubmit = computed(() => !!tenant.value && !uploading.value);
 
 const submit = () => {
   if (!canSubmit.value || submitting.value) return;
@@ -102,12 +121,14 @@ const submit = () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Signed lease (PDF)</label>
-        <label class="w-full px-3 py-2 border rounded-md bg-background text-sm cursor-pointer flex items-center gap-2 t-text-secondary hover:t-text">
-          <Icon v-if="uploading" name="lucide:loader-2" class="w-4 h-4 animate-spin shrink-0" />
-          <Icon v-else name="lucide:paperclip" class="w-4 h-4 shrink-0" />
-          <span class="truncate">{{ documentName || "Upload document…" }}</span>
-          <input type="file" accept="application/pdf,image/*" class="hidden" @change="onFile" />
-        </label>
+        <div class="flex items-center gap-2 min-w-0">
+          <Button variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="fileInput?.click()">
+            <Icon :name="uploading ? 'lucide:loader-2' : 'lucide:paperclip'" class="w-4 h-4" :class="{ 'animate-spin': uploading }" />
+            {{ documentId ? "Replace" : "Choose the PDF" }}
+          </Button>
+          <span class="text-sm t-text-muted truncate">{{ uploading ? "Uploading…" : documentName || "No file chosen" }}</span>
+          <input ref="fileInput" type="file" accept="application/pdf" class="hidden" @change="onFile" />
+        </div>
         <a v-if="documentUrl" :href="documentUrl" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 inline-block">View current</a>
       </div>
     </div>

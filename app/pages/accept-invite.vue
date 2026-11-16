@@ -1,18 +1,15 @@
 <script setup lang="ts">
+// The invitation email links to /{slug}/accept-invite ([slug]/accept-invite.vue);
+// this path takes the same token. Not guest-only: someone who already has an
+// account may be signed in when they open it (InvitationAcceptForm).
 const route = useRoute();
 const token = route.query.token as string;
 
 if (!token) {
-  throw createError({
-    statusCode: 400,
-    message: "Invalid invitation link",
-  });
+  throw createError({ statusCode: 400, message: "Invalid invitation link" });
 }
 
-definePageMeta({
-  middleware: "guest", // Only accessible to non-logged-in users
-  layout: "auth",
-});
+definePageMeta({ layout: "auth" });
 
 useSeoMeta({
   title: "Accept Invitation",
@@ -22,6 +19,6 @@ useSeoMeta({
 
 <template>
   <div class="min-h-screen flex items-center justify-center p-4">
-    <InvitationAcceptForm :token="token" redirect-to="/dashboard" />
+    <InvitationAcceptForm :token="token" />
   </div>
 </template>

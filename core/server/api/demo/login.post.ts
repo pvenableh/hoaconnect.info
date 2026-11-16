@@ -1,11 +1,4 @@
-import {
-  createDirectus,
-  rest,
-  staticToken,
-  login,
-  readMe,
-} from "@directus/sdk";
-import type { User } from "#auth-utils";
+import { passwordTokens, startPasswordSession } from "#core/server/utils/password-session";
 
 /**
  * POST /api/demo/login — one-click "Try the app" login.
@@ -30,38 +23,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const directus = createDirectus(config.directus.url).with(rest());
-    // mode:"json" so the refresh token is returned in the body (SDK default is
-    // "cookie", which omits it → sessions that can't refresh). See login.post.ts.
-    const authResult = await directus.request(login({ email, password }, { mode: "json" }));
-    if (!authResult.access_token) throw new Error("Demo authentication failed");
-
-    const authClient = createDirectus(config.directus.url)
-      .with(staticToken(authResult.access_token))
-      .with(rest());
-    const user = await authClient.request(
-      readMe({ fields: ["*", "role", { organization: ["id", "slug", "name"] }] })
-    );
-    const avatarId = typeof user.avatar === "string" ? user.avatar : user.avatar?.id || null;
-
-    await setUserSession(event, {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        avatar: avatarId,
-        role: user.role,
-        organization: user.organization,
-        provider: "local",
-      } as User,
-      loggedInAt: Date.now(),
-      expiresAt: Date.now() + (authResult.expires || 900) * 1000,
-      secure: {
-        directusAccessToken: authResult.access_token,
-        directusRefreshToken: authResult.refresh_token!,
-      },
-    });
+    // The same sign-in as /api/auth/login (password-session.ts).
+    await startPasswordSession(event, await passwordTokens(email, password));
 
     // Land on the modern demo's dashboard (org root); the org switcher reaches
     // the classic one. The dashboard lives at the org root, not /{slug}/dashboard.

@@ -51,6 +51,14 @@ const MOVED_TWINS: Record<string, string> = {
 };
 
 /**
+ * Top-level pages that have a `/{slug}` twin and are left alone on purpose.
+ * `/accept-invite`: the invitation's token names the community, not the
+ * session's selected one, and the redirect would drop the query that carries
+ * the token. An invitation from a community with no slug links here.
+ */
+export const UNREDIRECTED_TWINS: ReadonlySet<string> = new Set(["/accept-invite"]);
+
+/**
  * The whole top-level `/admin/**` tree mirrors `/{slug}/admin/**` one-for-one
  * (verified page by page), so it maps by prefix rather than by enumeration.
  */

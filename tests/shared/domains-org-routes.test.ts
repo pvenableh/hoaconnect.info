@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import {
   orgScopedRedirect,
   sessionOrgRedirect,
+  UNREDIRECTED_TWINS,
 } from "#core/shared/domains/org-routes";
 
 const SLUG = "605-lincoln";
@@ -237,8 +238,16 @@ describe("the org-route mapping matches the real page tree", () => {
     const slugDir = resolve(pagesDir, "[slug]");
     const missed = topLevelRoutes()
       .filter((name) => isRoute(slugDir, name))
+      .filter((name) => !UNREDIRECTED_TWINS.has(`/${name}`))
       .filter((name) => sessionOrgRedirect(`/${name}`, SLUG) === null);
 
     expect(missed).toEqual([]);
+  });
+
+  it("leaves a twin listed as deliberate alone: an invitation's token names its community", () => {
+    for (const path of UNREDIRECTED_TWINS) {
+      expect(sessionOrgRedirect(path, SLUG)).toBeNull();
+      expect(orgScopedRedirect(path, SLUG)).toBeNull();
+    }
   });
 });

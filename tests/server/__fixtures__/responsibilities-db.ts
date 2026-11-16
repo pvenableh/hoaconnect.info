@@ -1,6 +1,7 @@
 /**
  * An in-memory Directus for the register's route tests: enough of readItems,
- * readItem, readUsers, createItem(s), updateItem and deleteItem, filters with
+ * readItem, readUsers, createUser, createItem(s), updateItem, deleteItem and
+ * uploadFiles, filters with
  * _eq/_in/_null/_nnull/_and/_or and one-hop relation filters, and dotted
  * field expansion. Plus the auto-imported globals the routes and utils use,
  * driven by a `who` persona.
@@ -51,6 +52,8 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_vehicles: { member_id: "hoa_members", unit_id: "hoa_units" },
   hoa_leases: { unit: "hoa_units", tenant: "hoa_members", owner: "hoa_members" },
   hoa_member_units: { member_id: "hoa_members", unit_id: "hoa_units" },
+  // tests/server/accept-invitation.test.ts
+  hoa_invitations: { organization: "hoa_organizations", invited_by: "directus_users", role: "directus_roles", unit: "hoa_units" },
 };
 
 export type Db = Record<string, any[]>;
@@ -199,6 +202,21 @@ export function fakeDirectus(state: { db: Db; fail?: { failCreate?: string } }) 
       case "deleteItem":
         db[op.collection] = rows.filter((x) => x.id !== op.id);
         return null;
+      case "uploadFiles": {
+        // Uploaded with the app's token: no folder unless the form names one.
+        const file = op.form.get("file") as File;
+        const row = {
+          id: uuid(seq++),
+          folder: op.form.get("folder") ?? null,
+          title: op.form.get("title") ?? null,
+          type: file.type,
+          filesize: file.size,
+          filename_download: file.name,
+          uploaded_by: "app-token-user",
+        };
+        rows.push(row);
+        return row;
+      }
       default:
         throw new Error(`fake directus: ${op.op}`);
     }
@@ -214,6 +232,9 @@ export function sdkMock() {
     readFile: (id: string, query?: any) => ({ op: "readItem", collection: "directus_files", id, query }),
     readUsers: (query?: any) => ({ op: "readItems", collection: "directus_users", query }),
     readUser: (id: string, query?: any) => ({ op: "readItem", collection: "directus_users", id, query }),
+    createUser: (data: any) => ({ op: "createItem", collection: "directus_users", data }),
+    uploadFiles: (form: FormData) => ({ op: "uploadFiles", collection: "directus_files", form }),
+    updateFile: (id: string, data: any) => ({ op: "updateItem", collection: "directus_files", id, data }),
     createItem: (collection: string, data: any) => ({ op: "createItem", collection, data }),
     createItems: (collection: string, data: any) => ({ op: "createItems", collection, data }),
     updateItem: (collection: string, id: string, data: any) => ({ op: "updateItem", collection, id, data }),
