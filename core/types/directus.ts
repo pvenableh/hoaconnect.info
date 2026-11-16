@@ -1372,7 +1372,7 @@ export interface HoaMemberChangeRequest {
 	submitted_by?: DirectusUser | string | null;
 	/** @description Admin / PM who decided */
 	reviewed_by?: DirectusUser | string | null;
-	/** @description hoa_members | hoa_vehicles | hoa_pets */
+	/** @description hoa_members | hoa_vehicles | hoa_pets | hoa_leases */
 	target_collection?: string | null;
 	/** @description Existing record id (null for new) */
 	target_id?: string | null;
