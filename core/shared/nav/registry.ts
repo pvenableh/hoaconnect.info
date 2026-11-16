@@ -97,6 +97,16 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { id: "payments-admin", section: "payments", label: "Payments", shortName: "Payments", icon: "wallet", path: "/admin/payments", needs: [cap("money:read"), mod("payments")], description: "Dues, assessments, and statements." },
   { id: "expenses", section: "payments", label: "Expenses", shortName: "Expenses", icon: "receipt", path: "/admin/expenses", needs: [cap("money:read"), mod("expenses")], description: "Track and categorize community expenses." },
 
+  // The responsibilities register (plan §3.4). Two entries on one path, because
+  // needs are ANDed and it has two doors: `responsibilities:read` (admins hold
+  // every capability, and so does every board seat) and the manager's area
+  // grant. `entriesForPath` treats entries that tie on a path as any-of for the
+  // gate, which is how Documents and Projects already do it (`documents` and
+  // `documents-mgr`). An any-of need would have to teach every reader of `needs`
+  // a new shape. Writes are the editors' (admin or the grant): the page shows
+  // those controls only when the route says `viewer.canEdit`.
+  { id: "responsibilities-register", label: "Responsibilities", shortName: "Duties", icon: "list-checks", path: "/admin/responsibilities", needs: [cap("responsibilities:read"), mod("responsibilities")] },
+
   { id: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/more", needs: [A], match: ["/admin/more", "/admin/requests", "/admin/projects", "/admin/leads", "/admin/approvals", "/admin/moderation"] },
   { id: "requests-admin", section: "requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/admin/requests", needs: [A, mod("requests")], description: "Resident maintenance, architectural, and general requests." },
   { id: "projects-admin", section: "requests", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", needs: [A, mod("projects")], description: "Track community projects and tasks to completion." },
@@ -138,6 +148,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { id: "documents-mgr", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", needs: [area("documents"), mod("documents")] },
   { id: "feedback", label: "Feedback", shortName: "Feedback", icon: "vote", path: "/polls", needs: [area("feedback"), mod("polls")] },
   { id: "projects-mgr", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", needs: [area("projects"), mod("projects")] },
+  { id: "responsibilities-mgr", label: "Responsibilities", shortName: "Duties", icon: "list-checks", path: "/admin/responsibilities", needs: [area("responsibilities"), mod("responsibilities")] },
   { id: "activity-mgr", label: "Activity", shortName: "Activity", icon: "activity", path: "/admin/activity", needs: [area("activity")] },
 ];
 
@@ -149,9 +160,10 @@ export const ROUTE_ONLY_GATES: readonly { path: string; module: string }[] = [
 
 /** The hat picks the layout; `needs` decide what of it shows. */
 export const NAV_LAYOUTS = {
-  admin: ["queue", "dashboard", "people", "comms", "records", "payments", "requests", "settings"],
-  manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "activity-mgr"],
-  member: ["home", "meetings", "documents", "rules", "governing", "board", "ledger", "payments", "pay", "my-requests", "projects", "polls"],
+  admin: ["queue", "dashboard", "people", "responsibilities-register", "comms", "records", "payments", "requests", "settings"],
+  manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
+  // A board seat's own register sits beside the one owners read.
+  member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "ledger", "payments", "pay", "my-requests", "projects", "polls"],
   /** The mobile sheet's "Navigation" list. */
   sheet: ["home", "board", "documents", "vendors"],
 } as const satisfies Record<string, readonly string[]>;

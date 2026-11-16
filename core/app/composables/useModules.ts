@@ -28,7 +28,8 @@ export type ModuleKey =
   | "expenses"
   | "email"
   | "board"
-  | "channels";
+  | "channels"
+  | "responsibilities";
 
 // Core apps are never toggleable — they must always be reachable.
 export const CORE_MODULE_KEYS = ["dashboard", "home", "settings"] as const;
@@ -79,6 +80,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
       { key: "pets", label: "Pets", description: "Pet registration records." },
       { key: "vehicles", label: "Vehicles", description: "Vehicle and parking records." },
       { key: "leases", label: "Leases", description: "Tenant lease records." },
+      { key: "responsibilities", label: "Responsibilities", description: "Who handles what: the register of standing jobs, and the version owners read when the board publishes it." },
     ],
   },
   {

@@ -12,6 +12,7 @@ import {
   NAV_LAYOUTS,
   ROUTE_ONLY_GATES,
   coveredPrefixes,
+  entriesForPath,
   homePathFor,
   isHub,
   layoutFor,
@@ -209,9 +210,8 @@ describe("no grant without a gate", () => {
   });
 
   it("gives every grantable area an entry, or says why it waits", () => {
-    // violations is worked on the inquiries page; contact_platform is an action, not a destination;
-    // responsibilities has routes now and its pages in Session 7 (docs/spec-responsibilities.md).
-    const WAITS = new Set(["violations", "contact_platform", "responsibilities"]);
+    // violations is worked on the inquiries page; contact_platform is an action, not a destination.
+    const WAITS = new Set(["violations", "contact_platform"]);
     for (const k of MANAGER_GRANT_KEYS) {
       if (WAITS.has(k)) continue;
       expect(NAV_ENTRIES.some((e) => e.needs.some((n) => "area" in n && n.area === k)), k).toBe(true);
@@ -227,8 +227,8 @@ const dock = (c: NavContext, managerHat = false, previewing = false) => {
 };
 
 describe("what each role's dock shows", () => {
-  it("admin: today's seven sections; the queue only with the manager hat", () => {
-    expect(dock(PERSONAS.admin)).toEqual(["dashboard", "people", "comms", "records", "payments", "requests", "settings"]);
+  it("admin: the seven sections and the register; the queue only with the manager hat", () => {
+    expect(dock(PERSONAS.admin)).toEqual(["dashboard", "people", "responsibilities-register", "comms", "records", "payments", "requests", "settings"]);
     expect(dock(PERSONAS.admin, true)[0]).toBe("queue");
   });
 
@@ -246,11 +246,34 @@ describe("what each role's dock shows", () => {
     expect(dock(PERSONAS.fullService)).not.toContain("payments");
   });
 
+  it("the responsibilities register: admins and every board seat; a manager with the grant; no owner", () => {
+    for (const who of ["admin", "director", "treasurer", "president"] as const) {
+      expect(dock(PERSONAS[who]), who).toContain("responsibilities-register");
+    }
+    expect(dock(PERSONAS["manager:responsibilities"])).toEqual(["queue", "responsibilities-mgr"]);
+    for (const who of ["owner", "tenant", "manager:inquiries", "manager:directory"] as const) {
+      expect(dock(PERSONAS[who]), who).not.toContain("responsibilities-register");
+      expect(dock(PERSONAS[who]), who).not.toContain("responsibilities-mgr");
+    }
+  });
+
+  it("the register is one door for the gate: the area and the capability both admit /admin/responsibilities", () => {
+    const rel = "/admin/responsibilities";
+    expect(entriesForPath(rel).map((e) => e.id).sort()).toEqual(["responsibilities-mgr", "responsibilities-register"]);
+    expect(routeAllowed(rel, PERSONAS.treasurer!)).toBe(true);
+    expect(routeAllowed(rel, PERSONAS["manager:responsibilities"]!)).toBe(true);
+    expect(routeAllowed(rel, PERSONAS.owner!)).toBe(false);
+    expect(routeAllowed(rel, PERSONAS["manager:inquiries"]!)).toBe(false);
+    // The record page gates exactly as the index does.
+    expect(routeAllowed(`${rel}/abc`, PERSONAS.treasurer!)).toBe(true);
+    expect(routeAllowed(`${rel}/abc`, PERSONAS.owner!)).toBe(false);
+  });
+
   it("manager: the queue and exactly the areas they can work", () => {
     expect(dock(PERSONAS["manager:inquiries"])).toEqual(["queue", "inquiries"]);
     expect(dock(PERSONAS["manager:directory"])).toEqual(["queue", "directory", "approvals"]);
     expect(dock(PERSONAS.fullService)).toEqual([
-      "queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "activity-mgr",
+      "queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr",
     ]);
   });
 

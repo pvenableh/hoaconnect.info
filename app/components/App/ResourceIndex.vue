@@ -150,7 +150,10 @@ function rowClasses(row: Row) {
       </div>
     </div>
 
-    <div class="ios-card overflow-hidden px-2 pb-2">
+    <!-- Grouped, the card clips instead of hiding: `overflow: hidden` makes the card
+         a scroll container, and a sticky header then sticks inside the card
+         (where nothing scrolls) instead of to the window. -->
+    <div class="ios-card px-2 pb-2" :class="group ? 'overflow-clip' : 'overflow-hidden'">
       <AppDataTable
         :columns="tableColumns"
         :rows="resource.visible"

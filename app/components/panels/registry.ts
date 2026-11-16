@@ -47,6 +47,12 @@ export const PANELS: Record<string, PanelEntry> = {
     index: "/admin/payments",
     page: "/admin/payments/charges/:id",
   },
+  responsibility: {
+    load: () => import("./ResponsibilityPanel.vue"),
+    resource: "responsibilities",
+    index: "/admin/responsibilities",
+    page: "/admin/responsibilities/:id",
+  },
 };
 
 const componentCache = new Map<string, Component>();
