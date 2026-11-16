@@ -1,6 +1,5 @@
-import { readItem, createItem, readItems } from "@directus/sdk";
-import { sendHoaInvitationEmail } from "../../utils/invitation-email";
-import { randomBytes } from "crypto";
+import { readItem, readItems } from "@directus/sdk";
+import { issueInvitation } from "#core/server/utils/invitations";
 import {
   normalizeGrants,
   presetFor,
@@ -169,73 +168,6 @@ export default defineEventHandler(async (event) => {
       console.warn("Could not check for existing user:", userCheckError);
     }
 
-    // Generate unique invitation token
-    const token = randomBytes(32).toString("hex");
-
-    // Set expiration (7 days from now)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    // Get organization details for email (including branding info)
-    const organization = await directus.request(
-      readItem("hoa_organizations", organizationId, {
-        fields: [
-          "name",
-          "legal_name",
-          "slug",
-          "email",
-          "phone",
-          "street_address",
-          "city",
-          "state",
-          "zip",
-          { settings: ["logo"] },
-        ],
-      })
-    );
-
-    // Build organization logo URL if available
-    let orgLogoUrl: string | undefined;
-    const settings = organization.settings as { logo?: string | { id: string } } | null;
-    if (settings?.logo) {
-      const logoId = typeof settings.logo === "string" ? settings.logo : settings.logo?.id;
-      if (logoId) {
-        orgLogoUrl = `${config.directus.url}/assets/${logoId}?width=200&format=png&fit=inside&quality=80`;
-      }
-    }
-
-    // Build organization address
-    const addressParts = [
-      organization.street_address,
-      organization.city,
-      organization.state,
-      organization.zip,
-    ].filter(Boolean);
-    const orgAddress = addressParts.length > 0 ? addressParts.join(", ") : undefined;
-
-    // Build organization URL (slug-based)
-    const orgUrl = organization.slug
-      ? `${config.public.appUrl}/${organization.slug}`
-      : config.public.appUrl;
-
-    // Get role details for email via REST API (core collections can't use readItem)
-    let roleName = "Member";
-    try {
-      const roleResponse = await $fetch<{ data?: { name?: string } }>(`${config.directusUrl}/roles/${roleId}`, {
-        headers: {
-          Authorization: `Bearer ${config.directusToken}`,
-        },
-        params: {
-          fields: 'name',
-        },
-      });
-      if (roleResponse?.data?.name) {
-        roleName = roleResponse.data.name;
-      }
-    } catch (roleError) {
-      console.warn("Could not fetch role name, using default:", roleError);
-    }
-
     // The unit the invitee is being invited to.
     //
     // Same bug shape as `personType` in Phase 1: `InviteMemberForm.vue` has
@@ -260,59 +192,18 @@ export default defineEventHandler(async (event) => {
       invitationUnitId = String(unitId);
     }
 
-    // Create invitation record (use normalized email)
-    const invitation = await directus.request(
-      createItem("hoa_invitations", {
-        email: normalizedEmail,
-        organization: organizationId,
-        role: roleId,
-        invited_by: session.user.id,
-        token,
-        invitation_status: "pending",
-        expires_at: expiresAt.toISOString(),
-        manager_permissions: managerPermissions,
-        member_type: normalizedMemberType,
-        unit: invitationUnitId,
-      })
-    );
-
-    // Build invitation URL
-    const invitationUrl = `${orgUrl}/accept-invite?token=${token}`;
-
-    try {
-      // Demo guardrail: create the invitation record (so the UI reflects it) but
-      // never actually email a stranger from a public demo org.
-      if (await shouldBlockDemoEmail(organizationId)) {
-        console.log(`[demo] invitation email suppressed for demo org ${organizationId} → ${email}`);
-      } else {
-        await sendHoaInvitationEmail({
-          to: email,
-          firstName,
-          lastName,
-          organizationName: organization.name || "Unknown Organization",
-          invitationUrl,
-          inviterName:
-            `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() ||
-            "Admin",
-          roleName: roleName,
-          expiresAt: expiresAt.toISOString(),
-          // Organization branding data
-          orgLogoUrl,
-          orgUrl,
-          orgPhoneNumber: organization.phone || undefined,
-          orgEmail: organization.email || undefined,
-          orgAddress,
-          orgLegalName: organization.legal_name || undefined,
-          organizationId,
-        });
-
-        console.log("✅ Invitation email sent successfully to:", email);
-      }
-    } catch (emailError: any) {
-      console.error("❌ Failed to send invitation email:", emailError);
-      // Don't fail the whole request if email fails
-      // The invitation is still created and can be resent
-    }
+    const invitation = await issueInvitation({
+      organizationId,
+      email: normalizedEmail,
+      firstName,
+      lastName,
+      roleId: String(roleId),
+      invitedByUserId: session.user.id,
+      inviterName: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "Admin",
+      memberType: normalizedMemberType,
+      unitId: invitationUnitId,
+      managerPermissions,
+    });
 
     return {
       success: true,

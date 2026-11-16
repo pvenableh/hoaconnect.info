@@ -10,10 +10,12 @@ import {
 } from "#core/server/utils/change-requests";
 import { chooseRecordUnit } from "#core/shared/units/record-writes";
 import { assertPhotoInOrg, memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
+import { buildLeaseChange } from "#core/server/utils/lease-requests";
 
 /**
  * Resident submits a change to their OWN household data (contact / mailing
- * address / vehicle / pet). Stored as a pending request — the live record is not
+ * address / vehicle / pet), or an owner reports that their unit is rented
+ * (lease). Stored as a pending request — the live record is not
  * touched until an Admin / Property Manager approves. Org-scoped: the member is
  * resolved from the authenticated user's membership, so a resident can only ever
  * file requests against their own member record.
@@ -42,7 +44,11 @@ export default defineEventHandler(async (event) => {
     await assertTargetOwnedByMember(admin, KIND_TARGET[kind], body.targetId, memberId);
   }
 
-  const safe = buildSafeChange({ kind, action, memberId, targetId: body?.targetId, payload: body?.payload });
+  if (kind === "lease" && action !== "create") throw createError({ statusCode: 400, message: "A lease can only be added here. An admin changes or ends it on the unit page." });
+  const safe: { action: ChangeAction; target_collection: string; target_id: string | null; payload: Record<string, any> } =
+    kind === "lease"
+      ? await buildLeaseChange({ orgId, memberId, userId, payload: body?.payload })
+      : buildSafeChange({ kind, action, memberId, targetId: body?.targetId, payload: body?.payload });
 
   if (kind === "vehicle" || kind === "pet") {
     // A new pet or vehicle goes on a unit: the one chosen, which must be one of

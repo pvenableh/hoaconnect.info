@@ -19,7 +19,7 @@ const route = useRoute();
 const unitId = computed(() => route.params.id as string);
 
 const { selectedOrgId } = await useSelectedOrg();
-const { getUrl } = useDirectusFiles();
+const { getUrl, getAuthUrl } = useDirectusFiles();
 const {
   fetchRecords,
   split,
@@ -124,7 +124,7 @@ const range = (s?: string | null, e?: string | null) => {
 };
 const money = (v?: number | null) =>
   v == null ? "" : new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(v);
-const memberName = (m?: UnitRecordMember | null) =>
+const memberName = (m?: Pick<UnitRecordMember, "first_name" | "last_name"> | null) =>
   m ? `${m.first_name || ""} ${m.last_name || ""}`.trim() || "—" : "—";
 
 const { buildOrgPath } = useOrgNavigation();
@@ -235,7 +235,10 @@ const { buildOrgPath } = useOrgNavigation();
             <div class="flex items-center justify-between gap-2">
               <div class="min-w-0">
                 <p class="text-sm font-medium t-text truncate">
-                  {{ memberName(item.tenant) }}
+                  <template v-if="!item.tenant && item.invited_tenant">
+                    {{ memberName(item.invited_tenant) }} <span class="t-text-muted font-normal">(invited)</span>
+                  </template>
+                  <template v-else>{{ memberName(item.tenant) }}</template>
                   <span v-if="item.owner" class="t-text-muted font-normal">· owner {{ memberName(item.owner) }}</span>
                 </p>
                 <p class="text-xs t-text-muted truncate">
@@ -243,7 +246,7 @@ const { buildOrgPath } = useOrgNavigation();
                   <span v-if="item.rent_amount"> · {{ money(item.rent_amount) }}/mo</span>
                 </p>
               </div>
-              <a v-if="item.document" :href="getUrl(item.document) || ''" target="_blank" class="text-xs text-blue-600 hover:underline shrink-0 inline-flex items-center gap-1">
+              <a v-if="item.document" :href="getAuthUrl(item.document) || ''" target="_blank" class="text-xs text-blue-600 hover:underline shrink-0 inline-flex items-center gap-1">
                 <Icon name="lucide:paperclip" class="w-3.5 h-3.5" /> Doc
               </a>
             </div>

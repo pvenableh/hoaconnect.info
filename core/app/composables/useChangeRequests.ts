@@ -14,12 +14,29 @@ export interface HouseholdData {
   };
   vehicles: any[];
   pets: any[];
-  pendingRequests: { id: string; kind: string; action: string; target_id: string | null }[];
+  pendingRequests: { id: string; kind: string; action: string; target_id: string | null; payload?: Record<string, any> | null }[];
   /** The units the resident is linked to here, primary first. */
   units: { id: string; unit_number: string | null }[];
+  /** The units they own here, primary first: an owner may report a lease on one. */
+  ownedUnits: { id: string; unit_number: string | null }[];
+  /** Active leases they are the owner or tenant of. */
+  leases: HouseholdLease[];
 }
 
-export type ChangeKind = "contact" | "mailing_address" | "vehicle" | "pet";
+export interface HouseholdLease {
+  id: string;
+  status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  document?: string | null;
+  owner?: string | null;
+  unit?: { id: string; unit_number?: string | null } | null;
+  tenant?: { id: string; first_name?: string | null; last_name?: string | null } | null;
+  /** Invited by the owner's report; set until they join. */
+  invited_tenant?: { first_name: string | null; last_name: string | null; email: string | null } | null;
+}
+
+export type ChangeKind = "contact" | "mailing_address" | "vehicle" | "pet" | "lease";
 export type ChangeAction = "create" | "update" | "delete";
 
 export const useChangeRequests = () => {
@@ -54,10 +71,25 @@ export const useChangeRequests = () => {
     });
 
   const decide = (id: string, decision: "approve" | "reject", note?: string) =>
-    $fetch(`/api/org/change-requests/${id}/decide`, {
-      method: "POST",
-      body: { orgId: orgId(), decision, note },
-    });
+    $fetch<{ success: boolean; status: string; lease?: { tenant: string; tenantName: string; unitNumber: string | null } }>(
+      `/api/org/change-requests/${id}/decide`,
+      {
+        method: "POST",
+        body: { orgId: orgId(), decision, note },
+      }
+    );
 
-  return { fetchHousehold, submitChange, listRequests, decide };
+  /** An owner's signed lease (one PDF), stored for a lease report. */
+  const uploadLeaseDocument = (file: File) => {
+    const form = new FormData();
+    form.append("orgId", orgId());
+    form.append("file", file, file.name);
+    return $fetch<{ id: string; filename: string }>("/api/org/change-requests/lease-document", { method: "POST", body: form });
+  };
+
+  /** Where a reviewer or the owner opens a lease report's document. */
+  const requestDocumentUrl = (requestId: string) =>
+    `/api/org/change-requests/${requestId}/document?orgId=${encodeURIComponent(orgId())}`;
+
+  return { fetchHousehold, submitChange, listRequests, decide, uploadLeaseDocument, requestDocumentUrl };
 };

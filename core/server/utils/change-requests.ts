@@ -5,13 +5,15 @@
  * a pending `hoa_member_change_requests` row and only applied to the live record
  * when an Admin / Property Manager approves. All field access is whitelisted
  * here so a resident can never smuggle in privileged fields (role, balance, the
- * owning org, another member's id, etc.).
+ * owning org, another member's id, etc.). An owner's lease report (kind
+ * `lease`) is checked and applied in lease-requests.ts.
  */
 import { createItem, readItem, updateItem } from "@directus/sdk";
 import { chooseRecordUnit } from "#core/shared/units/record-writes";
 import { memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
+import { applyLeaseRequest, type LeaseApproval } from "#core/server/utils/lease-requests";
 
-export const CHANGE_KINDS = ["contact", "mailing_address", "vehicle", "pet"] as const;
+export const CHANGE_KINDS = ["contact", "mailing_address", "vehicle", "pet", "lease"] as const;
 export const CHANGE_ACTIONS = ["create", "update", "delete"] as const;
 export type ChangeKind = (typeof CHANGE_KINDS)[number];
 export type ChangeAction = (typeof CHANGE_ACTIONS)[number];
@@ -22,6 +24,7 @@ export const KIND_TARGET = {
   mailing_address: "hoa_members",
   vehicle: "hoa_vehicles",
   pet: "hoa_pets",
+  lease: "hoa_leases",
 } as const satisfies Record<ChangeKind, string>;
 
 // Whitelisted, resident-editable fields per kind.
@@ -54,7 +57,7 @@ function sanitizeMailing(v: any): Record<string, string | null> {
  * beyond the (separately ownership-verified) target_id for updates/deletes.
  */
 export function buildSafeChange(input: {
-  kind: ChangeKind;
+  kind: Exclude<ChangeKind, "lease">;
   action: ChangeAction;
   memberId: string;
   targetId?: string | null;
@@ -97,14 +100,24 @@ export function buildSafeChange(input: {
 /**
  * Apply an APPROVED change request to the live record, using the admin client.
  * `cr` is the stored change-request row. `nowIso` is passed in (no Date.now in
- * shared code that must stay deterministic for tests).
+ * shared code that must stay deterministic for tests). A lease needs the
+ * reviewer (an invitation goes out in someone's name) and says what it did.
  */
-export async function applyChangeRequest(admin: ReturnType<typeof getTypedDirectus>, cr: any, nowIso: string): Promise<void> {
+export async function applyChangeRequest(
+  admin: ReturnType<typeof getTypedDirectus>,
+  cr: any,
+  nowIso: string,
+  ctx: { reviewerUserId?: string } = {}
+): Promise<LeaseApproval | void> {
   const kind = cr.kind as ChangeKind;
   const action = cr.action as ChangeAction;
   const payload = cr.payload || {};
   const memberId = typeof cr.member === "string" ? cr.member : cr.member?.id;
   const orgId = typeof cr.organization === "string" ? cr.organization : cr.organization?.id;
+
+  if (kind === "lease") {
+    return await applyLeaseRequest(cr, { reviewerUserId: ctx.reviewerUserId ?? "" });
+  }
 
   if (kind === "contact") {
     await admin.request(updateItem("hoa_members", memberId, { phone: str(payload.phone) }));

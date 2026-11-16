@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChangeKind, ChangeAction } from "#core/app/composables/useChangeRequests";
+import type { ChangeKind, ChangeAction, HouseholdLease } from "#core/app/composables/useChangeRequests";
+import { LEASE_DOCUMENT_MAX_BYTES, leaseDay, leaseRequestLine } from "#core/shared/units/lease-requests";
 
 const { confirm } = useConfirm();
 
@@ -22,13 +23,15 @@ definePageMeta({
 });
 
 const { selectedOrgId, currentOrg } = await useSelectedOrg();
-const { fetchHousehold, submitChange } = useChangeRequests();
+const { fetchHousehold, submitChange, uploadLeaseDocument, requestDocumentUrl } = useChangeRequests();
+const { getAuthUrl } = useDirectusFiles();
 
 // Vehicles / pets are optional org modules — hide their sections when the admin
 // has switched them off (Settings → Modules).
 const { isEnabled } = useModules();
 const vehiclesEnabled = computed(() => isEnabled("vehicles"));
 const petsEnabled = computed(() => isEnabled("pets"));
+const leasesEnabled = computed(() => isEnabled("leases"));
 
 const householdBlurb = computed(() => {
   const parts = ["contact details", "mailing address"];
@@ -103,14 +106,86 @@ const openAddPet = () => {
   note.value = "";
 };
 
+// ── Leases: an owner reports that a unit is rented ───────────────────────
+// One approval records the lease on the unit and invites the tenant. Owners
+// see the section; a tenant sees it only for the lease they are on.
+const ownedUnits = computed(() => data.value?.ownedUnits || []);
+const leases = computed<HouseholdLease[]>(() => data.value?.leases || []);
+const pendingLeases = computed(() => (data.value?.pendingRequests || []).filter((r) => r.kind === "lease"));
+const showLeases = computed(() => leasesEnabled.value && (ownedUnits.value.length > 0 || leases.value.length > 0));
+const personName = (p?: { first_name?: string | null; last_name?: string | null } | null) =>
+  [p?.first_name, p?.last_name].filter(Boolean).join(" ");
+const leaseTenant = (l: HouseholdLease) =>
+  l.tenant?.id === data.value?.memberId ? "You" : personName(l.tenant) || (l.invited_tenant ? `${personName(l.invited_tenant)} (invited)` : "Tenant");
+
+const openLease = () => {
+  editor.value = {
+    kind: "lease",
+    action: "create",
+    title: "Report a lease",
+    fields: {
+      ...(ownedUnits.value.length > 1 ? { unit_id: ownedUnits.value[0]!.id } : {}),
+      tenant_first_name: "",
+      tenant_last_name: "",
+      tenant_email: "",
+      start_date: "",
+      end_date: "",
+      document: null,
+      document_name: "",
+    },
+  };
+  note.value = "";
+};
+
+const uploading = ref(false);
+const leaseFileInput = ref<HTMLInputElement | null>(null);
+const onLeaseFile = async (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || !editor.value) return;
+  if (file.type !== "application/pdf") {
+    toast.error("The signed lease has to be a PDF.");
+    return;
+  }
+  if (file.size > LEASE_DOCUMENT_MAX_BYTES) {
+    toast.error("That PDF is over 4 MB. Save a smaller copy and try again.");
+    return;
+  }
+  uploading.value = true;
+  try {
+    const res = await uploadLeaseDocument(file);
+    editor.value.fields.document = res.id;
+    editor.value.fields.document_name = res.filename;
+  } catch (err: any) {
+    toast.error(err?.data?.message || "Couldn't upload the lease");
+  } finally {
+    uploading.value = false;
+  }
+};
+
+const canSave = computed(() => {
+  const e = editor.value;
+  if (!e || saving.value || uploading.value) return false;
+  if (e.kind !== "lease") return true;
+  const f = e.fields;
+  return !!(f.tenant_first_name?.trim() && f.tenant_last_name?.trim() && f.tenant_email?.trim() && f.start_date && f.end_date && f.document);
+});
+
 const payloadFor = (e: Editor): Record<string, any> => {
   if (e.kind === "mailing_address") return { mailing_address: { ...e.fields } };
+  if (e.kind === "lease") {
+    const rest = { ...e.fields };
+    delete rest.document_name;
+    return rest;
+  }
   return { ...e.fields };
 };
 
 const save = async () => {
   if (!editor.value) return;
   saving.value = true;
+  const isLease = editor.value.kind === "lease";
   try {
     await submitChange({
       kind: editor.value.kind,
@@ -121,7 +196,9 @@ const save = async () => {
     });
     editor.value = null;
     toast.success("Submitted for review", {
-      description: "Your community manager will review this change shortly.",
+      description: isLease
+        ? "Once it's approved, the lease is on your unit and your tenant gets an invitation."
+        : "Your community manager will review this change shortly.",
     });
     await refresh();
   } catch (e: any) {
@@ -244,6 +321,50 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
           </ul>
           <p v-else class="t-text-muted text-sm">No pets on file.</p>
         </section>
+
+        <!-- Leases -->
+        <section v-if="showLeases" class="ios-card rounded-xl t-bg-elevated p-5">
+          <div class="flex items-center justify-between gap-4 mb-3">
+            <h2 class="font-medium">Leases</h2>
+            <Button v-if="ownedUnits.length" variant="outline" size="sm" @click="openLease">
+              <Icon name="i-lucide-plus" class="size-4" /> Report a lease
+            </Button>
+          </div>
+          <ul v-if="leases.length || pendingLeases.length" class="divide-y t-border">
+            <li v-for="l in leases" :key="l.id" class="py-2.5 flex items-center justify-between gap-3">
+              <div class="text-sm min-w-0">
+                <span class="font-medium">Unit {{ l.unit?.unit_number || "—" }}</span>
+                <span class="t-text-muted"> · {{ leaseTenant(l) }} · {{ leaseDay(l.start_date) }}<template v-if="l.end_date"> – {{ leaseDay(l.end_date) }}</template></span>
+              </div>
+              <a
+                v-if="l.document"
+                :href="getAuthUrl(l.document) || ''"
+                target="_blank"
+                rel="noopener"
+                class="text-xs text-blue-600 hover:underline shrink-0 inline-flex items-center gap-1"
+              >
+                <Icon name="i-lucide-paperclip" class="size-3.5" /> Lease
+              </a>
+            </li>
+            <li v-for="r in pendingLeases" :key="r.id" class="py-2.5 flex items-center justify-between gap-3">
+              <div class="text-sm min-w-0">
+                <span class="font-medium">{{ leaseRequestLine(r.payload) }}</span>
+                <span class="type-micro text-amber-600"> · pending review</span>
+              </div>
+              <a
+                :href="requestDocumentUrl(r.id)"
+                target="_blank"
+                rel="noopener"
+                class="text-xs text-blue-600 hover:underline shrink-0 inline-flex items-center gap-1"
+              >
+                <Icon name="i-lucide-paperclip" class="size-3.5" /> Lease
+              </a>
+            </li>
+          </ul>
+          <p v-else class="t-text-muted text-sm">
+            Renting out your unit? Report the lease here. Once it's approved, it's on your unit and your tenant is invited to join.
+          </p>
+        </section>
       </template>
 
       <!-- Email: community mail, bounces, what's always sent, notifications.
@@ -256,7 +377,10 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{{ editor?.title }}</DialogTitle>
-          <DialogDescription>This will be sent to your community manager for review.</DialogDescription>
+          <DialogDescription>
+            <template v-if="editor?.kind === 'lease'">Your community manager checks it, records it on your unit and invites your tenant.</template>
+            <template v-else>This will be sent to your community manager for review.</template>
+          </DialogDescription>
         </DialogHeader>
 
         <div v-if="editor" class="space-y-3">
@@ -307,6 +431,39 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             <div class="space-y-1.5"><Label>Weight</Label><Input v-model="editor.fields.weight" placeholder="e.g. 30 lbs" /></div>
           </template>
 
+          <!-- Lease -->
+          <template v-else-if="editor.kind === 'lease'">
+            <div v-if="ownedUnits.length > 1" class="space-y-1.5">
+              <Label>Unit</Label>
+              <select v-model="editor.fields.unit_id" class="w-full h-9 rounded-md px-2 text-sm">
+                <option v-for="u in ownedUnits" :key="u.id" :value="u.id">Unit {{ u.unit_number || "—" }}</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1.5"><Label>Tenant's first name</Label><Input v-model="editor.fields.tenant_first_name" autocomplete="off" /></div>
+              <div class="space-y-1.5"><Label>Last name</Label><Input v-model="editor.fields.tenant_last_name" autocomplete="off" /></div>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Tenant's email</Label>
+              <Input v-model="editor.fields.tenant_email" type="email" autocomplete="off" placeholder="We'll invite them to join" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1.5"><Label>Starts</Label><DateInput v-model="editor.fields.start_date" /></div>
+              <div class="space-y-1.5"><Label>Ends</Label><DateInput v-model="editor.fields.end_date" /></div>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Signed lease (PDF)</Label>
+              <div class="flex items-center gap-2 min-w-0">
+                <Button variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="leaseFileInput?.click()">
+                  <Icon :name="uploading ? 'i-lucide-loader-2' : 'i-lucide-paperclip'" class="size-4" :class="{ 'animate-spin': uploading }" />
+                  {{ editor.fields.document ? "Replace" : "Choose the PDF" }}
+                </Button>
+                <span class="text-sm t-text-muted truncate">{{ uploading ? "Uploading…" : editor.fields.document_name || "No file chosen" }}</span>
+                <input ref="leaseFileInput" type="file" accept="application/pdf" class="hidden" @change="onLeaseFile" />
+              </div>
+            </div>
+          </template>
+
           <div
             v-if="(editor.kind === 'vehicle' || editor.kind === 'pet') && editor.action === 'create' && myUnits.length > 1"
             class="space-y-1.5"
@@ -325,7 +482,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
         <DialogFooter>
           <Button variant="ghost" @click="editor = null">Cancel</Button>
-          <Button :disabled="saving" @click="save">{{ saving ? "Submitting…" : "Submit for review" }}</Button>
+          <Button :disabled="!canSave" @click="save">{{ saving ? "Submitting…" : "Submit for review" }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

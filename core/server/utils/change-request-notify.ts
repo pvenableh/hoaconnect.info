@@ -1,5 +1,6 @@
 import { readItems, readItem } from "@directus/sdk";
 import { notifyUsers } from "./notify";
+import type { LeaseApproval } from "./lease-requests";
 
 /**
  * In-app notifications for the member self-service review workflow. Both sides
@@ -12,7 +13,11 @@ const KIND_LABEL: Record<string, string> = {
   mailing_address: "mailing address",
   vehicle: "a vehicle",
   pet: "a pet",
+  lease: "a lease",
 };
+
+/** "Unit 4B", from a lease request's payload. */
+const leaseUnit = (cr: any) => (cr?.payload?.unit_number ? `Unit ${cr.payload.unit_number}` : "their unit");
 
 const idOf = (v: any) => (typeof v === "string" ? v : v?.id) || null;
 
@@ -64,8 +69,8 @@ export async function notifyReviewersOfChangeRequest(orgId: string, cr: any, mem
 
   const label = KIND_LABEL[cr.kind] || "their details";
   const submitter = idOf(cr.submitted_by);
-  const subject = "Profile change to review";
-  const message = `${name} requested a change to ${label}.`;
+  const subject = cr.kind === "lease" ? "Lease to review" : "Profile change to review";
+  const message = cr.kind === "lease" ? `${name} reported that ${leaseUnit(cr)} is rented.` : `${name} requested a change to ${label}.`;
 
   // A reviewer editing their own data shouldn't be pinged about it.
   await notifyUsers({
@@ -81,16 +86,34 @@ export async function notifyReviewersOfChangeRequest(orgId: string, cr: any, mem
   }).catch((e) => console.warn("[change-requests] reviewer notify failed", (e as Error).message));
 }
 
-export async function notifyResidentOfDecision(orgId: string, cr: any): Promise<void> {
+/** What the owner reads when their lease is approved: it is on the unit, and what became of the tenant. */
+function leaseApprovedMessage(cr: any, lease?: LeaseApproval): string {
+  const unit = lease?.unitNumber ? `Unit ${lease.unitNumber}` : leaseUnit(cr).replace("their", "your");
+  const who = lease?.tenantName || "your tenant";
+  const tenant =
+    lease?.tenant === "invited" || lease?.tenant === "already_invited"
+      ? ` We've invited ${who} to join.`
+      : lease
+        ? ` ${who} is listed as the tenant.`
+        : "";
+  return `Your lease for ${unit} is recorded.${tenant}`;
+}
+
+export async function notifyResidentOfDecision(orgId: string, cr: any, lease?: LeaseApproval): Promise<void> {
   const recipient = idOf(cr.submitted_by);
   if (!recipient) return;
 
   const label = KIND_LABEL[cr.kind] || "your details";
   const approved = cr.status === "approved";
-  const subject = approved ? "Change approved" : "Change needs another look";
-  const message = approved
-    ? `Your requested change to ${label} was approved.`
-    : `Your requested change to ${label} wasn't approved. Check the note and try again.`;
+  const isLease = cr.kind === "lease";
+  const subject = isLease ? (approved ? "Lease recorded" : "Lease needs another look") : approved ? "Change approved" : "Change needs another look";
+  const message = isLease
+    ? approved
+      ? leaseApprovedMessage(cr, lease)
+      : `Your lease for ${leaseUnit(cr).replace("their", "your")} wasn't approved. Check the note and try again.`
+    : approved
+      ? `Your requested change to ${label} was approved.`
+      : `Your requested change to ${label} wasn't approved. Check the note and try again.`;
 
   await notifyUsers({
     organizationId: orgId,

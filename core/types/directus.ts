@@ -1361,7 +1361,7 @@ export interface HoaMemberChangeRequest {
 	/** @description Review state */
 	status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
 	/** @description What the resident is changing */
-	kind?: 'contact' | 'mailing_address' | 'vehicle' | 'pet' | null;
+	kind?: 'contact' | 'mailing_address' | 'vehicle' | 'pet' | 'lease' | null;
 	/** @description Add / update / remove */
 	action?: 'create' | 'update' | 'delete' | null;
 	/** @description Owning organization (tenant scope) @required */

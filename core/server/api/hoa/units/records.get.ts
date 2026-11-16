@@ -1,4 +1,5 @@
 import { readItems, readItem } from "@directus/sdk";
+import { withInvitedTenants } from "#core/server/utils/lease-requests";
 
 /**
  * Role-aware unit records read (Phase 6, Track 1).
@@ -159,6 +160,7 @@ export default defineEventHandler(async (event) => {
     occupants: visible(occupants as any),
     pets: visible(pets as any),
     vehicles: visible(vehicles as any),
-    leases: visible(leases as any),
+    // A tenant an owner's report invited shows by name until they join.
+    leases: await withInvitedTenants(orgId, visible(leases as any) as Array<{ id: string; tenant?: unknown }>, { withEmail: admin.isAdmin }),
   };
 });

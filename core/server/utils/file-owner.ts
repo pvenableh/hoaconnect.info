@@ -52,18 +52,21 @@ const asId = (v: unknown): string | null =>
 
 /**
  * Every organization that claims this file. Usually zero or one; a file reused
- * across two rows in the same community still yields one id.
+ * across two rows in the same community still yields one id. `except` leaves
+ * out collections whose rows decide their own readers (a lease's document is
+ * its owner's, its tenant's and the admins', not every member's).
  *
  * Errors from any single lookup are swallowed *per collection* — a collection
  * that does not exist in a given deployment must not take down the whole
  * resolution — but a file that resolves to nothing is still a refusal upstream.
  */
-export async function fileOwnerOrgIds(fileId: string): Promise<Set<string>> {
+export async function fileOwnerOrgIds(fileId: string, opts: { except?: readonly string[] } = {}): Promise<Set<string>> {
   const directus = getTypedDirectus();
   const orgIds = new Set<string>();
+  const owners = opts.except?.length ? DIRECT_OWNERS.filter((o) => !opts.except!.includes(o.collection)) : DIRECT_OWNERS;
 
   await Promise.all([
-    ...DIRECT_OWNERS.map(async ({ collection, field }) => {
+    ...owners.map(async ({ collection, field }) => {
       try {
         const rows = (await directus.request(
           readItems(collection as never, {

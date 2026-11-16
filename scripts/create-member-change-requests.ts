@@ -2,7 +2,9 @@
  * Member self-service review workflow schema.
  *
  *  1. hoa_member_change_requests — a resident's proposed change to their own
- *     household data (contact info, mailing address, a vehicle, or a pet).
+ *     household data (contact info, mailing address, a vehicle, or a pet), or
+ *     an owner's report that their unit is rented (a lease;
+ *     scripts/add-change-request-lease-kind.ts adds it to an existing field).
  *     Live records are never mutated until an Admin / Property Manager approves;
  *     on approval the server applies `payload` to `target_collection`.
  *  2. hoa_members.mailing_address (JSON) — a separate mailing address distinct
@@ -161,6 +163,7 @@ async function main() {
         { text: "Mailing address", value: "mailing_address" },
         { text: "Vehicle", value: "vehicle" },
         { text: "Pet", value: "pet" },
+        { text: "Lease", value: "lease" },
       ],
       "contact",
       "What the resident is changing"
@@ -188,7 +191,7 @@ async function main() {
 
   await createField(COLLECTION, "target_collection", {
     type: "string",
-    meta: { interface: "input", width: "half", note: "hoa_members | hoa_vehicles | hoa_pets" },
+    meta: { interface: "input", width: "half", note: "hoa_members | hoa_vehicles | hoa_pets | hoa_leases" },
   });
   await createField(COLLECTION, "target_id", {
     type: "string",

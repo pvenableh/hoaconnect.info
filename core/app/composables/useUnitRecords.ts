@@ -68,6 +68,8 @@ export interface LeaseRecord {
   notes?: string | null;
   tenant?: UnitRecordMember | null;
   owner?: UnitRecordMember | null;
+  /** An owner's report invited this tenant; set until they join. */
+  invited_tenant?: { first_name: string | null; last_name: string | null; email: string | null } | null;
 }
 
 export interface UnitRecordsResponse {

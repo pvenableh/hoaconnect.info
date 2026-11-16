@@ -21,7 +21,8 @@
  *     avatars in `ProjectCard`/`TaskItem`, which already point at this route.
  *   - **Everything else** must resolve to an owning organization and the caller
  *     must belong to it. A file nothing claims is refused, not allowed: see the
- *     fails-closed note in `file-owner.ts`.
+ *     fails-closed note in `file-owner.ts`. A lease's document is narrower:
+ *     its owner, its tenant and the community's admins (`lease-documents.ts`).
  *
  * Deliberately NOT a general Directus passthrough. It takes a file id and the
  * image transform parameters, nothing else, so it can never be steered into
@@ -31,14 +32,13 @@
 import { readFile } from "@directus/sdk";
 import { isSupportFileMarker } from "#core/shared/support/attachments";
 import { mayOpenGoverningSourceFile } from "#core/server/utils/governing-sources";
+import { mayOpenLeaseDocument } from "#core/server/utils/lease-documents";
+import { streamDirectusFile } from "#core/server/utils/asset-stream";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The only query params forwarded upstream — an allow-list, not a filter. */
-const TRANSFORM_KEYS = ["width", "height", "fit", "quality", "format", "key", "download"] as const;
-
 export default defineEventHandler(async (event) => {
-  await requireUserSession(event);
+  const session = await requireUserSession(event);
 
   const id = getRouterParam(event, "id");
   if (!id || !UUID.test(id)) {
@@ -83,13 +83,17 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const owners = await fileOwnerOrgIds(id);
-    if (owners.size === 0) {
+    // A lease's document is its owner's, its tenant's and the admins'
+    // (lease-documents.ts). The same file filed in a library is also that
+    // library's community's, by the rule below.
+    const lease = await mayOpenLeaseDocument(event, String(session.user?.id ?? ""), id);
+    const owners = await fileOwnerOrgIds(id, { except: ["hoa_leases"] });
+    if (owners.size === 0 && lease !== true) {
       throw createError({ statusCode: 403, statusMessage: "Not authorized to read this file." });
     }
 
-    let allowed = false;
-    for (const orgId of owners) {
+    let allowed = lease === true;
+    for (const orgId of allowed ? [] : owners) {
       const [member, admin] = await Promise.all([
         checkMembership(event, orgId),
         checkAdminAccess(event, orgId),
@@ -104,40 +108,5 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const config = useRuntimeConfig();
-  const url = config.directus?.url || config.public.directusUrl;
-  const token = config.directus?.staticToken;
-
-  const incoming = getQuery(event);
-  const params = new URLSearchParams();
-  for (const key of TRANSFORM_KEYS) {
-    const value = incoming[key];
-    if (value !== undefined && value !== null && value !== "") {
-      params.append(key, String(value));
-    }
-  }
-  const qs = params.toString();
-
-  const upstream = await fetch(`${url}/assets/${id}${qs ? `?${qs}` : ""}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!upstream.ok || !upstream.body) {
-    throw createError({ statusCode: 502, statusMessage: "Could not read the file." });
-  }
-
-  const contentType = upstream.headers.get("content-type");
-  if (contentType) setResponseHeader(event, "Content-Type", contentType);
-  const length = Number(upstream.headers.get("content-length"));
-  if (Number.isFinite(length) && length > 0) setResponseHeader(event, "Content-Length", length);
-  if (file.filename_download) {
-    setResponseHeader(
-      event,
-      "Content-Disposition",
-      `inline; filename="${file.filename_download.replace(/"/g, "")}"`
-    );
-  }
-  // A shared cache must never hold one member's document for the next visitor.
-  setResponseHeader(event, "Cache-Control", "private, no-store");
-
-  return sendStream(event, upstream.body as unknown as ReadableStream);
+  return streamDirectusFile(event, file);
 });

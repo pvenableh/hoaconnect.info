@@ -14,6 +14,7 @@ import { DIRECTUS_EMAIL_OFF } from "#core/shared/notifications/preferences";
 import { sendInvitationAcceptedEmail } from "../../utils/invitation-accepted-email";
 import { normalizeResidency, residencyOnAccept } from "#core/shared/members/residency";
 import { invitableMembers } from "#core/shared/members/invitability";
+import { claimInvitedLeases } from "#core/server/utils/lease-requests";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -308,6 +309,15 @@ export default defineEventHandler(async (event) => {
       } catch (linkError) {
         console.error("Could not link accepted member to their unit:", linkError);
       }
+    }
+
+    // 5c. A tenant invited by an approved lease report becomes that lease's
+    //     tenant (lease-requests.ts). Best-effort for the same reason as 5b:
+    //     an admin can set the tenant on the unit page.
+    try {
+      await claimInvitedLeases(organizationId, invitation.email, newMember.id);
+    } catch (leaseError) {
+      console.error("Could not attach accepted member to their lease:", leaseError);
     }
 
     // 6. Mark invitation as accepted

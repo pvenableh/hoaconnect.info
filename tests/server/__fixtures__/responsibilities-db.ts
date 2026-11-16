@@ -106,7 +106,7 @@ export function seed(): Db {
 }
 
 const idOf = (v: any) => (v && typeof v === "object" ? v.id : v);
-const OPS = ["_eq", "_neq", "_in", "_nin", "_null", "_nnull", "_lte", "_gte"];
+const OPS = ["_eq", "_neq", "_in", "_nin", "_null", "_nnull", "_lte", "_gte", "_lt", "_gt"];
 
 function matches(db: Db, collection: string, row: any, filter: any): boolean {
   if (!filter) return true;
@@ -125,6 +125,8 @@ function matches(db: Db, collection: string, row: any, filter: any): boolean {
           case "_nnull": return x ? v != null : v == null;
           case "_lte": return v != null && v <= x;
           case "_gte": return v != null && v >= x;
+          case "_lt": return v != null && v < x;
+          case "_gt": return v != null && v > x;
           default: return true;
         }
       });
@@ -140,6 +142,7 @@ function expand(db: Db, collection: string, row: any, fields: string[] | undefin
   const out = { ...row };
   const nested = new Map<string, string[]>();
   for (const f of fields ?? []) {
+    if (typeof f !== "string") continue; // nested-object field lists: the row comes back as stored
     const [head, ...rest] = f.split(".");
     if (rest.length) nested.set(head!, [...(nested.get(head!) ?? []), rest.join(".")]);
   }
@@ -210,6 +213,7 @@ export function sdkMock() {
     readItem: (collection: string, id: string, query?: any) => ({ op: "readItem", collection, id, query }),
     readFile: (id: string, query?: any) => ({ op: "readItem", collection: "directus_files", id, query }),
     readUsers: (query?: any) => ({ op: "readItems", collection: "directus_users", query }),
+    readUser: (id: string, query?: any) => ({ op: "readItem", collection: "directus_users", id, query }),
     createItem: (collection: string, data: any) => ({ op: "createItem", collection, data }),
     createItems: (collection: string, data: any) => ({ op: "createItems", collection, data }),
     updateItem: (collection: string, id: string, data: any) => ({ op: "updateItem", collection, id, data }),

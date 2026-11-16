@@ -3,8 +3,9 @@ import { applyChangeRequest } from "#core/server/utils/change-requests";
 
 /**
  * Reviewer (admin / PM-directory) approves or rejects a pending change request.
- * On approve, the whitelisted payload is applied to the live record; on reject,
- * a note is recorded. Either way the resident is notified.
+ * On approve, the whitelisted payload is applied to the live record (a lease is
+ * recorded on its unit and its tenant linked or invited); on reject, a note is
+ * recorded. Either way the resident is notified.
  */
 export default defineEventHandler(async (event) => {
   const { userId } = await requireAuthenticatedUser(event);
@@ -35,8 +36,9 @@ export default defineEventHandler(async (event) => {
 
   const nowIso = new Date().toISOString();
 
+  let outcome: Awaited<ReturnType<typeof applyChangeRequest>> = undefined;
   if (decision === "approve") {
-    await applyChangeRequest(admin, cr, nowIso);
+    outcome = await applyChangeRequest(admin, cr, nowIso, { reviewerUserId: userId });
     await admin.request(
       updateItem("hoa_member_change_requests", id, {
         status: "approved",
@@ -59,10 +61,11 @@ export default defineEventHandler(async (event) => {
   // Awaited (Vercel freezes the function once it answers) but never fatal:
   // the decision is already written.
   try {
-    await notifyResidentOfDecision(orgId, { ...cr, status: decision === "approve" ? "approved" : "rejected" });
+    await notifyResidentOfDecision(orgId, { ...cr, status: decision === "approve" ? "approved" : "rejected" }, outcome || undefined);
   } catch (e) {
     console.error("[change-requests] resident notify failed:", e);
   }
 
-  return { success: true, status: decision === "approve" ? "approved" : "rejected" };
+  // A lease says what happened to the tenant, for the reviewer's toast.
+  return { success: true, status: decision === "approve" ? "approved" : "rejected", ...(outcome ? { lease: outcome } : {}) };
 });

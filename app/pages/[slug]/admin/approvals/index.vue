@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
+import { leaseRequestLine } from "#core/shared/units/lease-requests";
 
 // Light middleware so Property Managers (not just admins) can reach it; the
 // server gates the data to reviewers (admin / PM-directory) and returns 403
@@ -11,7 +12,7 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const { listRequests, decide } = useChangeRequests();
+const { listRequests, decide, requestDocumentUrl } = useChangeRequests();
 const { prompt } = useConfirm();
 
 const denied = ref(false);
@@ -39,6 +40,7 @@ const KIND_LABEL: Record<string, string> = {
   mailing_address: "Mailing address",
   vehicle: "Vehicle",
   pet: "Pet",
+  lease: "Lease",
 };
 
 const summarize = (r: any): string => {
@@ -56,18 +58,36 @@ const summarize = (r: any): string => {
     if (r.action === "delete") return "Remove this pet";
     return `${p.name || ""}${p.type ? " (" + p.type + ")" : ""}${p.breed ? " · " + p.breed : ""}${p.unit_number ? " · Unit " + p.unit_number : ""}`;
   }
+  if (r.kind === "lease") return leaseRequestLine(p);
   return r.kind;
 };
 
-const actionVerb = (r: any) => (r.action === "create" ? "Add" : r.action === "delete" ? "Remove" : "Update");
+// A lease is reported, not added: one label is enough.
+const badge = (r: any) =>
+  r.kind === "lease"
+    ? KIND_LABEL.lease
+    : `${r.action === "create" ? "Add" : r.action === "delete" ? "Remove" : "Update"} · ${KIND_LABEL[r.kind] || r.kind}`;
 
 const busy = ref<string | null>(null);
 
 const approve = async (r: any) => {
   busy.value = r.id;
   try {
-    await decide(r.id, "approve");
-    toast.success("Approved");
+    const res = await decide(r.id, "approve");
+    const lease = res?.lease;
+    if (lease) {
+      const unit = lease.unitNumber ? `Unit ${lease.unitNumber}` : "the unit";
+      toast.success(`Lease recorded on ${unit}`, {
+        description:
+          lease.tenant === "invited"
+            ? `${lease.tenantName} was sent an invitation as its tenant.`
+            : lease.tenant === "already_invited"
+              ? `${lease.tenantName} already has an invitation; they become its tenant when they join.`
+              : `${lease.tenantName} is its tenant.`,
+      });
+    } else {
+      toast.success("Approved");
+    }
     await refresh();
   } catch (e: any) {
     toast.error(e?.data?.message || "Couldn't approve");
@@ -105,7 +125,7 @@ const reject = async (r: any) => {
     <PageContainer class="space-y-6">
       <header class="space-y-1">
         <h1 class="text-2xl font-semibold">Approvals</h1>
-        <p class="t-text-muted text-sm">Resident-submitted changes to contact info, mailing addresses, vehicles, and pets.</p>
+        <p class="t-text-muted text-sm">Resident-submitted changes to contact info, mailing addresses, vehicles, and pets, and owners' leases.</p>
       </header>
 
       <div v-if="denied" class="rounded-xl border border-destructive/30 bg-destructive/10 t-text px-4 py-3 text-sm">
@@ -126,10 +146,22 @@ const reject = async (r: any) => {
               <div class="flex items-center gap-2 text-sm">
                 <span class="font-medium">{{ memberName(r) }}</span>
                 <span class="text-[11px] uppercase tracking-wide rounded-full px-2 py-0.5 t-bg-subtle t-text-muted">
-                  {{ actionVerb(r) }} · {{ KIND_LABEL[r.kind] || r.kind }}
+                  {{ badge(r) }}
                 </span>
               </div>
               <p class="mt-1.5 text-sm t-text">{{ summarize(r) }}</p>
+              <p v-if="r.kind === 'lease'" class="mt-1 text-xs t-text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>{{ r.payload?.tenant_email }}</span>
+                <a
+                  v-if="r.payload?.document"
+                  :href="requestDocumentUrl(r.id)"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-blue-600 hover:underline inline-flex items-center gap-1"
+                >
+                  <Icon name="i-lucide-paperclip" class="size-3.5" /> {{ r.payload?.document_name || "Signed lease" }}
+                </a>
+              </p>
               <p v-if="r.note" class="mt-1 text-xs t-text-muted italic">“{{ r.note }}”</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
