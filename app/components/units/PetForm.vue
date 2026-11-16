@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PetRecord, UnitRecordMember } from "#core/app/composables/useUnitRecords";
+import { dateInputToTimestamp, timestampToDateInput } from "#core/shared/units/record-dates";
 
 const props = defineProps<{
   members: UnitRecordMember[];
@@ -15,14 +16,9 @@ const type = ref(props.record?.type || "dog");
 const breed = ref(props.record?.breed || "");
 const weight = ref(props.record?.weight || "");
 const imageId = ref<string | null>(props.record?.image || null);
-const startDate = ref(toDateInput(props.record?.start_date));
+const startDate = ref(timestampToDateInput(props.record?.start_date));
 const uploading = ref(false);
 const submitting = ref(false);
-
-function toDateInput(v?: string | null) {
-  if (!v) return "";
-  return new Date(v).toISOString().slice(0, 10);
-}
 
 const imageUrl = computed(() => (imageId.value ? getUrl(imageId.value, { width: 96, height: 96, fit: "cover" }) : null));
 
@@ -52,7 +48,7 @@ const submit = () => {
     breed: breed.value || null,
     weight: weight.value || null,
     image: imageId.value,
-    start_date: startDate.value ? new Date(startDate.value).toISOString() : undefined,
+    start_date: dateInputToTimestamp(startDate.value) ?? undefined,
   });
 };
 </script>

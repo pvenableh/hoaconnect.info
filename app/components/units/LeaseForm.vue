@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LeaseRecord, UnitRecordMember } from "#core/app/composables/useUnitRecords";
+import { dateInputToTimestamp, timestampToDateInput } from "#core/shared/units/record-dates";
 
 const props = defineProps<{
   members: UnitRecordMember[];
@@ -11,8 +12,8 @@ const { upload, getAuthUrl } = useDirectusFiles();
 
 const tenant = ref<string>(props.record?.tenant?.id || "");
 const owner = ref<string>(props.record?.owner?.id || "");
-const startDate = ref(toDateInput(props.record?.start_date));
-const endDate = ref(toDateInput(props.record?.end_date));
+const startDate = ref(timestampToDateInput(props.record?.start_date));
+const endDate = ref(timestampToDateInput(props.record?.end_date));
 const rent = ref<string>(props.record?.rent_amount != null ? String(props.record.rent_amount) : "");
 const deposit = ref<string>(props.record?.deposit_amount != null ? String(props.record.deposit_amount) : "");
 const status = ref(props.record?.status || "active");
@@ -21,11 +22,6 @@ const documentId = ref<string | null>(props.record?.document || null);
 const documentName = ref<string>(props.record?.document ? "Current document" : "");
 const uploading = ref(false);
 const submitting = ref(false);
-
-function toDateInput(v?: string | null) {
-  if (!v) return "";
-  return new Date(v).toISOString().slice(0, 10);
-}
 
 const documentUrl = computed(() => (documentId.value ? getAuthUrl(documentId.value) : null));
 
@@ -57,8 +53,8 @@ const submit = () => {
     deposit_amount: deposit.value ? Number(deposit.value) : null,
     document: documentId.value,
     notes: notes.value || null,
-    start_date: startDate.value ? new Date(startDate.value).toISOString() : undefined,
-    end_date: endDate.value ? new Date(endDate.value).toISOString() : null,
+    start_date: dateInputToTimestamp(startDate.value) ?? undefined,
+    end_date: dateInputToTimestamp(endDate.value),
   });
 };
 </script>
