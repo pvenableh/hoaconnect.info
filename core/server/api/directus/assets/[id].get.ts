@@ -22,7 +22,9 @@
  *   - **Everything else** must resolve to an owning organization and the caller
  *     must belong to it. A file nothing claims is refused, not allowed: see the
  *     fails-closed note in `file-owner.ts`. A lease's document is narrower:
- *     its owner, its tenant and the community's admins (`lease-documents.ts`).
+ *     its owner, its tenant and the community's admins (`lease-documents.ts`);
+ *     an expense's receipt is for its admins and board seats
+ *     (`expense-receipts.ts`).
  *
  * Deliberately NOT a general Directus passthrough. It takes a file id and the
  * image transform parameters, nothing else, so it can never be steered into
@@ -33,6 +35,7 @@ import { readFile } from "@directus/sdk";
 import { isSupportFileMarker } from "#core/shared/support/attachments";
 import { mayOpenGoverningSourceFile } from "#core/server/utils/governing-sources";
 import { mayOpenLeaseDocument } from "#core/server/utils/lease-documents";
+import { mayOpenExpenseReceipt } from "#core/server/utils/expense-receipts";
 import { streamDirectusFile } from "#core/server/utils/asset-stream";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,13 +89,16 @@ export default defineEventHandler(async (event) => {
     // A lease's document is its owner's, its tenant's and the admins'
     // (lease-documents.ts). The same file filed in a library is also that
     // library's community's, by the rule below.
+    // An expense's receipt is for whoever reads the books: its admins and
+    // board seats (expense-receipts.ts).
     const lease = await mayOpenLeaseDocument(event, String(session.user?.id ?? ""), id);
-    const owners = await fileOwnerOrgIds(id, { except: ["hoa_leases"] });
-    if (owners.size === 0 && lease !== true) {
+    const receipt = await mayOpenExpenseReceipt(event, id);
+    const owners = await fileOwnerOrgIds(id, { except: ["hoa_leases", "payment_expenses"] });
+    if (owners.size === 0 && lease !== true && receipt !== true) {
       throw createError({ statusCode: 403, statusMessage: "Not authorized to read this file." });
     }
 
-    let allowed = lease === true;
+    let allowed = lease === true || receipt === true;
     for (const orgId of allowed ? [] : owners) {
       const [member, admin] = await Promise.all([
         checkMembership(event, orgId),

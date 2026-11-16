@@ -13,7 +13,7 @@ definePageMeta({
 const { selectedOrgId } = await useSelectedOrg();
 const { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
 const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
-const { getUrl } = useDirectusFiles();
+const { getAuthUrl } = useDirectusFiles();
 const { list: listProjects } = useProjects();
 
 // Projects available to tag an expense against (for the budget rollup).
@@ -132,7 +132,7 @@ const save = async () => {
     await refresh();
   } catch (e: any) {
     console.error("Failed to save expense:", e);
-    toast.error(e?.message || "Failed to save expense");
+    toast.error(e?.data?.message || e?.message || "Failed to save expense");
   } finally {
     saving.value = false;
   }
@@ -148,14 +148,33 @@ const removeExpense = async (e: PaymentExpense) => {
   }
 };
 
+// What /api/org/expenses/receipt takes (expense-receipts.ts).
+const RECEIPT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+const RECEIPT_MAX_BYTES = 4 * 1024 * 1024;
+
 const onFile = (ev: Event) => {
-  const f = (ev.target as HTMLInputElement).files?.[0];
-  receiptFile.value = f || null;
+  const input = ev.target as HTMLInputElement;
+  const f = input.files?.[0] || null;
+  if (f && !RECEIPT_TYPES.includes(f.type)) {
+    toast.error("A receipt has to be a PDF or a photo (JPEG, PNG or WebP).");
+    input.value = "";
+    receiptFile.value = null;
+    return;
+  }
+  if (f && f.size > RECEIPT_MAX_BYTES) {
+    toast.error("That file is over 4 MB. Save a smaller copy and try again.");
+    input.value = "";
+    receiptFile.value = null;
+    return;
+  }
+  receiptFile.value = f;
 };
 
+// Through the app, which checks who may read the books: a PDF never opened
+// from the bare Directus address, and a receipt is not every member's.
 const receiptUrl = (e: PaymentExpense) => {
   const id = typeof e.receipt === "object" ? (e.receipt as any)?.id : e.receipt;
-  return id ? getUrl(id) : null;
+  return id ? getAuthUrl(id) : null;
 };
 
 // --- Formatting ---------------------------------------------------------
@@ -251,7 +270,7 @@ const expenseColumns = [
           </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label>Receipt / invoice</Label>
-            <input type="file" accept="image/*,application/pdf" class="block w-full text-sm t-text-muted" @change="onFile" />
+            <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" class="block w-full text-sm t-text-muted" @change="onFile" />
             <p v-if="form.receipt && !receiptFile" class="text-xs t-text-muted">A receipt is already attached. Choosing a new file replaces it.</p>
           </div>
         </div>
@@ -264,15 +283,18 @@ const expenseColumns = [
         </div>
       </div>
 
-      <!-- Category filter -->
-      <div class="flex gap-1.5 overflow-x-auto">
-        <button
-          v-for="opt in [{ value: 'all', label: 'All' }, ...EXPENSE_CATEGORIES]"
-          :key="opt.value"
-          @click="categoryFilter = opt.value"
-          class="filter-pill flex-shrink-0"
-          :class="{ 'filter-pill--active': categoryFilter === opt.value }"
-        >{{ opt.label }}</button>
+      <!-- Category filter: a Select, as plan §2.3 asks of any filter but the one status filter -->
+      <div>
+        <Select v-model="categoryFilter">
+          <SelectTrigger class="w-44 rounded-full" aria-label="Category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="opt in [{ value: 'all', label: 'All categories' }, ...EXPENSE_CATEGORIES]" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <!-- Table -->
@@ -291,7 +313,7 @@ const expenseColumns = [
             <span v-if="row.vendor" class="t-text-muted text-xs ml-2">{{ row.vendor }}</span>
             <span
               v-if="projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string))"
-              class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 text-[10px] t-text-accent ml-2 align-middle"
+              class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 type-micro t-text-accent ml-2 align-middle"
             >
               <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string)) }}
             </span>

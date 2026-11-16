@@ -8,7 +8,6 @@ export default defineNuxtRouteMiddleware((to, from) => {
     '/auth/register',
     '/auth/forgot-password',
     '/auth/reset-password',
-    '/auth/accept-invitation',
     '/setup'
   ]
 

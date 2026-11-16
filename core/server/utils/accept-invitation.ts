@@ -13,9 +13,10 @@
  *     before anything is written. Their name comes from the account.
  *   - Existing account, signed in as it: nothing to type.
  *
- * The account's Directus role is never changed here, as approve-join-request
- * does not: the community role goes on the membership (hoa_members.role),
- * which is what the app's admin checks read.
+ * The community role goes on the membership (hoa_members.role), which is what
+ * the app's admin checks read. An existing account's Directus role is not
+ * changed; the policies its new community role needs are attached to it
+ * (account-access.ts), so calls on its own token work in the new community.
  *
  * Then, either way: the roster row for this email is adopted if there is one
  * (never a second row for the same person), the unit is linked, an approved
@@ -27,6 +28,7 @@ import { normalizeResidency, residencyOnAccept } from "#core/shared/members/resi
 import { invitableMembers } from "#core/shared/members/invitability";
 import { claimInvitedLeases } from "./lease-requests";
 import { passwordTokens, type PasswordTokens } from "./password-session";
+import { grantRoleAccess } from "./account-access";
 
 /** The shortest password a new account may have; the form says so. */
 export const MIN_PASSWORD_LENGTH = 8;
@@ -265,6 +267,16 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
       } as never)
     )) as unknown as { id: string };
     memberId = made.id;
+  }
+
+  // An existing account gets what its new community role needs in Directus.
+  // Best-effort: the membership is what the app's own admin routes read.
+  if (account) {
+    try {
+      await grantRoleAccess(userId, idOf(invitation.role));
+    } catch (accessError) {
+      console.error("Could not give the account its community role's access:", accessError);
+    }
   }
 
   // ── The unit ─────────────────────────────────────────────────────────────

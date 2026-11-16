@@ -1,5 +1,6 @@
 import { readItem, updateItem, createItem } from "@directus/sdk";
 import { assertAssignableRole } from "#core/server/utils/member-roles";
+import { grantRoleAccess } from "#core/server/utils/account-access";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -95,6 +96,15 @@ export default defineEventHandler(async (event) => {
         status: "active",
       })
     );
+
+    // The account already exists (they asked to join while signed in): give it
+    // what the chosen community role needs in Directus (account-access.ts).
+    // Best-effort: the membership is what the app's admin routes read.
+    try {
+      await grantRoleAccess(user.id, memberRoleId);
+    } catch (accessError) {
+      console.error("[approve-join-request] could not give the account its role's access:", accessError);
+    }
 
     // If a unit was specified, create the member-unit relationship
     if (unitId) {

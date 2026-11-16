@@ -5,7 +5,7 @@
  * invitations, and password resets using native Directus SDK methods
  * 
  * Usage:
- * const { me, updateProfile, inviteUser, acceptInvite, resetPassword } = useDirectusUser()
+ * const { me, updateProfile, resetPassword } = useDirectusUser()
  */
 
 export const useDirectusUser = () => {
@@ -46,49 +46,6 @@ export const useDirectusUser = () => {
     
     if (error.value) {
       throw new Error(error.value.message || 'Failed to update profile')
-    }
-    
-    return data.value
-  }
-  
-  /**
-   * Invite a new user
-   */
-  const inviteUser = async (email: string, role: string, additionalData?: Record<string, any>) => {
-    if (!loggedIn.value) {
-      throw new Error('Authentication required')
-    }
-    
-    const { data, error } = await useFetch('/api/directus/users/invite', {
-      method: 'POST',
-      body: {
-        email,
-        role,
-        ...additionalData
-      }
-    })
-    
-    if (error.value) {
-      throw new Error(error.value.message || 'Failed to send invitation')
-    }
-    
-    return data.value
-  }
-  
-  /**
-   * Accept an invitation and set password
-   */
-  const acceptInvite = async (token: string, password: string) => {
-    const { data, error } = await useFetch('/api/directus/users/accept-invite', {
-      method: 'POST',
-      body: {
-        token,
-        password
-      }
-    })
-    
-    if (error.value) {
-      throw new Error(error.value.message || 'Failed to accept invitation')
     }
     
     return data.value
@@ -219,8 +176,6 @@ export const useDirectusUser = () => {
     updateProfile,
     
     // Invitations
-    inviteUser,
-    acceptInvite,
     
     // Password management
     requestPasswordReset,

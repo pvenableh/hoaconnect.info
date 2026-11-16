@@ -39,6 +39,10 @@ vi.mock("@directus/sdk", () => ({
   readRoles: (query: any) => ({ op: "readRoles", collection: "directus_roles", query }),
 }));
 vi.mock("#core/server/utils/invitation-email", () => ({ sendHoaInvitationEmail: async () => {} }));
+const access = vi.hoisted(() => ({ granted: [] as Array<[string, string]> }));
+vi.mock("#core/server/utils/account-access", () => ({
+  grantRoleAccess: async (userId: string, roleId: string) => void access.granted.push([userId, roleId]),
+}));
 vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
 
 const cancel = (await import("#core/server/api/hoa/cancel-invitation.post")).default as (e: H3Event) => Promise<any>;
@@ -68,6 +72,7 @@ const ROWS: Record<string, any> = {
 };
 
 beforeEach(() => {
+  access.granted = [];
   h.body = {};
   h.ops = [];
   h.writes = [];
@@ -164,6 +169,14 @@ describe("POST /api/hoa/approve-join-request", () => {
     h.body = { requestId: "jr-lenox", unitId: "unit-lenox" };
     expect((await approve({} as H3Event)).success).toBe(true);
     expect(h.writes).toEqual(["createItem:hoa_members", "createItem:hoa_member_units", "updateItem:hoa_join_requests"]);
+    // The account already exists: it gets what the community role needs in Directus.
+    expect(access.granted).toEqual([["u-dana", ROLES.directusRoleMember]]);
+  });
+
+  it("gives an existing account an admin role's access when approved as an admin", async () => {
+    h.body = { requestId: "jr-lenox", roleId: ROLES.directusRoleHoaAdmin };
+    await approve({} as H3Event);
+    expect(access.granted).toEqual([["u-dana", ROLES.directusRoleHoaAdmin]]);
   });
 
   it("refuses another community's request and writes nothing", async () => {

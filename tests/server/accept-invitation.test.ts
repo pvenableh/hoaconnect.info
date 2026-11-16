@@ -28,6 +28,10 @@ vi.mock("#core/server/utils/password-session", () => ({
   },
   startPasswordSession: async (_event: unknown, tokens: any) => void sessions.started.push(tokens),
 }));
+const access = vi.hoisted(() => ({ granted: [] as Array<[string, string | null | undefined]> }));
+vi.mock("#core/server/utils/account-access", () => ({
+  grantRoleAccess: async (userId: string, roleId: string | null | undefined) => void access.granted.push([userId, roleId]),
+}));
 const mail = vi.hoisted(() => ({ sent: [] as any[] }));
 vi.mock("#core/server/utils/invitation-accepted-email", () => ({
   sendInvitationAcceptedEmail: async (input: any) => void mail.sent.push(input),
@@ -106,6 +110,7 @@ beforeEach(() => {
   sessions.started = [];
   sessions.checked = [];
   mail.sent = [];
+  access.granted = [];
   counted.length = 0;
 });
 
@@ -149,6 +154,8 @@ describe("a new account", () => {
     expect(mail.sent).toEqual([expect.objectContaining({ to: "ada@example.test", memberName: "Nia New", organizationId: ORG })]);
     expect(counted).toEqual([ORG]);
     expect(res).toMatchObject({ success: true, existingAccount: false, organization: { slug: "1033-lenox" } });
+    // A new account takes the invitation's role itself; nothing to attach.
+    expect(access.granted).toEqual([]);
   });
 
   it("needs a name and a password of 8 characters; nothing is written without them", async () => {
@@ -189,6 +196,8 @@ describe("someone who already has an account in another community", () => {
     expect(sessions.started).toEqual([expect.objectContaining({ access_token: `access-${USER.zoe}` })]);
     expect(state.db.hoa_invitations![0]).toMatchObject({ invitation_status: "accepted" });
     expect(res).toMatchObject({ success: true, existingAccount: true, user: { id: USER.zoe } });
+    // The account keeps its own role and gets what this community's role needs.
+    expect(access.granted).toEqual([[USER.zoe, ROLE]]);
   });
 
   it("refuses the wrong password, or none, before writing anything", async () => {
@@ -204,6 +213,7 @@ describe("someone who already has an account in another community", () => {
     expect(membersHere("zoe@example.test")).toHaveLength(0);
     expect(state.db.hoa_invitations![0]).toMatchObject({ invitation_status: "pending" });
     expect(sessions.started).toEqual([]);
+    expect(access.granted).toEqual([]);
   });
 
   it("needs nothing typed when they are signed in as that account, and keeps their session", async () => {
@@ -236,6 +246,7 @@ describe("someone who already has an account in another community", () => {
     await send({ token: "token-zoe@example.test", password: "zoe-secret" });
     expect(membersHere("zoe@example.test")).toHaveLength(1);
     expect(state.db.hoa_invitations![0]).toMatchObject({ invitation_status: "accepted" });
+    expect(access.granted).toEqual([]);
   });
 
   it("refuses an account whose membership here was ended: restoring it is the community's call", async () => {

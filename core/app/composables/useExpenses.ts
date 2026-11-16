@@ -2,7 +2,7 @@
 // Money OUT: vendor bills, maintenance, utilities, etc. Reads go through the
 // server (/api/org/expenses: admins and every board seat, money:read); writes
 // are admin-only, through Directus (members have no access to the collection),
-// plus a receipt-upload helper (useDirectusFiles).
+// plus a receipt-upload helper (its own route: a receipt is filed in no library).
 
 import type { PaymentExpense } from "#core/types/directus";
 
@@ -24,7 +24,6 @@ export const EXPENSE_STATUSES = [
 export function useExpenses() {
   const { selectedOrgId } = useSelectedOrgState();
   const items = useDirectusItems<PaymentExpense>("payment_expenses");
-  const { upload } = useDirectusFiles();
 
   const money = useMoneyReads();
 
@@ -43,10 +42,17 @@ export function useExpenses() {
 
   const remove = (id: string) => items.remove(id);
 
-  /** Upload a receipt file and return its Directus file id. */
-  const uploadReceipt = async (file: File): Promise<string | null> => {
-    const result: any = await upload(file, { title: file.name, tags: ["expense", "receipt"] });
-    return result?.id ?? result?.data?.id ?? null;
+  /**
+   * Store a receipt and return its file id: a PDF or a photo, 4 MB at most,
+   * in no library (core/server/api/org/expenses/receipt.post.ts). Throws with
+   * the server's reason when it is refused.
+   */
+  const uploadReceipt = async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append("orgId", selectedOrgId.value || "");
+    form.append("file", file, file.name);
+    const res = await $fetch<{ id: string }>("/api/org/expenses/receipt", { method: "POST", body: form });
+    return res.id;
   };
 
   return { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };

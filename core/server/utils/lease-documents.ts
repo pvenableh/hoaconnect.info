@@ -7,50 +7,27 @@
  * between two residents.
  */
 import type { H3Event } from "h3";
-import { readItems, updateFile, uploadFiles } from "@directus/sdk";
-import { LEASE_DOCUMENT_MAX_BYTES, LEASE_DOCUMENT_TYPE } from "#core/shared/units/lease-requests";
+import { readItems } from "@directus/sdk";
+import { LEASE_DOCUMENT_MAX_BYTES } from "#core/shared/units/lease-requests";
+import { storeUnfiledUpload, type UploadPart } from "./private-uploads";
 
-/** One part of a multipart body (h3's readMultipartFormData). */
-export interface UploadPart {
-  name?: string;
-  filename?: string;
-  type?: string;
-  data: Buffer;
-}
-
-const isPdf = (bytes: Uint8Array) => bytes.length > 4 && Buffer.from(bytes.subarray(0, 5)).toString("latin1") === "%PDF-";
+export type { UploadPart } from "./private-uploads";
 
 /**
- * Store a signed lease: one PDF, 4 MB at most, uploaded with the app's token
- * and filed in no folder, with `uploaded_by` set to the person who sent it.
- *
- * Why the app's token: a resident or an admin may read only the files in
- * their community's library folders (the Directus file rules), so Directus
- * answers their own upload of a file in no folder with no data and the page
- * never learns its id. Why no folder: a library file is open to every member,
- * and a lease is not. Until a lease names it only the app can read it; then
- * mayOpenLeaseDocument decides. Why a PDF only: the public file rule serves
- * every image to anyone with its id.
+ * Store a signed lease: one PDF, 4 MB at most, in no folder, as the sender's
+ * (private-uploads.ts says why). A PDF only: the public file rule serves every
+ * image to anyone with its id, and a lease is between two residents.
  */
 export async function storeLeaseDocument(orgId: string, userId: string, part: UploadPart | undefined): Promise<{ id: string; filename: string }> {
-  if (!part?.data?.length) throw createError({ statusCode: 400, message: "Attach the signed lease." });
-  if (part.data.length > LEASE_DOCUMENT_MAX_BYTES) {
-    throw createError({ statusCode: 413, message: "That PDF is over 4 MB. Save a smaller copy and try again." });
-  }
-  if (!isPdf(part.data)) throw createError({ statusCode: 400, message: "The signed lease has to be a PDF." });
-  await enforceStorageLimit(orgId, part.data.length);
-
-  const filename = (part.filename || "lease.pdf").replace(/[\\/]/g, "_").slice(0, 200);
-  const form = new FormData();
-  form.append("title", filename.replace(/\.pdf$/i, ""));
-  form.append("file", new File([new Uint8Array(part.data)], filename, { type: LEASE_DOCUMENT_TYPE }), filename);
-
-  const directus = getTypedDirectus();
-  const uploaded = (await directus.request(uploadFiles(form))) as unknown as { id?: string } | null;
-  if (!uploaded?.id) throw createError({ statusCode: 502, message: "Couldn't store the lease. Try again." });
-  // Directus stamps the app's account on create; the person who sent it uploaded it.
-  await directus.request(updateFile(uploaded.id, { uploaded_by: userId } as never));
-  return { id: uploaded.id, filename };
+  const { id, filename } = await storeUnfiledUpload(orgId, userId, part, {
+    accept: ["pdf"],
+    maxBytes: LEASE_DOCUMENT_MAX_BYTES,
+    missing: "Attach the signed lease.",
+    wrongKind: "The signed lease has to be a PDF.",
+    tooBig: "That PDF is over 4 MB. Save a smaller copy and try again.",
+    fallbackName: "lease",
+  });
+  return { id, filename };
 }
 
 const idOf = (v: unknown): string | null =>
