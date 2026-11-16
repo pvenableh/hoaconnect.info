@@ -7,7 +7,7 @@ import { MEMBER_FILE_DELETE_FILTER, MEMBER_FILE_UPDATE_FILTER } from "../../scri
 const NOT_PRIVATE = {
   _or: [
     { description: { _null: true } },
-    { _and: [{ description: { _nstarts_with: "governing-" } }, { description: { _nstarts_with: "support-" } }] },
+    { _and: [{ description: { _nstarts_with: "governing-" } }, { description: { _nstarts_with: "support-" } }, { description: { _nstarts_with: "record-" } }] },
   ],
 };
 const MINE = { hoa_organizations: { id: { _in: "$CURRENT_USER.hoa_members.organization" } } };

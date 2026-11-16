@@ -31,6 +31,7 @@
 import { readFiles, readItem, readItems } from "@directus/sdk";
 import { GOVERNING_FILE_PREFIX } from "#core/shared/governing/files";
 import { SUPPORT_FILE_PREFIX } from "#core/shared/support/attachments";
+import { RECORD_FILE_PREFIX } from "#core/shared/records/files";
 import { isWithinOrgRoot } from "./org-storage";
 import { fileOwnerOrgIds } from "./file-owner";
 
@@ -83,7 +84,7 @@ export function inlineAssetIds(content: unknown, directusUrl: string): string[] 
 function isPublicImage(file: ScopedFile): boolean {
   if (!(file.type ?? "").startsWith("image/")) return false;
   const d = file.description;
-  return d == null || !(d.startsWith(GOVERNING_FILE_PREFIX) || d.startsWith(SUPPORT_FILE_PREFIX));
+  return d == null || ![GOVERNING_FILE_PREFIX, SUPPORT_FILE_PREFIX, RECORD_FILE_PREFIX].some((prefix) => d.startsWith(prefix));
 }
 
 /** (b): a record of `orgId` claims the file, and the claim can't be an email's attachment list. */

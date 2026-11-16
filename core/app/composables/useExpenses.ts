@@ -4,7 +4,7 @@
 // Creates and edits do too (POST and PATCH /api/org/expenses), which check the
 // project and receipt an expense names (core/shared/expenses/expense-writes.ts);
 // a delete is still Directus on the admin's token. Plus a receipt-upload helper
-// (its own route: a receipt is filed in no library).
+// (its own route: a receipt is filed in the community's Records folder).
 
 import type { PaymentExpense } from "#core/types/directus";
 
@@ -54,7 +54,8 @@ export function useExpenses() {
 
   /**
    * Store a receipt and return its file id: a PDF or a photo, 4 MB at most,
-   * in no library (core/server/api/org/expenses/receipt.post.ts). Throws with
+   * in the community's Records › Expense receipts folder
+   * (core/server/api/org/expenses/receipt.post.ts). Throws with
    * the server's reason when it is refused.
    */
   const uploadReceipt = async (file: File): Promise<string> => {

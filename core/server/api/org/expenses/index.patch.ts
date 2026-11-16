@@ -4,8 +4,8 @@
  *
  * Body: { orgId, id, patch }. The row must be the community's (its own
  * organization, and its project's when it names one, agree); a project must be
- * one of its, and a new receipt one of its files or one the caller uploaded
- * and filed nowhere. The community cannot change here. Written with the app's
+ * one of its, and a new receipt one of its files (the receipt upload files it in
+ * Records › Expense receipts) or an older loose upload of the caller's. The community cannot change here. Written with the app's
  * token: the HOA Admin policy has no update on payment_expenses
  * (core/shared/expenses/expense-writes.ts).
  *

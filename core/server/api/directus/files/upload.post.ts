@@ -1,14 +1,17 @@
 /**
- * Server API route for file upload
- * Uses native Directus SDK uploadFiles method
+ * Server API route for file upload.
+ *
+ * Stored with the app's token, which may file it in a folder (the caller's
+ * own may not: PLACEMENT_FIELDS, core/shared/roles/admin-file-fields.ts), into
+ * a folder this route has checked is in the caller's community library, and
+ * then marked as uploaded by the caller (storeAsCaller).
  */
 
-import { uploadFiles } from '@directus/sdk'
-import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
+import { assertFolderInCallerLibrary, storeAsCaller } from '#core/server/utils/caller-library'
 
 export default defineEventHandler(async (event) => {
   try {
-    const directus = await getUserDirectus(event)
+    await requireUserSession(event)
     const formData = await readMultipartFormData(event)
     
     if (!formData) {
@@ -63,10 +66,8 @@ export default defineEventHandler(async (event) => {
     const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.type || 'application/octet-stream' })
     uploadFormData.append('file', blob, fileData.filename || 'upload')
 
-    // Upload using SDK
-    const result = await directus.request(uploadFiles(uploadFormData))
-    
-    return result
+    // Stored with the app's token (it files the upload), as the caller's.
+    return await storeAsCaller(event, { form: uploadFormData })
     
   } catch (error: any) {
     console.error('File upload error:', error)

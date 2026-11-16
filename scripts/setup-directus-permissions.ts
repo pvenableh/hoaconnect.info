@@ -24,7 +24,7 @@ import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
 import { isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
 import { baseOf, planSharedValidations, type LiveRule, type PolicyKind } from "./lib/shared-write-validations";
 import { MANAGER_SCOPE_FIELDS, adminScopeChanges, scopeChanges, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
-import { ADMIN_FILE_FIELDS, adminWritableFields } from "../core/shared/roles/admin-file-fields";
+import { ADMIN_FILE_FIELDS, PLACEMENT_FIELDS, adminWritableFields, fieldsWithout } from "../core/shared/roles/admin-file-fields";
 
 // ============================================================================
 // Configuration
@@ -649,6 +649,23 @@ async function adminWriteFields(collection: string): Promise<string[]> {
     adminWriteFieldCache.set(collection, adminWritableFields(collection, live));
   }
   return adminWriteFieldCache.get(collection)!;
+}
+
+/**
+ * The field list for a community policy's create and update on files or
+ * folders: every live field but where it sits (`folder`, `parent`), which the
+ * app's routes write after checking (PLACEMENT_FIELDS,
+ * core/shared/roles/admin-file-fields.ts). Read once per run.
+ */
+const placementFieldCache = new Map<string, string[]>();
+async function placementWriteFields(collection: "directus_files" | "directus_folders"): Promise<string[]> {
+  if (!placementFieldCache.has(collection)) {
+    const rows = await directusApi<{ field: string }[]>(`/fields/${collection}`);
+    const live = (rows ?? []).map((r) => r.field);
+    if (!live.length) throw new Error(`No fields read for ${collection}: refusing to write an empty field list`);
+    placementFieldCache.set(collection, fieldsWithout(live, PLACEMENT_FIELDS[collection]));
+  }
+  return placementFieldCache.get(collection)!;
 }
 
 /**
@@ -1439,13 +1456,14 @@ async function setupFilePermissions(
   // Only admins can upload/modify files
   if (isAdmin) {
     filePermissions.push(
+      // Not `folder`: where a file sits is the app's to write (PLACEMENT_FIELDS).
       {
         policy: policyId,
         collection: "directus_files",
         action: "create",
         permissions: {},
         validation: null,
-        fields: ["*"],
+        fields: await placementWriteFields("directus_files"),
       },
       {
         policy: policyId,
@@ -1453,7 +1471,7 @@ async function setupFilePermissions(
         action: "update",
         permissions: fileFilter,
         validation: null,
-        fields: ["*"],
+        fields: await placementWriteFields("directus_files"),
       },
       {
         policy: policyId,
@@ -1491,13 +1509,14 @@ async function setupFilePermissions(
   ];
 
   if (isAdmin) {
+    // A rename, not a move: `parent` is the app's to write (PLACEMENT_FIELDS).
     folderPermissions.push({
       policy: policyId,
       collection: "directus_folders",
       action: "update",
       permissions: folderFilter,
       validation: null,
-      fields: ["*"],
+      fields: await placementWriteFields("directus_folders"),
     });
   }
 
@@ -1725,6 +1744,48 @@ async function scopeStrayRules(
 }
 
 /**
+ * No community policy places a file or folder: every create and update on
+ * `directus_files` and `directus_folders` in the HOA Member, HOA Admin and
+ * Property Manager policies lists every field but `folder` / `parent`, whichever
+ * script made the rule (PLACEMENT_FIELDS). Directus cannot check a placement,
+ * so on their own token a member or admin could put a file or folder into
+ * another community's library; the app's routes check and place them.
+ */
+async function narrowPlacementRules(auditMode: boolean): Promise<{ updated: number }> {
+  const ids = [POLICIES.HOA_MEMBER, POLICIES.HOA_ADMIN, POLICIES.PROPERTY_MANAGER];
+  const rules = await directusApi<{ id: number; policy: string; collection: "directus_files" | "directus_folders"; action: string; fields: string[] | null }[]>(
+    `/permissions?filter[policy][_in]=${ids.join(",")}&filter[collection][_in]=directus_files,directus_folders&filter[action][_in]=create,update&fields=id,policy,collection,action,fields&limit=-1`
+  );
+  const sorted = (f: string[] | null | undefined) => JSON.stringify([...(f ?? [])].sort());
+  const todo: { id: number; name: string; fields: string[] }[] = [];
+  // The main pass writes these three itself (setupFilePermissions); counting
+  // them here too would double them in a dry run.
+  const mainPass = (r: { policy: string; collection: string; action: string }) =>
+    r.policy === POLICIES.HOA_ADMIN && (r.collection === "directus_files" || r.action === "update");
+  for (const r of rules ?? []) {
+    if (mainPass(r)) continue;
+    const want = await placementWriteFields(r.collection);
+    if (sorted(r.fields) !== sorted(want)) {
+      const kind = policyKind(r.policy);
+      todo.push({ id: r.id, name: `${kind ?? r.policy}:${r.collection}.${r.action}`, fields: want });
+    }
+  }
+  if (!todo.length) {
+    console.log("   ⏭️  None: no community rule places a file or folder");
+    return { updated: 0 };
+  }
+  if (auditMode) {
+    console.log(`   📋 Would leave out folder/parent on ${todo.length}: ${todo.map((t) => t.name).join(", ")}`);
+    return { updated: todo.length };
+  }
+  for (const t of todo) {
+    await directusApi(`/permissions/${t.id}`, { method: "PATCH", body: JSON.stringify({ fields: t.fields }) });
+  }
+  console.log(`   ✅ Left out folder/parent on ${todo.length}: ${todo.map((t) => t.name).join(", ")}`);
+  return { updated: todo.length };
+}
+
+/**
  * Every create or update rule the three community policies share gets one
  * validation, the union of theirs (scripts/lib/shared-write-validations.ts).
  * Directus ANDs the validations of every policy a role holds, so without this
@@ -1931,6 +1992,12 @@ async function main() {
       const r = await scopeStrayRules(POLICIES.PROPERTY_MANAGER, "Property Manager", scopeManagerPermission, isRemovedManagerRule, auditMode);
       totalStats.updated += r.updated;
       totalStats.removed += r.removed;
+    }
+
+    if (!collectionsArg.length) {
+      console.log("\n📂 Where files and folders sit (the app's to write)");
+      const placed = await narrowPlacementRules(auditMode);
+      totalStats.updated += placed.updated;
     }
 
     if (!collectionsArg.length) {

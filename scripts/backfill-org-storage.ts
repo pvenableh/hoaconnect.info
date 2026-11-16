@@ -13,6 +13,16 @@
  *     comment attachments  → Uploads/Comments
  *     channel-msg attach.  → Uploads/Messages
  *     email attachments    → Uploads/Emails
+ *   and file what sits in no folder with its community (2026-11-16):
+ *     expense receipts     → Records/Expense receipts  (marked record-expense-receipt)
+ *     lease documents      → Records/Leases            (marked record-lease; a
+ *                            lease, or an owner's lease report)
+ *     documents' files     → Documents
+ *     logo, icon, footer   → Branding
+ *     landing hero images  → Images
+ *   A file is moved only when it sits in no folder or already inside this
+ *   community's library: never out of another community's (a row of this one
+ *   may name another's file). The new sorts take only files in no folder.
  *   Each category is fault-tolerant — a schema mismatch logs a warning and the
  *   pass continues.
  *
@@ -64,7 +74,19 @@ const STORAGE_TREE: Node[] = [
     ],
   },
   { key: "branding", name: "Branding" },
+  // Keep in step with core/server/utils/org-storage.ts.
+  {
+    key: "records",
+    name: "Records",
+    children: [
+      { key: "records/receipts", name: "Expense receipts" },
+      { key: "records/leases", name: "Leases" },
+    ],
+  },
 ];
+
+/** A record's file mark (core/shared/records/files.ts). */
+const RECORD_MARK = { receipt: "record-expense-receipt", lease: "record-lease" } as const;
 
 async function df(endpoint: string, options: RequestInit = {}): Promise<any> {
   const res = await fetch(`${DIRECTUS_URL}${endpoint}`, {
@@ -129,18 +151,102 @@ async function ensureOrg(org: any): Promise<{ rootId: string; map: Record<string
   return { rootId, map };
 }
 
-async function moveFile(fileId: string, folderId: string, label: string, counters: any) {
+const parentOf = new Map<string, string | null>();
+async function withinRoot(rootId: string, folderId: string): Promise<boolean> {
+  let at: string | null = folderId;
+  for (let i = 0; i < 64 && at; i++) {
+    if (at === rootId) return true;
+    if (!parentOf.has(at)) {
+      const f = (await df(`/folders/${at}?fields=id,parent`).catch(() => null))?.data;
+      parentOf.set(at, f?.parent ?? null);
+    }
+    at = parentOf.get(at) ?? null;
+  }
+  return false;
+}
+
+/**
+ * Move a file into `folderId` of the community whose root is `rootId`: only
+ * when it sits in no folder or already inside that library (with `onlyLoose`,
+ * only when it sits in no folder). `mark` sets a record's mark on a file with
+ * no description or another record mark, never over a governing or support one.
+ */
+async function moveFile(
+  fileId: string,
+  folderId: string,
+  label: string,
+  counters: any,
+  rootId: string,
+  opts: { onlyLoose?: boolean; mark?: string } = {}
+) {
   if (folderId.startsWith("dry:")) return;
+  const file = (await df(`/files/${fileId}?fields=id,folder,description`).catch(() => null))?.data;
+  if (!file) return;
+  const from: string | null = typeof file.folder === "string" ? file.folder : file.folder?.id ?? null;
+  if (from && (opts.onlyLoose || !(await withinRoot(rootId, from)))) {
+    if (from !== folderId && !(await withinRoot(rootId, from))) {
+      console.warn(`   ⚠︎ left ${label} file ${fileId}: it is in another library`);
+      counters.leftElsewhere++;
+    }
+    return;
+  }
+  const desc: string | null = file.description ?? null;
+  const mark = opts.mark && (desc == null || desc.startsWith("record-")) && desc !== opts.mark ? opts.mark : null;
+  if (from === folderId && !mark) return;
   counters.candidates++;
   if (!APPLY) {
     counters.wouldMove++;
+    console.log(`   · would file ${label} ${fileId}${mark ? ` (mark ${mark})` : ""}`);
     return;
   }
   try {
-    await df(`/files/${fileId}`, { method: "PATCH", body: JSON.stringify({ folder: folderId }) });
+    await df(`/files/${fileId}`, { method: "PATCH", body: JSON.stringify({ folder: folderId, ...(mark ? { description: mark } : {}) }) });
     counters.moved++;
   } catch (e: any) {
     console.warn(`   ⚠︎ could not move ${label} file ${fileId}: ${e.message}`);
+  }
+}
+
+const idOf = (v: any): string | null => (typeof v === "string" ? v : v?.id ?? null);
+
+async function sortRecords(orgId: string, rootId: string, map: Record<string, string>, counters: any) {
+  const loose = { onlyLoose: true };
+  try {
+    const rows = (await df(`/items/payment_expenses?filter[organization][_eq]=${orgId}&filter[receipt][_nnull]=true&fields=receipt&limit=-1`))?.data || [];
+    for (const r of rows) await moveFile(idOf(r.receipt)!, map["records/receipts"], "receipt", counters, rootId, { ...loose, mark: RECORD_MARK.receipt });
+  } catch (e: any) {
+    console.warn(`   ⚠︎ receipts sort skipped: ${e.message}`);
+  }
+  try {
+    const leases = (await df(`/items/hoa_leases?filter[organization][_eq]=${orgId}&filter[document][_nnull]=true&fields=document&limit=-1`))?.data || [];
+    const reports = (await df(`/items/hoa_member_change_requests?filter[organization][_eq]=${orgId}&filter[kind][_eq]=lease&fields=payload&limit=-1`))?.data || [];
+    const ids = [...leases.map((l: any) => idOf(l.document)), ...reports.map((r: any) => r.payload?.document)].filter(Boolean);
+    for (const id of new Set<string>(ids)) await moveFile(id, map["records/leases"], "lease", counters, rootId, { ...loose, mark: RECORD_MARK.lease });
+  } catch (e: any) {
+    console.warn(`   ⚠︎ leases sort skipped: ${e.message}`);
+  }
+}
+
+async function sortDocuments(orgId: string, rootId: string, dest: string, counters: any) {
+  try {
+    const rows = (await df(`/items/hoa_documents?filter[organization][_eq]=${orgId}&filter[file][_nnull]=true&fields=file&limit=-1`))?.data || [];
+    for (const r of rows) await moveFile(idOf(r.file)!, dest, "document", counters, rootId, { onlyLoose: true });
+  } catch (e: any) {
+    console.warn(`   ⚠︎ documents sort skipped: ${e.message}`);
+  }
+}
+
+async function sortBranding(orgId: string, rootId: string, map: Record<string, string>, counters: any) {
+  try {
+    const org = (await df(`/items/hoa_organizations/${orgId}?fields=settings.logo,settings.icon,settings.footer_image,hero.background_image,hero.foreground_image`))?.data;
+    for (const f of [org?.settings?.logo, org?.settings?.icon, org?.settings?.footer_image].map(idOf).filter(Boolean)) {
+      await moveFile(f!, map.branding, "branding", counters, rootId, { onlyLoose: true });
+    }
+    for (const f of [org?.hero?.background_image, org?.hero?.foreground_image].map(idOf).filter(Boolean)) {
+      await moveFile(f!, map.images, "hero image", counters, rootId, { onlyLoose: true });
+    }
+  } catch (e: any) {
+    console.warn(`   ⚠︎ branding sort skipped: ${e.message}`);
   }
 }
 
@@ -153,37 +259,37 @@ function fileIdsFrom(value: any): string[] {
     .filter(Boolean);
 }
 
-async function sortComments(orgId: string, dest: string, counters: any) {
+async function sortComments(orgId: string, rootId: string, dest: string, counters: any) {
   try {
     const rows =
       (await df(
         `/items/hoa_comments?filter[organization][_eq]=${orgId}&fields=id,attachments&limit=-1`
       ))?.data || [];
-    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "comment", counters);
+    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "comment", counters, rootId);
   } catch (e: any) {
     console.warn(`   ⚠︎ comments sort skipped: ${e.message}`);
   }
 }
 
-async function sortMessages(orgId: string, dest: string, counters: any) {
+async function sortMessages(orgId: string, rootId: string, dest: string, counters: any) {
   try {
     const rows =
       (await df(
         `/items/hoa_channel_messages?filter[channel][organization][_eq]=${orgId}&fields=id,attachments&limit=-1`
       ))?.data || [];
-    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "message", counters);
+    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "message", counters, rootId);
   } catch (e: any) {
     console.warn(`   ⚠︎ messages sort skipped: ${e.message}`);
   }
 }
 
-async function sortEmails(orgId: string, dest: string, counters: any) {
+async function sortEmails(orgId: string, rootId: string, dest: string, counters: any) {
   try {
     const rows =
       (await df(
         `/items/hoa_emails?filter[organization][_eq]=${orgId}&fields=id,attachments.directus_files_id&limit=-1`
       ))?.data || [];
-    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "email", counters);
+    for (const r of rows) for (const fid of fileIdsFrom(r.attachments)) await moveFile(fid, dest, "email", counters, rootId);
   } catch (e: any) {
     console.warn(`   ⚠︎ emails sort skipped (collection/field may differ): ${e.message}`);
   }
@@ -200,7 +306,7 @@ async function main() {
     return;
   }
 
-  const counters = { candidates: 0, wouldMove: 0, moved: 0 };
+  const counters = { candidates: 0, wouldMove: 0, moved: 0, leftElsewhere: 0 };
 
   for (const org of orgs) {
     console.log(`🏢 ${org.name || org.slug} (${org.slug})`);
@@ -208,15 +314,19 @@ async function main() {
     console.log(`   root: ${rootId}`);
 
     if (!SKIP_SORT && !rootId.startsWith("dry:")) {
-      await sortComments(org.id, map["uploads/comments"], counters);
-      await sortMessages(org.id, map["uploads/messages"], counters);
-      await sortEmails(org.id, map["uploads/emails"], counters);
+      await sortComments(org.id, rootId, map["uploads/comments"], counters);
+      await sortMessages(org.id, rootId, map["uploads/messages"], counters);
+      await sortEmails(org.id, rootId, map["uploads/emails"], counters);
+      await sortRecords(org.id, rootId, map, counters);
+      await sortDocuments(org.id, rootId, map.documents, counters);
+      await sortBranding(org.id, rootId, map, counters);
     }
     console.log("");
   }
 
   console.log("— Summary —");
   console.log(`  files matched: ${counters.candidates}`);
+  if (counters.leftElsewhere) console.log(`  left in another library: ${counters.leftElsewhere}`);
   if (APPLY) console.log(`  files moved:   ${counters.moved}`);
   else console.log(`  would move:    ${counters.wouldMove}  (re-run with --apply)`);
   console.log("\n✅ Done.");

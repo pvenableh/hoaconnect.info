@@ -16,6 +16,7 @@ import {
 } from "#core/server/utils/org-storage";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
 import { GOVERNING_FILE_ELSEWHERE, isGoverningFileMarker } from "#core/shared/governing/files";
+import { RECORD_FILE_ELSEWHERE, isRecordFileMarker } from "#core/shared/records/files";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -34,6 +35,10 @@ export default defineEventHandler(async (event) => {
   // A governing file changes only through the governing pages, which audit it.
   if (isGoverningFileMarker(file?.description)) {
     throw createError({ statusCode: 409, statusMessage: GOVERNING_FILE_ELSEWHERE });
+  }
+  // A record's file (a receipt, a lease) changes with its record.
+  if (isRecordFileMarker(file?.description)) {
+    throw createError({ statusCode: 409, statusMessage: RECORD_FILE_ELSEWHERE });
   }
 
   const ownerId =

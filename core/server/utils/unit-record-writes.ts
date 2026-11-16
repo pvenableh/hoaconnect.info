@@ -8,6 +8,7 @@ import type { H3Event } from "h3";
 import { readFile, readItem, readItems } from "@directus/sdk";
 import { currentUnitsInOrg, type UnitLink } from "#core/shared/units/record-writes";
 import { LEASE_DOCUMENT_TYPE, ownedUnitsInOrg, type OwnerUnitLink } from "#core/shared/units/lease-requests";
+import { RECORD_FOLDER_KEYS } from "#core/shared/records/files";
 
 const asId = (v: unknown): string | null =>
   typeof v === "string" ? v : ((v as { id?: unknown } | null)?.id as string | undefined) ?? null;
@@ -44,10 +45,11 @@ export async function assertPhotoInOrg(orgId: string, image: string | null | und
 
 /**
  * Throw 403 unless a lease may carry this document: one of the community's
- * files (its library, or claimed by one of its records, such as this lease),
- * or a file the caller uploaded and has not filed in any library. The lease
- * form uploads with no folder, so a new lease's document is the second kind;
- * another community's file is neither. An expense's receipt is checked the
+ * files (its library, Records included, or claimed by one of its records,
+ * such as this lease), or a file the caller uploaded before uploads were filed
+ * (in no folder). The lease form's upload is filed in the community's Records ›
+ * Leases folder, so a new lease's document is the first kind; another
+ * community's file is neither. An expense's receipt is checked the
  * same way (assertReceiptInOrg, expense-receipts.ts), with its own message.
  */
 export async function assertDocumentInOrg(
@@ -58,7 +60,9 @@ export async function assertDocumentInOrg(
 ): Promise<void> {
   if (!fileId) return;
   if (!(await filesOutsideOrg(orgId, [fileId])).length) return;
-  if (await ownUnfiledUpload(fileId, userId)) return;
+  // A record file is filed in the community's Records folder now, which the
+  // check above counts; one uploaded before that sits in no folder.
+  if (await ownUpload(fileId, userId, [null])) return;
   throw createError({ statusCode: 403, message });
 }
 
@@ -68,10 +72,10 @@ interface UploadedFile {
   filename_download: string | null;
 }
 
-/** The file, when `userId` uploaded it and filed it in no library; else null. */
 type FileRow = { uploaded_by?: unknown; folder?: unknown; type?: string | null; filename_download?: string | null };
 
-async function ownUnfiledUpload(fileId: string, userId: string): Promise<UploadedFile | null> {
+/** The file, when `userId` uploaded it and it sits in one of `folders` (null: no folder); else null. */
+async function ownUpload(fileId: string, userId: string, folders: readonly (string | null)[]): Promise<UploadedFile | null> {
   if (!userId) return null;
   let file: FileRow | null = null;
   try {
@@ -81,18 +85,21 @@ async function ownUnfiledUpload(fileId: string, userId: string): Promise<Uploade
   } catch {
     file = null;
   }
-  if (!file || asId(file.uploaded_by) !== userId || file.folder) return null;
+  if (!file || asId(file.uploaded_by) !== userId || !folders.includes(asId(file.folder))) return null;
   return { id: fileId, type: file.type ?? null, filename_download: file.filename_download ?? null };
 }
 
 /**
- * Throw 403 unless an owner's lease document is a PDF they uploaded and filed
- * nowhere. Stricter than assertDocumentInOrg: a resident may not attach a
- * library file or another record's file, which the new lease would then let
- * them and their tenant open. Returns the file's name for the reviewer.
+ * Throw 403 unless an owner's lease document is a PDF they uploaded here: in
+ * this community's Records › Leases folder, where the upload route files it, or
+ * in no folder (uploaded before that). Stricter than assertDocumentInOrg: a
+ * resident may not attach a library file or another record's file, which the
+ * new lease would then let them and their tenant open. Returns the file's name
+ * for the reviewer.
  */
-export async function assertOwnLeaseUpload(fileId: string, userId: string): Promise<{ filename: string | null }> {
-  const file = await ownUnfiledUpload(fileId, userId);
+export async function assertOwnLeaseUpload(orgId: string, fileId: string, userId: string): Promise<{ filename: string | null }> {
+  const leases = (await ensureOrgStorage(orgId)).map[RECORD_FOLDER_KEYS.lease] ?? null;
+  const file = await ownUpload(fileId, userId, leases ? [leases, null] : [null]);
   if (!file) throw createError({ statusCode: 403, message: "Attach a lease you uploaded here." });
   if (file.type !== LEASE_DOCUMENT_TYPE) throw createError({ statusCode: 400, message: "The signed lease has to be a PDF." });
   return { filename: file.filename_download };

@@ -2,8 +2,8 @@
  * POST /api/org/change-requests/lease-document — an owner uploads the signed
  * lease for a lease report. Multipart: `orgId`, `file` (one PDF, 4 MB at most).
  *
- * Not /api/directus/files/upload: a file in no folder uploaded with the
- * resident's own token comes back with no id (storeLeaseDocument says why).
+ * Filed in the community's Records › Leases folder, marked as a record's file
+ * (storeLeaseDocument says why), not through /api/directus/files/upload.
  * `uploaded_by` is the owner, which is what the request checks
  * (assertOwnLeaseUpload).
  */

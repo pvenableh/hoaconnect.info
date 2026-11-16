@@ -13,7 +13,13 @@ import {
   deleteFolder,
   deleteFolders
 } from '@directus/sdk'
-import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
+import { assertFolderInCallerLibrary, assertFolderMove } from '#core/server/utils/caller-library'
+import { forgetFolderParent } from '#core/server/utils/org-storage'
+
+// Where a folder sits is the app's to write: Directus cannot check a placement,
+// so the caller's own token may not set `parent` (PLACEMENT_FIELDS,
+// core/shared/roles/admin-file-fields.ts). New folders and moves are checked
+// here and written with the app's token; a rename stays on the caller's.
 
 export default defineEventHandler(async (event) => {
   try {
@@ -43,9 +49,8 @@ export default defineEventHandler(async (event) => {
 
       case 'create':
         if (!data) throw new Error('Data required for create operation')
-        // Directus cannot check where a new folder goes; this route does.
         await assertFolderInCallerLibrary(event, data.parent)
-        return await directus.request(
+        return await getTypedDirectus().request(
           createFolder(data)
         )
 
@@ -54,14 +59,21 @@ export default defineEventHandler(async (event) => {
           throw new Error('Array of folder objects required for createMultiple operation')
         }
         for (const folder of data) await assertFolderInCallerLibrary(event, folder?.parent)
-        return await directus.request(
+        return await getTypedDirectus().request(
           createFolders(data)
         )
 
       case 'update':
         if (!id) throw new Error('Folder ID required for update operation')
         if (!data) throw new Error('Data required for update operation')
-        if ('parent' in data) await assertFolderInCallerLibrary(event, data.parent)
+        if ('parent' in data) {
+          await assertFolderMove(event, id, data.parent)
+          const { parent, ...rest } = data
+          if (Object.keys(rest).length) await directus.request(updateFolder(id, rest))
+          const moved = await getTypedDirectus().request(updateFolder(id, { parent }))
+          forgetFolderParent(id)
+          return moved
+        }
         return await directus.request(
           updateFolder(id, data)
         )
@@ -71,7 +83,14 @@ export default defineEventHandler(async (event) => {
           throw new Error('Array of folder IDs required for updateMultiple operation')
         }
         if (!data) throw new Error('Data required for updateMultiple operation')
-        if ('parent' in data) await assertFolderInCallerLibrary(event, data.parent)
+        if ('parent' in data) {
+          for (const one of ids) await assertFolderMove(event, one, data.parent)
+          const { parent, ...rest } = data
+          if (Object.keys(rest).length) await directus.request(updateFolders(ids, rest))
+          const moved = await getTypedDirectus().request(updateFolders(ids, { parent }))
+          ids.forEach(forgetFolderParent)
+          return moved
+        }
         return await directus.request(
           updateFolders(ids, data)
         )

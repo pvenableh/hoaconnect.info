@@ -18,6 +18,7 @@ import {
   resolveStorageContext,
   assertFolderInOrg,
   getDescendantFolderIds,
+  isWithinOrgRoot,
 } from "#core/server/utils/org-storage";
 import { NOT_GOVERNING_FILE } from "#core/shared/governing/files";
 
@@ -73,6 +74,13 @@ export default defineEventHandler(async (event) => {
   const folderId: string = body?.folderId || root;
   await assertFolderInOrg(root, folderId);
 
+  // Records (receipts, leases: core/shared/records/files.ts) are filed with the
+  // community but shown in the library to its admins only.
+  const records = ctx.storage.map.records ?? null;
+  if (!ctx.isAdmin && records && (await isWithinOrgRoot(records, folderId))) {
+    throw createError({ statusCode: 403, statusMessage: "Records are for the community's admins" });
+  }
+
   const [folders, files] = await Promise.all([
     admin.request(
       readFolders({
@@ -111,7 +119,7 @@ export default defineEventHandler(async (event) => {
     folderId,
     isRoot: folderId === root,
     breadcrumb,
-    folders,
+    folders: ctx.isAdmin ? folders : (folders as Array<{ id: string }>).filter((f) => f.id !== records),
     files,
   };
 });

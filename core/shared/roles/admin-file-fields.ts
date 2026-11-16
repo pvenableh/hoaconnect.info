@@ -36,12 +36,33 @@ export function adminFileFields(collection: string): readonly string[] {
  * `pnpm setup:permissions` runs again.
  */
 export function adminWritableFields(collection: string, liveFields: readonly string[]): string[] {
-  const shut = new Set(adminFileFields(collection));
-  return [...new Set(liveFields)].filter((f) => !shut.has(f)).sort();
+  return fieldsWithout(liveFields, adminFileFields(collection));
 }
 
 /** The file fields a write names (null included: clearing one is a write too). */
 export function namedFileFields(collection: string, data: unknown): string[] {
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
   return adminFileFields(collection).filter((f) => Object.prototype.hasOwnProperty.call(data, f));
+}
+
+/**
+ * Where a file or folder sits: `directus_files.folder`, `directus_folders.parent`.
+ * A community's library is the folder tree under its root, and a file or folder
+ * placed in it is that community's (core/server/utils/org-files.ts). Directus
+ * cannot check a placement (a validation cannot follow a relation, and the tree
+ * nests), so no community policy writes these fields: on its own token a member
+ * or admin could put a file or folder into another community's library. The
+ * app's routes place them with the app's token, after checking
+ * (core/server/utils/caller-library.ts). Renames, titles and deletes stay on the
+ * person's own token.
+ */
+export const PLACEMENT_FIELDS: Readonly<Record<"directus_files" | "directus_folders", readonly string[]>> = {
+  directus_files: ["folder"],
+  directus_folders: ["parent"],
+};
+
+/** Every live field but the ones shut, sorted: an explicit field list for a create or update rule. */
+export function fieldsWithout(liveFields: readonly string[], shut: readonly string[]): string[] {
+  const out = new Set(shut);
+  return [...new Set(liveFields)].filter((f) => !out.has(f)).sort();
 }

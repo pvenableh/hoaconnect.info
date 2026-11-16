@@ -28,6 +28,7 @@ import {
   assertFolderInOrg,
   isWithinOrgRoot,
   invalidateOrgStorage,
+  forgetFolderParent,
 } from "#core/server/utils/org-storage";
 import { addOrgStorageUsage } from "#core/server/utils/storage-enforcement";
 import { isGoverningFileMarker } from "#core/shared/governing/files";
@@ -82,13 +83,15 @@ export default defineEventHandler(async (event) => {
       await assertFolderInOrg(root, folderId);
       await assertFolderInOrg(root, targetId);
       // Prevent cycles: target must not be the folder or one of its descendants.
-      if (await isWithinOrgRoot(folderId, targetId)) {
+      // Read fresh: a cached parent may predate a move.
+      if (await isWithinOrgRoot(folderId, targetId, { fresh: true })) {
         throw createError({
           statusCode: 400,
           statusMessage: "Cannot move a folder into its own subfolder",
         });
       }
       const updated = await admin.request(updateFolder(folderId, { parent: targetId }));
+      forgetFolderParent(folderId);
       cleanup();
       return updated;
     }
@@ -135,6 +138,7 @@ export default defineEventHandler(async (event) => {
             admin.request(updateFile(f.id, { folder: parentId }))
           ),
         ]);
+        for (const f of childFolders as any[]) forgetFolderParent(f.id);
 
         await admin.request(deleteFolder(folderId));
         cleanup();

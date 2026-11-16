@@ -14,7 +14,7 @@
  * powers the "My uploads" lane) → increment the cached usage counter.
  */
 
-import { uploadFiles } from "@directus/sdk";
+import { storeAsCaller } from "#core/server/utils/caller-library";
 import {
   resolveStorageContext,
   assertFolderInOrg,
@@ -66,11 +66,12 @@ export default defineEventHandler(async (event) => {
   // (per-file cap or `code: 'storage_full'`) BEFORE any bytes are written.
   await enforceStorageLimit(ctx.orgId, optimized.bytes.length);
 
-  // Upload as the member (preserves uploaded_by) via their session token.
+  // Stored with the app's token, which may file it (the member's own token may
+  // not: PLACEMENT_FIELDS), then marked as the member's upload, which powers the
+  // "My uploads" lane (storeAsCaller).
   // GOTCHA: metadata fields MUST be appended BEFORE the file part — Directus/
   // busboy silently drops fields that arrive after the file stream, which would
   // orphan the upload outside the org folder.
-  const userClient = await getUserDirectus(event);
   const uploadForm = new FormData();
   if (fields.title) uploadForm.append("title", fields.title);
   uploadForm.append("folder", folderId);
@@ -79,7 +80,7 @@ export default defineEventHandler(async (event) => {
   });
   uploadForm.append("file", blob, optimized.filename);
 
-  const result = await userClient.request(uploadFiles(uploadForm));
+  const result = await storeAsCaller(event, { form: uploadForm });
 
   // Increment the cached usage counter by the stored size (best-effort).
   await addOrgStorageUsage(ctx.orgId, optimized.bytes.length);

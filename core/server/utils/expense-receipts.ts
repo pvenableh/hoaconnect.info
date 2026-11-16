@@ -9,20 +9,22 @@
  */
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
-import { storeUnfiledUpload, type UploadPart } from "./private-uploads";
+import { storeRecordUpload, type UploadPart } from "./private-uploads";
 import { assertDocumentInOrg } from "./unit-record-writes";
 
 /** One receipt per request, under the host's 4.5 MB body limit. */
 export const RECEIPT_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
- * Store a receipt: a PDF or a photo (JPEG, PNG, WebP), 4 MB at most, in no
- * folder, as the sender's (private-uploads.ts says why). A photo stays
- * readable by its id through the public file rule, as every image is; a PDF
- * opens only through the asset proxy.
+ * Store a receipt: a PDF or a photo (JPEG, PNG, WebP), 4 MB at most, in the
+ * community's Records › Expense receipts folder, marked as a record's file, as
+ * the sender's (private-uploads.ts says why). It opens through the asset proxy
+ * to whoever reads the books; a photo also by its id through the public file
+ * rule until that rule leaves record files out (`pnpm scope:public-files`).
  */
 export async function storeExpenseReceipt(orgId: string, userId: string, part: UploadPart | undefined) {
-  return storeUnfiledUpload(orgId, userId, part, {
+  return storeRecordUpload(orgId, userId, part, {
+    record: "receipt",
     accept: ["pdf", "jpeg", "png", "webp"],
     maxBytes: RECEIPT_MAX_BYTES,
     missing: "Attach the receipt.",
@@ -34,10 +36,11 @@ export async function storeExpenseReceipt(orgId: string, userId: string, part: U
 
 /**
  * Throw 403 unless an expense may name this file as its receipt: one of the
- * community's files (its library, or claimed by one of its records, such as
- * this expense), or one the caller uploaded and filed nowhere, which is where
- * storeExpenseReceipt puts a new one. Another community's file is neither, and
- * someone else's loose upload is not the caller's to claim. Saved, the
+ * community's files (its library, where storeExpenseReceipt files a new one in
+ * Records › Expense receipts, or claimed by one of its records, such as this
+ * expense), or one the caller uploaded before uploads were filed (in no folder).
+ * Another community's file is neither, and someone else's loose upload is not
+ * the caller's to claim. Saved, the
  * receipt opens to whoever reads the books (mayOpenExpenseReceipt), so this
  * is what keeps one community's file from opening to another's admin.
  */

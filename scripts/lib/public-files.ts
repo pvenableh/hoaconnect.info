@@ -20,8 +20,12 @@
  */
 import { GOVERNING_FILE_PREFIX } from "../../core/shared/governing/files";
 import { SUPPORT_FILE_PREFIX } from "../../core/shared/support/attachments";
+import { RECORD_FILE_PREFIX } from "../../core/shared/records/files";
 
-export const PRIVATE_FILE_PREFIXES = [GOVERNING_FILE_PREFIX, SUPPORT_FILE_PREFIX] as const;
+// A record's file (`record-`: an expense's receipt, a lease's signed copy;
+// core/shared/records/files.ts) joined 2026-11-16, so a photo receipt is
+// private too and members cannot change one through Directus.
+export const PRIVATE_FILE_PREFIXES = [GOVERNING_FILE_PREFIX, SUPPORT_FILE_PREFIX, RECORD_FILE_PREFIX] as const;
 
 export const PUBLIC_FILES_FILTER = {
   _and: [

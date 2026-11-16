@@ -4,7 +4,7 @@
  *
  *   buildLeaseChange   POST /api/org/change-requests (kind "lease"): the unit
  *                      is one the submitter owns, the document a PDF they
- *                      uploaded and filed nowhere, the dates in order.
+ *                      uploaded here (Records › Leases), the dates in order.
  *   applyLeaseRequest  approval: the tenant is linked to the unit if they are
  *                      a member here, else invited as its tenant; then the
  *                      `hoa_leases` row, as POST /api/hoa/units/records writes
@@ -57,7 +57,7 @@ export async function buildLeaseChange(input: {
     throw createError({ statusCode: 400, message: "Enter your tenant's email, not yours." });
   }
 
-  const { filename } = await assertOwnLeaseUpload(p.document, userId);
+  const { filename } = await assertOwnLeaseUpload(orgId, p.document, userId);
 
   return {
     action: "create",

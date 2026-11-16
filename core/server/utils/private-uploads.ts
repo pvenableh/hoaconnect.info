@@ -1,20 +1,25 @@
 /**
  * Store a file that belongs to one record and is not a library document: a
- * lease's signed copy, an expense's receipt. Uploaded with the app's token and
- * filed in no folder, with `uploaded_by` set to the person who sent it.
+ * lease's signed copy, an expense's receipt. Uploaded with the app's token into
+ * the community's Records folder for its kind (Leases, Expense receipts), with
+ * the `record-` mark and `uploaded_by` set to the person who sent it
+ * (core/shared/records/files.ts).
  *
- * Why the app's token: members and HOA Admins may read only the files in
- * their community's library folders (the Directus file rules), so Directus
- * answers their own upload of a file in no folder with no data and the page
- * never learns its id; the record was then saved with no file, quietly. Why
- * no folder: a library file is open to every member. Until a record names it
- * only the app can read it; then the asset proxy asks that record's rule
- * (lease-documents.ts, expense-receipts.ts).
+ * Why the app's token: no community policy may place a file in a folder
+ * (PLACEMENT_FIELDS), and members and HOA Admins may read only the files at
+ * their library's root, so their own upload came back with no id and the
+ * record was saved with no file, quietly. Why Records and the mark: the file is
+ * filed with its community, but the library shows the Records folder to admins
+ * only, members cannot change a marked file, and the asset proxy asks the
+ * record's rule (lease-documents.ts, expense-receipts.ts). Until a record names
+ * it, the proxy serves it to no one.
  *
- * An image is still served publicly by its id (the public file rule reads
- * every image), so a caller that must keep a file private accepts PDF only.
+ * Until `pnpm scope:public-files` is run with the `record-` prefix, an image is
+ * still served publicly by its id, so a caller that must keep a file private
+ * accepts PDF only.
  */
 import { updateFile, uploadFiles } from "@directus/sdk";
+import { RECORD_FILE_MARKS, RECORD_FOLDER_KEYS, type RecordFileKind } from "#core/shared/records/files";
 
 /** One part of a multipart body (h3's readMultipartFormData). */
 export interface UploadPart {
@@ -50,7 +55,9 @@ export function uploadKindOf(bytes: Uint8Array): UploadKind | null {
   return null;
 }
 
-export interface UnfiledUploadRules {
+export interface RecordUploadRules {
+  /** Which record the file is for: its Records folder and its mark. */
+  record: RecordFileKind;
   accept: readonly UploadKind[];
   maxBytes: number;
   /** "Attach the signed lease." */
@@ -63,11 +70,11 @@ export interface UnfiledUploadRules {
   fallbackName: string;
 }
 
-export async function storeUnfiledUpload(
+export async function storeRecordUpload(
   orgId: string,
   userId: string,
   part: UploadPart | undefined,
-  rules: UnfiledUploadRules
+  rules: RecordUploadRules
 ): Promise<{ id: string; filename: string; type: string }> {
   if (!part?.data?.length) throw createError({ statusCode: 400, message: rules.missing });
   if (part.data.length > rules.maxBytes) throw createError({ statusCode: 413, message: rules.tooBig });
@@ -78,8 +85,12 @@ export async function storeUnfiledUpload(
   const type = UPLOAD_MIME[kind];
   let filename = (part.filename || `${rules.fallbackName}.${kind === "jpeg" ? "jpg" : kind}`).replace(/[\\/]/g, "_").slice(0, 200);
   if (!EXTENSION[kind].test(filename)) filename = `${filename}.${kind === "jpeg" ? "jpg" : kind}`;
+  // Directus reads only the fields before the file, so they go first.
+  const storage = await ensureOrgStorage(orgId);
   const form = new FormData();
   form.append("title", filename.replace(/\.[a-z0-9]+$/i, ""));
+  form.append("description", RECORD_FILE_MARKS[rules.record]);
+  form.append("folder", storage.map[RECORD_FOLDER_KEYS[rules.record]] || storage.rootId);
   form.append("file", new File([new Uint8Array(part.data)], filename, { type }), filename);
 
   const directus = getTypedDirectus();

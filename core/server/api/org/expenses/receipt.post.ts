@@ -4,9 +4,9 @@
  * most). Returns `{ id, filename, type }`; the expense form saves that id as
  * the expense's `receipt`.
  *
- * Not /api/directus/files/upload: that uploads with the admin's own token, and
- * a file in no folder comes back with no id, so the expense was saved with no
- * receipt (private-uploads.ts says why). The people who enter an expense: an
+ * Filed in the community's Records › Expense receipts folder, marked as a
+ * record's file (private-uploads.ts says why), not through
+ * /api/directus/files/upload: a receipt is not a library document. The people who enter an expense: an
  * admin, or a property manager with the projects grant (record.post.ts).
  */
 import { storeExpenseReceipt } from "#core/server/utils/expense-receipts";

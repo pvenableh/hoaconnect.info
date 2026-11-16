@@ -5,14 +5,14 @@
  *   POST /api/hoa/units/lease-document           an admin of the community
  *   POST /api/org/change-requests/lease-document an owner of a unit here
  *
- * Both store one PDF with the app's token in no folder, with `uploaded_by` the
- * person who sent it. The admin form used /api/directus/files/upload, which
+ * Both store one PDF with the app's token in the community's Records › Leases
+ * folder, marked as a record's file, with `uploaded_by` the person who sent it. The admin form used /api/directus/files/upload, which
  * uploads with the admin's own token: Directus answers a file in no folder
  * with no data, so the form never learned the id and saved the lease with no
  * document. The id this route returns is one the records route accepts.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { ID, ORG, PERSONAS, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
+import { ID, ORG, OTHER, PERSONAS, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
 
@@ -66,11 +66,12 @@ beforeEach(() => {
 });
 
 describe("an admin uploads the signed lease on the unit page", () => {
-  it("stores the PDF in no folder as the admin's, and returns its id", async () => {
+  it("files the PDF in the community's Records › Leases folder as the admin's, and returns its id", async () => {
     const res = await adminUpload(body(part(PDF)));
     expect(res).toEqual({ id: expect.any(String), filename: "Signed lease 4B.pdf" });
     expect(files().find((f) => f.id === res.id)).toMatchObject({
-      folder: null,
+      folder: `leases-${ORG}`,
+      description: "record-lease",
       type: "application/pdf",
       title: "Signed lease 4B",
       uploaded_by: ID.userAdmin,
@@ -81,8 +82,10 @@ describe("an admin uploads the signed lease on the unit page", () => {
   it("returns an id the records route takes as the lease's document", async () => {
     const res = await adminUpload(body(part(PDF)));
     await expect(assertDocumentInOrg(ORG, res.id, ID.userAdmin)).resolves.toBeUndefined();
-    // Another admin's upload is not theirs to attach.
-    await expect(assertDocumentInOrg(ORG, res.id, ID.userBob)).rejects.toMatchObject({ statusCode: 403 });
+    // Filed in the community's Records, it is the community's file: a
+    // colleague may attach it, another community may not.
+    await expect(assertDocumentInOrg(ORG, res.id, uuid(8))).resolves.toBeUndefined();
+    await expect(assertDocumentInOrg(OTHER, res.id, ID.userAdmin)).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("refuses someone who isn't an admin here", async () => {
@@ -110,8 +113,8 @@ describe("an owner uploads the signed lease for a lease report", () => {
   it("stores it the same way, as the owner's", async () => {
     state.who = PERSONAS.owner;
     const res = await ownerUpload(body(part(PDF)));
-    expect(files().find((f) => f.id === res.id)).toMatchObject({ folder: null, uploaded_by: ID.userBob });
-    await expect(assertOwnLeaseUpload(res.id, ID.userBob)).resolves.toEqual({ filename: "Signed lease 4B.pdf" });
+    expect(files().find((f) => f.id === res.id)).toMatchObject({ folder: `leases-${ORG}`, description: "record-lease", uploaded_by: ID.userBob });
+    await expect(assertOwnLeaseUpload(ORG, res.id, ID.userBob)).resolves.toEqual({ filename: "Signed lease 4B.pdf" });
   });
 
   it("refuses a member who owns no unit here", async () => {

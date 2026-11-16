@@ -211,6 +211,7 @@ export function fakeDirectus(state: { db: Db; fail?: { failCreate?: string } }) 
           id: uuid(seq++),
           folder: op.form.get("folder") ?? null,
           title: op.form.get("title") ?? null,
+          description: op.form.get("description") ?? null,
           type: file.type,
           filesize: file.size,
           filename_download: file.name,
@@ -284,7 +285,13 @@ export function stubGlobals(state: { who: Who; db: Db; fail?: { failCreate?: str
   );
   vi.stubGlobal("getManagerGrants", async () => state.who.grants ?? null);
   vi.stubGlobal("getBoardPosition", async () => state.who.office ?? null);
-  vi.stubGlobal("filesOutsideOrg", async (_org: string, ids: string[]) => ids.filter((i) => i !== ID.fileOk));
+  // ID.fileOk is a library file; so is any file filed in the community's library folders.
+  vi.stubGlobal("filesOutsideOrg", async (org: string, ids: string[]) => {
+    const library = new Set([storageOf(org).rootId, ...Object.values(storageOf(org).map)]);
+    return ids.filter((i) => i !== ID.fileOk && !library.has((state.db.directus_files ?? []).find((f) => f.id === i)?.folder));
+  });
+  // Each community's library, with its Records folders (org-storage.ts STORAGE_TREE).
+  vi.stubGlobal("ensureOrgStorage", async (orgId: string) => storageOf(orgId));
   vi.stubGlobal("getTypedDirectus", () => client);
   return {
     reset: () => (client = directus()),
@@ -293,5 +300,11 @@ export function stubGlobals(state: { who: Who; db: Db; fail?: { failCreate?: str
     },
   };
 }
+
+/** The fake library layout of a community: root and the folders the tests name. */
+export const storageOf = (orgId: string) => ({
+  rootId: `root-${orgId}`,
+  map: { documents: `documents-${orgId}`, records: `records-${orgId}`, "records/receipts": `receipts-${orgId}`, "records/leases": `leases-${orgId}` } as Record<string, string>,
+});
 
 export const ev = (o: { query?: any; body?: any; params?: any } = {}) => ({ __query: o.query, __body: o.body, __params: o.params }) as any;

@@ -9,17 +9,19 @@
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { LEASE_DOCUMENT_MAX_BYTES } from "#core/shared/units/lease-requests";
-import { storeUnfiledUpload, type UploadPart } from "./private-uploads";
+import { storeRecordUpload, type UploadPart } from "./private-uploads";
 
 export type { UploadPart } from "./private-uploads";
 
 /**
- * Store a signed lease: one PDF, 4 MB at most, in no folder, as the sender's
- * (private-uploads.ts says why). A PDF only: the public file rule serves every
- * image to anyone with its id, and a lease is between two residents.
+ * Store a signed lease: one PDF, 4 MB at most, in the community's Records ›
+ * Leases folder, marked as a record's file, as the sender's (private-uploads.ts
+ * says why). A PDF only: a lease is between two residents, and an image is
+ * served publicly by its id until the public rule leaves record files out.
  */
 export async function storeLeaseDocument(orgId: string, userId: string, part: UploadPart | undefined): Promise<{ id: string; filename: string }> {
-  const { id, filename } = await storeUnfiledUpload(orgId, userId, part, {
+  const { id, filename } = await storeRecordUpload(orgId, userId, part, {
+    record: "lease",
     accept: ["pdf"],
     maxBytes: LEASE_DOCUMENT_MAX_BYTES,
     missing: "Attach the signed lease.",

@@ -33,6 +33,7 @@
 
 import { readFile } from "@directus/sdk";
 import { isSupportFileMarker } from "#core/shared/support/attachments";
+import { isRecordFileMarker } from "#core/shared/records/files";
 import { mayOpenGoverningSourceFile } from "#core/server/utils/governing-sources";
 import { mayOpenLeaseDocument } from "#core/server/utils/lease-documents";
 import { mayOpenExpenseReceipt } from "#core/server/utils/expense-receipts";
@@ -68,7 +69,9 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const isImage = (file.type || "").startsWith("image/");
+  // A record's file (a photo receipt) is not an ordinary image: its record's
+  // rule decides, below, as for a PDF (core/shared/records/files.ts).
+  const isImage = (file.type || "").startsWith("image/") && !isRecordFileMarker(file.description);
 
   // An original governing document, image or not: belonging to the community
   // is not enough, because a member may not open the scan of a draft.

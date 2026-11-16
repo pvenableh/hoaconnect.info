@@ -6,14 +6,14 @@ import { GOVERNING_FILE_MARKER, GOVERNING_FILE_PREFIX, isGoverningFileMarker } f
 import { isPublicFile, PUBLIC_FILES_FIELDS, PUBLIC_FILES_FILTER } from "../../scripts/lib/public-files";
 
 describe("public file read", () => {
-  it("is images whose description is empty or starts with neither governing- nor support-, and only their id", () => {
+  it("is images whose description is empty or starts with none of governing-, support- or record-, and only their id", () => {
     expect(PUBLIC_FILES_FILTER).toEqual({
       _and: [
         { type: { _starts_with: "image/" } },
         {
           _or: [
             { description: { _null: true } },
-            { _and: [{ description: { _nstarts_with: "governing-" } }, { description: { _nstarts_with: "support-" } }] },
+            { _and: [{ description: { _nstarts_with: "governing-" } }, { description: { _nstarts_with: "support-" } }, { description: { _nstarts_with: "record-" } }] },
           ],
         },
       ],
@@ -32,6 +32,8 @@ describe("public file read", () => {
     expect(isPublicFile({ type: "image/png", description: "governing-upload:org:abc" })).toBe(false);
     expect(isPublicFile({ type: "image/png", description: "support-message:m1" })).toBe(false);
     expect(isPublicFile({ type: "image/png", description: "support-upload:u1" })).toBe(false);
+    // A record's file: a photo receipt is the books' readers', not everyone's.
+    expect(isPublicFile({ type: "image/jpeg", description: "record-expense-receipt" })).toBe(false);
     expect(isPublicFile({ type: "application/pdf", description: null })).toBe(false);
     expect(isPublicFile({ type: null, description: null })).toBe(false);
   });

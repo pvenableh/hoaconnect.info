@@ -229,6 +229,8 @@ import type { BlockSetting, ExtensionSeoMetadata } from "#core/types/directus";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
+  /** Its library folder files the share image with the community's other files. */
+  organization?: { folder?: string | { id: string } | null } | null;
   settings: BlockSetting | null;
 }>();
 
@@ -343,8 +345,10 @@ const saveChanges = async () => {
     // Upload OG image if provided
     let ogImageUrl = removedOgImage.value ? undefined : props.settings?.seo?.og_image;
     if (ogImageFile.value) {
+      const folder = props.organization?.folder;
       const uploaded = await uploadFile(ogImageFile.value, {
         title: "Social Share Image",
+        folder: (typeof folder === "object" ? folder?.id : folder) || undefined,
       });
       ogImageUrl = (uploaded as any)?.id || undefined;
     }

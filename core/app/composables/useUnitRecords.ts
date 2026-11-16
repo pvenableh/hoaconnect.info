@@ -134,8 +134,8 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
 
   const updateLease = (id: string, patch: Record<string, unknown>) => patchRecord("lease", id, patch);
 
-  // The signed lease, before the lease is saved: a PDF filed in no library
-  // (core/server/api/hoa/units/lease-document.post.ts).
+  // The signed lease, before the lease is saved: a PDF filed in the community's
+  // Records › Leases folder (core/server/api/hoa/units/lease-document.post.ts).
   const uploadLeaseDocument = (file: File) => {
     const form = new FormData();
     form.append("orgId", selectedOrgId.value || "");

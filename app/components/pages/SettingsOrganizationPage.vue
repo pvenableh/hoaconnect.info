@@ -63,6 +63,7 @@
           <!-- SEO Tab -->
           <div v-if="activeTab === 'seo'" class="space-y-6">
             <SettingsSeoSettingsForm
+              :organization="organization"
               :settings="settings"
               @updated="handleSettingsUpdate"
             />

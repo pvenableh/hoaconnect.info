@@ -3,8 +3,9 @@
  * grant, enters an expense.
  *
  * Body: { orgId, expense }. The community is the server's; a project must be
- * one of its, and a receipt one of its files or one the caller uploaded and
- * filed nowhere (POST /api/org/expenses/receipt). Written with the app's
+ * one of its, and a receipt one of its files (POST /api/org/expenses/receipt
+ * files it in Records › Expense receipts) or an older loose upload of the
+ * caller's. Written with the app's
  * token: the HOA Admin policy has no create on payment_expenses, because its
  * rule never checked the project or receipt a row names
  * (core/shared/expenses/expense-writes.ts). Never `paid`: that is

@@ -12,8 +12,9 @@ import {
   deleteFiles,
   importFile
 } from '@directus/sdk'
-import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
+import { assertFileMove } from '#core/server/utils/caller-library'
 import { GOVERNING_FILE_ELSEWHERE, GOVERNING_FILE_PREFIX, NOT_GOVERNING_FILE } from '#core/shared/governing/files'
+import { RECORD_FILE_ELSEWHERE, RECORD_FILE_PREFIX } from '#core/shared/records/files'
 
 /**
  * Is any of these a governing original or page image? Read with the app's
@@ -21,17 +22,23 @@ import { GOVERNING_FILE_ELSEWHERE, GOVERNING_FILE_PREFIX, NOT_GOVERNING_FILE } f
  * Governing files are listed, changed and removed only on the governing
  * pages, which audit each change.
  */
-async function anyGoverningFile(ids: unknown): Promise<boolean> {
+async function anyMarkedFile(ids: unknown, prefix: string): Promise<boolean> {
   const list = (Array.isArray(ids) ? ids : [ids]).filter((id): id is string => typeof id === 'string')
   if (!list.length) return false
   const rows = (await getTypedDirectus().request(
     readFiles({
-      filter: { _and: [{ id: { _in: list } }, { description: { _starts_with: GOVERNING_FILE_PREFIX } }] },
+      filter: { _and: [{ id: { _in: list } }, { description: { _starts_with: prefix } }] },
       fields: ['id'],
       limit: -1
     } as any)
   )) as unknown[]
   return rows.length > 0
+}
+const anyGoverningFile = (ids: unknown) => anyMarkedFile(ids, GOVERNING_FILE_PREFIX)
+
+/** Is any of these a record's file (a receipt, a lease)? Those change with their record. */
+async function assertNoRecordFile(ids: unknown): Promise<void> {
+  if (await anyMarkedFile(ids, RECORD_FILE_PREFIX)) throw createError({ statusCode: 409, message: RECORD_FILE_ELSEWHERE })
 }
 
 export default defineEventHandler(async (event) => {
@@ -67,8 +74,17 @@ export default defineEventHandler(async (event) => {
         if (!id) throw new Error('File ID required for update operation')
         if (!data) throw new Error('Data required for update operation')
         if (await anyGoverningFile(id)) throw createError({ statusCode: 409, message: GOVERNING_FILE_ELSEWHERE })
-        // Directus cannot check where a file is moved to; this route does.
-        if ('folder' in data) await assertFolderInCallerLibrary(event, data.folder, { allowNone: true })
+        await assertNoRecordFile(id)
+        // Where a file sits is the app's to write: Directus cannot check a
+        // move, so the caller's own token may not make one (PLACEMENT_FIELDS).
+        // Checked here, then placed with the app's token; the rest of the
+        // change stays on the caller's.
+        if ('folder' in data) {
+          await assertFileMove(event, id, data.folder)
+          const { folder, ...rest } = data
+          if (Object.keys(rest).length) await directus.request(updateFile(id, rest))
+          return await getTypedDirectus().request(updateFile(id, { folder: folder || null } as any))
+        }
         return await directus.request(
           updateFile(id, data)
         )
@@ -76,6 +92,7 @@ export default defineEventHandler(async (event) => {
       case 'delete':
         if (!id) throw new Error('File ID required for delete operation')
         if (await anyGoverningFile(id)) throw createError({ statusCode: 409, message: GOVERNING_FILE_ELSEWHERE })
+        await assertNoRecordFile(id)
 
         if (Array.isArray(id)) {
           await directus.request(deleteFiles(id))

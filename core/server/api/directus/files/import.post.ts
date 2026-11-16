@@ -1,10 +1,9 @@
 /**
- * Server API route for importing files from URL
- * Uses native Directus SDK importFile method
+ * Server API route for importing files from URL. Stored with the app's token
+ * into a checked folder, as the caller's (see files/upload.post.ts).
  */
 
-import { assertFolderInCallerLibrary } from '#core/server/utils/caller-library'
-import { importFile } from '@directus/sdk'
+import { assertFolderInCallerLibrary, storeAsCaller } from '#core/server/utils/caller-library'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -18,8 +17,8 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    const directus = await getUserDirectus(event)
-    
+    await requireUserSession(event)
+
     // Build file metadata
     const metadata: Record<string, any> = {}
     if (title) metadata.title = title
@@ -30,11 +29,7 @@ export default defineEventHandler(async (event) => {
       metadata.folder = folder
     }
 
-    const result = await directus.request(
-      importFile(url, metadata)
-    )
-    
-    return result
+    return await storeAsCaller(event, { url, data: metadata })
     
   } catch (error: any) {
     console.error('File import error:', error)

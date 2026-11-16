@@ -60,6 +60,16 @@ export const STORAGE_TREE: StorageNode[] = [
     ],
   },
   { key: "branding", name: "Branding" },
+  // A record's file (core/shared/records/files.ts): filed with its community,
+  // shown in the library to admins only, opened by its record's rule.
+  {
+    key: "records",
+    name: "Records",
+    children: [
+      { key: "records/receipts", name: "Expense receipts" },
+      { key: "records/leases", name: "Leases" },
+    ],
+  },
 ];
 
 /** Map a comment/message/email source to its Uploads subfolder key. */
@@ -231,8 +241,13 @@ export async function ensureOrgStorage(
 // Containment (tenant isolation)
 // ---------------------------------------------------------------------------
 
-async function folderParent(id: string): Promise<string | null> {
-  if (parentCache.has(id)) return parentCache.get(id)!;
+/** Drop what this process remembers of a folder's parent, after it moves. */
+export function forgetFolderParent(id: string) {
+  parentCache.delete(id);
+}
+
+async function folderParent(id: string, fresh = false): Promise<string | null> {
+  if (!fresh && parentCache.has(id)) return parentCache.get(id)!;
   const admin = getTypedDirectus();
   const folder = (await admin.request(
     readFolder(id, { fields: ["id", "parent"] })
@@ -250,17 +265,24 @@ async function folderParent(id: string): Promise<string | null> {
 /**
  * True if `folderId` is the root itself or a descendant of it. Walks the parent
  * chain (bounded). This is what proves a request stays inside the org subtree.
+ *
+ * Parents are cached per server process. Which community a folder is in does
+ * not change through the app (a move stays inside one library; a root does not
+ * move), so the cache is safe for that question. Whether a folder is inside
+ * another one does change, and other processes' caches do not hear of a move,
+ * so a cycle check passes `fresh`.
  */
 export async function isWithinOrgRoot(
   rootId: string,
-  folderId: string | null | undefined
+  folderId: string | null | undefined,
+  opts: { fresh?: boolean } = {}
 ): Promise<boolean> {
   if (!folderId) return false;
   if (folderId === rootId) return true;
   let current: string | null = folderId;
   for (let i = 0; i < 64 && current; i++) {
     if (current === rootId) return true;
-    current = await folderParent(current);
+    current = await folderParent(current, opts.fresh);
   }
   return false;
 }

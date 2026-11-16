@@ -68,10 +68,15 @@ beforeEach(() => {
 });
 
 describe("uploading a receipt", () => {
-  it("stores a PDF in no folder as the admin's, and returns its id", async () => {
+  it("files a PDF in the community's Records › Expense receipts folder as the admin's, and returns its id", async () => {
     const res = await upload(body(part(PDF, "Acme invoice 114.pdf")));
     expect(res).toEqual({ id: expect.any(String), filename: "Acme invoice 114.pdf", type: "application/pdf" });
-    expect(files().find((f) => f.id === res.id)).toMatchObject({ folder: null, type: "application/pdf", uploaded_by: ID.userAdmin });
+    expect(files().find((f) => f.id === res.id)).toMatchObject({
+      folder: `receipts-${ORG}`,
+      description: "record-expense-receipt",
+      type: "application/pdf",
+      uploaded_by: ID.userAdmin,
+    });
   });
 
   it("takes a photo of a receipt, by its bytes rather than its name", async () => {

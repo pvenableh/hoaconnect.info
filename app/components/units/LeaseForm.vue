@@ -27,8 +27,8 @@ const documentName = ref<string>(props.record?.document ? "Current document" : "
 const uploading = ref(false);
 const submitting = ref(false);
 
-// Only the saved document opens: a new upload is in no library, and the app
-// serves it once a lease names it (lease-documents.ts).
+// Only the saved document opens: a new upload is a record's file that no
+// record names yet, and the app serves it once a lease does (lease-documents.ts).
 const documentUrl = computed(() =>
   documentId.value && documentId.value === props.record?.document ? getAuthUrl(documentId.value) : null
 );
