@@ -18,16 +18,16 @@ let reads: any[];
 
 const TABLES: Record<string, any[]> = {
   payment_requests: [
-    { id: "c-1", organization: LENOX, status: "pending", paid_at: null },
+    { id: "c-1", organization: LENOX, status: "pending", paid_at: null, amount: "250.00", amount_paid: "0.00", amount_remaining: "250.00" },
     { id: "c-2", organization: LENOX, status: "canceled", paid_at: null },
     { id: "c-3", organization: "org-other", status: "pending", paid_at: null },
   ],
   payment_schedules: [
-    { id: "s-1", organization: LENOX },
+    { id: "s-1", organization: LENOX, amount: "325.50" },
     { id: "s-2", organization: "org-other" },
   ],
   payment_expenses: [
-    { id: "e-1", organization: LENOX },
+    { id: "e-1", organization: LENOX, amount: "175.00" },
     { id: "e-2", organization: "org-other" },
   ],
 };
@@ -62,6 +62,7 @@ beforeEach(async () => {
   const access = await import("#core/server/utils/money-access");
   vi.stubGlobal("requireMoneyRead", access.requireMoneyRead);
   vi.stubGlobal("moneyLimit", access.moneyLimit);
+  vi.stubGlobal("numericMoney", access.numericMoney);
 });
 
 const ROUTES = {
@@ -120,5 +121,29 @@ describe("money reads", () => {
     await call("schedules", { orgId: LENOX, limit: "nonsense" });
     expect(reads[0].query.limit).toBe(1000);
     expect(reads[1].query.limit).toBe(200);
+  });
+});
+
+describe("amounts", () => {
+  // Directus sends a decimal as text; the expenses page added "175.00" to 0 as
+  // strings and showed $NaN as its total.
+  it("come back as numbers, not Directus's text", async () => {
+    isAdmin = true;
+    const { expenses } = await call("expenses", { orgId: LENOX });
+    expect(expenses[0].amount).toBe(175);
+    const { charges } = await call("charges", { orgId: LENOX });
+    expect(charges.find((c: any) => c.id === "c-1")).toMatchObject({ amount: 250, amount_paid: 0, amount_remaining: 250 });
+    const { schedules } = await call("schedules", { orgId: LENOX });
+    expect(schedules[0].amount).toBe(325.5);
+  });
+
+  it("leave a missing amount missing, and never turn text into a wrong number", async () => {
+    const { numericMoney } = await import("#core/server/utils/money-access");
+    expect(numericMoney([{ amount: null }, { amount: "" }, { amount: "n/a" }, { amount: 12 }], ["amount"])).toEqual([
+      { amount: null },
+      { amount: null },
+      { amount: null },
+      { amount: 12 },
+    ]);
   });
 });

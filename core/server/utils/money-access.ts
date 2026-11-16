@@ -36,3 +36,22 @@ export function moneyLimit(event: H3Event, fallback: number, max = 1000): number
   const n = Number(getQuery(event).limit);
   return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), max) : fallback;
 }
+
+/**
+ * Directus sends a decimal column as text ("175.00"), so a page that adds
+ * amounts joined strings and showed $NaN. The money reads hand the page
+ * numbers: each named field that came back as text becomes a number (null when
+ * it isn't one).
+ */
+export function numericMoney<T extends object>(rows: readonly T[] | null | undefined, fields: readonly string[]): T[] {
+  return (rows ?? []).map((row) => {
+    const out = { ...row } as Record<string, unknown>;
+    for (const f of fields) {
+      const v = out[f];
+      if (typeof v !== "string") continue;
+      const n = Number(v);
+      out[f] = v.trim() !== "" && Number.isFinite(n) ? n : null;
+    }
+    return out as T;
+  });
+}

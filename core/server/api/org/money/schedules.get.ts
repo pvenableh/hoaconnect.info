@@ -20,5 +20,5 @@ export default defineEventHandler(async (event) => {
       limit: moneyLimit(event, 200),
     })
   );
-  return { schedules: rows ?? [] };
+  return { schedules: numericMoney(rows, ["amount"]) };
 });
