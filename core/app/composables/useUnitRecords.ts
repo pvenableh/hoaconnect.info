@@ -5,10 +5,9 @@
  * Reads go through the role-aware server route (server/api/hoa/units/records):
  * admins & active board members see every record on the unit; owners/tenants see
  * only records overlapping their own occupancy windows. Writes are admin-only.
- * Pets and vehicles go through POST and PATCH on the same route, which check
- * the unit, the person and the photo are this community's (Directus cannot:
- * core/shared/units/record-writes.ts). Leases still go to Directus, whose rule
- * checks the lease's own organization.
+ * Pets, vehicles and leases go through POST and PATCH on the same route, which
+ * check the unit, the people, the photo and the lease document are this
+ * community's (Directus cannot: core/shared/units/record-writes.ts).
  *
  * History UX rule: on turnover we set end_date + status=archived rather than
  * deleting, so a unit's history is always answerable.
@@ -90,7 +89,6 @@ export const isCurrentRecord = (r: { end_date?: string | null }): boolean => {
 
 export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
-  const leases = useDirectusItems("hoa_leases");
 
   const fetchRecords = async (): Promise<UnitRecordsResponse> => {
     const id = toValue(unitId);
@@ -109,13 +107,13 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
 
   // Optional fields the forms leave undefined are dropped by JSON, so the
   // route's strict body sees only what was set.
-  const createRecord = (kind: "pet" | "vehicle", record: Record<string, unknown>) =>
+  const createRecord = (kind: "pet" | "vehicle" | "lease", record: Record<string, unknown>) =>
     $fetch("/api/hoa/units/records", {
       method: "POST",
       body: { orgId: selectedOrgId.value, unitId: toValue(unitId), kind, record },
     });
 
-  const patchRecord = (kind: "pet" | "vehicle", id: string, patch: Record<string, unknown>) =>
+  const patchRecord = (kind: "pet" | "vehicle" | "lease", id: string, patch: Record<string, unknown>) =>
     $fetch("/api/hoa/units/records", {
       method: "PATCH",
       body: { orgId: selectedOrgId.value, id, kind, patch },
@@ -129,22 +127,16 @@ export const useUnitRecords = (unitId: MaybeRefOrGetter<string>) => {
 
   const updateVehicle = (id: string, patch: Partial<VehicleRecord>) => patchRecord("vehicle", id, patch);
 
-  const createLease = (input: Partial<LeaseRecord> & { tenant?: string; owner?: string }) =>
-    leases.create({
-      ...input,
-      unit: toValue(unitId),
-      organization: selectedOrgId.value,
-      status: input.status || "active",
-      start_date: input.start_date || nowIso(),
-    });
+  // The route sets the unit and organization, and defaults the status and start.
+  const createLease = (input: Record<string, unknown> & { tenant: string }) => createRecord("lease", input);
 
-  const updateLease = (id: string, patch: Partial<LeaseRecord>) => leases.update(id, patch);
+  const updateLease = (id: string, patch: Record<string, unknown>) => patchRecord("lease", id, patch);
 
   // "Move out / end" — end-date + archive instead of deleting.
   const endRecord = (kind: "pet" | "vehicle" | "lease", id: string, endDate?: string) => {
     const end_date = endDate || nowIso();
     if (kind === "pet" || kind === "vehicle") return patchRecord(kind, id, { end_date, status: "archived" });
-    return leases.update(id, { end_date, status: "expired" });
+    return patchRecord("lease", id, { end_date, status: "expired" });
   };
 
   return {

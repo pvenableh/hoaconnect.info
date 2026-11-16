@@ -6,7 +6,7 @@
  * community's meeting or member.
  *
  *   POST  /api/org/meetings/[id]/attendees
- *   POST  /api/hoa/units/records   (pets, vehicles)
+ *   POST  /api/hoa/units/records   (pets, vehicles, leases)
  *   PATCH /api/hoa/units/records
  *
  * The admin persona is an admin of ORG only; OTHER is a community they are not
@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { ID, ORG, OTHER, PERSONAS, ev, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
 import { planAttendees } from "#core/shared/meetings/attendee-writes";
-import { recordCommunity } from "#core/shared/units/record-writes";
+import { chooseRecordUnit, currentUnitsInOrg, leaseCommunity, recordCommunity } from "#core/shared/units/record-writes";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
 
@@ -28,11 +28,25 @@ const U = {
   petOther: uuid(122),
   petStraddle: uuid(123),
   vehicle: uuid(131),
+  lease: uuid(151),
+  leaseOther: uuid(152),
+  leaseStraddle: uuid(153),
+  myUpload: uuid(161),
+  myFiled: uuid(162),
+  theirUpload: uuid(163),
 };
 
 function db(): Db {
+  const base = seed();
   return {
-    ...seed(),
+    ...base,
+    directus_files: [
+      ...(base.directus_files ?? []),
+      // The lease form uploads with no folder: the admin's own upload, filed nowhere.
+      { id: U.myUpload, uploaded_by: ID.userAdmin, folder: null, type: "application/pdf" },
+      { id: U.myFiled, uploaded_by: ID.userAdmin, folder: uuid(170), type: "application/pdf" },
+      { id: U.theirUpload, uploaded_by: ID.userBob, folder: null, type: "application/pdf" },
+    ],
     hoa_meetings: [
       { id: U.meeting, organization: ORG, title: "Annual meeting" },
       { id: U.meetingOther, organization: OTHER, title: "Their meeting" },
@@ -49,6 +63,12 @@ function db(): Db {
       { id: U.petStraddle, organization: ORG, unit_id: U.unit, member_id: ID.memberOther, name: "Odd", status: "published" },
     ],
     hoa_vehicles: [{ id: U.vehicle, organization: ORG, unit_id: U.unit, member_id: ID.memberBob, make: "Toyota", status: "published" }],
+    hoa_leases: [
+      { id: U.lease, organization: ORG, unit: U.unit, tenant: ID.memberBob, owner: ID.memberAnn, status: "active", rent_amount: 2000 },
+      { id: U.leaseOther, organization: OTHER, unit: U.unitOther, tenant: ID.memberOther, owner: null, status: "active" },
+      // Its own organization and unit say ORG, its tenant is OTHER's.
+      { id: U.leaseStraddle, organization: ORG, unit: U.unit, tenant: ID.memberOther, owner: null, status: "active" },
+    ],
   };
 }
 
@@ -207,7 +227,124 @@ describe("PATCH /api/hoa/units/records", () => {
   });
 });
 
+const LEASE = {
+  orgId: ORG,
+  unitId: U.unit,
+  kind: "lease",
+  record: { tenant: ID.memberBob, owner: ID.memberAnn, rent_amount: 2100, start_date: "2026-12-01T12:00:00.000Z", end_date: null },
+};
+const LEASE_PATCH = { orgId: ORG, id: U.lease, kind: "lease", patch: { rent_amount: 2200 } };
+
+describe("leases through POST and PATCH /api/hoa/units/records", () => {
+  it("adds a lease to the unit, with the unit, community and status set by the server", async () => {
+    await call("create", { body: LEASE });
+    expect(state.db.hoa_leases!.at(-1)).toMatchObject({
+      unit: U.unit,
+      organization: ORG,
+      tenant: ID.memberBob,
+      owner: ID.memberAnn,
+      rent_amount: 2100,
+      status: "active",
+      start_date: "2026-12-01T12:00:00.000Z",
+    });
+  });
+
+  it("takes a document of the community's, or one the admin uploaded and filed nowhere", async () => {
+    for (const document of [ID.fileOk, U.myUpload]) {
+      await call("create", { body: { ...LEASE, record: { ...LEASE.record, document } } });
+      expect(state.db.hoa_leases!.at(-1)).toMatchObject({ document });
+    }
+  });
+
+  it("refuses another community's unit, tenant, owner or document, and someone else's upload", async () => {
+    await expect(call("create", { body: { ...LEASE, unitId: U.unitOther } })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call("create", { body: { ...LEASE, record: { ...LEASE.record, tenant: ID.memberOther } } })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(call("create", { body: { ...LEASE, record: { ...LEASE.record, owner: ID.memberOther } } })).rejects.toMatchObject({ statusCode: 400 });
+    for (const document of [ID.fileElsewhere, U.myFiled, U.theirUpload]) {
+      await expect(call("create", { body: { ...LEASE, record: { ...LEASE.record, document } } })).rejects.toMatchObject({
+        statusCode: 403,
+        message: "That document isn't one of this community's files.",
+      });
+    }
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("will not take a unit, community or value of the caller's choosing", async () => {
+    for (const record of [
+      { ...LEASE.record, unit: U.unitOther },
+      { ...LEASE.record, organization: OTHER },
+      { ...LEASE.record, tenant: { id: ID.memberOther } },
+      { ...LEASE.record, status: "pending" },
+      { ...LEASE.record, rent_amount: -5 },
+      { owner: ID.memberAnn },
+    ]) {
+      await expect(call("create", { body: { ...LEASE, record } })).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("changes a lease and ends one, keeping it", async () => {
+    await call("patch", { body: LEASE_PATCH });
+    expect(state.db.hoa_leases!.find((l) => l.id === U.lease)).toMatchObject({ rent_amount: 2200, tenant: ID.memberBob });
+    await call("patch", { body: { ...LEASE_PATCH, patch: { end_date: "2026-11-16T12:00:00.000Z", status: "expired" } } });
+    expect(state.db.hoa_leases!.find((l) => l.id === U.lease)).toMatchObject({ end_date: "2026-11-16T12:00:00.000Z", status: "expired" });
+  });
+
+  it("refuses another community's lease, one that straddles two, and another community's tenant or document", async () => {
+    await expect(call("patch", { body: { ...LEASE_PATCH, id: U.leaseOther } })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call("patch", { body: { ...LEASE_PATCH, id: U.leaseStraddle } })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call("patch", { body: { ...LEASE_PATCH, id: U.pet } })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(call("patch", { body: { ...LEASE_PATCH, patch: { tenant: ID.memberOther } } })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(call("patch", { body: { ...LEASE_PATCH, patch: { document: U.theirUpload } } })).rejects.toMatchObject({ statusCode: 403 });
+    for (const patch of [{ unit: U.unitOther }, { organization: OTHER }, {}]) {
+      await expect(call("patch", { body: { ...LEASE_PATCH, patch } })).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("is refused to a resident, a board seat and a manager", async () => {
+    for (const who of [PERSONAS.owner, PERSONAS.board, PERSONAS.manager]) {
+      as(who);
+      await expect(call("create", { body: LEASE })).rejects.toMatchObject({ statusCode: 403 });
+      await expect(call("patch", { body: LEASE_PATCH })).rejects.toMatchObject({ statusCode: 403 });
+    }
+    expect(writes()).toHaveLength(0);
+  });
+});
+
 describe("the pure checks", () => {
+  it("leaseCommunity: its own community, its unit's, its tenant's and its owner's must agree", () => {
+    expect(leaseCommunity({ organization: ORG, unit: { organization: ORG }, tenant: { organization: ORG }, owner: null })).toBe(ORG);
+    expect(leaseCommunity({ organization: ORG, unit: { organization: ORG }, tenant: { organization: ORG }, owner: { organization: OTHER } })).toBeNull();
+    expect(leaseCommunity({ organization: ORG, unit: { organization: OTHER } })).toBeNull();
+  });
+
+  it("currentUnitsInOrg: linked, not archived, not ended, in this community, primary first", () => {
+    const unit = (id: string, organization: string, unit_number: string) => ({ id, organization, unit_number });
+    const links = [
+      { unit_id: unit(uuid(1), ORG, "4B"), status: "published", end_date: null, is_primary_unit: false },
+      { unit_id: unit(uuid(2), ORG, "5C"), status: "published", end_date: null, is_primary_unit: true },
+      { unit_id: unit(uuid(3), ORG, "6D"), status: "published", end_date: "2026-11-15" },
+      { unit_id: unit(uuid(4), ORG, "7E"), status: "archived", end_date: null },
+      { unit_id: unit(uuid(5), OTHER, "1A"), status: "published", end_date: null },
+      { unit_id: unit(uuid(6), ORG, "8F"), status: "published", end_date: "2026-11-16" },
+      { unit_id: uuid(7), status: "published" },
+    ];
+    expect(currentUnitsInOrg(links, ORG, "2026-11-16")).toEqual([
+      { id: uuid(2), unit_number: "5C" },
+      { id: uuid(1), unit_number: "4B" },
+      { id: uuid(6), unit_number: "8F" },
+    ]);
+  });
+
+  it("chooseRecordUnit: the chosen unit if still theirs, else their only one, else none", () => {
+    expect(chooseRecordUnit(uuid(2), [uuid(1), uuid(2)])).toBe(uuid(2));
+    expect(chooseRecordUnit(uuid(9), [uuid(1)])).toBe(uuid(1));
+    expect(chooseRecordUnit(undefined, [uuid(1)])).toBe(uuid(1));
+    expect(chooseRecordUnit(undefined, [uuid(1), uuid(2)])).toBeNull();
+    expect(chooseRecordUnit(uuid(1), [])).toBeNull();
+  });
+
   it("recordCommunity: the one community a row's links agree on, else none", () => {
     expect(recordCommunity({ organization: ORG, unit_id: { organization: ORG }, member_id: { organization: ORG } })).toBe(ORG);
     expect(recordCommunity({ organization: null, unit_id: { organization: ORG }, member_id: null })).toBe(ORG);

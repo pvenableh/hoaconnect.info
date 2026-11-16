@@ -13,6 +13,8 @@
  * Idempotent: existing collection/fields/relations/permissions are skipped.
  */
 
+import { isRemovedAdminRule } from "./lib/admin-scope-perms";
+
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
 
@@ -244,7 +246,9 @@ async function setupPermissions(): Promise<void> {
 
   if (adminPolicy) {
     console.log("\n   📋 hoa_leases for HOA Admin...");
-    for (const action of ["create", "read", "update", "delete"]) {
+    // Create and update are routes now (POST and PATCH /api/hoa/units/records),
+    // which check the unit, tenant, owner and document; see REMOVED_ADMIN_RULES.
+    for (const action of ["create", "read", "update", "delete"].filter((a) => !isRemovedAdminRule("hoa_leases", a))) {
       await postPermission(adminPolicy.id, "hoa_leases", action, {
         permissions: orgFilter,
         validation: action === "create" || action === "update" ? orgFilter : null,

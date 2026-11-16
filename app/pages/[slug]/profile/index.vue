@@ -85,12 +85,21 @@ const openMailing = () => {
   };
   note.value = "";
 };
+// A new pet or vehicle goes on one of the resident's units. With one unit the
+// server picks it; with several the dialog asks, starting from the primary.
+const myUnits = computed(() => data.value?.units || []);
+const unitField = () => (myUnits.value.length > 1 ? { unit_id: myUnits.value[0]!.id } : {});
 const openAddVehicle = () => {
-  editor.value = { kind: "vehicle", action: "create", title: "Add a vehicle", fields: { make: "", model: "", year: "", license_plate: "", parking_spot: "" } };
+  editor.value = {
+    kind: "vehicle",
+    action: "create",
+    title: "Add a vehicle",
+    fields: { make: "", model: "", year: "", license_plate: "", parking_spot: "", ...unitField() },
+  };
   note.value = "";
 };
 const openAddPet = () => {
-  editor.value = { kind: "pet", action: "create", title: "Add a pet", fields: { name: "", type: "dog", breed: "", weight: "" } };
+  editor.value = { kind: "pet", action: "create", title: "Add a pet", fields: { name: "", type: "dog", breed: "", weight: "", ...unitField() } };
   note.value = "";
 };
 
@@ -297,6 +306,16 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             </div>
             <div class="space-y-1.5"><Label>Weight</Label><Input v-model="editor.fields.weight" placeholder="e.g. 30 lbs" /></div>
           </template>
+
+          <div
+            v-if="(editor.kind === 'vehicle' || editor.kind === 'pet') && editor.action === 'create' && myUnits.length > 1"
+            class="space-y-1.5"
+          >
+            <Label>Unit</Label>
+            <select v-model="editor.fields.unit_id" class="w-full h-9 rounded-md px-2 text-sm">
+              <option v-for="u in myUnits" :key="u.id" :value="u.id">Unit {{ u.unit_number || "—" }}</option>
+            </select>
+          </div>
 
           <div class="space-y-1.5">
             <Label>Note for the reviewer <span class="t-text-muted">(optional)</span></Label>

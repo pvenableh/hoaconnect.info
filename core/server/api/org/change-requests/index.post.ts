@@ -8,6 +8,8 @@ import {
   type ChangeKind,
   type ChangeAction,
 } from "#core/server/utils/change-requests";
+import { chooseRecordUnit } from "#core/shared/units/record-writes";
+import { assertPhotoInOrg, memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
 
 /**
  * Resident submits a change to their OWN household data (contact / mailing
@@ -41,6 +43,25 @@ export default defineEventHandler(async (event) => {
   }
 
   const safe = buildSafeChange({ kind, action, memberId, targetId: body?.targetId, payload: body?.payload });
+
+  if (kind === "vehicle" || kind === "pet") {
+    // A new pet or vehicle goes on a unit: the one chosen, which must be one of
+    // the resident's here, or their only one. The number is kept for the reviewer.
+    if (safe.action === "create") {
+      const units = await memberUnitsInOrg(orgId, memberId);
+      const requested = body?.payload?.unit_id;
+      if (requested != null && requested !== "" && !units.some((u) => u.id === requested)) {
+        throw createError({ statusCode: 400, message: "That unit isn't one of yours." });
+      }
+      const unitId = chooseRecordUnit(requested, units.map((u) => u.id));
+      if (unitId) {
+        safe.payload.unit_id = unitId;
+        safe.payload.unit_number = units.find((u) => u.id === unitId)?.unit_number ?? null;
+      }
+    }
+    // A photo must be one this community may use, as on the admin's unit page.
+    await assertPhotoInOrg(orgId, safe.payload.image);
+  }
 
   const created = await admin.request(
     createItem("hoa_member_change_requests", {

@@ -1,9 +1,12 @@
 import { readItem, readItems } from "@directus/sdk";
+import { memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
 
 /**
  * The authenticated resident's own household data for the self-service page:
- * their member contact + mailing address, their (active) vehicles and pets, and
- * any pending change requests so the UI can show "awaiting review" badges.
+ * their member contact + mailing address, their (active) vehicles and pets, the
+ * units they are linked to (a new pet or vehicle asks which, when there are
+ * several), and any pending change requests so the UI can show "awaiting
+ * review" badges.
  * Org-scoped to the caller's membership — never another member's data.
  */
 export default defineEventHandler(async (event) => {
@@ -16,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   const admin = getTypedDirectus();
 
-  const [member, vehicles, pets, pendingRequests] = await Promise.all([
+  const [member, vehicles, pets, pendingRequests, units] = await Promise.all([
     admin.request(
       readItem("hoa_members", memberId, {
         fields: ["id", "first_name", "last_name", "email", "phone", "mailing_address"],
@@ -46,7 +49,8 @@ export default defineEventHandler(async (event) => {
         limit: 100,
       })
     ),
+    memberUnitsInOrg(orgId, memberId),
   ]);
 
-  return { memberId, member, vehicles, pets, pendingRequests };
+  return { memberId, member, vehicles, pets, pendingRequests, units };
 });

@@ -1,38 +1,59 @@
 /**
- * PATCH /api/hoa/units/records — an admin changes a pet or vehicle, or ends
- * it on move-out (end_date and status "archived"; history is never deleted).
+ * PATCH /api/hoa/units/records — an admin changes a pet, vehicle or lease, or
+ * ends it (end_date, and status "archived" for a pet or vehicle, "expired" for
+ * a lease; history is never deleted).
  *
- * Body: { orgId, id, kind: "pet" | "vehicle", patch }. The row must be the
- * community's (its own organization, its unit's and its person's agree); a new
- * person must be a member of it, and a new photo one it may use. The unit and
- * organization cannot change here. Written with the app's token: the HOA Admin
- * policy has no update on hoa_pets or hoa_vehicles
+ * Body: { orgId, id, kind: "pet" | "vehicle" | "lease", patch }. The row must be
+ * the community's (its own organization and every row it names agree); a new
+ * person must be a member of it, and a new photo or document one it may use.
+ * The unit and organization cannot change here. Written with the app's token:
+ * the HOA Admin policy has no update on hoa_pets, hoa_vehicles or hoa_leases
  * (core/shared/units/record-writes.ts).
  */
 import { readItem, updateItem } from "@directus/sdk";
-import { RECORD_COLLECTION, patchRecordBody, recordCommunity } from "#core/shared/units/record-writes";
-import { assertMemberInOrg, assertPhotoInOrg, requireUnitRecordsAdmin } from "#core/server/utils/unit-record-writes";
+import { RECORD_COLLECTION, leaseCommunity, patchRecordBody, recordCommunity } from "#core/shared/units/record-writes";
+import {
+  assertDocumentInOrg,
+  assertMemberInOrg,
+  assertPhotoInOrg,
+  requireUnitRecordsAdmin,
+} from "#core/server/utils/unit-record-writes";
+
+const NOT_FOUND = { pet: "Pet not found", vehicle: "Vehicle not found", lease: "Lease not found" } as const;
 
 export default defineEventHandler(async (event) => {
-  await requireUserSession(event);
+  const session = await requireUserSession(event);
   const parsed = patchRecordBody.safeParse(await readBody(event).catch(() => null));
   if (!parsed.success) throw createError({ statusCode: 400, message: parsed.error.issues[0]?.message ?? "Check the form." });
-  const { orgId, id, kind, patch } = parsed.data;
+  const body = parsed.data;
+  const { orgId, id, kind } = body;
 
   await requireUnitRecordsAdmin(event, orgId);
 
   const directus = getTypedDirectus();
   const collection = RECORD_COLLECTION[kind];
-  let row: Parameters<typeof recordCommunity>[0] | null = null;
+  const fields =
+    kind === "lease"
+      ? ["id", "organization", "unit.organization", "tenant.organization", "owner.organization"]
+      : ["id", "organization", "unit_id.organization", "member_id.organization"];
+  let row: Record<string, unknown> | null = null;
   try {
-    row = (await directus.request(
-      readItem(collection as never, id, { fields: ["id", "organization", "unit_id.organization", "member_id.organization"] } as never)
-    )) as unknown as Parameters<typeof recordCommunity>[0];
+    row = (await directus.request(readItem(collection as never, id, { fields } as never))) as unknown as Record<string, unknown>;
   } catch {
     row = null;
   }
-  if (!row || recordCommunity(row) !== orgId) throw createError({ statusCode: 404, message: kind === "pet" ? "Pet not found" : "Vehicle not found" });
+  const community = !row ? null : kind === "lease" ? leaseCommunity(row) : recordCommunity(row);
+  if (community !== orgId) throw createError({ statusCode: 404, message: NOT_FOUND[kind] });
 
+  if (body.kind === "lease") {
+    const { patch } = body;
+    if (patch.tenant) await assertMemberInOrg(orgId, patch.tenant);
+    if (patch.owner) await assertMemberInOrg(orgId, patch.owner);
+    await assertDocumentInOrg(orgId, patch.document, String((session.user as { id?: unknown } | undefined)?.id ?? ""));
+    return await directus.request(updateItem(collection as never, id, patch as never));
+  }
+
+  const { patch } = body;
   if (patch.member_id) await assertMemberInOrg(orgId, patch.member_id);
   await assertPhotoInOrg(orgId, patch.image);
 

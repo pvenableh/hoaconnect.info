@@ -256,6 +256,12 @@ describe("admin writes that could leave the community", () => {
       expect(isRemovedAdminRule(collection, "read")).toBe(false);
       expect(isRemovedAdminRule(collection, "delete")).toBe(false);
     }
+    // Leases (2026-11-16): the validation was on the lease's own `organization`,
+    // but the unit, tenant and owner it names went unchecked. Routes now.
+    expect(isRemovedAdminRule("hoa_leases", "create")).toBe(true);
+    expect(isRemovedAdminRule("hoa_leases", "update")).toBe(true);
+    expect(isRemovedAdminRule("hoa_leases", "read")).toBe(false);
+    expect(isRemovedAdminRule("hoa_leases", "delete")).toBe(false);
     // A mention's create is checked by its own `channel`; only the edit followed a relation.
     expect(isRemovedAdminRule("hoa_channel_mentions", "update")).toBe(true);
     expect(isRemovedAdminRule("hoa_channel_mentions", "create")).toBe(false);

@@ -50,11 +50,11 @@ const summarize = (r: any): string => {
   }
   if (r.kind === "vehicle") {
     if (r.action === "delete") return "Remove this vehicle";
-    return `${[p.year, p.make, p.model].filter(Boolean).join(" ")}${p.license_plate ? " · " + p.license_plate : ""}${p.parking_spot ? " · spot " + p.parking_spot : ""}`;
+    return `${[p.year, p.make, p.model].filter(Boolean).join(" ")}${p.license_plate ? " · " + p.license_plate : ""}${p.parking_spot ? " · spot " + p.parking_spot : ""}${p.unit_number ? " · Unit " + p.unit_number : ""}`;
   }
   if (r.kind === "pet") {
     if (r.action === "delete") return "Remove this pet";
-    return `${p.name || ""}${p.type ? " (" + p.type + ")" : ""}${p.breed ? " · " + p.breed : ""}`;
+    return `${p.name || ""}${p.type ? " (" + p.type + ")" : ""}${p.breed ? " · " + p.breed : ""}${p.unit_number ? " · Unit " + p.unit_number : ""}`;
   }
   return r.kind;
 };

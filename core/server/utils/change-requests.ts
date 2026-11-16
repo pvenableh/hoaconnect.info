@@ -8,6 +8,8 @@
  * owning org, another member's id, etc.).
  */
 import { createItem, readItem, updateItem } from "@directus/sdk";
+import { chooseRecordUnit } from "#core/shared/units/record-writes";
+import { memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
 
 export const CHANGE_KINDS = ["contact", "mailing_address", "vehicle", "pet"] as const;
 export const CHANGE_ACTIONS = ["create", "update", "delete"] as const;
@@ -114,10 +116,15 @@ export async function applyChangeRequest(admin: ReturnType<typeof getTypedDirect
   }
 
   const collection = KIND_TARGET[kind];
+  const fields = kind === "vehicle" ? VEHICLE_FIELDS : PET_FIELDS;
   if (action === "create") {
+    // The unit the resident chose, if it is still theirs, else their only one
+    // (chooseRecordUnit). Without it the row reached My Household but no unit page.
+    const units = (await memberUnitsInOrg(orgId, memberId)).map((u) => u.id);
     await admin.request(
       createItem(collection, {
-        ...payload,
+        ...pick(payload, fields),
+        unit_id: chooseRecordUnit(payload.unit_id, units),
         member_id: memberId,
         organization: orgId,
         status: "published",
@@ -127,7 +134,7 @@ export async function applyChangeRequest(admin: ReturnType<typeof getTypedDirect
     return;
   }
   if (action === "update") {
-    await admin.request(updateItem(collection, cr.target_id, payload));
+    await admin.request(updateItem(collection, cr.target_id, pick(payload, fields)));
     return;
   }
   if (action === "delete") {

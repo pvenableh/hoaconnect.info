@@ -15,6 +15,8 @@ export interface HouseholdData {
   vehicles: any[];
   pets: any[];
   pendingRequests: { id: string; kind: string; action: string; target_id: string | null }[];
+  /** The units the resident is linked to here, primary first. */
+  units: { id: string; unit_number: string | null }[];
 }
 
 export type ChangeKind = "contact" | "mailing_address" | "vehicle" | "pet";

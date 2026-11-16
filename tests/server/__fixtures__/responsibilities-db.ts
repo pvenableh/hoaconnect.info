@@ -49,6 +49,8 @@ const RELATIONS: Record<string, Record<string, string>> = {
   // tests/server/admin-relation-writes.test.ts
   hoa_pets: { member_id: "hoa_members", unit_id: "hoa_units" },
   hoa_vehicles: { member_id: "hoa_members", unit_id: "hoa_units" },
+  hoa_leases: { unit: "hoa_units", tenant: "hoa_members", owner: "hoa_members" },
+  hoa_member_units: { member_id: "hoa_members", unit_id: "hoa_units" },
 };
 
 export type Db = Record<string, any[]>;
@@ -206,6 +208,7 @@ export function sdkMock() {
   return {
     readItems: (collection: string, query?: any) => ({ op: "readItems", collection, query }),
     readItem: (collection: string, id: string, query?: any) => ({ op: "readItem", collection, id, query }),
+    readFile: (id: string, query?: any) => ({ op: "readItem", collection: "directus_files", id, query }),
     readUsers: (query?: any) => ({ op: "readItems", collection: "directus_users", query }),
     createItem: (collection: string, data: any) => ({ op: "createItem", collection, data }),
     createItems: (collection: string, data: any) => ({ op: "createItems", collection, data }),
