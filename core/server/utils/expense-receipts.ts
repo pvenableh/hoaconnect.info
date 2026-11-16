@@ -1,5 +1,6 @@
 /**
- * An expense's receipt: storing it, and who may open it.
+ * An expense's receipt: storing it, which file an expense may name, and who
+ * may open it.
  *
  * Who may open it: whoever may read that community's books (canReadMoney:
  * its admins and every board seat), the same people the expense list is for.
@@ -9,6 +10,7 @@
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { storeUnfiledUpload, type UploadPart } from "./private-uploads";
+import { assertDocumentInOrg } from "./unit-record-writes";
 
 /** One receipt per request, under the host's 4.5 MB body limit. */
 export const RECEIPT_MAX_BYTES = 4 * 1024 * 1024;
@@ -28,6 +30,19 @@ export async function storeExpenseReceipt(orgId: string, userId: string, part: U
     tooBig: "That file is over 4 MB. Save a smaller copy and try again.",
     fallbackName: "receipt",
   });
+}
+
+/**
+ * Throw 403 unless an expense may name this file as its receipt: one of the
+ * community's files (its library, or claimed by one of its records, such as
+ * this expense), or one the caller uploaded and filed nowhere, which is where
+ * storeExpenseReceipt puts a new one. Another community's file is neither, and
+ * someone else's loose upload is not the caller's to claim. Saved, the
+ * receipt opens to whoever reads the books (mayOpenExpenseReceipt), so this
+ * is what keeps one community's file from opening to another's admin.
+ */
+export async function assertReceiptInOrg(orgId: string, fileId: string | null | undefined, userId: string): Promise<void> {
+  await assertDocumentInOrg(orgId, fileId, userId, "That receipt isn't one of this community's files.");
 }
 
 const idOf = (v: unknown): string | null =>

@@ -10,16 +10,19 @@
  * expense_date, paid_date, description, receipt (M2O directus_files), notes,
  * organization* (M2O, CASCADE), + system fields.
  *
- * Permissions (Phase 5/6 pattern, in this script): HOA Admin manages all rows in
- * their org; HOA Member gets NO access. Board-treasurer read, if ever wanted, is
- * enforced via an elevated server route (the admin-or-board pattern), not a row
- * policy — so it's deliberately omitted here.
+ * Permissions (Phase 5/6 pattern, in this script): HOA Admin reads and deletes
+ * the rows in their org; creates and edits go through POST and PATCH
+ * /api/org/expenses, which check the project and receipt a row names
+ * (REMOVED_ADMIN_RULES). HOA Member gets NO access. Board-treasurer read, if
+ * ever wanted, is enforced via an elevated server route (the admin-or-board
+ * pattern), not a row policy — so it's deliberately omitted here.
  *
  * Run with: pnpm run create:expenses
  *
  * Prerequisites: DIRECTUS_URL + DIRECTUS_STATIC_TOKEN in .env (admin token).
  * Idempotent: existing collection/fields/relations/permissions are skipped.
  */
+import { isRemovedAdminRule } from "./lib/admin-scope-perms";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -226,8 +229,10 @@ async function setupPermissions(): Promise<void> {
   const orgFilter = { organization: { _in: "$CURRENT_USER.hoa_members.organization" } };
 
   if (adminPolicy) {
-    console.log("\n   📋 payment_expenses for HOA Admin (full org access)...");
-    for (const action of ["create", "read", "update", "delete"]) {
+    console.log("\n   📋 payment_expenses for HOA Admin (read and delete)...");
+    // Create and update are routes now (POST and PATCH /api/org/expenses),
+    // which check the project and receipt; see REMOVED_ADMIN_RULES.
+    for (const action of ["create", "read", "update", "delete"].filter((a) => !isRemovedAdminRule("payment_expenses", a))) {
       await postPermission(adminPolicy.id, "payment_expenses", action, {
         permissions: orgFilter,
         validation: action === "create" || action === "update" ? orgFilter : null,

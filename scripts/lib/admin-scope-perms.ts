@@ -99,9 +99,9 @@ export function scopeManagerPermission<P extends { collection: string; action: s
 
 /**
  * HOA Admin rules removed outright: every create and update whose validation
- * followed a relation (measured live 2026-11-15), and the lease rule, which
- * named rows it did not check (2026-11-16), each with what does the write
- * instead:
+ * followed a relation (measured live 2026-11-15), and the lease and expense
+ * rules, which named rows they did not check (2026-11-16), each with what does
+ * the write instead:
  *   meeting attachments    none: no page writes these links;
  *                          `/api/directus/items` checks the meeting if one does
  *   meeting attendees      POST /api/org/meetings/[id]/attendees
@@ -109,6 +109,9 @@ export function scopeManagerPermission<P extends { collection: string; action: s
  *   leases                 the same routes. Its validation was on the lease's
  *                          own organization, which held, but the unit, tenant
  *                          and owner it names were not checked at all
+ *   expenses               POST and PATCH /api/org/expenses. The same: the
+ *                          project and receipt it names went unchecked, and the
+ *                          asset proxy opens a receipt to the books' readers
  *   member–unit links      /api/hoa/member-units/assign and /remove
  *   board terms            POST /api/org/board-terms, PATCH board-terms/[id]
  *   email recipients and   /api/email/send and the delivery webhook
@@ -132,6 +135,7 @@ export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string 
   ...CREATE_AND_UPDATE("hoa_pets"),
   ...CREATE_AND_UPDATE("hoa_vehicles"),
   ...CREATE_AND_UPDATE("hoa_leases"),
+  ...CREATE_AND_UPDATE("payment_expenses"),
   ...CREATE_AND_UPDATE("hoa_member_units"),
   ...CREATE_AND_UPDATE("hoa_board_members"),
   ...CREATE_AND_UPDATE("hoa_email_recipients"),

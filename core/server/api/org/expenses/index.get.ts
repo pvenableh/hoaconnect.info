@@ -4,7 +4,8 @@
  * only way the app reads them: members have no Directus access to
  * `payment_expenses`, and the board's oversight must not depend on it.
  *
- * Writes stay admin-only (useExpenses, /api/org/expenses/record).
+ * Writes are POST and PATCH /api/org/expenses (an admin, or a manager with the
+ * projects grant), and /api/org/expenses/record for `paid`.
  */
 import { readItems } from "@directus/sdk";
 

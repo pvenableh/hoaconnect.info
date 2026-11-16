@@ -47,13 +47,19 @@ export async function assertPhotoInOrg(orgId: string, image: string | null | und
  * files (its library, or claimed by one of its records, such as this lease),
  * or a file the caller uploaded and has not filed in any library. The lease
  * form uploads with no folder, so a new lease's document is the second kind;
- * another community's file is neither.
+ * another community's file is neither. An expense's receipt is checked the
+ * same way (assertReceiptInOrg, expense-receipts.ts), with its own message.
  */
-export async function assertDocumentInOrg(orgId: string, fileId: string | null | undefined, userId: string): Promise<void> {
+export async function assertDocumentInOrg(
+  orgId: string,
+  fileId: string | null | undefined,
+  userId: string,
+  message = "That document isn't one of this community's files."
+): Promise<void> {
   if (!fileId) return;
   if (!(await filesOutsideOrg(orgId, [fileId])).length) return;
   if (await ownUnfiledUpload(fileId, userId)) return;
-  throw createError({ statusCode: 403, message: "That document isn't one of this community's files." });
+  throw createError({ statusCode: 403, message });
 }
 
 interface UploadedFile {

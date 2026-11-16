@@ -111,9 +111,9 @@ const save = async () => {
     };
     let expenseId = editingId.value;
     if (editingId.value) {
-      await update(editingId.value, payload);
+      await update(editingId.value, payload, selectedOrgId.value);
     } else {
-      const created = (await create(payload, selectedOrgId.value)) as any;
+      const created = await create(payload, selectedOrgId.value);
       expenseId = created?.id ?? null;
     }
 

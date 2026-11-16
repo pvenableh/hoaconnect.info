@@ -1,8 +1,10 @@
 // useExpenses — org-scoped CRUD for payment_expenses (Phase 7b, Track A).
 // Money OUT: vendor bills, maintenance, utilities, etc. Reads go through the
-// server (/api/org/expenses: admins and every board seat, money:read); writes
-// are admin-only, through Directus (members have no access to the collection),
-// plus a receipt-upload helper (its own route: a receipt is filed in no library).
+// server (GET /api/org/expenses: admins and every board seat, money:read).
+// Creates and edits do too (POST and PATCH /api/org/expenses), which check the
+// project and receipt an expense names (core/shared/expenses/expense-writes.ts);
+// a delete is still Directus on the admin's token. Plus a receipt-upload helper
+// (its own route: a receipt is filed in no library).
 
 import type { PaymentExpense } from "#core/types/directus";
 
@@ -34,11 +36,19 @@ export function useExpenses() {
     return money.listExpenses(org);
   };
 
+  /** A new expense in the org; never `paid` (that is /api/org/expenses/record). */
   const create = (data: Partial<PaymentExpense>, orgId?: string) =>
-    items.create({ organization: orgId || selectedOrgId.value, ...data } as Partial<PaymentExpense>);
+    $fetch<PaymentExpense>("/api/org/expenses", {
+      method: "POST",
+      body: { orgId: orgId || selectedOrgId.value, expense: data },
+    });
 
-  const update = (id: string, data: Partial<PaymentExpense>) =>
-    items.update(id, data as Partial<PaymentExpense>);
+  /** A change to one of the org's expenses; `paid` only on one already paid. */
+  const update = (id: string, data: Partial<PaymentExpense>, orgId?: string) =>
+    $fetch<PaymentExpense>("/api/org/expenses", {
+      method: "PATCH",
+      body: { orgId: orgId || selectedOrgId.value, id, patch: data },
+    });
 
   const remove = (id: string) => items.remove(id);
 

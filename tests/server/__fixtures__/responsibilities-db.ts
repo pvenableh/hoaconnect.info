@@ -54,6 +54,8 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_member_units: { member_id: "hoa_members", unit_id: "hoa_units" },
   // tests/server/accept-invitation.test.ts
   hoa_invitations: { organization: "hoa_organizations", invited_by: "directus_users", role: "directus_roles", unit: "hoa_units" },
+  // tests/server/expense-writes.test.ts
+  payment_expenses: { project: "hoa_projects", receipt: "directus_files" },
 };
 
 export type Db = Record<string, any[]>;
