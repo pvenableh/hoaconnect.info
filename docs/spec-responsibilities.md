@@ -69,16 +69,18 @@ Every route is under `/api/org`, takes `orgId` (query on GET and DELETE, body ot
 
 Gap, stated once: an admin can still flip the two switches on `hoa_organizations` through Directus, without the activity row. The app writes them only through the route.
 
-## For Session 7 (the pages)
+## The pages (Session 7, built 2026-11-16)
 
-- Panel type `responsibility`, resource key `responsibilities`, index `/admin/responsibilities`, record route `/admin/responsibilities/:id` (`AppResourceRecordPage`, the index's middleware). Owner view `/responsibilities`, its own registry entry. The register's `def.load` is `GET responsibilities`; the owner view's is `GET published`.
-- Grouped rows with sticky headers go into `AppResourceIndex` itself (it has no grouping yet), not into the register page, so every grouped index gets them.
-- Nav: the register needs `responsibilities:read` or the area, plus the module. Add `responsibilities` to `ModuleKey` and the Settings → Modules list.
-- After the Board tab moves to the term routes, take update and delete on `hoa_board_members` away from the HOA Admin policy, so history cannot be overwritten through the API.
+- **Admin register** `/{slug}/admin/responsibilities` (`app/pages/[slug]/admin/responsibilities/index.vue`) on `AppResourceIndex`, rows grouped by the five categories (`group` and `groups`, `REGISTER_GROUPS`). `useResponsibilitiesResource` (`core/app/composables/`) is its `def.load` (`GET responsibilities`), the shared `asOf` day and the writes. Record route `/admin/responsibilities/:id` and panel type `responsibility` (`ResponsibilityPanel.vue`), resource key `responsibilities`. Forms in `app/components/Responsibilities/`: `JobForm`, `HolderForm` (hand over, assign), `HolderCorrectForm`, `HolderPicker`, `VisibilityMenu` (admin only), `HolderChips`.
+- **Owner view** `/{slug}/responsibilities` on `GET published`, its own registry entry (`responsibilities`, the module only). The pure helpers for both are `core/shared/responsibilities/register-view.ts`.
+- **Board tab** (`MembersPage.vue`, `app/components/Members/BoardTermSheets.vue`): End term, Change office and Correct, Delete in the overflow, an As of date. **Service history** is `Members/ServiceHistory.vue`, under the Edit Member form.
+- **Nav.** Two registry entries on `/admin/responsibilities`, because needs are ANDed: `responsibilities-register` (`responsibilities:read`: admins and every board seat; in the admin and member docks) and `responsibilities-mgr` (the `responsibilities` area: managers). `entriesForPath` treats entries that tie on a path as any-of for the gate, as `documents` and `documents-mgr` already do. Module key `responsibilities` is in `ModuleKey` and Settings → Modules.
+- **Permissions.** The Board tab no longer writes `hoa_board_members` with the user's token: add, end, change office, correct and delete are the routes above. The HOA Admin create, update and delete on it are all in `REMOVED_ADMIN_RULES`; the delete is an operator `pnpm setup:permissions` to apply.
+- **Not built:** the discussion thread (`hoa_channels` links a request, a project or a vendor, not a job: a schema script and `channel-scope` rules first), a way to attach files (the panel lists what the route returns), the Map mode.
 
 ## Hook points (not built)
 
-Map mode (Phase 2c) reads the same two GET routes. The director survey, the monthly review and the home tile (Phase 11) add their own collections. Reminders on next review read `nextReview()`. `area` is where a later check compares the register with `manager_areas.notify`; nothing syncs. No billing.
+Map mode (Phase 2c) reads the same two GET routes, and sits beside the grid in `index.vue` (`data-register-view="grid"`). The director survey, the monthly review and the home tile (Phase 11) add their own collections. Reminders on next review read `nextReview()`. `area` is where a later check compares the register with `manager_areas.notify`; nothing syncs. No billing.
 
 ## Named tests
 
