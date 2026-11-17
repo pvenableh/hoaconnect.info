@@ -1,7 +1,8 @@
 /**
  * GET /api/org/member-restrictions/mine?orgId= — the caller's own pause in
- * this community, if any: `{ restricted, endsAt, memberNote }` and nothing
- * else (never who imposed it or the board's internal note).
+ * this community, if any: `{ restricted, endsAt, memberNote, until }` and
+ * nothing else (never who imposed it or the board's internal note). `until`
+ * is the end date as the member reads it, on the community's clock.
  * docs/spec-member-restrictions.md.
  *
  * Any active member. The banner asks on every page of the community, so this
@@ -9,9 +10,10 @@
  * stored mirror disagrees with the derived answer, the membership is synced.
  */
 import { readItems } from "@directus/sdk";
-import { openRestriction } from "#core/shared/members/restrictions";
+import { openRestriction, restrictionUntil } from "#core/shared/members/restrictions";
 import { orgIdFromQuery } from "#core/server/utils/delegation";
 import { syncAdminScope } from "#core/server/utils/admin-scope";
+import { orgCopyContext } from "#core/server/utils/member-restrictions";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -50,5 +52,7 @@ export default defineEventHandler(async (event) => {
     await syncAdminScope(stale.map((m) => String(m.id))).catch((e) => console.warn("[member-restrictions] heal sync failed:", e?.message ?? e));
   }
 
-  return { restricted: !!open, endsAt: open?.ends_at ?? null, memberNote: open?.member_note ?? null };
+  if (!open) return { restricted: false, endsAt: null, memberNote: null, until: null };
+  const { timeZone } = await orgCopyContext(orgId);
+  return { restricted: true, endsAt: open.ends_at ?? null, memberNote: open.member_note ?? null, until: restrictionUntil(open.ends_at, timeZone) };
 });

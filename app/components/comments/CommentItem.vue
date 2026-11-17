@@ -41,6 +41,9 @@ const showReply = ref(false);
 const isEditing = ref(false);
 const editBody = ref("");
 const showReportDialog = ref(false);
+// Paused posting (docs/spec-member-restrictions.md): no reply, edit or report;
+// deleting their own comment stays. The reply composer and the banner say why.
+const { paused: postingPaused } = usePostingPause();
 
 // A hidden comment stays visible (greyed) to its AUTHOR and to moderators;
 // other members never receive it from the API. No click-to-reveal needed.
@@ -217,7 +220,7 @@ const onDelete = async () => {
           :can-react="canReact"
         />
         <button
-          v-if="canReply"
+          v-if="canReply && !postingPaused"
           type="button"
           class="text-xs t-text-muted hover:t-text"
           @click="showReply = !showReply"
@@ -225,7 +228,7 @@ const onDelete = async () => {
           Reply
         </button>
         <button
-          v-if="mine"
+          v-if="mine && !postingPaused"
           type="button"
           class="text-xs t-text-muted hover:t-text"
           @click="startEdit"
@@ -241,7 +244,7 @@ const onDelete = async () => {
           Delete
         </button>
         <button
-          v-if="!mine && user?.id"
+          v-if="!mine && user?.id && !postingPaused"
           type="button"
           class="text-xs t-text-muted hover:text-red-600"
           @click="showReportDialog = true"

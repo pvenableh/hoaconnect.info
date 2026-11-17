@@ -1059,6 +1059,38 @@ const materials = [
         </div>
       </section>
 
+      <!-- ── Posting paused (restricted members) ─────────────────────── -->
+      <section data-kit="posting-paused">
+        <h2 class="type-section">Posting paused</h2>
+        <p class="type-body">
+          A member whose posting an admin paused (docs/spec-member-restrictions.md). The banner rides every
+          page of that community (RestrictionsPostingPausedBanner); each composer, reaction bar and Report
+          gives way to one line; the admin sees a chip on the Members list and the Posting section of the
+          member's sheet (RestrictionsPostingPause). Static here: the real ones read the member's own pause.
+        </p>
+        <div class="mt-3 grid gap-3">
+          <div class="border-b t-border bg-warning/15 px-4 py-3" role="status">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="flex items-start gap-3">
+                <Icon name="i-lucide-message-square-off" class="mt-0.5 size-5 shrink-0 text-warning" />
+                <div class="grid gap-0.5">
+                  <p class="text-sm font-medium t-text">Posting is paused in 1033 Lenox until December 18, 2026</p>
+                  <p class="text-sm t-text-secondary">Please keep the building chat civil. The board will review this in a month.</p>
+                  <p class="text-xs t-text-muted">You can still read everything, pay dues, and send requests to the board.</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm">Contact the board</Button>
+            </div>
+          </div>
+          <p class="glass-surface p-3 text-sm t-text-muted">
+            Your posting is paused here until December 18, 2026. You can still read, pay dues and send requests to the board.
+          </p>
+          <p>
+            <span class="rounded-full bg-warning/15 px-2 py-0.5 type-micro text-warning">Posting paused</span>
+          </p>
+        </div>
+      </section>
+
       <!-- ── Materials ────────────────────────────────────────────────── -->
       <section>
         <h2 class="type-section">Materials</h2>

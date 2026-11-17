@@ -29,6 +29,7 @@ const { buildOrgPath } = useOrgNavigation();
 const { confirm } = useConfirm();
 const { user: currentUser } = useDirectusAuth();
 const { create: createMessage } = useDirectusItems("hoa_channel_messages");
+const { paused: postingPaused, composerLine: postingPausedLine } = usePostingPause();
 const { create: createMention } = useDirectusItems("hoa_channel_mentions");
 const { announce } = useNotifyEvent();
 const { peerFor, refreshPeers } = useDirectMessages();
@@ -817,8 +818,12 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- Posting paused (docs/spec-member-restrictions.md): one line in the composer's place. -->
+    <div v-if="currentChannel && postingPaused" class="p-3 sm:p-4" data-testid="channel-composer-paused">
+      <p class="max-w-4xl mx-auto glass-surface p-3 text-sm t-text-muted">{{ postingPausedLine }}</p>
+    </div>
     <!-- Message Input -->
-    <div v-if="currentChannel" class="p-3 sm:p-4">
+    <div v-else-if="currentChannel" class="p-3 sm:p-4">
       <div class="max-w-4xl mx-auto glass-surface p-3" data-testid="channel-composer">
         <div class="flex gap-3">
           <div class="flex-1">

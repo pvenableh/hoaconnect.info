@@ -162,6 +162,10 @@ onMounted(() => {
       :is-free-account="currentOrg.organization.is_free_account"
       :grace-ends-at="currentOrg.organization.grace_ends_at"
     />
+    <!-- The member's own posting pause in this community (docs/spec-member-restrictions.md). -->
+    <ClientOnly>
+      <RestrictionsPostingPausedBanner :organization-name="currentOrg?.organization?.name" />
+    </ClientOnly>
     <!-- The page's ONE title. Here — outside <slot />, so it survives every
          navigation and changes in place while the page slides — and pages
          register into it with <AppPageHeader> (composables/usePageTitle.ts). -->

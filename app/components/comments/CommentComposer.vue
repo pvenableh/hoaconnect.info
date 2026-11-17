@@ -20,6 +20,7 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: "posted"): void }>();
 
 const { createComment } = useComments(props.targetCollection, () => props.targetId);
+const { paused: postingPaused, composerLine: postingPausedLine } = usePostingPause();
 
 const body = ref("");
 const attachments = ref<string[]>([]);
@@ -65,7 +66,9 @@ const submit = async () => {
 </script>
 
 <template>
-  <div class="space-y-2">
+  <!-- Posting paused (docs/spec-member-restrictions.md): one line in the composer's place. -->
+  <p v-if="postingPaused" class="text-sm t-text-muted" data-comment-composer-paused>{{ postingPausedLine }}</p>
+  <div v-else class="space-y-2">
     <ChannelsChannelEditor
       ref="editorRef"
       v-model="body"

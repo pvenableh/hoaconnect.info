@@ -266,13 +266,13 @@ describe("mine", () => {
     openRow({ ends_at: "2099-01-01T00:00:00.000Z" });
     as(PERSONAS.owner);
     const res = await mine(ev({ query: { orgId: ORG } }));
-    expect(res).toEqual({ restricted: true, endsAt: "2099-01-01T00:00:00.000Z", memberNote: "Paused." });
+    expect(res).toEqual({ restricted: true, endsAt: "2099-01-01T00:00:00.000Z", memberNote: "Paused.", until: "until December 31, 2098" });
   });
 
   it("not paused: nothing to say; and someone else's pause is not theirs", async () => {
     openRow({ member: ID.memberAnn });
     as(PERSONAS.owner);
-    expect(await mine(ev({ query: { orgId: ORG } }))).toEqual({ restricted: false, endsAt: null, memberNote: null });
+    expect(await mine(ev({ query: { orgId: ORG } }))).toEqual({ restricted: false, endsAt: null, memberNote: null, until: null });
   });
 
   it("403 for someone who is not an active member there; 401 without a session", async () => {

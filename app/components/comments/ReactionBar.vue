@@ -13,11 +13,16 @@ const { aggregated, toggle } = useReactions(
   () => props.targetId
 );
 
+// A paused member keeps seeing reactions but cannot add or change one
+// (docs/spec-member-restrictions.md); the composer and banner say why.
+const { paused: postingPaused } = usePostingPause();
+const mayReact = computed(() => props.canReact && !postingPaused.value);
+
 const QUICK_EMOJI = ["👍", "❤️", "🎉", "😂", "👀", "🙏", "✅"];
 const showPicker = ref(false);
 
 const onToggle = async (emoji: string) => {
-  if (!props.canReact) return;
+  if (!mayReact.value) return;
   showPicker.value = false;
   try {
     await toggle(emoji);
@@ -35,7 +40,7 @@ const onToggle = async (emoji: string) => {
       :key="r.emoji"
       type="button"
       @click="onToggle(r.emoji)"
-      :disabled="!canReact"
+      :disabled="!mayReact"
       class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors"
       :class="
         r.reactedByMe
@@ -48,7 +53,7 @@ const onToggle = async (emoji: string) => {
     </button>
 
     <!-- Add reaction -->
-    <div v-if="canReact" class="relative">
+    <div v-if="mayReact" class="relative">
       <button
         type="button"
         @click="showPicker = !showPicker"

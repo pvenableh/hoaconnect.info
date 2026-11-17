@@ -89,6 +89,20 @@ const helperAreasOf = (memberId: string) => {
   return HELPER_AREA_KEYS.filter((k) => held.has(k)).map((k) => HELPER_AREA_COPY[k].label);
 };
 
+// "Posting paused" (docs/spec-member-restrictions.md): pauses in force, from
+// the admin-only GET /api/org/member-restrictions (anyone else gets nothing).
+const { data: pausedOpen, refresh: refreshPaused } = await useAsyncData(
+  () => `member-posting-paused-${orgId.value}`,
+  () =>
+    orgId.value
+      ? $fetch<{ open: Array<{ member: string | null }> }>("/api/org/member-restrictions", { query: { orgId: orgId.value } })
+          .then((r) => r.open)
+          .catch(() => [])
+      : Promise.resolve([]),
+  { server: false, watch: [orgId], default: () => [] },
+);
+const isPostingPaused = (memberId: string) => (pausedOpen.value ?? []).some((r) => r.member === memberId);
+
 // Phase 3a: a bounced / unsubscribed chip beside the name, with Clear.
 const emailStatus = useMemberEmailStatus(orgId);
 const clearEmailStatus = async (memberId: string, what: "bounced" | "opt_out") => {
@@ -1143,6 +1157,13 @@ useSeoMeta({
                       >
                         Helps · {{ helperAreasOf(row.id).join(", ") }}
                       </span>
+                      <span
+                        v-if="isPostingPaused(row.id)"
+                        class="rounded-full bg-warning/15 px-2 py-0.5 type-micro text-warning"
+                        data-posting-paused-chip
+                      >
+                        Posting paused
+                      </span>
                     </span>
                   </template>
                   <template #cell-units="{ row }">
@@ -1677,6 +1698,9 @@ useSeoMeta({
 
             <!-- Areas this member works as a helper: admin only (the route refuses anyone else). -->
             <DelegationHelperAreaSwitches v-if="editingId && orgId" :org-id="orgId" :member="editingId" @changed="refreshHelpers()" />
+
+            <!-- Pause this member's posting: admin only (the route refuses anyone else). -->
+            <RestrictionsPostingPause v-if="editingId && orgId" :org-id="orgId" :member="editingId" @changed="refreshPaused()" />
           </div>
           <template #footer>
             <Button
