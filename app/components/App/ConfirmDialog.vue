@@ -90,7 +90,9 @@ function onFieldKeydown(e: KeyboardEvent) {
 
 <template>
   <AlertDialog v-model:open="open">
-    <AlertDialogContent v-if="shown" data-confirm-dialog class="sm:max-w-md" @open-auto-focus="onOpenFocus">
+    <!-- z-[80]: above AppBottomSheet (z-index 70), so a confirm asked from inside a
+         sheet is seen; at the primitive's z-50 it opened hidden behind it (2026-11-17). -->
+    <AlertDialogContent v-if="shown" data-confirm-dialog class="sm:max-w-md z-[80]" @open-auto-focus="onOpenFocus">
       <AlertDialogHeader>
         <AlertDialogTitle>{{ shown.title }}</AlertDialogTitle>
         <AlertDialogDescription v-if="shown.body">{{ shown.body }}</AlertDialogDescription>
