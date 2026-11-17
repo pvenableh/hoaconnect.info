@@ -148,6 +148,8 @@ describe("switching", () => {
     expect(grants()[0].ends_at ?? null).toBeNull();
     expect(ledger).toHaveLength(1);
     expect(ledger[0]).toMatchObject({ event_type: "helper_grant_changed", organization: ORG, visibility: "owners" });
+    // The session carries no name; the entry still names the admin, not a login.
+    expect(ledger[0]).toMatchObject({ actor_user: ID.userAdmin, actor_name: "Ada Min" });
   });
 
   it("on twice is a no-op: no second row, no second entry", async () => {

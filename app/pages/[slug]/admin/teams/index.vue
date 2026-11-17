@@ -15,7 +15,7 @@ const { buildOrgPath } = useOrgNavigation();
       <div>
         <h1 class="text-2xl font-semibold t-text">Teams</h1>
         <p class="text-sm t-text-muted mt-0.5">
-          Create named teams and empower members to manage a domain.
+          Create committees, and choose on each team page what its members can work on.
         </p>
       </div>
 

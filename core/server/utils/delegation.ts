@@ -8,7 +8,7 @@
  * admin only too.
  */
 import type { H3Event } from "h3";
-import { readItems } from "@directus/sdk";
+import { readItems, readUser } from "@directus/sdk";
 import { z } from "zod";
 import type { LedgerActor } from "#core/shared/ledger/entry";
 import { openAreasOf, refId, type AreaGrantRow, type GrantHolder, type HelperAreaKey } from "#core/shared/roles/area-grants";
@@ -22,10 +22,25 @@ export async function requireDelegationAdmin(event: H3Event, orgId: string): Pro
   if (!admin.isAdmin) {
     throw createError({ statusCode: 403, message: "Only an administrator can change who helps with what." });
   }
+  // The session carries the login, not always the name. A ledger entry is the
+  // permanent record of who granted what, so read the name when it is missing.
+  let first = user.first_name;
+  let last = user.last_name;
+  let email = user.email ?? null;
+  if (!first && !last) {
+    try {
+      const u = (await getTypedDirectus().request(readUser(String(user.id), { fields: ["first_name", "last_name", "email"] as any }))) as any;
+      first = u?.first_name;
+      last = u?.last_name;
+      email = email ?? u?.email ?? null;
+    } catch {
+      // The email still names them.
+    }
+  }
   return {
     userId: String(user.id),
-    name: [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.email || "An administrator",
-    email: user.email ?? null,
+    name: [first, last].filter(Boolean).join(" ").trim() || email || "An administrator",
+    email,
   };
 }
 
