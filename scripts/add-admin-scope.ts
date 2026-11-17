@@ -39,6 +39,7 @@ import {
   type ScopedChannelRow,
   type ScopedMembershipWithGrants,
 } from "../core/shared/roles/admin-scope";
+import { readRestrictedNow } from "./lib/restricted-members";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -147,7 +148,8 @@ async function backfillChannels(present: boolean): Promise<void> {
   const members: ScopedMembershipWithGrants[] = (await directusFetch("/items/hoa_members?fields=*&limit=-1"))?.data ?? [];
   const res = await directusFetch("/items/hoa_channel_members?fields=*,channel.id,channel.organization&limit=-1");
   const rows: ScopedChannelRow[] = (res?.data ?? []).map((r: ScopedChannelRow) => (present ? r : { posts_to: null, ...r }));
-  const changes = channelScopeChanges(rows, postingOrgsByUser(members, ROLES));
+  const restricted = await readRestrictedNow(DIRECTUS_URL!, DIRECTUS_STATIC_TOKEN!);
+  const changes = channelScopeChanges(rows, postingOrgsByUser(members, ROLES, (id) => restricted.has(id)));
   for (const c of changes) {
     console.log(`   ${DRY_RUN ? "🔎 would set" : "✏️  set"} ${c.id} → ${JSON.stringify({ posts_to: c.posts_to })}`);
     if (!DRY_RUN) await directusFetch(`/items/hoa_channel_members/${c.id}`, { method: "PATCH", body: JSON.stringify({ posts_to: c.posts_to }) });
@@ -163,7 +165,9 @@ async function backfill(present: Set<ScopeField>): Promise<void> {
   const rows: ScopedMembershipWithGrants[] = (res?.data ?? []).map((r: ScopedMembershipWithGrants) =>
     DRY_RUN ? { ...Object.fromEntries(SCOPE_FIELDS.filter((f) => !present.has(f)).map((f) => [f, null])), ...r } : r
   );
-  const changes = scopeChanges(rows, ROLES);
+  // posts_in is null while a pause is in force (docs/spec-member-restrictions.md).
+  const restricted = await readRestrictedNow(DIRECTUS_URL!, DIRECTUS_STATIC_TOKEN!);
+  const changes = scopeChanges(rows, ROLES, undefined, (id) => restricted.has(id));
   for (const c of changes) {
     console.log(`   ${DRY_RUN ? "🔎 would set" : "✏️  set"} ${c.id} → ${JSON.stringify(c.patch)}`);
     if (!DRY_RUN) await directusFetch(`/items/hoa_members/${c.id}`, { method: "PATCH", body: JSON.stringify(c.patch) });

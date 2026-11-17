@@ -24,6 +24,7 @@ import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
 import { chatCreateValidation, isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission, scopeMemberPermission } from "./lib/admin-scope-perms";
 import { baseOf, planSharedValidations, type LiveRule, type PolicyKind } from "./lib/shared-write-validations";
 import { MANAGER_SCOPE_FIELDS, MEMBER_SCOPE_FIELDS, adminScopeChanges, channelScopeChanges, postingOrgsByUser, scopeChanges, type ScopedChannelRow, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
+import { readRestrictedNow } from "./lib/restricted-members";
 import { ADMIN_FILE_FIELDS, PLACEMENT_FIELDS, adminWritableFields, fieldsWithout } from "../core/shared/roles/admin-file-fields";
 
 // ============================================================================
@@ -1723,19 +1724,22 @@ async function postingScopeReadiness(): Promise<{ ready: boolean; reason: string
   if (!Array.isArray(rows) || rows.length === 0) {
     return { ready: false, reason: "read no memberships, so the posting scope cannot be checked" };
   }
-  const wrong = scopeChanges(rows, roles, MEMBER_SCOPE_FIELDS);
+  // A paused member's posts_in is null: read the pauses as the sync does.
+  const restricted = await readRestrictedNow(DIRECTUS_URL!, DIRECTUS_STATIC_TOKEN!);
+  const paused = (id: string) => restricted.has(id);
+  const wrong = scopeChanges(rows, roles, MEMBER_SCOPE_FIELDS, paused);
   if (wrong.length) {
     return { ready: false, reason: `${wrong.length} memberships have a wrong active_in or posts_in (run pnpm add:admin-scope)` };
   }
   const channelRows = await directusApi<ScopedChannelRow[]>(
     "/items/hoa_channel_members?fields=id,user,posts_to,channel.id,channel.organization&limit=-1"
   );
-  const wrongChannels = channelScopeChanges(channelRows ?? [], postingOrgsByUser(rows, roles));
+  const wrongChannels = channelScopeChanges(channelRows ?? [], postingOrgsByUser(rows, roles, paused));
   if (wrongChannels.length) {
     return { ready: false, reason: `${wrongChannels.length} channel rows have a wrong posts_to (run pnpm add:admin-scope)` };
   }
   const posting = rows.filter((r) => r.posts_in).length;
-  return { ready: true, reason: `${rows.length} memberships, ${channelRows?.length ?? 0} channel rows, right on all (${posting} post in a community)` };
+  return { ready: true, reason: `${rows.length} memberships, ${channelRows?.length ?? 0} channel rows, right on all (${posting} post in a community, ${restricted.size} paused)` };
 }
 
 /**

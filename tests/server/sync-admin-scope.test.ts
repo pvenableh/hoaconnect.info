@@ -15,6 +15,7 @@ const PM = "role-pm";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 let rows: any[];
 let channelRows: any[];
+let restrictionRows: any[] | Error;
 let writes: any[];
 let reads: any[];
 let cron: boolean;
@@ -29,6 +30,7 @@ beforeEach(() => {
   // Rows read with "*" carry every scope field that exists; these three do not
   // have the manager fields yet, so only admin_of is compared on them.
   channelRows = [];
+  restrictionRows = Object.assign(new Error("no collection"), { errors: [{ extensions: { code: "FORBIDDEN" } }] });
   writes = [];
   reads = [];
   cron = true;
@@ -41,6 +43,12 @@ beforeEach(() => {
   vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: ADMIN, directusRolePropertyManager: PM, directusRoleAppAdmin: "role-app-admin" } }));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
+      if (op.collection === "hoa_member_restrictions") {
+        reads.push(op);
+        if (restrictionRows instanceof Error) throw restrictionRows;
+        const ids = op.query.filter?._and?.[0]?.member?._in as string[] | undefined;
+        return restrictionRows.filter((r: any) => !ids || ids.includes(r.member));
+      }
       const table = op.collection === "hoa_channel_members" ? channelRows : rows;
       if (op.op === "read") {
         reads.push(op);
@@ -141,6 +149,33 @@ describe("sync-admin-scope", () => {
     // The person's every membership decides, not only the one named.
     expect(reads.find((r) => r.collection === "hoa_members" && r.query.filter?.user)?.query.filter).toEqual({ user: { _in: ["u11"] } });
     expect(reads.find((r) => r.collection === "hoa_channel_members")?.query.fields).toEqual(["*", "channel.id", "channel.organization"]);
+  });
+
+  it("reads the pauses: a paused member keeps active_in, loses posts_in and their chat rows close", async () => {
+    rows = [
+      { id: id(14), user: "u14", role: "role-member", status: "active", organization: "org-a", admin_of: null, active_in: "org-a", posts_in: "org-a" },
+      { id: id(15), user: "u15", role: "role-member", status: "active", organization: "org-a", admin_of: null, active_in: "org-a", posts_in: null },
+    ];
+    channelRows = [{ id: "c4", user: "u14", channel: { id: "ch-a", organization: "org-a" }, posts_to: "ch-a" }];
+    // u14 paused now; u15's pause ended by date, so posting reopens.
+    restrictionRows = [
+      { member: id(14), starts_at: "2026-01-01T00:00:00.000Z", ends_at: null, lifted_at: null },
+      { member: id(15), starts_at: "2026-01-01T00:00:00.000Z", ends_at: "2026-01-02T00:00:00.000Z", lifted_at: null },
+    ];
+    await call({ keys: [id(14), id(15)] });
+    expect(writes.map((w) => [w.collection, w.id, w.data])).toEqual([
+      ["hoa_members", id(14), { posts_in: null }],
+      ["hoa_members", id(15), { posts_in: "org-a" }],
+      ["hoa_channel_members", "c4", { posts_to: null }],
+    ]);
+    expect(reads.find((r) => r.collection === "hoa_member_restrictions")?.query.filter._and[0]).toEqual({ member: { _in: [id(14), id(15)] } });
+  });
+
+  it("fails closed: a restrictions read that fails for any reason but a missing collection writes nothing", async () => {
+    rows = [{ id: id(16), user: "u16", role: "role-member", status: "active", organization: "org-a", admin_of: null, active_in: "org-a", posts_in: null }];
+    restrictionRows = new Error("network down");
+    await expect(call({ all: true })).rejects.toThrow("network down");
+    expect(writes).toHaveLength(0);
   });
 
   it("an App Administrator may run it by hand", async () => {
