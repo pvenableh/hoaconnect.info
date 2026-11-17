@@ -273,6 +273,13 @@ describe("admin writes that could leave the community", () => {
     expect(isRemovedAdminRule("payment_expenses", "create")).toBe(true);
     expect(isRemovedAdminRule("payment_expenses", "update")).toBe(true);
     expect(isRemovedAdminRule("payment_expenses", "read")).toBe(false);
+    // Committee membership (2026-11-17, docs/spec-delegation.md): joining a
+    // team grants its areas, so every write is a route with a ledger entry.
+    for (const action of ["create", "update", "delete"]) {
+      expect(isRemovedAdminRule("hoa_team_members", action)).toBe(true);
+    }
+    expect(isRemovedAdminRule("hoa_team_members", "read")).toBe(false);
+    expect(isRemovedAdminRule("hoa_teams", "create")).toBe(false);
     expect(isRemovedAdminRule("payment_expenses", "delete")).toBe(false);
     // A mention's create is checked by its own `channel`; only the edit followed a relation.
     expect(isRemovedAdminRule("hoa_channel_mentions", "update")).toBe(true);

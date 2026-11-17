@@ -297,10 +297,16 @@ async function setupPermissions(): Promise<void> {
   for (const collection of ["hoa_teams", "hoa_team_members"]) {
     if (adminPolicy) {
       console.log(`\n   📋 ${collection} for HOA Admin...`);
-      await postPermission(adminPolicy.id, collection, "create", { permissions: {}, validation: orgFilter, fields: ["*"] });
+      // Committee membership is written by /api/org/teams routes, which record
+      // it in the ledger (docs/spec-delegation.md): the admin reads it only
+      // (scripts/lib/admin-scope-perms.ts REMOVED_ADMIN_RULES).
+      const membersByRoute = collection === "hoa_team_members";
+      if (!membersByRoute) await postPermission(adminPolicy.id, collection, "create", { permissions: {}, validation: orgFilter, fields: ["*"] });
       await postPermission(adminPolicy.id, collection, "read", { permissions: orgFilter, validation: null, fields: ["*"] });
-      await postPermission(adminPolicy.id, collection, "update", { permissions: orgFilter, validation: orgFilter, fields: ["*"] });
-      await postPermission(adminPolicy.id, collection, "delete", { permissions: orgFilter, validation: null, fields: ["*"] });
+      if (!membersByRoute) {
+        await postPermission(adminPolicy.id, collection, "update", { permissions: orgFilter, validation: orgFilter, fields: ["*"] });
+        await postPermission(adminPolicy.id, collection, "delete", { permissions: orgFilter, validation: null, fields: ["*"] });
+      }
     }
     if (memberPolicy) {
       console.log(`\n   📋 ${collection} for HOA Member (read-only)...`);

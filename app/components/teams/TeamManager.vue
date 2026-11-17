@@ -97,7 +97,8 @@ const onAddMember = async (t: Team) => {
   busy.value = true;
   try {
     const picked = orgMembers.value.find((m) => orgMemberUserId(m) === uid);
-    await addTeamMember(t.id, uid, picked?.id || null);
+    if (!picked) return;
+    await addTeamMember(t.id, picked.id);
     pickUser.value[t.id] = "";
     await load();
   } finally {
@@ -148,8 +149,8 @@ const onDeleteTeam = async (t: Team) => {
         </Button>
       </div>
       <p class="text-xs t-text-muted mt-2">
-        Pick a domain to give this team's members board-style controls on that
-        request type (e.g. Violations → manage violation tickets).
+        The domain is a label for the requests this team looks after. It gives
+        no access: open a team to choose what its members can work on.
       </p>
     </div>
 

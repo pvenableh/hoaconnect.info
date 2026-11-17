@@ -1,12 +1,16 @@
 /**
- * useTeams — named teams/committees with optional domain-based manager rights.
+ * useTeams — named teams (committees).
  *
- * A team has a free-text name and an optional `domain`. Members of a team whose
- * domain maps to a request's type get board-style controls on that request
- * (transition/assign/internal comments) without full board access.
+ * A team has a free-text name and an optional `domain`, a label for which
+ * request type it looks after. The domain grants nothing (docs/spec-delegation.md):
+ * a committee works an area only when an admin gives it one, through
+ * /api/org/area-grants. Leads still own their team's projects.
  *
- * Code-first capability. Backed by hoa_teams + hoa_team_members
- * (scripts/create-teams-collections.ts).
+ * Joining a committee grants its areas, so membership is written through the
+ * admin-only /api/org/teams routes, which record each change in the ledger.
+ * Teams themselves are still written with the admin's Directus token.
+ *
+ * Backed by hoa_teams + hoa_team_members (scripts/create-teams-collections.ts).
  */
 import type { RequestType } from "#core/app/config/requestWorkflows";
 
@@ -52,34 +56,13 @@ export const DOMAIN_LABELS: Record<TeamDomain, string> = {
 };
 
 export const useTeams = () => {
-  const { user } = useDirectusAuth();
   const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
   const { list: listTeams, create: createTeam, update: updateTeam, remove: removeTeam } =
     useDirectusItems<Team>("hoa_teams");
-  const { list: listMembers, create: createMember, update: updateMember, remove: removeMember } =
-    useDirectusItems<TeamMember>("hoa_team_members");
+  const { list: listMembers } = useDirectusItems<TeamMember>("hoa_team_members");
 
   const teamId = (m: TeamMember) => (typeof m.team === "string" ? m.team : m.team?.id);
   const memberUserId = (m: TeamMember) => (typeof m.user === "string" ? m.user : m.user?.id);
-
-  // The domains the current user manages (from the teams they belong to).
-  const loadMyDomains = async (): Promise<Set<TeamDomain>> => {
-    if (!user.value?.id || !selectedOrgId.value) return new Set();
-    const rows = await listMembers({
-      fields: ["team.domain"],
-      filter: {
-        organization: { _eq: selectedOrgId.value },
-        user: { _eq: user.value.id },
-      },
-      limit: 100,
-    });
-    const domains = new Set<TeamDomain>();
-    for (const r of rows as any[]) {
-      const d = typeof r.team === "object" ? r.team?.domain : null;
-      if (d && d !== "none") domains.add(d);
-    }
-    return domains;
-  };
 
   const listAllTeams = () =>
     listTeams({
@@ -109,15 +92,26 @@ export const useTeams = () => {
   const setTeamDomain = (id: string, domain: TeamDomain) => updateTeam(id, { domain } as Partial<Team>);
   const deleteTeam = (id: string) => removeTeam(id);
 
-  const addTeamMember = (teamId: string, userId: string, memberId?: string | null, role: "member" | "lead" = "member") => {
+  /** Add a member to a committee (admin only; recorded in the ledger). */
+  const addTeamMember = (teamId: string, memberId: string, role: "member" | "lead" = "member") => {
     if (!selectedOrgId.value) throw new Error("No organization selected");
-    return createMember({ team: teamId, user: userId, member: memberId || null, role, organization: selectedOrgId.value } as TeamMember);
+    return $fetch(`/api/org/teams/${encodeURIComponent(teamId)}/members`, {
+      method: "POST",
+      body: { orgId: selectedOrgId.value, member: memberId, role },
+    });
   };
-  const removeTeamMember = (id: string) => removeMember(id);
+  const removeTeamMember = (id: string) =>
+    $fetch(`/api/org/teams/members/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      query: { orgId: selectedOrgId.value },
+    });
 
   /** Promote/demote a team member between lead and plain member. */
   const setLead = (memberRowId: string, isLead: boolean) =>
-    updateMember(memberRowId, { role: isLead ? "lead" : "member" } as Partial<TeamMember>);
+    $fetch(`/api/org/teams/members/${encodeURIComponent(memberRowId)}`, {
+      method: "PATCH",
+      body: { orgId: selectedOrgId.value, role: isLead ? "lead" : "member" },
+    });
 
   /** Fetch one team by id (org-scoped). */
   const getTeam = async (id: string): Promise<Team | null> => {
@@ -145,13 +139,7 @@ export const useTeams = () => {
   /** Projects owned by a team (via the elevated projects route). */
   const teamProjects = (tid: string) => useProjects().list({ team: tid });
 
-  const canManageRequestType = (myDomains: Set<TeamDomain>, type: string | null | undefined): boolean => {
-    const d = TYPE_TO_DOMAIN[(type as RequestType) || "task"];
-    return d ? myDomains.has(d) : false;
-  };
-
   return {
-    loadMyDomains,
     listAllTeams,
     listAllMembers,
     addTeam,
@@ -164,7 +152,6 @@ export const useTeams = () => {
     getTeam,
     listTeamMembers,
     teamProjects,
-    canManageRequestType,
     teamId,
     memberUserId,
     TYPE_TO_DOMAIN,

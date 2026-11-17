@@ -9,7 +9,6 @@ const { buildOrgPath } = useOrgNavigation();
 const { user } = useDirectusAuth();
 const { selectedOrgId, isAdmin, isBoardMember } = await useSelectedOrg();
 const { getOne } = useRequests();
-const { loadMyDomains, canManageRequestType } = useTeams();
 
 const requestId = computed(() => route.params.id as string);
 
@@ -24,19 +23,11 @@ const { data: request, pending, refresh } = await useAsyncData(
   { watch: [requestId], server: false }
 );
 
-// Team members manage their domain's requests like the board does.
-const { data: myDomains } = await useAsyncData(
-  `my-team-domains-${selectedOrgId.value}`,
-  () => loadMyDomains().then((s) => Array.from(s)),
-  { watch: [selectedOrgId], server: false, default: () => [] }
-);
-
-const isBoard = computed(
-  () =>
-    isAdmin.value ||
-    isBoardMember.value ||
-    canManageRequestType(new Set(myDomains.value || []), request.value?.type)
-);
+// Admin or a board seat. A team's domain used to add its members here too, but
+// no route checked it: promote and "Start a channel" refused them, and the rest
+// wrote with their own token (docs/spec-delegation.md). A committee works
+// requests once the inquiries and violations areas can be given to helpers.
+const isBoard = computed(() => isAdmin.value || isBoardMember.value);
 
 const submittedById = computed(() => {
   const s = request.value?.submitted_by;

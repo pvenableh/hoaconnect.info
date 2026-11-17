@@ -159,6 +159,12 @@ export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string 
   ...CREATE_AND_UPDATE("hoa_projects_vendors"),
   ...CREATE_AND_UPDATE("hoa_project_events_files"),
   ...CREATE_AND_UPDATE("hoa_tasks_users"),
+  // Committee membership (2026-11-17, docs/spec-delegation.md): joining a team
+  // grants the committee's areas, so adding, re-roling and removing a member go
+  // through /api/org/teams routes that write a ledger entry. Through Directus
+  // none of that was recorded. Teams themselves keep their writes.
+  ...CREATE_AND_UPDATE("hoa_team_members"),
+  { collection: "hoa_team_members", action: "delete" },
 ];
 
 export const isRemovedAdminRule = (collection: string, action: string) =>
