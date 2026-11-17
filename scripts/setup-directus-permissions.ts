@@ -423,6 +423,19 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     filterType: "organization",
     description: "Helper and committee grants (routes only)",
   },
+  // ========== Restricted members (docs/spec-member-restrictions.md) ==========
+  // No policy reads or writes it: an admin pauses and lifts through
+  // /api/org/member-restrictions, and the member reads only the member-facing
+  // fields of their own pause (/mine). The internal note never leaves the
+  // server. "none" also removes anything a hand-made permission left behind.
+  {
+    collection: "hoa_member_restrictions",
+    adminLevel: "none",
+    memberLevel: "none",
+    pmLevel: "none",
+    filterType: "organization",
+    description: "Paused posting (routes only)",
+  },
   {
     collection: "hoa_responsibilities_files",
     adminLevel: "none",

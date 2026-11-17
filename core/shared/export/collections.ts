@@ -378,6 +378,10 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_comments", "Comments", FULL_ONLY),
   direct("hoa_reactions", "Reactions", FULL_ONLY),
   direct("hoa_comment_reports", "Comment reports", FULL_ONLY),
+  // Whose posting was paused, by whom, and the board's own note
+  // (docs/spec-member-restrictions.md): one member's discipline, like the
+  // moderation logs. The ledger carries the board-visible record.
+  direct("hoa_member_restrictions", "Paused posting", FULL_ONLY),
   direct("hoa_activity", "Portal activity", FULL_ONLY),
   // In BOTH tiers, and this is the entry the row filter was built for.
   //

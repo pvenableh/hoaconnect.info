@@ -1413,6 +1413,33 @@ export interface HoaMemberChangeRequest {
 	date_updated?: string | null;
 }
 
+export interface HoaMemberRestriction {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description The membership whose posting is paused. Set by the route; kept as null if the membership is deleted. @required */
+	member: HoaMember | string;
+	/** @description Inclusive: the pause starts at this instant. @required */
+	starts_at: string;
+	/** @description Null = until lifted. Exclusive: posting resumes at this instant, with no write. */
+	ends_at?: string | null;
+	/** @description Set when an admin ends it early. */
+	lifted_at?: string | null;
+	/** @description The admin who lifted it early */
+	lifted_by?: DirectusUser | string | null;
+	/** @description The admin who paused the member's posting */
+	imposed_by?: DirectusUser | string | null;
+	/** @description Shown to the member on every page of the community while the pause lasts. @required */
+	member_note: string;
+	/** @description Admins only. Never shown to the member or written to the ledger. */
+	internal_note?: string | null;
+	/** @description The member's name, frozen by the server when the row ends. */
+	holder_name?: string | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
 export interface HoaMember {
 	/** @primaryKey */
 	id: string;
@@ -3033,6 +3060,7 @@ export interface Schema {
 	hoa_meetings: HoaMeeting[];
 	hoa_meetings_files: HoaMeetingsFile[];
 	hoa_member_change_requests: HoaMemberChangeRequest[];
+	hoa_member_restrictions: HoaMemberRestriction[];
 	hoa_members: HoaMember[];
 	hoa_member_units: HoaMemberUnit[];
 	hoa_newsletter_blocks: HoaNewsletterBlock[];
@@ -3164,6 +3192,7 @@ export enum CollectionNames {
 	hoa_meetings = 'hoa_meetings',
 	hoa_meetings_files = 'hoa_meetings_files',
 	hoa_member_change_requests = 'hoa_member_change_requests',
+	hoa_member_restrictions = 'hoa_member_restrictions',
 	hoa_members = 'hoa_members',
 	hoa_member_units = 'hoa_member_units',
 	hoa_newsletter_blocks = 'hoa_newsletter_blocks',
