@@ -29,8 +29,6 @@ const CAPABILITY_LABEL: Record<Capability, string> = {
   "documents:read": "Read the community's documents",
   "governing:read": "Read the governing documents",
   "governing:manage": "Manage governing documents and statute flags",
-  "communications:send": "Send emails to members",
-  "violations:manage": "Manage violations",
   "members:manage": "Manage members",
   "settings:manage": "Change community settings",
 };
@@ -75,8 +73,6 @@ export function rolePreview(input: RolePreviewInput): RolePreview {
   const GRANT_FOR: Partial<Record<Capability, string>> = {
     "directory:read": "directory",
     "documents:read": "documents",
-    "communications:send": "communications",
-    "violations:manage": "violations",
     "projects:read": "projects",
     "projects:write": "projects",
   };

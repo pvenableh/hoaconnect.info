@@ -285,6 +285,59 @@ describe("resolveRoleContext", () => {
     expect(working(inB)).toEqual(["directory"]);
   });
 
+  describe("helpers and committees (docs/spec-delegation.md)", () => {
+    it("an owner helper works their helper areas, with no hat", () => {
+      const ctx = resolveRoleContext(member({ is_manager: false }), [], null, opts({ helperAreas: ["projects", "feedback"] }));
+      expect(working(ctx)).toEqual(["feedback", "projects"]);
+      expect(ctx.helps).toEqual(["feedback", "projects"]);
+      expect(ctx.hats).toEqual(NO_HATS);
+      expect(ctx.residency).toBe("owner");
+    });
+
+    it("a tenant helper is the same as an owner helper", () => {
+      const ctx = resolveRoleContext(member({ member_type: "tenant" }), [], null, opts({ helperAreas: ["documents"] }));
+      expect(ctx.residency).toBe("tenant");
+      expect(working(ctx)).toEqual(["documents"]);
+    });
+
+    it("a committee member's areas arrive the same way (the reader merges them)", () => {
+      const ctx = resolveRoleContext(member(), [{ title: "director" }], null, opts({ helperAreas: ["responsibilities"] }));
+      expect(ctx.hats.board).toBe(true);
+      expect(working(ctx)).toEqual(["responsibilities"]);
+    });
+
+    it("an archived or pending membership holding a row gets nothing", () => {
+      for (const status of ["archived", "inactive", "pending"]) {
+        const ctx = resolveRoleContext(member({ status }), [], null, opts({ helperAreas: ["projects"] }));
+        expect(working(ctx), status).toEqual([]);
+        expect(ctx.helps, status).toEqual([]);
+      }
+    });
+
+    it("a non-helper area passed in is ignored, never widened", () => {
+      const ctx = resolveRoleContext(
+        member(),
+        [],
+        null,
+        opts({ helperAreas: ["inquiries", "violations", "directory", "communications", "activity", "contact_platform", "billing", "junk"] })
+      );
+      expect(working(ctx)).toEqual([]);
+      expect(ctx.helps).toEqual([]);
+      expect(ctx.hats.manager).toBe(false);
+    });
+
+    it("a manager who also helps keeps both, and helps lists only the helper part", () => {
+      const ctx = resolveRoleContext(
+        member({ role: PM, is_manager: true, manager_permissions: { inquiries: true } }),
+        [],
+        null,
+        opts({ helperAreas: ["projects"] })
+      );
+      expect(working(ctx)).toEqual(["inquiries", "projects"]);
+      expect(ctx.helps).toEqual(["projects"]);
+    });
+  });
+
   it("an unset App Admin role id never matches an unset session role", () => {
     const ctx = resolveRoleContext(null, [], null, opts({ globalRoleId: undefined, roles: { adminRoleIds: [] } }));
     expect(ctx.hats.admin).toBe(false);

@@ -1231,7 +1231,7 @@ describe("POST /api/ops/communities/:id/view-as", () => {
   it("previews what each role reaches, from the app's own rules, without naming anyone", async () => {
     const tenant = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "tenant" }))).result;
     const can = (p: any, key: string) => p.preview.capabilities.find((c: any) => c.key === key).allowed;
-    expect(can(tenant, "communications:send")).toBe(false);
+    expect(can(tenant, "governing:manage")).toBe(false);
     expect(can(tenant, "documents:read")).toBe(true);
     expect(tenant.preview.support).toEqual({ askCommunity: true, contactHoaConnect: ["bug"] });
     expect(tenant.preview.requests).toEqual({ ownOnly: true, communityInbox: false });
@@ -1242,7 +1242,8 @@ describe("POST /api/ops/communities/:id/view-as", () => {
     expect(admin.holders).toBe(1);
 
     const pm = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "property_manager", grants: ["inquiries"] }))).result;
-    expect(pm.preview.capabilities.find((c: any) => c.key === "communications:send")).toMatchObject({ allowed: false });
+    // The PM actor reads the directory only with the Directory grant.
+    expect(pm.preview.capabilities.find((c: any) => c.key === "directory:read")).toMatchObject({ allowed: false });
     expect(pm.preview.requests.communityInbox).toBe(true);
     expect(pm.preview.support.contactHoaConnect).toEqual([]);
 

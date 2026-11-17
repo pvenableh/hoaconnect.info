@@ -111,6 +111,27 @@ const CATALOGUE = [
     note: "A property manager's permissions were widened or narrowed.",
   },
   {
+    key: "helper_grant_changed",
+    label: "Helper access changed",
+    icon: "hand-helping",
+    category: "access",
+    // Owner-visible for the reason manager grants are: who may act for the
+    // community, and on whose authority, is the community's business. A helper
+    // or a committee is a person or group of neighbours acting for it.
+    defaultVisibility: "owners",
+    note: "An admin gave a member or a committee an area to work on, or ended one (docs/spec-delegation.md).",
+  },
+  {
+    key: "committee_member_changed",
+    label: "Committee membership changed",
+    icon: "users",
+    category: "access",
+    // Joining a committee grants its areas, so a membership change is an
+    // access change and is recorded beside the grant itself.
+    defaultVisibility: "owners",
+    note: "Someone joined or left a committee, or became or stopped being its lead.",
+  },
+  {
     key: "member_email_status_cleared",
     label: "Email delivery restored",
     icon: "mail-check",

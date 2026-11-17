@@ -94,3 +94,11 @@ describe("capabilitiesFor", () => {
     expect(caps).not.toContain("milestone:approve");
   });
 });
+
+describe("capabilities that nothing enforced are gone (docs/spec-delegation.md)", () => {
+  it("drops communications:send and violations:manage", () => {
+    const all = Object.keys(CAPABILITY_MATRIX);
+    expect(all).not.toContain("communications:send");
+    expect(all).not.toContain("violations:manage");
+  });
+});

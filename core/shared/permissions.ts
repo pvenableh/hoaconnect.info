@@ -45,8 +45,6 @@ export type Capability =
   | "documents:read"
   | "governing:read"
   | "governing:manage"
-  | "communications:send"
-  | "violations:manage"
   | "members:manage"
   | "settings:manage";
 
@@ -143,9 +141,9 @@ export const CAPABILITY_MATRIX: Record<Capability, Actor[]> = {
   // (responsibility-access.ts); owners read only the published view.
   "responsibilities:read": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
 
-  // Higher-trust outward actions.
-  "communications:send": ["board_president", "property_manager"],
-  "violations:manage": ["property_manager", "board_member"],
+  // `communications:send` and `violations:manage` were listed here and checked
+  // nowhere: email is the `communications` area, violations the `violations`
+  // area (requireAdminOrManagerGrant). Dropped 2026-11-17, docs/spec-delegation.md.
 
   // Org-administration — admin only (implicit; empty non-admin list).
   "members:manage": [],

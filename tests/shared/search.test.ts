@@ -19,10 +19,13 @@ describe("Spotlight search — who may search what", () => {
     expect(keys(["admin"])).toEqual(SEARCH_GROUPS.map((g) => g.key));
   });
 
-  it("a board member gets the directory and records but not admin-only channels", () => {
+  it("a board member gets the directory and records but not admin-only channels or requests", () => {
     const k = keys(["member", "board_member"]);
-    expect(k).toEqual(expect.arrayContaining(["members", "units", "documents", "requests", "projects"]));
+    expect(k).toEqual(expect.arrayContaining(["members", "units", "documents", "projects"]));
     expect(k).not.toContain("channels");
+    // Request hits open /admin/requests/:id, which only an admin can open.
+    expect(k).not.toContain("requests");
+    expect(keys(["property_manager"])).not.toContain("requests");
   });
 
   it("a property manager gets the directory but not admin-only channels", () => {

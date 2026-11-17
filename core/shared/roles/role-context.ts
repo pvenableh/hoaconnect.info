@@ -11,8 +11,10 @@
  *  - Hats add; they never replace each other. A manager who is admin keeps the
  *    manager hat.
  *  - The manager hat never grants access. Access to an area comes only from
- *    admin, or from that area's work switch on a Property Manager membership —
- *    the same condition `requireAdminOrManagerGrant` enforces today.
+ *    admin, from that area's work switch on a Property Manager membership (the
+ *    condition `requireAdminOrManagerGrant` enforces), or from a helper or
+ *    committee grant of a helper area on an active membership — the condition
+ *    `requireAreaWork` enforces (docs/spec-delegation.md).
  *  - Before `scripts/add-manager-hat.ts` has run, the row has no manager fields
  *    and the context degrades to today's behaviour (`source: "legacy"`).
  *
@@ -26,6 +28,7 @@ import {
   type AreaKey,
 } from "../transition/grants";
 import { residencyFor, type MemberResidency } from "../members/residency";
+import { isHelperArea } from "./area-grants";
 
 type Ref = string | { id?: string | null } | null | undefined;
 
@@ -98,6 +101,12 @@ export interface ResolveRoleOptions {
   roles: RoleIds;
   /** Falls back to the membership's organization. */
   orgId?: string | null;
+  /**
+   * Areas held as a helper or committee member (docs/spec-delegation.md), as
+   * `getAreaGrants` read them. Only helper areas count; anything else is
+   * ignored. Absent means none.
+   */
+  helperAreas?: readonly string[] | null;
 }
 
 export interface AreaAccess {
@@ -115,6 +124,11 @@ export interface RoleContext {
   managerTitle: string | null;
   /** "hat" once the manager fields exist on the row; "legacy" before. */
   source: "hat" | "legacy";
+  /**
+   * Areas this person works as a helper or committee member, admin and manager
+   * grants aside. Identity for the dock and copy; access is `areas[k].canWork`.
+   */
+  helps: AreaKey[];
 }
 
 const GRANTABLE = new Set<string>(MANAGER_GRANT_KEYS);
@@ -139,6 +153,7 @@ export function emptyRoleContext(orgId: string | null = null): RoleContext {
     isAccountOwner: false,
     managerTitle: null,
     source: "legacy",
+    helps: [],
   };
 }
 
@@ -187,9 +202,13 @@ export function resolveRoleContext(
   ctx.managerTitle = ctx.hats.manager ? membership.manager_title?.trim() || null : null;
 
   const grants = normalizeGrants(membership.manager_permissions);
+  const helped = new Set((options.helperAreas ?? []).filter(isHelperArea));
+  ctx.helps = AREAS.map((a) => a.key).filter((k) => helped.has(k as never));
   ctx.areas = areaMap((key) => ({
     canWork:
-      ctx.hats.admin || (isPmRole && GRANTABLE.has(key) && grants[key as keyof typeof grants] === true),
+      ctx.hats.admin ||
+      (isPmRole && GRANTABLE.has(key) && grants[key as keyof typeof grants] === true) ||
+      helped.has(key as never),
     isNotified: source === "hat" && ctx.hats.manager && notifyOn(membership.manager_areas, key),
   }));
 

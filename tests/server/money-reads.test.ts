@@ -100,7 +100,7 @@ describe("money reads", () => {
       });
 
       it("refuses a member, a manager or a non-member, and reads nothing", async () => {
-        caps = ["documents:read", "projects:read", "communications:send"];
+        caps = ["documents:read", "projects:read", "governing:read"];
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
         caps = new Error("not a member");
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });

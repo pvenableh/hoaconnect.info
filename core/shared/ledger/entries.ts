@@ -151,6 +151,109 @@ export function buildGrantChangeEntry(input: {
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
+ * helper_grant_changed, committee_member_changed (docs/spec-delegation.md)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface HelperHolderSubject {
+  readonly kind: "member" | "team";
+  readonly id: string;
+  /** The member's or the team's name as it should read forever. */
+  readonly name: string;
+}
+
+function holderPhrase(h: HelperHolderSubject): string {
+  if (h.kind === "team") return `The ${h.name || "unnamed"} committee`;
+  return h.name || "A member";
+}
+
+function areaList(keys: readonly string[]): string {
+  return list(keys as ManagerGrantKey[]);
+}
+
+/**
+ * One helper area switched on or off for a member or a committee. The caller
+ * builds it only when the switch moved: a no-op writes neither the row nor this.
+ */
+export function buildHelperGrantEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly holder: HelperHolderSubject;
+  readonly area: string;
+  readonly on: boolean;
+  /** The holder's open areas after the change, in grant order. */
+  readonly resultingAreas: readonly string[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const who = holderPhrase(input.holder);
+  const label = grantLabel(input.area);
+  const summary = input.on ? `${who} can now work on ${label}.` : `${who} no longer works on ${label}.`;
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "helper_grant_changed",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("helper_grant_changed"),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      holder: { kind: input.holder.kind, id: input.holder.id, name: input.holder.name || null },
+      area: label,
+      change: input.on ? "granted" : "ended",
+      resulting_areas: input.resultingAreas.map(grantLabel),
+    },
+  };
+}
+
+/** Someone joined or left a committee, or their role on it changed. */
+export function buildCommitteeMemberEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly team: { readonly id: string; readonly name: string };
+  readonly member: { readonly memberId: string | null; readonly name: string };
+  readonly change: "joined" | "left" | "role";
+  readonly role: "member" | "lead";
+  /** The committee's open areas, which the member gains or loses with it. */
+  readonly areas: readonly string[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const who = input.member.name || "A member";
+  const team = `the ${input.team.name || "unnamed"} committee`;
+  const with_ = input.areas.length ? ` (${areaList(input.areas)})` : "";
+  const summary =
+    input.change === "joined"
+      ? `${who} joined ${team}${input.role === "lead" ? " as its lead" : ""}${with_}.`
+      : input.change === "left"
+        ? `${who} left ${team}${with_}.`
+        : input.role === "lead"
+          ? `${who} became the lead of ${team}.`
+          : `${who} is no longer the lead of ${team}.`;
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "committee_member_changed",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("committee_member_changed"),
+    summary,
+    payload: {
+      organization_name: input.organizationName,
+      team: { id: input.team.id, name: input.team.name || null },
+      member: { member_id: input.member.memberId, name: input.member.name || null },
+      change: input.change,
+      role: input.role,
+      areas: input.areas.map(grantLabel),
+    },
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
  * document_published
  * ────────────────────────────────────────────────────────────────────────── */
 

@@ -80,7 +80,7 @@ Every write here adds one ledger entry through `writeAuditEntry`. `buildHelperGr
 
 - **Team-domain request controls are removed.** `isBoard` in `app/pages/[slug]/requests/[id].vue` is admin or board only. `canManageRequestType` and the "grants manager rights" copy on the team page go away; `domain` stays as a label. Finding, not fixed here: board seats change requests with the user's token through the member policy.
 - **The matrix:** `communications:send` and `violations:manage` are deleted from `core/shared/permissions.ts`, and `core/shared/ops/view-as.ts` drops its two labels.
-- **Violation search:** the "Violations" group in `core/shared/search/index.ts` used `violations:manage`. That let every property manager search violations, with or without the grant, and let only the plain "member" board title search them. It now takes `area: "violations"`: admin, or a manager holding the grant (`search.get.ts` reads `getManagerGrants`). Board seats lose it, consistent with the decision.
+- **Request search:** the "Requests" group in `core/shared/search/index.ts` used `violations:manage` (every property manager, with or without a grant, and the plain "member" board title). Every hit opens `/admin/requests/:id`, which only an admin can open, so it becomes `requires: "admin"`. (Changed from "area violations" while building: the links decide it.)
 - **Ops "view as":** `GET /api/ops/communities/[id]` lists helpers and committees with their areas, after the managers.
 
 ## What each role sees

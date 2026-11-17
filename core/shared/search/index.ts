@@ -172,7 +172,11 @@ export const SEARCH_GROUPS: SearchGroupDef[] = [
     icon: "lucide:clipboard-list",
     collection: "hoa_requests",
     module: "requests",
-    requires: "violations:manage",
+    // Admin only: every hit opens /admin/requests/:id, which only an admin can
+    // open. It used `violations:manage` (property managers and the "member"
+    // board title), a capability checked nowhere else, so those hits were dead
+    // links. docs/spec-delegation.md.
+    requires: "admin",
     fields: ["id", "title", "type", "status"],
     searchFields: ["title", "description"],
     toHit: (r) => ({
