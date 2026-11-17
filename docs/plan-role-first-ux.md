@@ -349,7 +349,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 5 | 5b — Money approvals, part 2: waivers, "Ask to waive" on Charges, receipts through the server, charge cancel lock | [ ] | Prompt written by Session 4 |
 | 6 | 2b — Responsibilities register, part 1: spec, shared code, area, schema script, routes (brief commits 1–5) | [x] | Spec `docs/spec-responsibilities.md`. All five landed, plus the service-history route. Schema script and permissions run by the operator 2026-11-15; types regenerated. The permissions run widened three older reads and edits, and channel access did not follow membership: both fixed and applied 2026-11-15 (Session log TODO 2b, 2c). The admin scope (TODO 6) applied 2026-11-15; the shared-write and relation-rule fixes, with routes for attendees, pets and vehicles, and board terms, applied 2026-11-16 and checked through the API and in the app. Owners report leases from My Household (2026-11-16, Session log TODO 8; its schema script not run). Invitations can be accepted again, by new accounts and by people with an account elsewhere, and the admin lease form keeps its PDF (TODO 9). An existing account gets its new community role's access, the dead accept pages are gone, and expense receipts are kept (TODO 10). Expense creates and edits are routes that check the project and receipt; the two HOA Admin rules are removed (TODO 12, applied 2026-11-16). The HOA Admin writes on documents, meetings and amenities lose their file fields, a new document's file is checked by the proxy, and document upload works again (TODO 13, applied 2026-11-16). No community policy places a file or folder any more, the routes do, and receipts and lease PDFs are filed in each community's Records folder (TODO 14; rules, file scopes and backfill applied 2026-11-16). Brief: `docs/prompts/responsibilities-register.md`. Prompt: `docs/prompts/role-first-s6-responsibilities.md` (Opus 5.5) |
 | 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [x] | Shipped 2026-11-16 in five commits (`1149c6f`, `6fdba19`, `8512d54`, `4d0752a`, `9e3750e`). Checked in the browser as the demo admin only; a board seat, a manager with the grant and a plain owner could not be reached (Session log). Pushed and deployed 2026-11-17; the permission change is applied; the Florida list is applied in 1033 Lenox. Due before that board is seated 2026-12-09: its board terms, holders and publishing (TODO 2). Follow-up: the register's rows collapse badly (Session log). Spec `docs/spec-responsibilities.md`. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
-| 8 | Delegation to members: volunteer and committee grants (spec first, then build) | [ ] | Queued 2026-11-16 at the operator's request ("can an admin grant create privileges for specific members if they volunteer to help or are on a committee?"). Findings and scope below, "Queued: delegation to members". Runs after 7; independent of 4 and 5. Prompt: `docs/prompts/role-first-s8-delegation.md` (Opus 5.5; the spec comes first and Peter confirms it before the build). The test accounts are in the Session 7 log (1033 Lenox) |
+| 8 | Delegation to members: volunteer and committee grants (spec first, then build) | [x] | Shipped 2026-11-17 in seven build commits after the spec (`1dfef57`…`c10b1fb`) and five fixes from the live check (`ede6551`…`82b8ba9`). Spec `docs/spec-delegation.md` (decisions confirmed with Peter). `hoa_area_grants` created on the live instance 2026-11-17 and types regenerated. Checked in the browser as Oscar, Peter (admins), Obie (a helper, board seat) and Tester Two (a committee member, tenant) on 1033 Lenox; everything granted was ended and the test team deleted. **Operator TODO:** apply the 3 HOA Admin removals on `hoa_team_members` (`pnpm setup:permissions`). Not pushed. Prompt: `docs/prompts/role-first-s8-delegation.md` (Opus 5.5) |
 | 9 | 2c — Responsibilities map: the Map mode beside the grid, for admins and owners | [ ] | Queued 2026-11-17. Phase 2b's pages are live, so this reads the same two routes and adds no schema (§3.4 "Map view", decision 15). Independent of 4, 5 and 8. Prompt: `docs/prompts/role-first-s9-responsibilities-map.md` (Opus 5.5) |
 
 
@@ -918,3 +918,57 @@ Local, on `main`, not pushed. Brief commits 6 to 9, one commit each, plus one th
 - **Idea (Peter): two nested rows per job.** Line one: the job, with its status at the right. Line two, muted and smaller: who · cadence · basis · last verified as inline meta. The same on a phone, so wide and narrow stop being two layouts. The Who column could stay a real column only on wide screens.
 - **Constraints.** `AppDataTable` collapses by column (`hideOnMobile`, cards under 640 px), so a nested row is a `stacked` mode or a row slot on `AppDataTable` and `AppResourceIndex`, not a one-off in the register; every grouped index then gets it. Keep the sticky section headers, sorting on Job and Last verified, and the row click that opens the panel. The owner view (`/responsibilities`) has the same columns and takes the same layout. Shorten the unassigned chip to "Unassigned" with the date in the meta line, and keep the full text as its title.
 - **Check at** 375, 640, 768, 900 and 1280 px, with a job that has three holders and an office held by two people. Files: `app/components/App/DataTable.vue`, `app/components/App/ResourceIndex.vue`, `app/components/Responsibilities/HolderChips.vue`, `app/pages/[slug]/admin/responsibilities/index.vue`, `app/pages/[slug]/responsibilities/index.vue`.
+
+#### Session 8 — delegation to members: helpers and committees (2026-11-17)
+
+Spec first (`docs/spec-delegation.md`), its nine decisions confirmed with Peter, then built in the spec's order, one gated commit each (typecheck 0, vitest green, lint 132 against a cap of 148, build green, 19/19 audits).
+
+**Shipped**
+
+- `1dfef57` the spec.
+- `3c452a9` the shared model: `HELPER_AREA_KEYS` (documents, feedback, projects, responsibilities), `holdsAt`, `helperAreasFor`, `planGrantChange` (`core/shared/roles/area-grants.ts`). `resolveRoleContext` takes helper areas: `canWork` adds them on an active membership only, and the new `helps` field lists them. Ledger types `helper_grant_changed` and `committee_member_changed` (owner-visible). `communications:send` and `violations:manage` are dropped (checked nowhere); request search is admin-only (its hits open an admin-only page).
+- `56f8c53` `scripts/create-area-grants-collection.ts` (`pnpm create:area-grants`). No policy reads or writes the collection.
+- `93b412f` the server layer. `getHelperAreas` reads open rows naming the caller's active membership, or an active team they are on; it fails closed and is cached per request. `requireAreaWork` admits admin, a manager grant or a helper area. Helpers pass: documents/publish and governing (documents), promote and project-access (projects), poll-access (feedback), responsibility-access (responsibilities), and `projects:write`/`milestone:approve`. The four expense routes keep `requireAdminOrManagerGrant`. `getManagerGrants` is unchanged, so a helper is never the `property_manager` actor. Transitions see and end helper rows (`end_reason` transition). Ops lists helpers and committees. Admin-only `GET`/`POST /api/org/area-grants`.
+- `ee7ecc5` committee membership through admin routes with ledger entries (`POST /api/org/teams/[id]/members`, `PATCH`/`DELETE /api/org/teams/members/[id]`); the HOA Admin's create, update and delete on `hoa_team_members` move to `REMOVED_ADMIN_RULES`. The request page's team-domain controls are removed (`isBoard` is admin or a board seat); the domain is a label.
+- `ea37291` "Helps with" switches (`DelegationHelperAreaSwitches`) on a member's sheet and a team page; "Helps" chips on the Members and Teams lists; a `/ui-kit` demo (not seen: the page bounces in the preview).
+- `c10b1fb` the dock: a person whose every area is a helper area keeps the member layout, with `projects-mgr` in place of the resident Projects and `responsibilities-mgr` added unless the register is already there.
+- From the live check: `ede6551` types and a one-line log when the reader fails; `6bea2b0` the export map decides `hoa_area_grants` (both copies); `a804d6a` the ledger names the admin, not their login (the first live entry reads "huestudios.com@gmail.com"); `982697e` no "committee committee"; `82b8ba9` team rosters show the membership's name before the login's (Peter's call: the admin keeps it, and a member without a login has no user row).
+
+**What each role sees now**
+
+| Who | Sees |
+|---|---|
+| Admin | "Helps with" switches on a member's sheet and a team page, with recent changes; "Helps" chips on the Members and Teams lists. For an admin, a property manager, an inactive member or an archived committee, the reason instead of switches |
+| Helper (any active member, owner or tenant) | The member dock, plus Projects (managing) and Responsibilities (editing) for those areas; Documents and Polls show their manage controls. Never grant switches, committee membership, board terms, money (expenses refuse them), register visibility or modules |
+| Committee member | The same, for the areas the committee holds, while on it. A lead keeps their project rights |
+| Property manager, plain member, tenant | Unchanged |
+| Board seats | Lose request search (dead links before). Team-domain request controls are gone for everyone |
+
+**Seen in the browser, 2026-11-17 (1033 Lenox, identity read each time)**
+
+- **Oscar (HOA Admin):** gave Obie Projects from his member sheet; the row (granted by Oscar), the owner-visible ledger entry and the Members chip read back. Creating a team failed: Oscar's own Directus user has the global role HOA Member with no policies, so every HOA Admin rule misses his token (finding below).
+- **Obie (board secretary, helper):** `helps` and `canWork` = projects; member layout with one Projects slot that opens `/admin/projects` with New project; a valid expense refused 403 (the body named a project that does not exist, so nothing could be written); `area-grants` and widening their own grants 403.
+- **Peter (global Administrator):** created "Test committee (Session 8)", added Tester Two through the route, gave the committee the register; ledger entries name Peter; ops lists the helper and the committee.
+- **Tester Two (tenant, committee member):** `helps` = responsibilities, no hat, no `projects:write`; the register opens with New job, the Florida list and Export PDF, no Visibility menu; dock gains Responsibilities; publishing, committee changes and self-granting 403.
+- **Cleanup (Peter):** both grants ended (rows kept, ended by Peter), Tester Two taken off, the test team deleted. Left on purpose: two ended `hoa_area_grants` rows (the committee's now has no team, its name frozen) and six ledger entries. No grant is open in 1033 Lenox.
+- **Not seen:** a property manager (none exists), the demo community, `/ui-kit`.
+
+**Deviations**
+
+- Request search became admin-only rather than "admin or a manager with violations": every hit opens `/admin/requests/:id`.
+- The prompt called Obie a plain member: they are (HOA Member role), with the Secretary's term from 2026-11-17, so they tested a helper who is also a board seat.
+- The register page first stuck on its skeleton for Tester Two with a Vue patch error while the dev server hot-reloaded my edits; a full reload loaded it.
+
+**Findings (not fixed)**
+
+- **Admins' Directus role.** Oscar's (and likely Camila's) global Directus role is HOA Member with no policies, so writes the app makes with their own token (teams, documents, meetings) are refused. The Members page also logs a 500 fetching board terms through the proxy. Worth a check of every HOA Admin's global role.
+- Board seats change requests with their own token through the member policy (from the spec).
+- Archiving or deleting a team goes through Directus with no ledger entry; its areas stop at once (derived).
+
+**Operator TODOs**
+
+1. ~~Run `pnpm create:area-grants`, then `pnpm generate:types`.~~ **Done 2026-11-17** (by the session, at Peter's go-ahead); the audit read 0 to create or update afterwards.
+2. **Apply the narrowing:** `pnpm setup:permissions` removes the HOA Admin create, update and delete on `hoa_team_members` (the audit shows exactly these 3). Until then an admin could still change committee membership through the Directus API without a ledger entry.
+3. Push and deploy (asked at the end of the session).
+4. **Later sessions:** meetings as an area (routes and a gate first); routes that make inquiries, violations, directory and communications holdable; moving managers' grants into `hoa_area_grants`; a committee's own documents folder.
+

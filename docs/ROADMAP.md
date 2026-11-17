@@ -31,6 +31,11 @@ exists, treat this list as authoritative over the older phase text:
   a published owner view and a PDF for the board. Spec: [spec-responsibilities.md](spec-responsibilities.md).
   Schema script, gate and routes shipped 2026-11-15; the pages are Session 7. Due for the
   1033 Lenox board, seated 2026-12-09.
+- **Delegation to members** (role-first UX Session 8, [plan](plan-role-first-ux.md) §7) — an admin
+  gives a member (a helper) or a committee (a team) some of a property manager's areas:
+  documents, feedback, projects (without money) and the responsibilities register, each a dated
+  grant that is ended, not erased, and recorded in the ledger. Spec: [spec-delegation.md](spec-delegation.md).
+  Shipped 2026-11-17; inquiries, violations, directory, communications and meetings need routes first.
 
 ## North star
 
