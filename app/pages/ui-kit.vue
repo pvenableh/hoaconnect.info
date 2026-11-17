@@ -11,6 +11,8 @@
  * View at /ui-kit on the main domain. Standalone (no app shell, no org context).
  */
 import { visibleVerbs } from "#core/shared/create-verbs";
+import { HELPER_AREA_KEYS } from "#core/shared/roles/area-grants";
+import { HELPER_AREA_COPY } from "#core/shared/roles/helper-area-copy";
 import {
   BRAND_ACCENT_HEX,
   getAdminAccent,
@@ -21,6 +23,9 @@ definePageMeta({ layout: false });
 
 // Every create verb, as an admin with every module on would see them.
 const kitVerbs = visibleVerbs({ isAdmin: true, isEnabled: () => true });
+// "Helps with" (docs/spec-delegation.md): the switches DelegationHelperAreaSwitches
+// renders on a member's sheet and a team page, here with local state.
+const kitHelps = ref<Record<string, boolean>>({ projects: true });
 useHead({ title: "UI Kit — HOA Connect design system" });
 
 // The showcase renders the real workspace theme, so what you see here is what
@@ -1028,6 +1033,29 @@ const materials = [
             </span>
             <Icon name="lucide:chevron-right" class="w-4 h-4 shrink-0 t-text-muted" />
           </button>
+        </div>
+      </section>
+
+      <!-- ── Helps with (delegation) ─────────────────────────────────── -->
+      <section data-kit="helper-areas">
+        <h2 class="type-section">Helps with</h2>
+        <p class="type-body">
+          What a helper or committee can work on. On a member's sheet and a team page
+          (DelegationHelperAreaSwitches); admins only, and every change is in the ledger.
+        </p>
+        <div class="mt-3 grid gap-3 border-t t-border pt-4">
+          <div class="divide-y divide-[var(--theme-border-light)]">
+            <div v-for="k in HELPER_AREA_KEYS" :key="k" class="flex items-center justify-between gap-3 py-2.5">
+              <div class="grid gap-0.5 pr-4">
+                <Label :for="`kit-helper-${k}`" class="text-sm font-medium">{{ HELPER_AREA_COPY[k].label }}</Label>
+                <p class="text-xs t-text-muted">{{ HELPER_AREA_COPY[k].desc }}</p>
+              </div>
+              <Switch :id="`kit-helper-${k}`" v-model="kitHelps[k]" />
+            </div>
+          </div>
+          <p>
+            <span class="rounded-full t-bg-subtle px-2 py-0.5 type-micro t-text-secondary">Helps · Projects</span>
+          </p>
         </div>
       </section>
 

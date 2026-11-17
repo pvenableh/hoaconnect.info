@@ -4,6 +4,7 @@ import { DOMAIN_LABELS } from "#core/app/composables/useTeams";
 import type { ProjectRow } from "#core/app/composables/useProjects";
 import type { TaskRow } from "#core/app/composables/useTasks";
 import type { RequestRow } from "#core/app/composables/useRequests";
+import { toast } from "vue-sonner";
 
 definePageMeta({
   middleware: ["admin", "subscription"],
@@ -13,6 +14,8 @@ definePageMeta({
 const route = useRoute();
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 const teamIdParam = computed(() => String(route.params.id));
+const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+const failed = (e: any, fallback: string) => toast.error(e?.data?.message || e?.message || fallback);
 
 const {
   getTeam,
@@ -87,6 +90,8 @@ const onToggleLead = async (r: TeamMember) => {
   try {
     await setLead(r.id, r.role !== "lead");
     await loadRoster();
+  } catch (e) {
+    failed(e, "Could not change their role.");
   } finally {
     busy.value = false;
   }
@@ -97,6 +102,8 @@ const onRemove = async (r: TeamMember) => {
   try {
     await removeTeamMember(r.id);
     await loadRoster();
+  } catch (e) {
+    failed(e, "Could not take them off the team.");
   } finally {
     busy.value = false;
   }
@@ -165,6 +172,7 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
         <div v-show="tab === 'roster'" class="ios-card p-5">
           <p class="text-sm t-text-muted mb-3">
             Leads can manage this team's projects and approve its milestones.
+            Everyone on the team works the areas it helps with, below, while they are on it.
           </p>
           <ul v-if="members.length" class="space-y-1.5">
             <li
@@ -205,6 +213,9 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
             No members yet — add members from the
             <NuxtLink :to="buildOrgPath('/admin/teams')" class="underline">Teams</NuxtLink> page.
           </p>
+
+          <!-- What the committee works on (docs/spec-delegation.md): admin only. -->
+          <DelegationHelperAreaSwitches v-if="selectedOrgId" class="mt-4" :org-id="selectedOrgId" :team="team.id" />
         </div>
 
         <!-- Projects -->

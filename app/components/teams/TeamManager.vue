@@ -5,6 +5,9 @@ import {
   type TeamMember,
   type TeamDomain,
 } from "#core/app/composables/useTeams";
+import { toast } from "vue-sonner";
+import { HELPER_AREA_KEYS } from "#core/shared/roles/area-grants";
+import { HELPER_AREA_COPY } from "#core/shared/roles/helper-area-copy";
 
 const { confirm } = useConfirm();
 
@@ -40,10 +43,24 @@ const pickUser = ref<Record<string, string>>({});
 interface OrgMember { id: string; first_name?: string; last_name?: string; user?: { id: string } | string | null; }
 const orgMembers = ref<OrgMember[]>([]);
 
+// "Helps with" (docs/spec-delegation.md): each committee's open areas, from the
+// admin-only GET /api/org/area-grants. Empty when it cannot be read.
+const helperOpen = ref<Array<{ area: string; team: string | null }>>([]);
+const committeeAreas = (tid: string) => {
+  const held = new Set(helperOpen.value.filter((r) => r.team === tid).map((r) => r.area));
+  return HELPER_AREA_KEYS.filter((k) => held.has(k)).map((k) => HELPER_AREA_COPY[k].label);
+};
+const failed = (e: any, fallback: string) => toast.error(e?.data?.message || e?.message || fallback);
+
 const load = async () => {
   loading.value = true;
   try {
     teams.value = (await listAllTeams()) as Team[];
+    helperOpen.value = await $fetch<{ open: Array<{ area: string; team: string | null }> }>("/api/org/area-grants", {
+      query: { orgId: selectedOrgId.value },
+    })
+      .then((r) => r.open)
+      .catch(() => []);
     members.value = (await listAllMembers()) as TeamMember[];
     orgMembers.value = (await listOrgMembers({
       fields: ["id", "first_name", "last_name", "user.id"],
@@ -101,6 +118,8 @@ const onAddMember = async (t: Team) => {
     await addTeamMember(t.id, picked.id);
     pickUser.value[t.id] = "";
     await load();
+  } catch (e) {
+    failed(e, "Could not add them to the team.");
   } finally {
     busy.value = false;
   }
@@ -111,6 +130,8 @@ const onRemoveMember = async (r: TeamMember) => {
   try {
     await removeTeamMember(r.id);
     await load();
+  } catch (e) {
+    failed(e, "Could not take them off the team.");
   } finally {
     busy.value = false;
   }
@@ -182,6 +203,11 @@ const onDeleteTeam = async (t: Team) => {
                 <option v-for="d in DOMAINS" :key="d" :value="d">{{ DOMAIN_LABELS[d] }}</option>
               </select>
             </div>
+            <p v-if="committeeAreas(t.id).length" class="mt-1.5" data-helper-chip>
+              <span class="rounded-full t-bg-subtle px-2 py-0.5 type-micro t-text-secondary">
+                Helps · {{ committeeAreas(t.id).join(", ") }}
+              </span>
+            </p>
           </div>
           <button type="button" class="t-text-muted hover:text-red-600" :disabled="busy" @click="onDeleteTeam(t)">
             <Icon name="lucide:trash-2" class="w-4 h-4" />

@@ -33,8 +33,22 @@ export default defineEventHandler(async (event) => {
     const holder = member ? await loadMemberHolder(orgId, member) : await loadTeamHolder(orgId, team);
     const ref = holderRef(holder);
     const rows = await readHolderRows(orgId, ref);
+    // Who can be given an area at all, so the page offers no switch the POST
+    // would refuse: not an admin (works every area), not a property manager
+    // (Property management), not an inactive member or archived committee.
+    const config = useRuntimeConfig();
+    let reason: string | null = null;
+    if (holder.kind === "member") {
+      if (holder.roleId && holder.roleId === config.public.directusRoleHoaAdmin) reason = "Admins already work every area.";
+      else if (holder.roleId && holder.roleId === config.public.directusRolePropertyManager) reason = "A property manager's areas are set in Property management.";
+      else if (holder.status !== "active") reason = "Only an active member can be given an area.";
+    } else if (holder.status !== "active") {
+      reason = "An archived committee cannot be given an area.";
+    }
     return {
       holder: { kind: holder.kind, id: holder.id, name: holder.name, status: holder.status },
+      canHold: reason === null,
+      reason,
       helperAreas: HELPER_AREA_KEYS,
       open: openAreasOf(rows, ref, now),
       rows: rows

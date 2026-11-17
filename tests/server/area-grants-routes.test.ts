@@ -191,12 +191,22 @@ describe("switching", () => {
 });
 
 describe("reading", () => {
+  it("says who cannot hold an area, so the page offers no switch the POST would refuse", async () => {
+    const read = (q: any) => get(ev({ query: { orgId: ORG, ...q } }));
+    expect(await read({ member: ID2.memberPm })).toMatchObject({ canHold: false, reason: "A property manager's areas are set in Property management." });
+    expect(await read({ member: ID2.memberAdminRole })).toMatchObject({ canHold: false, reason: "Admins already work every area." });
+    expect(await read({ member: ID2.memberGone })).toMatchObject({ canHold: false });
+    expect(await read({ team: ID2.teamArchived })).toMatchObject({ canHold: false });
+    expect(await read({ team: ID.teamGrounds })).toMatchObject({ canHold: true });
+  });
+
   it("a holder's rows, open and ended, with who granted and ended each", async () => {
     await give({ member: ID.memberBob, area: "projects", value: true });
     await give({ member: ID.memberBob, area: "projects", value: false });
     await give({ member: ID.memberBob, area: "documents", value: true });
     const res = await get(ev({ query: { orgId: ORG, member: ID.memberBob } }));
     expect(res.holder).toMatchObject({ kind: "member", id: ID.memberBob, name: "Bob Diaz" });
+    expect(res).toMatchObject({ canHold: true, reason: null });
     expect(res.open).toEqual(["documents"]);
     expect(res.rows).toHaveLength(2);
     expect(res.rows.find((r: any) => r.area === "projects")).toMatchObject({ open: false, grantedBy: "Ada Min", endedBy: "Ada Min", endReason: "revoked" });

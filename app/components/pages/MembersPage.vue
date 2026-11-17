@@ -12,6 +12,8 @@ import {
 import { residencyFor } from "#core/shared/members/residency";
 import { isCurrentBoardTerm } from "#core/shared/roles/role-context";
 import { endReasonLabel, officeLabel } from "#core/shared/responsibilities/config";
+import { HELPER_AREA_KEYS } from "#core/shared/roles/area-grants";
+import { HELPER_AREA_COPY } from "#core/shared/roles/helper-area-copy";
 import type { BoardTermAction, BoardTermForSheet } from "~/components/Members/BoardTermSheets.vue";
 import {
   ONBOARDING_INVITATION_FIELDS,
@@ -68,6 +70,24 @@ const organization = computed(() => currentOrg.value?.organization || null);
 
 // Use selectedOrgId directly (primitive value) for immediate reactivity
 const orgId = computed(() => selectedOrgId.value);
+
+// "Helps with" (docs/spec-delegation.md): the areas each member holds as a
+// helper, from the admin-only GET /api/org/area-grants. Committee areas show on
+// the team page, not here. Empty before the schema script (the read fails).
+const { data: helperOpen, refresh: refreshHelpers } = await useAsyncData(
+  () => `member-helper-areas-${orgId.value}`,
+  () =>
+    orgId.value
+      ? $fetch<{ open: Array<{ area: string; member: string | null }> }>("/api/org/area-grants", { query: { orgId: orgId.value } })
+          .then((r) => r.open)
+          .catch(() => [])
+      : Promise.resolve([]),
+  { server: false, watch: [orgId], default: () => [] },
+);
+const helperAreasOf = (memberId: string) => {
+  const held = new Set((helperOpen.value ?? []).filter((r) => r.member === memberId).map((r) => r.area));
+  return HELPER_AREA_KEYS.filter((k) => held.has(k)).map((k) => HELPER_AREA_COPY[k].label);
+};
 
 // Phase 3a: a bounced / unsubscribed chip beside the name, with Clear.
 const emailStatus = useMemberEmailStatus(orgId);
@@ -1108,11 +1128,21 @@ useSeoMeta({
                     <span class="capitalize">{{ residencyLabel(row) }}</span>
                   </template>
                   <template #cell-role="{ row }">
-                    <span
-                      class="text-xs px-2 py-1 rounded-full font-medium"
-                      :class="getRoleBadgeClass(row.role)"
-                    >
-                      {{ getRoleDisplay(row.role) }}
+                    <span class="inline-flex flex-wrap items-center gap-1">
+                      <span
+                        class="text-xs px-2 py-1 rounded-full font-medium"
+                        :class="getRoleBadgeClass(row.role)"
+                      >
+                        {{ getRoleDisplay(row.role) }}
+                      </span>
+                      <span
+                        v-if="helperAreasOf(row.id).length"
+                        class="rounded-full t-bg-subtle px-2 py-0.5 type-micro t-text-secondary"
+                        :title="`Helps with ${helperAreasOf(row.id).join(', ')}`"
+                        data-helper-chip
+                      >
+                        Helps · {{ helperAreasOf(row.id).join(", ") }}
+                      </span>
                     </span>
                   </template>
                   <template #cell-units="{ row }">
@@ -1644,6 +1674,9 @@ useSeoMeta({
 
             <!-- Offices and jobs held, with dates: editors and the board only (the route says no to anyone else). -->
             <MembersServiceHistory v-if="editingId && orgId" :org-id="orgId" :member-id="editingId" />
+
+            <!-- Areas this member works as a helper: admin only (the route refuses anyone else). -->
+            <DelegationHelperAreaSwitches v-if="editingId && orgId" :org-id="orgId" :member="editingId" @changed="refreshHelpers()" />
           </div>
           <template #footer>
             <Button
