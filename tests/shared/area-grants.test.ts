@@ -166,6 +166,17 @@ describe("ledger entries", () => {
     });
     expect(off.summary).toBe("The Landscaping committee no longer works on Responsibilities register.");
     expect(off.payload).toMatchObject({ change: "ended", resulting_areas: [] });
+    // A name that already says "committee" is not doubled (seen live 2026-11-17).
+    const named = buildHelperGrantEntry({
+      organizationId: ORG, organizationName: null,
+      holder: { kind: "team", id: "t-2", name: "Test committee (Session 8)" },
+      area: "feedback", on: true, resultingAreas: ["feedback"], actor, occurredAt: later,
+    });
+    expect(named.summary).toBe("The Test committee (Session 8) can now work on Community feedback.");
+    expect(buildCommitteeMemberEntry({
+      organizationId: ORG, organizationName: null, team: { id: "t-2", name: "Finance Committee" },
+      member: { memberId: "m-2", name: "Tester Two" }, change: "left", role: "member", areas: [], actor, occurredAt: later,
+    }).summary).toBe("Tester Two left the Finance Committee.");
   });
 
   it("a committee membership change says which areas came with it", () => {

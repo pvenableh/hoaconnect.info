@@ -161,8 +161,17 @@ export interface HelperHolderSubject {
   readonly name: string;
 }
 
+/** "the Grounds committee", or "the Test committee (Session 8)" when the name already says so. */
+function committeePhrase(name: string): string {
+  const n = name || "unnamed";
+  return /\bcommittee\b/i.test(n) ? `the ${n}` : `the ${n} committee`;
+}
+
 function holderPhrase(h: HelperHolderSubject): string {
-  if (h.kind === "team") return `The ${h.name || "unnamed"} committee`;
+  if (h.kind === "team") {
+    const p = committeePhrase(h.name);
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  }
   return h.name || "A member";
 }
 
@@ -222,7 +231,7 @@ export function buildCommitteeMemberEntry(input: {
   readonly occurredAt: string;
 }): LedgerEntry {
   const who = input.member.name || "A member";
-  const team = `the ${input.team.name || "unnamed"} committee`;
+  const team = committeePhrase(input.team.name);
   const with_ = input.areas.length ? ` (${areaList(input.areas)})` : "";
   const summary =
     input.change === "joined"
