@@ -267,7 +267,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
               <p class="t-text-muted text-sm mt-1">
                 {{ [data?.member?.first_name, data?.member?.last_name].filter(Boolean).join(" ") || "No name on file." }}
               </p>
-              <p class="t-text-muted text-xs mt-1">The name your neighbours see in this community.</p>
+              <p class="t-text-muted text-xs mt-1">The name your neighbors see in this community.</p>
             </div>
             <Button variant="outline" size="sm" @click="openName">Edit</Button>
           </div>
