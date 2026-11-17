@@ -82,6 +82,68 @@ export function scopeManagerPermission<P extends { collection: string; action: s
   return { ...p, permissions: toScope(p.permissions, path), validation: toScope(p.validation, path) };
 }
 
+// ── HOA Member: where a person writes ────────────────────────────────────────
+//
+// Every HOA Member rule reached through any membership row, whatever its
+// status, so an archived or inactive member still signed in could write with
+// their own token (docs/spec-member-restrictions.md, found 2026-11-17). The
+// member's writes now read through the fields the sync keeps
+// (core/shared/roles/admin-scope.ts):
+//   reach other people: comments (create, edit), reactions,
+//   comment reports                                  posts_in
+//   chat messages and mentions (create)              channel_memberships.posts_to
+//   private to them and the board: requests
+//   (create, edit their own), poll votes (create)    active_in
+// Reads, and deleting one's own rows, keep any membership (whether an
+// archived member should still read is a separate question).
+//
+// The scope fields hold null on every membership that does not qualify, so a
+// list like [null, "org-a"] reaches. An item filter is SQL IN, which never
+// matches null. A validation's `_in` would admit a null organization, but the
+// organization is required and NOT NULL on all five collections (read
+// 2026-11-17), so the database refuses it.
+
+export const ACTIVE_MEMBERSHIP = "$CURRENT_USER.hoa_members.active_in";
+export const POSTING_MEMBERSHIP = "$CURRENT_USER.hoa_members.posts_in";
+/** The channels a person may post in: their channel rows' posts_to (a row's own channel, or null). */
+export const POSTING_CHANNELS = "$CURRENT_USER.channel_memberships.posts_to";
+/** The channel-membership check chat creates had before, when the posting scope is not ready. */
+export const ENROLLED_CHANNELS = "$CURRENT_USER.channel_memberships.channel";
+
+/**
+ * The create validation on chat messages and mentions, for every policy.
+ * `posts_to` is set only on a row that exists, so it still requires the
+ * person to be on the channel; it also requires that they post in its
+ * community. A message names a channel, not a community, and a validation on
+ * `channel.organization` refuses a plain id (above), hence the field on the
+ * channel row.
+ */
+export function chatCreateValidation(scoped: boolean): { channel: { _in: string } } {
+  return { channel: { _in: scoped ? POSTING_CHANNELS : ENROLLED_CHANNELS } };
+}
+
+const MEMBER_WRITE_SCOPES: Readonly<Record<string, Partial<Record<string, string>>>> = {
+  hoa_comments: { create: POSTING_MEMBERSHIP, update: POSTING_MEMBERSHIP },
+  hoa_reactions: { create: POSTING_MEMBERSHIP, update: POSTING_MEMBERSHIP },
+  hoa_comment_reports: { create: POSTING_MEMBERSHIP, update: POSTING_MEMBERSHIP },
+  hoa_poll_votes: { create: ACTIVE_MEMBERSHIP, update: ACTIVE_MEMBERSHIP },
+  // The spec names create; editing one's own request is a write an archived
+  // member should not have either.
+  hoa_requests: { create: ACTIVE_MEMBERSHIP, update: ACTIVE_MEMBERSHIP },
+};
+
+/** The scope an HOA Member rule should read through. */
+export function memberScopePath(collection: string, action: string): string {
+  return MEMBER_WRITE_SCOPES[collection]?.[action] ?? ANY_MEMBERSHIP;
+}
+
+/** The HOA Member rule with its writes scoped; reads, deletes and other collections unchanged. */
+export function scopeMemberPermission<P extends { collection: string; action: string; permissions: unknown; validation: unknown }>(p: P): P {
+  const path = memberScopePath(p.collection, p.action);
+  if (path === ANY_MEMBERSHIP) return p;
+  return { ...p, permissions: toScope(p.permissions, path), validation: toScope(p.validation, path) };
+}
+
 // ── Admin writes that could leave the community ──────────────────────────────
 //
 // A create is checked only against its validation (Directus 11.13 does not

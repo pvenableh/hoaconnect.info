@@ -1,4 +1,5 @@
 import { createItem, createItems, readItems } from "@directus/sdk";
+import { syncChannelPostScope } from "../../../utils/admin-scope";
 import { dmSlug } from "#core/shared/channels/rules";
 
 /**
@@ -92,5 +93,7 @@ export default defineEventHandler(async (event) => {
       })) as any
     )
   );
+  // posts_to: whether each of the two may post here (core/server/utils/admin-scope.ts).
+  await syncChannelPostScope([userId, peer]);
   return { channel, created: true };
 });

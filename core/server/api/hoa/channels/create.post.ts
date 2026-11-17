@@ -1,4 +1,5 @@
 import { readItems, createItem, createItems } from "@directus/sdk";
+import { syncChannelPostScope } from "../../../utils/admin-scope";
 
 const idOf = (v: any): string | null =>
   v == null ? null : typeof v === "string" ? v : (v.id ?? null);
@@ -151,6 +152,8 @@ export default defineEventHandler(async (event) => {
 
   if (memberPayload.length) {
     await directus.request(createItems("hoa_channel_members", memberPayload));
+    // posts_to: whether each new member may post here (core/server/utils/admin-scope.ts).
+    await syncChannelPostScope(memberPayload.map((r) => r.user));
   }
 
   return { channel, enrolled: memberPayload.length };

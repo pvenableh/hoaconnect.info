@@ -1,4 +1,5 @@
 import { readItems, createItem } from "@directus/sdk";
+import { syncChannelPostScope } from "../../../utils/admin-scope";
 
 /**
  * Invite a user into a single channel (Phase 8, Track C).
@@ -74,6 +75,8 @@ export default defineEventHandler(async (event) => {
       invited_by: userId,
     })
   );
+  // posts_to: whether the new member may post here (core/server/utils/admin-scope.ts).
+  await syncChannelPostScope([user]);
 
   return { member, created: true };
 });

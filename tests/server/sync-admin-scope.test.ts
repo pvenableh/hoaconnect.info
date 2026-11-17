@@ -14,6 +14,7 @@ const ADMIN = "role-admin";
 const PM = "role-pm";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 let rows: any[];
+let channelRows: any[];
 let writes: any[];
 let reads: any[];
 let cron: boolean;
@@ -27,6 +28,7 @@ beforeEach(() => {
   ];
   // Rows read with "*" carry every scope field that exists; these three do not
   // have the manager fields yet, so only admin_of is compared on them.
+  channelRows = [];
   writes = [];
   reads = [];
   cron = true;
@@ -39,13 +41,15 @@ beforeEach(() => {
   vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: ADMIN, directusRolePropertyManager: PM, directusRoleAppAdmin: "role-app-admin" } }));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
+      const table = op.collection === "hoa_channel_members" ? channelRows : rows;
       if (op.op === "read") {
         reads.push(op);
         const keys = op.query.filter?.id?._in as string[] | undefined;
-        return rows.filter((r) => !keys || keys.includes(r.id)).map((r) => ({ ...r }));
+        const users = op.query.filter?.user?._in as string[] | undefined;
+        return table.filter((r) => (!keys || keys.includes(r.id)) && (!users || users.includes(r.user))).map((r) => ({ ...r }));
       }
       writes.push(op);
-      Object.assign(rows.find((r) => r.id === op.id), op.data);
+      Object.assign(table.find((r) => r.id === op.id), op.data);
       return {};
     },
   }));
@@ -65,7 +69,7 @@ describe("sync-admin-scope", () => {
 
   it("reconciles everyone, writing only the rows that are wrong", async () => {
     const res = await call({ all: true });
-    expect(res).toEqual({ ok: true, scope: "all", checked: 3, updated: 2 });
+    expect(res).toEqual({ ok: true, scope: "all", checked: 3, updated: 2, channels: { checked: 0, updated: 0 } });
     expect(writes.map((w) => [w.id, w.data])).toEqual([
       [id(1), { admin_of: "org-a" }],
       [id(2), { admin_of: null }],
@@ -101,6 +105,42 @@ describe("sync-admin-scope", () => {
       [id(4), { manager_of: "org-m", inquiries_of: "org-m" }],
       [id(7), { communications_of: "org-n", inquiries_of: null }],
     ]);
+  });
+
+  it("keeps active_in and posts_in: archived and inactive members stop writing", async () => {
+    const SCOPES = { admin_of: null, manager_of: null, communications_of: null, inquiries_of: null };
+    rows = [
+      { id: id(8), user: "u8", role: "role-member", status: "active", organization: "org-a", ...SCOPES, active_in: null, posts_in: null },
+      { id: id(9), user: "u9", role: "role-member", status: "archived", organization: "org-a", ...SCOPES, active_in: "org-a", posts_in: "org-a" },
+      { id: id(10), user: "u10", role: "role-member", status: "inactive", organization: "org-a", ...SCOPES, active_in: null, posts_in: null },
+    ];
+    await call({ all: true });
+    expect(writes.map((w) => [w.collection, w.id, w.data])).toEqual([
+      ["hoa_members", id(8), { active_in: "org-a", posts_in: "org-a" }],
+      ["hoa_members", id(9), { active_in: null, posts_in: null }],
+    ]);
+  });
+
+  it("rewrites posts_to on the channel rows of the people a trigger names, and theirs only", async () => {
+    rows = [
+      { id: id(11), user: "u11", role: "role-member", status: "archived", organization: "org-a", admin_of: null, active_in: null, posts_in: null },
+      { id: id(12), user: "u11", role: "role-member", status: "active", organization: "org-b", admin_of: null, active_in: "org-b", posts_in: "org-b" },
+      { id: id(13), user: "u13", role: "role-member", status: "archived", organization: "org-a", admin_of: null, active_in: null, posts_in: null },
+    ];
+    channelRows = [
+      { id: "c1", user: "u11", channel: { id: "ch-a", organization: "org-a" }, posts_to: "ch-a" }, // archived in org-a
+      { id: "c2", user: "u11", channel: { id: "ch-b", organization: "org-b" }, posts_to: null }, // active in org-b
+      { id: "c3", user: "u13", channel: { id: "ch-a", organization: "org-a" }, posts_to: "ch-a" }, // not named
+    ];
+    const res = await call({ event: "hoa_members.items.update", keys: [id(11)] });
+    expect(res.channels).toEqual({ checked: 2, updated: 2 });
+    expect(writes.filter((w) => w.collection === "hoa_channel_members").map((w) => [w.id, w.data])).toEqual([
+      ["c1", { posts_to: null }],
+      ["c2", { posts_to: "ch-b" }],
+    ]);
+    // The person's every membership decides, not only the one named.
+    expect(reads.find((r) => r.collection === "hoa_members" && r.query.filter?.user)?.query.filter).toEqual({ user: { _in: ["u11"] } });
+    expect(reads.find((r) => r.collection === "hoa_channel_members")?.query.fields).toEqual(["*", "channel.id", "channel.organization"]);
   });
 
   it("an App Administrator may run it by hand", async () => {

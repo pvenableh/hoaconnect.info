@@ -32,6 +32,7 @@
  */
 
 import { readItems, createItem, updateItem } from "@directus/sdk";
+import { syncChannelPostScope } from "../../../../utils/admin-scope";
 
 export default defineEventHandler(async (event) => {
   const channelId = getRouterParam(event, "channel");
@@ -101,6 +102,8 @@ export default defineEventHandler(async (event) => {
         notifications_enabled: notificationsEnabled,
       })
     );
+    // posts_to: whether this new row lets them post (core/server/utils/admin-scope.ts).
+    await syncChannelPostScope([userId]);
   }
 
   return { ok: true, channel: channelId, muted: body.muted };

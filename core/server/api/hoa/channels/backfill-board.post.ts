@@ -1,4 +1,5 @@
 import { readItems, createItems } from "@directus/sdk";
+import { syncChannelPostScope } from "../../../utils/admin-scope";
 
 /**
  * Backfill board/admin enrollment into existing channels (Phase 8, Track A).
@@ -77,6 +78,8 @@ export default defineEventHandler(async (event) => {
 
   if (payload.length) {
     await directus.request(createItems("hoa_channel_members", payload));
+    // posts_to: whether each new member may post here (core/server/utils/admin-scope.ts).
+    await syncChannelPostScope(payload.map((r: any) => r.user));
   }
 
   return { channels: channelIds.length, created: payload.length };

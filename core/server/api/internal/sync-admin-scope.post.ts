@@ -1,5 +1,7 @@
-// POST /api/internal/sync-admin-scope — recompute hoa_members.admin_of, which
-// the HOA Admin policy scopes every rule with (core/shared/roles/admin-scope.ts).
+// POST /api/internal/sync-admin-scope — recompute the scope fields Directus
+// policies read (core/shared/roles/admin-scope.ts): admin_of and the manager
+// scopes, active_in and posts_in on hoa_members, and posts_to on the channel
+// rows of the people named.
 //
 // Called by the Directus Flow "Admin scope sync" on every hoa_members create
 // and update, with the trigger as the body (`key` or `keys`), and nightly by
@@ -18,5 +20,8 @@ export default defineEventHandler(async (event) => {
   if (result.updated) {
     console.log(`[admin-scope] ${result.updated} of ${result.checked} memberships updated`, result.changes);
   }
-  return { ok: true, scope: keys ? "keys" : "all", checked: result.checked, updated: result.updated };
+  if (result.channels?.updated) {
+    console.log(`[admin-scope] posts_to rewritten on ${result.channels.updated} of ${result.channels.checked} channel rows`);
+  }
+  return { ok: true, scope: keys ? "keys" : "all", checked: result.checked, updated: result.updated, channels: result.channels };
 });

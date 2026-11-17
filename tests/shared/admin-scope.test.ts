@@ -3,7 +3,18 @@
  * a membership administers, as the HOA Admin policy reads it.
  */
 import { describe, it, expect } from "vitest";
-import { adminScopeChanges, adminScopeOf, managerScopeOf, scopeChanges, scopeFieldsOf, syncKeysFrom } from "#core/shared/roles/admin-scope";
+import {
+  activeScopeOf,
+  adminScopeChanges,
+  adminScopeOf,
+  channelPostsTo,
+  channelScopeChanges,
+  managerScopeOf,
+  postingOrgsByUser,
+  scopeChanges,
+  scopeFieldsOf,
+  syncKeysFrom,
+} from "#core/shared/roles/admin-scope";
 
 const ADMIN = "role-admin";
 const MEMBER = "role-member";
@@ -84,10 +95,10 @@ describe("manager scopes", () => {
 
   it("a grant field holds the org only with the grant, and never without the role", () => {
     expect(scopeFieldsOf({ id: "m", role: PM, status: "active", organization: "org-m", manager_permissions: { communications: true } }, ROLES)).toEqual({
-      admin_of: null, manager_of: "org-m", communications_of: "org-m", inquiries_of: null,
+      admin_of: null, manager_of: "org-m", communications_of: "org-m", inquiries_of: null, active_in: "org-m", posts_in: "org-m",
     });
     expect(scopeFieldsOf({ id: "m", role: MEMBER, status: "active", organization: "org-m", manager_permissions: { communications: true, inquiries: true } }, ROLES)).toEqual({
-      admin_of: null, manager_of: null, communications_of: null, inquiries_of: null,
+      admin_of: null, manager_of: null, communications_of: null, inquiries_of: null, active_in: "org-m", posts_in: "org-m",
     });
     expect(scopeFieldsOf({ id: "m", role: PM, status: "active", organization: "org-m", manager_permissions: null }, ROLES).inquiries_of).toBeNull();
   });
@@ -99,5 +110,83 @@ describe("manager scopes", () => {
     ];
     expect(scopeChanges(rows, ROLES)).toEqual([{ id: "b", patch: { manager_of: "org-m", inquiries_of: "org-m" } }]);
     expect(scopeChanges(rows, ROLES, ["admin_of"])).toEqual([]);
+  });
+});
+
+describe("where a member writes: active_in and posts_in", () => {
+  it.each([
+    ["active", "org-a", "org-a"],
+    ["pending", null, null],
+    ["inactive", null, null],
+    ["archived", null, null],
+  ])("a %s membership", (status, active, posts) => {
+    const f = scopeFieldsOf({ id: "m", role: MEMBER, status, organization: "org-a" }, ROLES);
+    expect([f.active_in, f.posts_in]).toEqual([active, posts]);
+  });
+
+  it("a restricted active member keeps active_in and loses posts_in", () => {
+    const f = scopeFieldsOf({ id: "m", role: MEMBER, status: "active", organization: "org-a" }, ROLES, { restricted: true });
+    expect([f.active_in, f.posts_in]).toEqual(["org-a", null]);
+  });
+
+  it("never depends on the role, the hat or a grant: an active admin and manager write as members too", () => {
+    expect(activeScopeOf({ id: "m", role: ADMIN, status: "active", organization: { id: "org-a" } })).toBe("org-a");
+    expect(scopeFieldsOf({ id: "m", role: PM, status: "active", organization: "org-a" }, ROLES).posts_in).toBe("org-a");
+    expect(activeScopeOf({ id: "m", role: MEMBER, status: null, organization: "org-a" })).toBeNull();
+  });
+
+  it("scopeChanges reads the restriction for each membership", () => {
+    const rows = [
+      { id: "a", role: MEMBER, status: "active", organization: "org-a", active_in: "org-a", posts_in: "org-a" },
+      { id: "b", role: MEMBER, status: "archived", organization: "org-a", active_in: "org-a", posts_in: "org-a" },
+    ];
+    expect(scopeChanges(rows, ROLES)).toEqual([{ id: "b", patch: { active_in: null, posts_in: null } }]);
+    expect(scopeChanges(rows, ROLES, undefined, (id) => id === "a")).toEqual([
+      { id: "a", patch: { posts_in: null } },
+      { id: "b", patch: { active_in: null, posts_in: null } },
+    ]);
+  });
+});
+
+describe("chat: posts_to on a channel row", () => {
+  const memberships = [
+    { id: "m1", user: "u1", role: MEMBER, status: "active", organization: "org-a" },
+    { id: "m2", user: "u1", role: MEMBER, status: "archived", organization: "org-b" },
+    { id: "m3", user: { id: "u2" }, role: ADMIN, status: "active", organization: "org-b" },
+    { id: "m4", user: null, role: MEMBER, status: "active", organization: "org-c" },
+  ];
+  const posting = postingOrgsByUser(memberships, ROLES);
+  const row = (id: string, user: unknown, channel: unknown, posts_to?: string | null) => ({ id, user, channel, ...(posts_to !== undefined ? { posts_to } : {}) });
+
+  it("groups each person's posting communities; a membership without a login has none", () => {
+    expect([...posting.entries()].map(([u, s]) => [u, [...s]])).toEqual([["u1", ["org-a"]], ["u2", ["org-b"]]]);
+  });
+
+  it("is the row's channel only where its person posts in the channel's community", () => {
+    expect(channelPostsTo(row("r", "u1", { id: "ch-a", organization: "org-a" }), posting)).toBe("ch-a");
+    expect(channelPostsTo(row("r", "u1", { id: "ch-b", organization: "org-b" }), posting)).toBeNull(); // archived there
+    expect(channelPostsTo(row("r", "u2", { id: "ch-b", organization: { id: "org-b" } }), posting)).toBe("ch-b");
+    expect(channelPostsTo(row("r", "u3", { id: "ch-a", organization: "org-a" }), posting)).toBeNull(); // no membership
+    expect(channelPostsTo(row("r", "u1", null), posting)).toBeNull(); // the channel is gone
+    expect(channelPostsTo(row("r", "u1", "ch-a"), posting)).toBeNull(); // read without its organization
+  });
+
+  it("a restricted member's rows close, and only theirs", () => {
+    const paused = postingOrgsByUser(memberships, ROLES, (id) => id === "m1");
+    expect(channelPostsTo(row("r", "u1", { id: "ch-a", organization: "org-a" }), paused)).toBeNull();
+    expect(channelPostsTo(row("r", "u2", { id: "ch-b", organization: "org-b" }), paused)).toBe("ch-b");
+  });
+
+  it("lists only wrong rows, and skips rows read before the field existed", () => {
+    const rows = [
+      row("r1", "u1", { id: "ch-a", organization: "org-a" }, "ch-a"), // right
+      row("r2", "u1", { id: "ch-b", organization: "org-b" }, "ch-b"), // archived there
+      row("r3", "u2", { id: "ch-b", organization: "org-b" }, null), // new row
+      row("r4", "u1", { id: "ch-b", organization: "org-b" }), // no field yet
+    ];
+    expect(channelScopeChanges(rows, posting)).toEqual([
+      { id: "r2", posts_to: null },
+      { id: "r3", posts_to: "ch-b" },
+    ]);
   });
 });

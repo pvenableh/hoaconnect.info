@@ -21,9 +21,9 @@
 
 import { FOLDER_OF_MY_ORG } from "./lib/folder-org-filters";
 import { HERO_OF_MY_COMMUNITY } from "./lib/org-write-scopes";
-import { isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission } from "./lib/admin-scope-perms";
+import { chatCreateValidation, isRemovedAdminRule, isRemovedManagerRule, mentionsAnyMembership, pinAdminUpdate, scopeAdminPermission, scopeManagerPermission, scopeMemberPermission } from "./lib/admin-scope-perms";
 import { baseOf, planSharedValidations, type LiveRule, type PolicyKind } from "./lib/shared-write-validations";
-import { MANAGER_SCOPE_FIELDS, adminScopeChanges, scopeChanges, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
+import { MANAGER_SCOPE_FIELDS, MEMBER_SCOPE_FIELDS, adminScopeChanges, channelScopeChanges, postingOrgsByUser, scopeChanges, type ScopedChannelRow, type ScopedMembership, type ScopedMembershipWithGrants } from "../core/shared/roles/admin-scope";
 import { ADMIN_FILE_FIELDS, PLACEMENT_FIELDS, adminWritableFields, fieldsWithout } from "../core/shared/roles/admin-file-fields";
 
 // ============================================================================
@@ -802,6 +802,14 @@ function policyKind(policyId: string): PolicyKind | null {
 }
 /** The same for the Property Manager policy, by grant (scripts/lib/admin-scope-perms.ts). */
 let MANAGER_SCOPE: "scoped" | "legacy" = "legacy";
+/**
+ * Where a member may write (scripts/lib/admin-scope-perms.ts, "HOA Member").
+ * "scoped": requests and votes through active_in, comments, reactions and
+ * reports through posts_in, chat through posts_to. "legacy": any membership,
+ * whatever its status. "scoped" only once the fields exist and are right on
+ * every row; before that it would stop everyone writing.
+ */
+let MEMBER_POSTING_SCOPE: "scoped" | "legacy" = "legacy";
 const UNSCOPED_ADMIN_RULES: string[] = [];
 
 async function createOrUpdatePermission(
@@ -935,6 +943,18 @@ const READ_FIELDS: Record<string, string[]> = {
     // however Directus reads the user's own context. The manager scopes, the
     // same way: `role` and `manager_permissions` already say as much.
     "admin_of", "manager_of", "communications_of", "inquiries_of",
+    // Not active_in or posts_in (2026-11-17): posts_in null on an active
+    // membership says its posting is paused, which only admins and the board
+    // see (docs/spec-member-restrictions.md). Directus resolves
+    // $CURRENT_USER.* without the user's permissions (11.13.4,
+    // permissions/utils/fetch-dynamic-variable-data.ts: UsersService with no
+    // accountability), so a rule reads them without this list.
+  ],
+  // Every field there was on 2026-11-17 except posts_to, which says whether a
+  // co-member's posting is paused (above). Was "*".
+  hoa_channel_members: [
+    "id", "channel", "user", "hoa_member", "role", "invited_by", "last_read_at", "notifications_enabled",
+    "date_created", "present_at",
   ],
   hoa_email_recipients: [
     "id", "sort", "user_created", "date_created", "recipient_email", "recipient_name", "status",
@@ -1131,8 +1151,10 @@ function buildPermissionsForLevel(
     "hoa_channel_messages",
     "hoa_channel_mentions",
   ]);
+  // Once the posting scope is ready, the channel row must also say its person
+  // posts in the channel's community (posts_to; scripts/lib/admin-scope-perms.ts).
   const createValidation = CHANNEL_MEMBERSHIP_CREATE.has(collection)
-    ? { channel: { _in: "$CURRENT_USER.channel_memberships.channel" } }
+    ? chatCreateValidation(MEMBER_POSTING_SCOPE === "scoped")
     : filter;
 
   switch (level) {
@@ -1683,6 +1705,40 @@ async function managerScopeReadiness(): Promise<{ ready: boolean; reason: string
 }
 
 /**
+ * Are active_in, posts_in and the channel rows' posts_to present and right on
+ * every row? Only then may the HOA Member policy's writes be scoped by them.
+ */
+async function postingScopeReadiness(): Promise<{ ready: boolean; reason: string }> {
+  for (const [collection, field] of [...MEMBER_SCOPE_FIELDS.map((f) => ["hoa_members", f]), ["hoa_channel_members", "posts_to"]]) {
+    try {
+      await directusApi(`/fields/${collection}/${field}`);
+    } catch {
+      return { ready: false, reason: `${collection}.${field} does not exist (run pnpm add:admin-scope)` };
+    }
+  }
+  const roles = { hoaAdmin: ROLES.HOA_ADMIN, propertyManager: ROLES.PROPERTY_MANAGER };
+  const rows = await directusApi<ScopedMembershipWithGrants[]>(
+    `/items/hoa_members?fields=id,user,role,status,organization,${MEMBER_SCOPE_FIELDS.join(",")}&limit=-1`
+  );
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ready: false, reason: "read no memberships, so the posting scope cannot be checked" };
+  }
+  const wrong = scopeChanges(rows, roles, MEMBER_SCOPE_FIELDS);
+  if (wrong.length) {
+    return { ready: false, reason: `${wrong.length} memberships have a wrong active_in or posts_in (run pnpm add:admin-scope)` };
+  }
+  const channelRows = await directusApi<ScopedChannelRow[]>(
+    "/items/hoa_channel_members?fields=id,user,posts_to,channel.id,channel.organization&limit=-1"
+  );
+  const wrongChannels = channelScopeChanges(channelRows ?? [], postingOrgsByUser(rows, roles));
+  if (wrongChannels.length) {
+    return { ready: false, reason: `${wrongChannels.length} channel rows have a wrong posts_to (run pnpm add:admin-scope)` };
+  }
+  const posting = rows.filter((r) => r.posts_in).length;
+  return { ready: true, reason: `${rows.length} memberships, ${channelRows?.length ?? 0} channel rows, right on all (${posting} post in a community)` };
+}
+
+/**
  * Every rule of a policy, whichever script made it, gets that policy's scope.
  * The per-feature schema scripts (meetings, polls, comments, requests, teams,
  * vendors, expenses, …) write their own permissions on collections this file
@@ -1918,6 +1974,10 @@ async function main() {
     MANAGER_SCOPE = managerReadiness.ready || preview ? "scoped" : "legacy";
     console.log(`🔑 Property Manager policy scope: ${MANAGER_SCOPE === "scoped" ? "communities they manage, by grant (manager_of, communications_of, inquiries_of)" : "every community they belong to (legacy)"}`);
     console.log(`   ${managerReadiness.ready ? "✅" : "⚠️ "} ${managerReadiness.reason}${preview && !managerReadiness.ready ? " — previewing anyway (audit only)" : ""}`);
+    const postingReadiness = await postingScopeReadiness();
+    MEMBER_POSTING_SCOPE = postingReadiness.ready || preview ? "scoped" : "legacy";
+    console.log(`🔑 HOA Member writes: ${MEMBER_POSTING_SCOPE === "scoped" ? "active memberships, and posting not paused (active_in, posts_in, posts_to)" : "any membership, whatever its status (legacy)"}`);
+    console.log(`   ${postingReadiness.ready ? "✅" : "⚠️ "} ${postingReadiness.reason}${preview && !postingReadiness.ready ? " — previewing anyway (audit only)" : ""}`);
     if (rolesToProcess.some((r) => r.name === "HOA Admin")) {
       totalStats.created += await ensureRolePolicy(ROLES.HOA_ADMIN, POLICIES.HOA_MEMBER, "HOA Member policy on the HOA Admin role", auditMode);
     }
@@ -2003,6 +2063,15 @@ async function main() {
     if (MANAGER_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "Property Manager") && !collectionsArg.length) {
       console.log("\n🔑 Property Manager rules made by other scripts");
       const r = await scopeStrayRules(POLICIES.PROPERTY_MANAGER, "Property Manager", scopeManagerPermission, isRemovedManagerRule, auditMode);
+      totalStats.updated += r.updated;
+      totalStats.removed += r.removed;
+    }
+
+    if (MEMBER_POSTING_SCOPE === "scoped" && rolesToProcess.some((r) => r.name === "HOA Member") && !collectionsArg.length) {
+      console.log("\n🔑 HOA Member writes made by other scripts (requests, votes, comments, reactions, reports)");
+      // Only the member's own branch of a shared validation is rewritten here;
+      // alignSharedWrites below combines it with the admin and manager ones again.
+      const r = await scopeStrayRules(POLICIES.HOA_MEMBER, "HOA Member", scopeMemberPermission, () => false, auditMode);
       totalStats.updated += r.updated;
       totalStats.removed += r.removed;
     }

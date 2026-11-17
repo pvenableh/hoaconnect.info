@@ -24,6 +24,23 @@
  * Property Manager role too, gives a manager resident-level access in their
  * communities and wherever they live.
  *
+ * Two more mirror where a person may write as a member (docs/spec-member-
+ * restrictions.md). The HOA Member policy used to scope every rule by any
+ * membership row, whatever its status, so an archived or inactive member who
+ * was still signed in could comment, react, vote and file requests:
+ *   `active_in`  the organization on an active membership, else null. Scopes
+ *                the member's writes that stay private to them and the board
+ *                (requests, poll votes).
+ *   `posts_in`   the same, unless the member's posting is paused. Scopes the
+ *                writes that reach other people (comments, reactions, comment
+ *                reports; chat through `hoa_channel_members.posts_to`).
+ * And one on the channel row, because a chat message names a channel, not a
+ * community, and Directus cannot check a relation's field in a validation:
+ *   `posts_to`   the row's channel, when its user's membership in the
+ *                channel's community posts there, else null.
+ * Like `admin_of`, each is a stored copy of something derived, kept only so a
+ * Directus rule can read it; the app reads the status and the restrictions.
+ *
  * Pure: no Directus, no H3.
  */
 
@@ -57,10 +74,14 @@ export function adminScopeOf(m: ScopedMembership, hoaAdminRoleId: string): strin
   return idOf(m.organization);
 }
 
+/** Membership statuses under which a person writes as a member (requests, votes, posts). */
+export const MEMBER_SCOPE_STATUSES: readonly string[] = ["active"];
+
 /** Every scope field on hoa_members, in the order they were added. */
-export const SCOPE_FIELDS = ["admin_of", "manager_of", "communications_of", "inquiries_of"] as const;
+export const SCOPE_FIELDS = ["admin_of", "manager_of", "communications_of", "inquiries_of", "active_in", "posts_in"] as const;
 export type ScopeField = (typeof SCOPE_FIELDS)[number];
 export const MANAGER_SCOPE_FIELDS: readonly ScopeField[] = ["manager_of", "communications_of", "inquiries_of"];
+export const MEMBER_SCOPE_FIELDS: readonly ScopeField[] = ["active_in", "posts_in"];
 
 export interface ScopeRoles {
   hoaAdmin: string;
@@ -72,6 +93,9 @@ export interface ScopedMembershipWithGrants extends ScopedMembership {
   manager_of?: string | null;
   communications_of?: string | null;
   inquiries_of?: string | null;
+  active_in?: string | null;
+  posts_in?: string | null;
+  user?: unknown;
 }
 
 /** The organization this membership manages, or null. The hat alone never counts: the role does. */
@@ -82,15 +106,32 @@ export function managerScopeOf(m: ScopedMembership, propertyManagerRoleId: strin
   return idOf(m.organization);
 }
 
-/** What every scope field of this membership should hold. */
-export function scopeFieldsOf(m: ScopedMembershipWithGrants, roles: ScopeRoles): Record<ScopeField, string | null> {
+/** The organization this membership writes in as a member: an active membership, whatever its role. */
+export function activeScopeOf(m: ScopedMembership): string | null {
+  if (!m.status || !MEMBER_SCOPE_STATUSES.includes(m.status)) return null;
+  return idOf(m.organization);
+}
+
+/**
+ * What every scope field of this membership should hold. `restricted` is
+ * whether its posting is paused now (an open hoa_member_restrictions row);
+ * until restrictions exist nobody is, so posts_in equals active_in.
+ */
+export function scopeFieldsOf(
+  m: ScopedMembershipWithGrants,
+  roles: ScopeRoles,
+  opts: { restricted?: boolean } = {}
+): Record<ScopeField, string | null> {
   const managed = managerScopeOf(m, roles.propertyManager);
   const grants = normalizeGrants((m.manager_permissions ?? null) as Record<string, unknown> | null);
+  const active = activeScopeOf(m);
   return {
     admin_of: adminScopeOf(m, roles.hoaAdmin),
     manager_of: managed,
     communications_of: managed && grants.communications ? managed : null,
     inquiries_of: managed && grants.inquiries ? managed : null,
+    active_in: active,
+    posts_in: active && !opts.restricted ? active : null,
   };
 }
 
@@ -102,17 +143,73 @@ export function scopeFieldsOf(m: ScopedMembershipWithGrants, roles: ScopeRoles):
 export function scopeChanges(
   rows: readonly ScopedMembershipWithGrants[],
   roles: ScopeRoles,
-  fields: readonly ScopeField[] = SCOPE_FIELDS
+  fields: readonly ScopeField[] = SCOPE_FIELDS,
+  restricted: (membershipId: string) => boolean = () => false
 ): { id: string; patch: Partial<Record<ScopeField, string | null>> }[] {
   const out: { id: string; patch: Partial<Record<ScopeField, string | null>> }[] = [];
   for (const r of rows) {
-    const want = scopeFieldsOf(r, roles);
+    const want = scopeFieldsOf(r, roles, { restricted: restricted(r.id) });
     const patch: Partial<Record<ScopeField, string | null>> = {};
     for (const f of fields) {
       if (!(f in r)) continue;
       if (((r as unknown as Record<string, unknown>)[f] ?? null) !== want[f]) patch[f] = want[f];
     }
     if (Object.keys(patch).length) out.push({ id: r.id, patch });
+  }
+  return out;
+}
+
+// ── Chat: posts_to on hoa_channel_members ────────────────────────────────────
+
+export interface ScopedChannelRow {
+  id: string;
+  user?: unknown;
+  /** The channel, with its organization (read as `channel.id`, `channel.organization`). */
+  channel?: unknown;
+  posts_to?: string | null;
+}
+
+/**
+ * Per user, the communities they post in, from their memberships' wanted
+ * `posts_in` (computed, not the stored copy, so a field not yet created or a
+ * row not yet synced does not decide it).
+ */
+export function postingOrgsByUser(
+  rows: readonly ScopedMembershipWithGrants[],
+  roles: ScopeRoles,
+  restricted: (membershipId: string) => boolean = () => false
+): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const user = idOf(r.user);
+    if (!user) continue;
+    const org = scopeFieldsOf(r, roles, { restricted: restricted(r.id) }).posts_in;
+    if (!out.has(user)) out.set(user, new Set());
+    if (org) out.get(user)!.add(org);
+  }
+  return out;
+}
+
+/** What a channel row's `posts_to` should hold: its channel, when its user posts in the channel's community. */
+export function channelPostsTo(row: ScopedChannelRow, postingOrgs: ReadonlyMap<string, ReadonlySet<string>>): string | null {
+  const user = idOf(row.user);
+  const channel = row.channel && typeof row.channel === "object" ? (row.channel as { id?: unknown; organization?: unknown }) : null;
+  const channelId = channel ? idOf(channel.id) : null;
+  const org = channel ? idOf(channel.organization) : null;
+  if (!user || !channelId || !org) return null;
+  return postingOrgs.get(user)?.has(org) ? channelId : null;
+}
+
+/** The channel rows with a wrong `posts_to`. A row without the field (not yet created) is skipped. */
+export function channelScopeChanges(
+  rows: readonly ScopedChannelRow[],
+  postingOrgs: ReadonlyMap<string, ReadonlySet<string>>
+): { id: string; posts_to: string | null }[] {
+  const out: { id: string; posts_to: string | null }[] = [];
+  for (const r of rows) {
+    if (!("posts_to" in r)) continue;
+    const want = channelPostsTo(r, postingOrgs);
+    if ((r.posts_to ?? null) !== want) out.push({ id: r.id, posts_to: want });
   }
   return out;
 }
