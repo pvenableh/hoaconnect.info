@@ -13,13 +13,16 @@ import { chooseRecordUnit } from "#core/shared/units/record-writes";
 import { memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
 import { applyLeaseRequest, type LeaseApproval } from "#core/server/utils/lease-requests";
 
-export const CHANGE_KINDS = ["contact", "mailing_address", "vehicle", "pet", "lease"] as const;
+export const CHANGE_KINDS = ["name", "contact", "mailing_address", "vehicle", "pet", "lease"] as const;
 export const CHANGE_ACTIONS = ["create", "update", "delete"] as const;
 export type ChangeKind = (typeof CHANGE_KINDS)[number];
 export type ChangeAction = (typeof CHANGE_ACTIONS)[number];
 
 // kind → the collection the approved change writes to.
 export const KIND_TARGET = {
+  // The community's record of the name (hoa_members), which other members see.
+  // The login's own name is the person's to change on /account.
+  name: "hoa_members",
   contact: "hoa_members",
   mailing_address: "hoa_members",
   vehicle: "hoa_vehicles",
@@ -32,6 +35,11 @@ const VEHICLE_FIELDS = ["make", "model", "year", "license_plate", "parking_spot"
 const PET_FIELDS = ["name", "type", "breed", "weight", "image"];
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() || null : v == null ? null : String(v));
+/** A name part: trimmed, inner spaces collapsed, at most 100 characters, or null. */
+const nameField = (v: unknown) => {
+  const s = typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 100) : "";
+  return s || null;
+};
 
 function pick(payload: Record<string, any>, fields: string[]): Record<string, any> {
   const out: Record<string, any> = {};
@@ -67,6 +75,12 @@ export function buildSafeChange(input: {
   const raw = input.payload || {};
   const target_collection = KIND_TARGET[kind];
 
+  if (kind === "name") {
+    const first_name = nameField(raw.first_name);
+    const last_name = nameField(raw.last_name);
+    if (!first_name && !last_name) throw createError({ statusCode: 400, message: "Give a first or last name." });
+    return { action: "update", target_collection, target_id: input.memberId, payload: { first_name, last_name } };
+  }
   if (kind === "contact") {
     return {
       action: "update",
@@ -119,6 +133,13 @@ export async function applyChangeRequest(
     return await applyLeaseRequest(cr, { reviewerUserId: ctx.reviewerUserId ?? "" });
   }
 
+  if (kind === "name") {
+    // Only the two name fields, whatever else the stored payload holds.
+    await admin.request(
+      updateItem("hoa_members", memberId, { first_name: nameField(payload.first_name), last_name: nameField(payload.last_name) })
+    );
+    return;
+  }
   if (kind === "contact") {
     await admin.request(updateItem("hoa_members", memberId, { phone: str(payload.phone) }));
     return;

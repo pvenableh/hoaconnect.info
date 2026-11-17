@@ -74,6 +74,18 @@ const editor = ref<Editor | null>(null);
 const note = ref("");
 const saving = ref(false);
 
+// The name the community has on file (hoa_members): what other members see.
+// A change is a request an admin approves, like the phone number. The login's
+// own name is changed on the account page.
+const openName = () => {
+  editor.value = {
+    kind: "name",
+    action: "update",
+    title: "Change the name on file",
+    fields: { first_name: data.value?.member?.first_name || "", last_name: data.value?.member?.last_name || "" },
+  };
+  note.value = "";
+};
 const openContact = () => {
   editor.value = { kind: "contact", action: "update", title: "Update contact info", fields: { phone: data.value?.member?.phone || "" } };
   note.value = "";
@@ -167,6 +179,7 @@ const onLeaseFile = async (e: Event) => {
 const canSave = computed(() => {
   const e = editor.value;
   if (!e || saving.value || uploading.value) return false;
+  if (e.kind === "name") return !!(e.fields.first_name?.trim() || e.fields.last_name?.trim());
   if (e.kind !== "lease") return true;
   const f = e.fields;
   return !!(f.tenant_first_name?.trim() && f.tenant_last_name?.trim() && f.tenant_email?.trim() && f.start_date && f.end_date && f.document);
@@ -242,6 +255,24 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
       <div v-if="pending" class="t-text-muted text-sm">Loading…</div>
 
       <template v-else>
+        <!-- Name on file -->
+        <section class="ios-card rounded-xl t-bg-elevated p-5" data-profile-name>
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="font-medium flex items-center gap-2">
+                Name
+                <span v-if="pendingKinds.has('name')" class="type-micro text-warning">· pending review</span>
+              </h2>
+              <!-- allow-bare-empty: a field value on the profile, not an empty collection -->
+              <p class="t-text-muted text-sm mt-1">
+                {{ [data?.member?.first_name, data?.member?.last_name].filter(Boolean).join(" ") || "No name on file." }}
+              </p>
+              <p class="t-text-muted text-xs mt-1">The name your neighbours see in this community.</p>
+            </div>
+            <Button variant="outline" size="sm" @click="openName">Edit</Button>
+          </div>
+        </section>
+
         <!-- Contact -->
         <section class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-start justify-between gap-4">
@@ -384,8 +415,16 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </DialogHeader>
 
         <div v-if="editor" class="space-y-3">
+          <!-- Name on file -->
+          <template v-if="editor.kind === 'name'">
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1.5"><Label>First name</Label><Input v-model="editor.fields.first_name" autocomplete="given-name" /></div>
+              <div class="space-y-1.5"><Label>Last name</Label><Input v-model="editor.fields.last_name" autocomplete="family-name" /></div>
+            </div>
+          </template>
+
           <!-- Contact -->
-          <template v-if="editor.kind === 'contact'">
+          <template v-else-if="editor.kind === 'contact'">
             <div class="space-y-1.5">
               <Label>Phone</Label>
               <Input v-model="editor.fields.phone" type="tel" placeholder="(305) 555-0123" />

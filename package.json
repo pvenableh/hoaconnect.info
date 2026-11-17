@@ -44,6 +44,7 @@
     "create:demo-reset-flow": "dotenv -- tsx scripts/create-demo-reset-flow.ts",
     "create:change-requests": "dotenv -- tsx scripts/create-member-change-requests.ts",
     "add:change-request-lease-kind": "dotenv -- tsx scripts/add-change-request-lease-kind.ts",
+    "add:change-request-name-kind": "dotenv -- tsx scripts/add-change-request-name-kind.ts",
     "create:channels": "dotenv -- tsx scripts/create-channels-collections.ts",
     "create:email-templates": "dotenv -- tsx --import ./scripts/lib/worker-loader.mjs scripts/create-email-templates-collection.ts",
     "create:email-cc-bcc": "dotenv -- tsx scripts/add-email-cc-bcc-fields.ts",

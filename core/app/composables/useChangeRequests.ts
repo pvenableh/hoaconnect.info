@@ -36,7 +36,7 @@ export interface HouseholdLease {
   invited_tenant?: { first_name: string | null; last_name: string | null; email: string | null } | null;
 }
 
-export type ChangeKind = "contact" | "mailing_address" | "vehicle" | "pet" | "lease";
+export type ChangeKind = "name" | "contact" | "mailing_address" | "vehicle" | "pet" | "lease";
 export type ChangeAction = "create" | "update" | "delete";
 
 export const useChangeRequests = () => {

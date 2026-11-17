@@ -36,6 +36,7 @@ const memberName = (r: any) =>
   [r.member?.first_name, r.member?.last_name].filter(Boolean).join(" ") || "A resident";
 
 const KIND_LABEL: Record<string, string> = {
+  name: "Name",
   contact: "Contact info",
   mailing_address: "Mailing address",
   vehicle: "Vehicle",
@@ -45,6 +46,8 @@ const KIND_LABEL: Record<string, string> = {
 
 const summarize = (r: any): string => {
   const p = r.payload || {};
+  // The current name is the membership's, which is what other members see.
+  if (r.kind === "name") return `${memberName(r)} → ${[p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}`;
   if (r.kind === "contact") return `Phone → ${p.phone || "—"}`;
   if (r.kind === "mailing_address") {
     const a = p.mailing_address || {};

@@ -9,6 +9,7 @@ import type { LeaseApproval } from "./lease-requests";
  */
 
 const KIND_LABEL: Record<string, string> = {
+  name: "the name on file",
   contact: "contact info",
   mailing_address: "mailing address",
   vehicle: "a vehicle",
