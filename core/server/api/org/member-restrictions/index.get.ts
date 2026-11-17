@@ -34,7 +34,8 @@ export default defineEventHandler(async (event) => {
     // refuse, and says why.
     const config = useRuntimeConfig();
     let reason: string | null = null;
-    if (holder.roleId && holder.roleId === config.public.directusRoleHoaAdmin) reason = "An admin's posting can't be paused. Remove the admin role first.";
+    // An HOA Admin membership, or one carrying the App Administrator role.
+    if (holder.roleId && [config.public.directusRoleHoaAdmin, config.public.directusRoleAppAdmin].includes(holder.roleId)) reason = "An admin's posting can't be paused. Remove the admin role first.";
     else if (holder.roleId && holder.roleId === config.public.directusRolePropertyManager) reason = "A property manager's posting can't be paused. End their management first.";
     else if (holder.status !== "active") reason = "Only an active member's posting can be paused.";
     else if (await holdsCurrentBoardTerm(holder.id, now)) reason = "They hold a board seat. End or change their term first.";

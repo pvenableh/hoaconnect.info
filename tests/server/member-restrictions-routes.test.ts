@@ -30,11 +30,13 @@ vi.mock("#core/server/utils/notify", () => ({
 
 const HOA_ADMIN = "role-hoa-admin";
 const PM = "role-pm";
+const APP_ADMIN = "role-app-admin";
 const ID2 = {
   memberPm: uuid(301),
   memberAdminRole: uuid(302),
   memberGone: uuid(303),
   memberNoLogin: uuid(304),
+  memberAppAdmin: uuid(305),
 };
 
 const state: { who: Who; db: Db } = { who: PERSONAS.admin, db: seed() };
@@ -52,14 +54,15 @@ function extend(db: Db) {
     { id: ID2.memberPm, organization: ORG, user: uuid(306), first_name: "Pat", last_name: "Manager", status: "active", role: PM },
     { id: ID2.memberAdminRole, organization: ORG, user: uuid(307), first_name: "Ada", last_name: "Second", status: "active", role: HOA_ADMIN },
     { id: ID2.memberGone, organization: ORG, user: uuid(308), first_name: "Gil", last_name: "Gone", status: "archived" },
-    { id: ID2.memberNoLogin, organization: ORG, user: null, first_name: "Nora", last_name: "Nologin", status: "active" }
+    { id: ID2.memberNoLogin, organization: ORG, user: null, first_name: "Nora", last_name: "Nologin", status: "active" },
+    { id: ID2.memberAppAdmin, organization: ORG, user: uuid(309), first_name: "Pia", last_name: "Platform", status: "active", role: APP_ADMIN }
   );
   db.hoa_member_restrictions = [];
 }
 
 beforeAll(async () => {
   fake = stubGlobals(state);
-  vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: HOA_ADMIN, directusRolePropertyManager: PM } }));
+  vi.stubGlobal("useRuntimeConfig", () => ({ public: { directusRoleHoaAdmin: HOA_ADMIN, directusRolePropertyManager: PM, directusRoleAppAdmin: APP_ADMIN } }));
   vi.stubGlobal("createError", (o: any) => Object.assign(new Error(o.message), o));
   vi.stubGlobal("writeAuditEntry", async (entry: any) => {
     ledger.push(entry);
@@ -137,8 +140,9 @@ describe("who may call", () => {
 });
 
 describe("who can be paused", () => {
-  it("400 for an admin and a property manager: remove the role first", async () => {
+  it("400 for an admin (HOA Admin or App Administrator) and a property manager: remove the role first", async () => {
     await expect(pause({ member: ID2.memberAdminRole })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(pause({ member: ID2.memberAppAdmin })).rejects.toMatchObject({ statusCode: 400 });
     await expect(pause({ member: ID2.memberPm })).rejects.toMatchObject({ statusCode: 400 });
   });
 

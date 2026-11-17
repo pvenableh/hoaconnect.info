@@ -42,7 +42,8 @@ export default defineEventHandler(async (event) => {
   const holder = await loadMemberHolder(b.orgId, b.member);
 
   const config = useRuntimeConfig();
-  if (holder.roleId && holder.roleId === config.public.directusRoleHoaAdmin) {
+  // An HOA Admin membership, or one carrying the App Administrator role.
+  if (holder.roleId && [config.public.directusRoleHoaAdmin, config.public.directusRoleAppAdmin].includes(holder.roleId)) {
     throw createError({ statusCode: 400, message: "An admin's posting can't be paused. Remove the admin role first." });
   }
   if (holder.roleId && holder.roleId === config.public.directusRolePropertyManager) {
