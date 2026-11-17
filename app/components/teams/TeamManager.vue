@@ -83,7 +83,9 @@ const personName = (m: { first_name?: string; last_name?: string }) =>
 const rowName = (r: TeamMember) => {
   const u = typeof r.user === "object" ? r.user : null;
   const m = typeof r.member === "object" ? r.member : null;
-  return personName(u || m || {});
+  // The membership's name first: the admin keeps it, and a member without a
+  // login has no user row. The login's name only when the row names no member.
+  return personName((m?.first_name || m?.last_name ? m : null) || u || {});
 };
 const availableFor = (tid: string) => {
   const taken = new Set(membersOf(tid).map((m) => memberUserId(m)));
