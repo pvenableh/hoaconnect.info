@@ -136,9 +136,40 @@ export function planLift(row: RestrictionRow, now: Date, by: string): LiftPlan {
   return { ok: true, patch: { lifted_at: now.toISOString(), lifted_by: by } };
 }
 
-/** "until 18 December 2026", or "until the board lifts it". */
-export function restrictionUntil(endsAt: string | null | undefined, locale = "en-US"): string {
+const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** The UTC offset of `timeZone` at `at`, in ms (positive east of UTC). */
+function offsetMs(at: Date, timeZone: string): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value])
+  );
+  const wall = Date.UTC(+parts.year!, +parts.month! - 1, +parts.day!, +parts.hour!, +parts.minute!, +parts.second!);
+  return wall - Math.floor(at.getTime() / 1000) * 1000;
+}
+
+/**
+ * When posting resumes, from the day an admin picks ("YYYY-MM-DD"): midnight
+ * at the start of that day on the community's wall clock. Null when it is not
+ * a real date.
+ */
+export function resumeInstant(day: string, timeZone: string): Date | null {
+  const m = YMD.exec(day.trim());
+  if (!m) return null;
+  const [y, mo, d] = [+m[1]!, +m[2]!, +m[3]!];
+  const utc = Date.UTC(y, mo - 1, d);
+  const check = new Date(utc);
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return null;
+  // Two passes: the offset at the guess, then at the answer (a DST change between them).
+  let t = utc - offsetMs(new Date(utc), timeZone);
+  t = utc - offsetMs(new Date(t), timeZone);
+  return new Date(t);
+}
+
+/** "until December 18, 2026" (the day posting resumes, on the community's clock), or "until the board lifts it". */
+export function restrictionUntil(endsAt: string | null | undefined, timeZone?: string): string {
   const t = ms(endsAt);
   if (t === null) return "until the board lifts it";
-  return `until ${new Date(t).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`;
+  return `until ${new Date(t).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric", ...(timeZone ? { timeZone } : {}) })}`;
 }

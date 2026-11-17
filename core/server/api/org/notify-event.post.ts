@@ -31,6 +31,7 @@
  */
 
 import { isNotifiableCollection } from "#core/shared/notifications/events";
+import { canPostIn } from "#core/server/utils/member-restrictions";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -55,8 +56,9 @@ export default defineEventHandler(async (event) => {
     action,
     itemId,
     // Called with the org read off the ROW, so membership is always checked
-    // against the community that actually owns the item.
-    authorize: async (orgId) => (await checkMembership(event, orgId)).isMember,
+    // against the community that actually owns the item. An active member
+    // whose posting is paused triggers nothing (docs/spec-member-restrictions.md).
+    authorize: async (orgId) => (await checkMembership(event, orgId)).isMember && (await canPostIn(event, orgId)),
     actorId: (session.user as { id?: string } | undefined)?.id ?? null,
     origin: await safeRequestOrigin(event),
   });

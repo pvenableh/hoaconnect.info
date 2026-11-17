@@ -10,6 +10,7 @@
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { helperAreasFor, refId, type AreaGrantRow, type HelperAreaKey } from "#core/shared/roles/area-grants";
+import { restrictedNow } from "./admin-scope";
 import { MANAGER_GRANT_KEYS, type ManagerGrantKey as GrantKey } from "#core/shared/transition/grants";
 
 // The canonical list lives in the shared transition module, because revocation
@@ -109,6 +110,9 @@ async function readHelperAreas(event: H3Event, organizationId: string): Promise<
     const memberId = String(membership.memberId);
 
     const directus = getTypedDirectus();
+    // Paused while their posting is (docs/spec-member-restrictions.md). A failed
+    // read throws into the catch below: no areas.
+    if ((await restrictedNow(directus, [memberId])).has(memberId)) return [];
     const teamRows = ((await directus.request(
       readItems("hoa_team_members" as any, {
         filter: { user: { _eq: userId }, organization: { _eq: organizationId } },

@@ -114,6 +114,13 @@ export interface NotifyOptions {
    */
   essential?: boolean;
   /**
+   * A notice the person must get even with this category's bell, or every
+   * bell, switched off: their posting was paused or the pause lifted
+   * (docs/spec-member-restrictions.md). The bell ROW is written regardless;
+   * push still follows their bell switch, and email their email switches.
+   */
+  mustReach?: boolean;
+  /**
    * Fold repeats into ONE unread bell row per recipient (Phase 7: "3 new in
    * #board"). Needs `collection` + `item`. If the recipient already has an
    * unread (inbox) row for the same collection/item, that row's subject becomes
@@ -176,11 +183,12 @@ export async function notifyUsers(
   const allowedBell = users.filter((u) =>
     bellAllowed((u.notification_preferences as never) ?? null, opts.category)
   );
+  const rowFor = opts.mustReach ? users : allowedBell;
   let bell = 0;
-  if (opts.bell !== false && allowedBell.length) {
-    await silenceDirectusEmail(allowedBell);
+  if (opts.bell !== false && rowFor.length) {
+    await silenceDirectusEmail(rowFor);
     bell = await writeBells(
-      allowedBell.map((u) => u.id),
+      rowFor.map((u) => u.id),
       opts
     );
   }

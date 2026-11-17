@@ -138,6 +138,17 @@ describe("notifyUsers", () => {
     expect(sendPush).not.toHaveBeenCalled();
   });
 
+  it("mustReach writes the bell row through a category bell switch and the master mute, but push still obeys them", async () => {
+    // Posting paused or lifted (docs/spec-member-restrictions.md): the member must be told.
+    directusRequest = sequencedDirectus([
+      { id: "u1", notification_preferences: { task_bell: false } },
+      { id: "u2", notification_preferences: { _all: false } },
+    ]);
+    const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2"], mustReach: true });
+    expect(res.bell).toBe(2);
+    expect(sendPush).not.toHaveBeenCalled();
+  });
+
   it("excludes the actor who caused the event", async () => {
     directusRequest = sequencedDirectus([{ id: "u2" }]);
     const res = await notifyUsers({ ...base, recipientUserIds: ["u1", "u2"], excludeUserId: "u1" });

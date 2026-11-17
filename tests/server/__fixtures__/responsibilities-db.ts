@@ -59,6 +59,8 @@ const RELATIONS: Record<string, Record<string, string>> = {
   // tests/server/area-grants-routes.test.ts, area-access.test.ts (docs/spec-delegation.md)
   hoa_area_grants: { member: "hoa_members", team: "hoa_teams", granted_by: "directus_users", ended_by: "directus_users", organization: "hoa_organizations" },
   hoa_team_members: { team: "hoa_teams", user: "directus_users", member: "hoa_members" },
+  // tests/server/member-restrictions-routes.test.ts, can-post.test.ts (docs/spec-member-restrictions.md)
+  hoa_member_restrictions: { member: "hoa_members", imposed_by: "directus_users", lifted_by: "directus_users", organization: "hoa_organizations" },
 };
 
 export type Db = Record<string, any[]>;

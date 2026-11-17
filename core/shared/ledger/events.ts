@@ -144,6 +144,25 @@ const CATALOGUE = [
     note: "An admin cleared a member's bounced address or community-mail opt-out, so mail resumes.",
   },
   {
+    key: "member_restricted",
+    label: "Posting paused",
+    icon: "message-square-off",
+    category: "access",
+    // Board-only, for the reason member_email_status_cleared is: it names one
+    // member's discipline. Record, because a board may have to show when and
+    // why a neighbour was paused. The board's internal note never enters it.
+    defaultVisibility: "board",
+    note: "An admin paused a member's posting in the community (docs/spec-member-restrictions.md).",
+  },
+  {
+    key: "member_restriction_lifted",
+    label: "Posting resumed",
+    icon: "message-square",
+    category: "access",
+    defaultVisibility: "board",
+    note: "An admin lifted a member's posting pause before its end date.",
+  },
+  {
     key: "payment_recorded",
     label: "Payment recorded",
     icon: "receipt",

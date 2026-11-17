@@ -12,6 +12,8 @@
  *
  * Body: { messageId }
  */
+import { canPostIn } from "../../../../utils/member-restrictions";
+
 export default defineEventHandler(async (event) => {
   const channelId = getRouterParam(event, "channel");
   const body = await readBody(event).catch(() => ({}) as any);
@@ -25,6 +27,7 @@ export default defineEventHandler(async (event) => {
     channelId,
     messageId,
     actorId: userId,
+    authorCanPost: (orgId) => canPostIn(event, orgId),
     origin: await safeRequestOrigin(event),
   });
 });

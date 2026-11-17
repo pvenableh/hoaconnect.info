@@ -56,6 +56,12 @@ export async function notifyChannelMessage(input: {
   channelId: string;
   messageId: string;
   actorId: string;
+  /**
+   * May the author post in the channel's community now (active, posting not
+   * paused; docs/spec-member-restrictions.md)? Asked with the org read off
+   * the channel, so a paused member's message reaches nobody.
+   */
+  authorCanPost: (orgId: string) => Promise<boolean>;
   origin?: string | null;
   now?: Date;
 }): Promise<ChannelFanOutResult> {
@@ -89,6 +95,7 @@ export async function notifyChannelMessage(input: {
   }
   const orgId = idOf(channel.organization);
   if (!orgId) return { ok: false, reason: "no_org" };
+  if (!(await input.authorCanPost(orgId))) return { ok: false, reason: "cannot_post" };
 
   const msg = (
     (await directus.request(

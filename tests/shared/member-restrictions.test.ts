@@ -14,6 +14,7 @@ import {
   planLift,
   restrictedMemberIds,
   restrictionUntil,
+  resumeInstant,
 } from "#core/shared/members/restrictions";
 
 const T = (iso: string) => new Date(iso);
@@ -116,7 +117,23 @@ describe("canPost", () => {
 
 describe("restrictionUntil", () => {
   it("names the date, or the board", () => {
-    expect(restrictionUntil(END)).toBe("until December 17, 2026");
+    expect(restrictionUntil(END, "America/New_York")).toBe("until December 17, 2026");
+    // Midnight in New York is still the 17th there, though the 18th in UTC.
+    expect(restrictionUntil("2026-12-18T04:59:00.000Z", "America/New_York")).toBe("until December 17, 2026");
     expect(restrictionUntil(null)).toBe("until the board lifts it");
+  });
+});
+
+describe("resumeInstant", () => {
+  it("is midnight at the start of the day picked, on the community's clock", () => {
+    expect(resumeInstant("2026-12-17", "America/New_York")?.toISOString()).toBe("2026-12-17T05:00:00.000Z");
+    expect(resumeInstant("2026-07-04", "America/New_York")?.toISOString()).toBe("2026-07-04T04:00:00.000Z");
+    expect(resumeInstant("2026-12-17", "Pacific/Honolulu")?.toISOString()).toBe("2026-12-17T10:00:00.000Z");
+    expect(resumeInstant("2026-03-08", "America/Chicago")?.toISOString()).toBe("2026-03-08T06:00:00.000Z"); // DST starts at 2am
+  });
+
+  it("refuses what is not a real day", () => {
+    expect(resumeInstant("2026-02-30", "America/New_York")).toBeNull();
+    expect(resumeInstant("next week", "America/New_York")).toBeNull();
   });
 });

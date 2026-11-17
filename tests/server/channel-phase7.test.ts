@@ -17,6 +17,8 @@ vi.mock("@directus/sdk", () => ({
 
 let notify: ReturnType<typeof vi.fn>;
 vi.mock("#core/server/utils/notify", () => ({ notifyUsers: (...a: unknown[]) => notify(...a) }));
+// Posting paused is its own suite (tests/server/can-post.test.ts); here everyone may post.
+vi.mock("#core/server/utils/member-restrictions", () => ({ requireCanPost: async () => ({}), canPostIn: async () => true }));
 
 const ME = "user-me";
 const ORG = "org-1";
@@ -206,6 +208,7 @@ describe("notify-on-message", () => {
       channelId: CH,
       messageId: `msg-${Math.random()}`,
       actorId: ME,
+      authorCanPost: async () => true,
       origin: "https://app.test",
       ...over,
     } as any);

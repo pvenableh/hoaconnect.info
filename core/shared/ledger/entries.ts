@@ -1107,3 +1107,52 @@ export function buildEmailStatusClearedEntry(input: {
     },
   };
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * member_restricted, member_restriction_lifted (docs/spec-member-restrictions.md)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface RestrictedMemberSubject {
+  readonly memberId: string;
+  readonly name: string;
+}
+
+/**
+ * An admin paused a member's posting, or lifted a pause early. The entry keeps
+ * the dates and the note the member was shown; never the board's internal note.
+ */
+export function buildMemberRestrictionEntry(input: {
+  readonly organizationId: string;
+  readonly member: RestrictedMemberSubject;
+  readonly change: "restricted" | "lifted";
+  readonly startsAt: string;
+  /** When posting resumes on its own; null = until lifted. */
+  readonly endsAt: string | null;
+  /** "until December 18, 2026" or "until the board lifts it" (restrictionUntil). */
+  readonly until: string;
+  readonly memberNote: string;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const who = input.member.name || "A member";
+  const summary =
+    input.change === "restricted" ? `${who}'s posting was paused ${input.until}.` : `${who}'s posting pause was lifted; they can post again.`;
+  const event_type = input.change === "restricted" ? "member_restricted" : "member_restriction_lifted";
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type,
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor(event_type),
+    summary,
+    payload: {
+      member: { member_id: input.member.memberId, name: input.member.name || null },
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      member_note: input.memberNote,
+    },
+  };
+}

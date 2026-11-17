@@ -22,6 +22,7 @@
 
 import { readItems, updateItem } from "@directus/sdk";
 import { checkEditAllowed } from "#core/shared/channels/rules";
+import { requireCanPost } from "../../../../utils/member-restrictions";
 
 const MAX_CONTENT = 20_000;
 
@@ -63,6 +64,9 @@ export default defineEventHandler(async (event) => {
 
   const authorId = typeof msg.user_created === "object" ? msg.user_created?.id : msg.user_created;
   const orgId = msg?.channel?.organization?.id ?? null;
+  // An edit reaches everyone in the channel: refused to an archived, inactive
+  // or paused member (docs/spec-member-restrictions.md), moderators included.
+  await requireCanPost(event, orgId);
   const hasAttachments = Array.isArray(msg.attachments) && msg.attachments.length > 0;
   if (!stripHtml(content) && !hasAttachments) {
     throw createError({ statusCode: 400, message: "A message can't be empty" });
