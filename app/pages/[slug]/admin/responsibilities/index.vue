@@ -34,6 +34,16 @@ const columns = [
   { key: "status", label: "Status" },
 ];
 
+// Two lines per job, the same at every width: the job and its status on top; who,
+// cadence, basis and last verified beneath, inline. A long "who" wraps inside
+// its own row instead of squeezing a column.
+const stack = {
+  primary: "title",
+  end: "status",
+  meta: ["who", "cadence", "basis", "last_verified"],
+  bare: ["who"],
+};
+
 const holders = computed(() => holderOptions(register.rows));
 
 // The as-of control reads the register as it stood on a day. A date half typed
@@ -84,6 +94,7 @@ const emptyDescription = computed(() =>
         empty-icon="lucide:list-checks"
         :group="(r: RegisterRow) => r.category"
         :groups="REGISTER_GROUPS"
+        :stack="stack"
         :row-class="(r: RegisterRow) => (r.status === 'retired' ? 'opacity-70' : undefined)"
         data-register-view="grid"
         @create="creating = true"

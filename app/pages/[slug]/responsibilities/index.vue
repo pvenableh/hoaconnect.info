@@ -53,6 +53,9 @@ const columns = [
   { key: "lastVerified", label: "Last verified", hideOnMobile: true },
 ];
 
+// The register's layout: the job on top; who, cadence and last verified beneath.
+const stack = { primary: "title", meta: ["who", "cadence", "lastVerified"], bare: ["who"] };
+
 const holders = (row: PublishedRow) => (isHeldRow(row) ? row.who.map(publishedHolder) : []);
 const lastVerified = (row: PublishedRow) =>
   isHeldRow(row) && row.lastVerified ? row.lastVerified : null;
@@ -88,6 +91,7 @@ const day = (d: string) => {
         empty-icon="lucide:list-checks"
         :group="(r: PublishedRow) => r.category"
         :groups="REGISTER_GROUPS"
+        :stack="stack"
       >
         <template #cell-title="{ row }">
           <span class="t-text">{{ row.title }}</span>

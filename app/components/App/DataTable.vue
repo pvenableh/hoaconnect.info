@@ -36,6 +36,7 @@ export interface DataTableColumn<Row = Record<string, unknown>> {
 }
 
 import { groupRows } from "#core/app/composables/useResource";
+import { resolveStack, type DataTableStack } from "./data-table-stack";
 
 const props = withDefaults(
   defineProps<{
@@ -65,6 +66,14 @@ const props = withDefaults(
      * rows is left out; a row whose key is not listed follows, under its key.
      */
     groups?: { key: string; label: string }[];
+    /**
+     * Two lines per record instead of one cell per column: the primary column
+     * (and an optional end column, a status) on top, the meta columns beneath,
+     * inline. The same on a phone and a desktop, so a record with a long "who"
+     * wraps inside its own row instead of squeezing a column. The header becomes
+     * a Sort strip for the sortable columns.
+     */
+    stack?: DataTableStack;
   }>(),
   {
     rowKey: "id",
@@ -143,6 +152,14 @@ const entries = computed<Entry[]>(() => {
   ]);
 });
 
+// null when there is no stack, or it names no real primary column.
+const stacked = computed(() => resolveStack(props.columns, props.stack));
+const sortable = computed(() => props.columns.filter((c) => c.sortable));
+const sortIcon = (col: DataTableColumn<Row>) =>
+  sortKey.value === col.key ? (sortDir.value === "asc" ? "lucide:arrow-up" : "lucide:arrow-down") : "lucide:chevrons-up-down";
+const ariaSort = (col: DataTableColumn<Row>) =>
+  sortKey.value === col.key ? (sortDir.value === "asc" ? "ascending" : "descending") : "none";
+
 const clickable = computed(() => !!getCurrentInstance()?.vnode.props?.onRowClick);
 
 const alignClass = (col: DataTableColumn<Row>) =>
@@ -158,11 +175,34 @@ const alignClass = (col: DataTableColumn<Row>) =>
     <div
       ref="tableEl"
       class="data-table__scroll"
-      :class="{ 'data-table__scroll--sticky': stickyHeader, 'data-table__scroll--grouped': !!group }"
+      :class="{
+        'data-table__scroll--sticky': stickyHeader,
+        'data-table__scroll--grouped': !!group,
+        'data-table__scroll--stacked': !!stacked,
+      }"
     >
       <Table class="data-table__table">
-        <TableHeader>
-          <TableRow>
+        <TableHeader v-if="!stacked || sortable.length">
+          <!-- Stacked: one strip of sort buttons, since there are no columns to put them on. -->
+          <TableRow v-if="stacked">
+            <TableHead class="data-table__stack-head">
+              <div class="data-table__stack-sort">
+                <span class="type-micro">Sort</span>
+                <button
+                  v-for="col in sortable"
+                  :key="col.key"
+                  type="button"
+                  class="data-table__sort type-micro"
+                  :aria-sort="ariaSort(col)"
+                  @click="toggleSort(col)"
+                >
+                  {{ col.label }}
+                  <Icon :name="sortIcon(col)" class="size-3" :class="{ 'opacity-40': sortKey !== col.key }" />
+                </button>
+              </div>
+            </TableHead>
+          </TableRow>
+          <TableRow v-else>
             <TableHead
               v-for="col in columns"
               :key="col.key"
@@ -172,21 +212,11 @@ const alignClass = (col: DataTableColumn<Row>) =>
                 v-if="col.sortable"
                 type="button"
                 class="data-table__sort type-micro"
-                :aria-sort="sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                :aria-sort="ariaSort(col)"
                 @click="toggleSort(col)"
               >
                 {{ col.label }}
-                <Icon
-                  :name="
-                    sortKey === col.key
-                      ? sortDir === 'asc'
-                        ? 'lucide:arrow-up'
-                        : 'lucide:arrow-down'
-                      : 'lucide:chevrons-up-down'
-                  "
-                  class="size-3"
-                  :class="{ 'opacity-40': sortKey !== col.key }"
-                />
+                <Icon :name="sortIcon(col)" class="size-3" :class="{ 'opacity-40': sortKey !== col.key }" />
               </button>
               <span v-else class="type-micro">{{ col.label }}</span>
             </TableHead>
@@ -197,14 +227,20 @@ const alignClass = (col: DataTableColumn<Row>) =>
           <!-- Loading: skeleton rows keep the table's shape so the page does
                not jump when the data lands. -->
           <TableRow v-for="n in loading ? loadingRows : 0" :key="`sk-${n}`">
-            <TableCell v-for="col in columns" :key="col.key" :class="col.hideOnMobile ? 'data-table__col--desktop' : ''">
+            <TableCell v-if="stacked" class="data-table__stack-cell">
               <span class="river-skeleton data-table__skeleton" />
+              <span class="river-skeleton data-table__skeleton data-table__skeleton--short" />
             </TableCell>
+            <template v-else>
+              <TableCell v-for="col in columns" :key="col.key" :class="col.hideOnMobile ? 'data-table__col--desktop' : ''">
+                <span class="river-skeleton data-table__skeleton" />
+              </TableCell>
+            </template>
           </TableRow>
 
           <template v-for="entry in loading ? [] : entries" :key="entry.id">
             <TableRow v-if="entry.type === 'group'" class="data-table__group-row hover:bg-transparent">
-              <TableHead :colspan="columns.length" scope="rowgroup" class="data-table__group">
+              <TableHead :colspan="stacked ? 1 : columns.length" scope="rowgroup" class="data-table__group">
                 <div class="data-table__group-inner">
                   <span class="type-micro">{{ entry.label }}</span>
                   <span class="type-meta tabular-nums">{{ entry.count }}</span>
@@ -222,16 +258,40 @@ const alignClass = (col: DataTableColumn<Row>) =>
               @keydown.enter="clickable && emit('row-click', entry.row)"
               @keydown.space.prevent="clickable && emit('row-click', entry.row)"
             >
-              <TableCell
-                v-for="col in columns"
-                :key="col.key"
-                :class="[alignClass(col), col.class, col.hideOnMobile ? 'data-table__col--desktop' : '']"
-                :data-label="col.label"
-              >
-                <slot :name="`cell-${col.key}`" :row="entry.row" :value="cellValue(entry.row, col)">
-                  {{ cellValue(entry.row, col) }}
-                </slot>
+              <TableCell v-if="stacked" class="data-table__stack-cell">
+                <div class="data-table__stack-top">
+                  <div class="data-table__stack-primary">
+                    <slot :name="`cell-${stacked.primary.key}`" :row="entry.row" :value="cellValue(entry.row, stacked.primary)">
+                      {{ cellValue(entry.row, stacked.primary) }}
+                    </slot>
+                  </div>
+                  <div v-if="stacked.end" class="data-table__stack-end">
+                    <slot :name="`cell-${stacked.end.key}`" :row="entry.row" :value="cellValue(entry.row, stacked.end)">
+                      {{ cellValue(entry.row, stacked.end) }}
+                    </slot>
+                  </div>
+                </div>
+                <div v-if="stacked.meta.length" class="data-table__stack-meta text-sm">
+                  <span v-for="col in stacked.meta" :key="col.key" class="data-table__stack-item">
+                    <span v-if="!stacked.bare.has(col.key)" class="type-micro">{{ col.label }}</span>
+                    <slot :name="`cell-${col.key}`" :row="entry.row" :value="cellValue(entry.row, col)">
+                      {{ cellValue(entry.row, col) }}
+                    </slot>
+                  </span>
+                </div>
               </TableCell>
+              <template v-else>
+                <TableCell
+                  v-for="col in columns"
+                  :key="col.key"
+                  :class="[alignClass(col), col.class, col.hideOnMobile ? 'data-table__col--desktop' : '']"
+                  :data-label="col.label"
+                >
+                  <slot :name="`cell-${col.key}`" :row="entry.row" :value="cellValue(entry.row, col)">
+                    {{ cellValue(entry.row, col) }}
+                  </slot>
+                </TableCell>
+              </template>
             </TableRow>
           </template>
         </TableBody>
@@ -324,8 +384,52 @@ const alignClass = (col: DataTableColumn<Row>) =>
   width: 70%;
   border-radius: 999px;
 }
+.data-table__skeleton--short {
+  width: 40%;
+  margin-top: 0.375rem;
+}
 .data-table__row--clickable {
   cursor: pointer;
+}
+/* Stacked rows: the record is two lines in one cell. */
+.data-table__stack-cell {
+  padding: 0.625rem 0.5rem;
+  white-space: normal;
+}
+.data-table__stack-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.data-table__stack-primary {
+  min-width: 0;
+}
+.data-table__stack-end {
+  flex-shrink: 0;
+}
+.data-table__stack-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-top: 0.25rem;
+}
+.data-table__stack-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--theme-text-muted);
+}
+.data-table__scroll :deep(th.data-table__stack-head) {
+  height: auto;
+  padding: 0.5rem;
+}
+.data-table__stack-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.875rem;
 }
 .data-table__empty {
   border-top: 1px solid var(--theme-border-light);
@@ -339,6 +443,12 @@ const alignClass = (col: DataTableColumn<Row>) =>
   }
   .data-table__scroll :deep(thead) {
     display: none;
+  }
+  /* Stacked keeps its Sort strip on a phone: there is no column header to lose. */
+  .data-table__scroll--stacked :deep(thead),
+  .data-table__scroll--stacked :deep(thead tr),
+  .data-table__scroll--stacked :deep(th.data-table__stack-head) {
+    display: block;
   }
   /* Grouped, the header rows and the card rows share one block list, so a
      sticky header has the whole list to stick within. */
@@ -380,6 +490,18 @@ const alignClass = (col: DataTableColumn<Row>) =>
     color: var(--theme-text-muted);
     text-align: left;
     flex-shrink: 0;
+  }
+  /* A stacked cell is already two lines: it is not a label-and-value row. */
+  .data-table__scroll :deep(tbody td.data-table__stack-cell) {
+    display: block;
+    text-align: left;
+    padding: 0.625rem 0.5rem;
+  }
+  .data-table__scroll :deep(tbody td.data-table__stack-cell)::before {
+    content: none;
+  }
+  .data-table__scroll--stacked :deep(tbody tr) {
+    padding: 0;
   }
 }
 </style>

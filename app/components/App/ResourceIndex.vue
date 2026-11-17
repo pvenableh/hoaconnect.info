@@ -27,6 +27,7 @@
  * a control inside a cell must stop its click, or it also opens the row.
  */
 import type { DataTableColumn } from "./DataTable.vue";
+import type { DataTableStack } from "./data-table-stack";
 import type { ResourceHandle } from "#core/app/composables/useResource";
 
 const props = withDefaults(
@@ -53,6 +54,12 @@ const props = withDefaults(
      */
     group?: (row: Row) => string | null | undefined;
     groups?: { key: string; label: string }[];
+    /**
+     * Two lines per record (the primary column and a status on top, the other
+     * columns beneath), the same on a phone and a desktop. For an index whose
+     * rows carry something long: a list of holders, a sentence.
+     */
+    stack?: DataTableStack;
   }>(),
   { canCreate: false, emptyIcon: "lucide:inbox" },
 );
@@ -162,6 +169,7 @@ function rowClasses(row: Row) {
         :row-class="rowClasses"
         :group="group"
         :groups="groups"
+        :stack="stack"
         v-on="rowListeners"
       >
         <template v-if="selectable" #[SELECT_SLOT]="{ row }">

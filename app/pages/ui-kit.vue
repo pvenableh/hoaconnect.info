@@ -162,11 +162,21 @@ const kitJobs = [
   ["safety", "Elevator service", "Monthly"], ["safety", "Fire inspections", "Annual"],
   ["safety", "Backflow inspection", "Annual"], ["safety", "Hurricane prep", "Annual"],
   ["safety", "Keys and fobs", "Continuous"], ["safety", "After-hours emergencies", "As needed"],
-].map(([section, job, cadence], i) => ({ id: i + 1, section: section!, job: job!, cadence: cadence! }));
+].map(([section, job, cadence], i) => ({
+  id: i + 1,
+  section: section!,
+  job: job!,
+  cadence: cadence!,
+  holder: ["Treasurer", "Acme Elevator & Fire Protection Services", "Unassigned", "City of Miami Beach Building Department"][i % 4]!,
+}));
 const kitJobColumns = [
   { key: "job", label: "Job", sortable: true },
+  { key: "holder", label: "Who" },
   { key: "cadence", label: "Cadence", hideOnMobile: true },
 ];
+// Two lines per record, the same at every width: for rows that carry something long.
+const kitStacked = ref(false);
+const kitStack = { primary: "job", meta: ["holder", "cadence"], bare: ["holder"] };
 const kitJobGroups = [
   { key: "finance", label: "Finance" },
   { key: "building", label: "Building" },
@@ -721,15 +731,21 @@ const materials = [
           natural set of sections, like the responsibilities register, reads by
           section. Scroll: each header holds under the app bar until the next
           one replaces it. Search and sort work inside the sections, and a
-          section with no rows left disappears.
+          section with no rows left disappears. `stack` draws each record as two
+          lines (the primary column, then the rest inline) at every width, for
+          rows that carry something long: toggle it above.
         </p>
-        <div class="mt-3">
+        <div class="mt-3 space-y-3">
+          <Button size="sm" variant="outline" @click="kitStacked = !kitStacked">
+            {{ kitStacked ? "Show Columns" : "Show Stacked Rows" }}
+          </Button>
           <AppResourceIndex
             :resource="kitGrouped"
             :columns="kitJobColumns"
             :noun="{ one: 'job', other: 'jobs' }"
             :group="(r) => r.section"
             :groups="kitJobGroups"
+            :stack="kitStacked ? kitStack : undefined"
             search-placeholder="Search jobs"
           />
         </div>

@@ -79,8 +79,10 @@ const suffix = (h: HolderView) => (h.role && h.role !== "owner" ? roleLabel(h.ro
   line-height: 1.25rem;
   white-space: normal;
 }
+/* "Unassigned since Nov 17, 2026" is one thought: it wraps as a chip, not inside one. */
 .holder-chip--empty {
   background: color-mix(in srgb, var(--warning) 12%, transparent);
+  white-space: nowrap;
 }
 .holder-chip__avatar {
   width: 1.5rem;
