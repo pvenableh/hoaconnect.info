@@ -517,6 +517,8 @@ export interface HoaChannelMember {
 	date_created?: string | null;
 	/** @description Presence heartbeat (≤90 s old = has the channel open). Server-written. */
 	present_at?: string | null;
+	/** @description This row's channel when its person's membership in the channel's community posts there (posts_in), else null. Written only by /api/internal/sync-admin-scope and the channel routes; chat message and mention creates are scoped with it. */
+	posts_to?: string | null;
 }
 
 export interface HoaChannelMention {
@@ -1495,6 +1497,10 @@ export interface HoaMember {
 	communications_of?: string | null;
 	/** @description manager_of when the manager holds the inquiries grant, else null. Scopes the manager's reads and edits of requests and internal comments. */
 	inquiries_of?: string | null;
+	/** @description The organization on an active membership, else null. Written only by /api/internal/sync-admin-scope; the HOA Member policy scopes requests and poll votes with it. */
+	active_in?: string | null;
+	/** @description active_in, unless the member's posting is paused (hoa_member_restrictions), else null. Written only by /api/internal/sync-admin-scope; the HOA Member policy scopes comments, reactions and reports with it. */
+	posts_in?: string | null;
 	units?: HoaMemberUnit[] | string[];
 	vehicles?: HoaVehicle[] | string[];
 	pets?: HoaPet[] | string[];
@@ -2191,6 +2197,51 @@ export interface HoaVendor {
 	date_updated?: string | null;
 }
 
+export interface MoneyApprovalDecision {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	approval: MoneyApproval | string;
+	/** @description Who decided. */
+	decided_by?: DirectusUser | string | null;
+	/** @description The board office they held when they decided. */
+	office?: string | null;
+	decision?: 'approve' | 'reject';
+	note?: string | null;
+	/** @description {approval}:{decided_by}: one decision per person per approval. */
+	unique_key?: string;
+	date_created?: string | null;
+}
+
+export interface MoneyApproval {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	kind: 'spend' | 'void' | 'waive';
+	/** @description The expense, for spend and void. */
+	expense?: PaymentExpense | string | null;
+	/** @description The owner charge, for waive. */
+	charge?: PaymentRequest | string | null;
+	/** @description Starts at 1; a change to the amount, vendor or payee opens the next. */
+	round?: number;
+	state?: 'pending' | 'approved' | 'rejected' | 'cannot_approve' | 'superseded';
+	/** @description The rule's mode at the last decision (core/shared/money/approval-rule.ts). */
+	mode?: 'committee' | 'majority' | null;
+	/** @description Approvals the rule needed at the last decision. */
+	needed?: number | null;
+	/** @description Who asked for it. Never decides it. */
+	requested_by?: DirectusUser | string | null;
+	/** @description User ids who cannot decide: the requester and anyone who changed the amount, vendor or payee in this round. */
+	excluded?: Record<string, any> | null;
+	/** @description Why: for a void or a waiver. */
+	reason?: string | null;
+	date_created?: string | null;
+	/** @description When it was approved, rejected or superseded. */
+	decided_at?: string | null;
+}
+
 export interface OpsAuditLog {
 	/** @primaryKey */
 	id: string;
@@ -2265,7 +2316,7 @@ export interface OrgAuditLog {
 export interface PaymentExpense {
 	/** @primaryKey */
 	id: string;
-	status?: 'draft' | 'approved' | 'paid' | null;
+	status?: 'draft' | 'submitted' | 'approved' | 'rejected' | 'paid' | 'void' | null;
 	category?: 'maintenance' | 'utilities' | 'insurance' | 'landscaping' | 'admin' | 'other' | null;
 	/** @required */
 	title: string;
@@ -2289,6 +2340,17 @@ export interface PaymentExpense {
 	user_updated?: DirectusUser | string | null;
 	/** @description Roll this expense up into a project's budget */
 	project?: HoaProject | string | null;
+	/** @description Who entered it. Never approves it. */
+	entered_by?: DirectusUser | string | null;
+	/** @description The current spend approval. */
+	approval?: MoneyApproval | string | null;
+	/** @description Who recorded it paid. */
+	paid_by?: DirectusUser | string | null;
+	/** @description Check number or transfer reference. */
+	paid_reference?: string | null;
+	/** @description Recorded paid before its approval was met. Stays true for good. */
+	paid_without_approval?: boolean;
+	void_reason?: string | null;
 }
 
 export interface PaymentMethod {
@@ -2352,6 +2414,8 @@ export interface PaymentRequest {
 	source?: 'schedule' | 'manual' | 'late_fee' | 'plan' | null;
 	/** @description id of the schedule/charge/plan named by `source`. No FK: the target collection varies. */
 	source_id?: string | null;
+	/** @description The open or last waive approval. */
+	waiver?: MoneyApproval | string | null;
 	transactions?: PaymentTransaction[] | string[];
 }
 
@@ -3092,6 +3156,8 @@ export interface Schema {
 	hoa_units: HoaUnit[];
 	hoa_vehicles: HoaVehicle[];
 	hoa_vendors: HoaVendor[];
+	money_approval_decisions: MoneyApprovalDecision[];
+	money_approvals: MoneyApproval[];
 	ops_audit_log: OpsAuditLog[];
 	ops_job_heartbeats: OpsJobHeartbeat[];
 	org_audit_log: OrgAuditLog[];
@@ -3224,6 +3290,8 @@ export enum CollectionNames {
 	hoa_units = 'hoa_units',
 	hoa_vehicles = 'hoa_vehicles',
 	hoa_vendors = 'hoa_vendors',
+	money_approval_decisions = 'money_approval_decisions',
+	money_approvals = 'money_approvals',
 	ops_audit_log = 'ops_audit_log',
 	ops_job_heartbeats = 'ops_job_heartbeats',
 	org_audit_log = 'org_audit_log',
