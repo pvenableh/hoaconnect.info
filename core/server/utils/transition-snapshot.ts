@@ -110,6 +110,30 @@ export async function buildTransitionSnapshot(
     })
   )) as any[];
 
+  // ── Helper grants (docs/spec-delegation.md) ──────────────────────────────
+  // A member holding an open helper row has grants to revoke too. Read
+  // fail-soft: before the schema script there is no collection, and no rows.
+  const helperMemberIds = new Set<string>();
+  try {
+    const open = (await directus.request(
+      readItems("hoa_area_grants" as any, {
+        filter: {
+          organization: { _eq: organizationId },
+          member: { _nnull: true },
+          _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: options.now } }],
+        } as any,
+        fields: ["member"] as any,
+        limit: -1,
+      })
+    )) as any[];
+    for (const r of open ?? []) {
+      const mid = idOf(r.member);
+      if (mid) helperMemberIds.add(mid);
+    }
+  } catch (e) {
+    console.error("[transition-snapshot] helper grant read failed:", e);
+  }
+
   // ── Who works for the management company ─────────────────────────────────
   // The agency's own staff hold memberships — often HOA Admin, because
   // `add-property.post.ts` makes the creating agency the admin outright. The
@@ -175,7 +199,7 @@ export async function buildTransitionSnapshot(
       status: (row.status as MemberStatus) ?? "active",
       isBoardMember: boardByMemberId.has(id),
       boardTitle: boardByMemberId.get(id) ?? null,
-      hasGrants: hasAnyGrant(row.manager_permissions),
+      hasGrants: hasAnyGrant(row.manager_permissions) || helperMemberIds.has(id),
       isAgencyStaff: Boolean(userId && agencyUserIds.has(userId)),
     };
   });

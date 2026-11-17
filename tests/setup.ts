@@ -34,3 +34,8 @@ beforeEach(() => {
 vi.stubGlobal("createError", (input: { statusCode?: number; message?: string }) =>
   Object.assign(new Error(input?.message || "error"), input)
 );
+
+// Helper and committee areas (docs/spec-delegation.md): the access utils read
+// them beside getManagerGrants. Fail-closed by default; a test that needs a
+// helper stubs its own.
+vi.stubGlobal("getHelperAreas", async () => []);

@@ -350,6 +350,18 @@ async function onDone(res: any) {
             </ul>
           </template>
 
+          <template v-if="people.helpers?.length || people.committees?.length">
+            <p class="mt-4 type-label t-text-muted">Helpers and committees</p>
+            <ul class="mt-1 divide-y divide-[var(--theme-border-light)]">
+              <li v-for="h in [...(people.helpers ?? []), ...(people.committees ?? [])]" :key="h.id" class="py-2">
+                <span class="block truncate type-body t-text">{{ h.name || "—" }}<span v-if="(people.committees ?? []).includes(h)" class="type-micro t-text-muted"> · committee</span></span>
+                <span class="mt-1 flex flex-wrap gap-1">
+                  <span v-for="g in h.areas" :key="g" class="rounded-full t-bg-subtle px-2 py-0.5 type-micro t-text-secondary">{{ grantLabel(g) }}</span>
+                </span>
+              </li>
+            </ul>
+          </template>
+
           <template v-if="people.billingAccountMembers.length">
             <p class="mt-4 type-label t-text-muted">{{ c.billingAccount?.name }} (billing account)</p>
             <ul class="mt-1 divide-y divide-[var(--theme-border-light)]">

@@ -2,10 +2,12 @@
 // App Admin and Platform Support (`billing.read`).
 //
 // People (plan §3): the community's customer contacts by name and email —
-// HOA Admins, current board officers, Property Managers with their grants, and
-// the billing account's members when agency-billed. Residents appear only as
-// counts. Nothing about an ordinary member leaves this route by name.
+// HOA Admins, current board officers, Property Managers with their grants,
+// helpers and committees with their areas (docs/spec-delegation.md: by name,
+// no contact fields, because they act for the community), and the billing
+// account's members when agency-billed. Other residents appear only as counts.
 import { readItem, readItems } from "@directus/sdk";
+import { HELPER_AREA_KEYS, isHelperArea } from "#core/shared/roles/area-grants";
 import { requireOpsPermission } from "#core/server/utils/admin-auth";
 import {
   directusItemUrl,
@@ -130,6 +132,22 @@ export default defineEventHandler(async (event) => {
       )) ?? []) as any[])
     : [];
 
+  // Helpers and committees (docs/spec-delegation.md): open helper rows, with
+  // the team's name for a committee. Optional: before the schema script there
+  // is no collection.
+  const helperRows = (((await optional("helper grants", () =>
+    directus.request(
+      readItems("hoa_area_grants" as any, {
+        filter: {
+          organization: { _eq: id },
+          _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: now.toISOString() } }],
+        } as any,
+        fields: ["area", "member", "team.id", "team.name", "starts_at"] as any,
+        limit: -1,
+      })
+    )
+  )) ?? []) as any[]).filter((r) => isHelperArea(r.area) && r.starts_at && Date.parse(r.starts_at) <= now.getTime());
+
   const memberById = new Map(members.map((m) => [m.id, m]));
   const users = await opsUsers([
     ...admins.map((m) => idOf(m.user)!),
@@ -166,6 +184,15 @@ export default defineEventHandler(async (event) => {
       const grants = normalizeGrants(m.manager_permissions);
       return { id: m.id, ...contact(m), grants: MANAGER_GRANT_KEYS.filter((k) => grants[k]) };
     }),
+    helpers: groupHelperRows(helperRows.filter((r) => idOf(r.member)), (r) => idOf(r.member)!).map(({ key, areas }) => {
+      const m = memberById.get(key);
+      return { id: key, name: personName(m) ?? m?.email ?? null, areas };
+    }),
+    committees: groupHelperRows(helperRows.filter((r) => r.team?.id), (r) => String(r.team.id)).map(({ key, rows, areas }) => ({
+      id: key,
+      name: rows[0]?.team?.name ?? null,
+      areas,
+    })),
     billingAccountMembers: accountMembers.map((a) => {
       const u = users.get(idOf(a.user) ?? "");
       return { id: a.id, role: a.role, name: u?.name ?? null, email: u?.email ?? null };
@@ -328,3 +355,17 @@ export default defineEventHandler(async (event) => {
     },
   };
 });
+
+/** Group open helper rows by holder, each with its areas in helper order. */
+function groupHelperRows(rows: any[], keyOf: (r: any) => string): Array<{ key: string; rows: any[]; areas: string[] }> {
+  const by = new Map<string, any[]>();
+  for (const r of rows) {
+    const k = keyOf(r);
+    by.set(k, [...(by.get(k) ?? []), r]);
+  }
+  return [...by.entries()].map(([key, list]) => ({
+    key,
+    rows: list,
+    areas: HELPER_AREA_KEYS.filter((a) => list.some((r) => r.area === a)),
+  }));
+}

@@ -3,8 +3,10 @@
  * for the `responsibilities` area in AREAS (docs/spec-responsibilities.md).
  *
  *   read     = org admin ∪ manager with the `responsibilities` grant
+ *              ∪ a helper or committee holding it
  *              ∪ every board seat (`responsibilities:read`, current term)
  *   edit     = org admin ∪ manager with the `responsibilities` grant
+ *              ∪ a helper or committee holding it (docs/spec-delegation.md)
  *   admin    = the two visibility switches, and board-term actions. The
  *              grant is not enough for the switches: the delegate may be the
  *              party who is not answering.
@@ -40,6 +42,10 @@ export async function getResponsibilityAccess(event: H3Event, orgId: string): Pr
   if (!canEdit) {
     const grants = await getManagerGrants(event, orgId);
     canEdit = grants?.responsibilities === true;
+  }
+  if (!canEdit) {
+    // A helper or committee holding the area (docs/spec-delegation.md).
+    canEdit = (await getHelperAreas(event, orgId)).includes("responsibilities");
   }
 
   let canRead = canEdit;

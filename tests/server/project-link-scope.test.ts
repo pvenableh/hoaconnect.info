@@ -98,6 +98,8 @@ beforeEach(() => {
   vi.stubGlobal("getProjectAccess", async () => ACCESS);
   vi.stubGlobal("requireProjectsWrite", async () => ACCESS);
   vi.stubGlobal("requireAdminOrManagerGrant", async () => ({ userId: "user-a" }));
+  // promote asks requireAreaWork("projects") since docs/spec-delegation.md.
+  vi.stubGlobal("requireAreaWork", async () => ({ via: "admin" }));
   vi.stubGlobal("getProjectMeta", async (id: string) => {
     const p = DB.hoa_projects!.find((r) => r.id === id);
     if (!p) throw Object.assign(new Error("Project not found"), { statusCode: 404 });

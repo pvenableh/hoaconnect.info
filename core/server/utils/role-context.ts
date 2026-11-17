@@ -108,7 +108,10 @@ export async function getRoleContext(event: H3Event, orgId: string): Promise<Res
   }
 
   const billing = await readBillingAccount(orgId, userId);
-  const context = resolveRoleContext(membership, terms, billing, { userId, globalRoleId, roles, orgId });
+  // Helper and committee areas (docs/spec-delegation.md). The reader requires
+  // an active membership, and the resolver ignores them on any other status.
+  const helperAreas = membership?.status === "active" ? await getHelperAreas(event, orgId) : [];
+  const context = resolveRoleContext(membership, terms, billing, { userId, globalRoleId, roles, orgId, helperAreas });
   const isAppAdmin = !!roles.appAdmin && globalRoleId === roles.appAdmin;
   const live = membership?.status === "active" || membership?.status === "pending";
   return { context, allowed: live || isAppAdmin };
@@ -127,7 +130,8 @@ export async function resolveCapabilities(
   const caps = new Set(capabilitiesFor(actors));
 
   const grants = await getManagerGrants(event, orgId);
-  if (grants?.projects === true) {
+  const helps = await getHelperAreas(event, orgId);
+  if (grants?.projects === true || helps.includes("projects")) {
     caps.add("projects:write");
     caps.add("milestone:approve");
   }

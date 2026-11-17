@@ -15,7 +15,7 @@ import { hasCapability } from "#core/shared/permissions";
 import { resolveActors } from "./board-access";
 import { governingActor, writeGoverningAudit } from "./governing-audit";
 import { deleteSourcePages } from "./governing-pages";
-import { getManagerGrants } from "./manager-access";
+import { getHelperAreas, getManagerGrants } from "./manager-access";
 import { ensureOrgStorage } from "./org-storage";
 import { addOrgStorageUsage, enforceStorageLimit } from "./storage-enforcement";
 
@@ -202,6 +202,7 @@ export async function mayOpenGoverningSourceFile(event: H3Event, fileId: string)
     if (!hasCapability(actors, "governing:read")) continue;
     if (hasCapability(actors, "governing:manage")) return true;
     if (actors.includes("property_manager") && (await getManagerGrants(event, organizationId))?.documents === true) return true;
+    if ((await getHelperAreas(event, organizationId)).includes("documents")) return true;
     const [document] = await rows(DOCUMENTS, {
       filter: { id: { _eq: documentId }, organization: { _eq: organizationId } },
       fields: ["status"],

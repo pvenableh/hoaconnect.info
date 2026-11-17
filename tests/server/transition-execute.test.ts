@@ -286,3 +286,44 @@ describe("an export already in flight", () => {
     expect(mutations().some((w) => w.collection === "hoa_data_exports")).toBe(false);
   });
 });
+
+describe("revoking ends helper rows too (docs/spec-delegation.md)", () => {
+  it("ends the outgoing member's open helper rows, by date, without deleting them", async () => {
+    vi.stubGlobal("getTypedDirectus", () => ({
+      request: async (command: Write) => {
+        writes.push(command);
+        if (command.op === "read" && command.collection === "hoa_area_grants") {
+          return [{ id: "grant-1", member: { first_name: "Dana", last_name: "Reyes", email: "dana@acme.example" } }];
+        }
+        if (command.op === "read") return [];
+        return { id: `${command.collection}-new` };
+      },
+    }));
+    const result = await run();
+    expect(result.completed).toBe(true);
+    const read = writes.find((w) => w.op === "read" && w.collection === "hoa_area_grants");
+    expect(JSON.stringify(read?.query?.filter)).toContain('"_in":["pm"]');
+    const ended = mutations().find((w) => w.collection === "hoa_area_grants");
+    expect(ended).toMatchObject({
+      op: "update",
+      id: "grant-1",
+      payload: { ends_at: NOW, end_reason: "transition", holder_name: "Dana Reyes", ended_by: "user-pres" },
+    });
+    expect(mutations().some((w) => w.op === "delete")).toBe(false);
+  });
+
+  it("a community without the collection yet still completes the step", async () => {
+    vi.stubGlobal("getTypedDirectus", () => ({
+      request: async (command: Write) => {
+        if (command.op === "read" && command.collection === "hoa_area_grants") {
+          throw new Error('You don\'t have permission to access collection "hoa_area_grants" or it does not exist.');
+        }
+        writes.push(command);
+        if (command.op === "read") return [];
+        return { id: `${command.collection}-new` };
+      },
+    }));
+    const result = await run();
+    expect(result.steps.find((s) => s.kind === "revoke_grants")?.status).toBe("done");
+  });
+});

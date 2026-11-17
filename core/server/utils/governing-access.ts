@@ -2,8 +2,8 @@
 //
 // Read: anyone with a seat in the organization. Manage (see drafts and
 // unconfirmed suggestions; later upload, review, publish, edit text, confirm
-// flags): HOA Admins and App Admins, current-term board members, and property
-// managers who hold the `documents` grant.
+// flags): HOA Admins and App Admins, current-term board members, property
+// managers who hold the `documents` grant, and helpers or committees holding it.
 //
 // No Directus role has any permission on the governing collections. These
 // routes read with the admin token, so this check is the enforcement.
@@ -11,7 +11,7 @@
 import type { H3Event } from "h3";
 import { hasCapability } from "#core/shared/permissions";
 import { resolveActors } from "./board-access";
-import { getManagerGrants } from "./manager-access";
+import { getHelperAreas, getManagerGrants } from "./manager-access";
 
 export type GoverningAccess = { canManage: boolean };
 
@@ -27,7 +27,9 @@ export async function requireGoverningAccess(event: H3Event, organizationId: str
   if (hasCapability(actors, "governing:manage")) return { canManage: true };
 
   const grants = actors.includes("property_manager") ? await getManagerGrants(event, organizationId) : null;
-  return { canManage: grants?.documents === true };
+  if (grants?.documents === true) return { canManage: true };
+  // A helper or committee holding `documents` (docs/spec-delegation.md).
+  return { canManage: (await getHelperAreas(event, organizationId)).includes("documents") };
 }
 
 /** For routes only managers may call. */

@@ -96,6 +96,7 @@ export async function executeTransitionPlan(input: {
               updateItem("hoa_members", memberId, { manager_permissions: NO_GRANTS } as any)
             );
           }
+          await endHelperGrants(directus, organizationId, step.targetIds, now, actor);
           results.push({ ...base(step), status: "done" });
           break;
         }
@@ -236,4 +237,49 @@ export async function executeTransitionPlan(input: {
 
 function base(step: TransitionStep): { kind: TransitionStep["kind"]; label: string } {
   return { kind: step.kind, label: step.label };
+}
+
+/**
+ * End every open helper row (docs/spec-delegation.md) naming one of these
+ * members: `ends_at` now, `end_reason` transition, the name frozen. Ended, not
+ * deleted. A community without the collection yet has no rows to end; any
+ * other failure throws, so the step reports failed rather than done.
+ */
+async function endHelperGrants(
+  directus: ReturnType<typeof getTypedDirectus>,
+  organizationId: string,
+  memberIds: readonly string[],
+  now: string,
+  actor: AuditActor
+): Promise<void> {
+  if (memberIds.length === 0) return;
+  let open: any[] = [];
+  try {
+    open = ((await directus.request(
+      readItems("hoa_area_grants" as any, {
+        filter: {
+          organization: { _eq: organizationId },
+          member: { _in: [...memberIds] },
+          _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: now } }],
+        } as any,
+        fields: ["id", "member.first_name", "member.last_name", "member.email"] as any,
+        limit: -1,
+      })
+    )) ?? []) as any[];
+  } catch (e: any) {
+    if (/hoa_area_grants|collection|forbidden/i.test(String(e?.message ?? e))) return;
+    throw e;
+  }
+  for (const row of open) {
+    const m = row.member ?? {};
+    const name = [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || m.email || "";
+    await directus.request(
+      updateItem("hoa_area_grants" as any, String(row.id), {
+        ends_at: now,
+        ended_by: actor.userId ?? null,
+        end_reason: "transition",
+        holder_name: name,
+      } as any)
+    );
+  }
 }

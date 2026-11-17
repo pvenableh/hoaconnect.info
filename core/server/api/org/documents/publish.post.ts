@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await requireAdminOrManagerGrant(event, orgId, "documents");
+  await requireAreaWork(event, orgId, "documents");
 
   const directus = getTypedDirectus();
 

@@ -10,11 +10,12 @@ import type { H3Event } from "h3";
 import { decidePollAccess, type PollAccess } from "#core/shared/polls/access";
 
 export async function getPollAccess(event: H3Event, orgId: string): Promise<PollAccess> {
-  const [admin, membership, boardTitle, grants] = await Promise.all([
+  const [admin, membership, boardTitle, grants, helps] = await Promise.all([
     checkAdminAccess(event, orgId),
     checkMembership(event, orgId),
     getBoardPosition(event, orgId),
     getManagerGrants(event, orgId),
+    getHelperAreas(event, orgId),
   ]);
 
   return decidePollAccess({
@@ -23,7 +24,9 @@ export async function getPollAccess(event: H3Event, orgId: string): Promise<Poll
     isMember: membership.isMember === true,
     // `getManagerGrants` returns null for anyone who is not an ACTIVE manager
     // of this org, so an offboarded manager's stale grants cannot reach here.
-    hasFeedbackGrant: grants?.feedback === true,
+    // A helper or committee holding `feedback` counts the same
+    // (docs/spec-delegation.md); getHelperAreas reads active memberships only.
+    hasFeedbackGrant: grants?.feedback === true || helps.includes("feedback"),
   });
 }
 

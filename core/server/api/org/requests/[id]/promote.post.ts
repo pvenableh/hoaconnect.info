@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
   // Promotion is a broad action — admin or PM with the projects grant.
-  await requireAdminOrManagerGrant(event, orgId, "projects");
+  await requireAreaWork(event, orgId, "projects");
 
   const directus = getTypedDirectus();
   const rows = await directus.request(

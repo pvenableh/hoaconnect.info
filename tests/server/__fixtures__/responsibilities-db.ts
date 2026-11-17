@@ -56,6 +56,9 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_invitations: { organization: "hoa_organizations", invited_by: "directus_users", role: "directus_roles", unit: "hoa_units" },
   // tests/server/expense-writes.test.ts
   payment_expenses: { project: "hoa_projects", receipt: "directus_files" },
+  // tests/server/area-grants-routes.test.ts, area-access.test.ts (docs/spec-delegation.md)
+  hoa_area_grants: { member: "hoa_members", team: "hoa_teams", granted_by: "directus_users", ended_by: "directus_users", organization: "hoa_organizations" },
+  hoa_team_members: { team: "hoa_teams", user: "directus_users", member: "hoa_members" },
 };
 
 export type Db = Record<string, any[]>;
@@ -251,6 +254,8 @@ export interface Who {
   memberId?: string | null;
   grants?: Record<string, boolean> | null;
   office?: string | null;
+  /** Helper or committee areas (docs/spec-delegation.md). */
+  helps?: string[];
 }
 
 export const PERSONAS = {
@@ -284,6 +289,7 @@ export function stubGlobals(state: { who: Who; db: Db; fail?: { failCreate?: str
     state.who.memberId ? { isMember: true, memberId: state.who.memberId } : { isMember: false }
   );
   vi.stubGlobal("getManagerGrants", async () => state.who.grants ?? null);
+  vi.stubGlobal("getHelperAreas", async () => state.who.helps ?? []);
   vi.stubGlobal("getBoardPosition", async () => state.who.office ?? null);
   // ID.fileOk is a library file; so is any file filed in the community's library folders.
   vi.stubGlobal("filesOutsideOrg", async (org: string, ids: string[]) => {

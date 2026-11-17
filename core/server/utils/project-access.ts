@@ -49,6 +49,12 @@ export async function getProjectAccess(event: H3Event, organizationId: string): 
     const grants = await getManagerGrants(event, organizationId);
     if (grants && grants.projects === true) canWriteAll = true;
   }
+  if (!canWriteAll) {
+    // A helper or committee holding `projects` (docs/spec-delegation.md). The
+    // expense routes do not read this: they keep requireAdminOrManagerGrant,
+    // because money stays with admins and managers.
+    if ((await getHelperAreas(event, organizationId)).includes("projects")) canWriteAll = true;
+  }
 
   let leadTeamIds: string[] = [];
   let teamIds: string[] = [];
