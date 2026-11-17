@@ -57,6 +57,7 @@ async function pause(body: { endsOn: string | null; memberNote: string; internal
   try {
     const res = await $fetch<any>("/api/org/member-restrictions", { method: "POST", body: { orgId: props.orgId, member: props.member, ...body } });
     reportResult(res, `${name.value}'s posting is paused ${res.restriction?.until ?? ""}`.trim());
+    formOpen.value = false;
     await refresh();
     emit("changed");
     return true;
@@ -111,6 +112,7 @@ const day = (iso: string | null) =>
       </div>
     </div>
     <p v-else-if="!data.canRestrict" class="text-sm t-text-muted">{{ data.reason }}</p>
+    <RestrictionsPauseForm v-else-if="formOpen" :name="name" :save="pause" @cancel="formOpen = false" />
     <div v-else>
       <Button variant="outline" size="sm" @click="formOpen = true">Pause posting</Button>
     </div>
@@ -128,6 +130,5 @@ const day = (iso: string | null) =>
       </ul>
     </div>
 
-    <RestrictionsPauseForm v-model:open="formOpen" :name="name" :save="pause" />
   </section>
 </template>
