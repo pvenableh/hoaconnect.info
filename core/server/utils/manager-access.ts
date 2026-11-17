@@ -139,8 +139,9 @@ async function readHelperAreas(event: H3Event, organizationId: string): Promise<
     )) ?? []) as AreaGrantRow[];
 
     return helperAreasFor({ orgId: organizationId, memberId, teamIds, rows, now });
-  } catch (e) {
-    console.error("[manager-access] helper area lookup failed:", e);
+  } catch (e: any) {
+    // One line: before the schema script this fails on every request.
+    console.error("[manager-access] helper area lookup failed:", e?.errors?.[0]?.message ?? e?.message ?? String(e));
     return [];
   }
 }

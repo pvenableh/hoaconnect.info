@@ -451,6 +451,32 @@ export interface HoaAnnouncement {
 	show_toast?: boolean | null;
 }
 
+export interface HoaAreaGrant {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @description A key of HELPER_AREA_KEYS (core/shared/roles/area-grants.ts). Checked by the route. @required */
+	area: 'documents' | 'feedback' | 'projects' | 'responsibilities';
+	/** @description A member of this community (a helper). Exactly one of member / team. */
+	member?: HoaMember | string | null;
+	/** @description A team of this community (a committee). Exactly one of member / team. */
+	team?: HoaTeam | string | null;
+	/** @required */
+	starts_at: string;
+	/** @description Null while the grant is open. Exclusive: the grant stops at this instant. */
+	ends_at?: string | null;
+	/** @description The admin who opened the row */
+	granted_by?: DirectusUser | string | null;
+	/** @description The admin who ended it */
+	ended_by?: DirectusUser | string | null;
+	end_reason?: 'revoked' | 'transition' | null;
+	/** @description Frozen by the server when the row ends, so a departed holder still reads correctly. */
+	holder_name?: string | null;
+	date_created?: string | null;
+	user_created?: DirectusUser | string | null;
+}
+
 export interface HoaBoardMember {
 	/** @primaryKey */
 	id: string;
@@ -2969,6 +2995,7 @@ export interface Schema {
 	hoa_activity: HoaActivity[];
 	hoa_amenities: HoaAmenity[];
 	hoa_announcements: HoaAnnouncement[];
+	hoa_area_grants: HoaAreaGrant[];
 	hoa_board_members: HoaBoardMember[];
 	hoa_channel_members: HoaChannelMember[];
 	hoa_channel_mentions: HoaChannelMention[];
@@ -3099,6 +3126,7 @@ export enum CollectionNames {
 	hoa_activity = 'hoa_activity',
 	hoa_amenities = 'hoa_amenities',
 	hoa_announcements = 'hoa_announcements',
+	hoa_area_grants = 'hoa_area_grants',
 	hoa_board_members = 'hoa_board_members',
 	hoa_channel_members = 'hoa_channel_members',
 	hoa_channel_mentions = 'hoa_channel_mentions',
