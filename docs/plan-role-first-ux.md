@@ -351,7 +351,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 7 | 2b — Responsibilities register, part 2: Board tab, admin register, owner view, service history (brief commits 6–9) | [x] | Shipped 2026-11-16 in five commits (`1149c6f`, `6fdba19`, `8512d54`, `4d0752a`, `9e3750e`). Checked in the browser as the demo admin only; a board seat, a manager with the grant and a plain owner could not be reached (Session log). Pushed and deployed 2026-11-17; the permission change is applied; the Florida list is applied in 1033 Lenox. Due before that board is seated 2026-12-09: its board terms, holders and publishing (TODO 2). Follow-up: the register's rows collapse badly (Session log). Spec `docs/spec-responsibilities.md`. Prompt: `docs/prompts/role-first-s7-responsibilities-pages.md` (Sonnet 5.5) |
 | 8 | Delegation to members: volunteer and committee grants (spec first, then build) | [x] | Shipped 2026-11-17 in seven build commits after the spec (`1dfef57`…`c10b1fb`) and five fixes from the live check (`ede6551`…`82b8ba9`). Spec `docs/spec-delegation.md` (decisions confirmed with Peter). `hoa_area_grants` created on the live instance 2026-11-17 and types regenerated. Checked in the browser as Oscar, Peter (admins), Obie (a helper, board seat) and Tester Two (a committee member, tenant) on 1033 Lenox; everything granted was ended and the test team deleted. **Operator TODO:** apply the 3 HOA Admin removals on `hoa_team_members` (`pnpm setup:permissions`). Not pushed. Prompt: `docs/prompts/role-first-s8-delegation.md` (Opus 5.5) |
 | 9 | 2c — Responsibilities map: the Map mode beside the grid, for admins and owners | [ ] | Queued 2026-11-17. Phase 2b's pages are live, so this reads the same two routes and adds no schema (§3.4 "Map view", decision 15). Independent of 4, 5 and 8. Prompt: `docs/prompts/role-first-s9-responsibilities-map.md` (Opus 5.5) |
-| 10 | Restricted members: posting paused, membership kept (and archived members stop writing) | [ ] | Spec `docs/spec-member-restrictions.md`, decisions confirmed with Peter 2026-11-17. Closes a gap found the same day: every HOA Member Directus rule is scoped by any membership row whatever its status, so archived and inactive members can still comment, react, vote and file requests. Step 2 (scope fields `active_in`, `posts_in`) ships first, on its own. Independent of 4, 5 and 9. Prompt: `docs/prompts/role-first-s10-member-restrictions.md` (Opus 5.5) |
+| 10 | Restricted members: posting paused, membership kept (and archived members stop writing) | [x] | Built 2026-11-17 in six gated commits after the spec (`01457c9`…`4ad8bac`) and three fixes from the live check (`1b9fefc`, `c1ec2ba`, `67beb41`). Spec `docs/spec-member-restrictions.md`. `hoa_member_restrictions` created on the live instance and types regenerated (at Peter's go-ahead). Checked in the browser as Peter (admin), Tester Two (paused) and Obie (board seat); both test pauses lifted. **Operator TODOs:** deploy, `pnpm add:admin-scope` (creates and back-fills `active_in`, `posts_in`, `posts_to`), then `pnpm setup:permissions` — until then archived and inactive members can still write through Directus and a pause rests on the server checks alone. Not pushed. Prompt: `docs/prompts/role-first-s10-member-restrictions.md` (Opus 5.5) |
 
 
 ### Queued: delegation to members (Session 8)
@@ -983,3 +983,68 @@ Spec first (`docs/spec-delegation.md`), its nine decisions confirmed with Peter,
 - **No "restricted" member state exists**: today a problem member is archived (everything stops) or their comments are moderated one by one. If wanted, it is its own spec.
 - **Restricted members, specced 2026-11-17** (Peter: "I want something in between" archiving and per-comment moderation): `docs/spec-member-restrictions.md`, queued as Session 10. The census behind it found that archived and inactive members can still write through Directus (comments, reactions, reports, poll votes, requests; chat while their channel rows remain), because every member rule is scoped by `ANY_MEMBERSHIP`; the spec fixes that first.
 
+#### Session 10 — restricted members: posting paused, membership kept (2026-11-17)
+
+Built in the spec's order, one gated commit each (typecheck 0, vitest 4168 green, lint 132 against a cap of 148, build green, 19/19 audits), the archived-member gap first and on its own.
+
+**Shipped**
+
+- `01457c9` **the archived-member gap.** Scope fields `active_in` (an active membership) and `posts_in` (the same, unless paused) on `hoa_members`, mirrors for Directus like `admin_of`, computed by `scopeFieldsOf` and kept by the existing sync Flow and nightly reconcile. Chat needed a third mirror (below): `hoa_channel_members.posts_to`, the row's channel when its person posts in the channel's community; the sync keeps it for the people it names and the six routes that create channel rows (create, dm, invite, backfill-board, mute, read) set it at once. `setup:permissions` scopes the HOA Member writes once the fields exist and are right on every row (`postingScopeReadiness`; before that it keeps the old scope): comments (create, edit), reactions and reports through `posts_in`; requests (create, edit their own) and poll votes through `active_in`; chat and mention creates through `posts_to` for every policy. Reads and deleting one's own rows keep any membership. `posts_in` and `posts_to` are not readable by members (they would show a neighbour's pause); `hoa_channel_members` reads now list every field there was. `pnpm add:admin-scope` creates and back-fills the three.
+- `3b39e75` the shared model `core/shared/members/restrictions.ts` (in force at t, `planImpose`, `planLift`, `canPost`, the copy); the sync, `add:admin-scope` and the readiness check read the pauses in force (a missing collection is none; any other read failure throws, so nothing reopens posting because it could not read).
+- `6016208` `scripts/create-member-restrictions-collection.ts` (`pnpm create:member-restrictions`), run on the live instance at Peter's go-ahead; types regenerated. No policy reads or writes it. Full export only.
+- `cd93cfa` the routes (`GET`/`POST /api/org/member-restrictions`, `POST …/[id]/lift`, `GET …/mine`), ledger types `member_restricted` and `member_restriction_lifted` (board-visible, never the internal note), a bell through `notifyUsers`' new `mustReach` (the Membership bell can be switched off, and `_all` mutes every bell; with `mustReach` the row is written anyway while push and email keep their switches). `requireCanPost` / `canPostIn` in the chat fan-out (the author), channel notify, message edit and notify-event; `getHelperAreas` returns nothing while paused.
+- `4ad8bac` the UI: "Posting" on a member's sheet (pause, the pause in force with Lift, earlier pauses; the reason for an admin, a manager, an inactive member or a board seat), a "Posting paused" chip on the Members list, the member's banner on every workspace page with Contact the board (their requests page), the chat and comment composers replaced by one line, reactions frozen, Reply, Edit and Report hidden; `usePostingPause` asks `mine` once per community; a `/ui-kit` demo (not seen: the page bounces in the preview).
+- From the live check: `1b9fefc` an App Administrator membership (Peter's in 1033 Lenox) cannot be paused either; `c1ec2ba` the pause form opens in place in the sheet (a sheet opened from the sheet lost the first clicks to the form behind it); `67beb41` every confirm shows above a sheet (`ConfirmDialog` was z-50 under the sheet's 70, so "Lift the pause?" opened hidden and the page looked stuck — this affects any confirm asked from a sheet).
+
+**Proved before writing a rule (read-only, Peter accepted the analogue)**: `posts_in` did not exist, so the live analogue was read back: `admin_of` has the same shape (a plain uuid on `hoa_members`, null on most memberships) and already scopes rules #229, #237, #253. Directus 11.13.4 resolves `$CURRENT_USER.hoa_members.<field>` through `UsersService` without the user's accountability (`permissions/utils/fetch-dynamic-variable-data.ts`), one value per membership, nulls included. An item filter is SQL `IN`, which never matches null; a validation's `_in` is Joi `equal(...)`, which would admit a null organization, but `organization` is required and NOT NULL on all five collections (read live), so the database refuses it.
+
+**What each role sees now**
+
+| Who | Sees |
+|---|---|
+| Admin | "Posting" on a member's sheet: Pause posting (the day posting resumes, default 30 days on, or until lifted; a note the member sees; a note for admins; "Check your governing documents…"), the pause in force with Lift, earlier pauses with who did each. A "Posting paused" chip on the Members list. The reason instead of the control for an admin (HOA Admin or App Administrator), a property manager, a membership that is not active, a current board seat |
+| Board seat | The ledger entries ("Tester Two's posting was paused until December 17, 2026."). No controls; the routes answer 403 |
+| Paused member | A banner on every page of that community ("Posting is paused in 1033 Lenox until …", the note, what they keep, Contact the board). Composers give way to one line; reactions, Reply, Edit and Report gone. Dues, household, requests, polls, reading, deleting their own comments unchanged. Their chat fan-out, edits and notify-event are refused by the server; once the operator applies the rules, Directus refuses their comments, reactions, reports and chat too |
+| Archived or inactive member | Once applied: no comment, reaction, report, vote, request or chat write through Directus (reads unchanged) |
+| Everyone else | Nothing; past posts stay |
+
+**Seen in the browser, 2026-11-17 (1033 Lenox, identity read each time)**
+
+- **Peter (App Administrator membership):** the history route's reason for each active member (Peter, Oscar, Camila: admin; Obie: board seat; Tester Two: can be paused; Octavio, inactive: not active). Paused Tester Two (first through the page's session while the pane was hidden, then a second full pass through the inline form): row, board-visible entry without the internal note, the member's bell, the chip and the sheet read back. Lifted both through the sheet's confirm (after the z-index fix): rows kept with `lifted_by` Peter, entries and bells written, chip and section update.
+- **Tester Two (paused):** the banner after a reload; `mine` returned only `{ restricted, endsAt, memberNote, until }`; lifting their own pause and reading the history 403; notify-event on a real 1033 Lenox meeting refused ("not authorized for this organization"); Pay dues and Submit a request still there.
+- **Obie (board seat):** the `member_restricted` entry in the ledger, board-visible, no internal note; the pause routes 403.
+- **Left on purpose:** two ended `hoa_member_restrictions` rows (Tester Two, both lifted by Peter), four ledger entries, four bells on Tester Two. No pause is open anywhere.
+- **Not seen:** Oscar and Camila in the browser (their reasons read through Peter's session); the composer line, frozen reactions and hidden Report (1033 Lenox has no channels, documents or comment threads a resident may post in; meetings are read-only to residents); the Directus refusals themselves (the rules are not applied); a property manager (none exists); the demo community; `/ui-kit`.
+
+**Deviations**
+
+- **Chat:** the spec scoped chat by `posts_in` beside the channel-membership check, but a message names a channel, not a community, and a validation on `channel.organization` refuses a plain id. Peter chose a third mirror, `hoa_channel_members.posts_to`; the chat create rule is `channel in $CURRENT_USER.channel_memberships.posts_to`, for the HOA Admin policy too (Directus ANDs the validations a role holds, so it binds admins either way).
+- Requests: editing one's own request is scoped by `active_in` as well as creating one (the spec named create).
+- Support's "ask the community" is not a route: it is a link to `/{slug}/requests?ask=1`, a request to the board a paused member keeps, so it is not gated. Four server places, not five.
+- `POST` takes `endsOn`, the day posting resumes, which the server turns into midnight on the community's clock; `mine` also returns `until` (that date as the member reads it).
+- `holder_name` is written when a pause is imposed and refreshed when it is lifted: a pause that ends by its date writes nothing.
+- An App Administrator membership is refused like an HOA Admin one.
+- A pending membership has no `active_in` either (none exist live: 54 active, 57 inactive, 27 archived).
+- Session 8's operator TODO 2 (the three `hoa_team_members` removals) was already applied: the audit read 0/0/0 at the start.
+
+**Findings (not fixed)**
+
+- Signing in as another person in the same tab kept the previous person's client state (Tester Two saw Peter's admin tabs and no banner) until a reload.
+- The member sheet's sections (service history, helps with, posting) fetch several times as it opens; the Members page logs hydration mismatches in the people glance.
+- A pause's end date reaches Directus on the next sync for that member: the nightly reconcile, or their own first page load after it (`mine` heals the mirror). The server checks and the banner are derived, so they are right at once.
+- Directus caches the `$CURRENT_USER` context per field set when its cache is on; with auto-purge off a pause would reach Directus only when that cache expires. The instance's cache settings were not checked.
+- `setup:permissions` falls back to the old scope when any membership's `active_in`/`posts_in` or any `posts_to` is wrong, as it does for `admin_of`: a broken Flow would widen member writes again on the next run. It prints why.
+- Out of scope, as a question: should archived members still read?
+
+**Permission audit (read-only throughout; nothing applied)**
+
+- Before: 0 create, 0 update, 0 remove.
+- After the gap commit (`01457c9`), and unchanged after each later commit: 0 create, **2 update** (the HOA Admin and HOA Member reads of `hoa_channel_members`, now a field list without `posts_to`), 0 remove. With `--preview-admin-scope` (as if the fields were ready): 0 create, **13 update**, 0 remove — the 2 reads, the 4 chat and mention creates (both policies), and 7 HOA Member rules on 5 collections (comments create and edit, reactions, reports, poll votes, requests create and edit). Applying also re-combines **15** shared-write validations afterwards (computed from the live rules; the audit cannot show them before the member rules change): 28 rules written in all.
+
+**Operator TODOs**
+
+1. Deploy the app first: the sync writes the new fields and the channel routes set `posts_to`.
+2. `pnpm add:admin-scope`: creates `hoa_members.active_in`, `hoa_members.posts_in`, `hoa_channel_members.posts_to`, and back-fills them (dry run: 54 memberships written, 14 channel rows set, 5 left closed — all five rows point at channels that no longer exist).
+3. `pnpm setup:permissions:audit` should then print the 13 updates without the preview flag; `pnpm setup:permissions` applies them (and the 15 re-combinations). Until then archived and inactive members can still write through Directus, and a pause rests on the server checks and the hidden controls.
+4. `pnpm generate:types` after step 2.
+5. Push (asked at the end of the session).

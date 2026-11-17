@@ -36,9 +36,11 @@ exists, treat this list as authoritative over the older phase text:
   documents, feedback, projects (without money) and the responsibilities register, each a dated
   grant that is ended, not erased, and recorded in the ledger. Spec: [spec-delegation.md](spec-delegation.md).
   Shipped 2026-11-17; inquiries, violations, directory, communications and meetings need routes first.
-- **Restricted members** (queued, Session 10) — an admin pauses a member's posting in one community,
-  dated and recorded for the board, while dues, requests and reading carry on; the same change stops
-  archived members writing through Directus. Spec: [spec-member-restrictions.md](spec-member-restrictions.md).
+- **Restricted members** (role-first UX Session 10, [plan](plan-role-first-ux.md) §7) — an admin
+  pauses a member's posting in one community, dated and recorded for the board, while dues, requests
+  and reading carry on; the same change stops archived and inactive members writing through Directus.
+  Spec: [spec-member-restrictions.md](spec-member-restrictions.md). Built 2026-11-17; the Directus
+  half waits on the operator (`pnpm add:admin-scope`, then `pnpm setup:permissions`).
 
 ## North star
 
