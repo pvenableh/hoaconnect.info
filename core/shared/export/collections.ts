@@ -235,6 +235,9 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_member_change_requests", "Member change requests", BOTH),
   direct("hoa_teams", "Teams", BOTH),
   direct("hoa_team_members", "Team membership", BOTH),
+  // Who could work which area for the community, and when (docs/spec-delegation.md).
+  // Owner-visible in the ledger already, so both copies carry it.
+  direct("hoa_area_grants", "Helper and committee grants", BOTH),
   direct("hoa_vendors", "Vendors", BOTH),
 
   // ── Governance and the record of decisions ────────────────────────────────
