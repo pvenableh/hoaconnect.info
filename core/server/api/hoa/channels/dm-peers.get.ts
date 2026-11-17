@@ -1,3 +1,5 @@
+import { withMemberName } from "#core/shared/members/display-name";
+import { memberNamePartsFor } from "#core/server/utils/member-names";
 import { readItems } from "@directus/sdk";
 
 /**
@@ -47,8 +49,11 @@ export default defineEventHandler(async (event) => {
     })
   )) as any[];
 
+  // The other person by the community's name for them, not their login's.
+  const parts = await memberNamePartsFor(String(organization), others.map((r) => r.user?.id));
   const peers: Record<string, { id: string; name: string; avatar: string | null }> = {};
   for (const row of others) {
+    row.user = withMemberName(row.user, parts);
     const channelId = typeof row.channel === "string" ? row.channel : row.channel?.id;
     const u = row.user;
     if (!channelId || !u?.id) continue;

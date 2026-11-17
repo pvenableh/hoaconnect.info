@@ -24,6 +24,7 @@
  * is what stops the page and the route drifting apart again.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { updateItem } from "@directus/sdk";
 import { buildPollClosedEntry } from "#core/shared/ledger/entries";
 import { instant } from "#core/shared/reminders/rules";
@@ -66,7 +67,7 @@ export default defineEventHandler(async (event) => {
     },
     previousStatus: poll.status,
     tally,
-    actor: ledgerActorFromSession(session.user),
+    actor: await ledgerActorFor(orgId, session.user as any),
     occurredAt: new Date().toISOString(),
   });
 

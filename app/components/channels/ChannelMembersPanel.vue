@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fullName } from "#core/shared/members/display-name";
 import { toast } from "vue-sonner";
 import { Switch } from "@/components/ui/switch";
 
@@ -72,6 +73,8 @@ const loadOrgMembers = async () => {
     orgMembers.value = (await listMembers({
       fields: [
         "id",
+        "first_name",
+        "last_name",
         "user.id",
         "user.first_name",
         "user.last_name",
@@ -84,7 +87,7 @@ const loadOrgMembers = async () => {
           { status: { _eq: "active" } },
         ],
       },
-      sort: ["user.first_name"],
+      sort: ["first_name"],
       limit: -1,
     })) as any[];
   } catch (e) {
@@ -103,14 +106,18 @@ const invitable = computed(() => {
     .filter((m) => m.user && !memberUserIds.value.has(m.user.id))
     .filter((m) => {
       if (!q) return true;
-      const name = `${m.user.first_name || ""} ${m.user.last_name || ""} ${m.user.email || ""}`.toLowerCase();
+      const name = `${orgMemberName(m)} ${m.user.email || ""}`.toLowerCase();
       return name.includes(q);
     })
     .slice(0, 25);
 });
 
-const displayName = (u: any) =>
-  u ? `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email || "Unknown" : "Unknown";
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
+const displayName = (u: any) => (u ? nameOf(u, u.email || "Unknown") : "Unknown");
+/** A picker row is the membership itself: its own name first. */
+const orgMemberName = (om: any) => fullName(om) || displayName(om.user);
 
 const invite = async (orgMember: any) => {
   if (!orgMember.user?.id) return;
@@ -242,7 +249,7 @@ watch(isOpen, (open) => {
             <div
               class="w-8 h-8 rounded-full t-bg-subtle flex items-center justify-center text-xs font-medium shrink-0"
             >
-              {{ (m.user?.first_name?.[0] || "?").toUpperCase() }}
+              {{ (displayName(m.user)[0] || "?").toUpperCase() }}
             </div>
             <div class="min-w-0">
               <p class="text-sm t-text truncate">{{ displayName(m.user) }}</p>
@@ -285,10 +292,10 @@ watch(isOpen, (open) => {
               <div
                 class="w-8 h-8 rounded-full t-bg-subtle flex items-center justify-center text-xs font-medium shrink-0"
               >
-                {{ (om.user?.first_name?.[0] || "?").toUpperCase() }}
+                {{ (orgMemberName(om)[0] || "?").toUpperCase() }}
               </div>
               <div class="min-w-0">
-                <p class="text-sm t-text truncate">{{ displayName(om.user) }}</p>
+                <p class="text-sm t-text truncate">{{ orgMemberName(om) }}</p>
                 <p class="text-xs t-text-muted truncate">{{ om.user?.email }}</p>
               </div>
             </div>

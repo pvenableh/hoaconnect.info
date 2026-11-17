@@ -19,6 +19,7 @@
  * who can enter an expense at all.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { readItems, updateItem } from "@directus/sdk";
 import { buildExpenseRecordedEntry } from "#core/shared/ledger/entries";
 
@@ -107,14 +108,7 @@ export default defineEventHandler(async (event) => {
           : null,
     },
     previousStatus: expense.status ?? null,
-    actor: {
-      userId: user.id ?? null,
-      name:
-        [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-        user.email ||
-        "An administrator",
-      email: user.email ?? null,
-    },
+    actor: await ledgerActorFor(orgId, user),
     occurredAt,
   });
 

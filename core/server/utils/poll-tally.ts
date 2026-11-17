@@ -94,13 +94,3 @@ export async function readPollTally(orgId: string, poll: PollRow): Promise<PollT
   return { results, votesCast: (votes ?? []).length, voters: voters.size };
 }
 
-/** The actor an entry denormalizes, from the session. */
-export function ledgerActorFromSession(user: any) {
-  const u = user ?? {};
-  return {
-    userId: u.id ?? null,
-    name:
-      [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || u.email || "An administrator",
-    email: u.email ?? null,
-  };
-}

@@ -20,6 +20,8 @@
  * Body: { leaving?: boolean }
  */
 
+import { withMemberName } from "#core/shared/members/display-name";
+import { memberNamePartsFor } from "#core/server/utils/member-names";
 import { readItems, updateItem } from "@directus/sdk";
 import { PRESENCE_TTL_MS } from "#core/shared/channels/rules";
 
@@ -88,8 +90,10 @@ export default defineEventHandler(async (event) => {
         limit: 25,
       })
     )) as any[];
+    // By the community's name for each person, not their login's (display-name.ts).
+    const parts = orgId ? await memberNamePartsFor(orgId, rows.map((r) => r.user?.id)) : new Map();
     const here = rows
-      .map((r) => r.user)
+      .map((r) => withMemberName(r.user, parts))
       .filter((u) => u?.id)
       .map((u) => ({
         id: u.id as string,

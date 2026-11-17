@@ -31,7 +31,6 @@ beforeAll(() => {
   vi.stubGlobal("readOrgPoll", async () => poll);
   vi.stubGlobal("readOrgName", async () => "Demo HOA");
   vi.stubGlobal("readPollTally", async () => ({ results: [], votesCast: 0, voters: 0 }));
-  vi.stubGlobal("ledgerActorFromSession", () => ({ userId: "admin-1", name: "Dana Ruiz", email: null }));
   vi.stubGlobal("writeAuditEntry", async (e: any) => {
     audited.push(e);
   });

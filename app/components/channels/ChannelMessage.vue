@@ -284,17 +284,12 @@ const isAuthor = computed(() => {
   return authorId === currentUser.value?.id;
 });
 
-// Get author display name
-const authorName = computed(() => {
-  if (
-    !props.message.user_created ||
-    typeof props.message.user_created === "string"
-  ) {
-    return "Unknown User";
-  }
-  const { first_name, last_name } = props.message.user_created;
-  return `${first_name || ""} ${last_name || ""}`.trim() || "Unknown User";
-});
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
+const authorName = computed(() =>
+  props.message.user_created ? nameOf(props.message.user_created as any, "Unknown User") : "Unknown User"
+);
 </script>
 
 <template>

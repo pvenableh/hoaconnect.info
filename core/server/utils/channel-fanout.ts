@@ -15,6 +15,7 @@
 // it reaches people through the digest. `getTypedDirectus`/`stripHtml` are
 // auto-imported.
 
+import { memberNameFor } from "./member-names";
 import { readItems } from "@directus/sdk";
 import { collapsedSubject, planChannelFanOut, type FanOutMember } from "#core/shared/channels/rules";
 import { notifyUsers } from "./notify";
@@ -150,8 +151,8 @@ export async function notifyChannelMessage(input: {
   });
   if (!recipients.length) return { ok: true, recipients: 0 };
 
-  const authorName =
-    [author?.first_name, author?.last_name].filter(Boolean).join(" ").trim() || "A member";
+  // By the community's name for the author, not their login's (display-name.ts).
+  const authorName = author?.id ? await memberNameFor(orgId, author, "A member") : "A member";
   const isDm = channel.is_dm === true;
   const channelName = String(channel.name || "channel");
   const excerpt = stripHtml(msg.content).slice(0, 140);

@@ -40,9 +40,13 @@ const accentClass: Record<string, string> = {
 const stateLabel = (r: RequestRow) =>
   getStateMeta(r.type, (r.metadata?.workflow_state as string) || undefined).label;
 
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
 const personName = (p: RequestRow["assigned_to"]) => {
   if (!p || typeof p === "string") return null;
-  return `${p.first_name || ""} ${p.last_name || ""}`.trim() || null;
+  const n = nameOf(p as any, "");
+  return n || null;
 };
 
 const formatDate = (s: string | null | undefined) =>

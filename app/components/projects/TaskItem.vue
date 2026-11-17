@@ -30,8 +30,13 @@ const assignees = computed(() =>
     .filter(Boolean)
     .slice(0, 3) as { id: string; first_name?: string; last_name?: string; avatar?: string | null }[]
 );
-const initials = (u: { first_name?: string; last_name?: string }) =>
-  `${u.first_name?.[0] || ""}${u.last_name?.[0] || ""}`.toUpperCase() || "?";
+// Assignees by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
+const initials = (u: { id: string; first_name?: string; last_name?: string }) => {
+  const words = nameOf(u, "").split(" ").filter(Boolean);
+  return `${words[0]?.[0] || ""}${words.length > 1 ? words[words.length - 1]![0] : ""}`.toUpperCase() || "?";
+};
 </script>
 
 <template>
@@ -62,7 +67,7 @@ const initials = (u: { first_name?: string; last_name?: string }) =>
           :key="u.id"
           class="w-5 h-5 rounded-full ring-2 ring-[var(--theme-bg-elevated)] flex items-center justify-center text-[9px] font-semibold overflow-hidden"
           :style="{ backgroundColor: 'color-mix(in srgb, var(--theme-accent-primary) 16%, transparent)', color: 'var(--theme-accent-primary)' }"
-          :title="`${u.first_name || ''} ${u.last_name || ''}`"
+          :title="nameOf(u, '')"
         >
           <img v-if="u.avatar" :src="`/api/directus/assets/${u.avatar}?width=40&height=40&fit=cover`" class="w-full h-full object-cover" alt="" />
           <template v-else>{{ initials(u) }}</template>

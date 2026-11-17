@@ -68,9 +68,13 @@ watch(
 const savingMeta = ref(false);
 const transitioning = ref(false);
 
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
 const personName = (p: RequestRow["assigned_to"]) => {
   if (!p || typeof p === "string") return null;
-  return `${p.first_name || ""} ${p.last_name || ""}`.trim() || null;
+  const n = nameOf(p as any, "");
+  return n || null;
 };
 
 const doTransition = async (to: string, label: string) => {

@@ -21,6 +21,7 @@
  * writes nothing. Admin, or a property manager holding the `documents` grant.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { readItems, updateItem } from "@directus/sdk";
 import { buildDocumentPublishedEntry } from "#core/shared/ledger/entries";
 
@@ -82,14 +83,7 @@ export default defineEventHandler(async (event) => {
 
   const organizationName = orgs?.[0]?.name ?? null;
   const user: any = session.user ?? {};
-  const actor = {
-    userId: user.id ?? null,
-    name:
-      [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-      user.email ||
-      "An administrator",
-    email: user.email ?? null,
-  };
+  const actor = await ledgerActorFor(orgId, user);
 
   const published: string[] = [];
   const summaries: string[] = [];

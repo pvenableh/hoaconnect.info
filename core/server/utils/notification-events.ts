@@ -17,6 +17,8 @@
  * relies on a later filter to save it is one refactor away from a leak.
  */
 
+import { withMemberName } from "#core/shared/members/display-name";
+import { memberNamePartsFor } from "./member-names";
 import { readItem, readItems, readNotifications } from "@directus/sdk";
 import {
   planNotifyEvent,
@@ -136,6 +138,15 @@ export async function announceEvent(input: {
   if (!orgId) return { ok: false, reason: "item has no organization" };
   if (input.authorize && !(await input.authorize(orgId))) {
     return { ok: false, reason: "not authorized for this organization" };
+  }
+
+  // The person who acted, by the community's name for them, not their login's
+  // (core/shared/members/display-name.ts). The plan reads first and last name.
+  for (const key of ["mentioned_by", "user_created"]) {
+    const who = item[key];
+    if (who && typeof who === "object" && who.id) {
+      item[key] = withMemberName(who, await memberNamePartsFor(orgId, [who.id]));
+    }
   }
 
   const plan = planNotifyEvent({

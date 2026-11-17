@@ -40,17 +40,20 @@ onMounted(load);
 
 const stripHtml = (html?: string | null) => (html ? html.replace(/<[^>]*>/g, "").trim() : "");
 
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
 const reporterName = (r: CommentReport) => {
   const p = r.reporter;
   if (!p || typeof p === "string") return "A member";
-  return `${p.first_name || ""} ${p.last_name || ""}`.trim() || "A member";
+  return nameOf(p as any, "A member");
 };
 
 const authorName = (r: CommentReport) => {
   const c = typeof r.comment === "object" ? r.comment : null;
   const a = c?.user_created;
   if (!a || typeof a === "string") return "Unknown";
-  return `${a.first_name || ""} ${a.last_name || ""}`.trim() || "Unknown";
+  return nameOf(a as any, "Unknown");
 };
 
 const commentBody = (r: CommentReport) =>

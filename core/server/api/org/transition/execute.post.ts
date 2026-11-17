@@ -18,6 +18,7 @@
  * carries the plan that actually executed, and the wizard shows it.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { planTransition } from "#core/shared/transition/plan";
 
 export default defineEventHandler(async (event) => {
@@ -48,10 +49,7 @@ export default defineEventHandler(async (event) => {
   const plan = planTransition(snapshot.input);
 
   const user: any = session.user ?? {};
-  const actorName =
-    [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-    user.email ||
-    "An administrator";
+  const actorName = (await ledgerActorFor(snapshot.organization.id, user)).name;
 
   const result = await executeTransitionPlan({
     plan,

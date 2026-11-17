@@ -21,6 +21,7 @@
  * check, in front of the write.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { readItems, updateItem } from "@directus/sdk";
 import { buildGrantChangeEntry } from "#core/shared/ledger/entries";
 import {
@@ -124,14 +125,7 @@ export default defineEventHandler(async (event) => {
     },
     before,
     after,
-    actor: {
-      userId: user.id ?? null,
-      name:
-        [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-        user.email ||
-        "An administrator",
-      email: user.email ?? null,
-    },
+    actor: await ledgerActorFor(orgId, user),
     occurredAt: new Date().toISOString(),
     presetKey,
   });

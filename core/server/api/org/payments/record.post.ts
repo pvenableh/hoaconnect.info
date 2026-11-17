@@ -18,6 +18,7 @@
  * hand to a manager by default — an admin can do it, and the entry says who did.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { createItem, readItems, updateItem } from "@directus/sdk";
 import { buildPaymentRecordedEntry, toLedgerAmount } from "#core/shared/ledger/entries";
 
@@ -139,14 +140,7 @@ export default defineEventHandler(async (event) => {
     source: "manual",
     // The admin who recorded it — unlike an online payment, where the actor is
     // the payer. Both are true answers to "who did this".
-    actor: {
-      userId: user.id ?? null,
-      name:
-        [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-        user.email ||
-        "An administrator",
-      email: user.email ?? null,
-    },
+    actor: await ledgerActorFor(orgId, user),
     occurredAt: paidAt,
   });
 

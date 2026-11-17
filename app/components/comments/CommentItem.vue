@@ -69,10 +69,13 @@ const author = computed(() =>
   typeof props.comment.user_created === "object" ? props.comment.user_created : null
 );
 
+// Other people by the community's name for them, not their login's
+// (core/shared/members/display-name.ts).
+const { nameOf } = useMemberNames();
 const authorName = computed(() => {
   const a = author.value;
   if (!a) return "Member";
-  return `${a.first_name || ""} ${a.last_name || ""}`.trim() || a.email || "Member";
+  return nameOf(a as any, a.email || "Member");
 });
 
 const avatarUrl = computed(() => {

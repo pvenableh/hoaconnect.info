@@ -19,6 +19,8 @@
  * result nor cheap.
  */
 
+import { withMemberName } from "#core/shared/members/display-name";
+import { memberNamePartsFor } from "#core/server/utils/member-names";
 import { readItems } from "@directus/sdk";
 
 const stripHtml = (html: unknown): string =>
@@ -78,6 +80,12 @@ export default defineEventHandler(async (event) => {
       limit,
     })
   )) as unknown as any[];
+
+  // Authors by the community's name for them, not their login's (display-name.ts).
+  const parts = organizationId
+    ? await memberNamePartsFor(organizationId, (rows || []).map((m) => m.user_created?.id))
+    : new Map();
+  for (const m of rows || []) if (m.user_created && typeof m.user_created === "object") m.user_created = withMemberName(m.user_created, parts);
 
   return {
     query: q,

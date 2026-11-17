@@ -37,6 +37,7 @@
  * already open. That decision lives in `buildPollReopenedEntry`, once.
  */
 
+import { ledgerActorFor } from "#core/server/utils/member-names";
 import { updateItem } from "@directus/sdk";
 import { buildPollReopenedEntry } from "#core/shared/ledger/entries";
 
@@ -84,7 +85,7 @@ export default defineEventHandler(async (event) => {
     },
     previousStatus: poll.status,
     tally,
-    actor: ledgerActorFromSession(session.user),
+    actor: await ledgerActorFor(orgId, session.user as any),
     occurredAt: new Date().toISOString(),
   });
 

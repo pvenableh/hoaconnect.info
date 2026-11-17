@@ -16,6 +16,7 @@
  * an email + notify_email). This runs with the admin token (elevated) — the
  * caller is authorized in the route.
  */
+import { memberNameFor } from "./member-names";
 import { readItem, readItems } from "@directus/sdk";
 
 export type InquiryKind = "rental_sales" | "violations" | "general";
@@ -147,7 +148,8 @@ export async function routeInquiryNotifications(requestId: string): Promise<Rout
 
   // 5. Fire notifications.
   const typeLabel = TYPE_LABELS[req.type] || "Inquiry";
-  const submitterName = [req.submitted_by?.first_name, req.submitted_by?.last_name].filter(Boolean).join(" ") || "A member";
+  // By the community's name for them; someone with no membership here keeps their login's.
+  const submitterName = req.submitted_by?.id ? await memberNameFor(orgId, req.submitted_by, "A member") : "A member";
   const subject = `New ${typeLabel.toLowerCase()} inquiry: ${req.title}`;
   const message = `${submitterName} submitted a ${typeLabel.toLowerCase()} inquiry — "${req.title}".`;
   const appUrl = (config.public.appUrl || "").replace(/\/$/, "");
