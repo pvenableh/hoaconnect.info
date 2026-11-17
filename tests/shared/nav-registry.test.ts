@@ -321,3 +321,46 @@ describe("homePathFor", () => {
     expect(homePathFor({ managerHat: false, anyArea: true })).toBe("/");
   });
 });
+
+describe("helpers and committees (docs/spec-delegation.md)", () => {
+  // A helper's areas come from `helps`; they are never in the manager's dock.
+  const helperDock = (c: NavContext, helps: AreaKey[]) => {
+    const anyArea = AREA_KEYS.some((k) => c.canWork(k));
+    const helperOnly = anyArea && AREA_KEYS.every((k) => !c.canWork(k) || helps.includes(k));
+    return ids(navEntriesFor(layoutFor({ admin: c.admin, anyArea, helperOnly, previewing: false }), c, {}));
+  };
+  const owner = ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities", "ledger", "pay", "my-requests", "projects", "polls"];
+
+  it("a helper keeps the member layout, never the manager's", () => {
+    expect(layoutFor({ admin: false, anyArea: true, helperOnly: true, previewing: false })).toBe("member");
+    expect(layoutFor({ admin: false, anyArea: true, helperOnly: false, previewing: false })).toBe("manager");
+    expect(layoutFor({ admin: false, anyArea: true, previewing: false })).toBe("manager");
+  });
+
+  it("projects: the managing entry takes the resident one's place, once", () => {
+    const d = helperDock(ctx({ areas: ["projects"] }), ["projects"]);
+    expect(d).toEqual(owner.map((id) => (id === "projects" ? "projects-mgr" : id)));
+    expect(d.filter((id) => id.startsWith("projects"))).toHaveLength(1);
+  });
+
+  it("the register: the editing entry is added; a board seat who helps gets one slot, not two", () => {
+    expect(helperDock(ctx({ areas: ["responsibilities"] }), ["responsibilities"])).toEqual([...owner, "responsibilities-mgr"]);
+    const seat = helperDock(ctx({ areas: ["responsibilities"], actors: ["member", "board_treasurer"] }), ["responsibilities"]);
+    expect(seat.filter((id) => id === "responsibilities-register" || id === "responsibilities-mgr")).toEqual(["responsibilities-register"]);
+  });
+
+  it("documents and feedback add nothing: those pages are already in the dock", () => {
+    expect(helperDock(ctx({ areas: ["documents", "feedback"] }), ["documents", "feedback"])).toEqual(owner);
+  });
+
+  it("a plain owner, a tenant and an admin previewing are unchanged", () => {
+    expect(helperDock(ctx(), [])).toEqual(owner);
+    expect(helperDock(ctx({ residency: "tenant" }), [])).toEqual(owner);
+    expect(dock(PERSONAS.admin, false, true)).not.toContain("projects-mgr");
+  });
+
+  it("a manager's dock is unchanged", () => {
+    expect(dock(PERSONAS["manager:projects"])).toEqual(["queue", "projects-mgr"]);
+    expect(dock(PERSONAS.fullService)).not.toContain("projects");
+  });
+});

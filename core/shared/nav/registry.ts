@@ -43,6 +43,11 @@ export interface NavEntry {
   match?: readonly string[];
   /** Extra prefixes its module gate covers (legacy URLs with no entry of their own). */
   routes?: readonly string[];
+  /**
+   * In the member layout, the entry this one takes the place of when it shows
+   * (a helper's Projects manages; the resident one only reads). docs/spec-delegation.md.
+   */
+  replaces?: string;
   description?: string;
 }
 
@@ -150,7 +155,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { id: "communications", label: "Communications", shortName: "Comms", icon: "mail", path: "/manage/communications", needs: [area("communications")] },
   { id: "documents-mgr", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", needs: [area("documents"), mod("documents")] },
   { id: "feedback", label: "Feedback", shortName: "Feedback", icon: "vote", path: "/polls", needs: [area("feedback"), mod("polls")] },
-  { id: "projects-mgr", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", needs: [area("projects"), mod("projects")] },
+  { id: "projects-mgr", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", needs: [area("projects"), mod("projects")], replaces: "projects" },
   { id: "responsibilities-mgr", label: "Responsibilities", shortName: "Duties", icon: "list-checks", path: "/admin/responsibilities", needs: [area("responsibilities"), mod("responsibilities")] },
   { id: "activity-mgr", label: "Activity", shortName: "Activity", icon: "activity", path: "/admin/activity", needs: [area("activity")] },
 ];
@@ -172,6 +177,15 @@ export const NAV_LAYOUTS = {
 } as const satisfies Record<string, readonly string[]>;
 
 export type NavLayoutId = keyof typeof NAV_LAYOUTS;
+
+/**
+ * What a helper or committee member adds to the member layout
+ * (docs/spec-delegation.md): the manage entry for each helper area whose
+ * page is not already in the member dock. Documents and Polls are: those
+ * pages show their manage controls from the server's `viewer`. Kept out of
+ * NAV_LAYOUTS.member so page transitions and MEMBER_APPS are unchanged.
+ */
+export const MEMBER_HELPER_ENTRIES = ["projects-mgr", "responsibilities-mgr"] as const;
 
 /** Low-frequency admin pills the mobile sheet lists under its Admin heading. */
 export const SHEET_ADMIN_EXTRAS = ["requests-admin", "moderation"] as const;
@@ -253,6 +267,11 @@ export interface LayoutInput {
   admin: boolean;
   /** At least one area this person can work (admin aside). */
   anyArea: boolean;
+  /**
+   * Every area they can work is held as a helper or committee member
+   * (RoleContext `helps`), none through a manager grant.
+   */
+  helperOnly?: boolean;
   previewing: boolean;
 }
 
@@ -260,9 +279,10 @@ export interface LayoutInput {
 export function layoutFor(input: LayoutInput): NavLayoutId {
   if (input.previewing) return "member";
   if (input.admin) return "admin";
-  // Only a Property Manager membership can work an area without admin, and a
-  // manager with nothing granted has nothing to put in a manager's dock.
-  return input.anyArea ? "manager" : "member";
+  // A manager grant puts a person in the manager's dock; a manager with nothing
+  // granted has nothing to put there. A helper stays a resident: the member dock
+  // with their entries added (MEMBER_HELPER_ENTRIES), never the manager's.
+  return input.anyArea && !input.helperOnly ? "manager" : "member";
 }
 
 /**
@@ -276,6 +296,17 @@ export function navEntriesFor(layout: NavLayoutId, ctx: NavContext, opts: { mana
     const entry = BY_ID.get(id);
     if (!entry || !meets(entry, ctx)) continue;
     out.push(isHub(id) ? { ...entry, path: hubHome(id, ctx) ?? entry.path } : entry);
+  }
+  if (layout === "member") {
+    // A helper's entries: in place of the one they replace, else appended,
+    // and never a second slot for a page already in the dock.
+    for (const id of MEMBER_HELPER_ENTRIES) {
+      const entry = BY_ID.get(id);
+      if (!entry || !meets(entry, ctx)) continue;
+      const at = entry.replaces ? out.findIndex((e) => e.id === entry.replaces) : -1;
+      if (at >= 0) out.splice(at, 1, entry);
+      else if (!out.some((e) => e.path === entry.path)) out.push(entry);
+    }
   }
   return out;
 }

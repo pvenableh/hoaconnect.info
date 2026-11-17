@@ -55,9 +55,15 @@ export function useNavContext() {
     () => !previewing.value && (server.value ? server.value.hats.manager : access.hasManagerHat.value)
   );
   const anyArea = computed(() => AREA_KEYS.some((k) => ctx.value.canWork(k)));
+  // Areas held as a helper or committee member (docs/spec-delegation.md): the
+  // server context's `helps`. A person who works only those keeps the member dock.
+  const helps = computed<readonly AreaKey[]>(() => (server.value?.helps ?? []) as AreaKey[]);
+  const helperOnly = computed(
+    () => anyArea.value && AREA_KEYS.every((k) => !ctx.value.canWork(k) || helps.value.includes(k))
+  );
 
   const layout = computed<NavLayoutId>(() =>
-    layoutFor({ admin: ctx.value.admin, anyArea: anyArea.value, previewing: previewing.value })
+    layoutFor({ admin: ctx.value.admin, anyArea: anyArea.value, helperOnly: helperOnly.value, previewing: previewing.value })
   );
 
   /** The dock's entries: only on an org page. */
