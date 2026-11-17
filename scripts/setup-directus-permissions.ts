@@ -409,6 +409,19 @@ const COLLECTION_CONFIGS: CollectionConfig[] = [
     filterType: "organization",
     description: "Register holders, dated (routes only)",
   },
+  // ========== Delegation to members (docs/spec-delegation.md) ==========
+  // No policy reads or writes it: every read and write is an admin-only route
+  // under /api/org/area-grants, so a holder can never widen their own grants
+  // and every change writes a ledger entry. "none" also removes anything a
+  // hand-made permission left behind.
+  {
+    collection: "hoa_area_grants",
+    adminLevel: "none",
+    memberLevel: "none",
+    pmLevel: "none",
+    filterType: "organization",
+    description: "Helper and committee grants (routes only)",
+  },
   {
     collection: "hoa_responsibilities_files",
     adminLevel: "none",
