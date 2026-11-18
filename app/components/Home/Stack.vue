@@ -206,7 +206,7 @@ function onPileClick(e: MouseEvent) {
       <span class="flex-1 min-w-0 truncate text-xs t-text-muted text-left">{{ summary }}</span>
       <span
         v-if="items.length"
-        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums t-bg-accent t-text-accent"
+        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums t-bg-accent text-primary-foreground"
       >{{ items.length }}</span>
       <Icon
         name="i-lucide-chevron-right"

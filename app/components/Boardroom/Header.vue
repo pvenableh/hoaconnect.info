@@ -8,6 +8,7 @@
  * happened, and the one control that changes it.
  */
 import type { BoardroomAttendee, BoardroomActivity } from "#core/app/composables/useBoardroomSession";
+import { Button } from "@/components/ui/button";
 
 const props = defineProps<{
   live?: boolean;
@@ -60,11 +61,8 @@ const activityLine = computed(() => {
 <template>
   <header class="py-1">
     <div class="flex items-start gap-4 flex-wrap sm:flex-nowrap">
-      <span
-        class="w-12 h-12 rounded-2xl t-bg-accent flex items-center justify-center shrink-0"
-        aria-hidden="true"
-      >
-        <Icon name="i-lucide-gavel" class="w-6 h-6 t-text-accent" />
+      <span class="t-icon-chip w-12 h-12" aria-hidden="true">
+        <Icon name="i-lucide-gavel" class="w-6 h-6" />
       </span>
 
       <div class="min-w-[10rem] flex-1 sm:min-w-0">
@@ -110,37 +108,19 @@ const activityLine = computed(() => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
-        <button
-          v-if="!live"
-          type="button"
-          class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium t-btn ios-press disabled:opacity-50"
-          :disabled="busy"
-          @click="emit('convene')"
-        >
+        <Button v-if="!live" :disabled="busy" @click="emit('convene')">
           <Icon name="i-lucide-users-round" class="w-4 h-4" />
           Convene the board
-        </button>
+        </Button>
         <template v-else>
-          <button
-            v-if="!isHost"
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium t-btn-outline ios-press disabled:opacity-50"
-            :disabled="busy"
-            @click="emit('leave')"
-          >
+          <Button v-if="!isHost" variant="outline" :disabled="busy" @click="emit('leave')">
             <Icon name="i-lucide-log-out" class="w-4 h-4" />
             Leave
-          </button>
-          <button
-            v-else
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium t-btn-outline ios-press disabled:opacity-50"
-            :disabled="busy"
-            @click="emit('end')"
-          >
+          </Button>
+          <Button v-else variant="outline" :disabled="busy" @click="emit('end')">
             <Icon name="i-lucide-square" class="w-4 h-4" />
             End meeting
-          </button>
+          </Button>
         </template>
       </div>
     </div>

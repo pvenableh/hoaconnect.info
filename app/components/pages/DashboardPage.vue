@@ -15,6 +15,8 @@ const { selectedOrgId, currentOrg, currentRole, isAdmin, isBoardMember, isMember
 const orgId = computed(() => selectedOrgId.value);
 
 // ---- Tabbed dashboard: Overview + Building feed (Phase 9) ----
+// The tab is picked in the section capsule (SubNav: the "Overview" and
+// "Building" pills); this page only reads `?tab=` and shows that panel.
 const { isEnabled } = useModules();
 const feedEnabled = computed(() => isEnabled("feed"));
 const isBoard = computed(() => isAdmin.value || isBoardMember.value);
@@ -298,8 +300,10 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
         <!-- Install (Phase 6): renders nothing unless this device can add the app and hasn't dismissed it on this build. -->
         <AppInstallCard />
 
-        <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Dashboard views" />
-
+        <!-- Overview and Building are chosen from the section capsule above the
+             title (registry: `overview`, `building` → `?tab=building`), not
+             from a control of their own here: a second "Overview" under the
+             capsule's read as two navigations. -->
         <AppTabPanels :value="activeTab" :items="tabItems">
           <div v-if="activeTab === 'overview'" class="space-y-6">
             <!--

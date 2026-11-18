@@ -111,10 +111,10 @@ watch(
   >
     <div class="flex items-start gap-3 mb-4">
       <span
-        class="w-10 h-10 rounded-2xl t-bg-accent flex items-center justify-center shrink-0"
+        class="t-icon-chip w-10 h-10"
         aria-hidden="true"
       >
-        <Icon name="i-lucide-layers" class="w-5 h-5 t-text-accent" />
+        <Icon name="i-lucide-layers" class="w-5 h-5" />
       </span>
       <div class="min-w-0 flex-1">
         <h2 class="t-heading text-lg sm:text-xl font-semibold">What needs you</h2>

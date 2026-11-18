@@ -38,7 +38,7 @@ const has = computed(() => (props.points || []).length > 0);
           @click="interactive ? emit('select', i) : undefined"
         >
           <span
-            class="w-6 h-6 rounded-lg t-bg-accent t-text-accent text-xs font-semibold flex items-center justify-center shrink-0 tabular-nums"
+            class="w-6 h-6 rounded-full t-bg-accent text-primary-foreground text-xs font-semibold flex items-center justify-center shrink-0 tabular-nums"
             aria-hidden="true"
           >{{ i + 1 }}</span>
           <span class="text-sm t-text leading-snug">{{ p }}</span>

@@ -264,7 +264,7 @@ watch(
       <div class="flex items-center gap-3 flex-wrap">
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium t-btn-outline ios-press disabled:opacity-50"
+          class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium glass-btn-soft ios-press disabled:opacity-50"
           :disabled="minutes.saving.value || !plan.planId"
           @click="recordMinutes"
         >

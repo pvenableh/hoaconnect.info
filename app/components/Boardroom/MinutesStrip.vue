@@ -77,7 +77,7 @@ const show = computed(() => !props.hideWhenEmpty || props.loading || props.minut
         class="ios-card p-3.5 flex items-center gap-3"
       >
         <span
-          class="w-9 h-9 rounded-xl t-bg-subtle t-text-secondary flex items-center justify-center shrink-0"
+          class="w-9 h-9 rounded-full t-bg-subtle t-text-secondary flex items-center justify-center shrink-0"
           aria-hidden="true"
         >
           <Icon name="i-lucide-gavel" class="w-4.5 h-4.5" />

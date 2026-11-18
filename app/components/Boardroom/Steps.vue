@@ -69,7 +69,7 @@ const outstanding = computed(() => props.steps.length - decided.value);
     <ol class="space-y-2">
       <li v-for="(s, i) in steps" :key="s.id" class="flex items-start gap-3">
         <span
-          class="w-6 h-6 mt-3 rounded-lg t-bg-subtle text-xs font-semibold t-text-secondary flex items-center justify-center shrink-0 tabular-nums"
+          class="w-6 h-6 mt-3 rounded-full t-bg-subtle text-xs font-semibold t-text-secondary flex items-center justify-center shrink-0 tabular-nums"
           aria-hidden="true"
         >{{ i + 1 }}</span>
         <div class="min-w-0 flex-1">

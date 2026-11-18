@@ -65,6 +65,10 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   // ── Admin hubs and their pills ─────────────────────────────────────────────
   { id: "dashboard", label: "Dashboard", shortName: "Home", icon: "layout-dashboard", path: "/", needs: [A], match: ["__root__", "/admin/boardroom", "/admin/activity", "/admin/ai-spend"] },
   { id: "overview", section: "dashboard", label: "Overview", shortName: "Overview", icon: "layout-dashboard", path: "/", needs: [A], description: "Your community at a glance." },
+  // The dashboard's second view, a pill since 2026-11-18 (it was a segmented
+  // control inside the page, which put a second "Overview" under the capsule's).
+  // Same page, `?tab=building`: useSectionNav matches a pill's query.
+  { id: "building", section: "dashboard", label: "Building", shortName: "Building", icon: "building-2", path: "/?tab=building", needs: [A, mod("feed")], description: "The building feed: announcements, documents and mail as they happen." },
   // The Board Room plans the WHOLE association, so it sits with the
   // assistant's other surfaces rather than under one content section.
   { id: "boardroom", section: "dashboard", label: "Board Room", shortName: "Board Room", icon: "gavel", path: "/admin/boardroom", needs: [A], description: "Have the assistant brief the board and draft a plan you approve step by step." },

@@ -58,8 +58,11 @@ const PRIMITIVES = [
  *
  * 2026-11-18 (Phase 4, Session 16) — **297**: the floating View bar is one
  * small button on the public preview.
+ *
+ * 2026-11-18 (Phase 4, Session 17) — **293**: the Board Room's hand-made
+ * `t-btn` buttons are the kit's pill `<Button>`.
  */
-const BASELINE = 297;
+const BASELINE = 293;
 
 runFileAudit({
   name: "raw-buttons",

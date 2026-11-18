@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from "@/components/ui/button";
 /**
  * What this session is about.
  *
@@ -59,7 +60,7 @@ const topicModel = computed({
         class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ios-press transition-colors"
         :class="
           subject === s.value
-            ? 't-bg-accent t-text-accent'
+            ? 't-bg-accent text-primary-foreground'
             : 't-bg-subtle t-text-secondary hover:t-text'
         "
         @click="emit('update:subject', s.value)"
@@ -77,19 +78,14 @@ const topicModel = computed({
         class="flex-1 rounded-full glass-field px-4 py-2 text-sm focus:outline-none t-focus-ring"
         @keydown.enter="!busy && emit('draft')"
       />
-      <button
-        type="button"
-        class="inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium t-btn ios-press disabled:opacity-50 shrink-0"
-        :disabled="busy"
-        @click="emit('draft')"
-      >
+      <Button class="shrink-0" :disabled="busy" @click="emit('draft')">
         <Icon
           :name="busy ? 'i-lucide-loader-2' : 'i-lucide-list-checks'"
           class="w-4 h-4"
           :class="busy ? 'animate-spin' : ''"
         />
         {{ busy ? "Drafting…" : hasPlan ? "Open the briefing" : "Draft a plan" }}
-      </button>
+      </Button>
     </div>
 
     <p v-if="hasPlan" class="mt-2 text-[11px] t-text-muted flex items-center gap-2 flex-wrap">

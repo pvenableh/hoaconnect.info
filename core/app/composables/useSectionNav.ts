@@ -56,18 +56,47 @@ export function useSectionNav() {
     return visiblePills(key, nav.ctx.value).map(toLink);
   };
 
-  // Is this section link the current page? Compare against the org-scoped path,
-  // query stripped, by prefix (so /admin/projects/123 keeps Projects active).
-  const isLinkActive = (path: string): boolean => {
-    const target = buildOrgPath(path).split("?")[0];
+  // How well a section link matches the current page: 0 not at all; 1 its
+  // path (org-scoped, query stripped, by prefix, so /admin/projects/123 keeps
+  // Projects active); 2 its path AND every query param it names (a pill that
+  // is one view of a page: the dashboard's `?tab=building`, Setup's
+  // `?tab=modules`). A link with a query that the page does not carry is not
+  // this page.
+  const linkMatch = (path: string): 0 | 1 | 2 => {
+    const [rawBase = "", rawQuery] = buildOrgPath(path).split("?");
     const here = route.path.replace(/\/$/, "") || "/";
-    const base = target.replace(/\/$/, "") || "/";
+    const base = rawBase.replace(/\/$/, "") || "/";
     // A link to the org root ("/", e.g. the Dashboard "Overview" tab) must match
     // ONLY the root itself — the prefix rule would otherwise mark it active on
     // every page under /{slug}/.
     const orgRoot = buildOrgPath("/").split("?")[0].replace(/\/$/, "") || "/";
-    if (base === orgRoot) return here === base;
-    return here === base || here.startsWith(base + "/");
+    const onPath = base === orgRoot ? here === base : here === base || here.startsWith(base + "/");
+    if (!onPath) return 0;
+    if (!rawQuery) return 1;
+    const params = new URLSearchParams(rawQuery);
+    for (const [k, v] of params) if (String(route.query[k] ?? "") !== v) return 0;
+    return 2;
+  };
+
+  /** Is this section link the current page (ignoring its siblings)? */
+  const isLinkActive = (path: string): boolean => linkMatch(path) > 0;
+
+  /**
+   * Which of a hub's links is the current page: the most specific match, so a
+   * pill naming `?tab=building` wins over the plain page beside it. -1 when
+   * none matches (a section root).
+   */
+  const activeLinkIndex = (links: readonly { path: string }[]): number => {
+    let best = -1;
+    let score = 0;
+    links.forEach((l, i) => {
+      const m = linkMatch(l.path);
+      if (m > score) {
+        score = m;
+        best = i;
+      }
+    });
+    return best;
   };
 
   const hasChildren = (key: string | null | undefined): boolean =>
@@ -80,6 +109,7 @@ export function useSectionNav() {
   return {
     sectionLinksFor,
     isLinkActive,
+    activeLinkIndex,
     hasChildren,
     resolveSectionHome,
     buildOrgPath,

@@ -36,8 +36,8 @@
           :ref="setItemRef(i)"
           :to="buildOrgPath(link.path)"
           class="app-subnav__pill"
-          :class="{ 'app-subnav__pill--active': isLinkActive(link.path) }"
-          :aria-current="isLinkActive(link.path) ? 'page' : undefined"
+          :class="{ 'app-subnav__pill--active': i === activeIndex }"
+          :aria-current="i === activeIndex ? 'page' : undefined"
         >
           <Icon :name="'i-lucide-' + link.icon" class="w-4 h-4 shrink-0" />
           <span class="whitespace-nowrap">{{ link.label }}</span>
@@ -57,7 +57,7 @@
 import { toAppDef } from "#core/app/composables/useAppNav";
 
 const { activeKeyFor } = useAppNav();
-const { sectionLinksFor, isLinkActive, buildOrgPath } = useSectionNav();
+const { sectionLinksFor, activeLinkIndex, buildOrgPath } = useSectionNav();
 const nav = useNavContext();
 // Published by PageContainer so this capsule tracks the page's own column width.
 const { pageWide } = usePageWidth();
@@ -69,11 +69,10 @@ const apps = computed(() => nav.entries.value.map(toAppDef));
 const activeKey = computed(() => activeKeyFor(apps.value));
 const links = computed(() => sectionLinksFor(activeKey.value));
 
+// The most specific match (a pill's `?tab=` beats the plain page beside it).
 // -1 when no child page matches (a section root): the thumb fades out in place
 // rather than snapping to the first pill and claiming that one is selected.
-const activeIndex = computed(() =>
-  links.value.findIndex((l) => isLinkActive(l.path))
-);
+const activeIndex = computed(() => activeLinkIndex(links.value));
 
 const { trackEl, setItemRef, thumbStyle, measured } = useSlidingThumb(activeIndex, {
   watchSource: () => links.value.map((l) => l.label).join("|"),

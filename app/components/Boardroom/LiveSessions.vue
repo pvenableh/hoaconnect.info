@@ -52,7 +52,7 @@ function hostName(s: BoardroomSession): string | null {
         @click="emit('join', s.id)"
       >
         <span
-          class="w-9 h-9 rounded-xl t-bg-accent t-text-accent flex items-center justify-center shrink-0"
+          class="t-icon-chip w-9 h-9"
           aria-hidden="true"
         >
           <Icon name="i-lucide-users-round" class="w-4.5 h-4.5" />
