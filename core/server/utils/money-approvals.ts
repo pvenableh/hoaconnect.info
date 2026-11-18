@@ -258,11 +258,11 @@ export const isWaivableCharge = (status: unknown) => !["paid", "canceled"].inclu
  * One owner charge of the community, 404 otherwise. Its household must be
  * the community's too: a charge that straddles two communities is no one's.
  */
-export async function loadCharge(orgId: string, id: string): Promise<any> {
+export async function loadCharge(orgId: string, id: string, extraFields: readonly string[] = []): Promise<any> {
   const rows = ((await getTypedDirectus().request(
     readItems("payment_requests", {
       filter: { id: { _eq: id }, organization: { _eq: orgId } } as any,
-      fields: [...CHARGE_SUBJECT_FIELDS] as any,
+      fields: [...CHARGE_SUBJECT_FIELDS, ...extraFields] as any,
       limit: 1,
     })
   )) ?? []) as any[];

@@ -45,6 +45,7 @@ export async function stubMoney(state: { who: Who; db: Db }): Promise<MoneyCaptu
     "#core/server/utils/money-approvals",
     "#core/server/utils/expense-flow",
     "#core/server/utils/approval-views",
+    "#core/server/utils/charge-corrections",
   ];
   for (const path of modules) {
     for (const [k, v] of Object.entries(await import(/* @vite-ignore */ path))) vi.stubGlobal(k, v);

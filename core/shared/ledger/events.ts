@@ -233,6 +233,15 @@ const CATALOGUE = [
     note: "An owner charge was waived (cancelled) after the board approved it, as spending is approved (docs/spec-money-approvals.md).",
   },
   {
+    key: "charge_corrected",
+    label: "Charge corrected",
+    icon: "pencil",
+    category: "money",
+    // Board-only: it names one household, like `payment_recorded`.
+    defaultVisibility: "board",
+    note: "An admin raised a charge, moved its due date before it was due, or edited its words (docs/spec-charge-corrections.md). Lowering one is a waiver.",
+  },
+  {
     key: "billing_run",
     label: "Billing run",
     icon: "calendar-clock",

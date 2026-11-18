@@ -947,6 +947,69 @@ export function buildChargeWaivedEntry(input: {
   };
 }
 
+/** "Dec 1, 2026" for a "2026-12-01" day: the calendar day as written, no time zone. */
+export function formatDay(day: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(day ?? ""));
+  if (!m) return String(day ?? "");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
+}
+
+/** One field of a charge an admin corrected (docs/spec-charge-corrections.md). */
+export interface ChargeFieldChange {
+  readonly field: "title" | "description" | "notes" | "amount" | "due_date";
+  readonly from: string | number | null;
+  readonly to: string | number | null;
+}
+
+const WORD_LABELS: Record<string, string> = { title: "title", description: "description", notes: "notes" };
+
+/**
+ * An admin corrected a charge without the board: raised it, renamed it, or
+ * moved its date before it was due. Board-only: it names a household.
+ *
+ *   "Pat Park changed a $300.00 charge to Bob Diaz for March dues: amount
+ *    $300.00 → $350.00, due date Dec 1, 2026 → Dec 15, 2026; edited the title."
+ *
+ * The phrase names the charge as it was. The words say only that they
+ * changed; the payload keeps each field's before and after.
+ */
+export function buildChargeCorrectedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  /** The charge as it was, before the change. */
+  readonly charge: ChargeSubject;
+  readonly changes: readonly ChargeFieldChange[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const c = input.charge;
+  const currency = c.currency ?? "USD";
+  const parts: string[] = [];
+  for (const ch of input.changes) {
+    if (ch.field === "amount") parts.push(`amount ${formatMoney(ch.from, currency)} → ${formatMoney(ch.to, currency)}`);
+    if (ch.field === "due_date") parts.push(`due date ${ch.from ? formatDay(String(ch.from)) : "none"} → ${formatDay(String(ch.to))}`);
+  }
+  const words = input.changes.filter((ch) => ch.field in WORD_LABELS).map((ch) => WORD_LABELS[ch.field]!);
+  const edited = words.length ? `edited the ${andList(words)}` : "";
+  const detail = [parts.join(", "), edited].filter(Boolean).join("; ");
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "charge_corrected",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("charge_corrected"),
+    summary: `${input.actor.name} changed ${chargePhrase(c)}${detail ? `: ${detail}` : ""}.`,
+    payload: {
+      ...chargePayload(c, input.organizationName),
+      changes: input.changes.map((ch) => ({ field: ch.field, from: ch.from, to: ch.to })),
+    },
+  };
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * payment_recorded
  * ────────────────────────────────────────────────────────────────────────── */
