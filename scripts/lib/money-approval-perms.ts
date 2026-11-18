@@ -50,3 +50,13 @@ export function lockPlan(rows: readonly PermissionRow[]): PermissionRow[] {
       (r.collection === "payment_requests" && (CHARGE_WRITES as readonly string[]).includes(r.action))
   );
 }
+
+/**
+ * The rules that would break the charge cancel lock: any policy's update or
+ * delete on `payment_requests`. `pnpm add:charge-corrections` fails when one
+ * exists (docs/spec-charge-corrections.md): correcting a charge is a route on
+ * the app's token, never a policy's write.
+ */
+export function chargeWriteRules(rows: readonly PermissionRow[]): PermissionRow[] {
+  return rows.filter((r) => r.collection === "payment_requests" && (CHARGE_WRITES as readonly string[]).includes(r.action));
+}

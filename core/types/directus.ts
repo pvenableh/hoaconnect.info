@@ -2219,7 +2219,7 @@ export interface MoneyApproval {
 	/** @required */
 	organization: HoaOrganization | string;
 	/** @required */
-	kind: 'spend' | 'void' | 'waive';
+	kind: 'spend' | 'void' | 'waive' | 'move';
 	/** @description The expense, for spend and void. */
 	expense?: PaymentExpense | string | null;
 	/** @description The owner charge, for waive. */
@@ -2240,6 +2240,10 @@ export interface MoneyApproval {
 	date_created?: string | null;
 	/** @description When it was approved, rejected or superseded. */
 	decided_at?: string | null;
+	/** @description A partial waiver's cut. Empty: all that remains. */
+	amount?: number | null;
+	/** @description A move's change: { member, unit, from_member, from_unit }. */
+	proposed?: Record<string, any> | null;
 }
 
 export interface OpsAuditLog {
@@ -2416,6 +2420,11 @@ export interface PaymentRequest {
 	source_id?: string | null;
 	/** @description The open or last waive approval. */
 	waiver?: MoneyApproval | string | null;
+	/** @description Withdrawn within 24 hours of being entered, before anything was paid or reminded. */
+	withdrawn_at?: string | null;
+	/** @description Who withdrew it. */
+	withdrawn_by?: DirectusUser | string | null;
+	withdrawn_reason?: string | null;
 	transactions?: PaymentTransaction[] | string[];
 }
 

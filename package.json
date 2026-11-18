@@ -67,6 +67,7 @@
     "create:member-restrictions": "dotenv -- tsx scripts/create-member-restrictions-collection.ts",
     "add:admin-scope": "dotenv -- tsx scripts/add-admin-scope.ts",
     "add:money-approvals": "dotenv -- tsx scripts/add-money-approvals.ts",
+    "add:charge-corrections": "dotenv -- tsx scripts/add-charge-corrections.ts",
     "create:admin-scope-flow": "dotenv -- tsx scripts/create-admin-scope-flow.ts",
     "narrow:payment-reads": "dotenv -- tsx scripts/narrow-payment-reads.ts",
     "fix:channel-writes": "dotenv -- tsx scripts/fix-channel-message-write.ts",
