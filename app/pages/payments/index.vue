@@ -1,11 +1,11 @@
 <template>
-  <div class="ui-kit accent-emerald container max-w-6xl mx-auto py-8 px-4">
-    <WidgetGlass strong class="mb-8">
+  <div class="ui-kit container max-w-6xl mx-auto py-8 px-4">
+    <div class="mb-8">
       <h1 class="text-3xl font-semibold tracking-tight t-text">My Payments</h1>
       <p class="t-text-secondary mt-1">
         View and pay your HOA dues, assessments, and other charges.
       </p>
-    </WidgetGlass>
+    </div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center items-center py-12">

@@ -325,7 +325,7 @@ const doPromote = async () => {
       <!-- The linked channel, inline -->
       <div
         v-if="isBoard && channelsEnabled && linkedChannel && showDiscussion && organizationId"
-        class="mt-4 h-[32rem] rounded-2xl overflow-hidden glass-surface flex flex-col"
+        class="mt-4 h-[32rem] ios-card overflow-hidden flex flex-col"
         data-testid="request-discussion"
       >
         <ClientOnly>

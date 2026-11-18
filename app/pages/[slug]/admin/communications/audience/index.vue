@@ -69,17 +69,17 @@ const composeTo = (audience: "all" | "owners" | "tenants") =>
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="ui-kit min-h-screen t-bg">
     <PageContainer>
       <CommunicationsTabs />
 
-      <WidgetGlass strong class="mb-8">
+      <div class="mb-8">
         <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications · Audience</p>
         <h1 class="text-3xl font-semibold tracking-tight t-text">Audience</h1>
         <p class="t-text-secondary mt-1">
           Who receives your emails. Send to a whole group in one tap.
         </p>
-      </WidgetGlass>
+      </div>
 
       <WidgetRowSkeleton v-if="pending" :rows="3" avatar-shape="square" />
 

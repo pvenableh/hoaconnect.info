@@ -141,7 +141,7 @@ const TABS = computed<Array<{ key: ProjectTab; label: string; icon: string }>>((
 </script>
 
 <template>
-  <div class="min-h-screen t-bg t-text accent-violet">
+  <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
       <BackLink :to="buildOrgPath('/admin/projects')" label="All projects" />
 

@@ -20,7 +20,7 @@ const fmt = (s: string | null | undefined) =>
 </script>
 
 <template>
-  <div class="min-h-screen t-bg t-text accent-violet">
+  <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
       <div>
         <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1">Community</p>

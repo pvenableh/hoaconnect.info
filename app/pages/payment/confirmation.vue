@@ -1,5 +1,5 @@
 <template>
-	<div class="ui-kit accent-emerald min-h-screen flex items-center justify-center t-bg py-12 px-4 sm:px-6 lg:px-8">
+	<div class="ui-kit min-h-screen flex items-center justify-center t-bg py-12 px-4 sm:px-6 lg:px-8">
 		<div class="max-w-md w-full space-y-8">
 			<!-- Loading State -->
 			<div v-if="isLoading" class="text-center">

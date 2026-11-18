@@ -16,10 +16,9 @@
  * dashboard must never spend the community's credits.
  *
  * ── Glass ───────────────────────────────────────────────────────────────────
- * Phase 8 names this band and the Board Room header as the first two adopters
- * of `.glass-refract`. Built that way from the start rather than swept later:
- * the sweep exists to fix surfaces that predate the material, and this one
- * does not.
+ * The band is a solid content card (`ios-card`): glass is the floating layer
+ * only (docs/plan-role-first-ux.md §2.4), and this is content. It first
+ * adopted `.glass-refract`; Phase 4 part 2 took the glass off.
  */
 import type { StackPile } from "#core/app/composables/useStackItems";
 
@@ -107,7 +106,7 @@ watch(
 
 <template>
   <section
-    class="glass-edge glass-body glass-refract rounded-3xl px-4 py-5 sm:px-6 sm:py-6 t-bg-elevated"
+    class="ios-card px-4 py-5 sm:px-6 sm:py-6"
     aria-label="What needs you"
   >
     <div class="flex items-start gap-3 mb-4">

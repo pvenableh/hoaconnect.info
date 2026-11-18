@@ -1,13 +1,8 @@
 <script setup lang="ts">
 /**
- * The Board Room's hero header — and the first surface in the app to wear
- * `.glass-refract`.
- *
- * Phase 8 of the Round 2 plan names this and the stacks home as the natural
- * first adopters of the true gradient rim: a 1px band whose colour actually
- * travels from the bright top edge to nothing. Building it in now rather than
- * sweeping it later is deliberate — the sweep's job is fixing surfaces that
- * were built before the material existed, and this one wasn't.
+ * The Board Room's page header: an icon, the title, a description and the
+ * controls, with spacing and no box (a page header is not a card; glass is the
+ * floating layer only — docs/plan-role-first-ux.md §2.4).
  *
  * It carries the room's whole live state: who is at the table, what just
  * happened, and the one control that changes it.
@@ -63,9 +58,7 @@ const activityLine = computed(() => {
 </script>
 
 <template>
-  <header
-    class="glass-edge glass-body glass-refract rounded-3xl px-5 py-5 sm:px-7 sm:py-6 t-bg-elevated"
-  >
+  <header class="py-1">
     <div class="flex items-start gap-4 flex-wrap sm:flex-nowrap">
       <span
         class="w-12 h-12 rounded-2xl t-bg-accent flex items-center justify-center shrink-0"
@@ -103,7 +96,7 @@ const activityLine = computed(() => {
             <span
               v-for="a in seated.slice(0, 5)"
               :key="a.userId"
-              class="w-7 h-7 rounded-full t-bg-subtle ring-2 ring-[var(--theme-bg-elevated,#fff)] flex items-center justify-center text-[10px] font-semibold t-text-secondary"
+              class="w-7 h-7 rounded-full t-bg-subtle ring-2 ring-[var(--theme-bg-primary,#fff)] flex items-center justify-center text-[10px] font-semibold t-text-secondary"
               :title="`${a.name}${a.role === 'host' ? ' · host' : ''}`"
             >{{ initials(a.name) }}</span>
           </div>

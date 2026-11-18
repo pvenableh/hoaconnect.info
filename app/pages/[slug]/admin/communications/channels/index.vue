@@ -25,11 +25,11 @@ const newChannel = () => router.replace({ query: { ...route.query, new: "channel
 </script>
 
 <template>
-  <div class="ui-kit accent-cyan min-h-screen t-bg">
+  <div class="ui-kit min-h-screen t-bg">
     <PageContainer>
       <CommunicationsTabs />
 
-      <WidgetGlass strong class="mb-8 flex justify-between items-start gap-4">
+      <div class="mb-8 flex justify-between items-start gap-4">
         <div>
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Communications · Channels</p>
           <h1 class="text-3xl font-semibold tracking-tight t-text">Channels</h1>
@@ -41,7 +41,7 @@ const newChannel = () => router.replace({ query: { ...route.query, new: "channel
           <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
           New channel
         </Button>
-      </WidgetGlass>
+      </div>
 
       <!-- Module disabled -->
       <div v-if="!channelsEnabled" class="ios-card p-12 text-center">

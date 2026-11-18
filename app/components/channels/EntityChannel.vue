@@ -76,7 +76,7 @@ const start = async () => {
 
     <div
       v-else-if="channel"
-      class="h-[34rem] rounded-2xl overflow-hidden glass-surface flex flex-col"
+      class="h-[34rem] ios-card overflow-hidden flex flex-col"
       data-testid="entity-channel-thread"
     >
       <ClientOnly>

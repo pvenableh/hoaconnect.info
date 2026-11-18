@@ -58,7 +58,7 @@ useHead({ title: "Email preferences" });
 
 <template>
   <AuthShell back-to="/" back-label="HOA Connect">
-    <div class="glass-surface glass-surface--strong p-8 sm:p-10" data-unsubscribe>
+    <div class="ios-card p-8 sm:p-10" data-unsubscribe>
       <!-- No token: someone followed a bare link (a test send, a CC copy). -->
       <div v-if="!token" class="text-center space-y-3" data-state="no-token">
         <Icon name="lucide:mail-question" class="w-8 h-8 mx-auto t-text-muted" />

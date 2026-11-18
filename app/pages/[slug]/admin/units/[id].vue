@@ -132,7 +132,7 @@ const { buildOrgPath } = useOrgNavigation();
 </script>
 
 <template>
-  <div class="ui-kit accent-violet min-h-screen t-bg">
+  <div class="ui-kit min-h-screen t-bg">
     <PageContainer class="space-y-6">
       <!-- Back -->
       <BackLink :to="buildOrgPath('/admin/units')" label="All units" />

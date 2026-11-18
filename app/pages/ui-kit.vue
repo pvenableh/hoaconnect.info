@@ -1089,7 +1089,7 @@ const materials = [
               <Button variant="outline" size="sm">Contact the board</Button>
             </div>
           </div>
-          <p class="glass-surface p-3 text-sm t-text-muted">
+          <p class="ios-card card-attention p-3 text-sm t-text-muted">
             Your posting is paused here until December 18, 2026. You can still read, pay dues and send requests to the board.
           </p>
           <p>

@@ -557,7 +557,7 @@ async function loadFolderSize(id: string) {
 
     <!-- Main panel -->
     <div
-      class="glass-surface relative min-h-[60vh] rounded-2xl p-4 transition"
+      class="ios-card relative min-h-[60vh] p-4 transition"
       :class="dragOver ? 'ring-2 ring-primary/60' : ''"
       @dragover.prevent="canManage && (dragOver = true)"
       @dragleave.prevent="dragOver = false"

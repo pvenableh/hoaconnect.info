@@ -85,12 +85,12 @@ useSeoMeta({
     :back-label="organization ? `Back to ${organization.name}` : 'Back to home'"
   >
     <!-- Loading State -->
-    <div v-if="pending" class="glass-surface glass-surface--strong p-8 sm:p-10 flex justify-center">
+    <div v-if="pending" class="ios-card p-8 sm:p-10 flex justify-center">
       <div class="spinner-ios" />
     </div>
 
     <!-- Organization Not Found -->
-    <div v-else-if="!organization" class="glass-surface glass-surface--strong p-8 sm:p-10 text-center space-y-3">
+    <div v-else-if="!organization" class="ios-card p-8 sm:p-10 text-center space-y-3">
       <h1 class="text-xl font-semibold t-text">Organization not found</h1>
       <p class="text-sm t-text-muted">The organization you're looking for doesn't exist.</p>
       <NuxtLink to="/">

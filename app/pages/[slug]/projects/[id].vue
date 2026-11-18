@@ -30,7 +30,7 @@ const fmt = (s: string | null | undefined) =>
 </script>
 
 <template>
-  <div class="min-h-screen t-bg t-text accent-violet">
+  <div class="min-h-screen t-bg t-text">
     <PageContainer class="space-y-6">
       <BackLink :to="buildOrgPath('/projects')" label="All projects" />
 

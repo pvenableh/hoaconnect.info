@@ -2372,7 +2372,7 @@ Shipped:
 | `contrast-pairs` | ratchet | **1** | white on `--theme-button-hover-bg` (#008fbb) is 3.72:1 in light mode; 73 other pair×mode combinations pass |
 | `heading-labels` | ratchet | **3** | Footer `h4`, rules/index `h2`, vendors/index `h2` |
 | `detached-promises` | ratchet | **7** | items.post ×2, documents/publish, ai-actions, context-broker, change-requests decide + index |
-| `overlay-boxes` | ratchet | **27** | boxes inside overlays (StorageManagerPage, UsersPage the biggest) |
+| `overlay-boxes` | ratchet | **26** | boxes inside overlays (StorageManagerPage, UsersPage the biggest) |
 | `settings-boxes` | ratchet | **31** | second-and-later boxes in settings files (`settings/subscription.vue` most) |
 | `empty-states` | ratchet | **55** | bare "No X yet" outside `AppEmptyState` |
 | `css-colors` | ratchet | **222** | literals in rules, token definitions excluded |

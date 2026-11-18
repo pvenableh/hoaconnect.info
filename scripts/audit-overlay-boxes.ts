@@ -28,7 +28,7 @@ import { findBoxes, overlayRegion } from "./lib/audit-matchers";
  *
  * 2026-11-05 (Phase 8) — measured **27**. 27 boxes inside overlays (StorageManagerPage, UsersPage … the biggest).
  */
-const BASELINE = 27;
+const BASELINE = 26;
 
 const OVERLAY_NAME = /(Modal|Sheet|SlideOver|Dialog|Drawer|Panel)\.vue$/;
 

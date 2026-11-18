@@ -24,10 +24,9 @@ async function onInstall() {
 </script>
 
 <template>
-  <WidgetGlass
+  <div
     v-if="visible"
-    accent="blue"
-    class="relative"
+    class="ios-card relative p-5"
     data-testid="install-card"
     role="region"
     aria-label="Install HOA Connect"
@@ -66,5 +65,5 @@ async function onInstall() {
         </div>
       </div>
     </div>
-  </WidgetGlass>
+  </div>
 </template>

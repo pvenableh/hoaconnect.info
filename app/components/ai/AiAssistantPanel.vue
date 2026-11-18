@@ -481,11 +481,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     {{ summary ? formatCredits(summary.balanceCredits) : 0 }} credits remaining. Purchased credits never expire.
                   </DialogDescription>
                 </DialogHeader>
-                <div class="space-y-2">
+                <div>
                   <div
                     v-for="pack in summary?.packs || []"
                     :key="pack.id"
-                    class="glass-edge flex items-center justify-between rounded-lg px-4 py-3"
+                    class="flex items-center justify-between border-b t-border py-3 last:border-b-0"
                   >
                     <div>
                       <div class="font-medium t-text">{{ pack.label }}</div>

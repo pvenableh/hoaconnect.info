@@ -820,11 +820,11 @@ onBeforeUnmount(() => {
 
     <!-- Posting paused (docs/spec-member-restrictions.md): one line in the composer's place. -->
     <div v-if="currentChannel && postingPaused" class="p-3 sm:p-4" data-testid="channel-composer-paused">
-      <p class="max-w-4xl mx-auto glass-surface p-3 text-sm t-text-muted">{{ postingPausedLine }}</p>
+      <p class="max-w-4xl mx-auto ios-card card-attention p-3 text-sm t-text-muted">{{ postingPausedLine }}</p>
     </div>
     <!-- Message Input -->
     <div v-else-if="currentChannel" class="p-3 sm:p-4">
-      <div class="max-w-4xl mx-auto glass-surface p-3" data-testid="channel-composer">
+      <div class="max-w-4xl mx-auto ios-card p-3" data-testid="channel-composer">
         <div class="flex gap-3">
           <div class="flex-1">
             <ChannelsChannelEditor

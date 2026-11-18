@@ -107,7 +107,7 @@ watch(orgId, () => void load(), { immediate: true });
     />
 
     <template v-else-if="record">
-      <header class="glass-edge glass-body glass-refract rounded-3xl px-5 py-5 sm:px-6 t-bg-elevated">
+      <header class="py-1">
         <div class="flex items-start gap-4 flex-wrap sm:flex-nowrap">
           <span
             class="w-11 h-11 rounded-2xl t-bg-accent flex items-center justify-center shrink-0"

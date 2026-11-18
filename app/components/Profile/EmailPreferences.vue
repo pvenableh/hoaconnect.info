@@ -87,7 +87,7 @@ const org = computed(() => props.orgName || "your community");
 </script>
 
 <template>
-  <section id="email" class="glass-surface rounded-2xl p-5 sm:p-6 space-y-6 scroll-mt-24" data-email-preferences>
+  <section id="email" class="ios-card p-5 space-y-6 scroll-mt-24" data-email-preferences>
     <header class="space-y-1">
       <h2 class="text-base font-semibold t-text">Email</h2>
       <p class="text-sm t-text-muted">What {{ org }} sends you, and what you're notified about.</p>

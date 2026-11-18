@@ -135,10 +135,10 @@ const TYPE_LABEL: Record<string, string> = {
 </script>
 
 <template>
-  <div class="ui-kit accent-emerald min-h-screen t-bg">
+  <div class="ui-kit min-h-screen t-bg">
     <PageContainer class="space-y-6">
-      <!-- Glass hero -->
-      <WidgetGlass strong>
+      <!-- Hero: a solid card, the amount due is content -->
+      <div class="ios-card p-5">
         <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1.5">Payments</p>
         <h1 class="text-3xl font-semibold tracking-tight t-text">My Payments</h1>
         <p class="t-text-secondary mt-1">
@@ -147,7 +147,7 @@ const TYPE_LABEL: Record<string, string> = {
         <p v-if="totalDue > 0" class="mt-3 text-lg font-semibold t-text">
           {{ currency(totalDue) }} <span class="t-text-muted font-normal">currently due</span>
         </p>
-      </WidgetGlass>
+      </div>
 
       <!-- Loading — content-shaped skeleton matching the cards below -->
       <div v-if="pending" class="space-y-3">
