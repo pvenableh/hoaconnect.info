@@ -1010,6 +1010,42 @@ export function buildChargeCorrectedEntry(input: {
   };
 }
 
+/**
+ * A charge withdrawn within 24 hours of being entered, before anything was
+ * paid, reminded or charged late: no approval, so the Ledger is its check.
+ * Board-only: it names a household.
+ *
+ *   "Pat Park withdrew a $300.00 charge to Bob Diaz for March dues, entered
+ *    in error: Wrong month."
+ */
+export function buildChargeWithdrawnEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly charge: ChargeSubject;
+  readonly reason: string;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const reason = input.reason.trim();
+  const tail = reason ? `: ${reason}${/[.!?]$/.test(reason) ? "" : "."}` : ".";
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "charge_withdrawn",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("charge_withdrawn"),
+    summary: `${input.actor.name} withdrew ${chargePhrase(input.charge)}, entered in error${tail}`,
+    payload: {
+      ...chargePayload(input.charge, input.organizationName),
+      amount: toLedgerAmount(input.charge.amount),
+      reason,
+    },
+  };
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * payment_recorded
  * ────────────────────────────────────────────────────────────────────────── */

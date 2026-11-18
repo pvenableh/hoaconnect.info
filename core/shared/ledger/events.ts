@@ -242,6 +242,16 @@ const CATALOGUE = [
     note: "An admin raised a charge, moved its due date before it was due, or edited its words (docs/spec-charge-corrections.md). Lowering one is a waiver.",
   },
   {
+    key: "charge_withdrawn",
+    label: "Charge withdrawn",
+    icon: "undo-2",
+    category: "money",
+    // Board-only: it names one household. No approval took it back, so the
+    // Ledger is the check on the 24-hour window.
+    defaultVisibility: "board",
+    note: "An admin withdrew a charge entered in error, within 24 hours and before anything was paid or reminded (docs/spec-charge-corrections.md).",
+  },
+  {
     key: "billing_run",
     label: "Billing run",
     icon: "calendar-clock",
