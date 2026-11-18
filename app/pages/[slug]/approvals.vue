@@ -11,6 +11,7 @@
  * never on an admin as an admin.
  */
 import { toast } from "vue-sonner";
+import { approvalHeadline, closedOnCharge } from "#core/shared/money/approval-headline";
 
 definePageMeta({
   middleware: ["nav-gate"],
@@ -20,7 +21,7 @@ definePageMeta({
 interface Person { userId: string; name: string; office?: string | null }
 interface ApprovalItem {
   id: string;
-  kind: "spend" | "void" | "waive";
+  kind: "spend" | "void" | "waive" | "move";
   round: number;
   state: "pending" | "approved" | "rejected" | "cannot_approve" | "superseded";
   mode: "committee" | "majority";
@@ -39,7 +40,18 @@ interface ApprovalItem {
   decisions: { id: string; decision: "approve" | "reject"; note: string | null; date_created: string | null; office: string | null; name: string }[];
   subject:
     | { type: "expense"; id: string; title: string; vendor: string | null; amount: number | null; status: string | null; paid_without_approval: boolean }
-    | { type: "charge"; id: string; title: string; amount: number | null; amount_remaining: number | null; status: string | null; household: string | null }
+    | {
+        type: "charge";
+        id: string;
+        title: string;
+        amount: number | null;
+        amount_remaining: number | null;
+        status: string | null;
+        household: string | null;
+        waive_amount: number | null;
+        late_fees: number;
+        move: { from: string | null; to: string | null } | null;
+      }
     | null;
   canDecide: boolean;
 }
@@ -63,25 +75,14 @@ const views = computed(() => [
   { value: "all", label: "All" },
 ]);
 
-const currency = (v?: number | null) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v || 0);
 const fdate = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "");
 const nameOf = (p: Person) => (p.office ? `${p.name} (${p.office})` : p.name);
 const andList = (names: string[]) => (names.length <= 1 ? names[0] ?? "" : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 
-const headline = (a: ApprovalItem) => {
-  const s = a.subject;
-  if (!s) return a.kind === "waive" ? "Waive a charge" : "An expense";
-  if (s.type === "charge") {
-    // A waiver gives up what is still owed: the remainder when part was paid.
-    const owed = s.amount_remaining != null && s.amount != null && s.amount_remaining < s.amount ? ` (${currency(s.amount_remaining)} still owed)` : "";
-    return `Waive ${currency(s.amount)}${s.household ? ` owed by ${s.household}` : ""} for ${s.title || "an unnamed charge"}${owed}`;
-  }
-  const what = `${currency(s.amount)}${s.vendor ? ` to ${s.vendor}` : ""} for ${s.title || "an unnamed expense"}`;
-  return a.kind === "void" ? `Void ${what}` : what;
-};
+const headline = (a: ApprovalItem) => approvalHeadline(a.kind, a.subject);
 const paidEarly = (a: ApprovalItem) => a.subject?.type === "expense" && a.subject.paid_without_approval;
 
-const KIND_LABEL: Record<string, string> = { spend: "Spending", void: "Void", waive: "Waiver" };
+const KIND_LABEL: Record<string, string> = { spend: "Spending", void: "Void", waive: "Waiver", move: "Move" };
 const STATE_LABEL: Record<string, string> = {
   pending: "Waiting",
   approved: "Approved",
@@ -89,8 +90,8 @@ const STATE_LABEL: Record<string, string> = {
   cannot_approve: "Cannot be approved",
   superseded: "Replaced by a new round",
 };
-// A waiver closes without a new round: its charge was paid or canceled first.
-const stateLabel = (a: ApprovalItem) => (a.kind === "waive" && a.state === "superseded" ? "Closed: the charge was settled" : STATE_LABEL[a.state]);
+// A waiver or move closes without a new round: its charge was settled first.
+const stateLabel = (a: ApprovalItem) => (closedOnCharge(a.kind, a.state) ? "Closed: the charge was settled" : STATE_LABEL[a.state]);
 const STATE_CLASS: Record<string, string> = {
   pending: "bg-info/15 text-info",
   approved: "bg-success/15 text-success",
@@ -161,7 +162,7 @@ const decide = async (a: ApprovalItem, decision: "approve" | "reject") => {
         v-else-if="!items.length"
         icon="lucide:clipboard-check"
         :title="view === 'awaiting-me' ? 'Nothing needs you' : view === 'open' ? 'Nothing is waiting' : 'No approvals yet'"
-        description="When someone submits an expense or asks to void one, it appears here."
+        description="When someone submits an expense, asks to void one, or asks to waive or move a charge, it appears here."
       />
 
       <div v-else class="space-y-4">

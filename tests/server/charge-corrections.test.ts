@@ -93,6 +93,7 @@ const ROUTES = {
   waive: "#core/server/api/org/money/charges/[id]/waive.post",
   decide: "#core/server/api/org/money/approvals/[id]/decide.post",
   move: "#core/server/api/org/money/charges/[id]/move.post",
+  approvals: "#core/server/api/org/money/approvals/index.get",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -458,5 +459,23 @@ describe("moving a charge to another household", () => {
     await (globalThis as any).closeWaiversOfPaidCharge(ORG, C.open);
     expect(approvalOf(res.approval.id).state).toBe("superseded");
     expect(cap.notices.find((n) => n.subject === "Move closed: the charge was paid")).toBeTruthy();
+  });
+});
+
+describe("the Approvals routes name the cut, the late fees and the households", () => {
+  const list = () => h.approvals!(ev({ query: { orgId: ORG, view: "open" } }));
+
+  it("a partial waiver carries its cut; a full one the late fees it would take; a move both households", async () => {
+    as(WHO.dee);
+    await waive(C.open, { amount: 50 });
+    await waive(C.overdue);
+    await move(C.fresh);
+    as(WHO.pat);
+    const { approvals } = await list();
+    const by = (id: string) => approvals.find((a: any) => a.subject?.id === id).subject;
+    expect(by(C.open)).toMatchObject({ waive_amount: 50, late_fees: 0, move: null });
+    expect(by(C.overdue)).toMatchObject({ waive_amount: null, late_fees: 25, move: null });
+    expect(by(C.fresh)).toMatchObject({ waive_amount: null, move: { from: "Bob Diaz", to: "Carol Eve" } });
+    expect(approvals.find((a: any) => a.subject?.id === C.fresh).kind).toBe("move");
   });
 });

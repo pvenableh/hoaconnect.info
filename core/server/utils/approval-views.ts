@@ -11,6 +11,7 @@
 import type { Seat } from "#core/shared/money/approval-rule";
 import { OFFICE_LABELS, progressLabel } from "#core/shared/money/approval-rule";
 import { readItems } from "@directus/sdk";
+import { openLateFeesTotal } from "#core/shared/money/charge-corrections";
 
 const person = (id: string, names: Map<string, string>, seats: readonly Seat[]) => {
   const { label } = officeLabelOf(seats, id);
@@ -46,6 +47,21 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
       )) ?? []) as any[])
     : [];
   const chargeById = new Map(charges.map((c) => [String(c.id), c]));
+  // A full waiver takes its charge's unpaid late fees; a move names both households.
+  const feesByCharge = await lateFeesOf(orgId, chargeIds);
+  const householdIds = [
+    ...new Set(approvals.flatMap((a) => (a.kind === "move" ? [a.proposed?.member, a.proposed?.from_member] : [])).filter((x): x is string => !!x)),
+  ];
+  const households = householdIds.length
+    ? (((await getTypedDirectus().request(
+        readItems("hoa_members", {
+          filter: { id: { _in: householdIds }, organization: { _eq: orgId } } as any,
+          fields: ["id", "first_name", "last_name", "email"] as any,
+          limit: -1,
+        })
+      )) ?? []) as any[])
+    : [];
+  const householdName = new Map(households.map((m) => [String(m.id), chargeHousehold(m)]));
 
   const people = new Set<string>();
   for (const a of approvals) {
@@ -106,6 +122,17 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
               amount_remaining: c.amount_remaining == null ? null : Number(c.amount_remaining),
               status: c.status ?? null,
               household: chargeHousehold(c.member),
+              // A partial waiver's cut; null for all that remains.
+              waive_amount: a.kind === "waive" ? a.amount : null,
+              // What a full waiver would take with it, as it stands now.
+              late_fees: a.kind === "waive" && a.amount == null ? openLateFeesTotal({ lateFees: feesByCharge.get(String(c.id)) ?? [] }) : 0,
+              move:
+                a.kind === "move"
+                  ? {
+                      from: householdName.get(a.proposed?.from_member ?? "") ?? null,
+                      to: householdName.get(a.proposed?.member ?? "") ?? null,
+                    }
+                  : null,
             }
           : null,
       canDecide: callerCanDecide(a, view, userId),

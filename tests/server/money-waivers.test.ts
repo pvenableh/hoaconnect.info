@@ -183,7 +183,7 @@ describe("a waiver opens", () => {
     expect(approvals[0]).toMatchObject({
       kind: "waive",
       canDecide: true,
-      subject: { type: "charge", id: C.open, title: "March dues", amount: 300, amount_remaining: 300, status: "overdue", household: "Bob Diaz" },
+      subject: { type: "charge", id: C.open, title: "March dues", amount: 300, amount_remaining: 300, status: "overdue", household: "Bob Diaz", waive_amount: null, late_fees: 0, move: null },
     });
     as(WHO.ann);
     expect((await h.approvals!(ev({ query: { orgId: ORG } }))).approvals[0].canDecide).toBe(false);
