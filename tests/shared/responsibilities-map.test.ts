@@ -191,6 +191,15 @@ describe("mapModel", () => {
     expect(ids("2026-09-15")).toContain("j-new");
   });
 
+  it("keeps a job whose history began before it was entered, gaps included", () => {
+    // Lift Co held the elevator from 2026-01-01 to 2026-09-30; the job was entered 2025-12-01.
+    // A job entered later than its history: the same job, entered 2026-11-01.
+    const late = loaded.map((r) => (r.id === "j-elev" ? { ...r, date_created: "2026-11-01T00:00:00Z" } : r));
+    expect(mapModel(late, "2026-10-15").unassigned.map((j) => [j.id, j.unassignedSince])).toContainEqual(["j-elev", "2026-10-01"]);
+    expect(mapModel(late, "2025-12-31").unassigned.map((j) => j.id)).not.toContain("j-elev");
+    expect(mapModel(late, "2026-01-01").groups.find((g) => g.key === "mechanical_safety")!.jobs.map((j) => j.id)).toEqual(["j-elev"]);
+  });
+
   it("puts a vacant office in the attention group for that day only", () => {
     expect(mapModel(loaded, "2026-07-15").vacant.map((h) => h.key)).toEqual(["office:secretary", "office:treasurer"]);
     expect(mapModel(loaded, "2026-08-01").vacant.map((h) => h.key)).toEqual(["office:secretary"]);

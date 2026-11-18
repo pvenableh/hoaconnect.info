@@ -9,8 +9,17 @@
 // editors' controls (New job, the template, hand-over, edit, retire) show only
 // when the route says `viewer.canEdit`, and the visibility switches only for an
 // admin. Each route checks again.
+//
+// Two modes over the same rows and the same as-of day (plan §3.4, Phase 2c):
+// Grid (the index) and Map (holders beside jobs, with a slider through time),
+// kept in the URL as `?view=map`. Everyone who reads the register gets both.
+// The map resolves any day from the rows already loaded (every holder row ever,
+// with its office terms), so the slider makes no request; the grid and the panel
+// draw what the route built for one day, so they read once for the slider's day
+// before they show.
 import { CATEGORIES, FLORIDA_CONDOMINIUM, cadenceLabel, basisLabel } from "#core/shared/responsibilities/config";
 import { REGISTER_GROUPS, holderOptions, whoLine } from "#core/shared/responsibilities/register-view";
+import { changeDays, mapModel, type MapSelection } from "#core/shared/responsibilities/map";
 import type { RegisterRow } from "#core/shared/responsibilities/views";
 
 definePageMeta({
@@ -20,7 +29,7 @@ definePageMeta({
 
 const { selectedOrgId } = await useSelectedOrg();
 const reg = useResponsibilitiesResource(selectedOrgId);
-const { resource: register, viewer, visibility, asOf, asOfIsToday } = reg;
+const { resource: register, viewer, visibility, asOf, asOfIsToday, meta } = reg;
 const { confirm } = useConfirm();
 
 const creating = ref(false);
@@ -61,6 +70,54 @@ async function applyFlorida() {
   if (ok) await reg.applyTemplate(FLORIDA_CONDOMINIUM.key);
 }
 
+// ── Grid | Map ──────────────────────────────────────────────────────────────
+const view = useTabQuery({ key: "view", values: ["grid", "map"], fallback: "grid" });
+const viewItems = [
+  { value: "grid", label: "Grid", icon: "lucide:rows-3" },
+  { value: "map", label: "Map", icon: "lucide:waypoints" },
+];
+
+const today = registerToday();
+const day = computed(() => asOf.value || today);
+
+// The slider snaps to the days anything changes, and today. A day typed into the
+// field (or brought from the grid) joins them until another is typed, so the
+// thumb has somewhere to sit without the list shifting under a drag.
+const baseDays = computed(() => [...new Set([...changeDays(register.rows), today])].sort());
+const pinned = ref(day.value);
+watch(day, (d) => {
+  if (!baseDays.value.includes(d)) pinned.value = d;
+});
+const snapDays = computed(() => [...new Set([...baseDays.value, pinned.value])].sort());
+
+const map = computed(() => mapModel(register.rows, day.value));
+const selection = ref<MapSelection>(null);
+
+/** The slider: a snap day, no request. */
+const slideTo = (d: string) => {
+  asOf.value = d;
+};
+
+/** A typed day: inside the days the rows cover, no request; outside, one read. */
+function typeDay(d: string) {
+  pinned.value = d;
+  const days = baseDays.value;
+  if (d >= days[0]! && d <= days[days.length - 1]!) asOf.value = d;
+  else void reg.setAsOf(d);
+}
+
+// The grid and the panel show the rows the route built for `meta.asOf`.
+const stale = computed(() => !!meta.value && meta.value.asOf !== day.value);
+watch(view, (v) => {
+  if (v === "grid" && stale.value) void reg.setAsOf(day.value);
+});
+
+async function openJob(id: string) {
+  if (stale.value) await reg.setAsOf(day.value);
+  const row = register.rows.find((r) => r.id === id);
+  if (row) await register.open(row);
+}
+
 const pdfHref = computed(
   () => `/api/org/responsibilities/export.pdf?orgId=${encodeURIComponent(selectedOrgId.value ?? "")}&asOf=${encodeURIComponent(asOf.value)}`,
 );
@@ -75,34 +132,10 @@ const emptyDescription = computed(() =>
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
-      <!--
-        The grid is the only mode today. The Map mode (Phase 2c) joins it here as
-        a second view of the same rows and the same as-of day: holders on one
-        side, jobs on the other. It reads `register.rows`; nothing below changes.
-      -->
-      <AppResourceIndex
-        :resource="register"
-        :columns="columns"
-        :noun="{ one: 'job', other: 'jobs' }"
-        title="Responsibilities"
-        description="Who handles what in the community, how often, and who did before."
-        :can-create="viewer.canEdit"
-        create-label="New job"
-        search-placeholder="Search job, section or holder"
-        empty-title="No jobs yet"
-        :empty-description="emptyDescription"
-        empty-icon="lucide:list-checks"
-        :group="(r: RegisterRow) => r.category"
-        :groups="REGISTER_GROUPS"
-        :stack="stack"
-        :row-class="(r: RegisterRow) => (r.status === 'retired' ? 'opacity-70' : undefined)"
-        data-register-view="grid"
-        @create="creating = true"
-      >
+      <AppPageHeader title="Responsibilities" description="Who handles what in the community, how often, and who did before.">
         <template #meta>
           <span v-if="!asOfIsToday" class="type-meta text-warning">As of {{ registerDay(asOf) }}</span>
         </template>
-
         <template #actions>
           <Button v-if="viewer.canEdit" variant="outline" class="rounded-full" @click="applyFlorida">
             <Icon name="lucide:list-plus" class="w-4 h-4 mr-1.5" />
@@ -120,7 +153,33 @@ const emptyDescription = computed(() =>
             :rows="register.rows"
             :set-visibility="reg.setVisibility"
           />
+          <Button v-if="viewer.canEdit" class="rounded-full" @click="creating = true">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            New job
+          </Button>
         </template>
+      </AppPageHeader>
+
+      <AppSegmentedControl v-model="view" :items="viewItems" label="Register views" />
+
+      <AppResourceIndex
+        v-if="view === 'grid'"
+        :resource="register"
+        :columns="columns"
+        :noun="{ one: 'job', other: 'jobs' }"
+        :can-create="viewer.canEdit"
+        create-label="New job"
+        search-placeholder="Search job, section or holder"
+        empty-title="No jobs yet"
+        :empty-description="emptyDescription"
+        empty-icon="lucide:list-checks"
+        :group="(r: RegisterRow) => r.category"
+        :groups="REGISTER_GROUPS"
+        :stack="stack"
+        :row-class="(r: RegisterRow) => (r.status === 'retired' ? 'opacity-70' : undefined)"
+        data-register-view="grid"
+        @create="creating = true"
+      >
 
         <template #filters>
           <Select v-model="register.filters.category">
@@ -195,6 +254,25 @@ const emptyDescription = computed(() =>
           </span>
         </template>
       </AppResourceIndex>
+
+      <div v-else class="space-y-4">
+        <ResponsibilitiesMapSlider :days="snapDays" :model-value="day" :today="today" @update:model-value="slideTo" @type="typeDay" />
+        <AppEmptyState v-if="register.error" title="Could not load" :description="register.error" icon="lucide:cloud-off" size="sm">
+          <template #actions>
+            <Button variant="outline" size="sm" @click="register.refresh()">Try Again</Button>
+          </template>
+        </AppEmptyState>
+        <p v-else-if="register.pending && !register.total" class="type-meta t-text-muted">Loading…</p>
+        <AppEmptyState v-else-if="!register.total" title="No jobs yet" :description="emptyDescription" icon="lucide:list-checks">
+          <template v-if="viewer.canEdit" #actions>
+            <Button class="rounded-full" @click="creating = true">
+              <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+              New job
+            </Button>
+          </template>
+        </AppEmptyState>
+        <ResponsibilitiesMap v-else v-model:selection="selection" :model="map" can-open @open="openJob" />
+      </div>
 
       <ResponsibilitiesJobForm
         v-if="viewer.canEdit && selectedOrgId"

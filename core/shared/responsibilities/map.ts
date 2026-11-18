@@ -140,18 +140,29 @@ function holdsJob(job: MapJob, key: string): boolean {
 const allJobs = (m: MapModel) => [...m.unassigned, ...m.groups.flatMap((g) => g.jobs)];
 
 /**
- * The map for one day. Retired jobs are left out; so is a job not yet entered
- * on that day that nobody held then (otherwise every earlier day would read it
- * as "unassigned since" a later date). Rows with history resolve the day from
- * it; rows without (the owners') are drawn as sent.
+ * The first day a job is on the map: the day it was entered, or its first
+ * holder's start when the history begins earlier. Null for the owners' rows.
+ */
+function firstDay(r: MapSourceRow): string | null {
+  const days = [day10(r.date_created), ...(r.assignees ?? []).map((a) => day10(a.start_date))].filter((d): d is string => !!d);
+  return days.length ? days.sort()[0]! : null;
+}
+
+/**
+ * The map for one day. Retired jobs are left out; so is a job on a day before
+ * it existed: before it was entered and before its first holder (otherwise
+ * every earlier day would read it as "unassigned since" a later date). A job
+ * whose recorded history began before it was entered is on the map from then,
+ * gaps included. Rows with history resolve the day from it; rows without (the
+ * owners') are drawn as sent.
  */
 export function mapModel(rows: readonly MapSourceRow[], day: string): MapModel {
   const jobs: MapJob[] = [];
   for (const r of rows) {
     if (r.status === "retired") continue;
     const held = r.assignees ? holdersOnDay({ assignees: r.assignees }, day) : r.holders;
-    const created = day10(r.date_created);
-    if (r.assignees && !held.length && created && created > day) continue;
+    const first = r.assignees ? firstDay(r) : null;
+    if (!held.length && first && first > day) continue;
     jobs.push({
       id: r.id,
       title: r.title,

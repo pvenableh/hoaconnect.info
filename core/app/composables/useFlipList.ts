@@ -46,6 +46,10 @@ export function useFlipList(
   } = options;
 
   let state: unknown = null;
+  // The flip still playing, if any. A second change that lands mid-flight (a
+  // slider dragged across several changes, a header clicked twice) finishes it
+  // first, so the next capture measures settled positions, not ones in flight.
+  let running: { progress: (p: number) => unknown } | null = null;
 
   const reduced = () =>
     import.meta.client &&
@@ -63,6 +67,8 @@ export function useFlipList(
       $Flip?: typeof import("gsap/Flip").Flip;
     };
     if (!$Flip) return;
+    running?.progress(1);
+    running = null;
     state = $Flip.getState(items());
   }
 
@@ -77,7 +83,7 @@ export function useFlipList(
     // The DOM has to have settled, or we measure the old layout as the new one.
     await nextTick();
 
-    $Flip.from(state as never, {
+    running = $Flip.from(state as never, {
       duration,
       stagger,
       // Matches the house spring's feel without the overshoot — a row
@@ -87,6 +93,9 @@ export function useFlipList(
       ...(animateEnterLeave
         ? { onEnter: (els: Element[]) => enter(els), onLeave: (els: Element[]) => leave(els) }
         : {}),
+      onComplete: () => {
+        running = null;
+      },
     });
     state = null;
   }
