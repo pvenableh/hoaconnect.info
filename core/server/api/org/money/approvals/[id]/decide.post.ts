@@ -16,7 +16,7 @@
  */
 import { createItem } from "@directus/sdk";
 import { z } from "zod";
-import { buildMoneyDecisionEntry, expensePhrase, waiverPhrase } from "#core/shared/ledger/entries";
+import { buildMoneyDecisionEntry, expensePhrase, movePhrase, waiverPhrase } from "#core/shared/ledger/entries";
 import { ledgerActorFor } from "#core/server/utils/member-names";
 
 const body = z
@@ -39,10 +39,14 @@ export default defineEventHandler(async (event) => {
   const userId = String(session.user?.id ?? "");
   const approval = await loadApproval(orgId, String(getRouterParam(event, "id") || ""));
   if (!isOpen(approval.state)) throw createError({ statusCode: 409, message: "This approval is already settled." });
-  const charge = approval.kind === "waive" && approval.charge ? await loadCharge(orgId, approval.charge).catch(() => null) : null;
-  if (approval.kind === "waive" && (!charge || !isWaivableCharge(charge.status))) {
+  const onCharge = approval.kind === "waive" || approval.kind === "move";
+  const charge = onCharge && approval.charge ? await loadCharge(orgId, approval.charge).catch(() => null) : null;
+  if (onCharge && (!charge || !isWaivableCharge(charge.status))) {
     await supersede(approval, new Date().toISOString());
-    throw createError({ statusCode: 409, message: "This charge was paid or canceled, so there is nothing left to waive." });
+    throw createError({
+      statusCode: 409,
+      message: `This charge was paid or canceled, so there is nothing left to ${approval.kind === "move" ? "move" : "waive"}.`,
+    });
   }
   if (approval.kind === "void" && approval.expense) {
     const target = await loadExpense(orgId, approval.expense).catch(() => null);
@@ -98,7 +102,7 @@ export default defineEventHandler(async (event) => {
         kind: approval.kind,
         round: approval.round,
         expense: expense ? expenseSubject(expense) : null,
-        charge: charge ? await waiverSubject(orgId, charge, approval) : null,
+        charge: charge ? await chargeApprovalSubject(orgId, charge, approval) : null,
         decision,
         officeLabel: label,
         note,
@@ -116,7 +120,9 @@ export default defineEventHandler(async (event) => {
   if (result.state === "pending" && approval.requested_by && (expense || charge)) {
     const who = label ? `${actor.name} (${label})` : actor.name;
     const what = charge
-      ? `waiving ${waiverPhrase(await waiverSubject(orgId, charge, approval))}`
+      ? approval.kind === "move"
+        ? `moving ${movePhrase(await moveSubject(orgId, charge, approval))}`
+        : `waiving ${waiverPhrase(await waiverSubject(orgId, charge, approval))}`
       : `${approval.kind === "void" ? "voiding " : ""}${expensePhrase(expenseSubject(expense))}`;
     await notifyUsers({
       organizationId: orgId,

@@ -209,6 +209,7 @@ describe("the event catalogue", () => {
     // So does every correction of one (docs/spec-charge-corrections.md).
     expect(defaultVisibilityFor("charge_corrected")).toBe("board");
     expect(defaultVisibilityFor("charge_withdrawn")).toBe("board");
+    expect(defaultVisibilityFor("charge_moved")).toBe("board");
     expect(canView(entry({ visibility: "board" }), owner)).toBe(false);
   });
 

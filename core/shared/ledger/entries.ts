@@ -1092,6 +1092,64 @@ export function buildChargeWithdrawnEntry(input: {
   };
 }
 
+/**
+ * A move met: a charge entered against the wrong household now belongs to
+ * the right one (docs/spec-charge-corrections.md, decision 3). Board-only: it
+ * names two households.
+ *
+ *   "A $300.00 charge for March dues was moved from Bob Owner to Carol Eve,
+ *    approved by Pat Park (President) and Sam Lee (Secretary): Wrong unit."
+ *
+ * Late fees cancelled with it: "…, and its late fees ($25.00) were canceled."
+ */
+export function buildChargeMovedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly approvalId: string;
+  /** The charge as it was, with `moveToName`. */
+  readonly charge: ChargeSubject;
+  readonly toMemberId: string;
+  readonly reason: string;
+  readonly approvedBy: readonly string[];
+  readonly lateFees?: readonly { readonly id: string; readonly amount: number }[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const c = input.charge;
+  const currency = c.currency ?? "USD";
+  const lateFees = input.lateFees ?? [];
+  const feesTotal = Math.round(lateFees.reduce((sum, f) => sum + f.amount, 0) * 100) / 100;
+  const by = input.approvedBy.length ? `, approved by ${andList(input.approvedBy)}` : "";
+  const fees = feesTotal > 0 ? `, and its late fees (${formatMoney(feesTotal, currency)}) were canceled` : "";
+  const reason = input.reason.trim();
+  const tail = reason ? `: ${reason}${/[.!?]$/.test(reason) ? "" : "."}` : ".";
+  const money = formatMoney(toLedgerAmount(c.amount), currency);
+  const title = c.title?.trim() || "an unnamed charge";
+  const from = c.memberName?.trim() || "one household";
+  const to = c.moveToName?.trim() || "another";
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "charge_moved",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("charge_moved"),
+    summary: `A ${money} charge for ${title} was moved from ${from} to ${to}${by}${fees}${tail}`,
+    payload: {
+      ...chargePayload(c, input.organizationName),
+      amount: toLedgerAmount(c.amount),
+      to_member_id: input.toMemberId,
+      to_member_name: c.moveToName?.trim() || null,
+      late_fees: lateFees.map((f) => ({ id: f.id, amount: f.amount })),
+      approval_id: input.approvalId,
+      approved_by: [...input.approvedBy],
+      reason,
+    },
+  };
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * payment_recorded
  * ────────────────────────────────────────────────────────────────────────── */

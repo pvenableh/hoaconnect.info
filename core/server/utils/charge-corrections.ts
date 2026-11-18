@@ -10,6 +10,7 @@
  */
 import { readItems } from "@directus/sdk";
 import type { ChargeFacts, LateFeeFacts } from "#core/shared/money/charge-corrections";
+import type { ChargeSubject } from "#core/shared/ledger/entries";
 import { roleIdOf } from "#core/shared/ops/permissions";
 
 const idOf = (v: unknown): string | null => roleIdOf(v as never) ?? null;
@@ -136,3 +137,45 @@ export async function notifyHousehold(input: {
 
 /** "March dues", or a fallback for an untitled charge: how an owner's notice names it. */
 export const chargeTitle = (row: any) => String(row?.title ?? "").trim() || "a charge";
+
+/** A household of the community, active, by its `hoa_members` id; null otherwise. */
+export async function loadHousehold(orgId: string, memberId: string): Promise<any | null> {
+  if (!memberId) return null;
+  const rows = ((await getTypedDirectus().request(
+    readItems("hoa_members", {
+      filter: { id: { _eq: memberId }, organization: { _eq: orgId }, status: { _eq: "active" } } as any,
+      fields: ["id", "first_name", "last_name", "email", "user", "organization"] as any,
+      limit: 1,
+    })
+  )) ?? []) as any[];
+  const row = rows[0];
+  return row && idOf(row.organization) === orgId ? row : null;
+}
+
+/**
+ * The unit a moved charge takes: the household's primary unit, or its only
+ * one; none when it has several and none is primary, or none at all.
+ */
+export async function householdUnit(memberId: string): Promise<string | null> {
+  const rows = ((await getTypedDirectus().request(
+    readItems("hoa_member_units", {
+      filter: { member_id: { _eq: memberId }, end_date: { _null: true } } as any,
+      fields: ["unit_id", "is_primary_unit"] as any,
+      limit: -1,
+    })
+  )) ?? []) as any[];
+  const primary = rows.find((r) => r.is_primary_unit === true);
+  if (primary) return idOf(primary.unit_id);
+  return rows.length === 1 ? idOf(rows[0].unit_id) : null;
+}
+
+/** A move's subject: the charge, naming the household it would go to. */
+export async function moveSubject(orgId: string, row: any, approval: Pick<ApprovalRow, "proposed">): Promise<ChargeSubject> {
+  const to = approval.proposed?.member ? await loadHousehold(orgId, approval.proposed.member).catch(() => null) : null;
+  return { ...chargeSubject(row), moveToName: to ? chargeHousehold(to) : null };
+}
+
+/** An approval's charge subject, by kind: a waiver's cut and late fees, or a move's destination. */
+export async function chargeApprovalSubject(orgId: string, row: any, approval: ApprovalRow): Promise<ChargeSubject> {
+  return approval.kind === "move" ? moveSubject(orgId, row, approval) : waiverSubject(orgId, row, approval);
+}

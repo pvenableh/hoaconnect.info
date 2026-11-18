@@ -5,6 +5,7 @@
  *   PATCH /api/org/money/charges/[id]              title, words, amount up, due date (admins)
  *   POST  /api/org/money/charges/[id]/withdraw     a fresh mistake, within 24 hours (admins)
  *   POST  /api/org/money/charges/[id]/waive        part of a charge, or all of it with its late fees
+ *   POST  /api/org/money/charges/[id]/move         to the right household
  *   POST  /api/org/money/approvals/[id]/decide     the board decides
  *
  * The board of ORG: Ann (Treasurer), Pat (President), Sam (Secretary), Dee
@@ -17,8 +18,9 @@ import { ROLE, stubMoney, type MoneyCapture } from "./__fixtures__/money-env";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
 
-const U = { pat: uuid(301), sam: uuid(302), dee: uuid(303) };
-const M = { pat: uuid(311), sam: uuid(312), dee: uuid(313) };
+const U = { pat: uuid(301), sam: uuid(302), dee: uuid(303), carol: uuid(304) };
+const M = { pat: uuid(311), sam: uuid(312), dee: uuid(313), carol: uuid(314), gone: uuid(315) };
+const UNIT = { carol: uuid(331), carolOld: uuid(332) };
 const WHO = {
   admin: PERSONAS.admin,
   ann: { ...PERSONAS.board, office: "treasurer" } as Who,
@@ -51,6 +53,8 @@ function db(): Db {
       { id: M.pat, organization: ORG, user: U.pat, first_name: "Pat", last_name: "Park", status: "active" },
       { id: M.sam, organization: ORG, user: U.sam, first_name: "Sam", last_name: "Lee", status: "active" },
       { id: M.dee, organization: ORG, user: U.dee, first_name: "Dee", last_name: "Diaz", status: "active" },
+      { id: M.carol, organization: ORG, user: U.carol, first_name: "Carol", last_name: "Eve", status: "active" },
+      { id: M.gone, organization: ORG, user: null, first_name: "Gil", last_name: "Gone", status: "archived" },
       { id: PERSONAS.manager.memberId, organization: ORG, user: PERSONAS.manager.userId, first_name: "Max", last_name: "Manager", status: "active", role: ROLE.pm, manager_permissions: { projects: true } },
     ],
     hoa_board_members: [
@@ -68,6 +72,10 @@ function db(): Db {
       { id: C.fee, organization: ORG, member: ID.memberBob, title: "Late fee", request_type: "late_fee", source: "late_fee", source_id: C.overdue, status: "active", amount: "25.00", amount_paid: "0.00", amount_remaining: "25.00", due_date: PAST, waiver: null },
     ],
     payment_transactions: [],
+    hoa_member_units: [
+      { id: uuid(341), member_id: M.carol, unit_id: UNIT.carolOld, is_primary_unit: false, end_date: "2025-01-01" },
+      { id: uuid(342), member_id: M.carol, unit_id: UNIT.carol, is_primary_unit: true, end_date: null },
+    ],
     payment_expenses: [],
     money_approvals: [],
     money_approval_decisions: [],
@@ -84,6 +92,7 @@ const ROUTES = {
   withdraw: "#core/server/api/org/money/charges/[id]/withdraw.post",
   waive: "#core/server/api/org/money/charges/[id]/waive.post",
   decide: "#core/server/api/org/money/approvals/[id]/decide.post",
+  move: "#core/server/api/org/money/charges/[id]/move.post",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -106,6 +115,7 @@ async function askAndApprove(id: string, extra: Record<string, unknown> = {}) {
   await decide(res.approval.id, "approve");
   return res.approval.id as string;
 }
+const move = (id: string, member: string = M.carol, reason: unknown = "Wrong unit") => h.move!(ev({ params: { id }, body: { orgId: ORG, member, reason } }));
 const patch = (id: string, body: Record<string, unknown>) => h.patch!(ev({ params: { id }, body: { orgId: ORG, ...body } }));
 
 beforeAll(async () => {
@@ -354,5 +364,99 @@ describe("a full waiver takes its late fees", () => {
     const feeWaiver = await waive(C.fee);
     await askAndApprove(C.overdue);
     expect(approvalOf(feeWaiver.approval.id).state).toBe("superseded");
+  });
+});
+
+describe("moving a charge to another household", () => {
+  it("403 for an owner; any board seat, an admin or a manager with Projects may ask", async () => {
+    as(WHO.bob);
+    await expect(move(C.open)).rejects.toMatchObject({ statusCode: 403 });
+    for (const who of [WHO.dee, WHO.admin, WHO.max]) {
+      state.db = db();
+      as(who);
+      const res = await move(C.open);
+      expect(approvalOf(res.approval.id)).toMatchObject({
+        kind: "move",
+        charge: C.open,
+        requested_by: who.userId,
+        proposed: { member: M.carol, unit: UNIT.carol, from_member: ID.memberBob, from_unit: null },
+      });
+    }
+    expect(charge(C.open).member).toBe(ID.memberBob);
+  });
+
+  it("tells the approvers where it would go", async () => {
+    as(WHO.dee);
+    await move(C.open);
+    expect(cap.notices.find((n) => n.essential).message).toBe("Moving a $300.00 charge for March dues from Bob Diaz to Carol Eve needs your approval.");
+  });
+
+  it("needs another active household of this community (422)", async () => {
+    as(WHO.dee);
+    for (const member of [ID.memberBob, ID.memberOther, M.gone, "nobody"]) {
+      await expect(move(C.open, member), member).rejects.toMatchObject({ statusCode: 422 });
+    }
+    expect(state.db.money_approvals).toHaveLength(0);
+  });
+
+  it("refuses once anything is paid on it or its late fees, or with a waiver open (409)", async () => {
+    as(WHO.dee);
+    await expect(move(C.overdue)).rejects.toMatchObject({ statusCode: 409, message: expect.stringMatching(/payment/) });
+    await expect(move(C.paid)).rejects.toMatchObject({ statusCode: 409 });
+    openApproval(C.open);
+    await expect(move(C.open)).rejects.toMatchObject({ statusCode: 409, message: expect.stringMatching(/awaiting approval/) });
+  });
+
+  it("approved, the charge moves with the new household's unit; its unpaid late fees are canceled; both households hear of it", async () => {
+    Object.assign(charge(C.overdue), { amount_paid: "0.00", amount_remaining: "500.00" });
+    const id = await askAndApprove(C.overdue, { __move: M.carol });
+    expect(approvalOf(id).state).toBe("approved");
+    expect(charge(C.overdue)).toMatchObject({ member: M.carol, unit: UNIT.carol, status: "overdue", amount: "500.00" });
+    expect(charge(C.fee).status).toBe("canceled");
+    const moved = cap.ledger.find((e) => e.event_type === "charge_moved");
+    expect(moved).toMatchObject({ visibility: "board" });
+    expect(moved.summary).toBe(
+      "A $500.00 charge for Roof assessment was moved from Bob Diaz to Carol Eve, approved by Pat Park (President) and Sam Lee (Secretary), and its late fees ($25.00) were canceled: Wrong unit."
+    );
+    expect(moved.payload).toMatchObject({ to_member_id: M.carol, member_id: ID.memberBob, late_fees: [{ id: C.fee, amount: 25 }] });
+    expect(cap.ledger.find((e) => e.event_type === "money_decision").summary).toMatch(/approved moving a \$500\.00 charge for Roof assessment from Bob Diaz to Carol Eve/);
+    const bob = cap.notices.find((n) => n.recipientUserIds.includes(ID.userBob));
+    expect(bob.message).toBe("A $500.00 charge for Roof assessment was removed from your account: it was entered for the wrong household.");
+    const carol = cap.notices.find((n) => n.recipientUserIds.includes(U.carol));
+    expect(carol.message).toBe("A $500.00 charge for Roof assessment, due Jan 1, 2000, was added to your account.");
+    expect(cap.notices.find((n) => n.subject === "Move approved")).toBeTruthy();
+  });
+
+  it("closes as superseded if a payment came in before it was decided, and tells whoever asked", async () => {
+    as(WHO.dee);
+    const res = await move(C.open);
+    Object.assign(charge(C.open), { amount_paid: "100.00", amount_remaining: "200.00", status: "partially_paid" });
+    as(WHO.pat);
+    await decide(res.approval.id, "approve");
+    as(WHO.sam);
+    await decide(res.approval.id, "approve");
+    expect(approvalOf(res.approval.id).state).toBe("superseded");
+    expect(charge(C.open).member).toBe(ID.memberBob);
+    expect(cap.ledger.some((e) => e.event_type === "charge_moved")).toBe(false);
+    expect(cap.notices.find((n) => n.subject === "Move closed").message).toMatch(/was closed: A payment has been made on it\.$/);
+  });
+
+  it("rejected, nothing moves", async () => {
+    as(WHO.dee);
+    const res = await move(C.open);
+    as(WHO.pat);
+    await decide(res.approval.id, "reject");
+    as(WHO.sam);
+    await decide(res.approval.id, "reject");
+    expect(approvalOf(res.approval.id).state).toBe("rejected");
+    expect(charge(C.open).member).toBe(ID.memberBob);
+  });
+
+  it("closes when the charge is paid in full", async () => {
+    as(WHO.dee);
+    const res = await move(C.open);
+    await (globalThis as any).closeWaiversOfPaidCharge(ORG, C.open);
+    expect(approvalOf(res.approval.id).state).toBe("superseded");
+    expect(cap.notices.find((n) => n.subject === "Move closed: the charge was paid")).toBeTruthy();
   });
 });

@@ -18,10 +18,13 @@ import {
   type Seat,
 } from "#core/shared/money/approval-rule";
 import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
-import { applyCut, openLateFees, openLateFeesTotal, remainingCents, fromCents } from "#core/shared/money/charge-corrections";
+import { applyCut, moveRefusal, openLateFees, openLateFeesTotal, remainingCents, fromCents } from "#core/shared/money/charge-corrections";
 import {
   waiverPhrase,
+  movePhrase,
+  buildChargeMovedEntry,
   formatMoney,
+  formatDay,
   buildChargeWaivedEntry,
   buildExpenseApprovedEntry,
   buildExpenseVoidedEntry,
@@ -425,18 +428,20 @@ export async function notifyApprovers(input: {
   view: Pick<RuleView, "waitingOn" | "needed"> & { readonly state: string };
   /** A spend or void's expense. */
   expense?: ExpenseSubject | null;
-  /** A waiver's charge. */
+  /** A waiver's or a move's charge. */
   charge?: ChargeSubject | null;
   origin?: string | null;
 }): Promise<void> {
   if (input.view.state !== "pending" || !input.view.waitingOn.length) return;
   const kind = input.approval.kind;
-  if (kind === "waive" ? !input.charge : !input.expense) return;
-  const what = kind === "waive" ? waiverPhrase(input.charge!) : expensePhrase(input.expense!);
+  if (kind === "waive" || kind === "move" ? !input.charge : !input.expense) return;
+  const what = kind === "waive" ? waiverPhrase(input.charge!) : kind === "move" ? movePhrase(input.charge!) : expensePhrase(input.expense!);
   const lead =
     kind === "waive"
       ? `Waiving ${what} needs your approval.`
-      : kind === "void"
+      : kind === "move"
+        ? `Moving ${what} needs your approval.`
+        : kind === "void"
         ? `Voiding ${what} needs your approval.`
         : `${what[0]!.toUpperCase()}${what.slice(1)} needs your approval.`;
   const round = input.approval.round > 1 ? ` It changed, so this is round ${input.approval.round}.` : "";
@@ -447,7 +452,9 @@ export async function notifyApprovers(input: {
     subject:
       kind === "waive"
         ? "Waiving a charge needs your approval"
-        : kind === "void"
+        : kind === "move"
+          ? "Moving a charge needs your approval"
+          : kind === "void"
           ? "Voiding an expense needs your approval"
           : "Spending needs your approval",
     message: `${lead}${round}`,
@@ -500,6 +507,7 @@ export async function settleApproval(input: {
   }
 
   if (approval.kind === "waive") return settleWaiver(input);
+  if (approval.kind === "move") return settleMove(input);
   if (!approval.expense) return { state: approval.state, ledger: null };
 
   const expense = await loadExpense(orgId, approval.expense);
@@ -702,6 +710,124 @@ async function settleWaiver(input: {
 }
 
 /**
+ * A move the rule decided (docs/spec-charge-corrections.md, decision 3).
+ * Checked again first: a charge settled, paid on (it or its late fees), or
+ * whose new household left the community meanwhile closes the move as
+ * superseded, and whoever asked is told why. Approved: the charge's member
+ * and unit change, its unpaid late fees are cancelled (they were charged to
+ * a household that never owed it), `charge_moved` goes to the Ledger (board),
+ * and both households are told. Rejected: nothing changes. Whoever asked is
+ * told the outcome.
+ */
+async function settleMove(input: {
+  orgId: string;
+  approval: ApprovalRow;
+  view: ApprovalView;
+  decisions: readonly DecisionRow[];
+  actor: LedgerActor;
+  now: string;
+  origin?: string | null;
+}): Promise<SettleResult> {
+  const { orgId, approval, view, now } = input;
+  const d = getTypedDirectus();
+  const charge = approval.charge ? await loadCorrectableCharge(orgId, approval.charge).catch(() => null) : null;
+  const to = approval.proposed?.member ? await loadHousehold(orgId, approval.proposed.member).catch(() => null) : null;
+  const facts = charge ? await chargeFacts(orgId, charge) : null;
+  const refusal = !charge || !facts ? "the charge is gone" : moveRefusal({ ...facts, approvalOpen: false });
+  if (refusal || !to) {
+    await supersede(approval, now);
+    if (approval.requested_by && charge) {
+      await notifyUsers({
+        organizationId: orgId,
+        recipientUserIds: [approval.requested_by],
+        category: "payment",
+        subject: "Move closed",
+        message: `Moving ${movePhrase({ ...chargeSubject(charge), moveToName: to ? chargeHousehold(to) : null })} was closed: ${
+          !to ? "that household is no longer an active member." : String(refusal).replace(/ Ask to Waive.*$/, "")
+        }`,
+        collection: "payment_requests",
+        item: String(charge.id),
+        path: "/admin/payments",
+        origin: input.origin ?? null,
+        excludeUserId: input.actor.userId,
+      }).catch((e) => console.error("[money-approvals] move-closed notice failed:", e));
+    }
+    return { state: "superseded", ledger: null };
+  }
+  await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
+
+  const subject: ChargeSubject = { ...chargeSubject(charge), moveToName: chargeHousehold(to) };
+  let ledger: string | null = null;
+  if (view.state === "approved") {
+    const feesOpen = openLateFees(facts!);
+    await d.request(
+      updateItem("payment_requests", charge.id, { member: String(to.id), unit: approval.proposed?.unit ?? null } as any)
+    );
+    for (const fee of feesOpen) {
+      await d.request(updateItem("payment_requests", fee.id, { status: "canceled" } as any));
+      for (const other of await openChargeApprovals(orgId, fee.id)) await supersede(other, now);
+    }
+    for (const other of await openChargeApprovals(orgId, String(charge.id))) {
+      if (other.id !== approval.id) await supersede(other, now);
+    }
+    const names = await namesFor(orgId, input.decisions.map((x) => x.decided_by));
+    try {
+      ledger = await writeAuditEntry(
+        buildChargeMovedEntry({
+          organizationId: orgId,
+          organizationName: await orgName(orgId),
+          approvalId: approval.id,
+          charge: subject,
+          toMemberId: String(to.id),
+          reason: approval.reason ?? "",
+          approvedBy: approverNames(input.decisions, names),
+          lateFees: feesOpen.map((f) => ({ id: f.id, amount: fromCents(remainingCents(f as any)) })),
+          actor: input.actor,
+          occurredAt: now,
+        })
+      );
+    } catch (e) {
+      console.error("[money-approvals] ledger write failed:", e);
+    }
+    const title = chargeTitle(charge);
+    const money = formatMoney(charge.amount);
+    await notifyHousehold({
+      orgId,
+      userId: householdUserOf(charge),
+      subject: "A charge was removed from your account",
+      message: `A ${money} charge for ${title} was removed from your account: it was entered for the wrong household.`,
+      chargeId: String(charge.id),
+      origin: input.origin ?? null,
+    });
+    await notifyHousehold({
+      orgId,
+      userId: idOf(to.user),
+      subject: "A charge was added to your account",
+      message: `A ${money} charge for ${title}${charge.due_date ? `, due ${formatDay(String(charge.due_date))},` : ""} was added to your account.`,
+      chargeId: String(charge.id),
+      origin: input.origin ?? null,
+    });
+  }
+
+  const outcome = view.state === "approved" ? "approved" : "rejected";
+  if (approval.requested_by) {
+    await notifyUsers({
+      organizationId: orgId,
+      recipientUserIds: [approval.requested_by],
+      category: "payment",
+      subject: `Move ${outcome}`,
+      message: `Moving ${movePhrase(subject)} was ${outcome}.`,
+      collection: "payment_requests",
+      item: String(charge.id),
+      path: "/admin/payments",
+      origin: input.origin ?? null,
+      excludeUserId: input.actor.userId,
+    }).catch((e) => console.error("[money-approvals] outcome notice failed:", e));
+  }
+  return { state: view.state, ledger };
+}
+
+/**
  * A charge was paid in full (Mark Paid, or a payment through Stripe): any
  * waiver of it still open has nothing left to give up. Each closes as
  * superseded, and whoever asked is told. Never throws: a payment must not
@@ -714,7 +840,7 @@ export async function closeWaiversOfPaidCharge(
 ): Promise<number> {
   if (!orgId || !chargeId) return 0;
   try {
-    const open = await openWaiversFor(orgId, chargeId);
+    const open = await openChargeApprovals(orgId, chargeId);
     if (!open.length) return 0;
     const now = new Date().toISOString();
     const charge = await loadCharge(orgId, chargeId).catch(() => null);
@@ -726,8 +852,8 @@ export async function closeWaiversOfPaidCharge(
         organizationId: orgId,
         recipientUserIds: [approval.requested_by],
         category: "payment",
-        subject: "Waiver closed: the charge was paid",
-        message: `${what[0]!.toUpperCase()}${what.slice(1)} was paid, so the waiver you asked for is closed.`,
+        subject: approval.kind === "move" ? "Move closed: the charge was paid" : "Waiver closed: the charge was paid",
+        message: `${what[0]!.toUpperCase()}${what.slice(1)} was paid, so the ${approval.kind === "move" ? "move" : "waiver"} you asked for is closed.`,
         collection: "payment_requests",
         item: chargeId,
         path: "/admin/payments",
@@ -782,7 +908,7 @@ export async function resettleCommunity(
         const charge = await loadCharge(orgId, approval.charge).catch(() => null);
         if (charge) {
           reopened++;
-          await notifyApprovers({ orgId, approval, view, charge: await waiverSubject(orgId, charge, approval), origin });
+          await notifyApprovers({ orgId, approval, view, charge: await chargeApprovalSubject(orgId, charge, approval), origin });
         }
       }
     }

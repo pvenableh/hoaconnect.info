@@ -252,6 +252,15 @@ const CATALOGUE = [
     note: "An admin withdrew a charge entered in error, within 24 hours and before anything was paid or reminded (docs/spec-charge-corrections.md).",
   },
   {
+    key: "charge_moved",
+    label: "Charge moved",
+    icon: "arrow-right-left",
+    category: "money",
+    // Board-only: it names two households.
+    defaultVisibility: "board",
+    note: "A charge entered against the wrong household was moved to the right one after the board approved it (docs/spec-charge-corrections.md).",
+  },
+  {
     key: "billing_run",
     label: "Billing run",
     icon: "calendar-clock",
