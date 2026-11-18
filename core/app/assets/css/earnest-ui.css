@@ -441,14 +441,16 @@ select,
    Reduce transparency: every glass surface turns solid — the tinted ground
    when Tint is on (`--glass-solid`, the same colour audit:contrast-pairs grades
    as `--tint-*-glass`, written by useAppearance), the card when it is off.
+   The top bar is the exception: neutral chrome, so its solid fallback is the
+   neutral elevated ground (with `.glass-bar`, further down).
    Increase contrast: every glass surface gets an edge you can see, drawn as an
    outline so it follows the radius and leaves the rim's box-shadow alone. */
 @media (prefers-reduced-transparency: reduce) {
-	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field, .glass-bar {
+	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
 	}
-	.glass, .glass-ultra, .glass-surface, .glass-surface--strong, .dark .glass-surface, .glass-bar {
+	.glass, .glass-ultra, .glass-surface, .glass-surface--strong, .dark .glass-surface {
 		background: var(--glass-solid, var(--theme-card-bg, #fff));
 	}
 	.glass-field { background: var(--theme-bg-elevated, #fff); }
@@ -935,15 +937,19 @@ a[role='button']:not([data-no-press]):active,
 }
 
 /* =============================================================================
-   GLASS CHROME BAR — liquid-glass material for app chrome (top nav, sidebar)
-   A translucent themed substrate + backdrop blur so page content reads through
-   the chrome (iOS "materials"). Degrades to a solid surface where backdrop
-   filters aren't supported or the user prefers reduced transparency.
+   GLASS CHROME BAR — the top bar (AppNav), and only the top bar: the section
+   pills under it are a floating capsule now, not a second bar (SubNav.vue,
+   plan §2.4 "Chrome without a bar").
+   A translucent NEUTRAL substrate + backdrop blur so page content reads through
+   the chrome (iOS "materials"). No accent wash: the person's tint colours the
+   controls (the dock, the primary button, the thumb), not the chrome — the
+   accent gradient this used to paint read as a dated coloured band. Degrades to
+   the solid elevated ground where backdrop filters aren't supported or the
+   person prefers reduced transparency (neutral there too, not `--glass-solid`,
+   which is the tinted ground).
 ============================================================================= */
 .glass-bar {
-	background:
-		linear-gradient(hsl(var(--app-accent-h) var(--app-accent-s) 60% / calc(0.08 * var(--glass-tint))), transparent),
-		var(--theme-nav-bg, color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent));
+	background: var(--theme-nav-bg, color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent));
 	-webkit-backdrop-filter: blur(18px) saturate(170%);
 	backdrop-filter: blur(18px) saturate(170%);
 }
@@ -954,7 +960,7 @@ a[role='button']:not([data-no-press]):active,
 	.glass-bar {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
-		background: var(--glass-solid, var(--theme-bg-elevated));
+		background: var(--theme-bg-elevated);
 	}
 }
 
