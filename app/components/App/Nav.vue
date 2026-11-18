@@ -336,27 +336,28 @@ const userAvatarUrl = computed(() => {
             </div>
           </ClientOnly>
 
-          <!-- Spotlight (⌘K) — search records and jump anywhere in the workspace:
+          <!-- Spotlight (⌘K) — search records, jump anywhere in the workspace, or
+               (for the assistant's audience) ask it a question:
                a labelled field-like pill from sm, a plain glyph on a phone. -->
           <button
             v-if="isOnOrgPage"
             type="button"
             class="hidden sm:inline-flex items-center gap-2 header-pill header-pill--wide app-nav__search"
-            :title="`Search (${spotlightShortcut})`"
-            aria-label="Search"
+            :title="`${showAssistant ? 'Search or ask the assistant' : 'Search'} (${spotlightShortcut})`"
+            :aria-label="showAssistant ? 'Search or ask the assistant' : 'Search'"
             aria-keyshortcuts="Meta+K Control+K"
             data-spotlight-trigger
             @click="spotlight.open()"
           >
             <Icon name="i-lucide-search" class="w-4 h-4 shrink-0" />
-            <span class="text-sm">Search</span>
+            <span class="text-sm">{{ showAssistant ? "Search or ask" : "Search" }}</span>
             <kbd class="app-nav__kbd text-xs">{{ spotlightShortcut }}</kbd>
           </button>
           <button
             v-if="isOnOrgPage"
             type="button"
             class="inline-grid place-items-center sm:hidden app-nav__icon-btn"
-            aria-label="Search"
+            :aria-label="showAssistant ? 'Search or ask the assistant' : 'Search'"
             @click="spotlight.open()"
           >
             <Icon name="i-lucide-search" class="w-5 h-5" />

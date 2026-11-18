@@ -23,8 +23,11 @@ import { findRawTypeSizes } from "./lib/audit-matchers";
  * 2026-11-18 (Phase 4, the header and dock) — **283**: the hamburger sheet,
  * the bell, the App Library and the header's chat and assistant buttons are
  * gone; the avatar's menu and the phone's dock are on type and colour tokens.
+ *
+ * 2026-11-18 (Phase 4, Session 16) — **282**: the floating View bar is one
+ * small button on the public preview.
  */
-const BASELINE = 283;
+const BASELINE = 282;
 
 runFileAudit({
   name: "type-scale",

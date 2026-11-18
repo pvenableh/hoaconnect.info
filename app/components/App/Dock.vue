@@ -301,9 +301,7 @@ watch(shownApps, reset, { immediate: true });
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  /* Over the admin's View switcher (60), which sits just above the pill on a
-     phone, so an open Apps card is never covered by it. */
-  z-index: 61;
+  z-index: 50;
   pointer-events: none;
   display: flex;
   justify-content: center;

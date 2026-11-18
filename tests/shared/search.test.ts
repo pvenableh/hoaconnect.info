@@ -5,6 +5,7 @@ import {
   normalizeQuery,
   buildSearchFilter,
   MAX_QUERY,
+  looksLikeQuestion,
 } from "#core/shared/search";
 
 const keys = (actors: any[]) => searchGroupsFor(actors).map((g) => g.key);
@@ -56,5 +57,23 @@ describe("Spotlight search — query and filter", () => {
     const members = SEARCH_GROUPS.find((g) => g.key === "members")!;
     const hit = members.toHit({ id: 7, first_name: "Dana", last_name: "Whitfield", email: "d@x.org", member_type: "owner" });
     expect(hit).toEqual({ id: "7", name: "Dana Whitfield", description: "d@x.org · owner", to: "/admin/members?member=7" });
+  });
+});
+
+describe("Spotlight — a question for the assistant", () => {
+  it.each([
+    ["How do I record a payment", true],
+    ["who handles the elevator?", true],
+    ["Can we raise the dues", true],
+    ["draft a reminder for unit 4B", true],
+    ["late fees?", true],
+    ["Harbor", false],
+    ["4B", false],
+    ["Howard Smith", false],
+    ["Whoville Street", false],
+    ["?", false],
+    ["", false],
+  ])("%s → %s", (q, want) => {
+    expect(looksLikeQuestion(q as string)).toBe(want);
   });
 });

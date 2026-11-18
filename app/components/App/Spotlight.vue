@@ -24,6 +24,12 @@
  * useCreateVerbs and matched as you type ("new", a noun, an alias like "dues").
  * Picking one runs it: the page that owns the form opens it (useCreateIntent).
  *
+ * ASK — "Ask the assistant" with what you typed, for the people who have the
+ * assistant (staff: admin, board, a manager; never the member preview). When
+ * the text reads as a question (looksLikeQuestion) the row comes first and
+ * Enter asks; otherwise it comes last, and Enter asks only when nothing else
+ * matched. Asking opens the assistant and sends the text (useAiAssistant).
+ *
  * `searchFn` / `destinations` override the sources — /ui-kit uses them to show
  * the real component without a session.
  */
@@ -31,7 +37,7 @@ import { useDebounceFn } from "@vueuse/core";
 import { ListboxFilter } from "reka-ui";
 import { CommandDialog, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import type { SearchGroupResult } from "#core/shared/search";
-import { MIN_QUERY } from "#core/shared/search";
+import { MIN_QUERY, looksLikeQuestion } from "#core/shared/search";
 import type { VerbId } from "#core/shared/create-verbs";
 
 interface Destination {
@@ -58,6 +64,7 @@ const { isEnabled } = useModules();
 const access = useCurrentDomainAccess();
 const { isPreviewingMember } = useViewAs();
 const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
+const aiAssistant = useAiAssistant();
 
 const isOnOrgPage = computed(() => !!route.params.slug);
 // Record search is offered to the same hats the assistant is: the server
@@ -71,6 +78,19 @@ const canSearchRecords = computed(
       (access.isAdminOfCurrentDomain.value ||
         access.isBoardMemberOfCurrentDomain.value ||
         access.isPropertyManagerOfCurrentDomain.value)),
+);
+
+// The assistant's audience (the Nav's showAssistant): staff on a community page,
+// not while previewing the member view. Off in the /ui-kit demo.
+const canAsk = computed(
+  () =>
+    !props.searchFn &&
+    !props.destinations &&
+    !isPreviewingMember.value &&
+    isOnOrgPage.value &&
+    (access.isAdminOfCurrentDomain.value ||
+      access.isBoardMemberOfCurrentDomain.value ||
+      access.isPropertyManagerOfCurrentDomain.value),
 );
 
 const allDestinations = computed<Destination[]>(() => {
@@ -146,6 +166,16 @@ const matchingVerbs = computed(() =>
   props.destinations || props.searchFn ? [] : createVerbs.matching(query.value),
 );
 
+const askText = computed(() => query.value.trim());
+const showAsk = computed(() => canAsk.value && askText.value.length >= MIN_QUERY);
+const askFirst = computed(() => showAsk.value && looksLikeQuestion(askText.value));
+const ask = () => {
+  if (!showAsk.value) return;
+  const text = askText.value;
+  close();
+  aiAssistant.openWith(text);
+};
+
 const nothingFound = computed(
   () =>
     query.value.trim().length >= MIN_QUERY &&
@@ -172,6 +202,12 @@ const firstResultTo = computed(
 const onEnter = (e: KeyboardEvent) => {
   const list = (e.target as HTMLElement).closest('[data-slot="command"]');
   if (list?.querySelector("[data-highlighted]")) return;
+  // A question goes to the assistant; so does anything that found nothing.
+  if (askFirst.value || (showAsk.value && nothingFound.value)) {
+    e.preventDefault();
+    ask();
+    return;
+  }
   // Groups render Go to → Create → records, and Enter takes the first row.
   const firstVerb = !matchingDestinations.value.length ? matchingVerbs.value[0] : undefined;
   if (firstVerb) {
@@ -224,7 +260,11 @@ onMounted(() => window.addEventListener("keydown", onKeydown));
 onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 const placeholder = computed(() =>
-  canSearchRecords.value ? "Search members, units, documents, or go to…" : "Go to…",
+  canAsk.value
+    ? "Search, go to, or ask the assistant…"
+    : canSearchRecords.value
+      ? "Search members, units, documents, or go to…"
+      : "Go to…",
 );
 </script>
 
@@ -232,7 +272,7 @@ const placeholder = computed(() =>
   <CommandDialog
     v-model:open="isOpen"
     title="Search"
-    description="Search records and jump to any part of the workspace."
+    :description="canAsk ? 'Search records, jump to any part of the workspace, or ask the assistant.' : 'Search records and jump to any part of the workspace.'"
   >
     <div data-slot="command-input-wrapper" class="flex h-12 items-center gap-2.5 border-b border-border/60 px-4">
       <Icon name="lucide:search" class="size-4 shrink-0 text-muted-foreground" />
@@ -248,6 +288,21 @@ const placeholder = computed(() =>
     </div>
 
     <CommandList class="max-h-[min(60vh,420px)] p-1.5">
+      <CommandGroup v-if="showAsk && askFirst" heading="Ask" data-spotlight-group="ask">
+        <CommandItem
+          value="ask"
+          class="gap-3 rounded-lg px-2.5 py-2"
+          data-spotlight-ask
+          @select="ask"
+        >
+          <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium">Ask the assistant</span>
+            <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
+          </span>
+          <kbd v-if="askFirst" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
+        </CommandItem>
+      </CommandGroup>
       <CommandGroup v-if="matchingDestinations.length" heading="Go to">
         <CommandItem
           v-for="d in matchingDestinations"
@@ -309,8 +364,24 @@ const placeholder = computed(() =>
         </CommandItem>
       </CommandGroup>
 
+      <CommandGroup v-if="showAsk && !askFirst" heading="Ask" data-spotlight-group="ask">
+        <CommandItem
+          value="ask"
+          class="gap-3 rounded-lg px-2.5 py-2"
+          data-spotlight-ask
+          @select="ask"
+        >
+          <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium">Ask the assistant</span>
+            <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
+          </span>
+          <kbd v-if="nothingFound" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
+        </CommandItem>
+      </CommandGroup>
+
       <p v-if="searching" class="helper-text px-3 py-2">Searching records…</p>
-      <p v-else-if="nothingFound" class="helper-text px-3 py-6 text-center">
+      <p v-else-if="nothingFound && !showAsk" class="helper-text px-3 py-6 text-center">
         Nothing matches “{{ query.trim() }}”.
       </p>
       <p v-else-if="query.trim().length === 1" class="helper-text px-3 py-6 text-center">Keep typing…</p>

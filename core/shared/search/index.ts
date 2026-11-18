@@ -79,6 +79,21 @@ export const MIN_QUERY = 2;
 export const MAX_QUERY = 64;
 export const PER_GROUP = 5;
 
+/**
+ * Does what was typed into Spotlight read as a question for the assistant
+ * rather than a name to find? A trailing "?", or a question word or modal at
+ * the start ("how do I…", "who handles…", "can we…"). Spotlight then puts
+ * "Ask the assistant" first and Enter asks; otherwise the row comes last and
+ * Enter asks only when nothing else matched.
+ */
+const QUESTION_START =
+  /^(who|what|when|where|why|how|which|whose|can|could|should|would|will|is|are|was|were|do|does|did|has|have|may|must|shall|tell me|show me|explain|summari[sz]e|draft|write|help)\b/i;
+export function looksLikeQuestion(q: string): boolean {
+  const t = q.trim();
+  if (t.length < MIN_QUERY) return false;
+  return t.endsWith("?") || QUESTION_START.test(t);
+}
+
 const join = (...parts: Array<string | null | undefined>) =>
   parts.filter((p) => p && String(p).trim()).join(" · ");
 
