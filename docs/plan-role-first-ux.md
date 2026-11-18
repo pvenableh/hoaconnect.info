@@ -364,7 +364,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 9 | 2c — Responsibilities map: the Map mode beside the grid, for admins and owners | [x] | Shipped 2026-11-18 in three gated commits (`10b1b71`, `5b2b5d4`, `623685a`) and a docs commit. No schema, no route, no permission change. Grid \| Map (`?view=map`) on the register and on the owner page; the admin's slider resolves any day from the rows already loaded. Checked in the browser as the demo admin only (Session log), at 375, 768 and 1280 px, light and dark; reduced motion through a stubbed `matchMedia`, not the OS setting. **Operator TODOs:** clear the demo rows (`scripts/clean-demo-responsibilities.ts`, at Peter's go-ahead), push, then deploy. Not pushed. Prompt: `docs/prompts/role-first-s9-responsibilities-map.md` (Opus 5.5) |
 | 10 | Restricted members: posting paused, membership kept (and archived members stop writing) | [x] | Built 2026-11-17 in six gated commits after the spec (`01457c9`…`4ad8bac`) and three fixes from the live check (`1b9fefc`, `c1ec2ba`, `67beb41`). Spec `docs/spec-member-restrictions.md`. `hoa_member_restrictions` created on the live instance and types regenerated (at Peter's go-ahead). Checked in the browser as Peter (admin), Tester Two (paused) and Obie (board seat); both test pauses lifted. **Operator TODOs:** deploy, `pnpm add:admin-scope` (creates and back-fills `active_in`, `posts_in`, `posts_to`), then `pnpm setup:permissions` — until then archived and inactive members can still write through Directus and a pause rests on the server checks alone. Not pushed. Prompt: `docs/prompts/role-first-s10-member-restrictions.md` (Opus 5.5) |
 | 11 | 5c — Correcting a charge: what an admin may change on a charge an owner owes, and which changes need the board | [x] | Shipped 2026-11-18 in seven gated commits (`19340c1`…`a26aa01`). Spec `docs/spec-charge-corrections.md`, the six decisions confirmed with Peter as recommended. Admins edit the words, raise the amount and move a due date before it is due, and withdraw a hand-entered charge within 24 hours; lowering a charge is a partial waiver and the wrong household a `move` approval, both for the board; a full waiver takes its late fees. Schema applied to the instance at Peter's go-ahead (second dry run nothing; types regenerated); no permission changed. Checked in the browser as the demo admin only (Session log). **Operator TODO:** deploy, then push. Not pushed. Prompt: `docs/prompts/role-first-s11-charge-corrections.md` (Opus 5.5) |
-| 12 | 4 — Glass and appearance, part 1: glass as a layer, Light/Dark/Auto and Tint with per-person swatches, reduced transparency and contrast, one attention treatment for solid cards, one left edge | [ ] | Queued 2026-11-18. Asks five questions (swatch set, Tint default, dock position, `vivid`, attention treatment) in one message, then builds in three gated commits; ends by writing Session 13's sweep prompt from a census. No schema (`app_prefs` is JSON). Prompt: `docs/prompts/role-first-s12-glass-appearance.md` (Opus 5.5) |
+| 12 | 4 — Glass and appearance, part 1: glass as a layer, Light/Dark/Auto and Tint with per-person swatches, reduced transparency and contrast, one attention treatment for solid cards, one left edge | [x] | Shipped 2026-11-18 in three gated commits (`bd1d44b`, `410b0b1`, `229edc2`). The five answers confirmed with Peter as recommended (§2.4). No schema, no route, no permission change (`/api/user/app-prefs` now carries `{ tint }`). Checked in the browser as the demo admin only, at 375, 768 and 1280 px, light and dark, Tint on (Violet, Teal) and off; the demo admin's prefs put back (Auto, Tint on, community). Reduce Transparency and Increase Contrast read from the compiled CSS, not the OS. Census and the sweep prompt written. Not pushed. Prompt: `docs/prompts/role-first-s12-glass-appearance.md` (Opus 5.5) |
+| 13 | 4 — Glass and appearance, part 2: the sweep — glass off 16 content surfaces, per-page accents removed, text outside cards on one left edge | [ ] | Queued 2026-11-18 from Session 12's two censuses (16 glass findings in 15 files, five through `WidgetGlass`; 10 per-page accent overrides; 8 left-edge findings in 7 files). Two gated commits. Prompt: `docs/prompts/role-first-s13-glass-sweep.md` (Sonnet 5.5) |
 
 
 ### Queued: correcting a charge (Session 11)
@@ -1266,3 +1267,54 @@ Local, on `main`, not pushed. Three commits, each through the full gate (typeche
 2. **Push, then deploy.** `origin/main` has everything up to `3c5092b`; only this session's commits are ahead.
 3. **Look at the map on a real phone** once deployed: the motion was read from the DOM, not watched, and 1033 Lenox's real list (31 held, 14 unassigned) is the better test.
 4. ~~No session is queued after this one.~~ **Session 12 queued 2026-11-18**: Phase 4 part 1, glass and appearance (`docs/prompts/role-first-s12-glass-appearance.md`, Opus 5.5).
+
+#### Session 12 — Phase 4 part 1, glass and appearance (2026-11-18)
+
+Local, on `main`, not pushed. Three commits, each through the full gate (typecheck 0, vitest 4,417 green, build green, `audit:all` 19 of 19 at or under baseline, lint 132 of 148 warnings), then this docs commit. No schema, no route, no permission change.
+
+**The five answers** (asked in one message after showing both attention treatments on the map's Unassigned cards in the browser; Peter: as recommended). Recorded in §2.4.
+
+1. Swatches: the community's colour, then Blue, Teal, Violet, Rose, Slate. No red, amber or green.
+2. Tint is on for a new person, in the community's colour.
+3. Dock position is gone: bottom only.
+4. `vivid` went with the other palettes.
+5. Attention is a faint warning tint across the card (a rim fought the map's picked-card ring). On Payments only an overdue charge takes it.
+
+**Shipped**
+
+- `bd1d44b` **The rules.** `accent.ts`: `TINT_SWATCHES`, `resolveTint` (a stored choice, a mode and the community's colour in; glass tier, ink, ink hover and the tinted ground out), a `neutral` option so Slate stays slate, `inkHover`, `tintedGround`. `app-prefs.ts`: `{ tint: { on, swatch } }`; the old `dock` keys are dropped on read and left out of the next write, and a default is never stored. `theme-app.css`: `--tint-*-ink`, `-ink-hover`, `-glass` for the five fixed swatches and `--attention-bg`; `audit:contrast-pairs` grades them all in light and dark (152 pairs). `tests/shared/tint-swatches.test.ts` holds the tokens equal to what `accent.ts` computes; `tests/server/app-prefs.test.ts` is now a table over the tint shape.
+- `410b0b1` **The material.** `--glass-tint` (1 on, 0 off via `html[data-tint='off']`) scales every tint stop of `glass-surface`, `--strong`, toasts and the top bar; Tint on is a little more opaque. `ios-card` left the glass token list and is the solid content card (opaque, a neutral ring and lift, no accent hue). `.glass-field` lost its blur. Reduce Transparency turns every glass surface solid (the tinted ground in `--glass-solid`, or the card; `.dark .glass-surface` is covered now, which it was not before); Increase Contrast gives glass an outline. `.card-attention` replaced the strips on the map's Unassigned cards and the Payments cards. One left edge: `--surface-inset` and the content-column rules are gone, `AppPageHeader` and `AppHeaderOutlet` start on the cards' edge, and the dead `type-flush` / `content-column` classes are removed.
+- `229edc2` **The settings.** Appearance (Light, Dark, Auto) and Tint (On, Off, six swatches when on) in the account menu, everywhere, and on the Account page. `useAppearance` owns the tint and writes the accent, ink, hover, `data-tint` and `--glass-solid`; the prepaint script sets `data-tint` for the first frame; the choice syncs through `/api/user/app-prefs`. Dock palettes, dock position, the label switch and the glass chrome switch are gone with their code (`useAppNav`, `Dock.vue`, `AppLibrary.vue`, `useDockApps`, the auth layout); `ThemeSelector.vue` had no other users and is deleted.
+
+**What each role now sees** (everyone has the same panel: appearance is personal)
+
+| Who | Before | Now |
+|---|---|---|
+| Everyone in the workspace | Light/Dark toggle; on a community page, a dock panel with four palettes, two switches and a position picker | Appearance: Light, Dark, Auto. Tint: On or Off, and six colours when on. Shown with or without a community |
+| Admins and anyone with a dock | A rainbow dock (one hue per app), optional labels, optional top dock | A bottom dock in their tint with labels on; the open app's label in the ink |
+| Everyone, on any page | Headings indented 1.25rem past the cards; glass-tinted content cards | Titles, descriptions, toolbars and cards on one left edge; content cards solid |
+| Owners on Payments, admins on the register's map | Coloured strips down the left of a card | A faint warning tint across an overdue charge or an Unassigned job |
+| A community with a brand colour set | The workspace in HOA Connect cyan | The workspace in its own colour by default (swatch one); no live community has one set today |
+
+**Deviations and decisions**
+
+- **The community's colour was not connected.** `getAdminAccent()` was always called with nothing; the first swatch now reads `block_settings.colors[0].primary` (the PWA theme colour), falling back to cyan.
+- **Fields are not glass already**, as §2.4 said, except `.glass-field`'s blur, which is gone; its name and rim stay.
+- **Dark muted text fails on any warm ground** (4.63:1 on the card itself), so `.card-attention` steps muted text up to tertiary inside the card, and the audit grades tertiary on `--attention-bg`.
+- **The ink hover now moves with the ink** (`--theme-button-hover-bg`, `--theme-accent-hover`, `--theme-link-hover`), or a Rose button would hover cyan. Cyan's own hover moved by one step (`#00668a` → computed `#00678a` in light, `#6fe0fa` → `#71d7f9` in dark); the resting CSS values are unchanged.
+- **The public landing's dock** read the dock palette and the glass switch. It now uses the fixed "fresh" ramp (every visitor's default) and glass chips; a visitor who had picked another palette on their device sees "fresh".
+- **Per-page `.accent-*` classes** (projects, payments, units, communications) still set the glass hue on their pages and override a person's tint there. They are content-level and left to Session 13.
+- **`page-h1` reads 40 against a baseline of 41**, as it did before this session; not this session's to lower.
+
+**Checked in the browser, and not**
+
+- **Done**, as the demo admin (Harborview Lofts): the register (grid, map, a job's slide-over), Members and Finances at 375, 768 and 1280 px, light and dark; title, description, toolbar, count and first card at one `left` (119 px at 1280, 15 px at 375, 23 px at 768), no sideways scroll. The menu's panel: Violet and Teal repaint the dock, rail, slider, top bar and primary button; Tint off gives clear glass, neutral dock icons and the community's ink, and keeps the swatch; the account stores only non-defaults (`{ swatch: "violet" }`, then `{ on: false, swatch: "violet" }`); with this device's cache cleared, a reload brings the account copy back. The App Library at 375 takes the tint (read from the DOM).
+- **Reduce Transparency and Increase Contrast** were read from the compiled `@media` rules in the built CSS; the pane cannot emulate them.
+- **Not seen:** an overdue charge on Payments (the demo admin owes nothing; the class is the map's); `/ui-kit` (bounces a signed-in user; its Tint preview and materials updated anyway); a real board seat, manager, owner or tenant. Motion was not watched: the pane was hidden, so screenshots caught entries mid-animation and opacity was read from the DOM.
+- **The demo admin's prefs were put back**: Auto, Tint on, community swatch (stored `{}`). Its row's old `dock` keys were dropped by the first write, as designed.
+
+**Operator TODOs**
+
+1. **Push, then deploy.** `origin/main` has everything up to `5ababa3`; only this session's three commits and this docs commit are ahead.
+2. **Look at it with Reduce Transparency and Increase Contrast on** (macOS Accessibility → Display) once deployed: checked from the CSS only.
+3. **Session 13 is queued**: the glass sweep (`docs/prompts/role-first-s13-glass-sweep.md`, Sonnet 5.5).
