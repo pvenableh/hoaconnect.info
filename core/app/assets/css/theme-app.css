@@ -150,6 +150,30 @@ html.theme-app {
 	--theme-tracking-wider: 0.1em;
 	--theme-tracking-widest: 0.15em;
 
+	/* --- The tint swatches (Phase 4; core/shared/branding/accent.ts) ----------
+	   One row per fixed swatch: its ink (buttons, links, accent text), the ink's
+	   hover, and its tinted glass as a solid ground. accent.ts writes these at
+	   runtime from the person's choice; they are spelled out here so
+	   `audit:contrast-pairs` grades every swatch in light and dark, and
+	   tests/shared/tint-swatches.test.ts holds each equal to what accent.ts
+	   computes. The community's swatch has no row: any colour can arrive, so
+	   deriveInkAccent's tests grade it across the hue wheel instead. */
+	--tint-blue-ink: light-dark(#1f5fea, #5483e8);
+	--tint-blue-ink-hover: light-dark(#1453dc, #7ca0ee);
+	--tint-blue-glass: light-dark(#e5ecfd, #202d40);
+	--tint-teal-ink: light-dark(#0b7f75, #53e9dc);
+	--tint-teal-ink-hover: light-dark(#09675f, #7ceee5);
+	--tint-teal-glass: light-dark(#e5fdfb, #20393f);
+	--tint-violet-ink: light-dark(#691feb, #9a6aeb);
+	--tint-violet-ink-hover: light-dark(#5d14dc, #b593f1);
+	--tint-violet-glass: light-dark(#eee5fd, #272740);
+	--tint-rose-ink: light-dark(#d62474, #de5e98);
+	--tint-rose-ink-hover: light-dark(#c02068, #e684b0);
+	--tint-rose-glass: light-dark(#fbe6f0, #312836);
+	--tint-slate-ink: light-dark(#63738a, #909cad);
+	--tint-slate-ink-hover: light-dark(#59677b, #aab3c0);
+	--tint-slate-glass: light-dark(#eef0f3, #273039);
+
 	/* The content-column inset: page-level headings align with the TEXT inside
 	   cards, while the cards themselves bleed to the page margin. Straight from
 	   iOS grouped lists — it is most of why those screens feel settled. */
@@ -217,6 +241,11 @@ html.theme-app {
 	--success-foreground: light-dark(#ffffff, #04170e);
 	--warning: light-dark(#a16207, #fbbf24);
 	--warning-foreground: light-dark(#ffffff, #1a1204);
+	/* Attention on a SOLID card (Phase 4, plan §2.4): a faint warning tint
+	   across the whole card, in place of a coloured strip down one side. Light
+	   is amber-300 at 14% over the card, dark the warning at 12%; the warning
+	   text that says why still reads on it at AA (audit:contrast-pairs). */
+	--attention-bg: light-dark(#fef6e0, #313025);
 	--info: light-dark(#007aa3, #45cbf7);
 	--info-foreground: light-dark(#ffffff, #061016);
 
@@ -660,6 +689,7 @@ html.theme-app .iconify.size-24 { font-size: 6rem; }
 		--success-foreground: #04170e;
 		--warning: #fbbf24;
 		--warning-foreground: #1a1204;
+		--attention-bg: #313025;
 		--info: #45cbf7;
 		--info-foreground: #061016;
 	}

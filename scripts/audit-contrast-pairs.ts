@@ -21,6 +21,7 @@
  */
 import { blockBodies, gradePair, parseDeclarations, type Mode, type PairSpec } from "./lib/contrast";
 import { finish, flags, readRepoFile, type Finding } from "./lib/audit-kit";
+import { TINT_SWATCH_IDS } from "../core/shared/branding/accent";
 
 /**
  * 2026-11-05 — measured **1**: `--theme-button-text` (#fff) on
@@ -35,6 +36,9 @@ import { finish, flags, readRepoFile, type Finding } from "./lib/audit-kit";
 const BASELINE = 0;
 
 const THEME = "core/app/assets/css/theme-app.css";
+
+/** The fixed tint swatches (core/shared/branding/accent.ts, minus the community's). */
+const TINT_SWATCHES = TINT_SWATCH_IDS.filter((id) => id !== "community");
 
 /** Body text on the two grounds a page can sit on. */
 const TEXT_ON = ["--theme-bg-primary", "--theme-card-bg", "--theme-bg-elevated"];
@@ -62,6 +66,24 @@ const PAIRS: PairSpec[] = [
   ...TEXT_ON.flatMap((bg) =>
     ["--destructive", "--success", "--warning", "--info"].map((fg): PairSpec => ({ fg, bg, min: 4.5 })),
   ),
+  // The tint swatches (Phase 4): each swatch's ink as text on every ground and
+  // as a button fill (and its hover) under the button label, and the text ramp
+  // on its tinted glass. Clear glass is the card ground, graded above.
+  ...TINT_SWATCHES.flatMap((sw): PairSpec[] => [
+    ...TEXT_ON.map((bg): PairSpec => ({ fg: `--tint-${sw}-ink`, bg, min: 4.5 })),
+    { fg: "--theme-button-text", bg: `--tint-${sw}-ink`, min: 4.5 },
+    { fg: "--theme-button-text", bg: `--tint-${sw}-ink-hover`, min: 4.5 },
+    { fg: "--theme-text-primary", bg: `--tint-${sw}-glass`, min: 4.5 },
+    { fg: "--theme-text-secondary", bg: `--tint-${sw}-glass`, min: 4.5 },
+  ]),
+  // The attention treatment for a solid card (Phase 4): its ground under the
+  // text ramp, and the warning colour that says why, on it.
+  { fg: "--theme-text-primary", bg: "--attention-bg", min: 4.5 },
+  { fg: "--theme-text-secondary", bg: "--attention-bg", min: 4.5 },
+  // `.card-attention` steps its muted text up to tertiary (earnest-ui.css):
+  // dark muted is 4.63:1 on the card itself, so any warmth at all sinks it.
+  { fg: "--theme-text-tertiary", bg: "--attention-bg", min: 4.5 },
+  { fg: "--warning", bg: "--attention-bg", min: 4.5 },
 ];
 
 const css = readRepoFile(THEME);

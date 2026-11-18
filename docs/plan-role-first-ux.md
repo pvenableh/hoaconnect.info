@@ -124,6 +124,14 @@ Appearance settings go from six to two (decided 2026-11-14):
 
 Removed: dock palettes (Fresh, Aurora, Neutral — the tint replaces them), the glass chrome toggle (the OS reduced-transparency setting decides), the dock label toggle (labels on), and dock position from the appearance panel.
 
+Decided 2026-11-18 (Session 12, Peter, as recommended):
+
+1. **Swatches:** six. The community's accent first (`block_settings.colors[0].primary`, the colour the PWA theme and the emails already use; HOA Connect cyan when a community has none), then five fixed hues: Blue, Teal, Violet, Rose, Slate. No red, amber or green, so a tint never reads as destructive, warning or success. Every fixed swatch's ink is solved for AA by `deriveInkAccent` and recorded as a token pair graded by `audit:contrast-pairs`.
+2. **Tint default:** On, with the community's accent (today's look: the glass is already accent-tinted).
+3. **Dock position:** gone entirely; the dock is bottom only (a top dock collides with the top bar).
+4. **`vivid`:** removed with the other palettes. The public landing's dock keeps the old "fresh" ramp and glass chips, fixed, so the landing does not change.
+5. **Attention:** a faint warning tint across the solid card (a rim fought the map's picked-card ring). On Payments only an overdue charge takes it; the active, partly paid and paid strips go, since each card's status badge already says it.
+
 Each person picks their own tint colour (decided 2026-11-14) from a short row of swatches shown when Tint is on; the first swatch is the community's accent and is the default. It is stored with the per-user app preferences that already hold the dock settings. `core/shared/branding/accent.ts` already resolves one accent from a hex and is the single place the choice feeds. Tinted and clear glass each need a contrast-checked pair in light and dark (every swatch in both modes, added to `audit:contrast-pairs`, which is why the swatches are a fixed set and not a colour picker). The public site keeps its three styles; that is a one-time board choice, not a daily one.
 
 ## 3. Features

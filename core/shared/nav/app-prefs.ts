@@ -1,34 +1,44 @@
 /**
  * Per-user workspace preferences, stored on `directus_users.app_prefs` (JSON,
- * added by scripts/add-user-app-prefs-field.ts). Today: the dock's appearance.
+ * added by scripts/add-user-app-prefs-field.ts). Today: the tint (Phase 4,
+ * plan §2.4, decisions 4 and 8).
  *
- * Shape: `{ dock: { palette, position, labels, glass } }`. Every key optional —
- * an absent key means "the default", so a user who never opened the
- * appearance menu stores nothing.
+ * Shape: `{ tint: { on, swatch } }`. Every key optional, and a default is never
+ * stored: Tint on and the community's swatch are what an absent key means, so
+ * a person who never changed them stores nothing, and the community's colour
+ * itself is never copied in (it is read from the community each time).
  *
- * Resolution (client, useAppNav): the user's stored value → this device's
- * localStorage cache → the default. localStorage is the SSR-safe cache that
- * paints the right dock on the first frame; the account value arrives a moment
- * later and wins, which is what makes a dock you set on the laptop follow you
- * to the phone.
+ * Light, Dark and Auto are NOT here: they live on `directus_users.appearance`,
+ * which useAppearance has always owned.
+ *
+ * The old `{ dock: { palette, position, labels, glass } }` keys are dropped on
+ * read, and the next write leaves them out of the row (no community is live,
+ * so nothing is carried over).
+ *
+ * Resolution (client, useAppearance): the user's stored value → this device's
+ * localStorage cache → the default. The account value wins once it arrives,
+ * which is what makes a tint chosen on the laptop follow you to the phone.
  *
  * Pure: the server routes sanitize every read and write through here, so a
- * body can never carry anything but these four keys into the user row.
+ * body can never carry anything but these keys into the user row.
  */
 
-export const DOCK_PALETTE_IDS = ["fresh", "aurora", "neutral", "vivid"] as const;
-export type PaletteId = (typeof DOCK_PALETTE_IDS)[number];
-export type DockPosition = "bottom" | "top";
+import {
+  DEFAULT_TINT_ON,
+  DEFAULT_TINT_SWATCH,
+  isTintSwatchId,
+  type TintSwatchId,
+} from "#core/shared/branding/accent";
 
-export interface DockPrefs {
-  palette?: PaletteId;
-  position?: DockPosition;
-  labels?: boolean;
-  glass?: boolean;
+export type { TintSwatchId };
+
+export interface TintPrefs {
+  on?: boolean;
+  swatch?: TintSwatchId;
 }
 
 export interface AppPrefs {
-  dock?: DockPrefs;
+  tint?: TintPrefs;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -36,22 +46,29 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 /** Keep only known keys with valid values; anything else is dropped, silently. */
 export function sanitizeAppPrefs(input: unknown): AppPrefs {
-  if (!isRecord(input) || !isRecord(input.dock)) return {};
-  const d = input.dock;
-  const dock: DockPrefs = {};
-  if (typeof d.palette === "string" && (DOCK_PALETTE_IDS as readonly string[]).includes(d.palette)) {
-    dock.palette = d.palette as PaletteId;
-  }
-  if (d.position === "bottom" || d.position === "top") dock.position = d.position;
-  if (typeof d.labels === "boolean") dock.labels = d.labels;
-  if (typeof d.glass === "boolean") dock.glass = d.glass;
-  return Object.keys(dock).length ? { dock } : {};
+  if (!isRecord(input) || !isRecord(input.tint)) return {};
+  const t = input.tint;
+  const tint: TintPrefs = {};
+  if (typeof t.on === "boolean") tint.on = t.on;
+  if (isTintSwatchId(t.swatch)) tint.swatch = t.swatch;
+  return Object.keys(tint).length ? { tint } : {};
 }
 
-/** `patch` over `base`, key by key; both are sanitized first. */
+/** Drop what an absent key already means. */
+function withoutDefaults(tint: TintPrefs): TintPrefs {
+  const out: TintPrefs = { ...tint };
+  if (out.on === DEFAULT_TINT_ON) delete out.on;
+  if (out.swatch === DEFAULT_TINT_SWATCH) delete out.swatch;
+  return out;
+}
+
+/**
+ * `patch` over `base`, key by key; both are sanitized first, and the result
+ * carries no default (choosing the default again removes the key).
+ */
 export function mergeAppPrefs(base: unknown, patch: unknown): AppPrefs {
   const a = sanitizeAppPrefs(base);
   const b = sanitizeAppPrefs(patch);
-  const dock = { ...a.dock, ...b.dock };
-  return Object.keys(dock).length ? { dock } : {};
+  const tint = withoutDefaults({ ...a.tint, ...b.tint });
+  return Object.keys(tint).length ? { tint } : {};
 }

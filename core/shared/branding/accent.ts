@@ -90,24 +90,32 @@ export function hexToHsl(hex: string): AccentHsl | null {
  * Light ground wants a saturated mid-lightness colour; dark ground wants it a
  * little brighter and a little less saturated, or it glares.
  */
-export function deriveAdminAccent(base: AccentHsl): AdminAccent {
+export function deriveAdminAccent(base: AccentHsl, opts: AccentOptions = {}): AdminAccent {
   const h = ((Math.round(base.h) % 360) + 360) % 360;
   const s = clamp(base.s, 0, 100);
   const l = clamp(base.l, 0, 100);
+  // A neutral colour (the Slate swatch) keeps its low saturation: the floors
+  // below exist to rescue a washed-out BRAND colour, and would turn grey blue.
+  const n = !!opts.neutral;
 
   return {
     light: {
       h,
-      s: round1(clamp(s, 45, 100)),
+      s: round1(n ? s : clamp(s, 45, 100)),
       l: round1(clamp(l, 38, 55)),
     },
     dark: {
       h,
-      s: round1(clamp(s * 0.88, 40, 92)),
+      s: round1(n ? s * 0.88 : clamp(s * 0.88, 40, 92)),
       l: round1(clamp(l + 6, 48, 66)),
     },
-    ink: deriveInkAccent({ h, s, l }),
+    ink: deriveInkAccent({ h, s, l }, opts),
   };
+}
+
+/** `neutral`: keep a deliberately low saturation instead of lifting it. */
+export interface AccentOptions {
+  neutral?: boolean;
 }
 
 // --- Contrast machinery ----------------------------------------------------
@@ -180,14 +188,20 @@ function findLightness(from: number, to: number, test: LightnessTest): number {
  * factor to hold. This walks the lightness until the real WCAG maths passes, so
  * any brand colour an organization picks will work rather than most of them.
  */
-export function deriveInkAccent(base: AccentHsl): {
+export function deriveInkAccent(
+  base: AccentHsl,
+  opts: AccentOptions = {},
+): {
   light: AccentHsl;
   dark: AccentHsl;
 } {
   const h = ((Math.round(base.h) % 360) + 360) % 360;
-  // Hold saturation up so a deep colour still reads as the brand, not as mud.
-  const s = round1(clamp(Math.max(clamp(base.s, 0, 100), 55), 30, 100));
-  const sDark = round1(clamp(s * 0.92, 30, 95));
+  // Hold saturation up so a deep colour still reads as the brand, not as mud —
+  // unless the colour is neutral on purpose, where "mud" is the point.
+  const s = opts.neutral
+    ? round1(clamp(base.s, 0, 100))
+    : round1(clamp(Math.max(clamp(base.s, 0, 100), 55), 30, 100));
+  const sDark = opts.neutral ? round1(s * 0.92) : round1(clamp(s * 0.92, 30, 95));
 
   // Light mode: start light and darken until the colour both reads as text on
   // the page AND can take white text as a fill. Prefer the lightest that works,
@@ -246,6 +260,7 @@ export function getAdminAccent(brandColor?: string | null): AdminAccent {
 export function accentCssVars(
   accent: AccentHsl,
   ink?: AccentHsl,
+  inkHover?: AccentHsl,
 ): Record<string, string> {
   const vars: Record<string, string> = {
     "--app-accent-h": String(accent.h),
@@ -260,5 +275,149 @@ export function accentCssVars(
     // --primary and --ring already point at --theme-accent-primary through the
     // shadcn bridge, so buttons, focus rings and links all follow from this.
   }
+  if (inkHover) {
+    // The hover moves with the ink, or a Rose button hovers cyan.
+    const color = `hsl(${inkHover.h} ${inkHover.s}% ${inkHover.l}%)`;
+    vars["--theme-button-hover-bg"] = color;
+    vars["--theme-accent-hover"] = color;
+    vars["--theme-link-hover"] = color;
+  }
   return vars;
+}
+
+// --- The tint: one colour per person (Phase 4; plan §2.4, decisions 4 and 8) ---
+//
+// Appearance has a Tint switch. Off: the glass is clear and neutral, and the
+// ink (buttons, links) is the community's accent. On: the glass carries a
+// colour and is a little more opaque, and the ink is that colour. The colour is
+// the person's pick from this FIXED row — fixed so that every swatch's pair can
+// be graded by `audit:contrast-pairs` in light and dark (the `--tint-*` tokens
+// in theme-app.css, which a test holds equal to what this file computes). The
+// first swatch is the community's own colour and is the default; it is graded
+// across the whole hue wheel by the deriveInkAccent tests instead, since any
+// community can pick any colour.
+//
+// No red, amber or green: a tint must never read as destructive, warning or
+// success.
+
+export const TINT_SWATCH_IDS = ["community", "blue", "teal", "violet", "rose", "slate"] as const;
+export type TintSwatchId = (typeof TINT_SWATCH_IDS)[number];
+export const DEFAULT_TINT_SWATCH: TintSwatchId = "community";
+/** Tint is on for someone who never touched the switch (decided 2026-11-18). */
+export const DEFAULT_TINT_ON = true;
+
+export interface TintSwatch {
+  id: TintSwatchId;
+  label: string;
+  /** Null for the community's swatch: its colour is the community's. */
+  hex: string | null;
+  neutral?: boolean;
+}
+
+export const TINT_SWATCHES: readonly TintSwatch[] = [
+  { id: "community", label: "Community", hex: null },
+  { id: "blue", label: "Blue", hex: "#2563EB" },
+  { id: "teal", label: "Teal", hex: "#0D9488" },
+  { id: "violet", label: "Violet", hex: "#7C3AED" },
+  { id: "rose", label: "Rose", hex: "#DB2777" },
+  { id: "slate", label: "Slate", hex: "#64748B", neutral: true },
+];
+
+export const isTintSwatchId = (v: unknown): v is TintSwatchId =>
+  typeof v === "string" && (TINT_SWATCH_IDS as readonly string[]).includes(v);
+
+/** A swatch's accent, both modes. An unknown id is the community's. */
+export function swatchAccent(id: string | null | undefined, communityHex?: string | null): AdminAccent {
+  const sw = TINT_SWATCHES.find((s) => s.id === id) ?? TINT_SWATCHES[0]!;
+  if (!sw.hex) return getAdminAccent(communityHex);
+  return deriveAdminAccent(hexToHsl(sw.hex) as AccentHsl, { neutral: sw.neutral });
+}
+
+/**
+ * The hover step of an ink fill: darker in light (white text only gains),
+ * brighter in dark (the dark button text only gains). Mirrors the brand pair
+ * in theme-app.css (#007aa3 → #00668a, #45cbf7 → #6fe0fa).
+ */
+export function inkHover(ink: AccentHsl, mode: "light" | "dark"): AccentHsl {
+  return mode === "light"
+    ? { ...ink, l: round1(clamp(ink.l - 5, 0, 100)) }
+    : { ...ink, l: round1(clamp(ink.l + 9, 0, 92)) };
+}
+
+/**
+ * How strongly tinted glass carries its colour, as an alpha over the card
+ * ground. The same numbers as `.glass-surface--strong`'s first gradient stop in
+ * earnest-ui.css (light 0.14 at 60% lightness, dark 0.14 at 65%): the strongest
+ * the tint ever gets, so the ground graded here is the hardest one to read on.
+ */
+export const TINT_GLASS = {
+  light: { alpha: 0.14, l: 60, card: "#ffffff" },
+  dark: { alpha: 0.14, l: 65, card: "#151d25" },
+} as const;
+
+const hex2 = (n: number) => Math.round(clamp(n, 0, 255)).toString(16).padStart(2, "0");
+
+/** HSL to `#rrggbb`. */
+export function hslToHex({ h, s, l }: AccentHsl): string {
+  const S = s / 100;
+  const L = l / 100;
+  const c = (1 - Math.abs(2 * L - 1)) * S;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r1, g1, b1] =
+    hp < 1 ? [c, x, 0]
+    : hp < 2 ? [x, c, 0]
+    : hp < 3 ? [0, c, x]
+    : hp < 4 ? [0, x, c]
+    : hp < 5 ? [x, 0, c]
+    : [c, 0, x];
+  const m = L - c / 2;
+  return `#${hex2((r1 + m) * 255)}${hex2((g1 + m) * 255)}${hex2((b1 + m) * 255)}`;
+}
+
+/** The tinted glass as a solid colour: the tint at its strongest over the card. */
+export function tintedGround(glass: AccentHsl, mode: "light" | "dark"): string {
+  const t = TINT_GLASS[mode];
+  const tint = hslToHex({ h: glass.h, s: glass.s, l: t.l });
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  let out = "#";
+  for (let i = 0; i < 3; i += 1) out += hex2(ch(tint, i) * t.alpha + ch(t.card, i) * (1 - t.alpha));
+  return out;
+}
+
+export interface ResolvedTint {
+  on: boolean;
+  swatch: TintSwatchId;
+  /** The bright tier: rims, halos, the glass's colour. */
+  glass: AccentHsl;
+  /** The ink tier: buttons, links, accent text. */
+  ink: AccentHsl;
+  inkHover: AccentHsl;
+  /** The tinted glass as a solid ground (null when Tint is off: clear glass is the card). */
+  ground: string | null;
+}
+
+/**
+ * The ONE place a person's tint becomes colours: their stored choice, the
+ * mode, and the community's colour in; the accent out. Off means the
+ * community's colour for the ink and clear glass; a stored swatch is ignored
+ * (and kept, so switching Tint back on brings it back).
+ */
+export function resolveTint(
+  tint: { on?: boolean; swatch?: string | null } | null | undefined,
+  mode: "light" | "dark",
+  communityHex?: string | null,
+): ResolvedTint {
+  const on = typeof tint?.on === "boolean" ? tint.on : DEFAULT_TINT_ON;
+  const swatch: TintSwatchId = on && isTintSwatchId(tint?.swatch) ? tint!.swatch as TintSwatchId : DEFAULT_TINT_SWATCH;
+  const a = swatchAccent(swatch, communityHex);
+  const ink = a.ink[mode];
+  return {
+    on,
+    swatch,
+    glass: a[mode],
+    ink,
+    inkHover: inkHover(ink, mode),
+    ground: on ? tintedGround(a[mode], mode) : null,
+  };
 }

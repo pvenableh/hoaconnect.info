@@ -30,9 +30,11 @@ export interface AppDef {
   children?: string[];
 }
 
-import type { DockPosition, DockPrefs, PaletteId } from "#core/shared/nav/app-prefs";
 import { NAV_LAYOUTS, isHub, navEntry, type NavEntry } from "#core/shared/nav/registry";
-export type { DockPosition, PaletteId };
+
+export const DOCK_PALETTE_IDS = ["fresh", "aurora", "neutral", "vivid"] as const;
+export type PaletteId = (typeof DOCK_PALETTE_IDS)[number];
+export type DockPosition = "bottom" | "top";
 
 interface Palette {
   label: string;
@@ -221,61 +223,13 @@ function cachePrefs() {
   localStorage.setItem(GLASS_KEY, glassChrome.value ? "1" : "0");
 }
 
-// ── The account copy ───────────────────────────────────────────────────────
-// Pulled once per signed-in user per page load; a stored key overrides the
-// cache, an absent one leaves it alone. Pushed on every change, debounced, as
-// the whole dock object (the route merges it into the row). Both are
-// best-effort: until the field is provisioned the GET answers
-// `available: false`, the PATCH 503s, and the cache is the only copy — which
-// is exactly the old behaviour.
-let pulledFor: string | null = null;
-let pushTimer: ReturnType<typeof setTimeout> | null = null;
-// Bumped by every setter: a choice made while the pull is in flight is newer
-// than what the pull brings back, so the pull must not undo it.
-let localEdits = 0;
-
-async function pullUserPrefs(userId: string) {
-  if (pulledFor === userId) return;
-  pulledFor = userId;
-  const editsBefore = localEdits;
-  try {
-    const res = await $fetch<{ available: boolean; prefs: { dock?: DockPrefs } }>("/api/user/app-prefs");
-    const dock = res?.prefs?.dock;
-    if (!dock || localEdits !== editsBefore) return;
-    if (dock.palette && dock.palette in PALETTES) palette.value = dock.palette;
-    if (dock.position) dockPosition.value = dock.position;
-    if (typeof dock.labels === "boolean") showLabels.value = dock.labels;
-    if (typeof dock.glass === "boolean") glassChrome.value = dock.glass;
-    cachePrefs();
-  } catch {
-    // Signed out, offline, or the route is unavailable: the cache stands.
-  }
-}
-
-function pushUserPrefs() {
-  localEdits++;
-  if (!import.meta.client || !pulledFor) return;
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => {
-    pushTimer = null;
-    const dock: DockPrefs = {
-      palette: palette.value,
-      position: dockPosition.value,
-      labels: showLabels.value,
-      glass: glassChrome.value,
-    };
-    $fetch("/api/user/app-prefs", { method: "PATCH", body: { dock } }).catch(() => {});
-  }, 400);
-}
+// The dock knobs are this device's only (app_prefs now holds the tint).
+function pushUserPrefs() {}
 
 export function useAppNav() {
   const route = useRoute();
   const { buildOrgPath, navigateToOrg } = useOrgNavigation();
-  const { user } = useDirectusAuth();
-
   loadPrefs();
-  const userId = user.value?.id;
-  if (import.meta.client && userId) void pullUserPrefs(userId);
 
   // Per-app accent sampled from the active palette ramp by the app's position
   const accentsForApps = (apps: AppDef[], paletteId: PaletteId = palette.value): HSL[] => {
