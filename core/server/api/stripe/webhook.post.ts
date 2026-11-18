@@ -938,6 +938,11 @@ async function updatePaymentRequest(directus: ReturnType<typeof getTypedDirectus
 					...(newStatus === 'paid' ? { paid_at: new Date().toISOString() } : request.paid_at ? { paid_at: null } : {}),
 				})
 			);
+			// Paid in full: a waiver of it still open has nothing left to give up.
+			if (newStatus === 'paid') {
+				const org = request.organization;
+				await closeWaiversOfPaidCharge(typeof org === 'string' ? org : (org as { id?: string } | null)?.id ?? null, paymentRequestId);
+			}
 		}
 	} catch (err) {
 		console.error('Error updating payment request:', err);

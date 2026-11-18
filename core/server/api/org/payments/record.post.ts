@@ -119,6 +119,9 @@ export default defineEventHandler(async (event) => {
     } as any)
   );
 
+  // A waiver of this charge still open has nothing left to give up (docs/spec-money-approvals.md).
+  await closeWaiversOfPaidCharge(orgId, requestId, await safeRequestOrigin(event).catch(() => null));
+
   const user: any = session.user ?? {};
 
   const entry = buildPaymentRecordedEntry({

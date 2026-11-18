@@ -9,7 +9,8 @@
  * its maker holds now, goes to the Ledger (board), and the approval is
  * settled: approved or rejected moves its expense, or for a waiver cancels
  * its charge, and tells the people concerned. A waiver whose charge was
- * paid or cancelled meanwhile closes as superseded (409), with no decision.
+ * paid or cancelled meanwhile, or a void of an expense already void, closes
+ * as superseded (409), with no decision.
  *
  * Body: { orgId, decision: "approve" | "reject", note? }.
  */
@@ -42,6 +43,13 @@ export default defineEventHandler(async (event) => {
   if (approval.kind === "waive" && (!charge || !isWaivableCharge(charge.status))) {
     await supersede(approval, new Date().toISOString());
     throw createError({ statusCode: 409, message: "This charge was paid or canceled, so there is nothing left to waive." });
+  }
+  if (approval.kind === "void" && approval.expense) {
+    const target = await loadExpense(orgId, approval.expense).catch(() => null);
+    if (!target || target.status === "void") {
+      await supersede(approval, new Date().toISOString());
+      throw createError({ statusCode: 409, message: "This expense is already void, so there is nothing left to decide." });
+    }
   }
 
   const seats = await loadCurrentSeats(orgId);

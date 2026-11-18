@@ -60,6 +60,7 @@ let creditWallet: ReturnType<typeof vi.fn>;
 let notifyPaymentReceived: ReturnType<typeof vi.fn>;
 let notifySubscriptionActivated: ReturnType<typeof vi.fn>;
 let openAutoSupportRequest: ReturnType<typeof vi.fn>;
+let closeWaiversOfPaidCharge: ReturnType<typeof vi.fn>;
 
 /** Every command the handler sent to Directus, in order. */
 const commands = () => directusRequest.mock.calls.map((c) => c[0] as Cmd);
@@ -93,6 +94,7 @@ beforeEach(() => {
   notifyPaymentReceived = vi.fn(async () => true);
   notifySubscriptionActivated = vi.fn(async () => true);
   openAutoSupportRequest = vi.fn(async () => ({ id: "sr-1", created: true }));
+  closeWaiversOfPaidCharge = vi.fn(async () => 0);
 
   directusRequest = vi.fn(async (cmd: Cmd) => {
     if (cmd.cmd === "readItems") return reads[cmd.collection] ?? [];
@@ -115,6 +117,7 @@ beforeEach(() => {
   vi.stubGlobal("notifyPaymentReceived", notifyPaymentReceived);
   vi.stubGlobal("notifySubscriptionActivated", notifySubscriptionActivated);
   vi.stubGlobal("openAutoSupportRequest", openAutoSupportRequest);
+  vi.stubGlobal("closeWaiversOfPaidCharge", closeWaiversOfPaidCharge);
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
 });
 
@@ -187,7 +190,7 @@ describe("payment_intent.succeeded", () => {
   });
 
   it("credits the linked payment request and marks it paid when fully covered", async () => {
-    reads.payment_requests = [{ id: REQUEST, amount: 250, amount_paid: 0 }];
+    reads.payment_requests = [{ id: REQUEST, organization: ORG, amount: 250, amount_paid: 0 }];
 
     await fire("payment_intent.succeeded", paymentIntent());
 
@@ -199,6 +202,8 @@ describe("payment_intent.succeeded", () => {
       status: "paid",
     });
     expect(update!.data.paid_at).toEqual(expect.any(String));
+    // Paid in full: a waiver of it still open closes (docs/spec-money-approvals.md).
+    expect(closeWaiversOfPaidCharge).toHaveBeenCalledWith(ORG, REQUEST);
   });
 
   it("leaves a partially covered request partially_paid", async () => {
@@ -212,6 +217,8 @@ describe("payment_intent.succeeded", () => {
       amount_remaining: 100,
       status: "partially_paid",
     });
+    // Still owed: a waiver of the rest stays open.
+    expect(closeWaiversOfPaidCharge).not.toHaveBeenCalled();
   });
 
   it("is idempotent: a redelivered event writes nothing", async () => {

@@ -472,9 +472,16 @@ export async function settleApproval(input: {
 
   if (approval.kind === "waive") return settleWaiver(input);
   if (!approval.expense) return { state: approval.state, ledger: null };
-  await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
 
   const expense = await loadExpense(orgId, approval.expense);
+  // A void of an expense already void (a second request that raced the first)
+  // closes with nothing: a second "was voided" would be a false record.
+  if (approval.kind === "void" && expense.status === "void") {
+    await supersede(approval, now);
+    return { state: "superseded", ledger: null };
+  }
+  await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
+
   const subject = expenseSubject(expense);
   const names = await namesFor(orgId, input.decisions.map((x) => x.decided_by));
   const approvedBy = approverNames(input.decisions, names);
@@ -501,7 +508,10 @@ export async function settleApproval(input: {
     }
   } else if (approval.kind === "void" && view.state === "approved") {
     await d.request(updateItem("payment_expenses", expense.id, { status: "void", void_reason: approval.reason } as any));
-    await supersede((await openApprovalsFor(orgId, expense.id, "spend"))[0] ?? null, now);
+    // The open spend round, and any other void request, have nothing left to decide.
+    for (const other of [...(await openApprovalsFor(orgId, expense.id, "spend")), ...(await openApprovalsFor(orgId, expense.id, "void"))]) {
+      if (other.id !== approval.id) await supersede(other, now);
+    }
     entry = buildExpenseVoidedEntry({
       organizationId: orgId,
       organizationName: name,
@@ -578,6 +588,10 @@ async function settleWaiver(input: {
   let ledger: string | null = null;
   if (view.state === "approved") {
     await d.request(updateItem("payment_requests", charge.id, { status: "canceled" } as any));
+    // A second request that raced this one has nothing left to waive.
+    for (const other of await openWaiversFor(orgId, String(charge.id))) {
+      if (other.id !== approval.id) await supersede(other, now);
+    }
     const names = await namesFor(orgId, input.decisions.map((x) => x.decided_by));
     try {
       ledger = await writeAuditEntry(
@@ -613,6 +627,46 @@ async function settleWaiver(input: {
     }).catch((e) => console.error("[money-approvals] outcome notice failed:", e));
   }
   return { state: view.state, ledger };
+}
+
+/**
+ * A charge was paid in full (Mark Paid, or a payment through Stripe): any
+ * waiver of it still open has nothing left to give up. Each closes as
+ * superseded, and whoever asked is told. Never throws: a payment must not
+ * fail, or a webhook retry, because of a waiver.
+ */
+export async function closeWaiversOfPaidCharge(
+  orgId: string | null | undefined,
+  chargeId: string,
+  origin?: string | null
+): Promise<number> {
+  if (!orgId || !chargeId) return 0;
+  try {
+    const open = await openWaiversFor(orgId, chargeId);
+    if (!open.length) return 0;
+    const now = new Date().toISOString();
+    const charge = await loadCharge(orgId, chargeId).catch(() => null);
+    const what = charge ? chargePhrase(chargeSubject(charge)) : "a charge";
+    for (const approval of open) {
+      await supersede(approval, now);
+      if (!approval.requested_by) continue;
+      await notifyUsers({
+        organizationId: orgId,
+        recipientUserIds: [approval.requested_by],
+        category: "payment",
+        subject: "Waiver closed: the charge was paid",
+        message: `${what[0]!.toUpperCase()}${what.slice(1)} was paid, so the waiver you asked for is closed.`,
+        collection: "payment_requests",
+        item: chargeId,
+        path: "/admin/payments",
+        origin: origin ?? null,
+      }).catch((e) => console.error("[money-approvals] waiver-closed notice failed:", e));
+    }
+    return open.length;
+  } catch (e) {
+    console.error("[money-approvals] closing waivers of a paid charge failed:", e);
+    return 0;
+  }
 }
 
 /** The office label a person decides as today ("President"), or null for no seat. */

@@ -6,6 +6,11 @@
  *   POST /api/org/money/approvals/[id]/decide      approve or reject it; met, the charge is canceled
  *   GET  /api/org/money/approvals                  the charge as the subject (money:read)
  *   GET  /api/org/money/charges                    which charges have a waiver waiting, and canEnter
+ *   POST /api/org/payments/record                  Mark Paid: closes a waiver still open
+ *   closeWaiversOfPaidCharge                       the same, for a payment through Stripe
+ *
+ * And two requests that raced: a second waiver of one charge, a second void
+ * of one expense. Each closes with nothing once the first is settled.
  *
  * The board of ORG: Ann (Treasurer), Pat (President), Sam (Secretary), Dee
  * (Director). Ada is an admin with no seat; Max a property manager with the
@@ -79,6 +84,10 @@ const ROUTES = {
   approvals: "#core/server/api/org/money/approvals/index.get",
   decide: "#core/server/api/org/money/approvals/[id]/decide.post",
   charges: "#core/server/api/org/money/charges.get",
+  record: "#core/server/api/org/payments/record.post",
+  pay: "#core/server/api/org/expenses/[id]/pay.post",
+  submit: "#core/server/api/org/expenses/[id]/submit.post",
+  void: "#core/server/api/org/expenses/[id]/void.post",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -93,6 +102,7 @@ const decide = (approvalId: string, decision: "approve" | "reject", extra: Recor
 beforeAll(async () => {
   fake = stubGlobals(state);
   cap = await stubMoney(state);
+  vi.stubGlobal("notifyPaymentReceived", async () => true);
   for (const [k, path] of Object.entries(ROUTES)) h[k] = (await import(/* @vite-ignore */ path)).default;
 });
 
@@ -291,3 +301,74 @@ describe("deciding a waiver", () => {
     expect(cap.ledger.at(-1)).toMatchObject({ event_type: "charge_waived", actor_name: "Ada Min" });
   });
 });
+
+describe("a waiver still open when the charge is paid", () => {
+  it("closes when an admin marks the charge paid, and the requester is told", async () => {
+    as(WHO.ann);
+    const { approval } = await waive();
+    as(WHO.admin);
+    await h.record!(ev({ body: { orgId: ORG, paymentRequestId: C.open } }));
+    expect(charge(C.open).status).toBe("paid");
+    expect(approvalOf(approval.id)!.state).toBe("superseded");
+    expect(cap.notices.find((n) => n.subject === "Waiver closed: the charge was paid")).toMatchObject({
+      recipientUserIds: [WHO.ann.userId],
+      message: "A $300.00 charge to Bob Diaz for March dues was paid, so the waiver you asked for is closed.",
+    });
+    const { approvals } = await h.approvals!(ev({ query: { orgId: ORG } }));
+    expect(approvals).toHaveLength(0);
+  });
+
+  it("closes for a payment through Stripe, and never for another community's charge", async () => {
+    as(WHO.ann);
+    const { approval } = await waive();
+    expect(await (globalThis as any).closeWaiversOfPaidCharge(OTHER, C.open)).toBe(0);
+    expect(approvalOf(approval.id)!.state).toBe("pending");
+    expect(await (globalThis as any).closeWaiversOfPaidCharge(ORG, C.open)).toBe(1);
+    expect(approvalOf(approval.id)!.state).toBe("superseded");
+  });
+});
+
+describe("requests that raced", () => {
+  it("a second waiver of one charge closes when the first is approved, with one entry", async () => {
+    as(WHO.ann);
+    const first = await waive();
+    // As if a second request passed the open-waiver check at the same instant.
+    const seats = await (globalThis as any).loadCurrentSeats(ORG);
+    const { approval: second } = await (globalThis as any).openApproval({ orgId: ORG, kind: "waive", charge: C.open, round: 1, requestedBy: U.dee, excluded: [], reason: "Also", seats });
+    as(WHO.pat);
+    await decide(first.approval.id, "approve");
+    as(WHO.sam);
+    await decide(first.approval.id, "approve");
+    expect(charge(C.open).status).toBe("canceled");
+    expect(approvalOf(second.id)!.state).toBe("superseded");
+    expect(cap.ledger.filter((e) => e.event_type === "charge_waived")).toHaveLength(1);
+  });
+
+  it("a second void of one expense closes when the first is approved, and deciding it writes nothing", async () => {
+    const E = uuid(851);
+    state.db.payment_expenses!.push({ id: E, organization: ORG, title: "Gutter repair", vendor: "Acme Roofing", amount: 2400, status: "draft", entered_by: U.dee, approval: null, project: null, receipt: null });
+    as(WHO.dee);
+    await h.submit!(ev({ params: { id: E }, body: { orgId: ORG } }));
+    await h.pay!(ev({ params: { id: E }, body: { orgId: ORG, paidDate: "2026-11-16", reference: "Check 1042" } }));
+    const first = await h.void!(ev({ params: { id: E }, body: { orgId: ORG, reason: "Returned check" } }));
+    const seats = await (globalThis as any).loadCurrentSeats(ORG);
+    const { approval: second } = await (globalThis as any).openApproval({ orgId: ORG, kind: "void", expense: E, round: 1, requestedBy: WHO.ann.userId, excluded: [], reason: "Twice", seats });
+
+    as(WHO.pat);
+    await decide(first.approval.id, "approve");
+    as(WHO.sam);
+    expect(await decide(first.approval.id, "approve")).toMatchObject({ state: "approved" });
+    expect(state.db.payment_expenses!.find((e) => e.id === E)!.status).toBe("void");
+    expect(approvalOf(second.id)!.state).toBe("superseded");
+
+    // Had it stayed open (it raced the settle too), deciding it refuses and records nothing.
+    approvalOf(second.id)!.state = "pending";
+    const before = state.db.money_approval_decisions!.length;
+    as(WHO.pat);
+    await expect(decide(second.id, "approve")).rejects.toMatchObject({ statusCode: 409 });
+    expect(state.db.money_approval_decisions!.length).toBe(before);
+    expect(approvalOf(second.id)!.state).toBe("superseded");
+    expect(cap.ledger.filter((e) => e.event_type === "expense_voided")).toHaveLength(1);
+  });
+});
+

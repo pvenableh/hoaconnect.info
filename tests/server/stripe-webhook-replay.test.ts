@@ -89,6 +89,8 @@ beforeEach(() => {
   vi.stubGlobal("creditWallet", vi.fn());
   vi.stubGlobal("notifySubscriptionActivated", vi.fn(async () => true));
   vi.stubGlobal("openAutoSupportRequest", vi.fn(async () => null));
+  // Waivers closing on payment are tests/server/money-waivers.test.ts's.
+  vi.stubGlobal("closeWaiversOfPaidCharge", vi.fn(async () => 0));
   vi.stubGlobal("mapStripeStatus", () => ({ subscription_status: "active", status: "active" }));
   vi.stubGlobal("notifyPaymentReceived", async (_d: unknown, r: any) => {
     receipts.push(r);
