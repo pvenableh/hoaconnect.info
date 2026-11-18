@@ -106,8 +106,6 @@ watchEffect(() => {
   align-items: center;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
-  /* Sits on the same content column as the title. */
-  padding-inline-start: var(--surface-inset, 1.25rem);
   color: var(--theme-text-muted);
   transition: color var(--motion-fast, 160ms) ease;
 }
@@ -125,13 +123,9 @@ watchEffect(() => {
   min-width: 0;
 }
 .page-header__eyebrow {
-  padding-inline-start: var(--surface-inset, 1.25rem);
   margin-bottom: 0.25rem;
 }
 .page-header__description {
-  /* `type-section`/`type-display` carry the inset; a following paragraph has to
-     match it or the text column visibly steps in and out. */
-  padding-inline-start: var(--surface-inset, 1.25rem);
   margin-top: 0.25rem;
   max-width: 60ch;
 }

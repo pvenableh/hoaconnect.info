@@ -339,7 +339,8 @@ const kitSearch = async (q: string) => {
 const materials = [
   { cls: "glass-surface", label: "glass-surface" },
   { cls: "glass-surface glass-surface--strong", label: "--strong" },
-  { cls: "ios-card", label: "ios-card" },
+  { cls: "ios-card", label: "ios-card (solid)" },
+  { cls: "ios-card card-attention", label: "card-attention" },
   { cls: "glass-edge", label: "glass-edge" },
   { cls: "glass glass-edge", label: "glass" },
   { cls: "glass-active-thumb", label: "active-thumb" },
@@ -352,9 +353,9 @@ const materials = [
       <!-- ── Header ───────────────────────────────────────────────────── -->
       <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p class="type-micro type-flush">HOA Connect</p>
-          <h1 class="type-display type-flush">Design system</h1>
-          <p class="type-body type-flush">
+          <p class="type-micro">HOA Connect</p>
+          <h1 class="type-display">Design system</h1>
+          <p class="type-body">
             The workspace surface: liquid glass, one accent, light and dark.
           </p>
         </div>
@@ -380,7 +381,7 @@ const materials = [
           buttons, links, focus rings, glass rims and the active tab thumb all
           re-tint together.
         </p>
-        <div class="flex flex-wrap items-center gap-2 mt-3 content-column">
+        <div class="flex flex-wrap items-center gap-2 mt-3">
           <button
             v-for="a in accents"
             :key="a.id"
@@ -405,7 +406,7 @@ const materials = [
         </p>
         <div class="ios-card p-5 mt-3 space-y-3">
           <div v-for="t in typeLadder" :key="t.name" class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span :class="[t.cls, 'type-flush']">The quick brown fox</span>
+            <span :class="[t.cls]">The quick brown fox</span>
             <code class="type-micro">{{ t.name }}</code>
             <span class="type-meta">{{ t.note }}</span>
           </div>
@@ -496,7 +497,7 @@ const materials = [
               <Button variant="outline" data-kit-open="popover">Popover</Button>
             </PopoverTrigger>
             <PopoverContent class="w-64">
-              <p class="type-card type-flush">Unit 4B</p>
+              <p class="type-card">Unit 4B</p>
               <p class="helper-text">Two owners, one vehicle on file.</p>
             </PopoverContent>
           </Popover>
@@ -545,7 +546,7 @@ const materials = [
           come from <code>/api/search</code>, scoped to the organization and to
           what your role may see. Here it searches the sample members below.
         </p>
-        <div class="mt-3 content-column">
+        <div class="mt-3">
           <Button variant="outline" data-kit-open="spotlight" @click="spotlight.open()">
             <Icon name="lucide:search" />
             Search
@@ -563,7 +564,7 @@ const materials = [
           height, no footer, dock kept).
         </p>
 
-        <div class="mt-4 grid gap-6 md:grid-cols-2 content-column">
+        <div class="mt-4 grid gap-6 md:grid-cols-2">
           <div>
             <p class="type-micro">App Library — below md</p>
             <p class="helper-text mb-3">
@@ -589,7 +590,7 @@ const materials = [
           </div>
         </div>
 
-        <div class="mt-6 content-column">
+        <div class="mt-6">
           <p class="type-micro">Page title</p>
           <p class="helper-text mb-3">
             Pages register their title with <code>&lt;AppPageHeader&gt;</code>; the
@@ -600,7 +601,7 @@ const materials = [
           <AppPageHeader eyebrow="Records" title="Meetings" description="Agendas, minutes, RSVPs, and votes." />
         </div>
 
-        <div class="mt-2 content-column">
+        <div class="mt-2">
           <p class="type-micro">Page motion</p>
           <ul class="helper-text list-disc pl-5 space-y-1">
             <li><strong>Across dock apps</strong> — a full slide in dock order (<code>page-forward</code> / <code>page-back</code>).</li>
@@ -1001,11 +1002,11 @@ const materials = [
           The create/edit surface. Drag the grabber down to dismiss — past 100px
           or with a flick it goes, otherwise it springs back.
         </p>
-        <div class="mt-3 content-column">
+        <div class="mt-3">
           <Button @click="sheetOpen = true">Open sheet</Button>
           <Button variant="outline" class="ml-2" @click="sizedSheetOpen = true">Open wide (size="lg")</Button>
         </div>
-        <p class="helper-text content-column mt-2">
+        <p class="helper-text mt-2">
           Below md it is the sheet; at md and up the same component presents as a
           centred dialog, focus-trapped either way.
         </p>
@@ -1095,8 +1096,11 @@ const materials = [
       <section>
         <h2 class="type-section">Materials</h2>
         <p class="type-body">
-          Glass belongs to floating chrome and cards — never to content
-          backgrounds, and never stacked glass-on-glass.
+          Glass is the floating layer only: the top bar, the dock, section
+          pills, sheets, menus, toasts and floating controls. Tables, cards of
+          content and form fields are solid, and glass never sits on glass. A
+          card that needs attention takes <code>card-attention</code> — a faint
+          warning tint across the card — never a strip down one side.
         </p>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
           <div

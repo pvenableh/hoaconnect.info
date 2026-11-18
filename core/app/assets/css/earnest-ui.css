@@ -84,6 +84,29 @@
 	--glass-focus-l: 50%;
 	--glass-focus-edge: 0.5;
 	--glass-focus-halo: 0.16;
+
+	/* THE TINT (Phase 4, plan §2.4). 1 = Tint on: the glass carries the
+	   person's colour and is a little more opaque. 0 = Tint off: clear, neutral
+	   glass that takes its colour from what is behind it. Set by
+	   `html[data-tint='off']`, which useAppearance writes (and the prepaint
+	   script, so the first frame is right). The colour itself is
+	   --app-accent-*, resolved in core/shared/branding/accent.ts. */
+	--glass-tint: 1;
+	--glass-fill: 72%;        /* the card ground under glass-surface */
+	--glass-fill-strong: 84%; /* …and under glass-surface--strong */
+
+	/* THE SOLID CONTENT CARD (`.ios-card`). Not glass, and not accent-hued:
+	   content sits in the page, so its edge is a neutral hairline ring and a
+	   neutral lift. */
+	--card-ring: 220 14% 30% / 0.10;
+	--card-shadow: 220 20% 20%;
+	--card-shadow-near: 0.06;
+	--card-shadow-far: 0.10;
+}
+html[data-tint='off'] {
+	--glass-tint: 0;
+	--glass-fill: 65%;
+	--glass-fill-strong: 78%;
 }
 .dark {
 	--glass-rim-top: 0 0% 100% / 0.26;
@@ -94,6 +117,10 @@
 	--glass-shadow-l: 4%;
 	--glass-shadow-near: 0.40;
 	--glass-shadow-far: 0.60;
+	--card-ring: 0 0% 100% / 0.07;
+	--card-shadow: 0 0% 0%;
+	--card-shadow-near: 0.30;
+	--card-shadow-far: 0.40;
 }
 
 /* ⚠️ THE DECLARATION-SITE TRAP — why this is a selector LIST and not `:root`.
@@ -142,7 +169,6 @@
 [data-slot='toggle-group-item'][data-state='on'],
 [data-sonner-toast],
 .glass-btn-soft,
-.ios-card,
 .header-pill,
 .field-underline,
 select,
@@ -214,10 +240,11 @@ select,
 	 * underline, which is the whole reason that override is scoped to the
 	 * workspace theme rather than applied here.
 	 */
+	/* Not glass (Phase 4: form fields are content). The name stays for its
+	   rim and focus ring; there is no backdrop blur, and over the solid card a
+	   field sits on, the translucent fill reads as solid. */
 	.glass-field {
 		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 55%, transparent);
-		-webkit-backdrop-filter: blur(10px) saturate(130%);
-		backdrop-filter: blur(10px) saturate(130%);
 		border: 0;
 		box-shadow: var(--glass-rim-shadow),
 			inset 0 1px 3px -1px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / 0.10);
@@ -346,14 +373,16 @@ select,
 .glass-surface {
 	--_h: var(--app-accent-h);
 	--_s: var(--app-accent-s);
+	/* Tint on: the person's colour across the pane. Tint off: --glass-tint is
+	   0, every stop's alpha with it, and the pane is clear. */
 	background:
 		linear-gradient(
 			135deg,
-			hsl(var(--_h) var(--_s) 60% / 0.10) 0%,
-			hsl(var(--_h) var(--_s) 50% / 0.04) 50%,
-			hsl(calc(var(--_h) + 35) var(--_s) 55% / 0.08) 100%
+			hsl(var(--_h) var(--_s) 60% / calc(0.10 * var(--glass-tint))) 0%,
+			hsl(var(--_h) var(--_s) 50% / calc(0.04 * var(--glass-tint))) 50%,
+			hsl(calc(var(--_h) + 35) var(--_s) 55% / calc(0.08 * var(--glass-tint))) 100%
 		),
-		color-mix(in srgb, var(--theme-card-bg, #fff) 65%, transparent);
+		color-mix(in srgb, var(--theme-card-bg, #fff) var(--glass-fill), transparent);
 	-webkit-backdrop-filter: blur(18px) saturate(140%);
 	backdrop-filter: blur(18px) saturate(140%);
 	border: 0;
@@ -369,11 +398,11 @@ select,
 	background:
 		linear-gradient(
 			135deg,
-			hsl(var(--_h) var(--_s) 65% / 0.14) 0%,
-			hsl(var(--_h) var(--_s) 45% / 0.05) 50%,
-			hsl(calc(var(--_h) + 35) var(--_s) 50% / 0.10) 100%
+			hsl(var(--_h) var(--_s) 65% / calc(0.14 * var(--glass-tint))) 0%,
+			hsl(var(--_h) var(--_s) 45% / calc(0.05 * var(--glass-tint))) 50%,
+			hsl(calc(var(--_h) + 35) var(--_s) 50% / calc(0.10 * var(--glass-tint))) 100%
 		),
-		color-mix(in srgb, var(--theme-card-bg, #1e2227) 55%, transparent);
+		color-mix(in srgb, var(--theme-card-bg, #1e2227) calc(var(--glass-fill) - 10%), transparent);
 	box-shadow:
 		var(--glass-rim-shadow),
 		0 16px 40px -16px hsl(0 0% 0% / 0.50),
@@ -396,26 +425,43 @@ select,
 	background:
 		linear-gradient(
 			135deg,
-			hsl(var(--_h) var(--_s) 60% / 0.14) 0%,
-			hsl(var(--_h) var(--_s) 50% / 0.06) 50%,
-			hsl(calc(var(--_h) + 35) var(--_s) 55% / 0.10) 100%
+			hsl(var(--_h) var(--_s) 60% / calc(0.14 * var(--glass-tint))) 0%,
+			hsl(var(--_h) var(--_s) 50% / calc(0.06 * var(--glass-tint))) 50%,
+			hsl(calc(var(--_h) + 35) var(--_s) 55% / calc(0.10 * var(--glass-tint))) 100%
 		),
-		color-mix(in srgb, var(--theme-card-bg, #fff) 78%, transparent);
+		color-mix(in srgb, var(--theme-card-bg, #fff) var(--glass-fill-strong), transparent);
 }
 
 /* Graceful fallback when backdrop-filter / transparency is unavailable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
 	.glass, .glass-ultra, .glass-surface { background: var(--theme-card-bg, #fff); }
 }
+/* THE OS DECIDES (Phase 4: there is no "glass chrome" switch any more).
+   Reduce transparency: every glass surface turns solid — the tinted ground
+   when Tint is on (`--glass-solid`, the same colour audit:contrast-pairs grades
+   as `--tint-*-glass`, written by useAppearance), the card when it is off.
+   Increase contrast: every glass surface gets an edge you can see, drawn as an
+   outline so it follows the radius and leaves the rim's box-shadow alone. */
 @media (prefers-reduced-transparency: reduce) {
-	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field {
+	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field, .glass-bar {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
 	}
-	.glass, .glass-ultra, .glass-surface {
-		background: var(--theme-card-bg, #fff);
+	.glass, .glass-ultra, .glass-surface, .glass-surface--strong, .dark .glass-surface, .glass-bar {
+		background: var(--glass-solid, var(--theme-card-bg, #fff));
 	}
 	.glass-field { background: var(--theme-bg-elevated, #fff); }
+}
+@media (prefers-contrast: more) {
+	.glass, .glass-ultra, .glass-surface, .glass-bar,
+	html.theme-app [data-sonner-toast][data-styled='true'] {
+		outline: 1px solid var(--theme-text-muted);
+		outline-offset: -1px;
+	}
+	.ios-card {
+		outline: 1px solid var(--theme-border-secondary);
+		outline-offset: -1px;
+	}
 }
 
 /* ---- Toasts (vue-sonner) --------------------------------------------------------
@@ -427,7 +473,7 @@ select,
  * Rich-colour variants (success/error with `richColors`) keep their own fills. */
 html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
 	background:
-		linear-gradient(135deg, hsl(var(--app-accent-h) var(--app-accent-s) 60% / 0.10), transparent 60%),
+		linear-gradient(135deg, hsl(var(--app-accent-h) var(--app-accent-s) 60% / calc(0.10 * var(--glass-tint))), transparent 60%),
 		color-mix(in srgb, var(--theme-card-bg, #fff) 82%, transparent);
 	-webkit-backdrop-filter: blur(20px) saturate(160%);
 	backdrop-filter: blur(20px) saturate(160%);
@@ -438,7 +484,7 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 	html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
-		background: var(--theme-card-bg, #fff);
+		background: var(--glass-solid, var(--theme-card-bg, #fff));
 	}
 }
 
@@ -599,20 +645,39 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 /* =============================================================================
    iOS WIDGET CARDS
 ============================================================================= */
-/* Migrated to the refracted rim (was a flat 1px border). In @layer components so
+/* THE SOLID CONTENT CARD (Phase 4, plan §2.4). Content is not glass: an opaque
+   card ground, a neutral hairline ring and a neutral lift — no accent hue, no
+   refracted rim (those are the floating layer's). In @layer components so
    `border: 0` stays below Tailwind utilities — deliberate state borders
-   (border-warning/30, hover:border-primary/40, destructive outlines) still win. */
+   (border-warning/30, hover:border-primary/40, destructive outlines) still win.
+   A card inside a card shares its centre: inner radius = 1rem minus the gap. */
 @layer components {
 	.ios-card {
 		background: var(--theme-card-bg, #fff);
 		border: 0;
 		border-radius: 1rem; /* rounded-2xl */
-		box-shadow: var(--glass-edge-shadow);
+		box-shadow:
+			inset 0 0 0 1px hsl(var(--card-ring)),
+			0 1px 2px -1px hsl(var(--card-shadow) / var(--card-shadow-near)),
+			0 10px 28px -18px hsl(var(--card-shadow) / var(--card-shadow-far));
 		transition: box-shadow 0.2s ease, transform 0.2s ease;
 	}
 	.ios-card:hover {
-		box-shadow: var(--glass-rim-shadow), var(--glass-lift-shadow),
-			0 18px 40px -18px hsl(var(--glass-shadow-h) var(--glass-shadow-s) var(--glass-shadow-l) / var(--glass-shadow-far));
+		box-shadow:
+			inset 0 0 0 1px hsl(var(--card-ring)),
+			0 1px 2px -1px hsl(var(--card-shadow) / var(--card-shadow-near)),
+			0 18px 40px -18px hsl(var(--card-shadow) / var(--card-shadow-far));
+	}
+
+	/* ATTENTION ON A SOLID CARD — the one treatment (decided 2026-11-18): a
+	   faint warning tint across the whole card, beside the icon and words that
+	   already say why. Never a coloured strip down one side: a strip fights the
+	   radius. The ground is `--attention-bg` (theme-app.css), graded with the
+	   text on it by audit:contrast-pairs; muted text steps up to tertiary on it,
+	   because dark muted is 4.63:1 on the card itself and any warmth sinks it. */
+	.card-attention {
+		background-color: var(--attention-bg);
+		--theme-text-muted: var(--theme-text-tertiary);
 	}
 }
 
@@ -875,7 +940,9 @@ a[role='button']:not([data-no-press]):active,
    filters aren't supported or the user prefers reduced transparency.
 ============================================================================= */
 .glass-bar {
-	background: var(--theme-nav-bg, color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent));
+	background:
+		linear-gradient(hsl(var(--app-accent-h) var(--app-accent-s) 60% / calc(0.08 * var(--glass-tint))), transparent),
+		var(--theme-nav-bg, color-mix(in srgb, var(--theme-bg-elevated, #fff) 82%, transparent));
 	-webkit-backdrop-filter: blur(18px) saturate(170%);
 	backdrop-filter: blur(18px) saturate(170%);
 }
@@ -886,7 +953,7 @@ a[role='button']:not([data-no-press]):active,
 	.glass-bar {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
-		background: var(--theme-bg-elevated);
+		background: var(--glass-solid, var(--theme-bg-elevated));
 	}
 }
 

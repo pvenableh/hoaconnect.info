@@ -87,7 +87,7 @@ useCreateIntent("channel", () => {
       :class="{ 'hidden md:block': channelSlug }"
     >
       <div v-if="!embedded" class="p-4 border-b t-border">
-        <p class="type-micro type-flush">Channels</p>
+        <p class="type-micro">Channels</p>
         <p class="font-semibold text-lg truncate">{{ orgName }}</p>
       </div>
       <ChannelsList

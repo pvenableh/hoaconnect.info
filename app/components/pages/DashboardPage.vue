@@ -548,7 +548,7 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
           <div v-else-if="activeTab === 'building' && feedEnabled" class="space-y-6">
             <div class="flex items-start justify-between gap-2">
               <div>
-                <h2 class="type-section type-flush">Building</h2>
+                <h2 class="type-section">Building</h2>
                 <p class="type-meta">
                   Everything happening in your community — react and join the conversation.
                 </p>

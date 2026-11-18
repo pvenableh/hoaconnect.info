@@ -248,7 +248,7 @@ const backdropStyle = computed(() => ({
 
         <header v-if="title || $slots.header" class="sheet__header">
           <slot name="header">
-            <h2 class="type-section type-flush">{{ title }}</h2>
+            <h2 class="type-section">{{ title }}</h2>
             <p v-if="description" class="type-meta">{{ description }}</p>
           </slot>
         </header>

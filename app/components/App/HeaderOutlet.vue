@@ -171,7 +171,6 @@ const phaseClass = computed(() => `is-${phase.value}`);
   align-items: center;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
-  padding-inline-start: var(--surface-inset, 1.25rem);
   color: var(--theme-text-muted);
   transition: color var(--motion-fast, 160ms) ease;
 }
@@ -189,13 +188,9 @@ const phaseClass = computed(() => `is-${phase.value}`);
   min-width: 0;
 }
 .page-title__kicker {
-  padding-inline-start: var(--surface-inset, 1.25rem);
   margin-bottom: 0.25rem;
 }
 .page-title__blurb {
-  /* `type-display` carries the inset; the line under it has to match it or the
-     text column visibly steps in and out. */
-  padding-inline-start: var(--surface-inset, 1.25rem);
   margin-top: 0.25rem;
   max-width: 60ch;
 }

@@ -278,7 +278,7 @@ useSeoMeta({ title: "Public site" });
 
         <!-- Custom domain -->
         <div class="pt-2 flex items-center gap-3">
-          <h2 class="type-section type-flush">Custom domain</h2>
+          <h2 class="type-section">Custom domain</h2>
           <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">
             {{ statusLabel }}
           </span>

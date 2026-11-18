@@ -174,10 +174,6 @@ html.theme-app {
 	--tint-slate-ink-hover: light-dark(#59677b, #aab3c0);
 	--tint-slate-glass: light-dark(#eef0f3, #273039);
 
-	/* The content-column inset: page-level headings align with the TEXT inside
-	   cards, while the cards themselves bleed to the page margin. Straight from
-	   iOS grouped lists — it is most of why those screens feel settled. */
-	--surface-inset: 1.25rem;
 }
 
 /* Dark mode. `light-dark()` handles every colour above; this block exists for
@@ -516,48 +512,12 @@ html.theme-app select[aria-invalid="true"] {
 		color: var(--theme-text-muted);
 	}
 
-	/* ---- The content column ------------------------------------------------
-	   Page-level headings are inset by --surface-inset, which equals a card's
-	   own padding (1.25rem = the `p-5` on .ios-card). The effect, straight out
-	   of iOS grouped lists: a card's EDGE sits on the page margin, while all
-	   TEXT — the heading above the card and the text inside it — lines up on one
-	   column. Without it the heading looks tucked left of everything under it.
-
-	   The heading's introductory paragraph has to come along, or the heading
-	   appears indented relative to its own subtitle, which just reads as a
-	   mistake. Card-level headings opt out because the card already provides the
-	   inset; `.type-flush` opts out anywhere. */
-	html.theme-app .type-display,
-	html.theme-app .type-section,
-	html.theme-app .type-display + p,
-	html.theme-app .type-section + p,
-	html.theme-app .type-display + .type-body,
-	html.theme-app .type-section + .type-body {
-		padding-inline-start: var(--surface-inset);
-	}
-	html.theme-app .ios-card .type-display,
-	html.theme-app .ios-card .type-section,
-	html.theme-app .ios-card .type-display + p,
-	html.theme-app .ios-card .type-section + p,
-	html.theme-app .glass-surface .type-display,
-	html.theme-app .glass-surface .type-section,
-	html.theme-app .glass-surface .type-display + p,
-	html.theme-app .glass-surface .type-section + p,
-	html.theme-app [data-slot="card"] .type-display,
-	html.theme-app [data-slot="card"] .type-section,
-	html.theme-app [data-slot="card"] .type-display + p,
-	html.theme-app [data-slot="card"] .type-section + p,
-	html.theme-app .type-flush,
-	html.theme-app .type-flush + p {
-		padding-inline-start: 0;
-	}
-
-	/* Put anything else on the content column — a row of controls under a
-	   heading, a note that is not the immediate sibling. Use this rather than
-	   hand-matching the value, so it tracks --surface-inset if that ever moves. */
-	html.theme-app .content-column {
-		padding-inline-start: var(--surface-inset);
-	}
+	/* ---- One left edge (Phase 4, plan §2.4) ----------------------------------
+	   Text outside a card or container — page titles and descriptions, section
+	   labels, counts, toolbar text — starts on the same left edge as the cards
+	   beside it, so each page has one vertical line. This replaced the iOS
+	   grouped-list inset (`--surface-inset`), which indented headings to the
+	   text INSIDE cards. Text inside a card keeps the card's own padding. */
 }
 
 /* =============================================================================

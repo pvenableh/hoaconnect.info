@@ -40,12 +40,8 @@
           <div
             v-for="request in outstandingRequests"
             :key="request.id"
-            class="ios-card p-6 border-l-4"
-            :class="{
-              'border-red-500': request.status === 'overdue',
-              'border-yellow-500': request.status === 'active',
-              'border-blue-500': request.status === 'partially_paid',
-            }"
+            class="ios-card p-6"
+            :class="{ 'card-attention': request.status === 'overdue' }"
           >
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1">
@@ -141,7 +137,7 @@
           <div
             v-for="request in paidRequests"
             :key="request.id"
-            class="ios-card p-6 border-l-4 border-green-500"
+            class="ios-card p-6"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1">

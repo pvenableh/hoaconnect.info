@@ -173,7 +173,8 @@ function onKeydown(e: KeyboardEvent) {
 const jobClasses = (j: MapJob) => ({
   "rmap-job--lit": litJobs.value.has(j.id),
   "rmap-job--picked": pickedJob.value === j.id,
-  "rmap-job--attention": !j.holders.length,
+  // The one attention treatment for a solid card (earnest-ui.css), not a strip.
+  "card-attention": !j.holders.length,
   "rmap-job--changed": changed.value.has(j.id),
 });
 </script>
@@ -436,9 +437,6 @@ const jobClasses = (j: MapJob) => ({
     opacity var(--motion-base, 240ms) ease,
     box-shadow var(--motion-base, 240ms) ease;
 }
-.rmap-job--attention {
-  box-shadow: inset 3px 0 0 var(--warning);
-}
 .rmap--picking .rmap-job:not(.rmap-job--lit) {
   opacity: 0.4;
 }
@@ -448,12 +446,11 @@ const jobClasses = (j: MapJob) => ({
 .rmap-job--changed {
   animation: rmap-pulse 1.2s var(--spring-out, ease-out);
 }
+/* From the pulse back to the card's own ground: no 100% frame, so an
+   Unassigned card (`card-attention`) settles on its tint, not on white. */
 @keyframes rmap-pulse {
   0% {
     background-color: color-mix(in srgb, var(--primary) 22%, var(--theme-card-bg));
-  }
-  100% {
-    background-color: var(--theme-card-bg);
   }
 }
 .rmap-job__pick {

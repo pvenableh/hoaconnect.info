@@ -116,7 +116,7 @@ const onSubmit = handleSubmit(async (values) => {
   <div :class="cn('flex flex-col gap-6', props.class)">
     <div ref="cardRef" class="glass-surface glass-surface--strong enter-rise p-8 sm:p-10">
       <div class="mb-7 space-y-1.5">
-        <h1 class="type-section type-flush">Create an account</h1>
+        <h1 class="type-section">Create an account</h1>
         <p class="type-meta">Enter your details below to get started</p>
       </div>
         <form @submit="onSubmit" class="space-y-2">

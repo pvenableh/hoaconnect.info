@@ -180,12 +180,8 @@ const TYPE_LABEL: Record<string, string> = {
           <div
             v-for="request in outstanding"
             :key="request.id"
-            class="stagger-item ios-card p-5 border-l-4"
-            :class="{
-              'border-red-500': request.status === 'overdue',
-              'border-amber-500': request.status === 'active',
-              'border-blue-500': request.status === 'partially_paid',
-            }"
+            class="stagger-item ios-card p-5"
+            :class="{ 'card-attention': request.status === 'overdue' }"
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">

@@ -34,8 +34,11 @@ const PUBLIC_SURFACE =
  *
  * 2026-11-16 — **590**: the Reminders email preview's white canvas is tagged like
  * the Branding one, and its iframe's second `bg-white` is gone (−2).
+ *
+ * 2026-11-18 — **583**: Phase 4's attention treatment replaced the Payments
+ * cards' coloured side strips (`border-red-500` and friends, −7).
  */
-const BASELINE = 590;
+const BASELINE = 583;
 
 runFileAudit({
   name: "color-literals",

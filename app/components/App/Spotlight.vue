@@ -244,7 +244,7 @@ const placeholder = computed(() =>
         @keydown.enter="onEnter"
         class="h-full w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
       />
-      <kbd class="type-micro type-flush rounded-md px-1.5 py-0.5 glass-field">esc</kbd>
+      <kbd class="type-micro rounded-md px-1.5 py-0.5 glass-field">esc</kbd>
     </div>
 
     <CommandList class="max-h-[min(60vh,420px)] p-1.5">
