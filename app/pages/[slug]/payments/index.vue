@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PaymentRequest, PaymentTransaction } from "#core/types/directus";
+import { formatCalendarDay } from "#core/shared/calendar-day";
 
 definePageMeta({
   middleware: ["auth", "subscription"],
@@ -121,10 +122,8 @@ const handlePaymentError = (error: Error) => {
 const currency = (value?: number | null) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
 
-const formatDate = (date?: string | null) => {
-  if (!date) return "No due date";
-  return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-};
+// A due date is a calendar day, shown as written (core/shared/calendar-day.ts).
+const formatDate = (date?: string | null) => formatCalendarDay(date, { year: "numeric", month: "long", day: "numeric" }, "No due date");
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Due", overdue: "Overdue", partially_paid: "Partially Paid",

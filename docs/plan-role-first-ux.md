@@ -1203,7 +1203,7 @@ Spec `docs/spec-charge-corrections.md`, confirmed by Peter 2026-11-18 with the s
 
 **Checked in the browser** as the demo admin (Harborview Lofts): the row menu (Edit, Ask to Waive, Move; no Withdraw on charges older than 24 hours), the Edit sheet (a lower amount turns the hint red and disables Save; raising Sofia Marchetti's "Monthly dues — 2026-12" from $250.00 to $260.00 saved, refreshed and toasted), the Waive sheet (All or Part, the amount, the reason; not sent), the Move sheet (the community's other active households; not sent). **Not checked:** Withdraw (no fresh charge), a waiver or move decided in the app, a board seat or manager signed in, a phone width.
 
-**Follow-up seen:** the Charges table shows a due date of "2026-12-01" as Nov 30, 2026 (the page's `fdate` reads the day as UTC midnight in local time); the Edit sheet shows Dec 1. Present before this session.
+**Fixed after the build** (asked by Peter, 2026-11-18): the Charges table showed a due date of "2026-12-01" as Nov 30, 2026 west of UTC, because the page read the day as UTC midnight in local time; the Edit sheet showed Dec 1. Present before this session. `core/shared/calendar-day.ts` (`formatCalendarDay`) shows a date-only value as written for every viewer and keeps timestamps local; the Charges page, the charge panel and both owner Payments pages use it. Test: `tests/shared/calendar-day.test.ts` (five time zones). Not seen in the browser: port 3000 was another project's dev server, and the pane would not open 3001.
 
 **Operator TODOs**
 

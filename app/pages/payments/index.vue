@@ -208,6 +208,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatCalendarDay } from "#core/shared/calendar-day";
 const router = useRouter();
 const { activeHoa, fetchActiveHoa } = useActiveHoa();
 const { user } = useDirectusAuth();
@@ -276,14 +277,8 @@ const formatNumber = (value: number) => {
   }).format(value);
 };
 
-const formatDate = (date: string) => {
-  if (!date) return "No due date";
-  return new Date(date).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
+// A due date is a calendar day, shown as written (core/shared/calendar-day.ts).
+const formatDate = (date?: string | null) => formatCalendarDay(date, { year: "numeric", month: "long", day: "numeric" }, "No due date");
 
 const formatStatus = (status: string) => {
   const statusMap: Record<string, string> = {

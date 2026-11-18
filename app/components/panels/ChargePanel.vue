@@ -14,6 +14,7 @@
 <script setup lang="ts">
 import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
 import type { ChargeSheetMode } from "#core/app/composables/useChargesResource";
+import { formatCalendarDay } from "#core/shared/calendar-day";
 
 const props = defineProps<{
   id: string;
@@ -34,8 +35,8 @@ const openSheet = (mode: ChargeSheetMode) => (sheet.value = { open: true, mode }
 const charge = computed(() => resource.find(props.id));
 const open = computed(() => !!charge.value && isOpenCharge(charge.value));
 
-const fdate = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+// A due date is a calendar day, shown as written; the timeline's timestamps stay local.
+const fdate = (d?: string | null) => formatCalendarDay(d);
 
 const facts = computed(() => {
   const c = charge.value;

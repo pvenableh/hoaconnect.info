@@ -2,6 +2,7 @@
 import type { HoaMember, HoaOrganization, PaymentRequest, PaymentSchedule } from "#core/types/directus";
 import { isCountedExpense } from "#core/shared/expenses/expense-writes";
 import { toast } from "vue-sonner";
+import { formatCalendarDay } from "#core/shared/calendar-day";
 import type { ChargeRow } from "#core/app/composables/useMoneyReads";
 import type { ChargeSheetMode } from "#core/app/composables/useChargesResource";
 
@@ -157,8 +158,9 @@ const setScheduleStatus = async (s: PaymentSchedule, status: PaymentSchedule["st
 
 // --- Formatting ---------------------------------------------------------
 const currency = chargeCurrency;
-const fdate = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+// A due date is a calendar day, not a moment: shown as written, never a day
+// early west of UTC (core/shared/calendar-day.ts). Timestamps stay local.
+const fdate = (d?: string | null) => formatCalendarDay(d);
 
 // Columns. The identity column (who, or what happened) stays on the phone; the
 // rest is context and folds away, so a charge is still readable one-handed.
