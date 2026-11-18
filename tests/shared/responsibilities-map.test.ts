@@ -229,6 +229,19 @@ describe("the owners' map", () => {
     expect(m.unassigned.map((j) => j.id).sort()).toEqual(["j-elev", "j-new"]);
   });
 
+  it("orders the offices by rank, though the route names them by label", () => {
+    const offices = m.holders.filter((h) => h.kind === "office").map((h) => h.key);
+    expect(offices).toEqual(["office:Treasurer", "office:Director"]);
+    const withPresident = mapModel(
+      publishedMapRows([
+        { id: "a", title: "A", category: "finance", cadence: null, lastVerified: null, who: [{ kind: "office", name: "Director", role: "owner", people: ["Di"] }] },
+        { id: "b", title: "B", category: "finance", cadence: null, lastVerified: null, who: [{ kind: "office", name: "President", role: "owner", people: ["Pat"] }] },
+      ]),
+      TODAY,
+    );
+    expect(withPresident.holders.map((h) => h.label)).toEqual(["President", "Director"]);
+  });
+
   it("carries nothing the route did not send", () => {
     const text = JSON.stringify(m);
     for (const word of ["bylaws", "private note", "monthly", "m-bo", "m-ann", "Lift Co", "Old job", "disputed", "2026-01-01"]) {

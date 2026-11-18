@@ -8,7 +8,7 @@
  * resolves without another request; the owners' `PublishedRow` carries today
  * only, and a model built from it has nothing else to show.
  */
-import { CATEGORIES, OFFICE_KEYS, ROLE_KEYS, type AssigneeRole } from "./config";
+import { CATEGORIES, OFFICES, ROLE_KEYS, type AssigneeRole } from "./config";
 import { addDays, holdsOn, unassignedSince, type TargetKind } from "./holders";
 import { isHeldRow, publishedHolder, holderKey } from "./register-view";
 import type { HolderView, PersonRef, PublishedRow, RegisterRow } from "./views";
@@ -181,9 +181,11 @@ export function mapModel(rows: readonly MapSourceRow[], day: string): MapModel {
   }
   for (const h of rail.values()) h.jobCount = jobs.filter((j) => holdsJob(j, h.key)).length;
 
+  // The admin's rows name an office by key ("office:treasurer"); the owners' by label ("office:Treasurer").
   const officeRank = (h: MapHolder) => {
-    const i = (OFFICE_KEYS as readonly string[]).indexOf(h.key.slice(7));
-    return i < 0 ? OFFICE_KEYS.length : i;
+    const v = h.key.slice(7);
+    const i = OFFICES.findIndex((o) => o.key === v || o.label === v);
+    return i < 0 ? OFFICES.length : i;
   };
   const order = (a: MapHolder, b: MapHolder) =>
     KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) ||

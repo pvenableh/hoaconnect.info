@@ -10,6 +10,11 @@
 //
 // Gated by `auth` and the `responsibilities` module (module.global reads the
 // registry); the route checks membership again.
+//
+// Grid | Map (plan §3.4 "Map view"): the map draws the same rows, today only,
+// with no slider. It is built from what the route sent and nothing else
+// (`publishedMapRows`), so it cannot show history, a basis or a name the route
+// left out.
 import { cadenceLabel } from "#core/shared/responsibilities/config";
 import {
   REGISTER_GROUPS,
@@ -18,6 +23,7 @@ import {
   publishedSearchText,
   unassignedSinceText,
 } from "#core/shared/responsibilities/register-view";
+import { mapModel, publishedMapRows, type MapSelection } from "#core/shared/responsibilities/map";
 import type { PublishedRow } from "#core/shared/responsibilities/views";
 
 definePageMeta({
@@ -59,6 +65,14 @@ const stack = { primary: "title", meta: ["who", "cadence", "lastVerified"], bare
 const holders = (row: PublishedRow) => (isHeldRow(row) ? row.who.map(publishedHolder) : []);
 const lastVerified = (row: PublishedRow) =>
   isHeldRow(row) && row.lastVerified ? row.lastVerified : null;
+const view = useTabQuery({ key: "view", values: ["grid", "map"], fallback: "grid" });
+const viewItems = [
+  { value: "grid", label: "Grid", icon: "lucide:rows-3" },
+  { value: "map", label: "Map", icon: "lucide:waypoints" },
+];
+const map = computed(() => mapModel(publishedMapRows(resource.rows), registerToday()));
+const selection = ref<MapSelection>(null);
+
 const day = (d: string) => {
   const [y, m, dd] = d.split("-").map(Number);
   return new Date(y!, m! - 1, dd).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -80,8 +94,21 @@ const day = (d: string) => {
         icon="lucide:list-checks"
       />
 
+      <AppSegmentedControl v-if="published" v-model="view" :items="viewItems" label="Views" />
+
+      <template v-if="published && view === 'map'">
+        <p v-if="resource.pending && !resource.total" class="type-meta t-text-muted">Loading…</p>
+        <AppEmptyState
+          v-else-if="!resource.total"
+          title="No jobs are listed yet"
+          description="The board has published the register, and no jobs are on it yet."
+          icon="lucide:list-checks"
+        />
+        <ResponsibilitiesMap v-else v-model:selection="selection" :model="map" />
+      </template>
+
       <AppResourceIndex
-        v-else
+        v-else-if="published !== false"
         :resource="resource"
         :columns="columns"
         :noun="{ one: 'job', other: 'jobs' }"
