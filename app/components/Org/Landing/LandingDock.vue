@@ -21,7 +21,6 @@
             :is="link.to ? NuxtLink : 'a'"
             v-bind="link.to ? { to: link.to } : { href: link.href }"
             class="landing-dock__icon"
-            :class="{ 'landing-dock__icon--solid': !glassChrome }"
             :style="accentVars(accents[i])"
             :title="link.label"
             :aria-label="link.label"
@@ -95,13 +94,10 @@ const { user, memberNoun, exploreLinks, primaryAction } = useLandingNav({
 // single portal/sign-in end-cap — the locked member-portal apps are omitted as
 // they're not usable (or useful) to a public visitor. Accent index runs
 // explore → end-cap.
-const { accentsForApps, palette, glassChrome } = useAppNav();
+const { accentsForApps } = useAppNav();
 const chipCount = computed(() => exploreLinks.value.length + 1);
 const accents = computed(() =>
-  accentsForApps(
-    Array.from({ length: chipCount.value }, (_, i) => ({ key: String(i) })) as any,
-    palette.value
-  )
+  accentsForApps(Array.from({ length: chipCount.value }, (_, i) => ({ key: String(i) })))
 );
 const endCapIndex = computed(() => exploreLinks.value.length);
 const accentVars = (a: { h: number; s: number; l: number } | undefined) =>

@@ -16,8 +16,11 @@ import { findRawTypeSizes } from "./lib/audit-matchers";
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **300**. 300 `text-[Npx]` / `leading-[Npx]` / `font-size: Npx`.
+ *
+ * 2026-11-18 (Phase 4, Session 12) — **289**: the six-knob appearance panel and
+ * ThemeSelector.vue are gone (one Appearance and Tint panel on type tokens).
  */
-const BASELINE = 300;
+const BASELINE = 289;
 
 runFileAudit({
   name: "type-scale",

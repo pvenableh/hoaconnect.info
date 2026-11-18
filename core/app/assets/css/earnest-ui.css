@@ -18,8 +18,8 @@
    sets it from that theme's accent-primary (brass for classic/luxury, cyan for
    modern), and the `:root, .theme-classic-light` block provides the global default.
    Defining it here too would win by source order (earnest-ui loads after theme.css)
-   and pin every theme to cyan — so it is intentionally NOT set on :root here. The
-   modern dock still overrides it per active app via applyDocumentAccent (inline). */
+   and pin every theme to cyan — so it is intentionally NOT set on :root here. In the
+   workspace, useAppearance writes it inline from the person's tint (Phase 4). */
 
 /* ---- Accent presets — set on any container to retint the glass system ---- */
 .accent-cyan    { --app-accent-h: 189; --app-accent-s: 90%; --app-accent-l: 45%; }
@@ -135,7 +135,8 @@ html[data-tint='off'] {
  * that answer forever. Setting `--app-accent-h` lower down does nothing to it.
  * That is not hypothetical here: `.accent-emerald` / `.accent-violet` /
  * `.accent-cyan` sit on PAGE containers (payments, projects, units, channels),
- * and `applyDocumentAccent` writes the token per active app. Measured in the
+ * and the workspace writes the token inline on <html> (once per active app when
+ * this was written; from the person's tint since Phase 4). Measured in the
  * browser before this change: inside `.accent-violet`, `--app-accent-h` read 262
  * while `--glass-shade` still read `195 18% 42% / 0.12` — the root's cyan.
  *

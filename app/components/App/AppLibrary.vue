@@ -3,7 +3,7 @@
 
   A phone has no room for a row of nine chips, so below md the dock is gone
   (Dock.vue) and the Nav's grid button opens this: the dock's own apps — same
-  order, accents, badges and active app, from useDockApps — as a four-column
+  order, badges and active app, from useDockApps — as a four-column
   grid dropped from the bar.
 
   Not a modal: no focus trap, no scrim. Esc, a tap outside, a route change
@@ -22,8 +22,7 @@ import type { AppDef } from "#core/app/composables/useAppNav";
 const props = defineProps<{ preview?: boolean }>();
 
 const route = useRoute();
-const { glassChrome } = useAppNav();
-const { apps, accents, activeKey, badges, totalUnread, accentVars, go } = useDockApps();
+const { apps, activeKey, badges, totalUnread, go } = useDockApps();
 
 const panelId = useId();
 const button = ref<HTMLElement | null>(null);
@@ -126,8 +125,7 @@ const label = computed(() => (totalUnread.value > 0 ? `Apps — ${totalUnread.va
         <button
           type="button"
           class="app-library__app"
-          :class="{ 'app-library__app--active': app.key === activeKey, 'app-library__app--solid': !glassChrome }"
-          :style="accentVars(accents[i])"
+          :class="{ 'app-library__app--active': app.key === activeKey }"
           @click="onPick(app)"
         >
           <span class="app-library__chip">
@@ -172,8 +170,7 @@ const label = computed(() => (totalUnread.value > 0 ? `Apps — ${totalUnread.va
             <button
               type="button"
               class="app-library__app"
-              :class="{ 'app-library__app--active': app.key === activeKey, 'app-library__app--solid': !glassChrome }"
-              :style="accentVars(accents[i])"
+              :class="{ 'app-library__app--active': app.key === activeKey }"
               :aria-current="app.key === activeKey ? 'page' : undefined"
               :data-app-library-app="app.key"
               @click="onPick(app)"
@@ -263,7 +260,12 @@ const label = computed(() => (totalUnread.value > 0 ? `Apps — ${totalUnread.va
   animation-delay: calc(var(--i, 0) * 28ms);
 }
 
+/* Every chip wears the person's tint; Tint off (--glass-tint 0) drains its
+   saturation, so the icons go neutral with the glass. */
 .app-library__app {
+  --c-h: var(--app-accent-h);
+  --c-s: calc(var(--app-accent-s) * var(--glass-tint, 1));
+  --c-l: var(--app-accent-l);
   display: flex;
   width: 100%;
   flex-direction: column;
@@ -299,18 +301,6 @@ const label = computed(() => (totalUnread.value > 0 ? `Apps — ${totalUnread.va
   width: 22px;
   height: 22px;
   color: hsl(var(--c-h) var(--c-s) calc(var(--c-l) - 6%));
-}
-.app-library__app--solid .app-library__chip {
-  background: linear-gradient(
-    160deg,
-    hsl(var(--c-h) var(--c-s) calc(var(--c-l) + 12%)) 0%,
-    hsl(var(--c-h) var(--c-s) var(--c-l)) 55%,
-    hsl(var(--c-h) var(--c-s) calc(var(--c-l) - 8%)) 100%
-  );
-  border-color: transparent;
-}
-.app-library__app--solid .app-library__icon {
-  color: #fff;
 }
 /* The open app: the accent ring the dock's dot stands for. */
 .app-library__app--active .app-library__chip {

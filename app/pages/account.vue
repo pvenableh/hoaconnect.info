@@ -404,10 +404,10 @@
 
             <section class="form-section">
               <h3 class="form-section__title type-card">Appearance</h3>
-              <p class="form-section__hint">Light or dark, language and time zone</p>
-              <!-- Light/dark only. The public style (Classic / Modern / Luxury) is
-                   the community's choice, made in the landing builder. -->
-              <ThemeSelector hide-styles />
+              <p class="form-section__hint">Light, dark or auto, your tint, language and time zone</p>
+              <!-- The public style (Classic / Modern / Luxury) is the community's
+                   choice, made in the landing builder. -->
+              <AppAppearanceSettings />
 
               <Separator />
 

@@ -342,7 +342,6 @@ const userAvatarUrl = computed(() => {
 // settings apply everywhere there is an org context. An organization's theme no
 // longer selects a nav shape (that choice dressed its public landing page, not
 // the tool), which is why there is nothing here reading settings.theme.
-const showDockSettings = computed(() => isOnOrgPage.value);
 
 // Close mobile menu on route change
 watch(
@@ -622,27 +621,18 @@ watch(
 
               <DropdownMenuSeparator />
 
-              <!-- Appearance: light/dark only. The STYLE picker is always hidden
-                   in the workspace — classic/modern/luxury dress an organization's
-                   public landing page, and are chosen in its site settings, not
-                   here. @click/@keydown.stop so the toggle works inside the
-                   dropdown without the menu intercepting it. -->
+              <!-- Appearance (Light, Dark, Auto) and Tint (Phase 4). Both are
+                   the person's own and follow them to another device, so they
+                   show everywhere, with or without a community. The public
+                   style (Classic / Modern / Luxury) is the community's choice,
+                   made in its site settings, not here. @click/@keydown.stop so
+                   the controls work inside the dropdown without the menu
+                   intercepting them. -->
               <div class="px-2 pb-1" @click.stop @keydown.stop>
-                <ThemeSelector hide-styles />
+                <AppAppearanceSettings />
               </div>
 
               <DropdownMenuSeparator />
-
-              <!-- Dock appearance (palette, labels, glass, position). Saved to
-                   the user's account (app_prefs), so it follows them across
-                   devices; shown wherever there is an org, i.e. a dock. -->
-              <template v-if="showDockSettings">
-                <div class="px-2 pb-1" @click.stop @keydown.stop>
-                  <AppAppearanceSettings />
-                </div>
-
-                <DropdownMenuSeparator />
-              </template>
 
               <DropdownMenuItem
                 variant="destructive"

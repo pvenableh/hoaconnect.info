@@ -7,10 +7,10 @@
 // (useNavContext; docs/spec-capability-nav.md): an admin's sections, a
 // manager's queue and areas, or the member apps — each filtered by what it
 // needs, so nobody is offered an app they cannot open.
-import { badgeCountsFor, toAppDef, type AppDef, type HSL } from "#core/app/composables/useAppNav";
+import { badgeCountsFor, toAppDef, type AppDef } from "#core/app/composables/useAppNav";
 
 export function useDockApps() {
-  const { palette, accentsForApps, activeKeyFor, go } = useAppNav();
+  const { activeKeyFor, go } = useAppNav();
   const nav = useNavContext();
 
   const isOnOrgPage = nav.isOnOrgPage;
@@ -19,7 +19,6 @@ export function useDockApps() {
   const showAdminUI = computed(() => isOnOrgPage.value && nav.layout.value === "admin");
 
   const apps = computed<AppDef[]>(() => nav.entries.value.map(toAppDef));
-  const accents = computed<HSL[]>(() => accentsForApps(apps.value, palette.value));
   const activeKey = computed(() => activeKeyFor(apps.value));
   const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeKey.value));
 
@@ -42,8 +41,7 @@ export function useDockApps() {
     apps.value.reduce((n, a) => n + (badges.value[a.key] || 0), 0)
   );
 
-  const accentVars = (a: HSL | undefined) =>
-    (a ? { "--c-h": String(a.h), "--c-s": `${a.s}%`, "--c-l": `${a.l}%` } : {}) as Record<string, string>;
-
-  return { isOnOrgPage, showAdminUI, apps, accents, activeKey, activeIndex, badges, totalUnread, accentVars, go };
+  // Every chip wears the person's tint (useAppearance writes --app-accent-*);
+  // the colour is read in CSS, so there is nothing per app to hand out.
+  return { isOnOrgPage, showAdminUI, apps, activeKey, activeIndex, badges, totalUnread, go };
 }

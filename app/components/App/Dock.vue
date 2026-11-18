@@ -1,20 +1,13 @@
 <script setup lang="ts">
 const { user } = useDirectusAuth();
 
-const { palette, dockPosition, showLabels, glassChrome, applyDocumentAccent } = useAppNav();
-const { isOnOrgPage, apps, accents, activeKey, activeIndex, badges, accentVars, go } = useDockApps();
+// The dock has no settings (Phase 4, plan §2.4): bottom only, labels on, and
+// every chip in the person's tint (useAppearance writes --app-accent-*; Tint
+// off drains the chips with the glass). The device's Reduce Transparency, not
+// a switch, decides whether the pill is glass.
+const { isOnOrgPage, apps, activeKey, badges, go } = useDockApps();
 
 const onAppClick = go;
-
-// Keep the document default accent synced to the active app
-watch(
-  [activeKey, palette],
-  () => {
-    const a = accents.value[activeIndex.value];
-    if (a) applyDocumentAccent(a);
-  },
-  { immediate: true }
-);
 
 // ---- macOS-style magnification ----
 const REACH = 170; // px of influence on each side of the cursor
@@ -28,7 +21,6 @@ const setChipRef = (el: any, i: number) => {
 
 const canMagnify = () =>
   import.meta.client &&
-  dockPosition.value !== undefined &&
   window.matchMedia("(min-width: 768px) and (any-hover: hover) and (any-pointer: fine)").matches;
 
 const smoothstep = (t: number) => t * t * (3 - 2 * t);
@@ -70,10 +62,6 @@ watch(apps, reset, { immediate: true });
     <nav
       v-if="user && isOnOrgPage"
       class="app-dock ui-kit"
-      :class="[
-        dockPosition === 'top' ? 'app-dock--top' : 'app-dock--bottom',
-        { 'app-dock--labels': showLabels },
-      ]"
       aria-label="App navigation"
     >
       <div
@@ -87,8 +75,8 @@ watch(apps, reset, { immediate: true });
           :ref="(el) => setChipRef(el, i)"
           type="button"
           class="dock-item"
-          :class="{ 'dock-item--active': app.key === activeKey, 'dock-item--solid': !glassChrome }"
-          :style="{ ...accentVars(accents[i]), ...chipStyle(i) }"
+          :class="{ 'dock-item--active': app.key === activeKey }"
+          :style="chipStyle(i)"
           :aria-label="app.label"
           :aria-current="app.key === activeKey ? 'page' : undefined"
           @click="onAppClick(app)"
@@ -100,12 +88,7 @@ watch(apps, reset, { immediate: true });
               {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
             </span>
           </span>
-          <span
-            v-if="app.key === activeKey"
-            class="dock-item__dot"
-            aria-hidden="true"
-          />
-          <span v-if="showLabels" class="dock-item__label">{{ app.shortName }}</span>
+          <span class="dock-item__label">{{ app.shortName }}</span>
         </button>
       </div>
     </nav>
@@ -122,7 +105,7 @@ watch(apps, reset, { immediate: true });
   display: flex;
   justify-content: center;
 }
-.app-dock--bottom {
+.app-dock {
   bottom: max(1rem, env(safe-area-inset-bottom));
 }
 /* Below md there is no dock: a full row of chips does not fit a phone, and the
@@ -131,9 +114,6 @@ watch(apps, reset, { immediate: true });
   .app-dock {
     display: none;
   }
-}
-.app-dock--top {
-  top: max(1rem, env(safe-area-inset-top));
 }
 
 .app-dock__pill {
@@ -149,7 +129,12 @@ watch(apps, reset, { immediate: true });
   transition: padding 90ms ease-out;
 }
 
+/* Every chip wears the person's tint; Tint off (--glass-tint 0) drains its
+   saturation, so the icons go neutral with the glass. */
 .dock-item {
+  --c-h: var(--app-accent-h);
+  --c-s: calc(var(--app-accent-s) * var(--glass-tint, 1));
+  --c-l: var(--app-accent-l);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -168,9 +153,6 @@ watch(apps, reset, { immediate: true });
 .dock-item:active {
   scale: 0.9;
 }
-.app-dock--top .dock-item {
-  transform-origin: top center;
-}
 
 /* Perfect-circle chip — 44px meets the HIG/WCAG 2.5.5 touch-target minimum. */
 .dock-item__chip {
@@ -181,7 +163,7 @@ watch(apps, reset, { immediate: true });
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Glass chrome (default): frosted translucent chip, accent-colored icon */
+  /* A frosted chip with the icon in the tint (no blur of its own: the pill is the glass). */
   background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 60%, transparent);
   border: 1px solid hsl(var(--c-h) var(--c-s) 60% / 0.25);
   box-shadow:
@@ -194,63 +176,6 @@ watch(apps, reset, { immediate: true });
   height: 22px;
   color: hsl(var(--c-h) var(--c-s) calc(var(--c-l) - 6%));
   filter: drop-shadow(0 1px 1px hsl(var(--c-h) 30% 30% / 0.25));
-}
-
-/* Solid mode (glass chrome off): colored gradient chip, white icon */
-.dock-item--solid .dock-item__chip {
-  background: linear-gradient(
-    160deg,
-    hsl(var(--c-h) var(--c-s) calc(var(--c-l) + 12%)) 0%,
-    hsl(var(--c-h) var(--c-s) var(--c-l)) 55%,
-    hsl(var(--c-h) var(--c-s) calc(var(--c-l) - 8%)) 100%
-  );
-  border-color: transparent;
-  box-shadow:
-    inset 0 1px 0 hsl(0 0% 100% / 0.28),
-    inset 0 -1px 0 hsl(0 0% 0% / 0.08),
-    0 2px 6px -2px hsl(var(--c-h) var(--c-s) var(--c-l) / 0.4);
-}
-.dock-item--solid .dock-item__icon {
-  color: #fff;
-  filter: drop-shadow(0 1px 1.5px hsl(0 0% 0% / 0.3));
-}
-
-/* Active state — iOS-style running-app dot on the dock's outer edge (below the
-   chip for a bottom dock, above it for a top dock). Positioned relative to the
-   dock-item so it rides the magnification scale. When labels are shown the
-   accent-colored label is the active indicator instead, so the dot is hidden to
-   avoid colliding with it. */
-.dock-item__dot {
-  position: absolute;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: hsl(var(--c-h) var(--c-s) var(--c-l));
-  box-shadow: 0 0 6px -1px hsl(var(--c-h) var(--c-s) var(--c-l) / 0.7);
-  transform: translateX(-50%);
-  transform-origin: center;
-  animation: dock-dot-in var(--motion-base, 240ms)
-    var(--spring) both;
-}
-.app-dock--bottom .dock-item__dot {
-  top: calc(100% + 3px);
-}
-.app-dock--top .dock-item__dot {
-  bottom: calc(100% + 3px);
-}
-.app-dock--labels .dock-item__dot {
-  display: none;
-}
-@keyframes dock-dot-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
 }
 
 /* Hover tooltip (full app name), floats above the chip */
@@ -271,11 +196,6 @@ watch(apps, reset, { immediate: true });
   pointer-events: none;
   transition: opacity 140ms ease, transform 140ms ease;
   z-index: 2;
-}
-.app-dock--top .dock-item__tip {
-  bottom: auto;
-  top: calc(100% + 8px);
-  transform: translateX(-50%) translateY(-4px);
 }
 .dock-item:hover .dock-item__tip {
   opacity: 1;
@@ -298,8 +218,10 @@ watch(apps, reset, { immediate: true });
   text-overflow: ellipsis;
   color: var(--theme-text-secondary, #6b7280);
 }
+/* The open app: its label in the ink (AA on the pill), since labels are on
+   and the old running-app dot would collide with them. */
 .dock-item--active .dock-item__label {
-  color: hsl(var(--c-h) var(--c-s) var(--c-l));
+  color: var(--theme-accent-primary);
 }
 
 .dock-item__badge {
@@ -331,10 +253,6 @@ watch(apps, reset, { immediate: true });
   }
   .dock-item__badge {
     animation: none;
-  }
-  .dock-item__dot {
-    animation: none;
-    opacity: 1;
   }
 }
 </style>

@@ -14,9 +14,11 @@ import { visibleVerbs } from "#core/shared/create-verbs";
 import { HELPER_AREA_KEYS } from "#core/shared/roles/area-grants";
 import { HELPER_AREA_COPY } from "#core/shared/roles/helper-area-copy";
 import {
-  BRAND_ACCENT_HEX,
-  getAdminAccent,
+  TINT_SWATCHES,
   accentCssVars,
+  resolveTint,
+  swatchAccent,
+  type TintSwatchId,
 } from "#core/shared/branding/accent";
 
 definePageMeta({ layout: false });
@@ -32,27 +34,21 @@ useHead({ title: "UI Kit — HOA Connect design system" });
 // admin and auth actually get — that is the whole point of it as a contract.
 const appearance = useWorkspaceAppearance();
 
-// The swatches drive the REAL resolver, not a decorative-only override, so this
-// row is a live preview of what per-organization accents would look like: both
-// the glass tier (rims, halos, the active thumb) and the ink tier (buttons,
-// links, focus rings) move together, exactly as they would if getAdminAccent()
-// started reading an org's colour.
-const accents = [
-  { id: "brand", label: "HOA Connect", hex: BRAND_ACCENT_HEX },
-  { id: "blue", label: "Blue", hex: "#3B82F6" },
-  { id: "violet", label: "Violet", hex: "#8B5CF6" },
-  { id: "emerald", label: "Emerald", hex: "#10B981" },
-  { id: "amber", label: "Amber", hex: "#F59E0B" },
-  { id: "rose", label: "Rose", hex: "#F43F5E" },
-  { id: "gold", label: "Gold", hex: "#B8956C" },
-] as const;
-
-const accent = ref<string>("brand");
-
-const previewAccent = computed(() => {
-  const found = accents.find((a) => a.id === accent.value) ?? accents[0];
-  return getAdminAccent(found.hex);
-});
+// The tint, previewed through the REAL resolver (resolveTint, accent.ts): the
+// same six swatches and the same Tint switch a person has in Appearance, with
+// a stand-in community colour for the first swatch. Glass (rims, halos, the
+// active thumb), ink (buttons, links, focus rings) and the hover move
+// together, exactly as they do in the app. Nothing here is saved: the page
+// writes the variables itself and hands the person's own tint back on leave.
+const KIT_COMMUNITY = "#B8956C";
+const kitTintOn = ref(true);
+const kitSwatch = ref<TintSwatchId>("community");
+const kitSwatches = computed(() =>
+  TINT_SWATCHES.map((s) => {
+    const ink = swatchAccent(s.id, KIT_COMMUNITY).ink[appearance.isDark.value ? "dark" : "light"];
+    return { id: s.id, label: s.id === "community" ? "Community (stand-in)" : s.label, color: `hsl(${ink.h} ${ink.s}% ${ink.l}%)` };
+  }),
+);
 
 // Written onto <html>, exactly where the appearance layer writes them — NOT onto
 // this page's root div. Custom properties resolve at their DECLARATION site, and
@@ -62,14 +58,12 @@ const previewAccent = computed(() => {
 // test, since it exercises the real code path.
 watchEffect(() => {
   if (!import.meta.client) return;
-  const dark = appearance.isDark.value;
-  const vars = accentCssVars(
-    dark ? previewAccent.value.dark : previewAccent.value.light,
-    dark ? previewAccent.value.ink.dark : previewAccent.value.ink.light,
-  );
-  for (const [k, v] of Object.entries(vars)) {
-    document.documentElement.style.setProperty(k, v);
-  }
+  const t = resolveTint({ on: kitTintOn.value, swatch: kitSwatch.value }, appearance.isDark.value ? "dark" : "light", KIT_COMMUNITY);
+  const html = document.documentElement;
+  for (const [k, v] of Object.entries(accentCssVars(t.glass, t.ink, t.inkHover))) html.style.setProperty(k, v);
+  html.dataset.tint = t.on ? "on" : "off";
+  if (t.ground) html.style.setProperty("--glass-solid", t.ground);
+  else html.style.removeProperty("--glass-solid");
 });
 
 // Hand the accent back when leaving, or the preview colour follows the user out
@@ -371,29 +365,41 @@ const materials = [
         </div>
       </header>
 
-      <!-- ── Accent ───────────────────────────────────────────────────── -->
+      <!-- ── Tint ────────────────────────────────────────────────────── -->
       <section>
-        <h2 class="type-section">Accent</h2>
+        <h2 class="type-section">Tint</h2>
         <p class="type-body">
-          The workspace ships one brand accent, but it is resolved through
-          <code>getAdminAccent()</code> — so letting an organization brand their
-          own workspace is a one-line change. Pick a colour to preview it: the
-          buttons, links, focus rings, glass rims and the active tab thumb all
-          re-tint together.
+          Each person chooses Tint on or off in Appearance. Off: clear, neutral
+          glass, and buttons in the community's colour. On: the glass carries a
+          colour and is a little more opaque, picked from this fixed row — the
+          community's colour first. Every fixed swatch is graded in light and
+          dark by <code>audit:contrast-pairs</code>; the community's is graded
+          across the hue wheel. Resolved by <code>resolveTint()</code>.
         </p>
-        <div class="flex flex-wrap items-center gap-2 mt-3">
-          <button
-            v-for="a in accents"
-            :key="a.id"
-            class="w-7 h-7 rounded-full ios-press glass-edge"
-            :class="accent === a.id ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''"
-            :style="{ backgroundColor: a.hex }"
-            :title="a.label"
-            :aria-label="a.label"
-            :aria-pressed="accent === a.id"
-            @click="accent = a.id"
+        <div class="flex flex-wrap items-center gap-3 mt-3">
+          <AppSegmentedControl
+            :model-value="kitTintOn ? 'on' : 'off'"
+            :items="[{ value: 'on', label: 'Tint on' }, { value: 'off', label: 'Tint off' }]"
+            size="sm"
+            label="Tint"
+            @update:model-value="(v) => (kitTintOn = v === 'on')"
           />
-          <span class="type-meta ml-2">{{ accents.find((a) => a.id === accent)?.label }}</span>
+          <template v-if="kitTintOn">
+            <!-- allow-raw-button: a colour swatch in the kit's tint preview -->
+            <button
+              v-for="sw in kitSwatches"
+              :key="sw.id"
+              type="button"
+              class="w-7 h-7 rounded-full ios-press"
+              :class="kitSwatch === sw.id ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''"
+              :style="{ backgroundColor: sw.color }"
+              :title="sw.label"
+              :aria-label="sw.label"
+              :aria-pressed="kitSwatch === sw.id"
+              @click="kitSwatch = sw.id"
+            />
+            <span class="type-meta">{{ kitSwatches.find((s) => s.id === kitSwatch)?.label }}</span>
+          </template>
         </div>
       </section>
 

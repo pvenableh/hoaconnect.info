@@ -47,8 +47,11 @@ const PRIMITIVES = [
  * 2026-11-16 — **307**. The comment-blanking fix uncovered 2 (account.vue's tab
  * row, the gallery editor's remove badge); both fixed, plus the avatar's remove
  * badge, on an already-lower count.
+ *
+ * 2026-11-18 (Phase 4, Session 12) — **301**: the six-knob appearance panel and
+ * ThemeSelector.vue are gone (one Appearance and Tint panel on type tokens).
  */
-const BASELINE = 307;
+const BASELINE = 301;
 
 runFileAudit({
   name: "raw-buttons",

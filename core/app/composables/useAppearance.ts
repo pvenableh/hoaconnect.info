@@ -15,12 +15,24 @@
 //
 // `mode` may be 'system'; `resolved` is what actually gets rendered. Everything
 // downstream — CSS, the accent, persistence — reads `resolved`.
+//
+// THE TINT (Phase 4; plan §2.4, decisions 4 and 8) lives here too, because it
+// is appearance and because this is already the one writer of the accent. A
+// person's choice ({ on, swatch }, core/shared/nav/app-prefs.ts) plus the mode
+// plus the community's colour go through `resolveTint` (accent.ts, the one
+// place a colour is resolved) and come out as the --app-accent-* glass tier,
+// the ink tier, `data-tint` on <html> and `--glass-solid` (the tinted glass as
+// a solid ground, for Reduce Transparency). The choice is stored with the
+// person's app prefs (`/api/user/app-prefs`), so it follows them to another
+// device; localStorage caches it for the first frame.
 
 import {
-  getAdminAccent,
   accentCssVars,
-  type AdminAccent,
+  resolveTint,
+  type ResolvedTint,
+  type TintSwatchId,
 } from "#core/shared/branding/accent";
+import type { TintPrefs } from "#core/shared/nav/app-prefs";
 
 export type AppearanceMode = "light" | "dark" | "system";
 export type ResolvedAppearance = "light" | "dark";
@@ -31,6 +43,10 @@ export const APP_THEME_CLASS = "theme-app";
 const STORAGE_KEY = "appearance";
 /** Pre-consolidation key; read once so existing users keep their preference. */
 const LEGACY_STORAGE_KEY = "design-theme";
+/** This device's cache of the person's tint ({ on?, swatch? }). */
+const TINT_STORAGE_KEY = "app-tint";
+/** The six dock knobs' old cache keys: removed on first load (Phase 4). */
+const RETIRED_KEYS = ["app-nav-palette", "app-nav-position", "app-nav-labels", "app-nav-glass"];
 
 function isMode(v: unknown): v is AppearanceMode {
   return v === "light" || v === "dark" || v === "system";
@@ -68,11 +84,70 @@ const state = reactive({
   mode: "system" as AppearanceMode,
   systemDark: false,
   hydrated: false,
+  tint: {} as TintPrefs,
 });
+
+function readStoredTint(): TintPrefs {
+  if (!import.meta.client) return {};
+  try {
+    for (const k of RETIRED_KEYS) localStorage.removeItem(k);
+    const raw = JSON.parse(localStorage.getItem(TINT_STORAGE_KEY) || "null") as TintPrefs | null;
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function cacheTint() {
+  if (!import.meta.client) return;
+  try {
+    localStorage.setItem(TINT_STORAGE_KEY, JSON.stringify(state.tint));
+  } catch {
+    // Storage full or blocked: the account copy still holds it.
+  }
+}
+
+// ── The account copy of the tint ─────────────────────────────────────────
+// Pulled once per signed-in user per page load; a stored key overrides the
+// cache. Pushed on every change, debounced. Both best-effort: an unprovisioned
+// field answers `available: false` / 503 and the cache stands.
+let pulledFor: string | null = null;
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+// A choice made while the pull is in flight is newer than what it brings back.
+let localEdits = 0;
+
+async function pullTint(userId: string, onArrive: () => void) {
+  if (pulledFor === userId) return;
+  pulledFor = userId;
+  const editsBefore = localEdits;
+  try {
+    const res = await $fetch<{ available: boolean; prefs: { tint?: TintPrefs } }>("/api/user/app-prefs");
+    if (!res?.available || localEdits !== editsBefore) return;
+    state.tint = { ...(res.prefs?.tint ?? {}) };
+    cacheTint();
+    onArrive();
+  } catch {
+    // Signed out, offline, or the route is unavailable: the cache stands.
+  }
+}
+
+function pushTint() {
+  localEdits++;
+  cacheTint();
+  if (!import.meta.client || !pulledFor) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    // The whole choice, defaults included: the route drops what is a default.
+    const tint = { on: state.tint.on ?? true, swatch: state.tint.swatch ?? "community" };
+    $fetch("/api/user/app-prefs", { method: "PATCH", body: { tint } }).catch(() => {});
+  }, 400);
+}
 
 export function useAppearance() {
   const { user } = useDirectusAuth();
   const { updateProfile } = useDirectusUser();
+  const { activeHoa } = useActiveHoa();
 
   const mode = computed(() => state.mode);
   const resolved = computed<ResolvedAppearance>(() =>
@@ -80,8 +155,18 @@ export function useAppearance() {
   );
   const isDark = computed(() => resolved.value === "dark");
 
-  /** The accent for this workspace. Today: always the brand. See accent.ts. */
-  const accent = computed<AdminAccent>(() => getAdminAccent());
+  /** The community's own colour: the first swatch, and the ink when Tint is off. */
+  const communityColor = computed<string | null>(() => {
+    const colors = (activeHoa.value as { settings?: { colors?: { primary?: string }[] | null } } | null)?.settings
+      ?.colors;
+    return (Array.isArray(colors) && colors[0]?.primary) || null;
+  });
+
+  /** What this person's tint paints in the mode on screen. */
+  const tint = computed<ResolvedTint>(() => resolveTint(state.tint, resolved.value, communityColor.value));
+  const tintOn = computed(() => tint.value.on);
+  /** The chosen swatch (the community's when none is stored). Kept while Tint is off. */
+  const tintSwatch = computed<TintSwatchId>(() => state.tint.swatch ?? "community");
 
   /**
    * Write the resolved appearance to the document. This is the ONLY place the
@@ -92,15 +177,14 @@ export function useAppearance() {
     const html = document.documentElement;
     html.classList.toggle("dark", resolved.value === "dark");
 
-    // Both accent tiers. CSS carries matching resting defaults so the first
-    // paint is already right; this keeps them correct if the resolver ever
-    // starts returning a per-organization colour.
-    const dark = resolved.value === "dark";
-    const vars = accentCssVars(
-      dark ? accent.value.dark : accent.value.light,
-      dark ? accent.value.ink.dark : accent.value.ink.light,
-    );
+    // Both accent tiers and the hover, from the person's tint. CSS carries
+    // HOA Connect cyan as the resting default for the first paint.
+    const t = tint.value;
+    const vars = accentCssVars(t.glass, t.ink, t.inkHover);
     for (const [k, v] of Object.entries(vars)) html.style.setProperty(k, v);
+    html.dataset.tint = t.on ? "on" : "off";
+    if (t.ground) html.style.setProperty("--glass-solid", t.ground);
+    else html.style.removeProperty("--glass-solid");
   }
 
   /**
@@ -121,8 +205,24 @@ export function useAppearance() {
       state.mode = readStoredMode();
     }
 
+    if (!state.hydrated) state.tint = readStoredTint();
     state.hydrated = true;
     apply();
+
+    const userId = (user.value as { id?: string } | null)?.id;
+    if (userId) void pullTint(userId, apply);
+  }
+
+  function setTintOn(on: boolean) {
+    state.tint = { ...state.tint, on };
+    apply();
+    pushTint();
+  }
+
+  function setTintSwatch(swatch: TintSwatchId) {
+    state.tint = { ...state.tint, swatch };
+    apply();
+    pushTint();
   }
 
   async function setMode(next: AppearanceMode, persist = true) {
@@ -163,7 +263,12 @@ export function useAppearance() {
     mode,
     resolved,
     isDark,
-    accent,
+    tint,
+    tintOn,
+    tintSwatch,
+    communityColor,
+    setTintOn,
+    setTintSwatch,
     setMode,
     toggle,
     hydrate,
@@ -192,6 +297,7 @@ if(m!=='light'&&m!=='dark'&&m!=='system'){
 }
 var d=m==='dark'||(m==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
 document.documentElement.classList.toggle('dark',d);
+try{var t=JSON.parse(localStorage.getItem('${TINT_STORAGE_KEY}')||'null');document.documentElement.dataset.tint=(t&&t.on===false)?'off':'on';}catch(e){}
 }catch(e){}})();`;
 
 /**
@@ -217,6 +323,16 @@ export function useWorkspaceAppearance() {
     const stop = appearance.watchSystem();
     onUnmounted(stop);
   });
+  // A different community (its colour is the first swatch) or the account copy
+  // arriving repaints; so does a signed-in user appearing after mount.
+  watch(appearance.tint, () => appearance.apply());
+  const { user } = useDirectusAuth();
+  watch(
+    () => (user.value as { id?: string } | null)?.id,
+    (id) => {
+      if (id) appearance.hydrate();
+    },
+  );
 
   return appearance;
 }

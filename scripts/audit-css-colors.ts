@@ -21,8 +21,11 @@ import { findCssColors, styleBlocks } from "./lib/audit-matchers";
  * ⚠️ NEVER raise this — see scripts/lib/audit-kit.ts.
  *
  * 2026-11-05 (Phase 8) — measured **222**. 222 literals in rules (token definitions excluded): earnest-ui.css, landing.css and tailwind.css carry most; `approve/[token].vue` and `experimental.vue` are self-contained pages.
+ *
+ * 2026-11-18 (Phase 4, Session 12) — **187**: the six-knob appearance panel and
+ * ThemeSelector.vue are gone (one Appearance and Tint panel on type tokens).
  */
-const BASELINE = 222;
+const BASELINE = 187;
 
 const findings: Finding[] = [];
 let allowed = 0;

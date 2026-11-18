@@ -32,18 +32,12 @@ const route = useRoute();
 // no way across to the rest of the app. The page pads its foot for the
 // floating dock (md and up; below md the App Library replaces the dock).
 const immersive = computed(() => !!route.meta.immersive);
-const { dockPosition, showLabels } = useAppNav();
 // The page title lives in the shell (AppHeaderOutlet, below); this hands it to
 // the Nav as it scrolls under the chrome, and earns the Nav its hairline.
 useTitleCollapse();
 
-const immersiveDockPad = computed(() =>
-  immersive.value && dockPosition.value === "bottom"
-    ? showLabels.value
-      ? "app-main--dock-pad-labels"
-      : "app-main--dock-pad"
-    : null
-);
+// The dock is always at the bottom with its labels on (Phase 4).
+const immersiveDockPad = computed(() => (immersive.value ? "app-main--dock-pad-labels" : null));
 
 // ── Persistent "view as member" preview (admins) ────────────────────────────
 // `?as=member` is the entry point (OrgSelector menu, the view switcher); arriving
@@ -238,9 +232,6 @@ onMounted(() => {
 /* Immersive pages run to the foot of the viewport; at md and up the floating
    dock sits over that foot, so the page stops above it (pill + its offset). */
 @media (min-width: 768px) {
-  .app-main--dock-pad {
-    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
-  }
   .app-main--dock-pad-labels {
     padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
