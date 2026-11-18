@@ -112,6 +112,7 @@ Apple's Liquid Glass puts glass on the controls that float above content — bar
 - **Not glass:** tables, cards of content, form fields (already solid for performance).
 - **Details:** nested corner radii that share a centre, a soft fade where content scrolls under a bar, the accent tint reserved for the one primary action per screen, no glass on glass.
 - **Accessibility:** honour `prefers-reduced-transparency` and `prefers-contrast` instead of a manual "glass chrome" switch.
+- **Attention on a solid card** (asked 2026-11-18, Phase 4). No coloured strip down one side of a rounded box: a side strip fights the corner radius. Cards stay solid (no glass on content); one attention treatment replaces the strip everywhere, e.g. a faint warning tint across the card or a warning rim that follows the radius, beside the icon and words that already say why. Its colour pair is contrast-checked in light and dark with the tints. Census 2026-11-18, rounded cards with a strip: `app/components/Responsibilities/Map.vue` (`.rmap-job--attention`, the Unassigned cards), `app/pages/payments/index.vue` (two `ios-card border-l-4`), `app/pages/[slug]/payments/index.vue` (`ios-card border-l-4`), and the marketing `ResidentPortalMock.vue` (its own palette; match it if the public site adopts the treatment). Not in scope: a strip on square text as a quote or indent rule (`StatuteFlag.vue`, `ChannelMessage.vue` replies, `SeoSettingsForm.vue`, `your-data.vue`, `DocReaderMock.vue`, the governing review page) and the landing drawer's edge.
 
 Appearance settings go from six to two (decided 2026-11-14):
 
@@ -290,7 +291,7 @@ Each phase is one or two sessions and leaves `main` green (tests, 16+ audits, ty
 | 2b | **Responsibilities register, first slice** — §3.4: two collections, the `responsibilities` area and gate, board-term history actions, grid on the scaffold, hand-over, as-of, seed list, PDF, published owner view | 2 | Opus for schema and routes, Sonnet for pages | 1, 2 |
 | 2c | **Responsibilities map** — §3.4: the Map mode for admins and owners, time slider, transitions, glass rail and sheet | 1 | Opus | 2b; glass polish after 4 |
 | 3 | **Sweeps** — Members, Documents, Email, Meetings, Requests, Vendors onto the scaffold; ratchets to zero | 2 | Sonnet | 2 |
-| 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency | 1–2 | Opus for the material, Sonnet for the sweep | — |
+| 4 | **Glass layer and appearance** — material rules, clear and tinted glass in light and dark, accent wiring, remove the old knobs, reduced-transparency, one attention treatment for solid cards in place of side strips (§2.4) | 1–2 | Opus for the material, Sonnet for the sweep | — |
 | 5 | **Invoices** — issued notice, single reminder path, manual send, timeline, aging | 2 | Opus | 2 |
 | 5b | **Money approvals** — decisions 16 and 17: the approval rule, `money_approvals`, routes as the only write path, Ledger entries, waivers, the Approvals page | 2 | Opus | 1 |
 | 5c | **Correcting a charge** — what an admin may change on a charge an owner owes; lowering it, moving it or withdrawing it takes the board (§7, "Queued: correcting a charge") | 1 | Opus | 5b |
