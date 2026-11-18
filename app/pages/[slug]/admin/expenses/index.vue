@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import type { PaymentExpense } from "#core/types/directus";
 import type { ProjectRow } from "#core/app/composables/useProjects";
+import type { ExpenseRow } from "#core/app/composables/useExpenses";
 import { toast } from "vue-sonner";
 
-// nav-gate: admins, and holders of money:read (Treasurer, President) read-only.
-// Writes are admin (or a manager with Projects) on the server, so `canWrite` hides them.
+// nav-gate: admins and every board seat (money:read). What anyone may DO to a
+// row comes from the server (`row.actions`, docs/spec-money-approvals.md):
+// every money:enter holder (admins, board seats, a manager with Projects)
+// enters, submits, records paid and asks for voids. Approving is on the
+// Approvals page, for the people the rule waits on. Nobody else sees a control.
 definePageMeta({
   middleware: ["nav-gate", "subscription"],
   layout: "auth",
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const { list, create, update, remove, pay, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
-const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
+const { listWithViewer, create, update, remove, submit, voidExpense, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
+const { isAdminOfCurrentDomain: isAdmin } = useCurrentDomainAccess();
 const { getAuthUrl } = useDirectusFiles();
 const { list: listProjects } = useProjects();
+const { confirm, prompt } = useConfirm();
 
 // Projects available to tag an expense against (for the budget rollup).
 const { data: projectOptions } = await useAsyncData(
@@ -25,100 +30,108 @@ const { data: projectOptions } = await useAsyncData(
 const projectName = (id: string | null | undefined) =>
   projectOptions.value?.find((p) => p.id === id)?.title || null;
 
-const { data: expenses, pending, refresh } = await useAsyncData(
+const { data, pending, refresh } = await useAsyncData(
   `admin-expenses-${selectedOrgId.value}`,
-  () => list(selectedOrgId.value || undefined),
+  () => listWithViewer(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
+const expenses = computed<ExpenseRow[]>(() => data.value?.expenses ?? []);
+const canEnter = computed(() => data.value?.canEnter === true);
 
 // --- Filters ------------------------------------------------------------
 const categoryFilter = ref<string>("all");
 const filtered = computed(() => {
-  let rows = expenses.value || [];
+  let rows = expenses.value;
   if (categoryFilter.value !== "all") rows = rows.filter((e) => e.category === categoryFilter.value);
   return rows;
 });
 
-const total = computed(() => filtered.value.reduce((s, e) => s + (e.amount || 0), 0));
+// What went out or is committed: not drafts, rejections or voids.
+const COUNTED = new Set(["submitted", "approved", "paid"]);
+const total = computed(() => filtered.value.filter((e) => COUNTED.has(String(e.status))).reduce((s, e) => s + (e.amount || 0), 0));
 
 // --- Form (create / edit) ----------------------------------------------
 const showForm = ref(false);
-const editingId = ref<string | null>(null);
+const editing = ref<ExpenseRow | null>(null);
 const saving = ref(false);
 const receiptFile = ref<File | null>(null);
 
 const blank = () => ({
   title: "", vendor: "", category: "other" as PaymentExpense["category"],
-  status: "draft" as PaymentExpense["status"], amount: null as number | null,
-  expense_date: "", paid_date: "", description: "", notes: "",
+  amount: null as number | null, expense_date: "", description: "", notes: "",
   receipt: null as string | null, project: "" as string,
 });
 const form = ref(blank());
 
-// The status the row had when the form was opened. `paid` is the one status
-// this screen does not write itself — see the save handler below.
-const originalStatus = ref<PaymentExpense["status"] | null>(null);
-
-const openCreate = () => { if (!canWrite.value) return; editingId.value = null; originalStatus.value = null; form.value = blank(); receiptFile.value = null; showForm.value = true; };
+const openCreate = () => {
+  if (!canEnter.value) return;
+  editing.value = null;
+  form.value = blank();
+  receiptFile.value = null;
+  showForm.value = true;
+};
 // "+ New → Log Expense" and Spotlight land here with ?new=expense.
 useCreateIntent("expense", openCreate);
-const openEdit = (e: PaymentExpense) => {
-  editingId.value = e.id;
-  originalStatus.value = e.status || "draft";
+const idOf = (v: unknown): string | null => (v && typeof v === "object" ? (v as { id?: string }).id ?? null : (v as string | null)) || null;
+const openEdit = (e: ExpenseRow) => {
+  editing.value = e;
   form.value = {
     title: e.title || "", vendor: e.vendor || "", category: e.category || "other",
-    status: e.status || "draft", amount: e.amount ?? null,
+    amount: e.amount ?? null,
     expense_date: e.expense_date ? e.expense_date.slice(0, 10) : "",
-    paid_date: e.paid_date ? e.paid_date.slice(0, 10) : "",
     description: e.description || "", notes: e.notes || "",
-    receipt: typeof e.receipt === "object" ? (e.receipt as any)?.id : (e.receipt as string) || null,
-    project: (typeof e.project === "object" ? (e.project as any)?.id : (e.project as string)) || "",
+    receipt: idOf(e.receipt), project: idOf(e.project) || "",
   };
   receiptFile.value = null;
   showForm.value = true;
 };
 
+/** A paid expense changes only its notes and receipt; the server refuses the rest. */
+const paidLocked = computed(() => editing.value?.status === "paid");
+/** Once it is with the board, these reshape it and start a new round. */
+const withBoard = computed(() => ["submitted", "approved", "rejected"].includes(String(editing.value?.status)));
+const isDraft = computed(() => !editing.value || editing.value.status === "draft");
+
 const canSave = computed(() => !!form.value.title.trim() && (form.value.amount || 0) > 0);
 
-const save = async () => {
+const payload = async () => {
+  let receiptId = form.value.receipt;
+  if (receiptFile.value) receiptId = await uploadReceipt(receiptFile.value);
+  if (paidLocked.value) return { notes: form.value.notes || null, receipt: receiptId || null };
+  return {
+    title: form.value.title.trim(),
+    vendor: form.value.vendor || null,
+    category: form.value.category,
+    amount: form.value.amount ?? undefined,
+    expense_date: form.value.expense_date || null,
+    description: form.value.description || null,
+    notes: form.value.notes || null,
+    receipt: receiptId || null,
+    project: form.value.project || null,
+  };
+};
+
+/** Save Draft, Submit for Approval, or (once with the board) Save Changes. */
+const save = async (andSubmit: boolean) => {
   if (!canSave.value || !selectedOrgId.value) return;
   saving.value = true;
   try {
-    let receiptId = form.value.receipt;
-    if (receiptFile.value) {
-      receiptId = await uploadReceipt(receiptFile.value);
-    }
-    // Marking an expense paid is the outcome the Community Ledger records, and
-    // core/server/api/org/expenses/record.post.ts owns that transition. The form
-    // saves everything else and hands the row over as `approved`; the route
-    // makes it paid and writes the entry. An expense that was ALREADY paid keeps
-    // its status here, so editing a typo does not spend the money twice.
-    const wasPaid = originalStatus.value === "paid";
-    const becomingPaid = form.value.status === "paid" && !wasPaid;
-
-    const payload = {
-      title: form.value.title.trim(),
-      vendor: form.value.vendor || null,
-      category: form.value.category,
-      amount: form.value.amount ?? undefined,
-      expense_date: form.value.expense_date || null,
-      description: form.value.description || null,
-      notes: form.value.notes || null,
-      receipt: receiptId || null,
-      project: form.value.project || null,
-    };
-    let expenseId = editingId.value;
-    if (editingId.value) {
-      await update(editingId.value, payload, selectedOrgId.value);
+    const body = await payload();
+    if (!editing.value) {
+      await create(body, { submit: andSubmit, orgId: selectedOrgId.value });
+      toast.success(andSubmit ? "Sent to the board for approval" : "Draft saved");
     } else {
-      const created = await create(payload, { orgId: selectedOrgId.value });
-      expenseId = created?.id ?? null;
+      const was = editing.value.status;
+      const res = (await update(editing.value.id, body, selectedOrgId.value)) as { status?: string } | null;
+      if (andSubmit && res?.status !== "submitted") await submit(editing.value.id, selectedOrgId.value);
+      toast.success(
+        andSubmit
+          ? "Sent to the board for approval"
+          : res?.status === "submitted" && was !== "draft"
+            ? "Saved. It changed, so it goes back to the board."
+            : "Expense updated"
+      );
     }
-
-    if (becomingPaid && expenseId) {
-      await pay(expenseId, { paidDate: form.value.paid_date || new Date().toISOString().slice(0, 10), reference: "Recorded from the expense form" }, selectedOrgId.value);
-    }
-    toast.success(editingId.value ? "Expense updated" : "Expense added");
     showForm.value = false;
     await refresh();
   } catch (e: any) {
@@ -129,15 +142,49 @@ const save = async () => {
   }
 };
 
-const removeExpense = async (e: PaymentExpense) => {
+// --- Row actions (only the ones `row.actions` names) --------------------
+const can = (row: ExpenseRow, action: string) => (row.actions as string[] | undefined)?.includes(action) === true;
+const busy = ref<string | null>(null);
+
+const run = async (row: ExpenseRow, fn: () => Promise<unknown>, done: string) => {
+  busy.value = row.id;
   try {
-    await remove(e.id, selectedOrgId.value || undefined);
-    toast.success("Expense deleted");
+    await fn();
+    toast.success(done);
     await refresh();
-  } catch (err: any) {
-    toast.error(err?.message || "Failed to delete");
+  } catch (e: any) {
+    toast.error(e?.data?.message || e?.message || "That didn't work");
+  } finally {
+    busy.value = null;
   }
 };
+
+const submitRow = (row: ExpenseRow) => run(row, () => submit(row.id, selectedOrgId.value || undefined), "Sent to the board for approval");
+
+const deleteRow = async (row: ExpenseRow) => {
+  const ok = await confirm({ title: `Delete the draft “${row.title}”?`, body: "Only drafts can be deleted.", destructive: true });
+  if (ok) await run(row, () => remove(row.id, selectedOrgId.value || undefined), "Draft deleted");
+};
+
+const voidRow = async (row: ExpenseRow) => {
+  const atOnce = can(row, "void");
+  const reason = await prompt({
+    title: atOnce ? `Void “${row.title}”?` : `Ask the board to void “${row.title}”?`,
+    body: atOnce
+      ? "It stays on record as void."
+      : "Voiding an approved or paid expense needs the board's approval, like spending does. You can't approve your own request.",
+    label: "Why",
+    multiline: true,
+    required: true,
+    maxLength: 1000,
+    confirmLabel: atOnce ? "Void" : "Ask to Void",
+    destructive: true,
+  });
+  if (reason === null) return;
+  await run(row, () => voidExpense(row.id, reason, selectedOrgId.value || undefined), atOnce ? "Expense voided" : "Void sent to the board");
+};
+
+const paying = ref<ExpenseRow | null>(null);
 
 // What /api/org/expenses/receipt takes (expense-receipts.ts).
 const RECEIPT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
@@ -163,8 +210,9 @@ const onFile = (ev: Event) => {
 
 // Through the app, which checks who may read the books: a PDF never opened
 // from the bare Directus address, and a receipt is not every member's.
-const receiptUrl = (e: PaymentExpense) => {
-  const id = typeof e.receipt === "object" ? (e.receipt as any)?.id : e.receipt;
+// Admins only until receipts are served through the server (Session 5).
+const receiptUrl = (e: ExpenseRow) => {
+  const id = idOf(e.receipt);
   return id ? getAuthUrl(id) : null;
 };
 
@@ -175,11 +223,28 @@ const fdate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
 const CAT_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
+const STATUS_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_STATUSES.map((s) => [s.value, s.label]));
 const STATUS_CLASS: Record<string, string> = {
   draft: "t-bg-subtle t-text-muted",
+  submitted: "bg-info/15 text-info",
   approved: "bg-info/15 text-info",
+  rejected: "bg-destructive/15 text-destructive",
   paid: "bg-success/15 text-success",
+  void: "t-bg-subtle t-text-muted line-through",
 };
+
+/** The approval line under the status: progress while open, or why it stalls. */
+const approvalLine = (row: ExpenseRow): string | null => {
+  const a = row.approval_summary;
+  if (!a) return null;
+  if (a.state === "pending") return a.progress;
+  if (a.state === "cannot_approve") return "Cannot be approved";
+  if (a.state === "rejected" && row.status === "paid") return "Rejected after payment";
+  if (a.state === "approved" && row.status === "paid" && row.paid_without_approval) return "Approved after payment";
+  return null;
+};
+
+const asRow = (r: unknown) => r as ExpenseRow;
 
 // What the expense was stays on the phone; category, date and status are the
 // kind of context you only read on a wide screen.
@@ -196,68 +261,72 @@ const expenseColumns = [
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
-      <div class="flex items-center justify-between gap-2">
-        <h1 class="text-2xl font-semibold t-text">Expenses</h1>
-        <Button v-if="canWrite" class="rounded-full" @click="openCreate">
-          <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
-          Add expense
-        </Button>
-      </div>
+      <AppPageHeader title="Expenses">
+        <template #actions>
+          <Button v-if="canEnter" class="rounded-full" @click="openCreate">
+            <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
+            Add Expense
+          </Button>
+        </template>
+      </AppPageHeader>
 
       <div class="ios-card p-5">
         <p class="text-xs uppercase tracking-wide t-text-muted">{{ categoryFilter === 'all' ? 'Total' : CAT_LABEL[categoryFilter] }}</p>
         <p class="text-2xl font-semibold tabular-nums t-text mt-1">{{ currency(total) }}</p>
+        <p class="text-xs t-text-muted mt-1">Submitted, approved and paid. Drafts, rejections and voids are left out.</p>
       </div>
 
       <!-- Form -->
-      <div v-if="showForm && canWrite" class="ios-card p-6 space-y-4">
-        <h2 class="font-semibold t-text">{{ editingId ? "Edit expense" : "Add expense" }}</h2>
+      <div v-if="showForm && canEnter" class="ios-card p-6 space-y-4">
+        <h2 class="font-semibold t-text">{{ editing ? "Edit expense" : "Add expense" }}</h2>
+        <p v-if="withBoard" class="text-sm t-text-muted">
+          Changing the amount, vendor or title sends it back to the board for a new round of approval, and you can't
+          approve that round.
+        </p>
+        <p v-if="paidLocked" class="text-sm t-text-muted">
+          A paid expense keeps its amount and details. You can change its notes and receipt. To correct it, void it and
+          enter it again.
+        </p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-1.5 md:col-span-2">
-            <Label>Title</Label>
-            <Input v-model="form.title" placeholder="e.g. Landscaping — October" />
+            <Label for="expense-title">Title</Label>
+            <Input id="expense-title" v-model="form.title" :disabled="paidLocked" placeholder="e.g. Landscaping — October" />
           </div>
           <div class="space-y-1.5">
-            <Label>Vendor</Label>
-            <Input v-model="form.vendor" placeholder="Payee" />
+            <Label for="expense-vendor">Vendor</Label>
+            <Input id="expense-vendor" v-model="form.vendor" :disabled="paidLocked" placeholder="Who is paid" />
           </div>
           <div class="space-y-1.5">
-            <Label>Amount</Label>
+            <Label for="expense-amount">Amount</Label>
             <div class="relative">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-              <Input v-model.number="form.amount" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
+              <Input id="expense-amount" v-model.number="form.amount" :disabled="paidLocked" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
             </div>
           </div>
           <div class="space-y-1.5">
-            <Label>Category</Label>
-            <select v-model="form.category" class="w-full px-3 py-2 border rounded-md bg-background">
+            <Label for="expense-category">Category</Label>
+            <select id="expense-category" v-model="form.category" :disabled="paidLocked" class="w-full px-3 py-2 border rounded-md bg-background">
               <option v-for="c in EXPENSE_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
           </div>
           <div class="space-y-1.5">
-            <Label>Status</Label>
-            <select v-model="form.status" class="w-full px-3 py-2 border rounded-md bg-background">
-              <option v-for="s in EXPENSE_STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <Label>Expense date</Label>
-            <DateInput v-model="form.expense_date" />
-          </div>
-          <div class="space-y-1.5">
-            <Label>Paid date</Label>
-            <DateInput v-model="form.paid_date" />
+            <Label for="expense-date">Expense date</Label>
+            <DateInput id="expense-date" v-model="form.expense_date" :disabled="paidLocked" />
           </div>
           <div v-if="projectOptions?.length" class="space-y-1.5 md:col-span-2">
-            <Label>Project <span class="t-text-muted font-normal">(optional — rolls into the project's budget)</span></Label>
-            <select v-model="form.project" class="w-full px-3 py-2 border rounded-md bg-background">
+            <Label for="expense-project">Project <span class="t-text-muted font-normal">(optional — rolls into the project's budget)</span></Label>
+            <select id="expense-project" v-model="form.project" :disabled="paidLocked" class="w-full px-3 py-2 border rounded-md bg-background">
               <option value="">No project</option>
               <option v-for="p in projectOptions" :key="p.id" :value="p.id">{{ p.title }}</option>
             </select>
           </div>
           <div class="space-y-1.5 md:col-span-2">
-            <Label>Description</Label>
-            <Input v-model="form.description" placeholder="What was this for?" />
+            <Label for="expense-description">Description</Label>
+            <Input id="expense-description" v-model="form.description" :disabled="paidLocked" placeholder="What is this for?" />
+          </div>
+          <div class="space-y-1.5 md:col-span-2">
+            <Label for="expense-notes">Notes</Label>
+            <Input id="expense-notes" v-model="form.notes" placeholder="Invoice number, anything the board should know" />
           </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label>Receipt / invoice</Label>
@@ -265,11 +334,18 @@ const expenseColumns = [
             <p v-if="form.receipt && !receiptFile" class="text-xs t-text-muted">A receipt is already attached. Choosing a new file replaces it.</p>
           </div>
         </div>
-        <div class="flex justify-end gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <Button variant="outline" class="rounded-full" @click="showForm = false">Cancel</Button>
-          <Button class="rounded-full" :disabled="!canSave || saving" @click="save">
+          <template v-if="isDraft">
+            <Button variant="outline" class="rounded-full" :disabled="!canSave || saving" @click="save(false)">Save Draft</Button>
+            <Button class="rounded-full" :disabled="!canSave || saving" @click="save(true)">
+              <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
+              Submit for Approval
+            </Button>
+          </template>
+          <Button v-else class="rounded-full" :disabled="!canSave || saving" @click="save(false)">
             <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
-            {{ editingId ? "Save changes" : "Add expense" }}
+            Save Changes
           </Button>
         </div>
       </div>
@@ -296,17 +372,20 @@ const expenseColumns = [
           :loading="pending"
           :filtered="categoryFilter !== 'all'"
           empty-title="No expenses yet"
-          empty-description="Record what the association spends and it shows up here and in Reports."
+          empty-description="Record what the association spends. The board approves it, and it shows up here and in Reports."
           empty-icon="lucide:receipt"
         >
           <template #cell-title="{ row }">
             <span class="t-text">{{ row.title }}</span>
             <span v-if="row.vendor" class="t-text-muted text-xs ml-2">{{ row.vendor }}</span>
             <span
-              v-if="projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string))"
+              v-if="projectName(idOf(row.project))"
               class="inline-flex items-center gap-1 t-bg-subtle rounded-full px-1.5 py-0.5 type-micro t-text-accent ml-2 align-middle"
             >
-              <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(typeof row.project === 'object' ? (row.project as any)?.id : (row.project as string)) }}
+              <Icon name="lucide:rocket" class="w-2.5 h-2.5" />{{ projectName(idOf(row.project)) }}
+            </span>
+            <span v-if="row.paid_without_approval" class="inline-flex items-center gap-1 bg-warning/15 text-warning rounded-full px-2 py-0.5 text-xs font-medium ml-2 align-middle">
+              <Icon name="lucide:alert-triangle" class="w-3 h-3" />Paid before approval
             </span>
           </template>
           <template #cell-category="{ value }">
@@ -318,19 +397,25 @@ const expenseColumns = [
           <template #cell-amount="{ value }">
             <span class="font-medium t-text">{{ currency(value as number) }}</span>
           </template>
-          <template #cell-status="{ value }">
-            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="STATUS_CLASS[value as string]">
-              {{ value }}
-            </span>
+          <template #cell-status="{ row }">
+            <div class="flex flex-col items-start gap-0.5">
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="STATUS_CLASS[row.status as string]">
+                {{ STATUS_LABEL[row.status as string] ?? row.status }}
+              </span>
+              <span v-if="approvalLine(asRow(row))" class="text-xs t-text-muted">{{ approvalLine(asRow(row)) }}</span>
+              <span v-if="asRow(row).void_pending" class="text-xs t-text-muted">Void awaiting approval</span>
+            </div>
           </template>
           <template #cell-actions="{ row }">
-            <div class="flex items-center justify-end gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Button v-if="can(asRow(row), 'submit')" size="sm" variant="outline" :disabled="busy === row.id" @click="submitRow(asRow(row))">Submit</Button>
+              <Button v-if="can(asRow(row), 'pay')" size="sm" variant="outline" :disabled="busy === row.id" @click="paying = asRow(row)">Record Paid</Button>
               <Button
-                v-if="canWrite && receiptUrl(row)"
+                v-if="isAdmin && receiptUrl(asRow(row))"
                 as="a"
                 variant="outline"
                 size="icon-sm"
-                :href="receiptUrl(row)!"
+                :href="receiptUrl(asRow(row))!"
                 target="_blank"
                 rel="noopener"
                 aria-label="View receipt"
@@ -338,10 +423,21 @@ const expenseColumns = [
               >
                 <Icon name="lucide:paperclip" />
               </Button>
-              <Button v-if="canWrite" variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(row)">
+              <Button v-if="can(asRow(row), 'edit')" variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(asRow(row))">
                 <Icon name="lucide:pencil" />
               </Button>
-              <Button v-if="canWrite" variant="destructive" size="icon-sm" aria-label="Delete expense" title="Delete" @click="removeExpense(row)">
+              <Button
+                v-if="can(asRow(row), 'void') || can(asRow(row), 'ask_void')"
+                variant="outline"
+                size="icon-sm"
+                :aria-label="can(asRow(row), 'void') ? 'Void expense' : 'Ask to void'"
+                :title="can(asRow(row), 'void') ? 'Void' : 'Ask to void'"
+                :disabled="busy === row.id"
+                @click="voidRow(asRow(row))"
+              >
+                <Icon name="lucide:ban" />
+              </Button>
+              <Button v-if="can(asRow(row), 'delete')" variant="destructive" size="icon-sm" aria-label="Delete draft" title="Delete draft" :disabled="busy === row.id" @click="deleteRow(asRow(row))">
                 <Icon name="lucide:trash-2" />
               </Button>
             </div>
@@ -349,5 +445,7 @@ const expenseColumns = [
         </AppDataTable>
       </div>
     </PageContainer>
+
+    <ExpensesPaySheet v-if="selectedOrgId" v-model:expense="paying" :org-id="selectedOrgId" @saved="refresh()" />
   </div>
 </template>
