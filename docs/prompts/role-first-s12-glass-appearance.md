@@ -9,13 +9,14 @@ Start it with (the prompt itself is the one code block below):
 ```
 Build the first half of Phase 4 (plan §2.4, decisions 4 and 8): glass as a
 layer, appearance from six settings to two, a per-person tint colour, the OS
-accessibility settings honoured, and one attention treatment for solid cards.
+accessibility settings honoured, one attention treatment for solid cards, and
+one left edge for text outside cards.
 No new route unless a stored preference needs one beyond
 /api/user/app-prefs (if so, stop and ask me). No schema:
 directus_users.app_prefs is already JSON.
 
 Read, in this order: docs/ux-standards.md, docs/plan-role-first-ux.md §2.4
-(all of it, including "Attention on a solid card"), §6 decisions 4 and 8,
+(all of it, including "One left edge" and "Attention on a solid card"), §6 decisions 4 and 8,
 the §4 phase table row for Phase 4, and the Session 9 log in §7. Do not read
 the rest of the plan.
 
@@ -58,7 +59,10 @@ sheets and slide-overs, menus, toasts, and floating controls such as the
 register map's rail and slider. Not glass: tables, cards of content, form
 fields. No glass on glass. Nested radii share a centre. The accent tint is
 reserved for the one primary action per screen. No coloured strip down one
-side of a rounded card.
+side of a rounded card. Text outside a card or container starts on the same
+left edge as the cards beside it: no heading inset (this reverses the
+iOS grouped-list `--surface-inset` in theme-app.css); text inside a card
+keeps the card's padding.
 
 Ask me in ONE message before building, with a recommended answer for each:
 1. The swatch set: how many and which colours (recommended: the community's
@@ -88,6 +92,12 @@ Build, one commit each, gated as below:
    attention class for a solid card, in place of side strips: apply it to the
    four cards in §2.4's census (the map's Unassigned cards, two on
    app/pages/payments/index.vue, one on app/pages/[slug]/payments/index.vue).
+   One left edge: `--surface-inset` in theme-app.css goes to zero or away,
+   and AppPageHeader and AppHeaderOutlet (title, description, eyebrow, meta)
+   start on the cards' edge. Check the shared pieces that sit outside cards
+   on most pages in the same commit: AppResourceIndex's toolbar and count,
+   AppDataTable's group headers when a table is not in a card,
+   AppEmptyState, and section labels in the register's map.
 3. The settings: AppearanceSettings.vue becomes Appearance (Light, Dark,
    Auto) and Tint (On, Off, and the swatches when on), on the same
    persistence; the four removed knobs go, with their code paths in
@@ -119,18 +129,24 @@ Learned the hard way in earlier sessions:
 Local session: work on main, ask before pushing. Verify in the browser
 preview at 375, 768 and 1280 px, in light and dark, with Tint on (two
 swatches) and off, on the dock, a sheet, a menu, the register's map (rail and
-slider over content) and the Payments pages.
+slider over content) and the Payments pages; and that the page title, the
+toolbar and the first card share one left edge on the register, Payments
+and Members.
 
 Quality gate per commit, run serially: typecheck 0, vitest green, build
 green, pnpm audit:all at or under baseline, lint under the warning cap. Run
 the typecheck and the build with NODE_OPTIONS=--max-old-space-size=6144.
 
-When done: census, with a Haiku subagent, every content surface still wearing
-glass (glass-surface, glass-widget, glass-edge on cards, tables and form
-sections in app/ and core/app, not the public landing), and write
-docs/prompts/role-first-s13-glass-sweep.md from it for Sonnet 5.5, in this
-file's shape: the census as its file list, the rules this session set, and
-the same gate. Then update the §7 Status rows (12 shipped, 13 queued), append
+When done: census, with Haiku subagents, (a) every content surface still
+wearing glass (glass-surface, glass-widget, glass-edge on cards, tables and
+form sections in app/ and core/app, not the public landing), and (b) every
+page where text outside a card or container still has its own horizontal
+padding or margin (px-*, pl-*, mx-*, ml-*, padding-inline or margin-inline
+on headings, labels, counts and summaries that sit beside cards), and write
+docs/prompts/role-first-s13-glass-sweep.md from both for Sonnet 5.5, in this
+file's shape: the two censuses as its file lists, the rules this session
+set, a check at 375 and 1280 px that each page's text and cards share one
+left edge, and the same gate. Then update the §7 Status rows (12 shipped, 13 queued), append
 to the Session log (shipped, what each role now sees, the five answers,
 deviations, operator TODOs), and end your reply with Session 13's "Start it
 with" sentence in a code block. Then stop.
