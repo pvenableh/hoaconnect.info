@@ -10,6 +10,10 @@ const activeConversationId = ref<string | null>(null);
 // A prompt to auto-send once the panel opens (e.g. from an inline entity card's
 // "ask about this" pill). Consumed once by the panel.
 const pendingPrompt = ref<string | null>(null);
+// A view to open on (the account menu's Assistant row opens the review queue,
+// where the trust dial, what is waiting and what already ran live). Consumed
+// once by the panel.
+const requestedView = ref<"actions" | null>(null);
 
 export const useAiAssistant = () => {
   const open = (conversationId?: string | null) => {
@@ -20,6 +24,17 @@ export const useAiAssistant = () => {
   const openWith = (prompt: string) => {
     pendingPrompt.value = prompt;
     isOpen.value = true;
+  };
+  /** Open the panel on its review queue: the dial, what waits, what ran. */
+  const openReview = () => {
+    requestedView.value = "actions";
+    isOpen.value = true;
+  };
+  /** Read-and-clear the requested view (the panel watches for it). */
+  const consumeRequestedView = (): "actions" | null => {
+    const v = requestedView.value;
+    requestedView.value = null;
+    return v;
   };
   /** Read-and-clear the seeded prompt (the panel calls this on open). */
   const consumePendingPrompt = (): string | null => {
@@ -42,6 +57,9 @@ export const useAiAssistant = () => {
     activeConversationId,
     open,
     openWith,
+    openReview,
+    requestedView,
+    consumeRequestedView,
     consumePendingPrompt,
     close,
     toggle,

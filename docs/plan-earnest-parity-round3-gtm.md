@@ -2375,10 +2375,10 @@ Shipped:
 | `overlay-boxes` | ratchet | **26** | boxes inside overlays (StorageManagerPage, UsersPage the biggest) |
 | `settings-boxes` | ratchet | **31** | second-and-later boxes in settings files (`settings/subscription.vue` most) |
 | `empty-states` | ratchet | **55** | bare "No X yet" outside `AppEmptyState` |
-| `css-colors` | ratchet | **222** | literals in rules, token definitions excluded |
-| `type-scale` | ratchet | **300** | `text-[Npx]` / `leading-[Npx]` / `font-size: Npx` |
-| `raw-buttons` | ratchet | **318** | outside `ui/button` and 7 shell primitives |
-| `color-literals` | ratchet | **639** | palette classes + `bg-white/black`, public surfaces and `ui/` excluded |
+| `css-colors` | ratchet | **181** | literals in rules, token definitions excluded |
+| `type-scale` | ratchet | **283** | `text-[Npx]` / `leading-[Npx]` / `font-size: Npx` |
+| `raw-buttons` | ratchet | **300** | outside `ui/button` and 8 shell primitives |
+| `color-literals` | ratchet | **580** | palette classes + `bg-white/black`, public surfaces and `ui/` excluded |
 
 **Proved red:** for each of the 16 audits a deliberate violation was added to a clean tracked file, `--check` exited 1 with
 the count one over its baseline, and the file was restored (verified `git status`). `contrast-pairs` was proved by lightening

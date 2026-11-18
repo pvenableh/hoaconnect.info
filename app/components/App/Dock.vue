@@ -1,15 +1,152 @@
 <script setup lang="ts">
+import { NAV_LAYOUTS, meets, navEntry } from "#core/shared/nav/registry";
+import { toAppDef, type AppDef } from "#core/app/composables/useAppNav";
+import { afterFirstFrame, DURATION } from "#core/shared/motion";
+
 const { user } = useDirectusAuth();
+const route = useRoute();
 
 // The dock has no settings (Phase 4, plan §2.4): bottom only, labels on, and
 // every chip in the person's tint (useAppearance writes --app-accent-*; Tint
 // off drains the chips with the glass). The device's Reduce Transparency, not
 // a switch, decides whether the pill is glass.
 const { isOnOrgPage, apps, activeKey, badges, go } = useDockApps();
+const nav = useNavContext();
+const { verbs, run } = useCreateVerbs();
+
+// ---- The phone's dock (below md) -------------------------------------------
+// A row of nine chips does not fit a phone, so below md the dock keeps four
+// apps and an Apps button (plan §2.4, "The dock on a phone"). The app you are
+// in is always one of the four. Apps opens a card exactly as wide as the dock
+// with the rest of the apps and the create verbs ("+ New" has no room in a
+// phone's header). The card is the floating layer, like the dock.
+const COMPACT_SLOTS = 4;
+const isCompact = ref(false);
+let mq: MediaQueryList | null = null;
+const onMq = (e: MediaQueryListEvent) => (isCompact.value = e.matches);
+onMounted(() => {
+  if (!window.matchMedia) return;
+  mq = window.matchMedia("(max-width: 767px)");
+  isCompact.value = mq.matches;
+  mq.addEventListener("change", onMq);
+});
+onBeforeUnmount(() => mq?.removeEventListener("change", onMq));
+
+// Destinations a phone used to reach only from the old menu sheet (a member's
+// Vendors): the registry's `sheet` layout, minus what the dock already holds
+// (by entry or by page). Members' layouts only: an admin's sections already
+// reach the same pages (People › Board, Records › Documents), and the member
+// copies beside them read as duplicates.
+const extras = computed<AppDef[]>(() => {
+  if (nav.layout.value === "admin") return [];
+  const held = new Set(apps.value.map((a) => a.key));
+  const paths = new Set(apps.value.map((a) => a.path));
+  return NAV_LAYOUTS.sheet.flatMap((id) => {
+    const e = navEntry(id);
+    return e && !held.has(e.id) && !paths.has(e.path) && meets(e, nav.ctx.value) ? [toAppDef(e)] : [];
+  });
+});
+
+const needsMore = computed(
+  () => isCompact.value && (apps.value.length > COMPACT_SLOTS + 1 || extras.value.length > 0 || verbs.value.length > 0)
+);
+const shownApps = computed<AppDef[]>(() => {
+  if (!needsMore.value) return apps.value;
+  const first = apps.value.slice(0, COMPACT_SLOTS);
+  const active = apps.value.find((a) => a.key === activeKey.value);
+  if (!active || first.some((a) => a.key === active.key)) return first;
+  return [...first.slice(0, COMPACT_SLOTS - 1), active];
+});
+const moreApps = computed<AppDef[]>(() => {
+  if (!needsMore.value) return [];
+  const shown = new Set(shownApps.value.map((a) => a.key));
+  return [...apps.value.filter((a) => !shown.has(a.key)), ...extras.value];
+});
+const moreUnread = computed(() => moreApps.value.reduce((n, a) => n + (badges.value[a.key] || 0), 0));
+const moreLabel = computed(() => (moreUnread.value > 0 ? `More apps, ${moreUnread.value} unread` : "More apps"));
+
+// ---- The Apps card ----------------------------------------------------------
+// Overlay policy (core/shared/motion): it mounts in its closed pose and opens
+// after the first frame; the apps follow in the App Library's 28ms stagger
+// (`apps-chip-in`). Not a modal: Esc, a tap outside or a route change close it,
+// and Esc hands focus back to the Apps button.
+const cardId = useId();
+const moreButton = ref<HTMLElement | null>(null);
+const card = ref<HTMLElement | null>(null);
+const cardRendered = ref(false);
+const cardOpen = ref(false);
+const entering = ref(false);
+let cancelFrame: (() => void) | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
+const clearTimer = () => {
+  if (timer) clearTimeout(timer);
+  timer = null;
+};
+
+function showCard() {
+  if (cardRendered.value) return;
+  clearTimer();
+  cardRendered.value = true;
+  entering.value = true;
+  cancelFrame = afterFirstFrame(() => {
+    cardOpen.value = true;
+  });
+  timer = setTimeout(() => (entering.value = false), moreApps.value.length * 28 + 360);
+}
+function hideCard(opts?: { focus?: boolean }) {
+  if (!cardRendered.value) return;
+  cancelFrame?.();
+  clearTimer();
+  cardOpen.value = false;
+  entering.value = false;
+  timer = setTimeout(() => (cardRendered.value = false), DURATION.fast);
+  if (opts?.focus) nextTick(() => moreButton.value?.focus());
+}
+const toggleCard = () => (cardRendered.value && cardOpen.value ? hideCard() : showCard());
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== "Escape" || !cardRendered.value) return;
+  e.stopPropagation();
+  hideCard({ focus: true });
+}
+function onPointerDown(e: PointerEvent) {
+  if (!cardRendered.value || !(e.target instanceof Node)) return;
+  if (card.value?.contains(e.target) || moreButton.value?.contains(e.target)) return;
+  hideCard();
+}
+watch(cardRendered, (on) => {
+  if (!import.meta.client) return;
+  if (on) {
+    document.addEventListener("keydown", onKeydown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+  } else {
+    document.removeEventListener("keydown", onKeydown, true);
+    document.removeEventListener("pointerdown", onPointerDown, true);
+  }
+});
+watch(
+  () => route.fullPath,
+  () => hideCard()
+);
+watch(needsMore, (v) => {
+  if (!v) hideCard();
+});
+onBeforeUnmount(() => {
+  cancelFrame?.();
+  clearTimer();
+  if (import.meta.client) {
+    document.removeEventListener("keydown", onKeydown, true);
+    document.removeEventListener("pointerdown", onPointerDown, true);
+  }
+});
 
 const onAppClick = go;
+const onVerb = (id: Parameters<typeof run>[0]) => {
+  hideCard();
+  run(id);
+};
 
-// ---- macOS-style magnification ----
+// ---- macOS-style magnification (pointer devices, md and up) ----
 const REACH = 170; // px of influence on each side of the cursor
 const MAX = 0.5; // peak extra scale (1.5x at the cursor)
 const SPREAD = 18; // px of layout margin per unit of growth (expands the pill)
@@ -28,7 +165,7 @@ const smoothstep = (t: number) => t * t * (3 - 2 * t);
 const onPointerMove = (e: PointerEvent) => {
   if (!canMagnify()) return reset();
   const cursorX = e.clientX;
-  magnify.value = apps.value.map((_, i) => {
+  magnify.value = shownApps.value.map((_, i) => {
     const el = chipEls.value[i];
     if (!el) return { scale: 1 };
     const r = el.getBoundingClientRect();
@@ -40,7 +177,7 @@ const onPointerMove = (e: PointerEvent) => {
   });
 };
 const reset = () => {
-  magnify.value = apps.value.map(() => ({ scale: 1 }));
+  magnify.value = shownApps.value.map(() => ({ scale: 1 }));
 };
 // Scale lifts the chip; horizontal margin spreads neighbours in LAYOUT so the
 // glass pill background actually grows to wrap the magnified icons.
@@ -54,7 +191,7 @@ const chipStyle = (i: number) => {
   };
 };
 
-watch(apps, reset, { immediate: true });
+watch(shownApps, reset, { immediate: true });
 </script>
 
 <template>
@@ -64,32 +201,96 @@ watch(apps, reset, { immediate: true });
       class="app-dock ui-kit"
       aria-label="App navigation"
     >
-      <div
-        class="app-dock__pill glass-surface glass-surface--strong"
-        @pointermove="onPointerMove"
-        @pointerleave="reset"
-      >
-        <button
-          v-for="(app, i) in apps"
-          :key="app.key"
-          :ref="(el) => setChipRef(el, i)"
-          type="button"
-          class="dock-item"
-          :class="{ 'dock-item--active': app.key === activeKey }"
-          :style="chipStyle(i)"
-          :aria-label="app.label"
-          :aria-current="app.key === activeKey ? 'page' : undefined"
-          @click="onAppClick(app)"
+      <div class="app-dock__stack">
+        <!-- The Apps card: as wide as the dock under it (it never widens it). -->
+        <section
+          v-if="cardRendered"
+          :id="cardId"
+          ref="card"
+          class="app-dock__card glass-surface glass-surface--strong"
+          :class="{ 'is-open': cardOpen }"
+          aria-label="More apps"
+          data-dock-more
         >
-          <span class="dock-item__tip">{{ app.label }}</span>
-          <span class="dock-item__chip">
-            <Icon :name="'i-lucide-' + app.icon" class="dock-item__icon" />
-            <span v-if="badges[app.key]" class="dock-item__badge">
-              {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
+          <ul v-if="moreApps.length" class="app-dock__grid" :class="{ 'is-entering': entering }">
+            <li v-for="(app, i) in moreApps" :key="app.key" class="app-dock__grid-item" :style="{ '--i': i }">
+              <button
+                type="button"
+                class="dock-item dock-item--grid"
+                :class="{ 'dock-item--active': app.key === activeKey }"
+                :aria-current="app.key === activeKey ? 'page' : undefined"
+                :data-dock-more-app="app.key"
+                @click="onAppClick(app)"
+              >
+                <span class="dock-item__chip">
+                  <Icon :name="'i-lucide-' + app.icon" class="dock-item__icon" />
+                  <span v-if="badges[app.key]" class="dock-item__badge">
+                    {{ badges[app.key]! > 9 ? "9+" : badges[app.key] }}
+                  </span>
+                </span>
+                <span class="dock-item__label">{{ app.shortName }}</span>
+              </button>
+            </li>
+          </ul>
+          <template v-if="verbs.length">
+            <p class="type-micro app-dock__card-label">Create</p>
+            <ul class="app-dock__verbs">
+              <li v-for="v in verbs" :key="v.id">
+                <button type="button" class="app-dock__verb text-sm" :data-create-verb="v.id" @click="onVerb(v.id)">
+                  <Icon :name="v.icon" class="app-dock__verb-icon" />
+                  <span>{{ v.label }}</span>
+                </button>
+              </li>
+            </ul>
+          </template>
+        </section>
+
+        <div
+          class="app-dock__pill glass-surface glass-surface--strong"
+          @pointermove="onPointerMove"
+          @pointerleave="reset"
+        >
+          <button
+            v-for="(app, i) in shownApps"
+            :key="app.key"
+            :ref="(el) => setChipRef(el, i)"
+            type="button"
+            class="dock-item"
+            :class="{ 'dock-item--active': app.key === activeKey }"
+            :style="chipStyle(i)"
+            :aria-label="app.label"
+            :aria-current="app.key === activeKey ? 'page' : undefined"
+            @click="onAppClick(app)"
+          >
+            <span class="dock-item__tip">{{ app.label }}</span>
+            <span class="dock-item__chip">
+              <Icon :name="'i-lucide-' + app.icon" class="dock-item__icon" />
+              <span v-if="badges[app.key]" class="dock-item__badge">
+                {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
+              </span>
             </span>
-          </span>
-          <span class="dock-item__label">{{ app.shortName }}</span>
-        </button>
+            <span class="dock-item__label">{{ app.shortName }}</span>
+          </button>
+
+          <button
+            v-if="needsMore"
+            ref="moreButton"
+            type="button"
+            class="dock-item dock-item--more"
+            :class="{ 'is-open': cardOpen }"
+            :aria-expanded="cardOpen"
+            :aria-controls="cardId"
+            :aria-label="cardOpen ? 'Close more apps' : moreLabel"
+            data-dock-more-trigger
+            @click="toggleCard"
+          >
+            <span class="dock-item__chip">
+              <Icon :name="cardOpen ? 'i-lucide-x' : 'i-lucide-layout-grid'" class="dock-item__icon" />
+              <span v-if="moreUnread > 0 && !cardOpen" class="dock-item__dot" aria-hidden="true" />
+            </span>
+            <span class="dock-item__label">{{ cardOpen ? "Close" : "Apps" }}</span>
+          </button>
+        </div>
       </div>
     </nav>
   </Teleport>
@@ -100,7 +301,9 @@ watch(apps, reset, { immediate: true });
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 50;
+  /* Over the admin's View switcher (60), which sits just above the pill on a
+     phone, so an open Apps card is never covered by it. */
+  z-index: 61;
   pointer-events: none;
   display: flex;
   justify-content: center;
@@ -108,12 +311,126 @@ watch(apps, reset, { immediate: true });
 .app-dock {
   bottom: max(1rem, env(safe-area-inset-bottom));
 }
-/* Below md there is no dock: a full row of chips does not fit a phone, and the
-   Nav's grid button opens the same apps as the App Library instead. */
-@media (max-width: 767px) {
-  .app-dock {
-    display: none;
-  }
+/* The pill and the Apps card above it, one column. The column is as wide as
+   the pill: the card asks for no width of its own (`width: 0`) and fills the
+   column (`min-width: 100%`), so it can never widen the dock. */
+.app-dock__stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* ---- The Apps card (phones) ---- */
+.app-dock__card {
+  pointer-events: auto;
+  width: 0;
+  min-width: 100%;
+  max-height: min(70dvh, 34rem);
+  overflow-y: auto;
+  padding: 0.75rem 0.625rem;
+  border-radius: 1.75rem;
+  transform-origin: bottom center;
+  opacity: 0;
+  transform: scale(0.94) translateY(8px);
+  /* Leaving: quicker than arriving, accelerating, no stagger. */
+  transition:
+    opacity var(--motion-fast, 160ms) var(--ease-exit),
+    transform var(--motion-fast, 160ms) var(--ease-exit);
+}
+.app-dock__card.is-open {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-panel, 460ms) var(--spring),
+    transform var(--motion-panel, 460ms) var(--spring);
+}
+.app-dock__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  row-gap: 0.75rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+}
+.app-dock__grid.is-entering .app-dock__grid-item {
+  animation: apps-chip-in 320ms var(--spring-bounce) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+.dock-item--grid {
+  width: 100%;
+}
+.app-dock__card-label {
+  margin: 0.75rem 0.375rem 0.375rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--theme-border-light);
+}
+.app-dock__grid + .app-dock__card-label {
+  margin-top: 0.5rem;
+}
+.app-dock__verbs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-dock__verb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--theme-bg-secondary) 70%, transparent);
+  color: var(--theme-text-primary);
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+}
+.app-dock__verb:hover {
+  background: var(--theme-bg-secondary);
+}
+.app-dock__verb:focus-visible,
+.dock-item:focus-visible {
+  outline: 2px solid var(--theme-accent-primary);
+  outline-offset: 2px;
+}
+.app-dock__verb-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--theme-accent-primary);
+}
+
+/* The Apps chip: neutral, so it reads as "more", not as an app. Open, it turns
+   to the ink and its glyph becomes a close. */
+.dock-item--more .dock-item__chip {
+  background: var(--theme-bg-secondary);
+  border-color: var(--theme-border-secondary);
+}
+.dock-item--more .dock-item__icon {
+  color: var(--theme-text-secondary);
+  filter: none;
+}
+.dock-item--more.is-open .dock-item__chip {
+  background: var(--theme-text-primary);
+  border-color: var(--theme-text-primary);
+}
+.dock-item--more.is-open .dock-item__icon {
+  color: var(--theme-bg-elevated);
+}
+.dock-item__dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--destructive);
+  box-shadow: 0 0 0 2px var(--theme-card-bg);
 }
 
 .app-dock__pill {
@@ -245,6 +562,13 @@ watch(apps, reset, { immediate: true });
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-dock__card,
+  .app-dock__card.is-open {
+    transform: none;
+  }
+  .app-dock__grid.is-entering .app-dock__grid-item {
+    animation: none;
+  }
   .dock-item {
     transition: none;
   }

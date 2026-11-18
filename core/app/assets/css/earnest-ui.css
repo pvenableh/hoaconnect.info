@@ -1005,7 +1005,7 @@ a[role='button']:not([data-no-press]):active,
 }
 
 /* =============================================================================
-   APP LIBRARY CHIP ENTRANCE — App/AppLibrary's grid, below md
+   APPS CHIP ENTRANCE — the phone dock's Apps card (App/Dock.vue), below md
    Global, not in the component's scoped block: Vue renames a scoped keyframe
    per file (`apps-chip-in-<hash>`), and the name is Earnest's, kept so the two
    apps' motion stays recognisably one system. The component staggers it by

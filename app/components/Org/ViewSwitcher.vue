@@ -8,13 +8,15 @@
   (route has a slug) and the logged-in user is an admin of THAT org. Mounted in
   both the `auth` and `auth-blank` layouts so it rides along every org page —
   workspace, the member preview, and the public landing alike. Anchored
-  bottom-right to clear the bottom-center docks and the editorial left rail.
+  bottom-right to clear the bottom-center docks and the editorial left rail; on
+  a phone in the workspace it sits above the dock, which spans the foot there.
 -->
 <template>
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed bottom-4 right-4 z-[60] print:hidden"
+      class="fixed right-4 z-[60] print:hidden md:bottom-4"
+      :class="mode === 'public' ? 'bottom-4' : 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]'"
     >
       <div
         class="flex items-center gap-1 rounded-full bg-zinc-900/85 px-1.5 py-1 text-xs text-white shadow-xl ring-1 ring-white/10 backdrop-blur-md"

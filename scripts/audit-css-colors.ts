@@ -24,8 +24,12 @@ import { findCssColors, styleBlocks } from "./lib/audit-matchers";
  *
  * 2026-11-18 (Phase 4, Session 12) — **187**: the six-knob appearance panel and
  * ThemeSelector.vue are gone (one Appearance and Tint panel on type tokens).
+
+ * 2026-11-18 (Phase 4, the header and dock) — **181**: the hamburger sheet,
+ * the bell, the App Library and the header's chat and assistant buttons are
+ * gone; the avatar's menu and the phone's dock are on type and colour tokens.
  */
-const BASELINE = 187;
+const BASELINE = 181;
 
 const findings: Finding[] = [];
 let allowed = 0;

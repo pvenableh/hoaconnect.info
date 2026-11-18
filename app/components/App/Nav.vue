@@ -1,23 +1,5 @@
 <script setup lang="ts">
-import { NAV_LAYOUTS, SHEET_ADMIN_EXTRAS, meets, navEntry, type NavEntry } from "#core/shared/nav/registry";
-import { ADMIN_APPS } from "#core/app/composables/useAppNav";
 import { toast } from "vue-sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 const { user, logout } = useDirectusAuth();
 const router = useRouter();
@@ -28,9 +10,6 @@ const config = useRuntimeConfig();
 const { isAppAdmin: isStaffAppAdmin, isPlatformSupport } = useRoles();
 const canOpenOps = computed(() => isStaffAppAdmin.value || isPlatformSupport.value);
 
-// Mobile sheet open state
-const mobileMenuOpen = ref(false);
-
 // The bar's height, for what sticks under it (the section capsule first). Before
 // the await below: useChromeHeight registers lifecycle hooks.
 const navEl = ref<HTMLElement | null>(null);
@@ -39,11 +18,6 @@ useChromeHeight(navEl, "--app-nav-h");
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
 
-// Get the current org slug from route or selectedOrg
-const currentSlug = computed(() => {
-  if (route.params.slug) return route.params.slug as string;
-  return null;
-});
 
 // Get active HOA for public org pages (when viewing /my-org)
 const { activeHoa } = useActiveHoa();
@@ -98,20 +72,15 @@ const {
 // Per-org module toggles (gate optional member-facing nav links).
 const { isEnabled: isModuleEnabled } = useModules();
 
-// Channels moved off the dock into a top-nav chat button: it's chat, popped open
-// as a slide-over (useChannelsPanel) over the current page. Shown to admins,
-// active board members, and any member invited into at least one channel.
-const channelsPanel = useChannelsPanel();
-// Unread messages on the chat button. Channels is off the dock, so without this
-// the only entry point to a conversation is also the only one with no signal
-// that a conversation is waiting.
+// Messages and the assistant open from the avatar's menu (App/AccountMenu.vue,
+// plan §2.4 "One account menu"); the header keeps their counts, which feed the
+// avatar's one badge and the menu's rows. Channels: admins, active board
+// members, and any member invited into at least one channel.
 const channelUnread = useChannelUnread();
 channelUnread.watchLive();
 onMounted(() => channelUnread.refresh());
-// Contextual AI assistant — a slide-over (useAiAssistant) over the current page,
-// like Channels. Staff-only at launch (admin / board / property manager).
-const aiAssistant = useAiAssistant();
-// Shared count of AI actions awaiting the user's review → launcher badge (Phase 4).
+// The assistant: staff only (admin / board / property manager). Its actions
+// awaiting review count toward the badge.
 const aiPendingCount = useAiPendingCount();
 const spotlight = useSpotlight();
 
@@ -180,40 +149,6 @@ async function refreshAiPending() {
 onMounted(refreshAiPending);
 watch([showAssistant, selectedOrgIdForAi], refreshAiPending);
 
-// Determine if admin UI should be shown
-// On org context (slug route): only show if admin of THAT org
-// On main domain: show based on selected org admin status
-const showAdminUI = computed(() => {
-  // If not logged in, never show admin UI
-  if (!user.value) return false;
-
-  // Previewing as a member — present the member UI even though we're an admin.
-  if (isPreviewingMember.value) return false;
-
-  // If on org context (slug route), check current domain access
-  if (isOnOrgPage.value) {
-    return isAdminOfCurrentDomain.value;
-  }
-
-  // On main domain, use selected org admin status
-  return isAdmin.value;
-});
-
-// Every list in the sheet comes from the nav registry
-// (core/shared/nav/registry.ts) through useNavContext, so the sheet, the dock
-// and the App Library offer the same entries under the same gates.
-const nav = useNavContext();
-const sheetItem = (e: NavEntry) => ({ label: e.label, path: buildPath(e.path), icon: e.icon });
-
-// Managers (not admins) see a "Manage" section: the queue and the areas the
-// admin let them work — the manager layout's entries.
-const showManagerUI = computed(
-  () => !!user.value && isOnOrgPage.value && nav.layout.value === "manager"
-);
-const managerNavItems = computed(() =>
-  showManagerUI.value ? nav.entries.value.map(sheetItem) : []
-);
-
 // Determine the appropriate user status badge for current context
 const contextAwareStatusBadge = computed(() => {
   // On org context, use current domain membership info
@@ -276,53 +211,6 @@ const handleLogout = async () => {
   }
 };
 
-// Helper to build org-prefixed paths
-const buildPath = (path: string) => {
-  if (!currentSlug.value) return path;
-  // Home path just goes to org root
-  if (path === "/") return `/${currentSlug.value}`;
-  // Other paths get prefixed
-  return `/${currentSlug.value}${path}`;
-};
-
-// Check if maintenance mode is enabled (hide public nav when true for non-admins)
-const isMaintenanceMode = computed(() => {
-  return activeHoa.value?.maintenance_mode === true;
-});
-
-// Should hide navigation for maintenance mode (only for non-admins)
-const hideNavForMaintenance = computed(() => {
-  return isMaintenanceMode.value && !isAdminOfCurrentDomain.value;
-});
-
-// Public navigation items (visible to all authenticated users): the registry's
-// sheet layout. No Announcements entry: Phase 9 retired the standalone feature.
-const publicNavItems = computed(() =>
-  NAV_LAYOUTS.sheet.flatMap((id) => {
-    const e = navEntry(id);
-    return e && meets(e, nav.ctx.value) ? [sheetItem(e)] : [];
-  })
-);
-
-// Admin-only navigation items — the admin dock's own entries, so the mobile
-// sheet and the desktop dock can never drift apart. Less-used destinations
-// (Users, Teams) live under Settings → People/Features.
-// Off an org page (the main domain) the admin list is the selected org's.
-const adminNavItems = computed(() => {
-  if (isOnOrgPage.value) return nav.layout.value === "admin" ? nav.entries.value.map(sheetItem) : [];
-  return ADMIN_APPS.map((app) => ({ label: app.label, path: buildPath(app.path), icon: app.icon }));
-});
-
-// Lower-frequency admin destinations that aren't dock icons (reached on desktop
-// via the section sub-nav or a dashboard launcher widget). Listed here so the
-// mobile sheet still has a stable, complete path to them.
-const adminExtraItems = computed(() =>
-  SHEET_ADMIN_EXTRAS.flatMap((id) => {
-    const e = navEntry(id);
-    return e && meets(e, nav.ctx.value) ? [sheetItem(e)] : [];
-  })
-);
-
 // Legacy userStatusBadge - kept for backwards compatibility but prefer contextAwareStatusBadge
 const userStatusBadge = computed(() => {
   // Use context-aware badge which properly checks current domain membership
@@ -348,24 +236,17 @@ const userAvatarUrl = computed(() => {
 // longer selects a nav shape (that choice dressed its public landing page, not
 // the tool), which is why there is nothing here reading settings.theme.
 
-// Close mobile menu on route change
-watch(
-  () => route.path,
-  () => {
-    mobileMenuOpen.value = false;
-  }
-);
 </script>
 
 <template>
   <nav
     ref="navEl"
-    class="app-nav glass-bar sticky top-0 z-40 border-b px-6"
+    class="app-nav glass-bar sticky top-0 z-40 border-b px-4 sm:px-6"
     :class="earnedRule ? ['app-nav--earned', { 'app-nav--ruled': titleCollapsed }] : 't-border'"
     data-app-nav
   >
-    <div class="max-w-7xl mx-auto py-4">
-      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+    <div class="max-w-7xl mx-auto py-2.5 sm:py-4">
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
         <!-- Logo / Brand — centered org identity -->
         <!-- On org page (slug route): link to org root -->
         <!-- Otherwise (main domain or custom domain): link to home -->
@@ -375,7 +256,7 @@ watch(
         >
         <NuxtLink
           :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
-          class="app-nav__brand flex items-center gap-2 hover:opacity-80 transition"
+          class="app-nav__brand flex min-w-0 items-center gap-2 hover:opacity-80 transition"
           :tabindex="showChromeTitle ? -1 : undefined"
           :aria-hidden="showChromeTitle ? 'true' : undefined"
         >
@@ -387,13 +268,13 @@ watch(
             <img
               :src="orgLogoUrl"
               :alt="orgName || 'Organization logo'"
-              class="h-10 sm:h-12 max-h-12 w-auto max-w-[200px] sm:max-w-[280px] object-contain"
+              class="h-9 sm:h-12 max-h-12 w-auto max-w-[9rem] sm:max-w-[280px] object-contain"
             />
           </template>
           <!-- Show org name when on org page or logged in but no logo -->
           <template v-else-if="showOrgBranding && orgName">
             <span
-              class="text-sm font-semibold tracking-extra-wide uppercase t-text"
+              class="block max-w-[11rem] truncate text-sm font-semibold tracking-extra-wide uppercase t-text sm:max-w-none"
               >{{ orgName }}</span
             >
           </template>
@@ -418,23 +299,16 @@ watch(
         </button>
         </div>
 
-        <!-- Org switcher — Earnest-style avatar + dropdown, top-left. Shows for
-             authenticated users off the marketing domain (which uses the left
-             rail for marketing links). -->
+        <!-- Org switcher — the community's round mark, top-left, at every
+             width (a phone has no other way to switch). Off a community page
+             it shows on a phone only: the desktop's left cell carries the
+             marketing links there. -->
         <div
-          v-if="user && !isMainMarketingDomain"
+          v-if="user"
           class="col-start-1 row-start-1 justify-self-start flex items-center gap-2"
+          :class="{ 'md:hidden': isMainMarketingDomain }"
         >
-          <!-- Below md the dock is gone; its apps open from here as the App
-               Library grid. -->
-          <ClientOnly>
-            <div v-if="isOnOrgPage" class="md:hidden">
-              <AppLibrary />
-            </div>
-          </ClientOnly>
-          <div class="hidden sm:flex">
-            <OrgSelector />
-          </div>
+          <OrgSelector />
         </div>
 
         <!-- Marketing Nav Links - Show on main marketing domain (even if logged in) -->
@@ -449,429 +323,62 @@ watch(
           </a>
         </div>
 
-        <!-- User Menu (Authenticated) -->
-        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-1.5">
-          <!-- How much the assistant runs on its own, always visible rather than
-               buried in settings. Client-only: the tier, the pending count and
-               the recently-handled list are all client state. -->
-          <ClientOnly>
-            <DirectorTrustBar v-if="showAssistant" class="hidden sm:block" />
-          </ClientOnly>
+        <!-- User Menu (Authenticated): + New, Search, and the avatar, which
+             carries notifications, messages and the assistant in one menu with
+             one badge (plan §2.4, "One account menu"). -->
+        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-1.5 sm:gap-2">
           <!-- "+ New": the create verbs this viewer may run here (useCreateVerbs).
-               Renders nothing for members. -->
+               Renders nothing for members. On a phone it lives in the dock's
+               Apps card instead. -->
           <ClientOnly>
             <div v-if="isOnOrgPage" class="hidden sm:flex">
               <AppCreateMenu />
             </div>
           </ClientOnly>
 
-          <!-- Spotlight (⌘K) — search records and jump anywhere in the workspace. -->
+          <!-- Spotlight (⌘K) — search records and jump anywhere in the workspace:
+               a labelled field-like pill from sm, a plain glyph on a phone. -->
           <button
             v-if="isOnOrgPage"
             type="button"
-            class="hidden sm:inline-flex items-center justify-center header-pill"
+            class="hidden sm:inline-flex items-center gap-2 header-pill header-pill--wide app-nav__search"
             :title="`Search (${spotlightShortcut})`"
             aria-label="Search"
             aria-keyshortcuts="Meta+K Control+K"
             data-spotlight-trigger
             @click="spotlight.open()"
           >
-            <Icon name="i-lucide-search" class="w-4 h-4" />
+            <Icon name="i-lucide-search" class="w-4 h-4 shrink-0" />
+            <span class="text-sm">Search</span>
+            <kbd class="app-nav__kbd text-xs">{{ spotlightShortcut }}</kbd>
           </button>
-          <!-- AI assistant quick-peek — staff only; pops a slide-over like Channels. -->
           <button
-            v-if="showAssistant"
+            v-if="isOnOrgPage"
             type="button"
-            class="hidden sm:inline-flex items-center justify-center header-pill relative"
-            title="Assistant"
-            aria-label="Open AI assistant"
-            @click="aiAssistant.toggle()"
+            class="inline-grid place-items-center sm:hidden app-nav__icon-btn"
+            aria-label="Search"
+            @click="spotlight.open()"
           >
-            <Icon name="i-lucide-sparkles" class="w-4 h-4" />
-            <span
-              v-if="aiPendingCount > 0"
-              class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center"
-              :title="`${aiPendingCount} AI action${aiPendingCount > 1 ? 's' : ''} waiting for your review`"
-            >
-              {{ aiPendingCount > 9 ? "9+" : aiPendingCount }}
-            </span>
+            <Icon name="i-lucide-search" class="w-5 h-5" />
           </button>
-          <!-- Channels quick-peek (chat) — admins, board, and channel-invited members -->
-          <!-- Channels is a quick action (pops a slide-over); it doesn't carry a
-               persistent open-state we can rely on, so it stays a plain pill —
-               accent ring on hover/focus only, never a stuck "active" ring. -->
-          <button
-            v-if="showChat"
-            type="button"
-            class="hidden sm:inline-flex items-center justify-center header-pill relative"
-            :title="channelUnread.total.value ? `${channelUnread.total.value} unread message${channelUnread.total.value > 1 ? 's' : ''}` : 'Channels'"
-            aria-label="Open channels"
-            @click="channelsPanel.toggle()"
-          >
-            <Icon name="i-lucide-messages-square" class="w-4 h-4" />
-            <span
-              v-if="channelUnread.total.value > 0"
-              class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center"
-            >
-              {{ channelUnread.total.value > 9 ? "9+" : channelUnread.total.value }}
-            </span>
-          </button>
-          <!-- Notification Bell - show on org pages/custom domains -->
-          <NotificationBell
-            v-if="!isMainMarketingDomain"
-            class="hidden sm:block"
-          />
-          <!-- Avatar dropdown (desktop) -->
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              class="hidden sm:inline-flex items-center justify-center header-pill"
-              title="Account menu"
-            >
-              <Avatar class="size-8">
-                <AvatarImage
-                  v-if="userAvatarUrl"
-                  :src="userAvatarUrl"
-                  :alt="user?.firstName + ' ' + user?.lastName"
-                />
-                <AvatarImage
-                  v-else
-                  :src="
-                    'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
-                    user?.firstName +
-                    '+' +
-                    user?.lastName
-                  "
-                  :alt="user?.firstName + ' ' + user?.lastName"
-                />
-                <AvatarFallback>
-                  {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
-                </AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-72">
-              <DropdownMenuLabel class="flex flex-col gap-0.5">
-                <span class="font-medium">
-                  {{ user?.firstName }} {{ user?.lastName }}
-                </span>
-                <span class="text-xs font-normal t-text-muted">
-                  {{ user?.email }}
-                </span>
-                <span
-                  v-if="userStatusBadge"
-                  class="mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider t-bg-accent/20 t-text-accent"
-                >
-                  {{ userStatusBadge }}
-                </span>
-              </DropdownMenuLabel>
 
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem as-child>
-                <a
-                  v-if="isCustomDomain"
-                  :href="accountUrl"
-                  target="_blank"
-                  rel="noopener"
-                  class="cursor-pointer"
-                >
-                  <Icon name="i-lucide-user" class="size-4" />
-                  My HOA Connect profile
-                  <Icon
-                    name="i-lucide-external-link"
-                    class="size-3.5 ml-auto opacity-60"
-                  />
-                </a>
-                <NuxtLink v-else to="/account" class="cursor-pointer">
-                  <Icon name="i-lucide-user" class="size-4" />
-                  My Profile
-                </NuxtLink>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem v-if="canOpenOps && !isCustomDomain" as-child>
-                <NuxtLink to="/ops" class="cursor-pointer">
-                  <Icon name="i-lucide-gauge" class="size-4" />
-                  Operations
-                </NuxtLink>
-              </DropdownMenuItem>
-
-              <!-- Both support doors: ask your community, or contact HOA Connect. -->
-              <DropdownMenuItem v-if="!isCustomDomain" as-child>
-                <NuxtLink :to="{ path: '/support', query: isOnOrgPage ? { from: route.fullPath } : {} }" class="cursor-pointer">
-                  <Icon name="i-lucide-life-buoy" class="size-4" />
-                  Help &amp; support
-                </NuxtLink>
-              </DropdownMenuItem>
-
-              <!-- Resident self-service: edit your own contact, mailing address,
-                   vehicles, and pets (submitted for review). Org-scoped. -->
-              <DropdownMenuItem v-if="isOnOrgPage" as-child>
-                <NuxtLink :to="`/${route.params.slug}/profile`" class="cursor-pointer">
-                  <Icon name="i-lucide-home" class="size-4" />
-                  My household
-                </NuxtLink>
-              </DropdownMenuItem>
-
-              <!-- Any logged-in user can view their org's public landing without
-                   leaving their workspace (opens the chromeless site in a new tab) -->
-              <DropdownMenuItem v-if="isOnOrgPage" as-child>
-                <a
-                  :href="`/${route.params.slug}?preview`"
-                  target="_blank"
-                  rel="noopener"
-                  class="cursor-pointer"
-                >
-                  <Icon name="i-lucide-external-link" class="size-4" />
-                  View public site
-                </a>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <!-- Appearance (Light, Dark, Auto) and Tint (Phase 4). Both are
-                   the person's own and follow them to another device, so they
-                   show everywhere, with or without a community. The public
-                   style (Classic / Modern / Luxury) is the community's choice,
-                   made in its site settings, not here. @click/@keydown.stop so
-                   the controls work inside the dropdown without the menu
-                   intercepting them. -->
-              <div class="px-2 pb-1" @click.stop @keydown.stop>
-                <AppAppearanceSettings />
-              </div>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                variant="destructive"
-                class="cursor-pointer"
-                @select="handleLogout"
-              >
-                <Icon name="i-lucide-log-out" class="size-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <!-- Mobile Menu Trigger -->
-          <Sheet v-model:open="mobileMenuOpen">
-            <SheetTrigger class="sm:hidden p-2 -mr-2">
-              <Icon name="i-lucide-menu" class="w-6 h-6" />
-            </SheetTrigger>
-            <SheetContent side="right" class="w-[300px] sm:w-[350px]">
-              <SheetHeader class="text-left">
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-
-              <!-- Notifications Quick Access in Mobile Menu -->
-              <div
-                v-if="!isMainMarketingDomain"
-                class="py-3 border-b t-border flex items-center gap-2"
-              >
-                <NotificationBell />
-                <button
-                  v-if="isOnOrgPage"
-                  type="button"
-                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                  @click="mobileMenuOpen = false; spotlight.open()"
-                >
-                  <Icon name="i-lucide-search" class="w-5 h-5 t-text-secondary" />
-                  <span class="text-sm">Search</span>
-                </button>
-                <button
-                  v-if="showAssistant"
-                  type="button"
-                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                  @click="aiAssistant.open(); mobileMenuOpen = false"
-                >
-                  <Icon name="i-lucide-sparkles" class="w-5 h-5 t-text-secondary" />
-                  <span class="text-sm">Assistant</span>
-                </button>
-                <button
-                  v-if="showChat"
-                  type="button"
-                  class="inline-flex items-center gap-2 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                  @click="channelsPanel.open(); mobileMenuOpen = false"
-                >
-                  <Icon name="i-lucide-messages-square" class="w-5 h-5 t-text-secondary" />
-                  <span class="text-sm">Channels</span>
-                  <span
-                    v-if="channelUnread.total.value > 0"
-                    class="ml-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold inline-flex items-center justify-center"
-                  >
-                    {{ channelUnread.total.value > 99 ? "99+" : channelUnread.total.value }}
-                  </span>
-                </button>
-              </div>
-
-              <!-- User Info in Mobile Menu -->
-              <div
-                class="flex items-center gap-3 py-4 border-b t-border"
-              >
-                <Avatar>
-                  <AvatarImage
-                    v-if="userAvatarUrl"
-                    :src="userAvatarUrl"
-                    :alt="user?.firstName + ' ' + user?.lastName"
-                  />
-                  <AvatarImage
-                    v-else
-                    :src="
-                      'https://ui-avatars.com/api/?background=00bfff&color=fff&name=' +
-                      user?.firstName +
-                      '+' +
-                      user?.lastName
-                    "
-                    :alt="user?.firstName + ' ' + user?.lastName"
-                  />
-                  <AvatarFallback>
-                    {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
-                  </AvatarFallback>
-                </Avatar>
-                <div class="flex-1">
-                  <p class="font-medium text-sm">
-                    {{ user?.firstName }} {{ user?.lastName }}
-                  </p>
-                  <span
-                    v-if="userStatusBadge"
-                    class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                    :class="{
-                      't-bg-accent/20 t-text-accent': showAdminUI,
-                      't-bg-subtle t-text-accent':
-                        !showAdminUI && userStatusBadge === 'Board Member',
-                      't-bg-subtle t-text-secondary':
-                        !showAdminUI && userStatusBadge !== 'Board Member',
-                    }"
-                  >
-                    {{ userStatusBadge }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Organization Selector in Mobile Menu -->
-              <div class="py-4 border-b t-border">
-                <p class="text-xs uppercase tracking-wider t-text-muted mb-2">
-                  Organization
-                </p>
-                <OrgSelector class="w-full" />
-              </div>
-
-              <!-- Public Navigation (hidden in maintenance mode for non-admins) -->
-              <div v-if="!hideNavForMaintenance" class="py-4">
-                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
-                  Navigation
-                </p>
-                <nav class="space-y-1">
-                  <NuxtLink
-                    v-for="item in publicNavItems"
-                    :key="item.path"
-                    :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                    active-class="t-bg-subtle font-medium"
-                  >
-                    <Icon
-                      :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 t-text-secondary hidden"
-                    />
-                    <span>{{ item.label }}</span>
-                  </NuxtLink>
-                </nav>
-              </div>
-
-              <!-- Admin Navigation - only show if user is admin of current domain's org -->
-              <div v-if="showAdminUI" class="py-4 border-t t-border">
-                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
-                  Admin
-                </p>
-                <nav class="space-y-1">
-                  <NuxtLink
-                    v-for="item in adminNavItems"
-                    :key="item.path"
-                    :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                    active-class="t-bg-subtle font-medium"
-                  >
-                    <Icon
-                      :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 t-text-secondary hidden"
-                    />
-                    <span>{{ item.label }}</span>
-                  </NuxtLink>
-                  <NuxtLink
-                    v-for="item in adminExtraItems"
-                    :key="item.path"
-                    :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                    active-class="t-bg-subtle font-medium"
-                  >
-                    <Icon
-                      :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 t-text-secondary hidden"
-                    />
-                    <span>{{ item.label }}</span>
-                  </NuxtLink>
-                </nav>
-              </div>
-
-              <!-- Manager Navigation - property managers (non-admin) only -->
-              <div v-if="showManagerUI" class="py-4 border-t t-border">
-                <p class="text-xs uppercase tracking-wider t-text-muted mb-3">
-                  Manage
-                </p>
-                <nav class="space-y-1">
-                  <NuxtLink
-                    v-for="item in managerNavItems"
-                    :key="item.path"
-                    :to="item.path"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                    active-class="t-bg-subtle font-medium"
-                  >
-                    <Icon
-                      :name="'i-lucide-' + item.icon"
-                      class="w-5 h-5 t-text-secondary hidden"
-                    />
-                    <span>{{ item.label }}</span>
-                  </NuxtLink>
-                </nav>
-              </div>
-
-              <!-- Account & Logout -->
-              <div class="py-4 border-t t-border space-y-1">
-                <NuxtLink
-                  to="/account"
-                  target="_blank"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                >
-                  <Icon name="i-lucide-user" class="w-5 h-5 t-text-secondary" />
-                  <span>My Profile</span>
-                </NuxtLink>
-                <NuxtLink
-                  v-if="canOpenOps && !isCustomDomain"
-                  to="/ops"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                  @click="mobileMenuOpen = false"
-                >
-                  <Icon name="i-lucide-gauge" class="w-5 h-5 t-text-secondary" />
-                  <span>Operations</span>
-                </NuxtLink>
-                <a
-                  v-if="isOnOrgPage"
-                  :href="`/${route.params.slug}?preview`"
-                  target="_blank"
-                  rel="noopener"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors"
-                >
-                  <Icon name="i-lucide-external-link" class="w-5 h-5 t-text-secondary" />
-                  <span>View public site</span>
-                </a>
-                <button
-                  @click="handleLogout"
-                  class="flex items-center gap-3 px-3 py-2 rounded-md hover:t-bg-subtle transition-colors w-full text-left text-red-600"
-                >
-                  <Icon name="i-lucide-log-out" class="w-5 h-5" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </SheetContent>
-          </Sheet>
+          <ClientOnly>
+            <AppAccountMenu
+              :user="user"
+              :avatar-url="userAvatarUrl"
+              :status-badge="userStatusBadge"
+              :is-on-org-page="isOnOrgPage"
+              :is-custom-domain="isCustomDomain"
+              :account-url="accountUrl"
+              :can-open-ops="canOpenOps"
+              :show-notifications="isOnOrgPage"
+              :show-chat="showChat"
+              :chat-unread="channelUnread.total.value"
+              :show-assistant="showAssistant"
+              :assistant-pending="aiPendingCount"
+              @logout="handleLogout"
+            />
+          </ClientOnly>
         </div>
 
         <!-- Public User Menu -->
@@ -971,5 +478,36 @@ watch(
   .app-nav__title {
     transition: none;
   }
+}
+
+/* Search: a field-like pill with the shortcut in it, from sm. */
+.app-nav__search {
+  min-width: 12rem;
+  padding-inline: 0.75rem 0.375rem;
+  justify-content: flex-start;
+}
+.app-nav__kbd {
+  margin-left: auto;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.375rem;
+  background: var(--theme-bg-secondary);
+  color: var(--theme-text-tertiary);
+  font-family: inherit;
+  font-weight: 600;
+}
+/* The phone's search glyph: a 44px target, no pill. */
+/* (Display comes from the Tailwind classes, so `sm:hidden` keeps working.) */
+.app-nav__icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--theme-text-secondary);
+}
+.app-nav__icon-btn:hover {
+  color: var(--theme-text-primary);
+}
+.app-nav__icon-btn:focus-visible {
+  outline: 2px solid var(--theme-accent-primary);
+  outline-offset: -4px;
 }
 </style>

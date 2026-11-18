@@ -11,7 +11,7 @@ import {
 // Slide-over AI assistant — an ambient surface over the current page (mirrors
 // the Channels panel). Read-only: it answers org-aware questions and drafts
 // communications; it never takes actions. Mounted once in auth.vue.
-const { isOpen, activeConversationId, close, setConversation, consumePendingPrompt } = useAiAssistant();
+const { isOpen, activeConversationId, close, setConversation, consumePendingPrompt, requestedView, consumeRequestedView } = useAiAssistant();
 
 // Synchronous selected-org state (same source the dashboard/composer use).
 const selectedOrgId = useState<string | null>("selectedOrgId", () => null);
@@ -36,6 +36,16 @@ async function openActions() {
   view.value = "actions";
   await aiActions.fetchActions();
 }
+// The account menu's Assistant row asks for the review queue. Opening the
+// panel honours it (the open handler below); this covers a panel already open.
+let opening = false;
+watch(requestedView, async (v) => {
+  if (v !== "actions" || !isOpen.value) return;
+  await nextTick();
+  if (opening || requestedView.value !== "actions") return;
+  consumeRequestedView();
+  void openActions();
+});
 const input = ref("");
 const scroller = ref<HTMLElement | null>(null);
 const formatCredits = (n: number) => n.toLocaleString();
@@ -108,6 +118,7 @@ watch(
   isOpen,
   async (open) => {
     if (!open) return;
+    opening = true;
     refreshCredits();
     loadSuggestions();
     chat.fetchConversations();
@@ -118,6 +129,11 @@ watch(
       // No explicit conversation → if the page is focused on a specific record,
       // resume that item's own thread (member/vendor/project/ticket…).
       await chat.hydrateForContext();
+    }
+    opening = false;
+    if (consumeRequestedView() === "actions") {
+      await openActions();
+      return;
     }
     view.value = "chat";
     scrollToBottom();

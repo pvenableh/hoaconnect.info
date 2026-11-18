@@ -564,20 +564,26 @@ const materials = [
       <section data-kit="nav-system">
         <h2 class="type-section">Navigation</h2>
         <p class="type-body">
-          One shell for every workspace page. The dock carries the apps from md up;
-          below md it gives way to the App Library, opened from the bar's grid
-          button. Channels runs inside the shell as an immersive page (full
-          height, no footer, dock kept).
+          One shell for every workspace page. The dock carries the apps at every
+          width; below md it keeps four (the open app always among them) and an
+          Apps chip, which opens the rest and the create verbs in a card as wide
+          as the dock. The header is the community switcher, its name, and
+          + New, Search and the avatar: notifications, messages and the
+          assistant live in the avatar's menu, under one badge. Channels runs
+          inside the shell as an immersive page (full height, no footer, dock
+          kept).
         </p>
 
         <div class="mt-4 grid gap-6 md:grid-cols-2">
           <div>
-            <p class="type-micro">App Library — below md</p>
+            <p class="type-micro">The dock on a phone — below md</p>
             <p class="helper-text mb-3">
-              The dock's own apps, accents and badges (useDockApps), four across.
-              Chips stagger in on open (<code>apps-chip-in</code>).
+              Four of the dock's apps (useDockApps) and Apps. The card above the
+              pill lists the rest, four across, with their badges, then Create;
+              its chips stagger in on open (<code>apps-chip-in</code>). Apps
+              shows a dot when an app in the card has something unread. Resize
+              this page under 768px to see it on the real dock.
             </p>
-            <AppLibrary preview data-kit="app-library" />
           </div>
 
           <div>

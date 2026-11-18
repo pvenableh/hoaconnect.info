@@ -30,7 +30,8 @@ const route = useRoute();
 // hides, and the dock STAYS — it used to take a separate `channels` layout
 // that dropped the dock, which left the surface people keep open longest with
 // no way across to the rest of the app. The page pads its foot for the
-// floating dock (md and up; below md the App Library replaces the dock).
+// floating dock (at every width: below md it is the phone's dock, four apps
+// and an Apps card).
 const immersive = computed(() => !!route.meta.immersive);
 // The page title lives in the shell (AppHeaderOutlet, below); this hands it to
 // the Nav as it scrolls under the chrome, and earns the Nav its hairline.
@@ -167,7 +168,7 @@ onMounted(() => {
 
     <main
       class="flex-1"
-      :class="immersive ? ['min-h-0', immersiveDockPad] : 'pb-12 md:pb-28'"
+      :class="immersive ? ['min-h-0', immersiveDockPad] : 'pb-28'"
     >
       <slot />
     </main>
@@ -229,11 +230,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Immersive pages run to the foot of the viewport; at md and up the floating
-   dock sits over that foot, so the page stops above it (pill + its offset). */
-@media (min-width: 768px) {
-  .app-main--dock-pad-labels {
-    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
-  }
+/* Immersive pages run to the foot of the viewport; the floating dock sits over
+   that foot at every width, so the page stops above it (pill + its offset). */
+.app-main--dock-pad-labels {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
 }
 </style>

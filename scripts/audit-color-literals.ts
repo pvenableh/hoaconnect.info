@@ -37,8 +37,12 @@ const PUBLIC_SURFACE =
  *
  * 2026-11-18 — **583**: Phase 4's attention treatment replaced the Payments
  * cards' coloured side strips (`border-red-500` and friends, −7).
+
+ * 2026-11-18 (Phase 4, the header and dock) — **580**: the hamburger sheet,
+ * the bell, the App Library and the header's chat and assistant buttons are
+ * gone; the avatar's menu and the phone's dock are on type and colour tokens.
  */
-const BASELINE = 583;
+const BASELINE = 580;
 
 runFileAudit({
   name: "color-literals",

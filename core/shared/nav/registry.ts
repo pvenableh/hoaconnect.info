@@ -2,7 +2,7 @@
  * The app registry — the ONLY source of nav entries (docs/spec-capability-nav.md,
  * plan §2.2: "navigation is the capability matrix, rendered").
  *
- * The dock, the App Library, the section pills, Spotlight, the mobile sheet,
+ * The dock (and its Apps card on a phone), the section pills, Spotlight,
  * `module.global.ts` and the `nav-gate` middleware all read these entries, so a
  * destination cannot be offered by one surface and refused by another.
  *
@@ -179,7 +179,8 @@ export const NAV_LAYOUTS = {
   manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
   // A board seat's own register sits beside the one owners read.
   member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "responsibilities", "ledger", "payments", "money-approvals", "pay", "my-requests", "projects", "polls"],
-  /** The mobile sheet's "Navigation" list. */
+  /** What the phone's Apps card adds beyond the dock (a member's Vendors): once
+   *  the mobile menu sheet's "Navigation" list; the dock skips what it holds. */
   sheet: ["home", "board", "documents", "vendors"],
 } as const satisfies Record<string, readonly string[]>;
 
@@ -194,8 +195,6 @@ export type NavLayoutId = keyof typeof NAV_LAYOUTS;
  */
 export const MEMBER_HELPER_ENTRIES = ["projects-mgr", "responsibilities-mgr"] as const;
 
-/** Low-frequency admin pills the mobile sheet lists under its Admin heading. */
-export const SHEET_ADMIN_EXTRAS = ["requests-admin", "moderation"] as const;
 
 /** Hubs that keep a landing page of their own instead of opening on a pill. */
 const HUB_HOME_OVERRIDE: Readonly<Record<string, string>> = { dashboard: "/", settings: "/admin/settings" };

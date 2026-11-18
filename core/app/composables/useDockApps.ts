@@ -1,7 +1,7 @@
-// useDockApps — what the dock shows, for every surface that shows it: the
-// floating dock (md and up) and the App Library grid the Nav opens below md.
-// One source, so the grid can never list, colour or badge an app differently
-// from the dock it stands in for.
+// useDockApps — what the dock shows: its apps, the open one and their badges.
+// One source for the floating dock at every width, including the phone's
+// four-and-Apps dock and its Apps card (App/Dock.vue), so the card can never
+// list or badge an app differently from the dock it extends.
 //
 // The apps are the nav registry's entries for this person's layout
 // (useNavContext; docs/spec-capability-nav.md): an admin's sections, a

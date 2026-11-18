@@ -22,7 +22,8 @@ import { findRawButtons } from "./lib/audit-matchers";
 const PRIMITIVES = [
   "app/components/App/Dock.vue",
   "app/components/App/Nav.vue",
-  "app/components/App/AppLibrary.vue",
+  "app/components/App/AccountMenu.vue",
+  "app/components/App/AccountMenuBody.vue",
   "app/components/App/SegmentedControl.vue",
   "app/components/App/BottomSheet.vue",
   "app/components/App/SlideOverShell.vue",
@@ -50,8 +51,12 @@ const PRIMITIVES = [
  *
  * 2026-11-18 (Phase 4, Session 12) — **301**: the six-knob appearance panel and
  * ThemeSelector.vue are gone (one Appearance and Tint panel on type tokens).
+
+ * 2026-11-18 (Phase 4, the header and dock) — **300**: the hamburger sheet,
+ * the bell, the App Library and the header's chat and assistant buttons are
+ * gone; the avatar's menu and the phone's dock are on type and colour tokens.
  */
-const BASELINE = 301;
+const BASELINE = 300;
 
 runFileAudit({
   name: "raw-buttons",

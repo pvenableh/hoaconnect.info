@@ -240,7 +240,7 @@ const goToAgency = async (accountId: string) => {
       </span>
       <Icon
         name="i-lucide-chevrons-up-down"
-        class="hidden md:block w-3.5 h-3.5 t-text-muted shrink-0"
+        class="w-3.5 h-3.5 t-text-muted shrink-0"
       />
     </DropdownMenuTrigger>
 
