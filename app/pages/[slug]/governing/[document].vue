@@ -200,7 +200,7 @@ onMounted(scrollToHash);
         />
 
         <div v-else class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8 space-y-6 lg:space-y-0">
-          <nav aria-label="Table of contents" class="lg:sticky lg:top-24 lg:self-start">
+          <nav aria-label="Table of contents" class="lg:sticky lg:top-[calc(var(--app-chrome-h,4rem)+1.5rem)] lg:self-start">
             <p class="type-micro t-text-muted mb-2">Contents</p>
             <ol class="governing-toc space-y-1 max-h-64 lg:max-h-[70vh] overflow-y-auto pr-2">
               <li v-for="p in provisions" :key="p.id" :style="{ paddingLeft: `${(depths.get(p.id) ?? 0) * 0.75}rem` }">

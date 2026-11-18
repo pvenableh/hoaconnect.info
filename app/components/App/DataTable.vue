@@ -340,7 +340,8 @@ const alignClass = (col: DataTableColumn<Row>) =>
 .data-table__scroll :deep(th) {
   color: var(--theme-text-muted);
 }
-/* Grouped rows: the header of each group sticks under the app bar while its
+/* Grouped rows: the header of each group sticks under the chrome (the top bar
+   and the section capsule, `--app-chrome-h` in theme-app.css) while its
    rows scroll past. A sticky cell sticks to its nearest scrolling ancestor,
    and both this wrapper and the Table primitive's own `overflow-auto` are one,
    so a grouped table lets the window scroll instead (the table is as wide as
@@ -351,7 +352,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
 }
 .data-table__scroll :deep(th.data-table__group) {
   position: sticky;
-  top: var(--data-table-group-top, 4rem);
+  top: var(--app-chrome-h, 4rem);
   z-index: 1;
   height: auto;
   padding: 0.5rem 0.5rem 0.375rem;

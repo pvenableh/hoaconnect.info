@@ -31,6 +31,11 @@ const canOpenOps = computed(() => isStaffAppAdmin.value || isPlatformSupport.val
 // Mobile sheet open state
 const mobileMenuOpen = ref(false);
 
+// The bar's height, for what sticks under it (the section capsule first). Before
+// the await below: useChromeHeight registers lifecycle hooks.
+const navEl = ref<HTMLElement | null>(null);
+useChromeHeight(navEl, "--app-nav-h");
+
 // Check if we're on an organization page (slug route)
 const isOnOrgPage = computed(() => !!route.params.slug);
 
@@ -354,6 +359,7 @@ watch(
 
 <template>
   <nav
+    ref="navEl"
     class="app-nav glass-bar sticky top-0 z-40 border-b px-6"
     :class="earnedRule ? ['app-nav--earned', { 'app-nav--ruled': titleCollapsed }] : 't-border'"
     data-app-nav

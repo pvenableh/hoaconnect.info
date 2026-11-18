@@ -373,7 +373,7 @@ const blockerText = computed(() => {
         />
 
         <div v-else class="grid grid-cols-1 gap-6" :class="group.image ? 'lg:grid-cols-2' : ''">
-          <div v-if="group.image" class="space-y-2 lg:sticky lg:top-4 lg:self-start">
+          <div v-if="group.image" class="space-y-2 lg:sticky lg:top-[calc(var(--app-chrome-h,4rem)+1rem)] lg:self-start">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h2 class="type-section t-text">{{ group.label }}, as scanned</h2>
               <div class="flex items-center gap-2" data-testid="governing-review-image-tools">

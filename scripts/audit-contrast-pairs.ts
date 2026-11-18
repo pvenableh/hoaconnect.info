@@ -84,6 +84,11 @@ const PAIRS: PairSpec[] = [
   // dark muted is 4.63:1 on the card itself, so any warmth at all sinks it.
   { fg: "--theme-text-tertiary", bg: "--attention-bg", min: 4.5 },
   { fg: "--warning", bg: "--attention-bg", min: 4.5 },
+  // The section capsule under the top bar (Phase 4 part 3): its pills are
+  // tertiary at rest, secondary on hover, and primary when selected.
+  { fg: "--theme-text-primary", bg: "--theme-nav-capsule-bg", min: 4.5 },
+  { fg: "--theme-text-secondary", bg: "--theme-nav-capsule-bg", min: 4.5 },
+  { fg: "--theme-text-tertiary", bg: "--theme-nav-capsule-bg", min: 4.5 },
 ];
 
 const css = readRepoFile(THEME);

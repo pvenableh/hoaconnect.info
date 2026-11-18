@@ -323,8 +323,8 @@ const jobClasses = (j: MapJob) => ({
 /* ── The rail ─────────────────────────────────────────────────────────────── */
 .rmap-rail {
   position: sticky;
-  top: var(--data-table-group-top, 4rem);
-  max-height: calc(100dvh - var(--data-table-group-top, 4rem) - 1.5rem);
+  top: var(--app-chrome-h, 4rem);
+  max-height: calc(100dvh - var(--app-chrome-h, 4rem) - 1.5rem);
   overflow-y: auto;
   padding: 0.75rem 0.5rem;
   border-radius: 1.25rem;
@@ -522,7 +522,7 @@ const jobClasses = (j: MapJob) => ({
   }
   .rmap-rail {
     position: sticky;
-    top: var(--data-table-group-top, 4rem);
+    top: var(--app-chrome-h, 4rem);
     z-index: 2;
     max-height: none;
     overflow: visible;

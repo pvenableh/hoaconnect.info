@@ -1377,7 +1377,7 @@ useSeoMeta({
           </div>
 
           <!-- Recipients & Actions (Right) - Sticky on md+ -->
-          <div class="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start space-y-6">
+          <div class="order-1 lg:order-2 lg:sticky lg:top-[calc(var(--app-chrome-h,4rem)+1.5rem)] lg:self-start space-y-6">
             <!-- Recipients Card -->
             <Card>
               <CardHeader>

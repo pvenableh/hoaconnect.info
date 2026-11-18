@@ -407,7 +407,9 @@ function open(path: string) {
 @media (min-width: 1280px) {
   .rail {
     position: sticky;
-    top: 88px;
+    /* Under the chrome (theme-app.css, `--app-chrome-h`: the top bar plus the
+       section capsule, which the dashboard has). */
+    top: calc(var(--app-chrome-h, 4rem) + 1.5rem);
     display: flex;
     flex-direction: column;
     width: 240px;
@@ -416,7 +418,7 @@ function open(path: string) {
        Cap it and let the rail scroll internally instead. The subtraction covers
        the app header above the scroll container plus this rail's own sticky
        offset; erring tall would re-create the trap, so it errs short. */
-    max-height: calc(100vh - 152px);
+    max-height: calc(100vh - var(--app-chrome-h, 4rem) - 5.5rem);
     overflow-y: auto;
     scrollbar-width: none;
   }

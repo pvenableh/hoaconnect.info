@@ -202,7 +202,7 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
 
       <div v-else class="space-y-8">
         <section v-for="month in months" :key="month.key" class="space-y-2">
-          <h2 class="type-micro t-text-muted sticky top-0 t-bg py-2 z-10">
+          <h2 class="type-micro t-text-muted sticky top-[var(--app-chrome-h,0px)] t-bg py-2 z-10">
             {{ month.label }}
           </h2>
 

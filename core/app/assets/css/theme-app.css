@@ -90,9 +90,15 @@ html.theme-app {
 	--theme-border-light: light-dark(#eff3f7, #1a232c);
 
 	/* --- Component surfaces -------------------------------------------------
-	   The translucent ones are what `.glass-bar` and the dock sit on. */
+	   The translucent ones are what the top bar (`.glass-bar`) and the dock sit
+	   on. */
 	--theme-card-bg: light-dark(#ffffff, #151d25);
 	--theme-nav-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(21, 29, 37, 0.72));
+	/* The section capsule under the top bar (SubNav, Phase 4 part 3): the
+	   segmented control's neutral track, solid here so audit:contrast-pairs can
+	   grade the pills on it. The capsule shows it at 82% over a blur, and solid
+	   under Reduce Transparency. No accent: the tint is on the thumb. */
+	--theme-nav-capsule-bg: var(--theme-bg-secondary);
 	--theme-drawer-bg: light-dark(rgba(255, 255, 255, 0.95), rgba(21, 29, 37, 0.96));
 
 	/* --- Typography ---------------------------------------------------------
@@ -126,6 +132,15 @@ html.theme-app {
 	--theme-transition-base: 200ms ease;
 	--theme-transition-slow: 300ms ease;
 	--theme-transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* --- Sticky chrome --------------------------------------------------------
+	   The top bar and the section capsule publish their rendered heights
+	   (useChromeHeight: `--app-nav-h` from Nav.vue, `--app-subnav-h` from
+	   SubNav.vue, inline on <html>); what sticks under the chrome (grouped table
+	   headers, the map's rail, the dashboard's chart rail, a document's table of
+	   contents) reads the sum instead of hardcoding it. Declared here, on the
+	   same element the heights are written to, so the sum is never stale. */
+	--app-chrome-h: calc(var(--app-nav-h, 4rem) + var(--app-subnav-h, 0px));
 
 	/* --- Spacing -------------------------------------------------------------- */
 	--theme-space-xs: 0.5rem;
