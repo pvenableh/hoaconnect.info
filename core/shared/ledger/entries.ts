@@ -719,7 +719,7 @@ function expensePayload(e: ExpenseSubject, organizationName: string | null) {
   };
 }
 
-export type MoneyApprovalKind = "spend" | "void" | "waive";
+export type MoneyApprovalKind = "spend" | "void" | "waive" | "move";
 
 /**
  * An owner charge, as a waiver names it. It names a household, so every
@@ -735,6 +735,24 @@ export interface ChargeSubject {
   readonly memberId?: string | null;
   /** The household's name as it reads now. */
   readonly memberName?: string | null;
+  /**
+   * A waiver's cut, when it asks to waive only part (a partial waiver,
+   * docs/spec-charge-corrections.md). Absent: all that remains.
+   */
+  readonly waiveAmount?: unknown;
+  /** A full waiver's unpaid late fees, which it takes with it. */
+  readonly lateFeesTotal?: unknown;
+  /** A move's household it goes to (docs/spec-charge-corrections.md, decision 3). */
+  readonly moveToName?: string | null;
+}
+
+/** "a $300.00 charge for March dues from Bob Owner to Carol Eve": what a move is about. */
+export function movePhrase(c: ChargeSubject): string {
+  const money = formatMoney(toLedgerAmount(c.amount), c.currency ?? "USD");
+  const title = c.title?.trim() || "an unnamed charge";
+  const from = c.memberName?.trim() || "one household";
+  const to = c.moveToName?.trim() || "another";
+  return `a ${money} charge for ${title} from ${from} to ${to}`;
 }
 
 /** What a waiver gives up: the remainder when one is known, else the whole charge. */
@@ -748,6 +766,18 @@ export function chargePhrase(c: Pick<ChargeSubject, "title" | "amount" | "curren
   const title = c.title?.trim() || "an unnamed charge";
   const who = c.memberName?.trim() || null;
   return who ? `a ${money} charge to ${who} for ${title}` : `a ${money} charge for ${title}`;
+}
+
+/**
+ * What a waiver asks to give up: "$50.00 of a $300.00 charge to Bob Owner for
+ * March dues" (partial), or "a $300.00 charge to Bob Owner for March dues and
+ * its late fees ($25.00)" (all of it, late fees with it).
+ */
+export function waiverPhrase(c: ChargeSubject): string {
+  const currency = c.currency ?? "USD";
+  if (c.waiveAmount != null && c.waiveAmount !== "") return `${formatMoney(toLedgerAmount(c.waiveAmount), currency)} of ${chargePhrase(c)}`;
+  const fees = toLedgerAmount(c.lateFeesTotal ?? 0);
+  return fees > 0 ? `${chargePhrase(c)} and its late fees (${formatMoney(fees, currency)})` : chargePhrase(c);
 }
 
 function chargePayload(c: ChargeSubject, organizationName: string | null) {
@@ -789,7 +819,9 @@ export function buildMoneyDecisionEntry(input: {
   const verb = input.decision === "approve" ? "approved" : "rejected";
   const what =
     input.kind === "waive" && input.charge
-      ? `waiving ${chargePhrase(input.charge)}`
+      ? `waiving ${waiverPhrase(input.charge)}`
+      : input.kind === "move" && input.charge
+        ? `moving ${movePhrase(input.charge)}`
       : input.kind === "void"
         ? `voiding ${expensePhrase(input.expense!)}`
         : expensePhrase(input.expense!);
@@ -805,7 +837,7 @@ export function buildMoneyDecisionEntry(input: {
     visibility: defaultVisibilityFor("money_decision"),
     summary: `${who} ${verb} ${what}.`,
     payload: {
-      ...(input.kind === "waive" && input.charge
+      ...((input.kind === "waive" || input.kind === "move") && input.charge
         ? chargePayload(input.charge, input.organizationName)
         : expensePayload(input.expense!, input.organizationName)),
       approval_id: input.approvalId,
@@ -914,18 +946,29 @@ export function buildChargeWaivedEntry(input: {
   readonly reason: string;
   /** "Jane Doe (President)", in the order they approved. */
   readonly approvedBy: readonly string[];
+  /** A partial waiver: what it actually took off (the cut, or less if payments since left less). */
+  readonly partial?: number | null;
+  /** A full waiver's late fees, cancelled with it. */
+  readonly lateFees?: readonly { readonly id: string; readonly amount: number }[];
   readonly actor: LedgerActor;
   readonly occurredAt: string;
 }): LedgerEntry {
   const c = input.charge;
+  const currency = c.currency ?? "USD";
   const reason = input.reason.trim();
   const phrase = chargePhrase(c);
-  const waived = chargeWaivedAmount(c);
+  const partial = input.partial ?? null;
+  const waived = partial ?? chargeWaivedAmount(c);
   const whole = toLedgerAmount(c.amount);
+  const lateFees = input.lateFees ?? [];
+  const feesTotal = Math.round(lateFees.reduce((sum, f) => sum + f.amount, 0) * 100) / 100;
   const lead =
-    waived < whole
-      ? `The remaining ${formatMoney(waived, c.currency ?? "USD")} of ${phrase}`
-      : `${phrase[0]!.toUpperCase()}${phrase.slice(1)}`;
+    partial != null
+      ? `${formatMoney(partial, currency)} of ${phrase}`
+      : waived < whole
+        ? `The remaining ${formatMoney(waived, currency)} of ${phrase}`
+        : `${phrase[0]!.toUpperCase()}${phrase.slice(1)}`;
+  const fees = feesTotal > 0 ? ` with its late fees (${formatMoney(feesTotal, currency)})` : "";
   const by = input.approvedBy.length ? `, approved by ${andList(input.approvedBy)}` : "";
   const tail = reason ? `: ${reason}${/[.!?]$/.test(reason) ? "" : "."}` : ".";
   return {
@@ -937,9 +980,12 @@ export function buildChargeWaivedEntry(input: {
     actor_name: input.actor.name,
     actor_email: input.actor.email,
     visibility: defaultVisibilityFor("charge_waived"),
-    summary: `${lead} was waived${by}${tail}`,
+    summary: `${lead} was waived${fees}${by}${tail}`,
     payload: {
       ...chargePayload(c, input.organizationName),
+      amount: waived,
+      partial: partial != null,
+      late_fees: lateFees.map((f) => ({ id: f.id, amount: f.amount })),
       approval_id: input.approvalId,
       approved_by: [...input.approvedBy],
       reason,

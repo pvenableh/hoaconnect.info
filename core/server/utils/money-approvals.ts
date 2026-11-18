@@ -18,7 +18,10 @@ import {
   type Seat,
 } from "#core/shared/money/approval-rule";
 import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
+import { applyCut, openLateFees, openLateFeesTotal, remainingCents, fromCents } from "#core/shared/money/charge-corrections";
 import {
+  waiverPhrase,
+  formatMoney,
   buildChargeWaivedEntry,
   buildExpenseApprovedEntry,
   buildExpenseVoidedEntry,
@@ -34,7 +37,7 @@ import { expenseCommunity } from "#core/shared/expenses/expense-writes";
 import { ledgerActorFor } from "./member-names";
 import type { H3Event } from "h3";
 
-export type ApprovalKind = "spend" | "void" | "waive";
+export type ApprovalKind = "spend" | "void" | "waive" | "move";
 export type StoredState = "pending" | "approved" | "rejected" | "cannot_approve" | "superseded";
 
 export interface ApprovalRow {
@@ -52,6 +55,10 @@ export interface ApprovalRow {
   reason: string | null;
   date_created: string | null;
   decided_at: string | null;
+  /** A partial waiver's cut; null for all that remains (docs/spec-charge-corrections.md). */
+  amount: number | null;
+  /** A move's change: { member, unit, from_member, from_unit }. */
+  proposed: Record<string, string | null> | null;
 }
 
 export interface DecisionRow {
@@ -66,7 +73,7 @@ export interface DecisionRow {
 
 export const APPROVAL_FIELDS = [
   "id", "organization", "kind", "expense", "charge", "round", "state", "mode", "needed",
-  "requested_by", "excluded", "reason", "date_created", "decided_at",
+  "requested_by", "excluded", "reason", "date_created", "decided_at", "amount", "proposed",
 ] as const;
 const DECISION_FIELDS = ["id", "approval", "decided_by", "office", "decision", "note", "date_created"] as const;
 export const EXPENSE_SUBJECT_FIELDS = [
@@ -98,6 +105,8 @@ export function normaliseApproval(row: any): ApprovalRow {
     reason: row.reason ?? null,
     date_created: row.date_created ?? null,
     decided_at: row.decided_at ?? null,
+    amount: row.amount == null || row.amount === "" ? null : Number(row.amount),
+    proposed: row.proposed && typeof row.proposed === "object" ? (row.proposed as Record<string, string | null>) : null,
   };
 }
 
@@ -281,8 +290,13 @@ export function chargeHousehold(member: unknown): string | null {
   return [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || m.email || null;
 }
 
-/** The charge as a ledger subject. */
-export function chargeSubject(row: any): ChargeSubject {
+/**
+ * The charge as a ledger subject. With its waiver, it carries what the
+ * waiver asks to give up: a partial cut, or (pass `lateFeesTotal`) the late
+ * fees a full waiver takes with it.
+ */
+export function chargeSubject(row: any, approval?: Pick<ApprovalRow, "kind" | "amount"> | null, lateFeesTotal?: number | null): ChargeSubject {
+  const partial = approval?.kind === "waive" && approval.amount != null ? approval.amount : null;
   return {
     chargeId: String(row.id),
     title: row.title ?? "",
@@ -290,7 +304,16 @@ export function chargeSubject(row: any): ChargeSubject {
     amountRemaining: row.amount_remaining ?? null,
     memberId: idOf(row.member),
     memberName: chargeHousehold(row.member),
+    ...(partial != null ? { waiveAmount: partial } : {}),
+    ...(partial == null && lateFeesTotal ? { lateFeesTotal } : {}),
   };
+}
+
+/** A waiver's subject, read now: a full waiver's open late fees are named in it. */
+export async function waiverSubject(orgId: string, row: any, approval: Pick<ApprovalRow, "kind" | "amount">): Promise<ChargeSubject> {
+  if (approval.kind !== "waive" || approval.amount != null) return chargeSubject(row, approval);
+  const fees = (await lateFeesOf(orgId, [String(row.id)])).get(String(row.id)) ?? [];
+  return chargeSubject(row, approval, openLateFeesTotal({ lateFees: fees }));
 }
 
 /** The open waivers on a charge. */
@@ -343,6 +366,10 @@ export async function openApproval(input: {
   requestedBy: string;
   excluded: readonly string[];
   reason?: string | null;
+  /** A partial waiver's cut. */
+  amount?: number | null;
+  /** A move's change. */
+  proposed?: Record<string, string | null> | null;
   seats: readonly Seat[];
 }): Promise<{ approval: ApprovalRow; view: RuleView }> {
   const excluded = [...new Set([input.requestedBy, ...input.excluded].filter(Boolean))];
@@ -360,6 +387,8 @@ export async function openApproval(input: {
       requested_by: input.requestedBy,
       excluded,
       reason: input.reason ?? null,
+      amount: input.amount ?? null,
+      proposed: input.proposed ?? null,
     } as any)
   );
   return { approval: normaliseApproval(row), view };
@@ -403,7 +432,7 @@ export async function notifyApprovers(input: {
   if (input.view.state !== "pending" || !input.view.waitingOn.length) return;
   const kind = input.approval.kind;
   if (kind === "waive" ? !input.charge : !input.expense) return;
-  const what = kind === "waive" ? chargePhrase(input.charge!) : expensePhrase(input.expense!);
+  const what = kind === "waive" ? waiverPhrase(input.charge!) : expensePhrase(input.expense!);
   const lead =
     kind === "waive"
       ? `Waiving ${what} needs your approval.`
@@ -560,11 +589,15 @@ export async function settleApproval(input: {
 }
 
 /**
- * A waiver the rule decided. Approved: its charge is cancelled, if nothing
- * settled it meanwhile, and `charge_waived` goes to the Ledger (board).
- * Rejected: the charge stays as it was. Either way whoever asked is told.
- * A charge paid or cancelled while the waiver was open closes the waiver as
- * superseded, with no entry: there is nothing left to give up.
+ * A waiver the rule decided. Approved, all of it: the charge is cancelled,
+ * if nothing settled it meanwhile, with its unpaid late fees (decision 4,
+ * docs/spec-charge-corrections.md). Approved, part of it: the amount and what
+ * remains drop by the cut, or by what remains if payments since left less
+ * (the charge is then paid); its late fees stay. Either way `charge_waived`
+ * goes to the Ledger (board) and the household is told. Rejected: the charge
+ * stays as it was. Whoever asked is told the outcome. A charge paid or
+ * cancelled while the waiver was open closes it as superseded, with no
+ * entry: there is nothing left to give up.
  */
 async function settleWaiver(input: {
   orgId: string;
@@ -577,19 +610,45 @@ async function settleWaiver(input: {
 }): Promise<SettleResult> {
   const { orgId, approval, view, now } = input;
   const d = getTypedDirectus();
-  const charge = approval.charge ? await loadCharge(orgId, approval.charge).catch(() => null) : null;
+  const charge = approval.charge ? await loadCorrectableCharge(orgId, approval.charge).catch(() => null) : null;
   if (!charge || !isWaivableCharge(charge.status)) {
     await supersede(approval, now);
     return { state: "superseded", ledger: null };
   }
   await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
 
-  const subject = chargeSubject(charge);
+  const partial = approval.amount != null;
+  const fees = (await lateFeesOf(orgId, [String(charge.id)])).get(String(charge.id)) ?? [];
+  const feesOpen = partial ? [] : openLateFees({ lateFees: fees });
+  const subject = chargeSubject(charge, approval, partial ? null : openLateFeesTotal({ lateFees: fees }));
   let ledger: string | null = null;
+  let owed: number | null = null;
+  let waived: number | null = null;
   if (view.state === "approved") {
-    await d.request(updateItem("payment_requests", charge.id, { status: "canceled" } as any));
-    // A second request that raced this one has nothing left to waive.
-    for (const other of await openWaiversFor(orgId, String(charge.id))) {
+    if (partial) {
+      const cut = applyCut(
+        { status: charge.status, amount: charge.amount, amount_paid: charge.amount_paid, amount_remaining: charge.amount_remaining },
+        approval.amount
+      );
+      waived = cut.waived;
+      owed = cut.amount_remaining;
+      await d.request(
+        updateItem("payment_requests", charge.id, {
+          amount: cut.amount,
+          amount_remaining: cut.amount_remaining,
+          status: cut.status,
+          ...(cut.status === "paid" ? { paid_at: now } : {}),
+        } as any)
+      );
+    } else {
+      await d.request(updateItem("payment_requests", charge.id, { status: "canceled" } as any));
+      for (const fee of feesOpen) {
+        await d.request(updateItem("payment_requests", fee.id, { status: "canceled" } as any));
+        for (const other of await openChargeApprovals(orgId, fee.id)) await supersede(other, now);
+      }
+    }
+    // A second request that raced this one has nothing left to decide.
+    for (const other of await openChargeApprovals(orgId, String(charge.id))) {
       if (other.id !== approval.id) await supersede(other, now);
     }
     const names = await namesFor(orgId, input.decisions.map((x) => x.decided_by));
@@ -599,9 +658,11 @@ async function settleWaiver(input: {
           organizationId: orgId,
           organizationName: await orgName(orgId),
           approvalId: approval.id,
-          charge: subject,
+          charge: chargeSubject(charge),
           reason: approval.reason ?? "",
           approvedBy: approverNames(input.decisions, names),
+          partial: waived,
+          lateFees: feesOpen.map((f) => ({ id: f.id, amount: fromCents(remainingCents(f as any)) })),
           actor: input.actor,
           occurredAt: now,
         })
@@ -609,6 +670,17 @@ async function settleWaiver(input: {
     } catch (e) {
       console.error("[money-approvals] ledger write failed:", e);
     }
+    const title = chargeTitle(charge);
+    await notifyHousehold({
+      orgId,
+      userId: householdUserOf(charge),
+      subject: "A charge to you was waived",
+      message: partial
+        ? `${formatMoney(waived)} of your charge for ${title} was waived. You now owe ${formatMoney(owed)}.`
+        : `Your ${formatMoney(charge.amount)} charge for ${title} was waived${feesOpen.length ? ", with its late fees" : ""}.`,
+      chargeId: String(charge.id),
+      origin: input.origin ?? null,
+    });
   }
 
   const outcome = view.state === "approved" ? "approved" : "rejected";
@@ -618,7 +690,7 @@ async function settleWaiver(input: {
       recipientUserIds: [approval.requested_by],
       category: "payment",
       subject: `Waiver ${outcome}`,
-      message: `Waiving ${chargePhrase(subject)} was ${outcome}${outcome === "approved" ? ": the charge is canceled" : ""}.`,
+      message: `Waiving ${waiverPhrase(subject)} was ${outcome}${outcome === "approved" ? (partial ? `: ${formatMoney(owed)} is still owed` : ": the charge is canceled") : ""}.`,
       collection: "payment_requests",
       item: String(charge.id),
       path: "/admin/payments",
@@ -710,7 +782,7 @@ export async function resettleCommunity(
         const charge = await loadCharge(orgId, approval.charge).catch(() => null);
         if (charge) {
           reopened++;
-          await notifyApprovers({ orgId, approval, view, charge: chargeSubject(charge), origin });
+          await notifyApprovers({ orgId, approval, view, charge: await waiverSubject(orgId, charge, approval), origin });
         }
       }
     }

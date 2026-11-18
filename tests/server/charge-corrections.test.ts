@@ -4,6 +4,8 @@
  *
  *   PATCH /api/org/money/charges/[id]              title, words, amount up, due date (admins)
  *   POST  /api/org/money/charges/[id]/withdraw     a fresh mistake, within 24 hours (admins)
+ *   POST  /api/org/money/charges/[id]/waive        part of a charge, or all of it with its late fees
+ *   POST  /api/org/money/approvals/[id]/decide     the board decides
  *
  * The board of ORG: Ann (Treasurer), Pat (President), Sam (Secretary), Dee
  * (Director). Ada is an admin with no seat; Max a property manager with the
@@ -80,6 +82,8 @@ const h: Record<string, (e: any) => Promise<any>> = {};
 const ROUTES = {
   patch: "#core/server/api/org/money/charges/[id].patch",
   withdraw: "#core/server/api/org/money/charges/[id]/withdraw.post",
+  waive: "#core/server/api/org/money/charges/[id]/waive.post",
+  decide: "#core/server/api/org/money/approvals/[id]/decide.post",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -89,6 +93,19 @@ const openApproval = (chargeId: string, kind = "waive") =>
   state.db.money_approvals!.push({ id: uuid(901), organization: ORG, kind, charge: chargeId, round: 1, state: "pending", requested_by: U.dee, excluded: [U.dee] });
 
 const withdraw = (id: string, reason: unknown = "Wrong month") => h.withdraw!(ev({ params: { id }, body: { orgId: ORG, reason } }));
+const waive = (id: string, extra: Record<string, unknown> = {}) => h.waive!(ev({ params: { id }, body: { orgId: ORG, reason: "Pool closed", ...extra } }));
+const decide = (approvalId: string, decision: "approve" | "reject") => h.decide!(ev({ params: { id: approvalId }, body: { orgId: ORG, decision } }));
+const approvalOf = (id: string) => state.db.money_approvals!.find((a) => a.id === id)!;
+/** Dee asks; Pat and Sam (two of the committee) approve. */
+async function askAndApprove(id: string, extra: Record<string, unknown> = {}) {
+  as(WHO.dee);
+  const res = await (extra.__move ? h.move!(ev({ params: { id }, body: { orgId: ORG, reason: "Wrong unit", member: extra.__move } })) : waive(id, extra));
+  as(WHO.pat);
+  await decide(res.approval.id, "approve");
+  as(WHO.sam);
+  await decide(res.approval.id, "approve");
+  return res.approval.id as string;
+}
 const patch = (id: string, body: Record<string, unknown>) => h.patch!(ev({ params: { id }, body: { orgId: ORG, ...body } }));
 
 beforeAll(async () => {
@@ -251,5 +268,91 @@ describe("withdraw", () => {
       expect(charge(C.fresh).status, name).not.toBe("canceled");
     }
     expect(cap.ledger).toHaveLength(0);
+  });
+});
+
+describe("a partial waiver", () => {
+  it("opens a waive approval with the cut; the approvers hear what it gives up; nothing changes yet", async () => {
+    as(WHO.dee);
+    const res = await waive(C.open, { amount: 50 });
+    expect(approvalOf(res.approval.id)).toMatchObject({ kind: "waive", amount: 50, charge: C.open, requested_by: U.dee });
+    expect(charge(C.open)).toMatchObject({ amount: "300.00", amount_remaining: "300.00", waiver: res.approval.id });
+    const approvers = cap.notices.find((n) => n.essential);
+    expect(approvers.message).toBe("Waiving $50.00 of a $300.00 charge to Bob Diaz for March dues needs your approval.");
+  });
+
+  it("refuses a cut of all that remains or more, or nothing (422), and a second request while one waits (409)", async () => {
+    as(WHO.dee);
+    await expect(waive(C.open, { amount: 300 })).rejects.toMatchObject({ statusCode: 422, message: expect.stringMatching(/all of it/) });
+    await expect(waive(C.overdue, { amount: 400.01 })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(waive(C.open, { amount: 0 })).rejects.toMatchObject({ statusCode: 422 });
+    await waive(C.open, { amount: 50 });
+    await expect(waive(C.open, { amount: 20 })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(waive(C.open)).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("approved, the amount and what remains drop by the cut; its late fees stay; the Ledger and the household hear of it", async () => {
+    const id = await askAndApprove(C.overdue, { amount: 100 });
+    expect(approvalOf(id).state).toBe("approved");
+    expect(charge(C.overdue)).toMatchObject({ amount: 400, amount_remaining: 300, status: "overdue" });
+    expect(charge(C.fee).status).toBe("active");
+    const waived = cap.ledger.find((e) => e.event_type === "charge_waived");
+    expect(waived.summary).toBe("$100.00 of a $500.00 charge to Bob Diaz for Roof assessment was waived, approved by Pat Park (President) and Sam Lee (Secretary): Pool closed.");
+    expect(waived.payload).toMatchObject({ amount: 100, partial: true, late_fees: [] });
+    const decision = cap.ledger.find((e) => e.event_type === "money_decision");
+    expect(decision.summary).toMatch(/approved waiving \$100\.00 of a \$500\.00 charge to Bob Diaz for Roof assessment/);
+    const household = cap.notices.find((n) => n.recipientUserIds.includes(ID.userBob));
+    expect(household.message).toBe("$100.00 of your charge for Roof assessment was waived. You now owe $300.00.");
+    const asker = cap.notices.find((n) => n.subject === "Waiver approved");
+    expect(asker.message).toMatch(/: \$300\.00 is still owed\.$/);
+  });
+
+  it("waives only what remains when payments since left less, and the charge is then paid", async () => {
+    as(WHO.dee);
+    const res = await waive(C.overdue, { amount: 100 });
+    Object.assign(charge(C.overdue), { amount_paid: "440.00", amount_remaining: "60.00", status: "partially_paid" });
+    as(WHO.pat);
+    await decide(res.approval.id, "approve");
+    as(WHO.sam);
+    await decide(res.approval.id, "approve");
+    expect(charge(C.overdue)).toMatchObject({ amount: 440, amount_remaining: 0, status: "paid" });
+    expect(charge(C.overdue).paid_at).toBeTruthy();
+    expect(cap.ledger.find((e) => e.event_type === "charge_waived").payload.amount).toBe(60);
+  });
+
+  it("rejected, the charge stays as it was", async () => {
+    as(WHO.dee);
+    const res = await waive(C.open, { amount: 50 });
+    as(WHO.pat);
+    await decide(res.approval.id, "reject");
+    as(WHO.sam);
+    await decide(res.approval.id, "reject");
+    expect(charge(C.open)).toMatchObject({ amount: "300.00", amount_remaining: "300.00", status: "active" });
+    expect(cap.ledger.some((e) => e.event_type === "charge_waived")).toBe(false);
+  });
+});
+
+describe("a full waiver takes its late fees", () => {
+  it("tells the approvers the late fees' total, then cancels the charge and each unpaid late fee", async () => {
+    state.db.payment_requests!.push({ id: uuid(810), organization: ORG, member: ID.memberBob, request_type: "late_fee", source_id: C.overdue, status: "paid", amount: "25.00", amount_paid: "25.00", amount_remaining: "0.00" });
+    const id = await askAndApprove(C.overdue);
+    const approvers = cap.notices.find((n) => n.essential);
+    expect(approvers.message).toBe("Waiving a $500.00 charge to Bob Diaz for Roof assessment and its late fees ($25.00) needs your approval.");
+    expect(approvalOf(id).state).toBe("approved");
+    expect(charge(C.overdue).status).toBe("canceled");
+    expect(charge(C.fee).status).toBe("canceled");
+    expect(charge(uuid(810)).status).toBe("paid");
+    const waived = cap.ledger.find((e) => e.event_type === "charge_waived");
+    expect(waived.summary).toBe("The remaining $400.00 of a $500.00 charge to Bob Diaz for Roof assessment was waived with its late fees ($25.00), approved by Pat Park (President) and Sam Lee (Secretary): Pool closed.");
+    expect(waived.payload.late_fees).toEqual([{ id: C.fee, amount: 25 }]);
+    const household = cap.notices.find((n) => n.recipientUserIds.includes(ID.userBob));
+    expect(household.message).toBe("Your $500.00 charge for Roof assessment was waived, with its late fees.");
+  });
+
+  it("closes a late fee's own waiver as superseded", async () => {
+    as(WHO.ann);
+    const feeWaiver = await waive(C.fee);
+    await askAndApprove(C.overdue);
+    expect(approvalOf(feeWaiver.approval.id).state).toBe("superseded");
   });
 });

@@ -16,7 +16,7 @@
  */
 import { createItem } from "@directus/sdk";
 import { z } from "zod";
-import { buildMoneyDecisionEntry, chargePhrase, expensePhrase } from "#core/shared/ledger/entries";
+import { buildMoneyDecisionEntry, expensePhrase, waiverPhrase } from "#core/shared/ledger/entries";
 import { ledgerActorFor } from "#core/server/utils/member-names";
 
 const body = z
@@ -98,7 +98,7 @@ export default defineEventHandler(async (event) => {
         kind: approval.kind,
         round: approval.round,
         expense: expense ? expenseSubject(expense) : null,
-        charge: charge ? chargeSubject(charge) : null,
+        charge: charge ? await waiverSubject(orgId, charge, approval) : null,
         decision,
         officeLabel: label,
         note,
@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
   if (result.state === "pending" && approval.requested_by && (expense || charge)) {
     const who = label ? `${actor.name} (${label})` : actor.name;
     const what = charge
-      ? `waiving ${chargePhrase(chargeSubject(charge))}`
+      ? `waiving ${waiverPhrase(await waiverSubject(orgId, charge, approval))}`
       : `${approval.kind === "void" ? "voiding " : ""}${expensePhrase(expenseSubject(expense))}`;
     await notifyUsers({
       organizationId: orgId,
