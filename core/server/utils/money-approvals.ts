@@ -28,6 +28,8 @@ import {
 import type { LedgerActor } from "#core/shared/ledger/entry";
 import { roleIdOf } from "#core/shared/ops/permissions";
 import { expenseCommunity } from "#core/shared/expenses/expense-writes";
+import { ledgerActorFor } from "./member-names";
+import type { H3Event } from "h3";
 
 export type ApprovalKind = "spend" | "void" | "waive";
 export type StoredState = "pending" | "approved" | "rejected" | "cannot_approve" | "superseded";
@@ -171,6 +173,20 @@ const asRuleDecisions = (rows: readonly DecisionRow[]): Decision[] =>
 export type ApprovalView = Omit<RuleView, "state"> & { state: StoredState };
 
 /**
+ * What a read shows: the rule's view, except that an open approval the rule
+ * now calls approved or rejected (its board changed and nothing has settled
+ * it yet) still reads as stored, waiting on nobody. Reads never write; a
+ * board change settles it (resettleCommunity).
+ */
+export function readViewOf(approval: ApprovalRow, seats: readonly Seat[], decisions: readonly DecisionRow[]): ApprovalView {
+  const view = viewOf(approval, seats, decisions);
+  if (isOpen(approval.state) && (view.state === "approved" || view.state === "rejected")) {
+    return { ...view, state: approval.state, waitingOn: [] };
+  }
+  return view;
+}
+
+/**
  * The rule's view of an approval. Open: computed from the seats as they stand.
  * Closed: as it was settled, with its approvals counted from its decisions.
  */
@@ -294,6 +310,19 @@ export async function openApproval(input: {
   return { approval: normaliseApproval(row), view };
 }
 
+/**
+ * A submission nobody has decided changed its amount, vendor or title: the
+ * open round stays, the editor joins its excluded, and the rule is asked
+ * again (excluding someone can change the mode, the need, or leave nobody).
+ */
+export async function amendRound(orgId: string, approval: ApprovalRow, editor: string): Promise<void> {
+  if (!isOpen(approval.state) || approval.excluded.includes(editor)) return;
+  const excluded = [...approval.excluded, editor];
+  const view = evaluateApproval({ seats: await loadCurrentSeats(orgId), excluded, decisions: [] });
+  const state: StoredState = view.state === "cannot_approve" ? "cannot_approve" : "pending";
+  await getTypedDirectus().request(updateItem("money_approvals" as any, approval.id, { excluded, state, ...ruleFields(view) } as any));
+}
+
 /** Closes an open round without a decision: a new round replaced it, or its subject was voided. */
 export async function supersede(approval: ApprovalRow | null, now: string): Promise<void> {
   if (!approval || !isOpen(approval.state)) return;
@@ -309,7 +338,7 @@ export async function openApprovalsFor(orgId: string, expenseId: string, kind: A
 export async function notifyApprovers(input: {
   orgId: string;
   approval: ApprovalRow;
-  view: RuleView;
+  view: Pick<RuleView, "waitingOn" | "needed"> & { readonly state: string };
   expense: ExpenseSubject;
   origin?: string | null;
 }): Promise<void> {
@@ -371,8 +400,9 @@ export async function settleApproval(input: {
     return { state: view.state, ledger: null };
   }
 
+  // A waiver's effect (cancelling its charge) is Session 5's: until then it stays open.
+  if (approval.kind === "waive" || !approval.expense) return { state: approval.state, ledger: null };
   await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
-  if (approval.kind === "waive" || !approval.expense) return { state: view.state, ledger: null };
 
   const expense = await loadExpense(orgId, approval.expense);
   const subject = expenseSubject(expense);
@@ -453,6 +483,53 @@ export async function settleApproval(input: {
 export function officeLabelOf(seats: readonly Seat[], userId: string): { office: string | null; label: string | null } {
   const office = officeOf(seats, userId);
   return { office, label: office ? OFFICE_LABELS[office] ?? null : null };
+}
+
+/**
+ * The board changed: ask the rule again about every open approval in the
+ * community, and settle what the change decided (approved, rejected, or
+ * from "cannot be approved" to waiting, which tells the people it now waits
+ * on). Called by the board-term routes and by the daily job, for terms that
+ * end on their date. Waivers are left for Session 5.
+ */
+export async function resettleCommunity(
+  orgId: string,
+  actor: LedgerActor,
+  origin?: string | null
+): Promise<{ checked: number; settled: number; reopened: number }> {
+  const open = (await loadApprovals(orgId, { state: { _in: [...OPEN_STATES] } })).filter((a) => a.kind !== "waive");
+  if (!open.length) return { checked: 0, settled: 0, reopened: 0 };
+  const seats = await loadCurrentSeats(orgId);
+  const decisions = await loadDecisions(open.map((a) => a.id));
+  const now = new Date().toISOString();
+  let settled = 0;
+  let reopened = 0;
+  for (const approval of open) {
+    const own = decisions.get(approval.id) ?? [];
+    const view = viewOf(approval, seats, own);
+    const result = await settleApproval({ orgId, approval, view, decisions: own, seats, actor, now, origin });
+    if (result.state === "approved" || result.state === "rejected") settled++;
+    if (approval.state === "cannot_approve" && result.state === "pending" && approval.expense) {
+      reopened++;
+      const expense = await loadExpense(orgId, approval.expense).catch(() => null);
+      if (expense) await notifyApprovers({ orgId, approval, view, expense: expenseSubject(expense), origin });
+    }
+  }
+  return { checked: open.length, settled, reopened };
+}
+
+/**
+ * After a board-term route has written: resettle the community's open
+ * approvals, credited to whoever changed the board. Never fails the route.
+ */
+export async function settleAfterBoardChange(event: H3Event, orgId: string): Promise<void> {
+  try {
+    const session = await getUserSession(event);
+    const actor = await ledgerActorFor(orgId, (session?.user ?? null) as Record<string, any> | null);
+    await resettleCommunity(orgId, actor, await safeRequestOrigin(event).catch(() => null));
+  } catch (e) {
+    console.error("[money-approvals] resettle after a board change failed:", e);
+  }
 }
 
 /** A system actor, for a settlement no person's action caused (the board changed). */

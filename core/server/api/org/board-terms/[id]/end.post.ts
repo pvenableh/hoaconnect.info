@@ -24,6 +24,8 @@ export default defineEventHandler(async (event) => {
   const person = termPerson(term);
   await getTypedDirectus().request(updateItem("hoa_board_members", id, { ...r.plan.patch, holder_name: person } as any));
 
+  // Seats changed: money approvals waiting on the board are asked again (docs/spec-money-approvals.md).
+  await settleAfterBoardChange(event, b.orgId);
   await logRegisterActivity(event, access, {
     type: "board_term",
     collection: "hoa_board_members",

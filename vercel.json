@@ -23,6 +23,10 @@
     {
       "path": "/api/support/attachments/sweep",
       "schedule": "50 9 * * *"
+    },
+    {
+      "path": "/api/money/approvals/settle",
+      "schedule": "20 0 * * *"
     }
   ]
 }

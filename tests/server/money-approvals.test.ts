@@ -304,10 +304,27 @@ describe("a new round when the amount changes", () => {
     expect(second).toMatchObject({ mode: "majority", needed: 3, state: "cannot_approve" });
   });
 
-  it("supersedes an open round", async () => {
+  it("before anyone decides, changes the open round in place and bars the editor", async () => {
     as(WHO.ann);
     await submit();
     const first = currentApproval();
+    as(WHO.sam);
+    const res = await h.patch!(ev({ params: { id: X.draft }, body: { orgId: ORG, patch: { title: "Gutter repair (east side)" } } }));
+    expect(res.status).toBe("submitted");
+    expect(currentApproval()).toBe(first);
+    // Ann asked, Dee entered, Sam edited: Pat is the only officer left, so a majority of four (3) can't be reached.
+    expect(approvalOf(first)).toMatchObject({ round: 1, state: "cannot_approve", mode: "majority", needed: 3 });
+    expect(approvalOf(first)!.excluded).toEqual(expect.arrayContaining([WHO.ann.userId, U.dee, U.sam]));
+    as(WHO.sam);
+    await expect(decide(first, "approve")).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("after a decision, supersedes the open round", async () => {
+    as(WHO.ann);
+    await submit();
+    const first = currentApproval();
+    as(WHO.pat);
+    await decide(first, "approve");
     as(WHO.sam);
     await h.patch!(ev({ params: { id: X.draft }, body: { orgId: ORG, patch: { vendor: "Better Roofing" } } }));
     expect(approvalOf(first)!.state).toBe("superseded");
@@ -459,5 +476,58 @@ describe("GET /api/org/expenses", () => {
     as(WHO.ann);
     const seat = await h.list!(ev({ query: { orgId: ORG } }));
     expect(seat.expenses[0].actions).toEqual(["edit", "submit"]);
+  });
+});
+
+describe("when the board changes (resettleCommunity)", () => {
+  const endTerm = (memberId: string) => {
+    const t = state.db.hoa_board_members!.find((b) => b.hoa_member === memberId)!;
+    t.term_end = "2020-01-01";
+  };
+  const resettle = () => (globalThis as any).resettleCommunity(ORG, { userId: WHO.admin.userId, name: "Ada Min", email: null });
+
+  it("settles an approval the change decided, and reads never do", async () => {
+    // The admin entered and submitted it: the committee (Pat, Ann, Sam) decides, and Pat approves.
+    const made = await h.create!(ev({ body: { orgId: ORG, expense: { title: "Pump", vendor: "AquaCo", amount: 900 }, submit: true } }));
+    const id = expense(made.id)!.approval;
+    as(WHO.pat);
+    await decide(id, "approve");
+    // Ann, Sam and Dee leave: Pat is the board, and one seat's majority is one.
+    for (const m of [ID.memberAnn, M.sam, M.dee]) endTerm(m);
+    as(WHO.pat);
+    const before = await h.approvals!(ev({ query: { orgId: ORG } }));
+    expect(before.approvals[0]).toMatchObject({ state: "pending", canDecide: false, waiting_on: [] });
+    expect(approvalOf(id)!.state).toBe("pending");
+
+    expect(await resettle()).toMatchObject({ checked: 1, settled: 1 });
+    expect(approvalOf(id)!.state).toBe("approved");
+    expect(expense(made.id)!.status).toBe("approved");
+    expect(cap.ledger.at(-1)).toMatchObject({ event_type: "expense_approved", actor_name: "Ada Min" });
+  });
+
+  it("tells the people it now waits on when a seated board can approve what it could not", async () => {
+    for (const m of [M.pat, M.sam]) endTerm(m);
+    as(WHO.ann);
+    await submit();
+    const id = currentApproval();
+    // Ann asked and Dee entered it: of two seats, nobody may vote.
+    expect(approvalOf(id)).toMatchObject({ state: "cannot_approve" });
+    for (const m of [M.pat, M.sam]) state.db.hoa_board_members!.find((b) => b.hoa_member === m)!.term_end = null;
+    cap.notices.length = 0;
+
+    expect(await resettle()).toMatchObject({ reopened: 1 });
+    expect(approvalOf(id)).toMatchObject({ state: "pending", mode: "committee", needed: 2 });
+    const notice = cap.notices.find((n) => n.collection === "money_approvals")!;
+    expect(notice.recipientUserIds.sort()).toEqual([U.pat, U.sam].sort());
+  });
+
+  it("lets the other seat of a two-seat board approve what the first entered", async () => {
+    for (const m of [M.pat, M.sam]) endTerm(m);
+    // Dee entered it; the admin submits. Seats: Ann and Dee, and Ann may vote.
+    await submit();
+    const id = currentApproval();
+    expect(approvalOf(id)).toMatchObject({ state: "pending", mode: "majority", needed: 1 });
+    as(WHO.ann);
+    expect(await decide(id, "approve")).toMatchObject({ state: "approved" });
   });
 });

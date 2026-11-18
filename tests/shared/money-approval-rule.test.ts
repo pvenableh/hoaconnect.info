@@ -112,6 +112,7 @@ describe("exclusion", () => {
   });
 
   it("falls to majority when excluding the reshaper leaves one committee member", () => {
+    // Three seats, so no small-board allowance.
     const seats = [seat("pres", "president"), seat("treas", "treasurer"), seat("d1", "director")];
     const v = evaluateApproval({ seats, excluded: ["d1", "treas"], decisions: [] });
     expect(v.mode).toBe("majority");
@@ -183,32 +184,44 @@ describe("the rejection threshold", () => {
   });
 });
 
-describe("cannot_approve", () => {
-  it("cannot approve with a single seat, whoever entered it", () => {
-    for (const excluded of [["solo"], ["admin-no-seat"]]) {
-      const v = evaluateApproval({ seats: [seat("solo", "president")], excluded, decisions: [] });
-      expect(v.state).toBe("cannot_approve");
-      expect(canDecide(v, "solo")).toBe(false);
-    }
+describe("small boards and cannot_approve", () => {
+  it("lets a single seat approve what someone else entered", () => {
+    const v = evaluateApproval({ seats: [seat("solo", "president")], excluded: ["admin-no-seat"], decisions: [] });
+    // One seat's majority is already one: no allowance needed.
+    expect(v).toMatchObject({ state: "pending", mode: "majority", needed: 1, smallBoard: false });
+    expect(canDecide(v, "solo")).toBe(true);
+    expect(evaluateApproval({ seats: [seat("solo", "president")], excluded: ["admin-no-seat"], decisions: [approve("solo", "president")] }).state).toBe("approved");
+  });
+
+  it("never lets a single seat approve its own entry", () => {
+    const v = evaluateApproval({ seats: [seat("solo", "president")], excluded: ["solo"], decisions: [] });
+    expect(v.state).toBe("cannot_approve");
+    expect(canDecide(v, "solo")).toBe(false);
   });
 
   it("cannot approve with no seats at all", () => {
     const v = evaluateApproval({ seats: [], excluded: ["admin"], decisions: [] });
     expect(v.state).toBe("cannot_approve");
     expect(v.seatCount).toBe(0);
-    expect(v.needed).toBe(2);
+    expect(v.smallBoard).toBe(false);
   });
 
-  it("cannot approve with two seats when one of them entered it", () => {
+  it("lets the other seat of two approve when one seat entered it", () => {
     const v = evaluateApproval({ seats: [seat("pres", "president"), seat("d1", "director")], excluded: ["d1"], decisions: [] });
-    expect(v.state).toBe("cannot_approve");
+    expect(v).toMatchObject({ state: "pending", needed: 1, smallBoard: true, voters: ["pres"] });
+    const no = evaluateApproval({ seats: [seat("pres", "president"), seat("d1", "director")], excluded: ["d1"], decisions: [reject("pres", "president")] });
+    expect(no.state).toBe("rejected");
   });
 
-  it("can approve with two seats when neither entered it", () => {
+  it("needs both of two seats when neither entered it", () => {
     const v = evaluateApproval({ seats: [seat("pres", "president"), seat("d1", "director")], excluded: ["mgr"], decisions: [] });
-    expect(v.mode).toBe("majority");
-    expect(v.needed).toBe(2);
-    expect(v.state).toBe("pending");
+    expect(v).toMatchObject({ mode: "majority", needed: 2, smallBoard: false, state: "pending" });
+  });
+
+  it("does not lower the need on a board of three or more", () => {
+    const seats = [seat("pres", "president"), seat("d1", "director"), seat("d2", "director")];
+    const v = evaluateApproval({ seats, excluded: ["d1", "d2"], decisions: [] });
+    expect(v).toMatchObject({ needed: 2, smallBoard: false, state: "cannot_approve" });
   });
 });
 

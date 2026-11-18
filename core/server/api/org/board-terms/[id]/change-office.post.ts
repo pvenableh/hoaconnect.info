@@ -41,6 +41,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Couldn't change the office. Nothing changed." });
   }
 
+  // Seats changed: money approvals waiting on the board are asked again (docs/spec-money-approvals.md).
+  await settleAfterBoardChange(event, b.orgId);
   await logRegisterActivity(event, access, {
     type: "board_term",
     collection: "hoa_board_members",

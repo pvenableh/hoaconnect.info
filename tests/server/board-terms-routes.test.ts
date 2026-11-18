@@ -23,8 +23,12 @@ type Route = keyof typeof ROUTES;
 const handlers: Partial<Record<Route, (e: any) => Promise<any>>> = {};
 const call = (route: Route, o: { query?: any; body?: any; params?: any }) => handlers[route]!(ev(o));
 
+// Every board change resettles the community's open money approvals (docs/spec-money-approvals.md).
+const settled = vi.fn(async (_e: unknown, _orgId: string) => {});
+
 beforeAll(async () => {
   fake = stubGlobals(state);
+  vi.stubGlobal("settleAfterBoardChange", settled);
   for (const [k, path] of Object.entries(ROUTES)) handlers[k as Route] = (await import(/* @vite-ignore */ path)).default;
 });
 
@@ -33,6 +37,7 @@ beforeEach(() => {
   state.who = PERSONAS.admin;
   state.fail = undefined;
   fake.reset();
+  settled.mockClear();
 });
 
 const term = (id: string) => state.db.hoa_board_members!.find((t) => t.id === id)!;
@@ -67,6 +72,21 @@ describe("access", () => {
       await expect(call(route, { ...VALID[route], params: { id: ID.termOther } })).rejects.toMatchObject({ statusCode: 404 });
     });
   }
+});
+
+describe("money approvals follow the board", () => {
+  it("each route asks the open approvals again after it writes, and not when it refuses", async () => {
+    for (const route of Object.keys(ROUTES) as Route[]) {
+      state.db = seed();
+      settled.mockClear();
+      as(PERSONAS.board);
+      await expect(call(route, VALID[route])).rejects.toMatchObject({ statusCode: 403 });
+      expect(settled, route).not.toHaveBeenCalled();
+      as(PERSONAS.admin);
+      await call(route, VALID[route]);
+      expect(settled, route).toHaveBeenCalledWith(expect.anything(), ORG);
+    }
+  });
 });
 
 describe("End term", () => {
@@ -145,6 +165,7 @@ describe("Add a term (POST board-terms)", () => {
 
   it("adds a term for a member of the community, published unless said otherwise, and logs it", async () => {
     const res = await add(BODY);
+    expect(settled).toHaveBeenCalledWith(expect.anything(), ORG);
     expect(term(res.id)).toMatchObject({ hoa_member: ID.memberBob, title: "secretary", term_start: "2026-11-01", term_end: null, status: "published" });
     expect(activity()[0]).toMatchObject({ event_type: "board_term", target_id: res.id, label: "Added Bob Diaz as Secretary", user: ID.userAdmin });
     const draft = await add({ ...BODY, status: "draft" });

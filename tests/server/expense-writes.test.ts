@@ -229,10 +229,12 @@ describe("the pure checks", () => {
     expect(expenseCommunity({ organization: null, project: { organization: ORG } })).toBeNull();
   });
 
-  it("editPlan: amount, vendor and title reshape a submitted expense; a paid one keeps all but notes and receipt", () => {
+  it("editPlan: amount, vendor and title reshape once decided, amend before; a paid one keeps all but notes and receipt", () => {
     const current = { amount: "400.00", vendor: "Acme", title: "Gutters", notes: null, project: { id: "p1" }, expense_date: "2026-11-01T00:00:00" };
-    expect(editPlan("draft", current, { amount: 500 })).toEqual({ changed: ["amount"], refusal: null, newRound: false });
-    expect(editPlan("submitted", current, { amount: 400, notes: "n" })).toEqual({ changed: ["notes"], refusal: null, newRound: false });
+    expect(editPlan("draft", current, { amount: 500 })).toEqual({ changed: ["amount"], refusal: null, newRound: false, amendsRound: false });
+    expect(editPlan("submitted", current, { amount: 400, notes: "n" })).toEqual({ changed: ["notes"], refusal: null, newRound: false, amendsRound: false });
+    expect(editPlan("submitted", current, { title: "Gutters (east)" })).toMatchObject({ newRound: false, amendsRound: true });
+    expect(editPlan("submitted", current, { title: "Gutters (east)" }, 1)).toMatchObject({ newRound: true, amendsRound: false });
     for (const k of ["amount", "vendor", "title"]) {
       expect(editPlan("approved", current, { [k]: k === "amount" ? 401 : "Other" }).newRound, k).toBe(true);
     }

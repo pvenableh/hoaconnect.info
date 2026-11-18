@@ -12,9 +12,11 @@
  *
  * Status is never a field here. It moves only through the routes: submit,
  * pay, void, and a decision on the expense's approval. A change to the
- * amount, vendor or title of a submitted or approved expense opens a new
- * approval round (decided with the operator 2026-11-17: the vendor is the
- * payee, and the title names what the approval approved).
+ * amount, vendor or title once someone has decided opens a new approval
+ * round; before the first decision it changes the open round in place, and
+ * the editor still cannot decide it (decided with the operator: the vendor
+ * is the payee and the title names what is approved, 2026-11-17; free until
+ * the first decision, 2026-11-18).
  *
  * Pure: no Directus.
  */
@@ -117,30 +119,34 @@ export interface EditPlan {
   readonly changed: readonly string[];
   /** Why the change is refused, or null. */
   readonly refusal: string | null;
-  /** The change reshapes a submitted, approved or rejected expense: a new round. */
+  /** The change reshapes an expense someone has decided: a new round. */
   readonly newRound: boolean;
+  /** The change reshapes a submission nobody has decided yet: the open round changes in place, and the editor joins its excluded. */
+  readonly amendsRound: boolean;
 }
 
-/** What an edit does to an expense in this status. */
-export function editPlan(status: unknown, current: Record<string, unknown>, patch: Record<string, unknown>): EditPlan {
+/** What an edit does to an expense in this status, given the decisions on its current round. */
+export function editPlan(status: unknown, current: Record<string, unknown>, patch: Record<string, unknown>, decisions = 0): EditPlan {
   const changed = Object.keys(patch).filter((k) => !sameValue(current[k], patch[k]));
   const reshapes = changed.some((k) => (RESHAPE_FIELDS as readonly string[]).includes(k));
   const outside = (allowed: readonly string[]) => changed.filter((k) => !allowed.includes(k));
+  const plan = (refusal: string | null, newRound = false, amendsRound = false): EditPlan => ({ changed, refusal, newRound, amendsRound });
   switch (status) {
     case "draft":
-      return { changed, refusal: null, newRound: false };
-    case "rejected":
+      return plan(null);
     case "submitted":
+      return decisions === 0 ? plan(null, false, reshapes) : plan(null, reshapes);
+    case "rejected":
     case "approved":
-      return { changed, refusal: null, newRound: reshapes };
+      return plan(null, reshapes);
     case "paid":
       return outside(PAID_FIELDS).length
-        ? { changed, refusal: "A paid expense keeps its amount, vendor and details: only its notes and receipt change. To correct it, void it and enter it again.", newRound: false }
-        : { changed, refusal: null, newRound: false };
+        ? plan("A paid expense keeps its amount, vendor and details: only its notes and receipt change. To correct it, void it and enter it again.")
+        : plan(null);
     case "void":
-      return { changed, refusal: "A voided expense stays as it was.", newRound: false };
+      return plan("A voided expense stays as it was.");
     default:
-      return { changed, refusal: "This expense can't be changed.", newRound: false };
+      return plan("This expense can't be changed.");
   }
 }
 

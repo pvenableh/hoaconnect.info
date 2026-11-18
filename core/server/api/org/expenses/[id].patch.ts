@@ -4,10 +4,13 @@
  * Body: { orgId, patch }. What may change depends on its status
  * (editPlan, core/shared/expenses/expense-writes.ts):
  *   draft                         anything
- *   submitted, approved, rejected anything; a change to the amount, vendor or
- *                                 title supersedes the open round and opens a
- *                                 new one that the editor cannot decide, and
- *                                 the expense goes back to submitted
+ *   submitted, nobody decided     anything; a change to the amount, vendor or
+ *                                 title changes the open round in place, and
+ *                                 the editor can no longer decide it
+ *   submitted with a decision,    anything; a change to the amount, vendor or
+ *   approved, rejected            title supersedes the round and opens a new
+ *                                 one that the editor cannot decide, and the
+ *                                 expense goes back to submitted
  *   paid                          notes and receipt only
  *   void                          nothing
  * Status never changes here except through a new round. The row must be the
@@ -33,7 +36,9 @@ export default defineEventHandler(async (event) => {
 
   await requireExpenseAction(orgId, row, viewer, "edit");
   const current = { ...row, project: asId(row.project), receipt: asId(row.receipt) };
-  const plan = editPlan(row.status, current, patch as Record<string, unknown>);
+  const round = row.approval ? (await loadApprovals(orgId, { id: { _eq: asId(row.approval) } }))[0] ?? null : null;
+  const decided = round ? (await loadDecisions([round.id])).get(round.id)?.length ?? 0 : 0;
+  const plan = editPlan(row.status, current, patch as Record<string, unknown>, decided);
   if (plan.refusal) throw createError({ statusCode: 400, message: plan.refusal });
   if (!plan.changed.length) return numericMoney([row as object], ["amount"])[0];
 
@@ -44,14 +49,17 @@ export default defineEventHandler(async (event) => {
   const changes = Object.fromEntries(plan.changed.map((k) => [k, (patch as Record<string, unknown>)[k]]));
   const updated = await getTypedDirectus().request(updateItem("payment_expenses" as never, id, changes as never));
 
+  if (plan.amendsRound && round) {
+    await amendRound(orgId, round, viewer.userId);
+    return numericMoney([updated as object], ["amount"])[0];
+  }
   if (plan.newRound) {
     const now = new Date().toISOString();
-    const previous = row.approval ? (await loadApprovals(orgId, { id: { _eq: asId(row.approval) } }))[0] : null;
     await startSpendRound({
       orgId,
       expense: { ...row, ...changes },
       // The round is still the original asker's; the editor is excluded as its reshaper.
-      requestedBy: previous?.requested_by ?? asId(row.entered_by) ?? viewer.userId,
+      requestedBy: round?.requested_by ?? asId(row.entered_by) ?? viewer.userId,
       reshapedBy: viewer.userId,
       now,
       origin: await safeRequestOrigin(event).catch(() => null),

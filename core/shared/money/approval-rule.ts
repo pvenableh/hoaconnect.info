@@ -19,9 +19,12 @@
  *     excluded; two of them must approve.
  *   - **majority**: otherwise. More than half of all seats must approve
  *     (`floor(seats / 2) + 1`); excluded people count as seats but cannot
- *     vote. Never fewer than two approvals, so a board of one seat cannot
- *     approve anything: the spec's "a board too small for either rule, such as
- *     a single seat". Money going out is decided by two people.
+ *     vote.
+ *   - **small board** (one or two seats; decided with the operator
+ *     2026-11-18): the majority need drops to the seats who may vote, so one
+ *     eligible seat can approve. Two people are still involved, because
+ *     whoever asked is always excluded: a seat never approves its own entry.
+ *     A board where nobody may vote cannot approve.
  *
  * The HOA Admin role is not an input. An admin who holds no seat approves
  * nothing; one who holds a seat approves as that seat.
@@ -80,6 +83,8 @@ export interface RuleView {
   readonly remaining: number;
   /** People on the board today (one per person). */
   readonly seatCount: number;
+  /** A board of one or two seats whose need dropped to the seats who may vote. */
+  readonly smallBoard: boolean;
   /** People who may vote under the current mode: current seats that qualify, not excluded. */
   readonly voters: readonly string[];
   /** Voters who have not decided yet: the people this approval is waiting on. */
@@ -123,9 +128,10 @@ export function evaluateApproval(input: RuleInput): RuleView {
 
   const committee = [...board.keys()].filter((u) => holdsCommittee(input.seats, u) && !excluded.has(u));
   const mode: ApprovalMode = committee.length >= 2 ? "committee" : "majority";
-  const needed = mode === "committee" ? 2 : Math.max(2, Math.floor(seatCount / 2) + 1);
-
   const voters = mode === "committee" ? committee : [...board.keys()].filter((u) => !excluded.has(u));
+  const majority = Math.floor(seatCount / 2) + 1;
+  const smallBoard = mode === "majority" && seatCount <= 2 && voters.length >= 1 && voters.length < majority;
+  const needed = mode === "committee" ? 2 : smallBoard ? voters.length : majority;
 
   // One decision per person (the table is unique on it; the first is kept if
   // a caller ever hands two). An excluded person's decision never counts.
@@ -151,6 +157,7 @@ export function evaluateApproval(input: RuleInput): RuleView {
     rejections,
     remaining,
     seatCount,
+    smallBoard,
     voters,
     waitingOn: state === "pending" ? waitingOn : [],
     excludedSeats: [...board.keys()].filter((u) => excluded.has(u)),

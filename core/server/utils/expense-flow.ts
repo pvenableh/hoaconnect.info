@@ -90,7 +90,7 @@ export async function describeExpenses(
   return rows.map((r) => {
     const current = byId.get(idOf(r.approval) ?? "") ?? null;
     const own = current ? decisions.get(current.id) ?? [] : [];
-    const view = current ? viewOf(current, seats, own) : null;
+    const view = current ? readViewOf(current, seats, own) : null;
     const enteredBy = idOf(r.entered_by);
     const paidBy = idOf(r.paid_by);
     return {

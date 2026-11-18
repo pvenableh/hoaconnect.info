@@ -27,6 +27,8 @@ export default defineEventHandler(async (event) => {
   const before = Object.fromEntries(changed.map((k) => [k, (term as unknown as Record<string, unknown>)[k] ?? null]));
   await getTypedDirectus().request(updateItem("hoa_board_members", id, after as any));
 
+  // Seats changed: money approvals waiting on the board are asked again (docs/spec-money-approvals.md).
+  await settleAfterBoardChange(event, orgId);
   await logRegisterActivity(event, access, {
     type: "board_term",
     collection: "hoa_board_members",

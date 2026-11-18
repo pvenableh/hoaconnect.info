@@ -33,6 +33,8 @@ export default defineEventHandler(async (event) => {
   )) as unknown as { id: string };
 
   const person = [member.first_name, member.last_name].filter(Boolean).join(" ") || "A member";
+  // Seats changed: money approvals waiting on the board are asked again (docs/spec-money-approvals.md).
+  await settleAfterBoardChange(event, orgId);
   await logRegisterActivity(event, access, {
     type: "board_term",
     collection: "hoa_board_members",

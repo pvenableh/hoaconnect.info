@@ -5,9 +5,8 @@
  * for showing the buttons only: POST .../decide checks the rule again and
  * never reads it from the client.
  *
- * An open approval whose board changed under it, so that the rule now says
- * approved or rejected with no new decision, is settled here, as a decision
- * would have settled it.
+ * Reads never write. An open approval whose board changed under it reads as
+ * it is stored until the board change settles it (resettleCommunity).
  */
 import type { Seat } from "#core/shared/money/approval-rule";
 import { OFFICE_LABELS, progressLabel } from "#core/shared/money/approval-rule";
@@ -20,21 +19,7 @@ const person = (id: string, names: Map<string, string>, seats: readonly Seat[]) 
 
 export async function describeApprovals(orgId: string, approvals: ApprovalRow[], userId: string | null, seatsArg?: readonly Seat[]) {
   const seats = seatsArg ?? (await loadCurrentSeats(orgId));
-  let decisions = await loadDecisions(approvals.map((a) => a.id));
-
-  // Settle what the board's change decided.
-  let settled = false;
-  for (const a of approvals) {
-    if (!isOpen(a.state)) continue;
-    const view = viewOf(a, seats, decisions.get(a.id) ?? []);
-    if (view.state === "approved" || view.state === "rejected") {
-      await settleApproval({ orgId, approval: a, view, decisions: decisions.get(a.id) ?? [], seats, actor: SYSTEM_ACTOR, now: new Date().toISOString() });
-      a.state = view.state;
-      a.needed = view.needed;
-      settled = true;
-    }
-  }
-  if (settled) decisions = await loadDecisions(approvals.map((a) => a.id));
+  const decisions = await loadDecisions(approvals.map((a) => a.id));
 
   const expenseIds = [...new Set(approvals.map((a) => a.expense).filter((x): x is string => !!x))];
   const expenses = expenseIds.length
@@ -59,7 +44,7 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
 
   return approvals.map((a) => {
     const own = decisions.get(a.id) ?? [];
-    const view = viewOf(a, seats, own);
+    const view = readViewOf(a, seats, own);
     const e = a.expense ? expenseById.get(a.expense) : null;
     return {
       id: a.id,
@@ -72,6 +57,7 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
       rejections: view.rejections,
       remaining: view.remaining,
       progress: progressLabel(view),
+      smallBoard: view.smallBoard,
       reason: a.reason,
       date_created: a.date_created,
       decided_at: a.decided_at,

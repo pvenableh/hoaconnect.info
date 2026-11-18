@@ -54,6 +54,8 @@ export default defineEventHandler(async (event) => {
   }
 
   await d.request(deleteItem("hoa_board_members", id));
+  // Seats changed: money approvals waiting on the board are asked again (docs/spec-money-approvals.md).
+  await settleAfterBoardChange(event, orgId);
   await logRegisterActivity(event, access, {
     type: "board_term",
     collection: "hoa_board_members",

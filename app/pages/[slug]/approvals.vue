@@ -29,6 +29,7 @@ interface ApprovalItem {
   rejections: number;
   remaining: number;
   progress: string;
+  smallBoard: boolean;
   reason: string | null;
   date_created: string | null;
   decided_at: string | null;
@@ -93,7 +94,11 @@ const STATE_CLASS: Record<string, string> = {
 
 /** What the rule needs, in words. */
 const ruleLine = (a: ApprovalItem) =>
-  a.mode === "committee" ? "Needs two of the President, Treasurer and Secretary." : `Needs a majority of the board: ${a.needed} approvals.`;
+  a.mode === "committee"
+    ? "Needs two of the President, Treasurer and Secretary."
+    : a.smallBoard
+      ? `The board is small, so it needs ${a.needed === 1 ? "one approval" : `${a.needed} approvals`} from members who didn't ask for it or change it.`
+      : `Needs a majority of the board: ${a.needed} approval${a.needed === 1 ? "" : "s"}.`;
 
 /** Who still has to act, or why nobody can. */
 const stillNeeds = (a: ApprovalItem) => {
