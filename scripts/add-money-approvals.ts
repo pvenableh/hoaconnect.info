@@ -20,8 +20,9 @@
  *
  * The schema pass touches no permissions. `--lock` is the write lock
  * (scripts/lib/money-approval-perms.ts): no policy keeps create, update or
- * delete on payment_expenses (the HOA Admin policy had delete left), and no
- * policy keeps any rule on the two new collections. The routes in
+ * delete on payment_expenses (the HOA Admin policy had delete left), no
+ * policy keeps any rule on the two new collections, and no policy updates or
+ * deletes a charge (payment_requests: the charge cancel lock, Session 5). The routes in
  * core/server/api/org/expenses and core/server/api/org/money are the only
  * writers, with the app's token. setup-directus-permissions.ts keeps the
  * lock on a re-run (REMOVED_ADMIN_RULES), and so does
@@ -34,7 +35,7 @@
  * Requires: DIRECTUS_URL, DIRECTUS_STATIC_TOKEN (admin token). Then
  * `pnpm generate:types`. Idempotent: what exists is skipped.
  */
-import { APPROVAL_COLLECTIONS, lockPlan, type PermissionRow } from "./lib/money-approval-perms";
+import { LOCKED_COLLECTIONS, lockPlan, type PermissionRow } from "./lib/money-approval-perms";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
@@ -341,7 +342,7 @@ async function lock(): Promise<void> {
   console.log("\n🔒 The write lock");
   const res = await directusFetch(
     `/permissions?filter=${encodeURIComponent(
-      JSON.stringify({ collection: { _in: ["payment_expenses", ...APPROVAL_COLLECTIONS] } })
+      JSON.stringify({ collection: { _in: [...LOCKED_COLLECTIONS] } })
     )}&fields=id,policy.id,policy.name,collection,action&limit=-1`
   );
   const rows: PermissionRow[] = (res?.data ?? []).map((r: any) => ({
@@ -352,7 +353,7 @@ async function lock(): Promise<void> {
   }));
   for (const r of rows) console.log(`   · ${r.policyName ?? "a policy"}: ${r.action} on ${r.collection} (#${r.id})`);
   const remove = lockPlan(rows);
-  if (!remove.length) return skip("nothing to remove: no policy writes payment_expenses or touches the approvals");
+  if (!remove.length) return skip("nothing to remove: no policy writes payment_expenses, cancels or deletes a charge, or touches the approvals");
   for (const r of remove) {
     const what = `${r.policyName ?? "a policy"}'s ${r.action} on ${r.collection} (#${r.id})`;
     if (!APPLY) {

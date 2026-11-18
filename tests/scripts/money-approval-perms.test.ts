@@ -1,8 +1,10 @@
 /**
  * The money write lock (docs/spec-money-approvals.md, "Permissions"): after
- * `pnpm add:money-approvals --lock`, no policy writes payment_expenses and
- * no policy has any rule on money_approvals or money_approval_decisions.
- * A re-run of the permission scripts keeps it.
+ * `pnpm add:money-approvals --lock`, no policy writes payment_expenses, no
+ * policy has any rule on money_approvals or money_approval_decisions, and no
+ * policy can cancel or delete a charge (payment_requests update and delete:
+ * cancelling is a waiver, approved like spending). A re-run of the
+ * permission scripts keeps it.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -22,15 +24,19 @@ describe("the lock plan", () => {
     row(6, "HOA Admin", "money_approvals", "read"),
     row(7, "HOA Member", "money_approval_decisions", "create"),
     row(8, "HOA Admin", "payment_requests", "update"),
+    row(9, "HOA Admin", "payment_requests", "delete"),
+    row(10, "HOA Admin", "payment_requests", "create"),
+    row(11, "HOA Admin", "payment_requests", "read"),
+    row(12, "HOA Member", "payment_requests", "read"),
   ];
 
-  it("removes every write on payment_expenses and every rule on the approvals", () => {
-    expect(lockPlan(live).map((r) => r.id)).toEqual([2, 3, 4, 5, 6, 7]);
+  it("removes every write on payment_expenses, every rule on the approvals, and the update and delete on charges", () => {
+    expect(lockPlan(live).map((r) => r.id)).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
-  it("keeps the HOA Admin read on payment_expenses, and leaves other collections to Session 5", () => {
+  it("keeps the HOA Admin read on payment_expenses, and the create and reads on charges", () => {
     const kept = live.filter((r) => !lockPlan(live).includes(r)).map((r) => r.id);
-    expect(kept).toEqual([1, 8]);
+    expect(kept).toEqual([1, 10, 11, 12]);
   });
 
   it("leaves nothing to remove once applied", () => {
@@ -43,6 +49,17 @@ describe("a re-run keeps the lock", () => {
   it("setup-directus-permissions removes and never recreates the HOA Admin's expense writes", () => {
     for (const action of ["create", "update", "delete"]) expect(isRemovedAdminRule("payment_expenses", action), action).toBe(true);
     expect(isRemovedAdminRule("payment_expenses", "read")).toBe(false);
+  });
+
+  it("setup-directus-permissions removes and never recreates the HOA Admin's charge update and delete, keeping create and read", () => {
+    for (const action of ["update", "delete"]) expect(isRemovedAdminRule("payment_requests", action), action).toBe(true);
+    for (const action of ["create", "read"]) expect(isRemovedAdminRule("payment_requests", action), action).toBe(false);
+  });
+
+  it("no app code cancels or deletes a charge through Directus", () => {
+    const composable = readFileSync(join(process.cwd(), "core/app/composables/useChargesResource.ts"), "utf8");
+    expect(composable).not.toMatch(/status:\s*"canceled"/);
+    expect(composable).not.toMatch(/useDirectusItems/);
   });
 
   it("create-expenses-collection grants only what REMOVED_ADMIN_RULES leaves, and no policy script names the approvals", () => {

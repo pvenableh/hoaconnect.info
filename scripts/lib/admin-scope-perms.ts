@@ -209,6 +209,13 @@ export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string 
   // is deleted, and a draft only by its enterer or an admin, through
   // DELETE /api/org/expenses/[id]. No policy writes payment_expenses.
   { collection: "payment_expenses", action: "delete" },
+  // The charge cancel lock (2026-11-18, docs/spec-money-approvals.md): an
+  // admin cancels a charge only by asking to waive it, which the board
+  // approves (POST /api/org/money/charges/[id]/waive). Update and delete went
+  // with it: recording a payment and reminders are routes on the app's token,
+  // and a delete gave up the income with no record. Create stays (New charge).
+  { collection: "payment_requests", action: "update" },
+  { collection: "payment_requests", action: "delete" },
   ...CREATE_AND_UPDATE("hoa_member_units"),
   ...CREATE_AND_UPDATE("hoa_board_members"),
   // And delete (2026-11-16, Session 7): the Board tab removes a term through
