@@ -204,6 +204,8 @@ describe("the event catalogue", () => {
   it("keeps a payment board-only — it names one household", () => {
     // The one default that must not be relaxed casually. See VISION's risks.
     expect(defaultVisibilityFor("payment_recorded")).toBe("board");
+    // A waived charge names a household too (docs/spec-money-approvals.md).
+    expect(defaultVisibilityFor("charge_waived")).toBe("board");
     expect(canView(entry({ visibility: "board" }), owner)).toBe(false);
   });
 

@@ -19,10 +19,13 @@ import {
 } from "#core/shared/money/approval-rule";
 import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
 import {
+  buildChargeWaivedEntry,
   buildExpenseApprovedEntry,
   buildExpenseVoidedEntry,
+  chargePhrase,
   expensePhrase,
   nameWithOffice,
+  type ChargeSubject,
   type ExpenseSubject,
 } from "#core/shared/ledger/entries";
 import type { LedgerActor } from "#core/shared/ledger/entry";
@@ -243,6 +246,58 @@ export async function loadExpense(orgId: string, id: string): Promise<any> {
   return row;
 }
 
+export const CHARGE_SUBJECT_FIELDS = [
+  "id", "organization", "title", "status", "amount", "amount_paid", "amount_remaining", "waiver",
+  "member.id", "member.first_name", "member.last_name", "member.email", "member.organization",
+] as const;
+
+/** A charge that can still be waived: nothing settled it yet. */
+export const isWaivableCharge = (status: unknown) => !["paid", "canceled"].includes(String(status ?? ""));
+
+/**
+ * One owner charge of the community, 404 otherwise. Its household must be
+ * the community's too: a charge that straddles two communities is no one's.
+ */
+export async function loadCharge(orgId: string, id: string): Promise<any> {
+  const rows = ((await getTypedDirectus().request(
+    readItems("payment_requests", {
+      filter: { id: { _eq: id }, organization: { _eq: orgId } } as any,
+      fields: [...CHARGE_SUBJECT_FIELDS] as any,
+      limit: 1,
+    })
+  )) ?? []) as any[];
+  const row = rows[0];
+  const memberOrg = row?.member && typeof row.member === "object" ? idOf(row.member.organization) : null;
+  if (!row || idOf(row.organization) !== orgId || (memberOrg && memberOrg !== orgId)) {
+    throw createError({ statusCode: 404, message: "No such charge in this community." });
+  }
+  return row;
+}
+
+/** The household's name on a charge: "Bob Owner", else their email. */
+export function chargeHousehold(member: unknown): string | null {
+  if (!member || typeof member !== "object") return null;
+  const m = member as { first_name?: string | null; last_name?: string | null; email?: string | null };
+  return [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || m.email || null;
+}
+
+/** The charge as a ledger subject. */
+export function chargeSubject(row: any): ChargeSubject {
+  return {
+    chargeId: String(row.id),
+    title: row.title ?? "",
+    amount: row.amount,
+    amountRemaining: row.amount_remaining ?? null,
+    memberId: idOf(row.member),
+    memberName: chargeHousehold(row.member),
+  };
+}
+
+/** The open waivers on a charge. */
+export async function openWaiversFor(orgId: string, chargeId: string): Promise<ApprovalRow[]> {
+  return loadApprovals(orgId, { charge: { _eq: chargeId }, kind: { _eq: "waive" }, state: { _in: [...OPEN_STATES] } });
+}
+
 export async function orgName(orgId: string): Promise<string | null> {
   const rows = ((await getTypedDirectus().request(
     readItems("hoa_organizations", { filter: { id: { _eq: orgId } } as any, fields: ["name"] as any, limit: 1 })
@@ -339,18 +394,33 @@ export async function notifyApprovers(input: {
   orgId: string;
   approval: ApprovalRow;
   view: Pick<RuleView, "waitingOn" | "needed"> & { readonly state: string };
-  expense: ExpenseSubject;
+  /** A spend or void's expense. */
+  expense?: ExpenseSubject | null;
+  /** A waiver's charge. */
+  charge?: ChargeSubject | null;
   origin?: string | null;
 }): Promise<void> {
   if (input.view.state !== "pending" || !input.view.waitingOn.length) return;
-  const what = expensePhrase(input.expense);
-  const lead = input.approval.kind === "void" ? `Voiding ${what} needs your approval.` : `${what[0]!.toUpperCase()}${what.slice(1)} needs your approval.`;
+  const kind = input.approval.kind;
+  if (kind === "waive" ? !input.charge : !input.expense) return;
+  const what = kind === "waive" ? chargePhrase(input.charge!) : expensePhrase(input.expense!);
+  const lead =
+    kind === "waive"
+      ? `Waiving ${what} needs your approval.`
+      : kind === "void"
+        ? `Voiding ${what} needs your approval.`
+        : `${what[0]!.toUpperCase()}${what.slice(1)} needs your approval.`;
   const round = input.approval.round > 1 ? ` It changed, so this is round ${input.approval.round}.` : "";
   await notifyUsers({
     organizationId: input.orgId,
     recipientUserIds: [...input.view.waitingOn],
     category: "payment",
-    subject: input.approval.kind === "void" ? "Voiding an expense needs your approval" : "Spending needs your approval",
+    subject:
+      kind === "waive"
+        ? "Waiving a charge needs your approval"
+        : kind === "void"
+          ? "Voiding an expense needs your approval"
+          : "Spending needs your approval",
     message: `${lead}${round}`,
     collection: "money_approvals",
     item: input.approval.id,
@@ -400,8 +470,8 @@ export async function settleApproval(input: {
     return { state: view.state, ledger: null };
   }
 
-  // A waiver's effect (cancelling its charge) is Session 5's: until then it stays open.
-  if (approval.kind === "waive" || !approval.expense) return { state: approval.state, ledger: null };
+  if (approval.kind === "waive") return settleWaiver(input);
+  if (!approval.expense) return { state: approval.state, ledger: null };
   await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
 
   const expense = await loadExpense(orgId, approval.expense);
@@ -479,6 +549,72 @@ export async function settleApproval(input: {
   return { state: view.state, ledger };
 }
 
+/**
+ * A waiver the rule decided. Approved: its charge is cancelled, if nothing
+ * settled it meanwhile, and `charge_waived` goes to the Ledger (board).
+ * Rejected: the charge stays as it was. Either way whoever asked is told.
+ * A charge paid or cancelled while the waiver was open closes the waiver as
+ * superseded, with no entry: there is nothing left to give up.
+ */
+async function settleWaiver(input: {
+  orgId: string;
+  approval: ApprovalRow;
+  view: ApprovalView;
+  decisions: readonly DecisionRow[];
+  actor: LedgerActor;
+  now: string;
+  origin?: string | null;
+}): Promise<SettleResult> {
+  const { orgId, approval, view, now } = input;
+  const d = getTypedDirectus();
+  const charge = approval.charge ? await loadCharge(orgId, approval.charge).catch(() => null) : null;
+  if (!charge || !isWaivableCharge(charge.status)) {
+    await supersede(approval, now);
+    return { state: "superseded", ledger: null };
+  }
+  await d.request(updateItem("money_approvals" as any, approval.id, { state: view.state, ...ruleFields(view), decided_at: now } as any));
+
+  const subject = chargeSubject(charge);
+  let ledger: string | null = null;
+  if (view.state === "approved") {
+    await d.request(updateItem("payment_requests", charge.id, { status: "canceled" } as any));
+    const names = await namesFor(orgId, input.decisions.map((x) => x.decided_by));
+    try {
+      ledger = await writeAuditEntry(
+        buildChargeWaivedEntry({
+          organizationId: orgId,
+          organizationName: await orgName(orgId),
+          approvalId: approval.id,
+          charge: subject,
+          reason: approval.reason ?? "",
+          approvedBy: approverNames(input.decisions, names),
+          actor: input.actor,
+          occurredAt: now,
+        })
+      );
+    } catch (e) {
+      console.error("[money-approvals] ledger write failed:", e);
+    }
+  }
+
+  const outcome = view.state === "approved" ? "approved" : "rejected";
+  if (approval.requested_by) {
+    await notifyUsers({
+      organizationId: orgId,
+      recipientUserIds: [approval.requested_by],
+      category: "payment",
+      subject: `Waiver ${outcome}`,
+      message: `Waiving ${chargePhrase(subject)} was ${outcome}${outcome === "approved" ? ": the charge is canceled" : ""}.`,
+      collection: "payment_requests",
+      item: String(charge.id),
+      path: "/admin/payments",
+      origin: input.origin ?? null,
+      excludeUserId: input.actor.userId,
+    }).catch((e) => console.error("[money-approvals] outcome notice failed:", e));
+  }
+  return { state: view.state, ledger };
+}
+
 /** The office label a person decides as today ("President"), or null for no seat. */
 export function officeLabelOf(seats: readonly Seat[], userId: string): { office: string | null; label: string | null } {
   const office = officeOf(seats, userId);
@@ -490,14 +626,14 @@ export function officeLabelOf(seats: readonly Seat[], userId: string): { office:
  * community, and settle what the change decided (approved, rejected, or
  * from "cannot be approved" to waiting, which tells the people it now waits
  * on). Called by the board-term routes and by the daily job, for terms that
- * end on their date. Waivers are left for Session 5.
+ * end on their date. Waivers settle here too: approved cancels the charge.
  */
 export async function resettleCommunity(
   orgId: string,
   actor: LedgerActor,
   origin?: string | null
 ): Promise<{ checked: number; settled: number; reopened: number }> {
-  const open = (await loadApprovals(orgId, { state: { _in: [...OPEN_STATES] } })).filter((a) => a.kind !== "waive");
+  const open = await loadApprovals(orgId, { state: { _in: [...OPEN_STATES] } });
   if (!open.length) return { checked: 0, settled: 0, reopened: 0 };
   const seats = await loadCurrentSeats(orgId);
   const decisions = await loadDecisions(open.map((a) => a.id));
@@ -509,10 +645,20 @@ export async function resettleCommunity(
     const view = viewOf(approval, seats, own);
     const result = await settleApproval({ orgId, approval, view, decisions: own, seats, actor, now, origin });
     if (result.state === "approved" || result.state === "rejected") settled++;
-    if (approval.state === "cannot_approve" && result.state === "pending" && approval.expense) {
-      reopened++;
-      const expense = await loadExpense(orgId, approval.expense).catch(() => null);
-      if (expense) await notifyApprovers({ orgId, approval, view, expense: expenseSubject(expense), origin });
+    if (approval.state === "cannot_approve" && result.state === "pending") {
+      if (approval.expense) {
+        const expense = await loadExpense(orgId, approval.expense).catch(() => null);
+        if (expense) {
+          reopened++;
+          await notifyApprovers({ orgId, approval, view, expense: expenseSubject(expense), origin });
+        }
+      } else if (approval.charge) {
+        const charge = await loadCharge(orgId, approval.charge).catch(() => null);
+        if (charge) {
+          reopened++;
+          await notifyApprovers({ orgId, approval, view, charge: chargeSubject(charge), origin });
+        }
+      }
     }
   }
   return { checked: open.length, settled, reopened };

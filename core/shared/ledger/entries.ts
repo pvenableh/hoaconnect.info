@@ -722,8 +722,51 @@ function expensePayload(e: ExpenseSubject, organizationName: string | null) {
 export type MoneyApprovalKind = "spend" | "void" | "waive";
 
 /**
+ * An owner charge, as a waiver names it. It names a household, so every
+ * entry and notice that carries one is the board's (`payment_recorded`).
+ */
+export interface ChargeSubject {
+  readonly chargeId: string;
+  readonly title: string;
+  readonly amount: unknown;
+  /** What is still owed: the part a waiver gives up. */
+  readonly amountRemaining?: unknown;
+  readonly currency?: string | null;
+  readonly memberId?: string | null;
+  /** The household's name as it reads now. */
+  readonly memberName?: string | null;
+}
+
+/** What a waiver gives up: the remainder when one is known, else the whole charge. */
+export function chargeWaivedAmount(c: Pick<ChargeSubject, "amount" | "amountRemaining">): number {
+  return c.amountRemaining == null ? toLedgerAmount(c.amount) : toLedgerAmount(c.amountRemaining);
+}
+
+/** "a $300.00 charge to Bob Owner for March dues": what a waiver is about. */
+export function chargePhrase(c: Pick<ChargeSubject, "title" | "amount" | "currency" | "memberName">): string {
+  const money = formatMoney(toLedgerAmount(c.amount), c.currency ?? "USD");
+  const title = c.title?.trim() || "an unnamed charge";
+  const who = c.memberName?.trim() || null;
+  return who ? `a ${money} charge to ${who} for ${title}` : `a ${money} charge for ${title}`;
+}
+
+function chargePayload(c: ChargeSubject, organizationName: string | null) {
+  return {
+    organization_name: organizationName,
+    charge_id: c.chargeId,
+    title: c.title?.trim() || null,
+    member_id: c.memberId ?? null,
+    member_name: c.memberName?.trim() || null,
+    charge_amount: toLedgerAmount(c.amount),
+    amount: chargeWaivedAmount(c),
+    currency: (c.currency || "USD").toUpperCase(),
+  };
+}
+
+/**
  * One approve or reject. Board-only: it names who voted which way, which is
- * the board's business; owners see the outcome (`expense_approved`).
+ * the board's business; owners see the outcome (`expense_approved`). A
+ * waiver's subject is a charge, which names a household: board-only twice.
  */
 export function buildMoneyDecisionEntry(input: {
   readonly organizationId: string;
@@ -731,7 +774,10 @@ export function buildMoneyDecisionEntry(input: {
   readonly approvalId: string;
   readonly kind: MoneyApprovalKind;
   readonly round: number;
-  readonly expense: ExpenseSubject;
+  /** A spend or void's expense. */
+  readonly expense?: ExpenseSubject | null;
+  /** A waiver's charge. */
+  readonly charge?: ChargeSubject | null;
   readonly decision: "approve" | "reject";
   /** The office label they held when they decided ("President"). */
   readonly officeLabel: string | null;
@@ -741,7 +787,12 @@ export function buildMoneyDecisionEntry(input: {
 }): LedgerEntry {
   const who = nameWithOffice(input.actor.name, input.officeLabel);
   const verb = input.decision === "approve" ? "approved" : "rejected";
-  const what = input.kind === "void" ? `voiding ${expensePhrase(input.expense)}` : expensePhrase(input.expense);
+  const what =
+    input.kind === "waive" && input.charge
+      ? `waiving ${chargePhrase(input.charge)}`
+      : input.kind === "void"
+        ? `voiding ${expensePhrase(input.expense!)}`
+        : expensePhrase(input.expense!);
   const note = input.note?.trim() || null;
   return {
     schema_version: LEDGER_SCHEMA_VERSION,
@@ -754,7 +805,9 @@ export function buildMoneyDecisionEntry(input: {
     visibility: defaultVisibilityFor("money_decision"),
     summary: `${who} ${verb} ${what}.`,
     payload: {
-      ...expensePayload(input.expense, input.organizationName),
+      ...(input.kind === "waive" && input.charge
+        ? chargePayload(input.charge, input.organizationName)
+        : expensePayload(input.expense!, input.organizationName)),
       approval_id: input.approvalId,
       kind: input.kind,
       round: input.round,
@@ -841,6 +894,58 @@ export function buildExpenseVoidedEntry(input: {
   };
 }
 
+
+/**
+ * A waiver met: the charge is cancelled, and the community gave up what was
+ * still owed. Board-only, like `payment_recorded`: it names a household, and
+ * a feed of whose charges were waived is the same risk as one of who paid.
+ *
+ *   "A $300.00 charge to Bob Owner for March dues was waived, approved by
+ *    Pat Park (President) and Sam Lee (Secretary): Storm damage."
+ *
+ * When part was paid first, the sentence says what was given up: "The
+ * remaining $200.00 of a $300.00 charge … was waived, …".
+ */
+export function buildChargeWaivedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly approvalId: string;
+  readonly charge: ChargeSubject;
+  readonly reason: string;
+  /** "Jane Doe (President)", in the order they approved. */
+  readonly approvedBy: readonly string[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const c = input.charge;
+  const reason = input.reason.trim();
+  const phrase = chargePhrase(c);
+  const waived = chargeWaivedAmount(c);
+  const whole = toLedgerAmount(c.amount);
+  const lead =
+    waived < whole
+      ? `The remaining ${formatMoney(waived, c.currency ?? "USD")} of ${phrase}`
+      : `${phrase[0]!.toUpperCase()}${phrase.slice(1)}`;
+  const by = input.approvedBy.length ? `, approved by ${andList(input.approvedBy)}` : "";
+  const tail = reason ? `: ${reason}${/[.!?]$/.test(reason) ? "" : "."}` : ".";
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "charge_waived",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("charge_waived"),
+    summary: `${lead} was waived${by}${tail}`,
+    payload: {
+      ...chargePayload(c, input.organizationName),
+      approval_id: input.approvalId,
+      approved_by: [...input.approvedBy],
+      reason,
+    },
+  };
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * payment_recorded

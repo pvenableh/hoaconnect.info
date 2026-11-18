@@ -39,7 +39,7 @@ interface ApprovalItem {
   decisions: { id: string; decision: "approve" | "reject"; note: string | null; date_created: string | null; office: string | null; name: string }[];
   subject:
     | { type: "expense"; id: string; title: string; vendor: string | null; amount: number | null; status: string | null; paid_without_approval: boolean }
-    | { type: "charge"; id: string }
+    | { type: "charge"; id: string; title: string; amount: number | null; amount_remaining: number | null; status: string | null; household: string | null }
     | null;
   canDecide: boolean;
 }
@@ -70,7 +70,12 @@ const andList = (names: string[]) => (names.length <= 1 ? names[0] ?? "" : `${na
 
 const headline = (a: ApprovalItem) => {
   const s = a.subject;
-  if (!s || s.type !== "expense") return "A charge";
+  if (!s) return a.kind === "waive" ? "Waive a charge" : "An expense";
+  if (s.type === "charge") {
+    // A waiver gives up what is still owed: the remainder when part was paid.
+    const owed = s.amount_remaining != null && s.amount != null && s.amount_remaining < s.amount ? ` (${currency(s.amount_remaining)} still owed)` : "";
+    return `Waive ${currency(s.amount)}${s.household ? ` owed by ${s.household}` : ""} for ${s.title || "an unnamed charge"}${owed}`;
+  }
   const what = `${currency(s.amount)}${s.vendor ? ` to ${s.vendor}` : ""} for ${s.title || "an unnamed expense"}`;
   return a.kind === "void" ? `Void ${what}` : what;
 };
@@ -84,6 +89,8 @@ const STATE_LABEL: Record<string, string> = {
   cannot_approve: "Cannot be approved",
   superseded: "Replaced by a new round",
 };
+// A waiver closes without a new round: its charge was paid or canceled first.
+const stateLabel = (a: ApprovalItem) => (a.kind === "waive" && a.state === "superseded" ? "Closed: the charge was settled" : STATE_LABEL[a.state]);
 const STATE_CLASS: Record<string, string> = {
   pending: "bg-info/15 text-info",
   approved: "bg-success/15 text-success",
@@ -170,7 +177,7 @@ const decide = async (a: ApprovalItem, decision: "approve" | "reject") => {
               <p v-if="a.reason" class="text-sm t-text">“{{ a.reason }}”</p>
             </div>
             <div class="flex flex-col items-end gap-1">
-              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="STATE_CLASS[a.state]">{{ STATE_LABEL[a.state] }}</span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="STATE_CLASS[a.state]">{{ stateLabel(a) }}</span>
               <span v-if="paidEarly(a)" class="inline-flex items-center gap-1 bg-warning/15 text-warning rounded-full px-2 py-0.5 text-xs font-medium">
                 <Icon name="lucide:alert-triangle" class="w-3 h-3" />Paid before approval
               </span>

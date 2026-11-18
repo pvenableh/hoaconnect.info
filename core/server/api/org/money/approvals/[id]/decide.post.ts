@@ -7,14 +7,15 @@
  * as an admin. Anything the client says about `canDecide` is ignored; a
  * caller the rule does not wait on gets 403. The decision keeps the office
  * its maker holds now, goes to the Ledger (board), and the approval is
- * settled: approved or rejected moves its expense and tells the people
- * concerned.
+ * settled: approved or rejected moves its expense, or for a waiver cancels
+ * its charge, and tells the people concerned. A waiver whose charge was
+ * paid or cancelled meanwhile closes as superseded (409), with no decision.
  *
  * Body: { orgId, decision: "approve" | "reject", note? }.
  */
 import { createItem } from "@directus/sdk";
 import { z } from "zod";
-import { buildMoneyDecisionEntry, expensePhrase } from "#core/shared/ledger/entries";
+import { buildMoneyDecisionEntry, chargePhrase, expensePhrase } from "#core/shared/ledger/entries";
 import { ledgerActorFor } from "#core/server/utils/member-names";
 
 const body = z
@@ -36,8 +37,12 @@ export default defineEventHandler(async (event) => {
   await requireMoneyRead(event, orgId);
   const userId = String(session.user?.id ?? "");
   const approval = await loadApproval(orgId, String(getRouterParam(event, "id") || ""));
-  if (approval.kind === "waive") throw createError({ statusCode: 409, message: "Waivers can't be decided yet." });
   if (!isOpen(approval.state)) throw createError({ statusCode: 409, message: "This approval is already settled." });
+  const charge = approval.kind === "waive" && approval.charge ? await loadCharge(orgId, approval.charge).catch(() => null) : null;
+  if (approval.kind === "waive" && (!charge || !isWaivableCharge(charge.status))) {
+    await supersede(approval, new Date().toISOString());
+    throw createError({ statusCode: 409, message: "This charge was paid or canceled, so there is nothing left to waive." });
+  }
 
   const seats = await loadCurrentSeats(orgId);
   const before = (await loadDecisions([approval.id])).get(approval.id) ?? [];
@@ -76,7 +81,7 @@ export default defineEventHandler(async (event) => {
   const decisions = [...before, { id: String((made as any)?.id ?? ""), approval: approval.id, decided_by: userId, office, decision, note, date_created: now }];
   const actor = await ledgerActorFor(orgId, (session.user ?? {}) as Record<string, any>);
   const expense = approval.expense ? await loadExpense(orgId, approval.expense).catch(() => null) : null;
-  if (expense) {
+  if (expense || charge) {
     await writeAuditEntry(
       buildMoneyDecisionEntry({
         organizationId: orgId,
@@ -84,7 +89,8 @@ export default defineEventHandler(async (event) => {
         approvalId: approval.id,
         kind: approval.kind,
         round: approval.round,
-        expense: expenseSubject(expense),
+        expense: expense ? expenseSubject(expense) : null,
+        charge: charge ? chargeSubject(charge) : null,
         decision,
         officeLabel: label,
         note,
@@ -99,14 +105,17 @@ export default defineEventHandler(async (event) => {
   const result = await settleApproval({ orgId, approval, view: after, decisions, seats, actor, now, origin });
 
   // Each decision: whoever asked for it. The outcome notice, if any, came from settleApproval.
-  if (result.state === "pending" && approval.requested_by && expense) {
+  if (result.state === "pending" && approval.requested_by && (expense || charge)) {
     const who = label ? `${actor.name} (${label})` : actor.name;
+    const what = charge
+      ? `waiving ${chargePhrase(chargeSubject(charge))}`
+      : `${approval.kind === "void" ? "voiding " : ""}${expensePhrase(expenseSubject(expense))}`;
     await notifyUsers({
       organizationId: orgId,
       recipientUserIds: [approval.requested_by],
       category: "payment",
       subject: decision === "approve" ? "An approval came in" : "A rejection came in",
-      message: `${who} ${decision === "approve" ? "approved" : "rejected"} ${approval.kind === "void" ? "voiding " : ""}${expensePhrase(expenseSubject(expense))}. ${after.approvals} of ${after.needed} approvals so far.`,
+      message: `${who} ${decision === "approve" ? "approved" : "rejected"} ${what}. ${after.approvals} of ${after.needed} approvals so far.`,
       collection: "money_approvals",
       item: approval.id,
       path: "/approvals",

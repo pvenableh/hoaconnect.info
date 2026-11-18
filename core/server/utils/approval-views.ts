@@ -33,6 +33,20 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
     : [];
   const expenseById = new Map(expenses.map((e) => [String(e.id), e]));
 
+  // A waiver's charge names a household: these routes are money:read only
+  // (every board seat, admins), the people who read the charges already.
+  const chargeIds = [...new Set(approvals.map((a) => a.charge).filter((x): x is string => !!x))];
+  const charges = chargeIds.length
+    ? (((await getTypedDirectus().request(
+        readItems("payment_requests", {
+          filter: { id: { _in: chargeIds }, organization: { _eq: orgId } } as any,
+          fields: ["id", "title", "amount", "amount_remaining", "status", "member.first_name", "member.last_name", "member.email"] as any,
+          limit: -1,
+        })
+      )) ?? []) as any[])
+    : [];
+  const chargeById = new Map(charges.map((c) => [String(c.id), c]));
+
   const people = new Set<string>();
   for (const a of approvals) {
     if (a.requested_by) people.add(a.requested_by);
@@ -46,6 +60,7 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
     const own = decisions.get(a.id) ?? [];
     const view = readViewOf(a, seats, own);
     const e = a.expense ? expenseById.get(a.expense) : null;
+    const c = a.charge ? chargeById.get(a.charge) : null;
     return {
       id: a.id,
       kind: a.kind,
@@ -82,8 +97,16 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
             status: e.status ?? null,
             paid_without_approval: e.paid_without_approval === true,
           }
-        : a.charge
-          ? { type: "charge" as const, id: a.charge }
+        : c
+          ? {
+              type: "charge" as const,
+              id: String(c.id),
+              title: c.title ?? "",
+              amount: c.amount == null ? null : Number(c.amount),
+              amount_remaining: c.amount_remaining == null ? null : Number(c.amount_remaining),
+              status: c.status ?? null,
+              household: chargeHousehold(c.member),
+            }
           : null,
       canDecide: callerCanDecide(a, view, userId),
     };

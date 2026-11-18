@@ -223,6 +223,16 @@ const CATALOGUE = [
     note: "An expense was cancelled. It stays on record; nothing past draft is deleted.",
   },
   {
+    key: "charge_waived",
+    label: "Charge waived",
+    icon: "hand-coins",
+    category: "money",
+    // Board-only for the same reason as `payment_recorded`: it names one
+    // household, and whose charges were waived is as private as who paid.
+    defaultVisibility: "board",
+    note: "An owner charge was waived (cancelled) after the board approved it, as spending is approved (docs/spec-money-approvals.md).",
+  },
+  {
     key: "billing_run",
     label: "Billing run",
     icon: "calendar-clock",
