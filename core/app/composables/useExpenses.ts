@@ -111,7 +111,22 @@ export function useExpenses() {
     return res.id;
   };
 
-  return { list, listWithViewer, create, update, remove, submit, pay, voidExpense, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
+  /** Attach a receipt to a saved expense (POST /api/org/expenses/[id]/receipt). Returns the file's id. */
+  const attachReceipt = async (id: string, file: File, orgId?: string): Promise<string> => {
+    const form = new FormData();
+    form.append("orgId", org(orgId) || "");
+    form.append("file", file, file.name);
+    const res = await $fetch<{ id: string }>(`/api/org/expenses/${id}/receipt`, { method: "POST", body: form });
+    return res.id;
+  };
+
+  /**
+   * Where a saved expense's receipt opens: through the server, which checks
+   * money:read (every board seat, admins) and the community, never the file.
+   */
+  const receiptHref = (id: string, orgId?: string) => `/api/org/expenses/${id}/receipt?orgId=${encodeURIComponent(org(orgId) || "")}`;
+
+  return { list, listWithViewer, create, update, remove, submit, pay, voidExpense, uploadReceipt, attachReceipt, receiptHref, EXPENSE_CATEGORIES, EXPENSE_STATUSES };
 }
 
 // useSelectedOrg is async (it awaits membership data); inside a composable we only

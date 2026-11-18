@@ -18,9 +18,11 @@ export const RECEIPT_MAX_BYTES = 4 * 1024 * 1024;
 /**
  * Store a receipt: a PDF or a photo (JPEG, PNG, WebP), 4 MB at most, in the
  * community's Records › Expense receipts folder, marked as a record's file, as
- * the sender's (private-uploads.ts says why). It opens through the asset proxy
- * to whoever reads the books; a photo also by its id through the public file
- * rule until that rule leaves record files out (`pnpm scope:public-files`).
+ * the sender's (private-uploads.ts says why). The app opens it through
+ * GET /api/org/expenses/[id]/receipt, by the expense; the asset proxy also
+ * serves it to whoever reads the books, and a photo opens by its id through
+ * the public file rule until that rule leaves record files out
+ * (`pnpm scope:public-files`).
  */
 export async function storeExpenseReceipt(orgId: string, userId: string, part: UploadPart | undefined) {
   return storeRecordUpload(orgId, userId, part, {

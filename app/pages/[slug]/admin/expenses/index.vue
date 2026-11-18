@@ -15,9 +15,7 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const { listWithViewer, create, update, remove, submit, voidExpense, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
-const { isAdminOfCurrentDomain: isAdmin } = useCurrentDomainAccess();
-const { getAuthUrl } = useDirectusFiles();
+const { listWithViewer, create, update, remove, submit, voidExpense, uploadReceipt, attachReceipt, receiptHref, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
 const { list: listProjects } = useProjects();
 const { confirm, prompt } = useConfirm();
 
@@ -96,7 +94,12 @@ const canSave = computed(() => !!form.value.title.trim() && (form.value.amount |
 
 const payload = async () => {
   let receiptId = form.value.receipt;
-  if (receiptFile.value) receiptId = await uploadReceipt(receiptFile.value);
+  // A saved expense takes its receipt straight away; a new one names it on create.
+  if (receiptFile.value) {
+    receiptId = editing.value
+      ? await attachReceipt(editing.value.id, receiptFile.value, selectedOrgId.value || undefined)
+      : await uploadReceipt(receiptFile.value);
+  }
   if (paidLocked.value) return { notes: form.value.notes || null, receipt: receiptId || null };
   return {
     title: form.value.title.trim(),
@@ -208,13 +211,10 @@ const onFile = (ev: Event) => {
   receiptFile.value = f;
 };
 
-// Through the app, which checks who may read the books: a PDF never opened
-// from the bare Directus address, and a receipt is not every member's.
-// Admins only until receipts are served through the server (Session 5).
-const receiptUrl = (e: ExpenseRow) => {
-  const id = idOf(e.receipt);
-  return id ? getAuthUrl(id) : null;
-};
+// Through the server, by the expense (GET /api/org/expenses/[id]/receipt):
+// it checks who reads the books, so every board seat and admin on this page
+// opens it, and a receipt is never every member's.
+const receiptUrl = (e: ExpenseRow) => (idOf(e.receipt) ? receiptHref(e.id, selectedOrgId.value || undefined) : null);
 
 // --- Formatting ---------------------------------------------------------
 const currency = (v?: number | null) =>
@@ -411,7 +411,7 @@ const expenseColumns = [
               <Button v-if="can(asRow(row), 'submit')" size="sm" variant="outline" :disabled="busy === row.id" @click="submitRow(asRow(row))">Submit</Button>
               <Button v-if="can(asRow(row), 'pay')" size="sm" variant="outline" :disabled="busy === row.id" @click="paying = asRow(row)">Record Paid</Button>
               <Button
-                v-if="isAdmin && receiptUrl(asRow(row))"
+                v-if="receiptUrl(asRow(row))"
                 as="a"
                 variant="outline"
                 size="icon-sm"
