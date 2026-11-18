@@ -365,7 +365,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 10 | Restricted members: posting paused, membership kept (and archived members stop writing) | [x] | Built 2026-11-17 in six gated commits after the spec (`01457c9`…`4ad8bac`) and three fixes from the live check (`1b9fefc`, `c1ec2ba`, `67beb41`). Spec `docs/spec-member-restrictions.md`. `hoa_member_restrictions` created on the live instance and types regenerated (at Peter's go-ahead). Checked in the browser as Peter (admin), Tester Two (paused) and Obie (board seat); both test pauses lifted. **Operator TODOs:** deploy, `pnpm add:admin-scope` (creates and back-fills `active_in`, `posts_in`, `posts_to`), then `pnpm setup:permissions` — until then archived and inactive members can still write through Directus and a pause rests on the server checks alone. Not pushed. Prompt: `docs/prompts/role-first-s10-member-restrictions.md` (Opus 5.5) |
 | 11 | 5c — Correcting a charge: what an admin may change on a charge an owner owes, and which changes need the board | [x] | Shipped 2026-11-18 in seven gated commits (`19340c1`…`a26aa01`). Spec `docs/spec-charge-corrections.md`, the six decisions confirmed with Peter as recommended. Admins edit the words, raise the amount and move a due date before it is due, and withdraw a hand-entered charge within 24 hours; lowering a charge is a partial waiver and the wrong household a `move` approval, both for the board; a full waiver takes its late fees. Schema applied to the instance at Peter's go-ahead (second dry run nothing; types regenerated); no permission changed. Checked in the browser as the demo admin only (Session log). **Operator TODO:** deploy, then push. Not pushed. Prompt: `docs/prompts/role-first-s11-charge-corrections.md` (Opus 5.5) |
 | 12 | 4 — Glass and appearance, part 1: glass as a layer, Light/Dark/Auto and Tint with per-person swatches, reduced transparency and contrast, one attention treatment for solid cards, one left edge | [x] | Shipped 2026-11-18 in three gated commits (`bd1d44b`, `410b0b1`, `229edc2`). The five answers confirmed with Peter as recommended (§2.4). No schema, no route, no permission change (`/api/user/app-prefs` now carries `{ tint }`). Checked in the browser as the demo admin only, at 375, 768 and 1280 px, light and dark, Tint on (Violet, Teal) and off; the demo admin's prefs put back (Auto, Tint on, community). Reduce Transparency and Increase Contrast read from the compiled CSS, not the OS. Census and the sweep prompt written. Not pushed. Prompt: `docs/prompts/role-first-s12-glass-appearance.md` (Opus 5.5) |
-| 13 | 4 — Glass and appearance, part 2: the sweep — glass off 16 content surfaces, per-page accents removed, text outside cards on one left edge | [ ] | Queued 2026-11-18 from Session 12's two censuses (16 glass findings in 15 files, five through `WidgetGlass`; 10 per-page accent overrides; 8 left-edge findings in 7 files). Two gated commits. Prompt: `docs/prompts/role-first-s13-glass-sweep.md` (Sonnet 5.5) |
+| 13 | 4 — Glass and appearance, part 2: the sweep — glass off 16 content surfaces, per-page accents removed, text outside cards on one left edge | [x] | Shipped 2026-11-18 in two gated commits (`7d4a9e7`, `ce5e520`). No schema, no route, no permission change. Sixteen content surfaces and the three state cards are solid `ios-card`; five page headers are no longer boxes; `WidgetGlass` is deleted; every per-page `accent-*` is gone; the `overlay-boxes` baseline went 27 to 26. Checked in the browser as the demo admin only, at 375 and 1280 px (Section 4 of the log). Not pushed. Prompt: `docs/prompts/role-first-s13-glass-sweep.md` (Sonnet 5.5) |
 
 
 ### Queued: correcting a charge (Session 11)
@@ -1318,3 +1318,57 @@ Local, on `main`, not pushed. Three commits, each through the full gate (typeche
 1. **Push, then deploy.** `origin/main` has everything up to `5ababa3`; only this session's three commits and this docs commit are ahead.
 2. **Look at it with Reduce Transparency and Increase Contrast on** (macOS Accessibility → Display) once deployed: checked from the CSS only.
 3. **Session 13 is queued**: the glass sweep (`docs/prompts/role-first-s13-glass-sweep.md`, Sonnet 5.5).
+
+#### Session 13 — Phase 4 part 2, the glass sweep (2026-11-18)
+
+Local, on `main`, not pushed. Two commits, each through the full gate (typecheck 0, vitest 4,417 green, build green, `audit:all` 19 of 19 at or under baseline, lint 132 of 148 warnings), then this docs commit. No schema, no route, no permission change, no new class or token.
+
+**Shipped**
+
+- `7d4a9e7` **Glass off content; accents gone.** Solid `ios-card`: the dashboard's "What needs you" band (its comment no longer says it adopts `glass-refract`), the profile's Email section (its siblings are `ios-card`), the install notice (no accent), the embedded discussion on a request and the embedded channel, the file browser, the Payments hero with the amount due, the kit's and ChannelThread's "Posting paused" (`ios-card card-attention`), and the three state cards on `signup` (loading, not found) and `unsubscribe`. Not boxes any more: the Board Room header, the minutes header, My Payments, Audience and Channels (the Channels page keeps its heading and New channel button). The credit packs in the buy dialog are hairline rows (`border-b t-border`), no box. `AskTheHoa` lost `glass-refract`. `Widget/Glass.vue` is deleted (nothing else used it; `unresolved-components` still 0). The 10 per-page accents in Census A2 are removed. `audit:overlay-boxes` baseline 27 to 26 (the pack rows), in the script and in the round 3 table.
+- `ce5e520` **One left edge.** Census B items 1, 2, 3, 4, 6, 7, 8 as written. The governing review's toolbar row takes `gap-2` instead of `ml-2` on the link.
+
+**What each role now sees**
+
+| Who | Before | Now |
+|---|---|---|
+| Everyone | Glass on the dashboard band, the profile's Email section, embedded discussions and channels, the composer and the file browser; each of those over the page's backdrop | Solid cards on the page's ground, the person's tint on the floating layer only |
+| Owners on Payments, admins on projects, units and communications | The page forced its own accent (emerald, violet, cyan) over the person's tint | The person's tint, as everywhere |
+| Admins and board | The Board Room and minutes headers in glass boxes, 1024 and 768 px wide and centred | Header with no box, on the same left edge and width as every other page; at 375 px the description no longer collapses beside Convene the board |
+| A paused member | A glass line where the composer was | A solid card with the warning tint |
+
+**Judgements and deviations**
+
+- **The composer is a solid card** (census A9): it sits below the message list in a flex column, in flow, not over scrolling messages. Inside the embedded channel it is a card in a card (the 1rem radius and the 12 px gap share a centre, as the card rule allows).
+- **Left as written** (census B5): the archived-channels line in the sidebar keeps `px-3`, because the rows above it (buttons with a hover ground) carry `px-3` too; the line matches them.
+- **`ProjectTimeline.vue` has no users** (nothing in `app/` or `tests/` imports it). Its `px-2` is gone; it is not deleted. **Peter: delete it?**
+- **Two page roots had their own container**: the Board Room (`max-w-5xl mx-auto`) and the minutes page (`max-w-3xl`) put their left edge 60 px and 100 px in from every other page at 1280 px. Both use `PageContainer` now (the minutes page keeps its reading column through `[&>*]:max-w-3xl`). The Board Room header's text block takes `min-w-[10rem]` under `sm` so the Convene button wraps below it.
+- **`signup` and `unsubscribe` status cards** are `ios-card` (Peter's rules, no new one): they are status cards, not forms, and they no longer float anything.
+- **`.accent-*` presets**: no workspace page sets one now. The only writer left is `AppStatCard`'s `accent` prop, used by `/ops`. The presets stay in `earnest-ui.css`.
+
+**Checked in the browser, and not**
+
+- **Done**, as the demo admin (Harborview Lofts), measured with `getBoundingClientRect().left`: the dashboard, Profile, Payments, Audience, Channels (and a channel's composer), Projects, Admin projects, Rules, Files and the Board Room at 1280 px (title, description, toolbar and first card at 118.5 px; the Board Room's icon at 118.5 px); the dashboard, Payments, Channels, Audience, Projects and the Board Room at 375 px (15 px, `scrollWidth` 375); the Board Room and dashboard in dark. Every converted card read `backdrop-filter: none`.
+- **Not seen:** the minutes page, the install notice, an embedded discussion on a request, an embedded channel, a paused member's notice, the credit packs dialog, the signup and unsubscribe cards, the governing review toolbar, Admin units, a project's detail page, `/ui-kit` (bounces a signed-in user; its specimen was updated), and Tint off or a swatch on the converted pages. The demo admin's app prefs were not touched.
+
+**What remains** (grep for `glass-surface|glass-widget|glass-edge|glass-refract|WidgetGlass`, public landing and `ui/` excluded)
+
+| Where | Why it stays |
+|---|---|
+| `App/BottomSheet`, `AppLibrary` (two), `Dock`, `UpdatePrompt`, `ChannelsPanel` | The floating layer: a sheet, the library, the dock, a prompt, a slide-over |
+| `Auth/LoginForm`, `RegisterForm`, `PasswordResetForm`, `PasswordResetRequestForm` | Forms that float over the auth backdrop |
+| `Responsibilities/Map` rail, `MapSlider` | Controls floating over the map |
+| `StorageManagerPage:777` | The floating bulk bar |
+| `ChannelThread:663` | The search popover |
+| `ui-kit` (334-339, 590) | The material specimens and the create-verbs menu |
+| `ChannelEditor:183` and `Home/Stacks:21` | A comment each, no class |
+| `ui/` (tooltip, alert-dialog, dropdown, combobox, dialog, popover, select, sheet) | Floating, vendored |
+| `ui/card/Card.vue` | **Vendored and still `glass-edge glass-refract`** (a rim, no blur: no `backdrop-filter` on any card read). Left for a decision: the rim is the old content-card look beside `ios-card`'s neutral ring |
+
+**Left for a later session** (page roots with their own width, found while grepping): `CommunityLedgerPage` (`max-w-4xl`), `account.vue` (`max-w-4xl`), `settings/subscription.vue` (`max-w-3xl px-6`) and `payments/index.vue` (`container max-w-6xl py-8 px-4`, the owner's own payments page) each centre a narrower column than `PageContainer`, so their edge differs at desktop. Pages not touched here may also keep their own glass-era spacing.
+
+**Operator TODOs**
+
+1. **Push, then deploy.** Everything from `88823763` on is local: Session 12's docs commit, these two commits and this one.
+2. **Decide:** delete `ProjectTimeline.vue`? Give `ui/card/Card.vue` the `ios-card` ground?
+3. **Look at it** on a real phone with Reduce Transparency on, once deployed.
