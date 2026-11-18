@@ -6,8 +6,8 @@
  *
  * Filed in the community's Records › Expense receipts folder, marked as a
  * record's file (private-uploads.ts says why), not through
- * /api/directus/files/upload: a receipt is not a library document. The people who enter an expense: an
- * admin, or a property manager with the projects grant (record.post.ts).
+ * /api/directus/files/upload: a receipt is not a library document. The people who enter an expense:
+ * money:enter (every board seat, an admin, a manager with the projects grant).
  */
 import { storeExpenseReceipt } from "#core/server/utils/expense-receipts";
 
@@ -17,6 +17,6 @@ export default defineEventHandler(async (event) => {
   const orgId = parts.find((p) => p.name === "orgId")?.data.toString("utf8").trim() ?? "";
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
-  await requireAdminOrManagerGrant(event, orgId, "projects");
+  await requireMoneyEnter(event, orgId);
   return storeExpenseReceipt(orgId, userId, parts.find((p) => p.name === "file" && p.filename));
 });

@@ -627,6 +627,14 @@ export function buildExpenseRecordedEntry(input: {
   readonly previousStatus: string | null | undefined;
   readonly actor: LedgerActor;
   readonly occurredAt: string;
+  /** Who approved it, "Jane Doe (President)", when its approval was met first. */
+  readonly approvedBy?: readonly string[];
+  /** Who recorded it paid. */
+  readonly paidBy?: string | null;
+  /** The check number or transfer reference. */
+  readonly paidReference?: string | null;
+  /** Recorded paid before its approval was met (docs/spec-money-approvals.md). */
+  readonly paidWithoutApproval?: boolean;
 }): LedgerEntry | null {
   if (String(input.previousStatus ?? "") === "paid") return null;
 
@@ -638,9 +646,12 @@ export function buildExpenseRecordedEntry(input: {
   const category = e.categoryLabel?.trim() || null;
 
   const tail = category ? `${title} (${category})` : title;
+  // Paid before approval stays in the sentence for good: the approval can
+  // follow, but the money went out first, and the record says so.
+  const end = input.paidWithoutApproval ? " before it was approved." : ".";
   const summary = vendor
-    ? `${vendor} was paid ${money} for ${tail}.`
-    : `${money} was paid for ${tail}.`;
+    ? `${vendor} was paid ${money} for ${tail}${end}`
+    : `${money} was paid for ${tail}${end}`;
 
   return {
     schema_version: LEDGER_SCHEMA_VERSION,
@@ -665,6 +676,167 @@ export function buildExpenseRecordedEntry(input: {
       paid_date: e.paidDate ?? null,
       project: e.projectName ?? null,
       previous_status: input.previousStatus ?? null,
+      approved_by: [...(input.approvedBy ?? [])],
+      paid_by: input.paidBy ?? null,
+      paid_reference: input.paidReference ?? null,
+      paid_without_approval: input.paidWithoutApproval === true,
+    },
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Money approvals (docs/spec-money-approvals.md)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** "$2,400.00 to Acme Roofing for gutter repair": what an approval is about. */
+export function expensePhrase(e: Pick<ExpenseSubject, "title" | "vendor" | "amount" | "currency">): string {
+  const money = formatMoney(toLedgerAmount(e.amount), e.currency ?? "USD");
+  const title = e.title?.trim() || "an unnamed expense";
+  const vendor = e.vendor?.trim() || null;
+  return vendor ? `${money} to ${vendor} for ${title}` : `${money} for ${title}`;
+}
+
+/** "Jane Doe (President)", or the name alone when the office is unknown. */
+export function nameWithOffice(name: string, officeLabel: string | null | undefined): string {
+  const office = officeLabel?.trim();
+  return office ? `${name} (${office})` : name;
+}
+
+/** Joins names as a sentence does: "A", "A and B", "A, B and C". */
+function andList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function expensePayload(e: ExpenseSubject, organizationName: string | null) {
+  return {
+    organization_name: organizationName,
+    expense_id: e.expenseId,
+    title: e.title?.trim() || null,
+    vendor: e.vendor?.trim() || null,
+    amount: toLedgerAmount(e.amount),
+    currency: (e.currency || "USD").toUpperCase(),
+  };
+}
+
+export type MoneyApprovalKind = "spend" | "void" | "waive";
+
+/**
+ * One approve or reject. Board-only: it names who voted which way, which is
+ * the board's business; owners see the outcome (`expense_approved`).
+ */
+export function buildMoneyDecisionEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly approvalId: string;
+  readonly kind: MoneyApprovalKind;
+  readonly round: number;
+  readonly expense: ExpenseSubject;
+  readonly decision: "approve" | "reject";
+  /** The office label they held when they decided ("President"). */
+  readonly officeLabel: string | null;
+  readonly note?: string | null;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const who = nameWithOffice(input.actor.name, input.officeLabel);
+  const verb = input.decision === "approve" ? "approved" : "rejected";
+  const what = input.kind === "void" ? `voiding ${expensePhrase(input.expense)}` : expensePhrase(input.expense);
+  const note = input.note?.trim() || null;
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "money_decision",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("money_decision"),
+    summary: `${who} ${verb} ${what}.`,
+    payload: {
+      ...expensePayload(input.expense, input.organizationName),
+      approval_id: input.approvalId,
+      kind: input.kind,
+      round: input.round,
+      decision: input.decision,
+      office: input.officeLabel,
+      note,
+    },
+  };
+}
+
+/** A spend approval met. Owner-visible, like the money going out. */
+export function buildExpenseApprovedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly approvalId: string;
+  readonly round: number;
+  readonly expense: ExpenseSubject;
+  /** "Jane Doe (President)", in the order they approved. */
+  readonly approvedBy: readonly string[];
+  /** It was already recorded paid: this approval ratifies it. */
+  readonly ratified: boolean;
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const by = input.approvedBy.length ? ` by ${andList(input.approvedBy)}` : "";
+  const after = input.ratified ? ", after it was paid" : "";
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "expense_approved",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility: defaultVisibilityFor("expense_approved"),
+    summary: `${expensePhrase(input.expense)} was approved${by}${after}.`,
+    payload: {
+      ...expensePayload(input.expense, input.organizationName),
+      approval_id: input.approvalId,
+      round: input.round,
+      approved_by: [...input.approvedBy],
+      ratified: input.ratified,
+    },
+  };
+}
+
+/**
+ * An expense voided. Owners see it when the expense had been approved or
+ * paid, because they saw that; one that never got that far stays the board's.
+ */
+export function buildExpenseVoidedEntry(input: {
+  readonly organizationId: string;
+  readonly organizationName: string | null;
+  readonly expense: ExpenseSubject;
+  /** The status it had: "approved" and "paid" make the entry owner-visible. */
+  readonly previousStatus: string;
+  readonly reason: string;
+  /** The void approval's id, when it took one; null when voided at once. */
+  readonly approvalId: string | null;
+  readonly approvedBy?: readonly string[];
+  readonly actor: LedgerActor;
+  readonly occurredAt: string;
+}): LedgerEntry {
+  const reason = input.reason.trim();
+  const wasOut = input.previousStatus === "approved" || input.previousStatus === "paid";
+  const visibility: LedgerVisibility = wasOut ? "owners" : defaultVisibilityFor("expense_voided");
+  return {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    organization: input.organizationId,
+    event_type: "expense_voided",
+    occurred_at: input.occurredAt,
+    actor_user: input.actor.userId,
+    actor_name: input.actor.name,
+    actor_email: input.actor.email,
+    visibility,
+    summary: `${expensePhrase(input.expense)} was voided${reason ? `: ${reason}` : ""}${/[.!?]$/.test(reason) ? "" : "."}`,
+    payload: {
+      ...expensePayload(input.expense, input.organizationName),
+      previous_status: input.previousStatus,
+      reason,
+      approval_id: input.approvalId,
+      approved_by: [...(input.approvedBy ?? [])],
     },
   };
 }

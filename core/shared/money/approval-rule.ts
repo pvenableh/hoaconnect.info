@@ -158,7 +158,7 @@ export function evaluateApproval(input: RuleInput): RuleView {
 }
 
 /** May this person decide now? Only while pending, and only someone it waits on. */
-export function canDecide(view: RuleView, userId: string | null | undefined): boolean {
+export function canDecide(view: Pick<RuleView, "waitingOn"> & { readonly state: string }, userId: string | null | undefined): boolean {
   return !!userId && view.state === "pending" && view.waitingOn.includes(userId);
 }
 

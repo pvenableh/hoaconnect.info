@@ -101,13 +101,18 @@ describe("the gates", () => {
     await expect(access.requireAreaWork(ev(), ORG, "documents")).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("requireAdminOrManagerGrant, which the expense routes keep, refuses a helper with projects", async () => {
+  it("the expense writes gate on money:enter, which a helper with projects never gets", async () => {
     await expect(access.requireAdminOrManagerGrant(ev(), ORG, "projects")).rejects.toMatchObject({ statusCode: 403 });
-    for (const f of ["index.post.ts", "index.patch.ts", "record.post.ts", "receipt.post.ts"]) {
+    // docs/spec-money-approvals.md: every write route asks requireMoneyEnter.
+    for (const f of ["index.post.ts", "[id].patch.ts", "[id].delete.ts", "[id]/submit.post.ts", "[id]/pay.post.ts", "[id]/void.post.ts", "receipt.post.ts"]) {
       const src = readFileSync(join(process.cwd(), "core/server/api/org/expenses", f), "utf8");
-      expect(src, f).toContain('requireAdminOrManagerGrant(');
+      expect(src, f).toContain("requireMoneyEnter(");
       expect(src, f).not.toContain("requireAreaWork");
     }
+    // money:enter comes from a seat, admin, or the property manager's own grant, never a helper area.
+    const roleContext = readFileSync(join(process.cwd(), "core/server/utils/role-context.ts"), "utf8");
+    const line = roleContext.split("\n").find((l) => l.includes('"money:enter"'));
+    expect(line).toBe('  if (grants?.projects === true) caps.add("money:enter");');
   });
 
   it("a helper is never the property_manager actor", async () => {

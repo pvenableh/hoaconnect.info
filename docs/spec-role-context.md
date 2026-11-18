@@ -50,7 +50,7 @@ There is one list: `AREAS` in `core/shared/transition/grants.ts`. It is the only
 | `documents` | Documents | `governing-access.ts`, `documents/publish` |
 | `communications` | Communications | the `/api/email/*` routes |
 | `feedback` | Community feedback | `poll-access.ts` (`requirePollManage`) |
-| `projects` | Projects | `project-access.ts`, `expenses/record`, `requests/[id]/promote` |
+| `projects` | Projects | `project-access.ts`, `money:enter` on the expense routes (docs/spec-money-approvals.md), `requests/[id]/promote` |
 | `activity` | Activity | `GET /api/org/activity` (data scope) |
 | `contact_platform` | Contact HOA Connect | `support.ts`, `support/requests` |
 | `vendors` | Vendors and contracts | none yet: notify-only |

@@ -332,6 +332,11 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("payment_requests", "Dues and invoices", BOTH),
   direct("payment_transactions", "Payments received", BOTH),
   direct("payment_expenses", "Expenses", BOTH),
+  // Money approvals (docs/spec-money-approvals.md). Whether spending was
+  // approved is owners' to see, as the ledger's `expense_approved` is; who
+  // voted which way is the board's, as `money_decision` is.
+  direct("money_approvals", "Money approvals", BOTH),
+  via("money_approval_decisions", "Money approval decisions", "money_approvals", "approval", FULL_ONLY),
   direct("payment_schedules", "Payment schedules", BOTH),
   // Full tier only, unlike the rest of the money family: this row carries a
   // live Stripe payment-method id on the org's connected account, not a

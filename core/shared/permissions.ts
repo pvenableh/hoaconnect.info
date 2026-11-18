@@ -39,7 +39,7 @@ export type Capability =
   | "projects:write"
   | "milestone:approve"
   | "money:read"
-  | "money:write"
+  | "money:enter"
   | "responsibilities:read"
   | "directory:read"
   | "documents:read"
@@ -126,15 +126,17 @@ export const CAPABILITY_MATRIX: Record<Capability, Actor[]> = {
   // offices. PM-with-`projects` grant is layered on in the route.
   "milestone:approve": ["board_president", "board_vp", "team_lead"],
 
-  // Money (decided with the operator 2026-11-14). Oversight is the point: every
-  // board seat reads the books, so no officer's handling of money goes unseen.
-  // No single officer writes them — money writes stay admin-only on the server,
-  // and money going out will need approval by two of the operating committee
-  // (President, Treasurer, Secretary), or a board majority where there is no
-  // committee, never by the person who entered it. Do not hand money:write to
-  // an office: route it through that approval instead.
+  // Money (decided with the operator 2026-11-14, docs/spec-money-approvals.md).
+  // Oversight is the point: every board seat reads the books, so no officer's
+  // handling of money goes unseen. Every seat may also ENTER money (enter, edit,
+  // submit, record paid, ask for a void), because nothing an enterer does counts
+  // as approval: money going out is approved by two of the operating committee
+  // (President, Treasurer, Secretary), or a board majority, never by the person
+  // who entered it (core/shared/money/approval-rule.ts). Approval is not a
+  // capability: the rule decides it per approval, from board seats only. A
+  // manager with the `projects` grant enters too (resolveCapabilities).
   "money:read": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
-  "money:write": [],
+  "money:enter": ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"],
 
   // The responsibilities register (plan §3.4): every board seat reads all of it,
   // history included. Editing comes from admin or the manager grant

@@ -49,10 +49,10 @@ beforeAll(async () => {
   fake = stubGlobals(state);
   vi.stubGlobal("readMultipartFormData", async (e: any) => e.__multipart);
   vi.stubGlobal("requireAuthenticatedUser", async () => ({ userId: state.who.userId }));
-  vi.stubGlobal("requireAdminOrManagerGrant", async () => {
-    if (isAdmin()) return { via: "admin" };
-    if (state.who.grants?.projects) return { via: "manager" };
-    throw Object.assign(new Error("Admin or property-manager access required"), { statusCode: 403 });
+  // money:enter (docs/spec-money-approvals.md): admins, every board seat, a manager with projects.
+  vi.stubGlobal("requireMoneyEnter", async () => {
+    if (isAdmin() || state.who.office || state.who.grants?.projects) return { userId: state.who.userId, isAdmin: isAdmin() };
+    throw Object.assign(new Error("Only the board, an admin or a manager with Projects can enter money."), { statusCode: 403 });
   });
   vi.stubGlobal("enforceStorageLimit", async () => undefined);
   // The books: admins, and every board seat through money:read.

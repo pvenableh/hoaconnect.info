@@ -54,8 +54,10 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_member_units: { member_id: "hoa_members", unit_id: "hoa_units" },
   // tests/server/accept-invitation.test.ts
   hoa_invitations: { organization: "hoa_organizations", invited_by: "directus_users", role: "directus_roles", unit: "hoa_units" },
-  // tests/server/expense-writes.test.ts
-  payment_expenses: { project: "hoa_projects", receipt: "directus_files" },
+  // tests/server/expense-writes.test.ts, money-approvals.test.ts (docs/spec-money-approvals.md)
+  payment_expenses: { project: "hoa_projects", receipt: "directus_files", entered_by: "directus_users", paid_by: "directus_users", approval: "money_approvals", organization: "hoa_organizations" },
+  money_approvals: { organization: "hoa_organizations", expense: "payment_expenses", charge: "payment_requests", requested_by: "directus_users" },
+  money_approval_decisions: { approval: "money_approvals", decided_by: "directus_users" },
   // tests/server/area-grants-routes.test.ts, area-access.test.ts (docs/spec-delegation.md)
   hoa_area_grants: { member: "hoa_members", team: "hoa_teams", granted_by: "directus_users", ended_by: "directus_users", organization: "hoa_organizations" },
   hoa_team_members: { team: "hoa_teams", user: "directus_users", member: "hoa_members" },

@@ -11,7 +11,7 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const { list, create, update, remove, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
+const { list, create, update, remove, pay, uploadReceipt, EXPENSE_CATEGORIES, EXPENSE_STATUSES } = useExpenses();
 const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
 const { getAuthUrl } = useDirectusFiles();
 const { list: listProjects } = useProjects();
@@ -96,14 +96,12 @@ const save = async () => {
     const wasPaid = originalStatus.value === "paid";
     const becomingPaid = form.value.status === "paid" && !wasPaid;
 
-    const payload: Partial<PaymentExpense> = {
+    const payload = {
       title: form.value.title.trim(),
       vendor: form.value.vendor || null,
       category: form.value.category,
-      status: becomingPaid ? "approved" : form.value.status,
-      amount: form.value.amount,
+      amount: form.value.amount ?? undefined,
       expense_date: form.value.expense_date || null,
-      paid_date: form.value.paid_date || null,
       description: form.value.description || null,
       notes: form.value.notes || null,
       receipt: receiptId || null,
@@ -113,19 +111,12 @@ const save = async () => {
     if (editingId.value) {
       await update(editingId.value, payload, selectedOrgId.value);
     } else {
-      const created = await create(payload, selectedOrgId.value);
+      const created = await create(payload, { orgId: selectedOrgId.value });
       expenseId = created?.id ?? null;
     }
 
     if (becomingPaid && expenseId) {
-      await $fetch("/api/org/expenses/record", {
-        method: "POST",
-        body: {
-          orgId: selectedOrgId.value,
-          expenseId,
-          paidDate: form.value.paid_date || null,
-        },
-      });
+      await pay(expenseId, { paidDate: form.value.paid_date || new Date().toISOString().slice(0, 10), reference: "Recorded from the expense form" }, selectedOrgId.value);
     }
     toast.success(editingId.value ? "Expense updated" : "Expense added");
     showForm.value = false;
@@ -140,7 +131,7 @@ const save = async () => {
 
 const removeExpense = async (e: PaymentExpense) => {
   try {
-    await remove(e.id);
+    await remove(e.id, selectedOrgId.value || undefined);
     toast.success("Expense deleted");
     await refresh();
   } catch (err: any) {

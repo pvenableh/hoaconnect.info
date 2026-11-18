@@ -1,27 +1,28 @@
 /**
- * An admin entering or changing an expense: the bodies POST and PATCH
- * /api/org/expenses take, and whose row is whose.
+ * Entering or changing an expense: the bodies the expense routes take, which
+ * fields a status lets change, what each person may do to a row, and whose
+ * row is whose (docs/spec-money-approvals.md).
  *
- * Not Directus on the admin's own token: the HOA Admin rules on
+ * Not Directus on anyone's own token: the HOA Admin rules on
  * `payment_expenses` checked only the row's own `organization`, so through the
  * API an admin could name another community's project, or another community's
  * file as the receipt, and the asset proxy then served that file to them as
  * their receipt (core/server/utils/expense-receipts.ts). The routes check
- * both, and the HOA Admin create and update are removed
- * (scripts/lib/admin-scope-perms.ts REMOVED_ADMIN_RULES).
+ * both, and no policy writes `payment_expenses`.
  *
- * `paid` is not set here. POST /api/org/expenses/record owns that move and
- * records it in the Community Ledger; an expense already paid may say so
- * again, because the form sends its status back unchanged.
+ * Status is never a field here. It moves only through the routes: submit,
+ * pay, void, and a decision on the expense's approval. A change to the
+ * amount, vendor or title of a submitted or approved expense opens a new
+ * approval round (decided with the operator 2026-11-17: the vendor is the
+ * payee, and the title names what the approval approved).
  *
  * Pure: no Directus.
  */
 import { z } from "zod";
 
 export const EXPENSE_CATEGORY_VALUES = ["maintenance", "utilities", "insurance", "landscaping", "admin", "other"] as const;
-export const EXPENSE_STATUS_VALUES = ["draft", "approved", "paid"] as const;
-
-const NOT_HERE = "An expense becomes paid when its payment is recorded, not here.";
+export const EXPENSE_STATUS_VALUES = ["draft", "submitted", "approved", "rejected", "paid", "void"] as const;
+export type ExpenseStatus = (typeof EXPENSE_STATUS_VALUES)[number];
 
 const id = z.string().uuid("That isn't a valid id.");
 const text = (max: number) => z.string().trim().max(max).nullable().optional();
@@ -50,31 +51,145 @@ const fields = {
 const orgId = z.string().min(1, "orgId is required");
 const someField = (v: object) => Object.keys(v).length > 0;
 
+const { paid_date: _paidDate, ...entered } = fields;
+
+/** POST /api/org/expenses: a draft, or submitted straight away. */
 export const createExpenseBody = z
   .object({
     orgId,
-    expense: z.object({ ...fields, status: z.enum(["draft", "approved"], { message: NOT_HERE }).optional() }).strict(),
+    expense: z.object(entered).strict(),
+    submit: z.boolean().optional(),
   })
   .strict();
 
+/** PATCH /api/org/expenses/[id]. */
 export const patchExpenseBody = z
   .object({
     orgId,
-    id,
-    patch: z
-      .object({ ...fields, status: z.enum(EXPENSE_STATUS_VALUES).optional() })
-      .partial()
-      .strict()
-      .refine(someField, "Nothing to change."),
+    patch: z.object(entered).partial().strict().refine(someField, "Nothing to change."),
   })
+  .strict();
+
+/** POST /api/org/expenses/[id]/pay: when the money went out, and its check or transfer. */
+export const payExpenseBody = z
+  .object({
+    orgId,
+    paidDate: z.string().refine((v) => DAY.safeParse(v).success || MOMENT.safeParse(v).success, "Use a date."),
+    reference: z.string().trim().min(1, "Add the check number or transfer reference.").max(120),
+  })
+  .strict();
+
+/** POST /api/org/expenses/[id]/void. */
+export const voidExpenseBody = z
+  .object({ orgId, reason: z.string().trim().min(3, "Say why it is being voided.").max(1000) })
   .strict();
 
 export type CreateExpenseBody = z.infer<typeof createExpenseBody>;
 export type PatchExpenseBody = z.infer<typeof patchExpenseBody>;
+export type ExpensePatch = PatchExpenseBody["patch"];
 
-/** Why a change may not set this status, or null: `paid` only on a row that is paid already. */
-export function statusRefusal(current: unknown, next: string | undefined): string | null {
-  return next === "paid" && current !== "paid" ? NOT_HERE : null;
+/** A change to any of these, once submitted, opens a new approval round. */
+export const RESHAPE_FIELDS = ["amount", "vendor", "title"] as const;
+/** These change freely while submitted or approved. */
+export const FREE_FIELDS = ["notes", "category", "receipt", "description", "project", "expense_date"] as const;
+/** A paid expense: only these. To correct one, void it and enter it again. */
+export const PAID_FIELDS = ["notes", "receipt"] as const;
+
+const DATE_LIKE = /^\d{4}-\d{2}-\d{2}/;
+const plain = (v: unknown): unknown => {
+  const id = v && typeof v === "object" ? (v as { id?: unknown }).id : v;
+  return id === "" || id === undefined ? null : id;
+};
+
+/** Equal as the form means it: a related row and its id, "425.00" and 425, a day and its timestamp. */
+function sameValue(a: unknown, b: unknown): boolean {
+  const x = plain(a);
+  const y = plain(b);
+  if (x === y) return true;
+  if (x == null || y == null) return false;
+  if (typeof x === "number" || typeof y === "number") return Number(x) === Number(y);
+  if (typeof x === "string" && typeof y === "string" && DATE_LIKE.test(x) && DATE_LIKE.test(y)) return x.slice(0, 10) === y.slice(0, 10);
+  return false;
+}
+
+export interface EditPlan {
+  /** The fields that actually change. */
+  readonly changed: readonly string[];
+  /** Why the change is refused, or null. */
+  readonly refusal: string | null;
+  /** The change reshapes a submitted, approved or rejected expense: a new round. */
+  readonly newRound: boolean;
+}
+
+/** What an edit does to an expense in this status. */
+export function editPlan(status: unknown, current: Record<string, unknown>, patch: Record<string, unknown>): EditPlan {
+  const changed = Object.keys(patch).filter((k) => !sameValue(current[k], patch[k]));
+  const reshapes = changed.some((k) => (RESHAPE_FIELDS as readonly string[]).includes(k));
+  const outside = (allowed: readonly string[]) => changed.filter((k) => !allowed.includes(k));
+  switch (status) {
+    case "draft":
+      return { changed, refusal: null, newRound: false };
+    case "rejected":
+    case "submitted":
+    case "approved":
+      return { changed, refusal: null, newRound: reshapes };
+    case "paid":
+      return outside(PAID_FIELDS).length
+        ? { changed, refusal: "A paid expense keeps its amount, vendor and details: only its notes and receipt change. To correct it, void it and enter it again.", newRound: false }
+        : { changed, refusal: null, newRound: false };
+    case "void":
+      return { changed, refusal: "A voided expense stays as it was.", newRound: false };
+    default:
+      return { changed, refusal: "This expense can't be changed.", newRound: false };
+  }
+}
+
+export type ExpenseAction = "edit" | "submit" | "pay" | "void" | "ask_void" | "delete";
+
+export interface ExpenseFacts {
+  readonly status: unknown;
+  readonly enteredBy: string | null;
+  /** Decisions on its current spend approval. */
+  readonly decisions: number;
+  /** A void approval is open. */
+  readonly voidPending: boolean;
+}
+
+export interface ExpenseViewer {
+  readonly userId: string | null;
+  readonly isAdmin: boolean;
+  readonly canEnter: boolean;
+}
+
+/**
+ * What this person may do to this expense: the routes refuse anything else,
+ * and the page shows only these. Deleting a draft and voiding one that nobody
+ * has decided are the enterer's or an admin's; everything else is any
+ * money:enter holder's. Approving is not here: it is the rule's, per approval.
+ */
+export function expenseActions(f: ExpenseFacts, v: ExpenseViewer): ExpenseAction[] {
+  if (!v.canEnter || !v.userId) return [];
+  const own = v.isAdmin || (!!f.enteredBy && f.enteredBy === v.userId);
+  const askVoid: ExpenseAction[] = f.voidPending ? [] : ["ask_void"];
+  switch (f.status) {
+    case "draft":
+      return own ? ["edit", "submit", "delete"] : ["edit", "submit"];
+    case "submitted":
+      return ["edit", "pay", ...(f.decisions === 0 ? (own ? (["void"] as const) : []) : askVoid)];
+    case "approved":
+      return ["edit", "pay", ...askVoid];
+    case "rejected":
+      return own ? ["edit", "submit", "void"] : ["edit", "submit"];
+    case "paid":
+      return ["edit", ...askVoid];
+    default:
+      return [];
+  }
+}
+
+/** Voided at once (no approval): a draft, a rejection, or a submission nobody has decided. */
+export function voidsAtOnce(status: unknown, decisions: number): boolean {
+  return status === "draft" || status === "rejected" || (status === "submitted" && decisions === 0);
 }
 
 const asId = (v: unknown): string | null =>

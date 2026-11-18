@@ -31,15 +31,19 @@ describe("hasCapability", () => {
     }
   });
 
-  // Oversight (decided 2026-11-14): every board seat reads the books, and no
-  // office writes them on its own — the treasurer included.
-  it("every board seat reads money; no office writes it", () => {
+  // Oversight (decided 2026-11-14): every board seat reads the books and may
+  // enter money; approval is the rule's, never a capability
+  // (docs/spec-money-approvals.md).
+  it("every board seat reads and enters money; members and bare managers neither", () => {
     for (const seat of ["board_president", "board_vp", "board_treasurer", "board_secretary", "board_member"] as Actor[]) {
       expect(hasCapability([seat], "money:read"), seat).toBe(true);
-      expect(hasCapability([seat], "money:write"), seat).toBe(false);
+      expect(hasCapability([seat], "money:enter"), seat).toBe(true);
     }
-    expect(hasCapability(["member"], "money:read")).toBe(false);
-    expect(hasCapability(["property_manager"], "money:read")).toBe(false);
+    for (const who of ["member", "property_manager", "team_lead"] as Actor[]) {
+      expect(hasCapability([who], "money:read"), who).toBe(false);
+      expect(hasCapability([who], "money:enter"), who).toBe(false);
+    }
+    expect(Object.keys(CAPABILITY_MATRIX)).not.toContain("money:write");
   });
 
   it("president and VP can approve milestones; a plain member cannot", () => {
@@ -80,7 +84,7 @@ describe("capabilitiesFor", () => {
   it("unions capabilities across hats without duplicates", () => {
     const caps = capabilitiesFor(["board_treasurer", "team_lead"]);
     expect(caps).toContain("money:read");
-    expect(caps).not.toContain("money:write");
+    expect(caps).toContain("money:enter");
     expect(caps).toContain("projects:write");
     expect(caps).toContain("milestone:approve");
     expect(new Set(caps).size).toBe(caps.length);

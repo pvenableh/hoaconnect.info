@@ -135,6 +135,10 @@ export async function resolveCapabilities(
     caps.add("projects:write");
     caps.add("milestone:approve");
   }
+  // A property manager with the projects grant enters expenses
+  // (docs/spec-money-approvals.md). A helper with the projects area does not:
+  // the grant is the manager's, and a helper is a member.
+  if (grants?.projects === true) caps.add("money:enter");
 
   return { actors, capabilities: [...caps] };
 }

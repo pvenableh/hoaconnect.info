@@ -63,6 +63,10 @@ beforeEach(async () => {
   vi.stubGlobal("requireMoneyRead", access.requireMoneyRead);
   vi.stubGlobal("moneyLimit", access.moneyLimit);
   vi.stubGlobal("numericMoney", access.numericMoney);
+  vi.stubGlobal("canEnterMoney", access.canEnterMoney);
+  vi.stubGlobal("getUserSession", async () => session ?? {});
+  // Each row's approval and actions are tests/server/money-approvals.test.ts's; here, the read gate.
+  vi.stubGlobal("describeExpenses", async (_o: string, rows: any[]) => rows.map(() => ({})));
 });
 
 const ROUTES = {

@@ -4,8 +4,10 @@
  * org-wide money read goes through a server route that calls this, so the
  * Directus Member policy can narrow to a member's own charges.
  *
- * Read only. Money writes stay admin-only, and money going out will need
- * approval (decision 16).
+ * Entering money (`money:enter`: enter, edit, submit, record paid, ask for a
+ * void) is every board seat's, an admin's, and a property manager's with the
+ * projects grant. Approving is neither: the rule decides it per approval, from
+ * board seats only (core/shared/money/approval-rule.ts).
  */
 import type { H3Event } from "h3";
 
@@ -21,14 +23,41 @@ export async function canReadMoney(event: H3Event, orgId: string): Promise<boole
 }
 
 /** 401 without a session, 400 without `orgId`, 403 unless admin or money:read. Returns the orgId. */
-export async function requireMoneyRead(event: H3Event): Promise<string> {
+export async function requireMoneyRead(event: H3Event, orgIdArg?: string): Promise<string> {
   await requireUserSession(event);
-  const orgId = String(getQuery(event).orgId || "");
+  const orgId = String(orgIdArg ?? getQuery(event).orgId ?? "");
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
   if (!(await canReadMoney(event, orgId))) {
     throw createError({ statusCode: 403, message: "Board or admin access required" });
   }
   return orgId;
+}
+
+/** Admin, or `money:enter` (every board seat; a manager with the projects grant). */
+export async function canEnterMoney(event: H3Event, orgId: string): Promise<boolean> {
+  const admin = await checkAdminAccess(event, orgId);
+  if (admin.isAdmin) return true;
+  try {
+    const { capabilities } = await resolveCapabilities(event, orgId);
+    return capabilities.includes("money:enter");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 401 without a session, 400 without `orgId`, 403 unless admin or
+ * money:enter. Returns who is asking, for the routes' exclusions and records.
+ */
+export async function requireMoneyEnter(event: H3Event, orgId: string): Promise<{ userId: string; isAdmin: boolean }> {
+  const session = await requireUserSession(event);
+  const userId = String((session.user as { id?: unknown } | undefined)?.id ?? "");
+  if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
+  if (!(await canEnterMoney(event, orgId))) {
+    throw createError({ statusCode: 403, message: "Only the board, an admin or a manager with Projects can enter money." });
+  }
+  const admin = await checkAdminAccess(event, orgId);
+  return { userId, isAdmin: !!admin.isAdmin };
 }
 
 /** A `limit` query value, clamped to 1..max. */

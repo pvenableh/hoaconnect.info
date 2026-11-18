@@ -196,6 +196,11 @@ describe("the event catalogue", () => {
     }
   });
 
+  it("keeps who voted which way on money board-only (docs/spec-money-approvals.md)", () => {
+    expect(defaultVisibilityFor("money_decision")).toBe("board");
+    expect(defaultVisibilityFor("expense_voided")).toBe("board");
+  });
+
   it("keeps a payment board-only — it names one household", () => {
     // The one default that must not be relaxed casually. See VISION's risks.
     expect(defaultVisibilityFor("payment_recorded")).toBe("board");
@@ -207,6 +212,7 @@ describe("the event catalogue", () => {
       "management_transition",
       "manager_grants_changed",
       "expense_recorded",
+      "expense_approved",
       "document_published",
       "poll_closed",
       "ai_action_executed",

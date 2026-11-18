@@ -15,8 +15,9 @@
  *   - the verb's module is on (useModules), the same switch that hides the
  *     page's dock slot and refuses its URL (module.global.ts).
  * The capability matrix (core/shared/permissions.ts) is deliberately NOT the
- * gate: a board treasurer holds `money:write`, but `/admin/payments` turns
- * them away, and a verb must never promise a door its page will not open.
+ * gate: every board seat holds `money:enter`, but the "+ New" menu is the
+ * admin workspace's, and a verb must never promise a door its page will not
+ * open. A seat enters an expense from the Expenses page itself.
  * If a page widens its middleware, widen its verb here in the same change.
  *
  * Runners: a verb navigates to the page that owns the form, with

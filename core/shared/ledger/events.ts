@@ -195,6 +195,34 @@ const CATALOGUE = [
     note: "Community money went out. Where the dues went is exactly what owners are entitled to see.",
   },
   {
+    key: "money_decision",
+    label: "Money decision",
+    icon: "vote",
+    category: "money",
+    // Board-only: who voted which way is the board's business. Owners see the
+    // outcome (`expense_approved`, `expense_voided`).
+    defaultVisibility: "board",
+    note: "A board member approved or rejected spending, a void or a waiver (docs/spec-money-approvals.md).",
+  },
+  {
+    key: "expense_approved",
+    label: "Expense approved",
+    icon: "badge-check",
+    category: "money",
+    defaultVisibility: "owners",
+    note: "Spending met its approval: two of the operating committee, or a board majority. Owners see who approved what.",
+  },
+  {
+    key: "expense_voided",
+    label: "Expense voided",
+    icon: "ban",
+    category: "money",
+    // The writer widens this to owners when the expense had been approved or
+    // paid, because owners saw that much (buildExpenseVoidedEntry).
+    defaultVisibility: "board",
+    note: "An expense was cancelled. It stays on record; nothing past draft is deleted.",
+  },
+  {
     key: "billing_run",
     label: "Billing run",
     icon: "calendar-clock",
