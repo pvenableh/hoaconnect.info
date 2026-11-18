@@ -86,7 +86,7 @@ watch(orgId, () => void load(), { immediate: true });
 </script>
 
 <template>
-  <div class="space-y-5 p-4 sm:p-6 max-w-3xl mx-auto">
+  <PageContainer class="space-y-5 [&>*]:max-w-3xl">
     <NuxtLink
       :to="meetingsHref"
       class="inline-flex items-center gap-1.5 text-xs t-text-muted hover:t-text"
@@ -193,5 +193,5 @@ watch(orgId, () => void load(), { immediate: true });
         </ol>
       </section>
     </template>
-  </div>
+  </PageContainer>
 </template>

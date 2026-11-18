@@ -224,7 +224,7 @@ const fmtDate = (v?: string | null) =>
       <!-- Grouped results -->
       <div v-else class="space-y-6">
         <section v-for="group in grouped" :key="group.value" class="space-y-2">
-          <h2 class="text-xs font-semibold uppercase tracking-wide t-text-muted px-1">{{ group.label }}</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wide t-text-muted">{{ group.label }}</h2>
           <div class="space-y-2">
             <div v-for="item in group.items" :key="item.id" class="ios-card overflow-hidden">
               <button class="w-full text-left px-4 py-3 flex items-start gap-3" @click="toggle(item)">

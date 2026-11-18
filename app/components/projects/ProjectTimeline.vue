@@ -130,7 +130,7 @@ const TYPE_OPTS = Object.entries(EVENT_TYPE_META).map(([value, m]) => ({ value, 
         </li>
       </ol>
 
-      <p v-if="!events.length && !showAdd" class="text-sm t-text-muted py-3 px-2">No milestones yet.</p>
+      <p v-if="!events.length && !showAdd" class="text-sm t-text-muted py-3">No milestones yet.</p>
 
       <!-- Add milestone -->
       <div v-if="showAdd" class="mt-3 ios-card p-4 space-y-3">

@@ -191,7 +191,7 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-5 p-4 sm:p-6 max-w-5xl mx-auto">
+  <PageContainer class="space-y-5">
     <BoardroomHeader
       :live="room.isLive.value"
       :is-host="isHost"
@@ -308,5 +308,5 @@ watch(
       :href-base="minutesHref"
       hide-when-empty
     />
-  </div>
+  </PageContainer>
 </template>

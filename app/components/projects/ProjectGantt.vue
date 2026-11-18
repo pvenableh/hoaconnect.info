@@ -436,7 +436,7 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
         </div>
       </div>
 
-      <p v-else class="text-sm t-text-muted py-3 px-1">
+      <p v-else class="text-sm t-text-muted py-3">
         Add dates to your milestones to see them on the timeline.
       </p>
 

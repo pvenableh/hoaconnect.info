@@ -264,7 +264,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
       <!-- A plan that could not be drafted (no credits, a provider hiccup) says
            so here rather than inside the notices block, which is absent on
            exactly the quiet hub where someone is most likely to press it. -->
-      <p v-if="planError" class="text-xs text-red-600 dark:text-red-400 px-4">
+      <p v-if="planError" class="text-xs text-red-600 dark:text-red-400">
         {{ planError }}
       </p>
 
@@ -334,7 +334,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
           </div>
         </div>
 
-        <p v-if="proposeError" class="text-xs text-red-600 dark:text-red-400 px-1">
+        <p v-if="proposeError" class="text-xs text-red-600 dark:text-red-400">
           {{ proposeError }}
         </p>
 

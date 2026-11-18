@@ -67,7 +67,7 @@ const activityLine = computed(() => {
         <Icon name="i-lucide-gavel" class="w-6 h-6 t-text-accent" />
       </span>
 
-      <div class="min-w-0 flex-1">
+      <div class="min-w-[10rem] flex-1 sm:min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <h1 class="t-heading text-xl sm:text-2xl font-semibold truncate">
             {{ title || "The Board Room" }}

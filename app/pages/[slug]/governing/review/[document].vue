@@ -376,7 +376,7 @@ const blockerText = computed(() => {
           <div v-if="group.image" class="space-y-2 lg:sticky lg:top-4 lg:self-start">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h2 class="type-section t-text">{{ group.label }}, as scanned</h2>
-              <div class="flex items-center gap-1" data-testid="governing-review-image-tools">
+              <div class="flex items-center gap-2" data-testid="governing-review-image-tools">
                 <Button size="sm" variant="ghost" aria-label="Turn left" @click="turn = (turn + 270) % 360">
                   <Icon name="lucide:rotate-ccw" class="w-4 h-4" />
                 </Button>
@@ -390,7 +390,7 @@ const blockerText = computed(() => {
                 <Button size="sm" variant="ghost" aria-label="Larger" :disabled="zoom === ZOOMS[ZOOMS.length - 1]" @click="stepZoom(1)">
                   <Icon name="lucide:zoom-in" class="w-4 h-4" />
                 </Button>
-                <a :href="getAuthUrl(group.image) ?? undefined" target="_blank" rel="noopener" class="type-meta t-text-accent underline ml-2">Open Full Size</a>
+                <a :href="getAuthUrl(group.image) ?? undefined" target="_blank" rel="noopener" class="type-meta t-text-accent underline">Open Full Size</a>
               </div>
             </div>
             <div class="ios-card overflow-auto max-h-[80vh]">

@@ -609,7 +609,7 @@ const materials = [
 
         <div class="mt-2">
           <p class="type-micro">Page motion</p>
-          <ul class="helper-text list-disc pl-5 space-y-1">
+          <ul class="helper-text list-disc list-inside space-y-1">
             <li><strong>Across dock apps</strong> — a full slide in dock order (<code>page-forward</code> / <code>page-back</code>).</li>
             <li><strong>Across SubNav pills</strong> — the floor strip, a short slide in pill order (<code>floor-forward</code> / <code>floor-back</code>).</li>
             <li><strong>Into a record and back</strong> — the navigation-stack push and pop.</li>
