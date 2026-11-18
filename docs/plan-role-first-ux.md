@@ -353,7 +353,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` shipped and green.
 | 8 | Delegation to members: volunteer and committee grants (spec first, then build) | [x] | Shipped 2026-11-17 in seven build commits after the spec (`1dfef57`…`c10b1fb`) and five fixes from the live check (`ede6551`…`82b8ba9`). Spec `docs/spec-delegation.md` (decisions confirmed with Peter). `hoa_area_grants` created on the live instance 2026-11-17 and types regenerated. Checked in the browser as Oscar, Peter (admins), Obie (a helper, board seat) and Tester Two (a committee member, tenant) on 1033 Lenox; everything granted was ended and the test team deleted. **Operator TODO:** apply the 3 HOA Admin removals on `hoa_team_members` (`pnpm setup:permissions`). Not pushed. Prompt: `docs/prompts/role-first-s8-delegation.md` (Opus 5.5) |
 | 9 | 2c — Responsibilities map: the Map mode beside the grid, for admins and owners | [ ] | Queued 2026-11-17. Phase 2b's pages are live, so this reads the same two routes and adds no schema (§3.4 "Map view", decision 15). Independent of 4, 5 and 8. Prompt: `docs/prompts/role-first-s9-responsibilities-map.md` (Opus 5.5) |
 | 10 | Restricted members: posting paused, membership kept (and archived members stop writing) | [x] | Built 2026-11-17 in six gated commits after the spec (`01457c9`…`4ad8bac`) and three fixes from the live check (`1b9fefc`, `c1ec2ba`, `67beb41`). Spec `docs/spec-member-restrictions.md`. `hoa_member_restrictions` created on the live instance and types regenerated (at Peter's go-ahead). Checked in the browser as Peter (admin), Tester Two (paused) and Obie (board seat); both test pauses lifted. **Operator TODOs:** deploy, `pnpm add:admin-scope` (creates and back-fills `active_in`, `posts_in`, `posts_to`), then `pnpm setup:permissions` — until then archived and inactive members can still write through Directus and a pause rests on the server checks alone. Not pushed. Prompt: `docs/prompts/role-first-s10-member-restrictions.md` (Opus 5.5) |
-| 11 | 5c — Correcting a charge: what an admin may change on a charge an owner owes, and which changes need the board | [ ] | Queued 2026-11-18, after Session 5's cancel lock left no way to edit or delete a charge. Spec first (six decisions, "Queued: correcting a charge" below). Prompt: `docs/prompts/role-first-s11-charge-corrections.md` (Opus 5.5) |
+| 11 | 5c — Correcting a charge: what an admin may change on a charge an owner owes, and which changes need the board | [x] | Shipped 2026-11-18 in seven gated commits (`19340c1`…`a26aa01`). Spec `docs/spec-charge-corrections.md`, the six decisions confirmed with Peter as recommended. Admins edit the words, raise the amount and move a due date before it is due, and withdraw a hand-entered charge within 24 hours; lowering a charge is a partial waiver and the wrong household a `move` approval, both for the board; a full waiver takes its late fees. Schema applied to the instance at Peter's go-ahead (second dry run nothing; types regenerated); no permission changed. Checked in the browser as the demo admin only (Session log). **Operator TODO:** deploy, then push. Not pushed. Prompt: `docs/prompts/role-first-s11-charge-corrections.md` (Opus 5.5) |
 
 
 ### Queued: correcting a charge (Session 11)
@@ -1164,4 +1164,50 @@ Built in the spec's order, one gated commit each (typecheck 0, vitest 4168 green
 
 1. Deploy, then push (both Session 4's and this session's commits). Until the deploy, the live Charges page still offers Cancel Charge, which now fails (the lock removed its rule), and has no Ask to Waive.
 2. After the deploy, check once as a board seat that isn't an admin: Ask to Waive on a charge, approve it as two other committee members, and see the charge canceled and the Ledger entry.
+
+#### Session 11 — Phase 5c, correcting a charge (2026-11-18)
+
+Spec `docs/spec-charge-corrections.md`, confirmed by Peter 2026-11-18 with the six decisions as recommended: lowering a charge is a partial waiver through the board, with no small-amount limit; a 24-hour window to withdraw a charge entered by hand; the wrong household is a `move` approval; a full waiver takes the charge's unpaid late fees; the owner hears when what they owe, or when it is due, changes; admins make the free corrections and `money:enter` asks for the rest.
+
+**Shipped** (each commit gated: typecheck 0, vitest green, lint 132 against a cap of 148, 19/19 audits, build green)
+
+- `19340c1` the spec, the pure rules (`core/shared/money/charge-corrections.ts`: withdraw, due date, amount up only, the partial cut, move) and the schema script. `pnpm add:charge-corrections`: `money_approvals.kind` gains `move`; `money_approvals.amount` and `.proposed`; `payment_requests.withdrawn_at`, `withdrawn_by`, `withdrawn_reason`. It writes no permission and refuses to run while any policy can update or delete a charge. Applied 2026-11-18 at Peter's go-ahead; second dry run nothing; types regenerated. Tests: `tests/shared/charge-corrections.test.ts` (18), `tests/scripts/charge-corrections-perms.test.ts` (3).
+- `5836faf` `PATCH /api/org/money/charges/[id]` (admins): title, description, notes; the amount up only (lowering it is 422); the due date while the charge is not yet due and no late fee is charged, never to a past date. The amount and due date are locked (409) while a waiver or move waits; the words stay free. `charge_corrected` (board). The household is told of a new amount or due date. `core/server/utils/charge-corrections.ts` reads what the rules need. Test: `tests/server/charge-corrections.test.ts`.
+- `d3e72f2` `POST …/withdraw` (admins, a reason): a hand-entered charge (no source, or `manual`), within 24 hours, nothing paid or recorded, no reminder, no late fee, nothing waiting; otherwise 409 says why and points to Ask to Waive. Canceled and kept, never deleted. `charge_withdrawn` (board); the household is told.
+- `b277733` `POST …/waive` takes an optional amount: a partial waiver, more than zero and less than what remains (422 otherwise). Approved, the amount and what remains drop by the cut, or by what remains if payments since left less (the charge is then paid). A full waiver cancels the charge's unpaid late fees and closes their own waivers. The approvers' notice names the cut or the late fees' total; the household is told the outcome.
+- `ff43da6` `POST …/move` (`money:enter`, a household and a reason): a `move` approval with the proposed household and its unit, by the same rule. Approved: member and unit change, unpaid late fees canceled, `charge_moved` (board), both households told. A charge paid on, settled, or whose new household left closes the move as superseded and tells whoever asked why. `decide` accepts `move`.
+- `2fdd5cc` the Approvals routes add `waive_amount`, `late_fees` and `move` to a charge subject; the headline is a tested helper (`core/shared/money/approval-headline.ts`): "Waive $50.00 of $300.00 owed by Bob Diaz for March dues", "Move $300.00 for March dues from Bob Diaz to Carol Eve". Test: `tests/shared/approval-headline.test.ts` (5).
+- `a26aa01` the Charges page and panel: Edit Charge, Ask to Waive (all or part), Move to Another Household and Withdraw Charge, each shown only where the server would accept it (the read's new `approval_pending`, `late_fees_open`, `withdrawable`, `movable`, `due_date_lock`, and `viewer.canCorrect`). One sheet (`PaymentChargeCorrectionSheet`) for Edit, Waive and Move; Withdraw is a prompt. A withdrawn charge reads "withdrawn". Tests: `useChargesResource` (15), `charge-corrections` (35 in all).
+
+**What a user sees change**
+
+| Who | Before | Now |
+|---|---|---|
+| Admin | A charge entered wrong could only be waived and entered again | Edit Charge (words, a higher amount, a due date not yet passed); Withdraw Charge within 24 hours of entering it, before anything is paid or reminded |
+| Every board seat, admins, a manager with Projects | Ask to Waive, all of it | Ask to Waive all or part; Move to Another Household while nothing is paid |
+| President, Treasurer, Secretary (or a majority) | Waivers on the Approvals page | Also partial waivers ("Waive $50.00 of $300.00 …") and moves ("Move $300.00 … from Bob Diaz to Carol Eve"); a full waiver names the late fees it takes |
+| Owner | Heard nothing when a charge was waived | Told when what they owe or when it is due changes: amount, due date, withdrawn, waived, moved to or away from them |
+| Board (Ledger) | `charge_waived` only | Also `charge_corrected`, `charge_withdrawn`, `charge_moved`; `charge_waived` names a partial cut and late fees |
+
+**Deviations and decisions**
+
+- **`REMOVED_ADMIN_RULES` lives in `scripts/lib/admin-scope-perms.ts`**, not `money-approval-perms.ts` as the prompt said; it still removes update and delete on charges. The new check (`chargeWriteRules`) sits in `money-approval-perms.ts` beside `CHARGE_WRITES`.
+- **A hand-entered charge has no `source`** (the New charge form sets none), so the withdraw window takes an empty `source` or `manual`.
+- **A moved charge's unit** is the new household's primary unit, or its only current one; none when it has several and none is primary. The spec said "the new member's".
+- **409 or 422.** A charge's state (settled, something waiting, paid on, outside the window) is 409; a value the rules refuse (a lower amount, a past date, a cut out of range, the wrong household) is 422.
+- **A waiver now also waits on a move**, and vice versa: one approval per charge. The waive route's 409 says "A waiver or move of this charge is awaiting approval." A charge paid in full closes a waiting move as it closes a waiver.
+- **Ask to Waive no longer prompts**: the sheet collects the reason and, for part, the amount. `askWaive(row, { reason, amount })`.
+- **A payment counts** (for withdraw and move) when `amount_paid` is above zero or a `succeeded` or `refunded` transaction names the charge.
+- Owner notices are not essential (a household may mute payments); approvers' notices stay essential.
+- Existing tests changed: `useChargesResource` (Ask to waive takes its reason from the sheet; three fixture rows added, so two counts grew), `money-reads` (stubs the read's new helpers), `money-waivers` (the viewer adds `canCorrect`; a charge subject adds `waive_amount`, `late_fees`, `move`). `ledger-visibility` gains the three new events, board-only.
+
+**Checked in the browser** as the demo admin (Harborview Lofts): the row menu (Edit, Ask to Waive, Move; no Withdraw on charges older than 24 hours), the Edit sheet (a lower amount turns the hint red and disables Save; raising Sofia Marchetti's "Monthly dues — 2026-12" from $250.00 to $260.00 saved, refreshed and toasted), the Waive sheet (All or Part, the amount, the reason; not sent), the Move sheet (the community's other active households; not sent). **Not checked:** Withdraw (no fresh charge), a waiver or move decided in the app, a board seat or manager signed in, a phone width.
+
+**Follow-up seen:** the Charges table shows a due date of "2026-12-01" as Nov 30, 2026 (the page's `fdate` reads the day as UTC midnight in local time); the Edit sheet shows Dec 1. Present before this session.
+
+**Operator TODOs**
+
+1. Deploy, then push (Sessions 4, 5 and 11). The schema is already applied, so the deploy needs no script. Until it, the live Charges page has none of the corrections.
+2. After the deploy, check once as a board seat that isn't an admin: Ask to Waive part of a charge, and Move one, then approve each as two other committee members; see the amount drop, the charge move, and the Ledger entries.
+3. The demo charge raised to $260.00 during the check stays so (test data); lowering it would be a waiver.
 
