@@ -205,6 +205,10 @@ export const REMOVED_ADMIN_RULES: readonly { collection: string; action: string 
   ...CREATE_AND_UPDATE("hoa_vehicles"),
   ...CREATE_AND_UPDATE("hoa_leases"),
   ...CREATE_AND_UPDATE("payment_expenses"),
+  // And delete (2026-11-17, docs/spec-money-approvals.md): nothing past draft
+  // is deleted, and a draft only by its enterer or an admin, through
+  // DELETE /api/org/expenses/[id]. No policy writes payment_expenses.
+  { collection: "payment_expenses", action: "delete" },
   ...CREATE_AND_UPDATE("hoa_member_units"),
   ...CREATE_AND_UPDATE("hoa_board_members"),
   // And delete (2026-11-16, Session 7): the Board tab removes a term through

@@ -18,17 +18,28 @@
  *
  * Every organization on the instance is test data, so nothing is back-filled.
  *
- * Permissions are not touched: no policy gets any access to the two new
- * collections, so only the app's token reads or writes them.
+ * The schema pass touches no permissions. `--lock` is the write lock
+ * (scripts/lib/money-approval-perms.ts): no policy keeps create, update or
+ * delete on payment_expenses (the HOA Admin policy had delete left), and no
+ * policy keeps any rule on the two new collections. The routes in
+ * core/server/api/org/expenses and core/server/api/org/money are the only
+ * writers, with the app's token. setup-directus-permissions.ts keeps the
+ * lock on a re-run (REMOVED_ADMIN_RULES), and so does
+ * create-expenses-collection.ts.
  *
- * Run with: pnpm add:money-approvals           (dry run: reports only)
- *           pnpm add:money-approvals --apply   (writes the schema)
+ * Run with: pnpm add:money-approvals                 (dry run: reports only)
+ *           pnpm add:money-approvals --apply         (writes the schema)
+ *           pnpm add:money-approvals --lock          (dry run of the lock)
+ *           pnpm add:money-approvals --lock --apply  (removes the rules)
  * Requires: DIRECTUS_URL, DIRECTUS_STATIC_TOKEN (admin token). Then
  * `pnpm generate:types`. Idempotent: what exists is skipped.
  */
+import { APPROVAL_COLLECTIONS, lockPlan, type PermissionRow } from "./lib/money-approval-perms";
+
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_STATIC_TOKEN = process.env.DIRECTUS_STATIC_TOKEN;
 const APPLY = process.argv.includes("--apply");
+const LOCK = process.argv.includes("--lock");
 
 if (!DIRECTUS_URL || !DIRECTUS_STATIC_TOKEN) {
   console.error("❌ Missing required environment variables:");
@@ -324,14 +335,47 @@ async function charges(): Promise<void> {
   await ensureRelation("payment_requests", "waiver", "money_approvals", "SET NULL");
 }
 
+// ── The write lock ───────────────────────────────────────────────────────────
+
+async function lock(): Promise<void> {
+  console.log("\n🔒 The write lock");
+  const res = await directusFetch(
+    `/permissions?filter=${encodeURIComponent(
+      JSON.stringify({ collection: { _in: ["payment_expenses", ...APPROVAL_COLLECTIONS] } })
+    )}&fields=id,policy.id,policy.name,collection,action&limit=-1`
+  );
+  const rows: PermissionRow[] = (res?.data ?? []).map((r: any) => ({
+    id: r.id,
+    policyName: r.policy?.name ?? null,
+    collection: r.collection,
+    action: r.action,
+  }));
+  for (const r of rows) console.log(`   · ${r.policyName ?? "a policy"}: ${r.action} on ${r.collection} (#${r.id})`);
+  const remove = lockPlan(rows);
+  if (!remove.length) return skip("nothing to remove: no policy writes payment_expenses or touches the approvals");
+  for (const r of remove) {
+    const what = `${r.policyName ?? "a policy"}'s ${r.action} on ${r.collection} (#${r.id})`;
+    if (!APPLY) {
+      would(`remove ${what}`);
+      continue;
+    }
+    await directusFetch(`/permissions/${r.id}`, { method: "DELETE" });
+    did(`removed ${what}`);
+  }
+}
+
 async function main(): Promise<void> {
-  console.log(`🚀 add-money-approvals${APPLY ? "" : " (dry run: nothing is written; --apply to write)"}`);
+  console.log(`🚀 add-money-approvals${APPLY ? "" : " (dry run: nothing is written; --apply to write)"}${LOCK ? " · lock" : ""}`);
   console.log(`📡 ${DIRECTUS_URL}`);
-  await approvals();
-  await decisions();
-  await expenses();
-  await charges();
-  console.log(`\n✅ Done.${APPLY ? " Next: pnpm generate:types" : ""}`);
+  if (LOCK) {
+    await lock();
+  } else {
+    await approvals();
+    await decisions();
+    await expenses();
+    await charges();
+  }
+  console.log(`\n✅ Done.${APPLY && !LOCK ? " Next: pnpm generate:types" : ""}`);
 }
 
 main().catch((e) => {

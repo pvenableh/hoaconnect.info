@@ -269,7 +269,7 @@ describe("admin writes that could leave the community", () => {
     expect(isRemovedAdminRule("hoa_leases", "read")).toBe(false);
     expect(isRemovedAdminRule("hoa_leases", "delete")).toBe(false);
     // Expenses (2026-11-16): the same, for the project and receipt an expense
-    // names. POST and PATCH /api/org/expenses now; read and delete stay.
+    // names. Routes now (core/server/api/org/expenses); read stays.
     expect(isRemovedAdminRule("payment_expenses", "create")).toBe(true);
     expect(isRemovedAdminRule("payment_expenses", "update")).toBe(true);
     expect(isRemovedAdminRule("payment_expenses", "read")).toBe(false);
@@ -280,7 +280,9 @@ describe("admin writes that could leave the community", () => {
     }
     expect(isRemovedAdminRule("hoa_team_members", "read")).toBe(false);
     expect(isRemovedAdminRule("hoa_teams", "create")).toBe(false);
-    expect(isRemovedAdminRule("payment_expenses", "delete")).toBe(false);
+    // Expense delete goes too (2026-11-17, docs/spec-money-approvals.md): only a
+    // draft is deleted, by its enterer or an admin, through DELETE /api/org/expenses/[id].
+    expect(isRemovedAdminRule("payment_expenses", "delete")).toBe(true);
     // A mention's create is checked by its own `channel`; only the edit followed a relation.
     expect(isRemovedAdminRule("hoa_channel_mentions", "update")).toBe(true);
     expect(isRemovedAdminRule("hoa_channel_mentions", "create")).toBe(false);

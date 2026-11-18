@@ -10,12 +10,12 @@
  * expense_date, paid_date, description, receipt (M2O directus_files), notes,
  * organization* (M2O, CASCADE), + system fields.
  *
- * Permissions (Phase 5/6 pattern, in this script): HOA Admin reads and deletes
- * the rows in their org; creates and edits go through POST and PATCH
- * /api/org/expenses, which check the project and receipt a row names
- * (REMOVED_ADMIN_RULES). HOA Member gets NO access. Board-treasurer read, if
- * ever wanted, is enforced via an elevated server route (the admin-or-board
- * pattern), not a row policy — so it's deliberately omitted here.
+ * Permissions (Phase 5/6 pattern, in this script): HOA Admin reads the rows
+ * in their org, and nothing else. Every write is a route on the app's token
+ * (core/server/api/org/expenses, docs/spec-money-approvals.md): money going
+ * out is approved by the board, so no policy writes payment_expenses
+ * (REMOVED_ADMIN_RULES; `pnpm add:money-approvals --lock`). HOA Member gets
+ * NO access; the board reads through GET /api/org/expenses (money:read).
  *
  * Run with: pnpm run create:expenses
  *
@@ -229,9 +229,9 @@ async function setupPermissions(): Promise<void> {
   const orgFilter = { organization: { _in: "$CURRENT_USER.hoa_members.organization" } };
 
   if (adminPolicy) {
-    console.log("\n   📋 payment_expenses for HOA Admin (read and delete)...");
-    // Create and update are routes now (POST and PATCH /api/org/expenses),
-    // which check the project and receipt; see REMOVED_ADMIN_RULES.
+    console.log("\n   📋 payment_expenses for HOA Admin (read only)...");
+    // Create, update and delete are routes (core/server/api/org/expenses), and
+    // the approval rule decides spending; see REMOVED_ADMIN_RULES.
     for (const action of ["create", "read", "update", "delete"].filter((a) => !isRemovedAdminRule("payment_expenses", a))) {
       await postPermission(adminPolicy.id, "payment_expenses", action, {
         permissions: orgFilter,
