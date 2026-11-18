@@ -8,7 +8,24 @@
 import type { PaymentExpense, PaymentRequest, PaymentSchedule } from "#core/types/directus";
 
 /** A charge as the Charges page reads it: whether a waiver of it awaits approval. */
-export type ChargeRow = PaymentRequest & { waiver_pending?: boolean };
+/**
+ * A charge as the Charges read returns it: with what may be done to it now
+ * (docs/spec-charge-corrections.md), decided on the server.
+ */
+export type ChargeRow = PaymentRequest & {
+  waiver_pending?: boolean;
+  /** A waive (with its cut, or null for all) or a move awaiting the board. */
+  approval_pending?: { kind: "waive" | "move"; amount: number | null } | null;
+  /** What its unpaid late fees come to. */
+  late_fees_open?: number;
+  /** Inside the 24-hour withdraw window. */
+  withdrawable?: boolean;
+  /** Nothing paid on it or its late fees, nothing waiting. */
+  movable?: boolean;
+  /** Why its due date cannot change now, or null. */
+  due_date_lock?: string | null;
+  withdrawn_by_name?: string | null;
+};
 
 export function useMoneyReads() {
   const listCharges = async (orgId: string, opts: { limit?: number; view?: "glance" } = {}): Promise<PaymentRequest[]> => {
@@ -18,12 +35,18 @@ export function useMoneyReads() {
     return res?.charges ?? [];
   };
 
-  /** The charges, and whether the caller may ask to waive one (money:enter). */
-  const listChargesWithViewer = async (orgId: string, opts: { limit?: number } = {}): Promise<{ charges: ChargeRow[]; canEnter: boolean }> => {
-    const res = await $fetch<{ charges: ChargeRow[]; viewer?: { canEnter?: boolean } }>("/api/org/money/charges", {
+  /**
+   * The charges, whether the caller may ask to waive or move one
+   * (money:enter), and whether they may edit or withdraw one (admins).
+   */
+  const listChargesWithViewer = async (
+    orgId: string,
+    opts: { limit?: number } = {}
+  ): Promise<{ charges: ChargeRow[]; canEnter: boolean; canCorrect: boolean }> => {
+    const res = await $fetch<{ charges: ChargeRow[]; viewer?: { canEnter?: boolean; canCorrect?: boolean } }>("/api/org/money/charges", {
       query: { orgId, ...opts },
     });
-    return { charges: res?.charges ?? [], canEnter: res?.viewer?.canEnter === true };
+    return { charges: res?.charges ?? [], canEnter: res?.viewer?.canEnter === true, canCorrect: res?.viewer?.canCorrect === true };
   };
 
   const listSchedules = async (orgId: string, opts: { limit?: number } = {}): Promise<PaymentSchedule[]> => {

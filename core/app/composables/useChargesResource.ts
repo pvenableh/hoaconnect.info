@@ -1,6 +1,7 @@
 // useChargesResource — owner charges (`payment_requests`) as a resource
 // (docs/spec-resource-scaffold.md): the definition `useResource` runs on, and
-// its two actions, Mark paid and Ask to waive.
+// its actions: Mark paid, Ask to waive, and the corrections
+// (docs/spec-charge-corrections.md): Edit, Withdraw, Move.
 //
 // Reads go through GET /api/org/money/charges (admins and every board seat,
 // `money:read`); nothing here reads or writes `payment_requests` through
@@ -10,6 +11,13 @@
 // (docs/spec-money-approvals.md). Ask to waive is for money:enter holders,
 // which the read says (`canEnter`); a charge whose waiver awaits approval
 // shows that instead.
+//
+// Corrections: an admin (`canCorrect`) edits the words, raises the amount or
+// moves a due date before it is due (PATCH), and withdraws a fresh mistake
+// within 24 hours. Lowering a charge is a partial waiver; the wrong household
+// is a move. Both go to the board, asked by money:enter holders. Each row
+// carries what the server would accept (`withdrawable`, `movable`,
+// `due_date_lock`, `approval_pending`), so no control shows that would fail.
 //
 // Shared by the Charges index (`/admin/payments`) and its panel, which passes
 // `reuse: true` so opening a charge over the index makes no second request.
@@ -34,14 +42,44 @@ export const CHARGE_STATUS_CLASS: Record<string, string> = {
   partially_paid: "bg-info/15 text-info",
   paid: "bg-success/15 text-success",
   canceled: "t-bg-subtle t-text-muted",
+  withdrawn: "t-bg-subtle t-text-muted",
   draft: "t-bg-subtle t-text-muted",
 };
+
+/** The status a row shows: a withdrawn charge reads "withdrawn", not "canceled". */
+export const chargeStatusOf = (r: Pick<ChargeRow, "status" | "withdrawn_at">) => (r.withdrawn_at ? "withdrawn" : String(r.status ?? ""));
 
 /** A charge that still asks the member for money. */
 export const isOpenCharge = (r: Pick<ChargeRow, "status">) => !["paid", "canceled"].includes(r.status as string);
 
-/** Ask to waive is offered: the caller may enter money, it is open, and no waiver of it is waiting. */
-export const canAskToWaive = (r: ChargeRow, canEnter: boolean) => canEnter && isOpenCharge(r) && !r.waiver_pending;
+/** A waiver or move of it awaits the board. */
+export const hasPendingApproval = (r: ChargeRow) => !!r.approval_pending || !!r.waiver_pending;
+
+/** What a row shows while the board decides: "Waiver of $50.00 awaiting approval". */
+export function pendingLabel(r: ChargeRow): string | null {
+  if (!isOpenCharge(r) || !hasPendingApproval(r)) return null;
+  const p = r.approval_pending;
+  if (p?.kind === "move") return "Move awaiting approval";
+  return p?.amount != null ? `Waiver of ${chargeCurrency(p.amount)} awaiting approval` : "Waiver awaiting approval";
+}
+
+/** Ask to waive is offered: the caller may enter money, it is open, and nothing of it is waiting. */
+export const canAskToWaive = (r: ChargeRow, canEnter: boolean) => canEnter && isOpenCharge(r) && !hasPendingApproval(r);
+
+/** Move is offered: money:enter, open, nothing paid, nothing waiting (the server's `movable`). */
+export const canMoveCharge = (r: ChargeRow, canEnter: boolean) => canEnter && isOpenCharge(r) && r.movable === true;
+
+/** Edit is offered: an admin, on an open charge (the words stay free while the board decides). */
+export const canEditCharge = (r: ChargeRow, canCorrect: boolean) => canCorrect && isOpenCharge(r);
+
+/** Withdraw is offered: an admin, inside the 24-hour window (the server's `withdrawable`). */
+export const canWithdrawCharge = (r: ChargeRow, canCorrect: boolean) => canCorrect && r.withdrawable === true;
+
+/** The row's overflow menu has something in it. */
+export const hasChargeMenu = (r: ChargeRow, canEnter: boolean, canCorrect: boolean) =>
+  canEditCharge(r, canCorrect) || canWithdrawCharge(r, canCorrect) || canAskToWaive(r, canEnter) || canMoveCharge(r, canEnter);
+
+export type ChargeSheetMode = "edit" | "waive" | "move";
 
 export function chargeMemberName(m: unknown): string {
   const mm = m && typeof m === "object" ? (m as { first_name?: string; last_name?: string; email?: string }) : null;
@@ -56,6 +94,7 @@ export function useChargesResource(orgId: Ref<string | null | undefined>, opts: 
   const money = useMoneyReads();
   // Shared with the panel (`reuse: true`), which makes no read of its own.
   const canEnter = useState<boolean>("charges:canEnter", () => false);
+  const canCorrect = useState<boolean>("charges:canCorrect", () => false);
 
   const def: ResourceDefinition<ChargeRow> = {
     key: "charges",
@@ -63,6 +102,7 @@ export function useChargesResource(orgId: Ref<string | null | undefined>, opts: 
     load: async (id) => {
       const res = await money.listChargesWithViewer(id, { limit: 200 });
       canEnter.value = res.canEnter;
+      canCorrect.value = res.canCorrect === true;
       return res.charges;
     },
     search: (r) => [chargeMemberName(r.member), r.title, CHARGE_TYPE_LABEL[r.request_type as string]],
@@ -105,41 +145,73 @@ export function useChargesResource(orgId: Ref<string | null | undefined>, opts: 
     }
   }
 
+  // One correction in flight at a time, shared by the row, the panel and the sheet.
   const waivingId = useState<string | null>("charges:waiving", () => null);
   const { prompt } = useConfirm();
 
-  /**
-   * Ask the board to waive a charge, with a reason (required). Nothing changes
-   * on the charge until the approval is met; then the server cancels it.
-   */
-  async function askWaive(r: ChargeRow) {
-    if (waivingId.value || !canAskToWaive(r, canEnter.value)) return;
-    const reason = await prompt({
-      title: `Ask to waive “${r.title}”?`,
-      body: `${chargeMemberName(r.member)} would no longer owe ${chargeCurrency(r.amount_remaining ?? r.amount)}. Waiving gives up income the community is owed, so the board approves it like spending. You can't approve your own request.`,
-      label: "Why",
-      multiline: true,
-      required: true,
-      maxLength: 1000,
-      confirmLabel: "Ask to Waive",
-    });
-    if (!reason?.trim()) return;
+  /** Run one write against a charge; toast the server's message on failure. True when it went through. */
+  async function send(r: ChargeRow, url: string, method: "POST" | "PATCH", body: Record<string, unknown>, done: string): Promise<boolean> {
+    if (waivingId.value) return false;
     waivingId.value = r.id;
     const { toast } = await import("vue-sonner");
     try {
-      await $fetch(`/api/org/money/charges/${r.id}/waive`, {
-        method: "POST",
-        body: { orgId: orgId.value, reason: reason.trim() },
-      });
-      toast.success("Sent to the board for approval");
+      await $fetch(url, { method, body: { orgId: orgId.value, ...body } });
+      toast.success(done);
       await resource.refresh();
+      return true;
     } catch (e) {
-      console.error("Failed to ask for a waiver:", e);
-      toast.error((e as { data?: { message?: string } })?.data?.message || "Failed to ask for a waiver");
+      console.error(`Failed: ${method} ${url}`, e);
+      toast.error((e as { data?: { message?: string } })?.data?.message || "That didn't go through. Try again.");
+      return false;
     } finally {
       waivingId.value = null;
     }
   }
 
-  return { resource, markPaid, markingId, askWaive, waivingId, canEnter };
+  /**
+   * Ask the board to waive a charge, all that remains or part of it (an
+   * `amount`), with a reason (required). Nothing changes on the charge until
+   * the approval is met.
+   */
+  async function askWaive(r: ChargeRow, input: { reason: string; amount?: number | null }): Promise<boolean> {
+    const reason = input.reason?.trim();
+    if (!reason || !canAskToWaive(r, canEnter.value)) return false;
+    const body: Record<string, unknown> = { reason };
+    if (input.amount != null) body.amount = input.amount;
+    return send(r, `/api/org/money/charges/${r.id}/waive`, "POST", body, "Sent to the board for approval");
+  }
+
+  /** Ask the board to move a charge to the household it belongs to. */
+  async function askMove(r: ChargeRow, input: { member: string; reason: string }): Promise<boolean> {
+    const reason = input.reason?.trim();
+    if (!reason || !input.member || !canMoveCharge(r, canEnter.value)) return false;
+    return send(r, `/api/org/money/charges/${r.id}/move`, "POST", { member: input.member, reason }, "Sent to the board for approval");
+  }
+
+  /** An admin's correction: only the fields given, and only those that differ, are sent. */
+  async function saveCorrection(
+    r: ChargeRow,
+    input: { title?: string; description?: string | null; notes?: string | null; amount?: number; due_date?: string }
+  ): Promise<boolean> {
+    if (!canEditCharge(r, canCorrect.value)) return false;
+    return send(r, `/api/org/money/charges/${r.id}`, "PATCH", input, "Charge updated");
+  }
+
+  /** Withdraw a fresh mistake, with a reason (required). */
+  async function withdraw(r: ChargeRow): Promise<boolean> {
+    if (waivingId.value || !canWithdrawCharge(r, canCorrect.value)) return false;
+    const reason = await prompt({
+      title: `Withdraw “${r.title}”?`,
+      body: `${chargeMemberName(r.member)} will no longer owe ${chargeCurrency(r.amount_remaining ?? r.amount)}. You can withdraw a charge only within 24 hours of entering it, before anything is paid or reminded. It stays on record as withdrawn.`,
+      label: "Why",
+      multiline: true,
+      required: true,
+      maxLength: 1000,
+      confirmLabel: "Withdraw Charge",
+    });
+    if (!reason?.trim()) return false;
+    return send(r, `/api/org/money/charges/${r.id}/withdraw`, "POST", { reason: reason.trim() }, "Charge withdrawn");
+  }
+
+  return { resource, markPaid, markingId, askWaive, askMove, saveCorrection, withdraw, waivingId, canEnter, canCorrect };
 }

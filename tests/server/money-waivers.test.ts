@@ -197,7 +197,7 @@ describe("the Charges read", () => {
     as(WHO.ann);
     await waive();
     const res = await h.charges!(ev({ query: { orgId: ORG } }));
-    expect(res.viewer).toEqual({ canEnter: true });
+    expect(res.viewer).toEqual({ canEnter: true, canCorrect: false });
     expect(res.charges.find((c: any) => c.id === C.open).waiver_pending).toBe(true);
     expect(res.charges.find((c: any) => c.id === C.partly).waiver_pending).toBe(false);
     expect(res.charges.some((c: any) => c.id === C.other)).toBe(false);

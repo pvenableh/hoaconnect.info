@@ -2,12 +2,16 @@
 import type { HoaMember, HoaOrganization, PaymentRequest, PaymentSchedule } from "#core/types/directus";
 import { isCountedExpense } from "#core/shared/expenses/expense-writes";
 import { toast } from "vue-sonner";
+import type { ChargeRow } from "#core/app/composables/useMoneyReads";
+import type { ChargeSheetMode } from "#core/app/composables/useChargesResource";
 
 // nav-gate: admins, and every board seat (money:read).
 // New charges, recurring charges and Mark paid are admin-only on the server,
 // so `canWrite` hides them. Nobody cancels a charge directly: Ask to waive
 // (money:enter: admins and every board seat) sends it to the board for
-// approval, like spending (docs/spec-money-approvals.md).
+// approval, like spending (docs/spec-money-approvals.md). Corrections
+// (docs/spec-charge-corrections.md): Edit and Withdraw are an admin's
+// (`canCorrect`); Ask to Waive part of it, and Move, go to the board.
 definePageMeta({
   middleware: ["nav-gate", "subscription"],
   layout: "auth",
@@ -34,7 +38,10 @@ const TABS = [
 // --- Data ---------------------------------------------------------------
 // Charges are a resource (docs/spec-resource-scaffold.md): the index below and
 // the charge panel share these rows, read through /api/org/money/charges.
-const { resource: charges, markPaid, markingId, askWaive, waivingId, canEnter } = useChargesResource(selectedOrgId);
+const { resource: charges, markPaid, markingId, withdraw, waivingId, canEnter, canCorrect } = useChargesResource(selectedOrgId);
+// One correction sheet (Edit, Ask to Waive, Move), opened from a row's menu.
+const sheet = ref<{ open: boolean; mode: ChargeSheetMode; charge: ChargeRow | null }>({ open: false, mode: "edit", charge: null });
+const openSheet = (mode: ChargeSheetMode, charge: ChargeRow) => (sheet.value = { open: true, mode, charge });
 const requests = computed(() => charges.rows);
 
 const { data: schedules, refresh: refreshSchedules } = await useAsyncData(
@@ -359,15 +366,15 @@ const TYPE_FILTERS = [
         <template #cell-amount="{ value }">
           <span class="font-medium t-text">{{ currency(value as number) }}</span>
         </template>
-        <template #cell-status="{ value }">
-          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="CHARGE_STATUS_CLASS[value as string]">
-            {{ value }}
+        <template #cell-status="{ row }">
+          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="CHARGE_STATUS_CLASS[chargeStatusOf(row)]">
+            {{ chargeStatusOf(row) }}
           </span>
         </template>
         <template #cell-actions="{ row }">
           <!-- A control here must not also open the row. -->
           <div class="flex items-center justify-end gap-2" @click.stop @keydown.stop>
-            <span v-if="row.waiver_pending && isOpenCharge(row)" class="text-xs t-text-muted px-2">Waiver awaiting approval</span>
+            <span v-if="pendingLabel(row)" class="text-xs t-text-muted px-2">{{ pendingLabel(row) }}</span>
             <Button
               v-if="canWrite && isOpenCharge(row)"
               variant="outline"
@@ -380,21 +387,33 @@ const TYPE_FILTERS = [
               <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
               <Icon v-else name="lucide:check" />
             </Button>
-            <DropdownMenu v-if="canAskToWaive(row, canEnter)">
+            <DropdownMenu v-if="hasChargeMenu(row, canEnter, canCorrect)">
               <DropdownMenuTrigger as-child>
                 <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
                   <Icon name="lucide:more-horizontal" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem :disabled="waivingId === row.id" @click="askWaive(row)">
+                <DropdownMenuItem v-if="canEditCharge(row, canCorrect)" @click="openSheet('edit', row)">
+                  <Icon name="lucide:pencil" class="w-4 h-4 mr-2" />
+                  Edit Charge
+                </DropdownMenuItem>
+                <DropdownMenuItem v-if="canAskToWaive(row, canEnter)" :disabled="waivingId === row.id" @click="openSheet('waive', row)">
                   <Icon name="lucide:hand-coins" class="w-4 h-4 mr-2" />
                   Ask to Waive
+                </DropdownMenuItem>
+                <DropdownMenuItem v-if="canMoveCharge(row, canEnter)" :disabled="waivingId === row.id" @click="openSheet('move', row)">
+                  <Icon name="lucide:arrow-right-left" class="w-4 h-4 mr-2" />
+                  Move to Another Household
+                </DropdownMenuItem>
+                <DropdownMenuItem v-if="canWithdrawCharge(row, canCorrect)" :disabled="waivingId === row.id" class="text-destructive" @click="withdraw(row)">
+                  <Icon name="lucide:undo-2" class="w-4 h-4 mr-2" />
+                  Withdraw Charge
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <span
-              v-if="!(row.waiver_pending && isOpenCharge(row)) && !(canWrite && isOpenCharge(row)) && !canAskToWaive(row, canEnter)"
+              v-if="!pendingLabel(row) && !(canWrite && isOpenCharge(row)) && !hasChargeMenu(row, canEnter, canCorrect)"
               class="t-text-muted text-xs px-2"
             >—</span>
           </div>
@@ -477,6 +496,8 @@ const TYPE_FILTERS = [
         />
       </template>
     </PageContainer>
+
+    <PaymentChargeCorrectionSheet v-model:open="sheet.open" :mode="sheet.mode" :charge="sheet.charge" :org-id="selectedOrgId" />
 
     <AppBottomSheet v-if="canWrite" v-model:open="showNew" title="New charge" size="lg">
       <PaymentChargeForm :org-id="selectedOrgId" :members="members || []" @saved="onSaved" @cancel="showNew = false" />

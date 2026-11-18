@@ -94,6 +94,7 @@ const ROUTES = {
   decide: "#core/server/api/org/money/approvals/[id]/decide.post",
   move: "#core/server/api/org/money/charges/[id]/move.post",
   approvals: "#core/server/api/org/money/approvals/index.get",
+  charges: "#core/server/api/org/money/charges.get",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -477,5 +478,35 @@ describe("the Approvals routes name the cut, the late fees and the households", 
     expect(by(C.overdue)).toMatchObject({ waive_amount: null, late_fees: 25, move: null });
     expect(by(C.fresh)).toMatchObject({ waive_amount: null, move: { from: "Bob Diaz", to: "Carol Eve" } });
     expect(approvals.find((a: any) => a.subject?.id === C.fresh).kind).toBe("move");
+  });
+});
+
+describe("the Charges read says what may be done to each charge", () => {
+  const read = () => h.charges!(ev({ query: { orgId: ORG } }));
+  const row = (res: any, id: string) => res.charges.find((c: any) => c.id === id);
+
+  it("an admin may correct; a board seat may only ask", async () => {
+    expect((await read()).viewer).toEqual({ canEnter: true, canCorrect: true });
+    as(WHO.dee);
+    expect((await read()).viewer).toEqual({ canEnter: true, canCorrect: false });
+  });
+
+  it("flags the withdraw window, moves, due-date locks, late fees and what is waiting; never the reminder metadata", async () => {
+    as(WHO.dee);
+    await waive(C.open, { amount: 50 });
+    as(WHO.admin);
+    const res = await read();
+    expect(row(res, C.fresh)).toMatchObject({ withdrawable: true, movable: true, due_date_lock: null, approval_pending: null });
+    expect(row(res, C.open)).toMatchObject({ withdrawable: false, movable: false, approval_pending: { kind: "waive", amount: 50 }, waiver_pending: true });
+    expect(row(res, C.overdue)).toMatchObject({ movable: false, late_fees_open: 25, due_date_lock: expect.stringMatching(/overdue/) });
+    for (const c of res.charges) {
+      expect(c).not.toHaveProperty("metadata");
+      expect(c).not.toHaveProperty("reminder_sent");
+    }
+  });
+
+  it("names who withdrew a charge", async () => {
+    await withdraw(C.fresh);
+    expect(row(await read(), C.fresh)).toMatchObject({ status: "canceled", withdrawn_by_name: "Ada Min", withdrawn_reason: "Wrong month" });
   });
 });

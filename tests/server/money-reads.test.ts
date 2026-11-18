@@ -68,6 +68,13 @@ beforeEach(async () => {
   // Which charges have a waiver open: tests/server/money-waivers.test.ts's; here, the read gate.
   vi.stubGlobal("OPEN_STATES", ["pending", "cannot_approve"]);
   vi.stubGlobal("loadApprovals", async () => []);
+  // Each row's correction flags are tests/server/charge-corrections.test.ts's; here, the read gate.
+  const corrections = await import("#core/server/utils/charge-corrections");
+  vi.stubGlobal("CHARGE_APPROVAL_KINDS", corrections.CHARGE_APPROVAL_KINDS);
+  vi.stubGlobal("factsOf", corrections.factsOf);
+  vi.stubGlobal("lateFeesOf", async () => new Map());
+  vi.stubGlobal("chargesWithPayments", async () => new Set());
+  vi.stubGlobal("namesFor", async () => new Map());
   // Each row's approval and actions are tests/server/money-approvals.test.ts's; here, the read gate.
   vi.stubGlobal("describeExpenses", async (_o: string, rows: any[]) => rows.map(() => ({})));
 });
