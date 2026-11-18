@@ -96,11 +96,16 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   // No module gate: a community's permanent record of itself is not optional.
   { id: "ledger-admin", section: "records", label: "Ledger", shortName: "Ledger", icon: "history", path: "/admin/ledger", needs: [A], description: "The permanent record of what happened to your community." },
 
-  // Money: whoever holds money:read (admins; the Treasurer and President).
-  // Writes stay admin-only on the server, so the pages hide them for others.
-  { id: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", needs: [cap("money:read"), mod(["payments", "expenses"])], match: ["/admin/payments", "/admin/expenses"] },
+  // Money: whoever holds money:read (admins and every board seat). What each
+  // may do on a page is the server's (money:enter, the approval rule), so the
+  // pages show only those controls (docs/spec-money-approvals.md).
+  { id: "payments", label: "Money", shortName: "Money", icon: "wallet", path: "/admin/payments", needs: [cap("money:read"), mod(["payments", "expenses"])], match: ["/admin/payments", "/admin/expenses", "/approvals"] },
   { id: "payments-admin", section: "payments", label: "Payments", shortName: "Payments", icon: "wallet", path: "/admin/payments", needs: [cap("money:read"), mod("payments")], description: "Dues, assessments, and statements." },
   { id: "expenses", section: "payments", label: "Expenses", shortName: "Expenses", icon: "receipt", path: "/admin/expenses", needs: [cap("money:read"), mod("expenses")], description: "Track and categorize community expenses." },
+  // Money approvals: the same page twice, as a pill in the Money hub and as a
+  // member-layout slot after Money (a pill cannot sit in a layout). Entries
+  // that tie on a path are any-of for the gate; both need the same here.
+  { id: "money-approvals-admin", section: "payments", label: "Approvals", shortName: "Approvals", icon: "stamp", path: "/approvals", needs: [cap("money:read"), mod(["payments", "expenses"])], description: "Spending and voids waiting on the board." },
 
   // The responsibilities register (plan §3.4). Two entries on one path, because
   // needs are ANDed and it has two doors: `responsibilities:read` (admins hold
@@ -142,6 +147,8 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   // Ungated (Pillar B): an owner sees what their board decided without asking.
   { id: "ledger", label: "Ledger", shortName: "Ledger", icon: "history", path: "/ledger", needs: [] },
   { id: "pay", label: "Payments", shortName: "Pay", icon: "credit-card", path: "/payments", needs: [mod("payments")] },
+  // What the board is waiting on (docs/spec-money-approvals.md). Every board seat.
+  { id: "money-approvals", label: "Approvals", shortName: "Approvals", icon: "stamp", path: "/approvals", needs: [cap("money:read"), mod(["payments", "expenses"])] },
   { id: "my-requests", label: "Requests", shortName: "Requests", icon: "clipboard-list", path: "/requests", needs: [mod("requests")] },
   { id: "projects", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/projects", needs: [mod("projects")] },
   { id: "polls", label: "Polls", shortName: "Polls", icon: "vote", path: "/polls", needs: [mod("polls")] },
@@ -171,7 +178,7 @@ export const NAV_LAYOUTS = {
   admin: ["queue", "dashboard", "people", "responsibilities-register", "comms", "records", "payments", "requests", "settings"],
   manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
   // A board seat's own register sits beside the one owners read.
-  member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "responsibilities", "ledger", "payments", "pay", "my-requests", "projects", "polls"],
+  member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "responsibilities", "ledger", "payments", "money-approvals", "pay", "my-requests", "projects", "polls"],
   /** The mobile sheet's "Navigation" list. */
   sheet: ["home", "board", "documents", "vendors"],
 } as const satisfies Record<string, readonly string[]>;

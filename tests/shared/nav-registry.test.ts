@@ -23,6 +23,7 @@ import {
   pillsOf,
   previewContext,
   routeAllowed,
+  visiblePills,
   type NavContext,
   type NavEntry,
 } from "#core/shared/nav/registry";
@@ -246,6 +247,22 @@ describe("what each role's dock shows", () => {
     expect(dock(PERSONAS.fullService)).not.toContain("payments");
   });
 
+  it("money approvals: every board seat after Money, admins as a Money pill; nobody else (docs/spec-money-approvals.md)", () => {
+    for (const who of ["director", "treasurer", "president"] as const) {
+      const d = dock(PERSONAS[who]);
+      expect(d.indexOf("money-approvals"), who).toBe(d.indexOf("payments") + 1);
+      expect(routeAllowed("/approvals", PERSONAS[who]), who).toBe(true);
+    }
+    for (const who of ["owner", "tenant", "fullService", "manager:projects"] as const) {
+      expect(dock(PERSONAS[who]), who).not.toContain("money-approvals");
+      expect(routeAllowed("/approvals", PERSONAS[who]), who).toBe(false);
+    }
+    expect(dock(PERSONAS.admin)).not.toContain("money-approvals");
+    expect(visiblePills("payments", PERSONAS.admin).map((p) => p.id)).toContain("money-approvals-admin");
+    expect(routeAllowed("/approvals", PERSONAS.admin)).toBe(true);
+    expect(dock(PERSONAS.admin, true, true)).not.toContain("money-approvals");
+  });
+
   it("the responsibilities register: admins and every board seat; a manager with the grant; no owner", () => {
     for (const who of ["admin", "director", "treasurer", "president"] as const) {
       expect(dock(PERSONAS[who]), who).toContain("responsibilities-register");
@@ -309,7 +326,7 @@ describe("what each role's dock shows", () => {
     const es = navEntriesFor("admin", ctx({ admin: true, actors: ["admin"], isEnabled: (k) => k !== "directory" }));
     expect(es.find((e) => e.id === "people")?.path).toBe("/board");
     expect(es.find((e) => e.id === "settings")?.path).toBe("/admin/settings");
-    expect(pillsOf("payments").map((p) => p.id)).toEqual(["payments-admin", "expenses"]);
+    expect(pillsOf("payments").map((p) => p.id)).toEqual(["payments-admin", "expenses", "money-approvals-admin"]);
     expect(isHub("home")).toBe(false);
   });
 });
