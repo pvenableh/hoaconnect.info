@@ -65,6 +65,9 @@ beforeEach(async () => {
   vi.stubGlobal("numericMoney", access.numericMoney);
   vi.stubGlobal("canEnterMoney", access.canEnterMoney);
   vi.stubGlobal("getUserSession", async () => session ?? {});
+  // Which charges have a waiver open: tests/server/money-waivers.test.ts's; here, the read gate.
+  vi.stubGlobal("OPEN_STATES", ["pending", "cannot_approve"]);
+  vi.stubGlobal("loadApprovals", async () => []);
   // Each row's approval and actions are tests/server/money-approvals.test.ts's; here, the read gate.
   vi.stubGlobal("describeExpenses", async (_o: string, rows: any[]) => rows.map(() => ({})));
 });

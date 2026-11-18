@@ -5,6 +5,7 @@
  *   POST /api/org/money/charges/[id]/waive         opens a waive approval (money:enter)
  *   POST /api/org/money/approvals/[id]/decide      approve or reject it; met, the charge is canceled
  *   GET  /api/org/money/approvals                  the charge as the subject (money:read)
+ *   GET  /api/org/money/charges                    which charges have a waiver waiting, and canEnter
  *
  * The board of ORG: Ann (Treasurer), Pat (President), Sam (Secretary), Dee
  * (Director). Ada is an admin with no seat; Max a property manager with the
@@ -77,6 +78,7 @@ const ROUTES = {
   waive: "#core/server/api/org/money/charges/[id]/waive.post",
   approvals: "#core/server/api/org/money/approvals/index.get",
   decide: "#core/server/api/org/money/approvals/[id]/decide.post",
+  charges: "#core/server/api/org/money/charges.get",
 };
 
 const as = (who: Who) => (state.who = who);
@@ -177,6 +179,27 @@ describe("a waiver opens", () => {
     expect((await h.approvals!(ev({ query: { orgId: ORG } }))).approvals[0].canDecide).toBe(false);
     as(WHO.bob);
     await expect(h.approvals!(ev({ query: { orgId: ORG } }))).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe("the Charges read", () => {
+  it("marks a charge whose waiver is waiting, and says who may ask (money:enter)", async () => {
+    as(WHO.ann);
+    await waive();
+    const res = await h.charges!(ev({ query: { orgId: ORG } }));
+    expect(res.viewer).toEqual({ canEnter: true });
+    expect(res.charges.find((c: any) => c.id === C.open).waiver_pending).toBe(true);
+    expect(res.charges.find((c: any) => c.id === C.partly).waiver_pending).toBe(false);
+    expect(res.charges.some((c: any) => c.id === C.other)).toBe(false);
+  });
+
+  it("no longer marks it once the waiver is settled", async () => {
+    as(WHO.ann);
+    const { approval } = await waive();
+    as(WHO.pat);
+    await decide(approval.id, "reject");
+    const res = await h.charges!(ev({ query: { orgId: ORG } }));
+    expect(res.charges.find((c: any) => c.id === C.open).waiver_pending).toBe(false);
   });
 });
 

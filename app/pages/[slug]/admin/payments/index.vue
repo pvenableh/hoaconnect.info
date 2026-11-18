@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { HoaMember, HoaOrganization, PaymentRequest, PaymentSchedule } from "#core/types/directus";
+import { isCountedExpense } from "#core/shared/expenses/expense-writes";
 import { toast } from "vue-sonner";
 
-// nav-gate: admins, and every board seat (money:read) read-only.
-// Every write here is admin-only on the server, so `canWrite` hides it.
+// nav-gate: admins, and every board seat (money:read).
+// New charges, recurring charges and Mark paid are admin-only on the server,
+// so `canWrite` hides them. Nobody cancels a charge directly: Ask to waive
+// (money:enter: admins and every board seat) sends it to the board for
+// approval, like spending (docs/spec-money-approvals.md).
 definePageMeta({
   middleware: ["nav-gate", "subscription"],
   layout: "auth",
@@ -30,7 +34,7 @@ const TABS = [
 // --- Data ---------------------------------------------------------------
 // Charges are a resource (docs/spec-resource-scaffold.md): the index below and
 // the charge panel share these rows, read through /api/org/money/charges.
-const { resource: charges, markPaid, markingId } = useChargesResource(selectedOrgId);
+const { resource: charges, markPaid, markingId, askWaive, waivingId, canEnter } = useChargesResource(selectedOrgId);
 const requests = computed(() => charges.rows);
 
 const { data: schedules, refresh: refreshSchedules } = await useAsyncData(
@@ -57,11 +61,14 @@ const { data: members } = await useAsyncData(
   { watch: [selectedOrgId], server: false }
 );
 
-const { data: expenses } = await useAsyncData(
+const { data: allExpenses } = await useAsyncData(
   `admin-payments-expenses-${selectedOrgId.value}`,
   () => listExpenses(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
+// What went out or is committed, as the Expenses page totals it: a draft, a
+// rejection or a void is not money spent.
+const expenses = computed(() => (allExpenses.value || []).filter(isCountedExpense));
 
 // Opening balance (Settings → Payments) — seeds the running balance in Reports.
 // Fetched here rather than off useSelectedOrg's membership payload, which
@@ -360,33 +367,36 @@ const TYPE_FILTERS = [
         <template #cell-actions="{ row }">
           <!-- A control here must not also open the row. -->
           <div class="flex items-center justify-end gap-2" @click.stop @keydown.stop>
-            <template v-if="canWrite && isOpenCharge(row)">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                :disabled="markingId === row.id"
-                aria-label="Mark as paid"
-                title="Mark as paid"
-                @click="markPaid(row)"
-              >
-                <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
-                <Icon v-else name="lucide:check" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                  <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
-                    <Icon name="lucide:more-horizontal" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem class="text-destructive" @click="charges.remove(row)">
-                    <Icon name="lucide:x" class="w-4 h-4 mr-2" />
-                    {{ charges.removeLabel }}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </template>
-            <span v-else class="t-text-muted text-xs px-2">—</span>
+            <span v-if="row.waiver_pending && isOpenCharge(row)" class="text-xs t-text-muted px-2">Waiver awaiting approval</span>
+            <Button
+              v-if="canWrite && isOpenCharge(row)"
+              variant="outline"
+              size="icon-sm"
+              :disabled="markingId === row.id"
+              aria-label="Mark as paid"
+              title="Mark as paid"
+              @click="markPaid(row)"
+            >
+              <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
+              <Icon v-else name="lucide:check" />
+            </Button>
+            <DropdownMenu v-if="canAskToWaive(row, canEnter)">
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                  <Icon name="lucide:more-horizontal" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem :disabled="waivingId === row.id" @click="askWaive(row)">
+                  <Icon name="lucide:hand-coins" class="w-4 h-4 mr-2" />
+                  Ask to Waive
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span
+              v-if="!(row.waiver_pending && isOpenCharge(row)) && !(canWrite && isOpenCharge(row)) && !canAskToWaive(row, canEnter)"
+              class="t-text-muted text-xs px-2"
+            >—</span>
           </div>
         </template>
       </AppResourceIndex>

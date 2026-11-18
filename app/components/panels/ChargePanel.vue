@@ -5,8 +5,10 @@
 
   Reads the row from the Charges resource (`reuse: true`), so over its index it
   makes no request, and a deep link loads through the same gated route
-  (GET /api/org/money/charges, money:read). Actions are admin-only, as on the
-  index: a board seat reading the books sees the same facts and no controls.
+  (GET /api/org/money/charges, money:read). Mark Paid is an admin's, as on the
+  index; Ask to waive is any money:enter holder's (admins, every board seat),
+  and a charge whose waiver awaits approval says so instead. Nobody cancels a
+  charge directly (docs/spec-money-approvals.md).
 -->
 <script setup lang="ts">
 import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
@@ -23,7 +25,7 @@ defineEmits<{ (e: "close"): void }>();
 
 const { selectedOrgId } = await useSelectedOrg();
 const { isAdminOfCurrentDomain: canWrite } = useCurrentDomainAccess();
-const { resource, markPaid, markingId } = useChargesResource(selectedOrgId, { reuse: true });
+const { resource, markPaid, markingId, askWaive, waivingId, canEnter } = useChargesResource(selectedOrgId, { reuse: true });
 
 const charge = computed(() => resource.find(props.id));
 const open = computed(() => !!charge.value && isOpenCharge(charge.value));
@@ -63,8 +65,9 @@ const timeline = computed(() => {
     :page="page"
     @close="$emit('close')"
   >
-    <template v-if="canWrite && charge && open" #actions>
+    <template v-if="charge && open && (canWrite || canAskToWaive(charge, canEnter))" #actions>
       <Button
+        v-if="canWrite"
         size="sm"
         class="rounded-full"
         :disabled="markingId === charge.id"
@@ -74,16 +77,16 @@ const timeline = computed(() => {
         <Icon v-else name="lucide:check" class="w-4 h-4 mr-1.5" />
         Mark Paid
       </Button>
-      <DropdownMenu>
+      <DropdownMenu v-if="canAskToWaive(charge, canEnter)">
         <DropdownMenuTrigger as-child>
           <Button variant="ghost" size="icon-sm" aria-label="More actions">
             <Icon name="lucide:more-horizontal" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem class="text-destructive" @click="resource.remove(charge)">
-            <Icon name="lucide:x" class="w-4 h-4 mr-2" />
-            {{ resource.removeLabel }}
+          <DropdownMenuItem :disabled="waivingId === charge.id" @click="askWaive(charge)">
+            <Icon name="lucide:hand-coins" class="w-4 h-4 mr-2" />
+            Ask to Waive
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -104,12 +107,15 @@ const timeline = computed(() => {
     <div v-else class="space-y-6">
       <!-- Summary strip: where it stands, and how much is still owed. -->
       <div class="charge-panel__summary">
-        <span
-          class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize"
-          :class="CHARGE_STATUS_CLASS[charge.status as string]"
-        >
-          {{ charge.status }}
-        </span>
+        <div class="flex flex-col items-start gap-1">
+          <span
+            class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize"
+            :class="CHARGE_STATUS_CLASS[charge.status as string]"
+          >
+            {{ charge.status }}
+          </span>
+          <span v-if="charge.waiver_pending && open" class="type-meta t-text-muted">Waiver awaiting approval</span>
+        </div>
         <div class="text-right">
           <p class="type-meta t-text-muted">{{ open ? "Amount due" : "Amount" }}</p>
           <p class="text-2xl font-semibold tabular-nums t-text">

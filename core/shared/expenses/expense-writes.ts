@@ -150,6 +150,14 @@ export function editPlan(status: unknown, current: Record<string, unknown>, patc
   }
 }
 
+/**
+ * The expenses a total counts: what went out or is committed. Not a draft
+ * (someone typing), a rejection or a void. The Expenses page and the Charges
+ * page's money overview add up the same rows.
+ */
+export const COUNTED_EXPENSE_STATUSES: readonly string[] = ["submitted", "approved", "paid"];
+export const isCountedExpense = (e: { status?: unknown }) => COUNTED_EXPENSE_STATUSES.includes(String(e.status ?? ""));
+
 export type ExpenseAction = "edit" | "submit" | "pay" | "void" | "ask_void" | "delete";
 
 export interface ExpenseFacts {

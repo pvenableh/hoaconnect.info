@@ -3,9 +3,12 @@
  * (/api/org/money/*, /api/org/expenses), which admits admins and every board
  * seat (`money:read`, plan decision 16). Org-wide money is never read from
  * Directus on the client, so the Member policy can narrow to a member's own
- * charges. Writes are not here: they stay admin-only.
+ * charges. Writes are not here: each is a route of its own.
  */
 import type { PaymentExpense, PaymentRequest, PaymentSchedule } from "#core/types/directus";
+
+/** A charge as the Charges page reads it: whether a waiver of it awaits approval. */
+export type ChargeRow = PaymentRequest & { waiver_pending?: boolean };
 
 export function useMoneyReads() {
   const listCharges = async (orgId: string, opts: { limit?: number; view?: "glance" } = {}): Promise<PaymentRequest[]> => {
@@ -13,6 +16,14 @@ export function useMoneyReads() {
       query: { orgId, ...opts },
     });
     return res?.charges ?? [];
+  };
+
+  /** The charges, and whether the caller may ask to waive one (money:enter). */
+  const listChargesWithViewer = async (orgId: string, opts: { limit?: number } = {}): Promise<{ charges: ChargeRow[]; canEnter: boolean }> => {
+    const res = await $fetch<{ charges: ChargeRow[]; viewer?: { canEnter?: boolean } }>("/api/org/money/charges", {
+      query: { orgId, ...opts },
+    });
+    return { charges: res?.charges ?? [], canEnter: res?.viewer?.canEnter === true };
   };
 
   const listSchedules = async (orgId: string, opts: { limit?: number } = {}): Promise<PaymentSchedule[]> => {
@@ -27,5 +38,5 @@ export function useMoneyReads() {
     return res?.expenses ?? [];
   };
 
-  return { listCharges, listSchedules, listExpenses };
+  return { listCharges, listChargesWithViewer, listSchedules, listExpenses };
 }

@@ -2,6 +2,7 @@
 import type { PaymentExpense } from "#core/types/directus";
 import type { ProjectRow } from "#core/app/composables/useProjects";
 import type { ExpenseRow } from "#core/app/composables/useExpenses";
+import { isCountedExpense } from "#core/shared/expenses/expense-writes";
 import { toast } from "vue-sonner";
 
 // nav-gate: admins and every board seat (money:read). What anyone may DO to a
@@ -45,8 +46,7 @@ const filtered = computed(() => {
 });
 
 // What went out or is committed: not drafts, rejections or voids.
-const COUNTED = new Set(["submitted", "approved", "paid"]);
-const total = computed(() => filtered.value.filter((e) => COUNTED.has(String(e.status))).reduce((s, e) => s + (e.amount || 0), 0));
+const total = computed(() => filtered.value.filter(isCountedExpense).reduce((s, e) => s + (e.amount || 0), 0));
 
 // --- Form (create / edit) ----------------------------------------------
 const showForm = ref(false);
