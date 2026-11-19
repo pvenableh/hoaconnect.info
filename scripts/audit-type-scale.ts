@@ -26,8 +26,11 @@ import { findRawTypeSizes } from "./lib/audit-matchers";
  *
  * 2026-11-18 (Phase 4, Session 16) — **282**: the floating View bar is one
  * small button on the public preview.
+ *
+ * 2026-11-19 (shadcn census cleanup) — **277**: the header breadcrumb and
+ * BackLink wear `type-micro` instead of `text-[11px]` tracked caps.
  */
-const BASELINE = 278;
+const BASELINE = 277;
 
 runFileAudit({
   name: "type-scale",

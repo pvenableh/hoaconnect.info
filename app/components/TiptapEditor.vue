@@ -726,8 +726,7 @@ const getFileIcon = (file: DirectusFile): string => {
               class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-alt hover:t-border-accent transition-colors"
               @click="navigateToFolder(folder.id, folder.name || 'Folder')"
             >
-              <!-- allow-color-literal: the folder glyph's conventional amber (text-warning is darker) -->
-              <Icon name="lucide:folder" class="w-10 h-10 text-amber-500 mb-2" />
+              <Icon name="lucide:folder" class="w-10 h-10 text-warning mb-2" />
               <span class="text-sm text-center truncate w-full">
                 {{ folder.name || "Folder" }}
               </span>

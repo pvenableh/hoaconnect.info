@@ -90,7 +90,7 @@ const crumbs = computed<Crumb[]>(() => {
   <div v-if="crumbs.length > 1" class="t-bg-elevated border-b t-border">
     <nav
       :class="[
-        'mx-auto w-full px-4 sm:px-6 py-2 flex items-center gap-1.5 text-[11px] uppercase tracking-widest t-text-muted',
+        'type-micro mx-auto w-full px-4 sm:px-6 py-2 flex items-center gap-1.5 t-text-muted',
         pageWide ? 'max-w-7xl' : 'max-w-6xl',
       ]"
       aria-label="Breadcrumb"
