@@ -1,7 +1,6 @@
 <!--
   AppDropdownMenuContent — a menu: the same floating chrome as Popover
-  and Combobox. (Submenus: the stock DropdownMenuSubContent has no app users yet;
-  give it a wrapper like this one when it gets one.)
+  and Combobox. A submenu wears the same through <AppDropdownMenuSubContent>.
 
   The stock shadcn-vue <DropdownMenuContent> (left as shipped in app/components/ui/, so it can
   be updated by re-pulling it) wearing the workspace material. `.glass-surface`

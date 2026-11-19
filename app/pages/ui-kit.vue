@@ -523,6 +523,13 @@ const materials = [
               <DropdownMenuSeparator />
               <DropdownMenuItem>Edit</DropdownMenuItem>
               <DropdownMenuItem>Archive</DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger data-kit-open="submenu">Move to</DropdownMenuSubTrigger>
+                <AppDropdownMenuSubContent>
+                  <DropdownMenuItem>Building A</DropdownMenuItem>
+                  <DropdownMenuItem>Building B</DropdownMenuItem>
+                </AppDropdownMenuSubContent>
+              </DropdownMenuSub>
             </AppDropdownMenuContent>
           </DropdownMenu>
 
