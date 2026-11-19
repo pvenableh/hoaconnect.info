@@ -325,13 +325,13 @@ const authorName = computed(() =>
           <span class="text-xs t-text-muted">
             {{ getRelativeTime(message.date_created) }}
           </span>
-          <Badge
+          <AppBadge
             v-if="message.is_edited"
             variant="outline"
             class="text-xs py-0"
           >
             edited
-          </Badge>
+          </AppBadge>
         </div>
 
         <!-- Message Content -->

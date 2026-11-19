@@ -78,8 +78,8 @@ const copyCitation = async () => {
 
         <div class="ios-card p-5 space-y-3">
           <div v-if="provision.review_state === 'ocr_draft' || provision.uncertain" class="flex flex-wrap gap-2">
-            <Badge v-if="provision.review_state === 'ocr_draft'" variant="secondary">Not yet reviewed</Badge>
-            <Badge v-if="provision.uncertain" variant="secondary">Uncertain reading</Badge>
+            <AppBadge v-if="provision.review_state === 'ocr_draft'" variant="secondary">Not yet reviewed</AppBadge>
+            <AppBadge v-if="provision.uncertain" variant="secondary">Uncertain reading</AppBadge>
           </div>
           <p class="governing-text type-body t-text">{{ provision.text }}</p>
         </div>

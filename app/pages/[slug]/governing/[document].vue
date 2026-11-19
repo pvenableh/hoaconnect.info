@@ -116,7 +116,7 @@ onMounted(scrollToHash);
 
         <div class="ios-card p-4 space-y-3">
           <div class="flex flex-wrap items-center gap-2">
-            <Badge v-if="doc.status !== 'published'" variant="secondary">{{ statusLabel(doc.status) }}</Badge>
+            <AppBadge v-if="doc.status !== 'published'" variant="secondary">{{ statusLabel(doc.status) }}</AppBadge>
             <span class="type-meta t-text-muted">
               {{ provisions.length }} {{ provisions.length === 1 ? "provision" : "provisions" }}
             </span>
@@ -224,8 +224,8 @@ onMounted(scrollToHash);
                       {{ p.citation ?? p.original_label ?? "Draft provision" }}<template v-if="p.heading"> · {{ p.heading }}</template>
                     </NuxtLink>
                   </h2>
-                  <Badge v-if="p.review_state === 'ocr_draft'" variant="secondary">Not yet reviewed</Badge>
-                  <Badge v-if="p.uncertain" variant="secondary">Uncertain reading</Badge>
+                  <AppBadge v-if="p.review_state === 'ocr_draft'" variant="secondary">Not yet reviewed</AppBadge>
+                  <AppBadge v-if="p.uncertain" variant="secondary">Uncertain reading</AppBadge>
                 </div>
                 <p class="governing-text type-body t-text-secondary">{{ p.text }}</p>
               </section>

@@ -10,9 +10,9 @@
               Your active subscription details
             </CardDescription>
           </div>
-          <Badge :variant="statusVariant">
+          <AppBadge :variant="statusVariant">
             {{ statusLabel }}
-          </Badge>
+          </AppBadge>
         </div>
       </CardHeader>
       <CardContent>
@@ -131,7 +131,7 @@
             <div>
               <div class="flex items-center gap-2">
                 <p class="font-medium">{{ addon.name }}</p>
-                <Badge variant="secondary">{{ addon.blurb }}</Badge>
+                <AppBadge variant="secondary">{{ addon.blurb }}</AppBadge>
               </div>
               <p class="text-sm text-muted-foreground mt-0.5">{{ addon.description }}</p>
               <p class="text-sm font-medium mt-1">${{ addon.monthlyPrice }}/mo</p>

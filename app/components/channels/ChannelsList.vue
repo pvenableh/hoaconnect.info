@@ -374,13 +374,13 @@ const selectChannel = (channel: HoaChannel) => {
                 {{ row.ch.name }}
               </span>
               <span v-if="unreadFor(row.ch)" class="channel-badge ml-auto">{{ unreadLabel(row.ch) }}</span>
-              <Badge
+              <AppBadge
                 v-else-if="row.ch.is_default"
                 variant="secondary"
                 class="ml-auto text-xs py-0"
               >
                 default
-              </Badge>
+              </AppBadge>
             </button>
             <button
               v-if="props.isAdmin"

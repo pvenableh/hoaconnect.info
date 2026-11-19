@@ -110,7 +110,7 @@ const remove = async (source: GovSource) => {
         <div class="flex-1 min-w-0 space-y-1">
           <p class="type-body t-text break-words">{{ source.filename ?? "Original document" }}</p>
           <div class="flex flex-wrap items-center gap-2">
-            <Badge v-for="label in sourceLabels(source)" :key="label" variant="secondary">{{ label }}</Badge>
+            <AppBadge v-for="label in sourceLabels(source)" :key="label" variant="secondary">{{ label }}</AppBadge>
             <span v-if="detail(source)" class="type-meta t-text-muted">{{ detail(source) }}</span>
           </div>
           <p v-if="source.notes" class="type-meta t-text-secondary whitespace-pre-wrap">{{ source.notes }}</p>

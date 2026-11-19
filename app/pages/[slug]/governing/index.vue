@@ -114,7 +114,7 @@ const runSearch = async () => {
                     <span>{{ doc.provision_count }} {{ doc.provision_count === 1 ? "provision" : "provisions" }}</span>
                   </p>
                 </div>
-                <Badge v-if="doc.status !== 'published'" variant="secondary">{{ statusLabel(doc.status) }}</Badge>
+                <AppBadge v-if="doc.status !== 'published'" variant="secondary">{{ statusLabel(doc.status) }}</AppBadge>
                 <Icon name="lucide:chevron-right" class="w-4 h-4 t-text-muted shrink-0 mt-1" />
               </div>
             </NuxtLink>

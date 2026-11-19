@@ -308,7 +308,7 @@ const blockerText = computed(() => {
 
         <div class="ios-card p-4 space-y-3" data-testid="governing-review-summary">
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Badge variant="secondary">{{ statusLabel(doc.status) }}</Badge>
+            <AppBadge variant="secondary">{{ statusLabel(doc.status) }}</AppBadge>
             <span class="type-meta t-text-secondary flex-1 min-w-0">
               {{ reviewedCount }} of {{ provisions.length }} {{ provisions.length === 1 ? "provision" : "provisions" }} reviewed
               <template v-if="isDraft && blockerText"> · {{ blockerText }}</template>
@@ -436,7 +436,7 @@ const blockerText = computed(() => {
                 >
                   <Icon name="lucide:grip-vertical" class="w-4 h-4" />
                 </span>
-                <Badge :variant="p.review_state === 'ocr_draft' ? 'secondary' : 'default'">{{ REVIEW_STATE_LABELS[p.review_state] }}</Badge>
+                <AppBadge :variant="p.review_state === 'ocr_draft' ? 'secondary' : 'default'">{{ REVIEW_STATE_LABELS[p.review_state] }}</AppBadge>
                 <span class="type-meta t-text-muted">{{ indexOf(p) + 1 }} of {{ provisions.length }}</span>
                 <span
                   v-for="m in markerList(p)"

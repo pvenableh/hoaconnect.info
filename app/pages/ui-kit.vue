@@ -454,6 +454,12 @@ const materials = [
             <ActionButton icon="lucide:pencil" size="xs" variant="primary" title="Edit" />
             <ActionButton icon="lucide:trash-2" size="xs" variant="destructive" title="Delete" />
           </div>
+          <div class="flex flex-wrap items-center gap-2" data-kit="badges">
+            <AppBadge>Active</AppBadge>
+            <AppBadge variant="secondary">Draft</AppBadge>
+            <AppBadge variant="outline">Suggested by AI</AppBadge>
+            <AppBadge variant="destructive">Bounced</AppBadge>
+          </div>
         </div>
       </section>
 

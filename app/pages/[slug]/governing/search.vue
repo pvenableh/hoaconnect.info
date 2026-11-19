@@ -224,7 +224,7 @@ const relationshipsOf = (r: GoverningSearchResult) => [...new Set(r.flags.map((f
                 <template v-if="r.excerpt.clippedEnd"> …</template>
               </p>
               <div v-if="r.flags.length" class="flex flex-wrap gap-1.5 pt-1">
-                <Badge v-for="rel in relationshipsOf(r)" :key="rel" variant="secondary">{{ RELATIONSHIP_LABELS[rel] }}</Badge>
+                <AppBadge v-for="rel in relationshipsOf(r)" :key="rel" variant="secondary">{{ RELATIONSHIP_LABELS[rel] }}</AppBadge>
               </div>
             </NuxtLink>
           </li>

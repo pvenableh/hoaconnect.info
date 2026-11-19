@@ -577,12 +577,12 @@ useSeoMeta({
                         :class="getEventColorClass(row.event)"
                         class="w-5 h-5"
                       />
-                      <Badge
+                      <AppBadge
                         :variant="row.event === 'bounce' ? 'destructive' : 'secondary'"
                         class="capitalize"
                       >
                         {{ row.event }}
-                      </Badge>
+                      </AppBadge>
                     </div>
                   </template>
                   <template #cell-recipient="{ row }">

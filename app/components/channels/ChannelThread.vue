@@ -733,10 +733,10 @@ onBeforeUnmount(() => {
           </AppDropdownMenuContent>
         </DropdownMenu>
 
-        <Badge :variant="isConnected ? 'default' : 'destructive'" class="text-xs hidden sm:inline-flex">
+        <AppBadge :variant="isConnected ? 'default' : 'destructive'" class="text-xs hidden sm:inline-flex">
           <Icon :name="isConnected ? 'lucide:wifi' : 'lucide:wifi-off'" class="w-3 h-3 mr-1" />
           {{ isConnected ? "Connected" : "Disconnected" }}
-        </Badge>
+        </AppBadge>
       </div>
     </header>
 

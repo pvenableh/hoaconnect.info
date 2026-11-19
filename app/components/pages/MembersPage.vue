@@ -1180,9 +1180,9 @@ useSeoMeta({
                     <span v-else>{{ formatUnits(row) }}</span>
                   </template>
                   <template #cell-status="{ row }">
-                    <Badge :variant="statusBadgeVariant(row.status)" class="capitalize">
+                    <AppBadge :variant="statusBadgeVariant(row.status)" class="capitalize">
                       {{ row.status }}
-                    </Badge>
+                    </AppBadge>
                   </template>
                   <!--
                     Three states, never two: "has an account", "invited, not
@@ -1191,13 +1191,13 @@ useSeoMeta({
                     replaces collapsed the last two into "No".
                   -->
                   <template #cell-onboarding="{ row }">
-                    <Badge
+                    <AppBadge
                       :variant="onboardingBadgeVariant(memberOnboarding(row)?.state)"
                       :title="onboardingHint(row)"
                     >
                       {{ memberOnboarding(row)?.label || "—" }}
                       <span v-if="memberOnboarding(row)?.expired" class="ml-1 opacity-70">· expired</span>
-                    </Badge>
+                    </AppBadge>
                   </template>
                   <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-2">

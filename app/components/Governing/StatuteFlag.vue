@@ -156,9 +156,9 @@ const saveEdit = async () => {
         <p v-if="flag.topic" class="type-meta t-text-muted">{{ flag.topic }}</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <Badge v-if="!isQuiet" variant="secondary">{{ SEVERITY_LABELS[flag.severity] ?? flag.severity }} severity</Badge>
-        <Badge v-if="showStatus" variant="secondary">{{ FLAG_STATUS_LABELS[flag.status] }}</Badge>
-        <Badge v-if="manages && flag.origin === 'ai_suggested'" variant="outline" data-testid="governing-flag-ai">Suggested by AI</Badge>
+        <AppBadge v-if="!isQuiet" variant="secondary">{{ SEVERITY_LABELS[flag.severity] ?? flag.severity }} severity</AppBadge>
+        <AppBadge v-if="showStatus" variant="secondary">{{ FLAG_STATUS_LABELS[flag.status] }}</AppBadge>
+        <AppBadge v-if="manages && flag.origin === 'ai_suggested'" variant="outline" data-testid="governing-flag-ai">Suggested by AI</AppBadge>
       </div>
     </div>
 
